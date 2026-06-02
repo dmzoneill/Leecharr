@@ -76,6 +76,7 @@ Leecher/
 │   ├── protocols.md                 # BitTorrent BEPs, MSE/PE, uTP, DHT
 │   ├── deluge-requirements.md       # Deluge architecture, status keys, plugins & RPC
 │   ├── webhooks.md                  # Servarr webhook triggers, payload schemas & delivery
+│   ├── indexers.md                  # Torznab/Newznab indexer client, search & Prowlarr sync
 │   ├── api.md                       # REST API v1 & RPC compatibility specs
 │   └── development.md               # Local development setup
 └── src/
@@ -175,13 +176,21 @@ Full Servarr-standard notification and webhook connection support (See [docs/web
 - **Rich JSON Payloads:** Dispatches complete torrent metadata, enriched Sonarr/Radarr/Lidarr titles, season/episode details, 4K/HDR/Atmos stream specifications, file trees, and artwork URLs.
 - **Reliable Dispatch Pipeline:** Polly resilience with exponential backoff (2s, 4s, 8s), 10s timeouts, SSRF safe URL validation, and HTTP Basic Authentication / custom headers.
 
-### 7. UI Scope (MVP vs Extended)
+### 7. Direct Indexer Support & Integrated Search
+Native Torznab and Newznab client integration with interactive discovery UI (See [docs/indexers.md](file:///home/daoneill/src/usr/seedarr/Leecher/docs/indexers.md)):
+- **Multi-Protocol Indexer Providers:** Support for Torznab (BitTorrent) and Newznab (Usenet) indexer endpoints (`t=caps`, `t=search`, `t=tvsearch`, `t=movie`).
+- **Prowlarr Dynamic Synchronization:** Automatically synchronizes and imports configured indexers directly from a linked Prowlarr instance.
+- **Interactive Search & Browse:** Full-text multi-indexer search with category chips, min-seeder filtering, and Freeleech badges (`downloadvolumefactor == 0`).
+- **One-Click Grab:** Direct addition of search results into download queue with pre-mapped categories and pre-download file selection.
+
+### 8. UI Scope (MVP vs Extended)
 - **MVP UI Scope:**
   - Media Poster Grid View with status overlays & badges.
   - Media Banner / Season hierarchy view.
   - High-density data table with column customizer.
   - Interactive Piece Map visualizer & Peer Swarm Inspector.
   - Torrent File Tree with selective download checkboxes and file priorities (*Skip, Low, Normal, High*).
-  - Category, Speed Schedule, Webhook Connections, and Network Settings tabs.
+  - Direct Indexer Search & Browse modal with one-click download.
+  - Category, Speed Schedule, Webhook Connections, and Indexer Settings tabs.
 - **Extended Features (Post-MVP):**
   - In-browser HTML5 video/audio streaming player.
