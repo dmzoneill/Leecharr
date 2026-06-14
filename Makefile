@@ -60,3 +60,7 @@ coverage-report:
 	fi
 
 test-all: test integration
+
+container-build:
+	podman build -t leecharr:latest -f Containerfile . || docker build -t leecharr:latest -f Containerfile .
+
