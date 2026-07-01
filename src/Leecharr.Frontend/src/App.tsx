@@ -2,13 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api/client';
 import { signalRManager } from './api/signalr';
 import { Torrent, Category } from './api/types';
+import { PieceMapModal } from './components/PieceMapModal';
+import { PeersModal } from './components/PeersModal';
+import { FilesModal } from './components/FilesModal';
+import { IndexerSearchModal } from './components/IndexerSearchModal';
 import './App.css';
 
 export function App() {
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
+  const [activePieceMapTorrent, setActivePieceMapTorrent] = useState<Torrent | null>(null);
+  const [activePeersTorrent, setActivePeersTorrent] = useState<Torrent | null>(null);
+  const [activeFilesTorrent, setActiveFilesTorrent] = useState<Torrent | null>(null);
+
+  // Form state
   const [magnetInput, setMagnetInput] = useState<string>('');
   const [categoryInput, setCategoryInput] = useState<string>('');
   const [isPausedInput, setIsPausedInput] = useState<boolean>(false);
@@ -80,8 +93,8 @@ export function App() {
       <header className="app-header">
         <div className="brand-section">
           <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#0284c7" />
-            <path d="M16 6 L16 20 M10 14 L16 20 L22 14 M8 24 L24 24" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <rect width="32" height="32" rx="8" fill="#ffd166" />
+            <path d="M16 6 L16 20 M10 14 L16 20 L22 14 M8 24 L24 24" stroke="#10111a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="brand-title">Leecharr</span>
         </div>
@@ -98,6 +111,9 @@ export function App() {
         </div>
 
         <div className="header-actions">
+          <button className="btn btn-secondary" onClick={() => setShowSearchModal(true)}>
+            🔍 Search Indexers
+          </button>
           <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
             + Add Torrent
           </button>
@@ -127,63 +143,145 @@ export function App() {
               );
             })}
           </div>
+
+          <div className="view-mode-toggle">
+            <button
+              className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Poster Grid"
+            >
+              Grid
+            </button>
+            <button
+              className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Data Table"
+            >
+              Table
+            </button>
+          </div>
         </div>
 
-        {/* Media Poster Grid */}
-        <div className="poster-grid">
-          {filteredTorrents.map((t) => (
-            <div key={t.id} className="torrent-card">
-              <div className="card-poster">
-                {t.posterUrl ? (
-                  <img src={t.posterUrl} alt={t.name} />
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
-                    No Poster
-                  </div>
-                )}
-                <div className="poster-overlay">
-                  {t.resolution && <span className="badge badge-4k">{t.resolution}</span>}
-                  {t.hdrFormat && <span className="badge badge-hdr">{t.hdrFormat}</span>}
-                  {t.audioCodec && <span className="badge badge-audio">{t.audioCodec}</span>}
-                </div>
-              </div>
-
-              <div className="card-body">
-                <div className="card-title" title={t.name}>
-                  {t.mediaTitle || t.name}
-                </div>
-                <div className="card-subtitle">
-                  <span>{formatSize(t.totalSize)}</span>
-                  <span>{(t.progress * 100).toFixed(1)}%</span>
-                </div>
-
-                <div className="progress-bar-container">
-                  <div
-                    className={`progress-bar-fill ${t.status === 'seeding' ? 'seeding' : ''}`}
-                    style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
-                  />
-                </div>
-
-                <div className="card-subtitle" style={{ marginTop: '4px' }}>
-                  <span>{t.status}</span>
-                  <span>Ratio: {t.ratio.toFixed(2)}</span>
-                </div>
-
-                <div className="card-actions">
-                  {t.status === 'paused' ? (
-                    <button onClick={() => api.resumeTorrent(t.id).then(loadData)}>Resume</button>
+        {/* Poster Grid View */}
+        {viewMode === 'grid' ? (
+          <div className="poster-grid">
+            {filteredTorrents.map((t) => (
+              <div key={t.id} className="torrent-card">
+                <div className="card-poster">
+                  {t.posterUrl ? (
+                    <img src={t.posterUrl} alt={t.name} />
                   ) : (
-                    <button onClick={() => api.pauseTorrent(t.id).then(loadData)}>Pause</button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
+                      No Poster
+                    </div>
                   )}
-                  <button onClick={() => api.recheckTorrent(t.id).then(loadData)}>Recheck</button>
-                  <button onClick={() => api.deleteTorrent(t.id, false).then(loadData)} style={{ color: '#ef4444' }}>
-                    Delete
-                  </button>
+                  <div className="poster-overlay">
+                    {t.resolution && <span className="badge badge-4k">{t.resolution}</span>}
+                    {t.hdrFormat && <span className="badge badge-hdr">{t.hdrFormat}</span>}
+                    {t.audioCodec && <span className="badge badge-audio">{t.audioCodec}</span>}
+                  </div>
+                </div>
+
+                <div className="card-body">
+                  <div className="card-title" title={t.name}>
+                    {t.mediaTitle || t.name}
+                  </div>
+                  <div className="card-subtitle">
+                    <span>{formatSize(t.totalSize)}</span>
+                    <span>{(t.progress * 100).toFixed(1)}%</span>
+                  </div>
+
+                  <div className="progress-bar-container">
+                    <div
+                      className={`progress-bar-fill ${t.status === 'seeding' ? 'seeding' : ''}`}
+                      style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="card-subtitle" style={{ marginTop: '4px' }}>
+                    <span>{t.status}</span>
+                    <span>Ratio: {t.ratio.toFixed(2)}</span>
+                  </div>
+
+                  <div className="card-inspect-actions">
+                    <button className="btn-chip" onClick={() => setActivePieceMapTorrent(t)}>🗺 Map</button>
+                    <button className="btn-chip" onClick={() => setActivePeersTorrent(t)}>👥 Swarm</button>
+                    <button className="btn-chip" onClick={() => setActiveFilesTorrent(t)}>📁 Files</button>
+                  </div>
+
+                  <div className="card-actions">
+                    {t.status === 'paused' ? (
+                      <button onClick={() => api.resumeTorrent(t.id).then(loadData)}>Resume</button>
+                    ) : (
+                      <button onClick={() => api.pauseTorrent(t.id).then(loadData)}>Pause</button>
+                    )}
+                    <button onClick={() => api.recheckTorrent(t.id).then(loadData)}>Recheck</button>
+                    <button onClick={() => api.deleteTorrent(t.id, false).then(loadData)} style={{ color: 'var(--accent-red)' }}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          /* High-Density Data Table View */
+          <div className="table-responsive">
+            <table className="torrents-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Size</th>
+                  <th>Progress</th>
+                  <th>Status</th>
+                  <th>Down Speed</th>
+                  <th>Up Speed</th>
+                  <th>Seeds</th>
+                  <th>Peers</th>
+                  <th>Ratio</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTorrents.map((t) => (
+                  <tr key={t.id}>
+                    <td className="torrent-title-cell" title={t.name}>
+                      <strong>{t.mediaTitle || t.name}</strong>
+                    </td>
+                    <td><span className="category-chip">{t.category || 'none'}</span></td>
+                    <td>{formatSize(t.totalSize)}</td>
+                    <td>
+                      <div className="mini-progress-bar">
+                        <div className="mini-progress-fill" style={{ width: `${t.progress * 100}%` }}></div>
+                      </div>
+                      <span className="progress-text">{(t.progress * 100).toFixed(1)}%</span>
+                    </td>
+                    <td><span className={`status-badge status-${t.status}`}>{t.status}</span></td>
+                    <td className="speed-down">{formatSpeed(t.downloadSpeed)}</td>
+                    <td className="speed-up">{formatSpeed(t.uploadSpeed)}</td>
+                    <td>{t.seeders || 0}</td>
+                    <td>{t.leechers || 0}</td>
+                    <td>{t.ratio.toFixed(2)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button className="btn-icon" onClick={() => setActivePieceMapTorrent(t)} title="Piece Map">🗺</button>
+                        <button className="btn-icon" onClick={() => setActivePeersTorrent(t)} title="Peers">👥</button>
+                        <button className="btn-icon" onClick={() => setActiveFilesTorrent(t)} title="Files">📁</button>
+                        {t.status === 'paused' ? (
+                          <button className="btn-icon" onClick={() => api.resumeTorrent(t.id).then(loadData)} title="Resume">▶</button>
+                        ) : (
+                          <button className="btn-icon" onClick={() => api.pauseTorrent(t.id).then(loadData)} title="Pause">⏸</button>
+                        )}
+                        <button className="btn-icon btn-delete" onClick={() => api.deleteTorrent(t.id, false).then(loadData)} title="Delete">🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
 
       {/* Add Modal */}
@@ -236,6 +334,38 @@ export function App() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Indexer Search Modal */}
+      {showSearchModal && (
+        <IndexerSearchModal
+          onClose={() => setShowSearchModal(false)}
+          onTorrentAdded={loadData}
+        />
+      )}
+
+      {/* Piece Map Modal */}
+      {activePieceMapTorrent && (
+        <PieceMapModal
+          torrent={activePieceMapTorrent}
+          onClose={() => setActivePieceMapTorrent(null)}
+        />
+      )}
+
+      {/* Peers Swarm Modal */}
+      {activePeersTorrent && (
+        <PeersModal
+          torrent={activePeersTorrent}
+          onClose={() => setActivePeersTorrent(null)}
+        />
+      )}
+
+      {/* Files Modal */}
+      {activeFilesTorrent && (
+        <FilesModal
+          torrent={activeFilesTorrent}
+          onClose={() => setActiveFilesTorrent(null)}
+        />
       )}
     </div>
   );
