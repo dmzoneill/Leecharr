@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+_output/
+_temp/
+_tests/
+*.user
+*.suo
+*.sln.docstates
+*.userprefs
+.vs/
+TestResults/
+
+# Frontend
+node_modules/
+dist/
+.cache/
+wwwroot/
+
+# IDE & Local Tools
+.idea/
+.vscode/
+*.swp
+*.swo
+.claude/
+.gemini/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Leecharr data
+*.db
+*.db-shm
+*.db-wal
+config.xml
+logs/
+MediaCache/
+Backups/
+
+# Secrets
+*.env
