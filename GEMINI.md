@@ -5,9 +5,10 @@
 **Leecharr** is a high-performance BitTorrent and media downloader purpose-built for the Servarr (`*arr`) ecosystem (Sonarr, Radarr, Lidarr, Readarr, Prowlarr).
 
 It provides:
-1. **A Full-Fidelity C# BitTorrent Engine:** Real multi-threaded download engine with rarest-first piece picker, sequential download for instant media streaming, endgame mode, async non-blocking disk I/O with write caching, sparse file allocation, resume checkpoints, MSE/PE encryption, and BEP protocol suite (HTTP/UDP trackers, DHT, PEX, `ut_metadata`, Fast extension, LPD, uTP).
+1. **A Full-Fidelity C# BitTorrent Engine (Extensible Downloader Core):** Real multi-threaded download engine with rarest-first piece picker, sequential downloading, endgame mode, async non-blocking disk I/O with write caching, sparse file allocation, resume checkpoints, MSE/PE encryption, and BEP protocol suite (HTTP/UDP trackers, DHT, PEX, `ut_metadata`, Fast extension, LPD, uTP). Designed with an extensible `IDownloadEngine` abstraction for future protocol modules (e.g., Usenet/NZB).
 2. **Deep Media Enrichment:** Automatically correlates torrents with Sonarr, Radarr, and Lidarr media libraries, fetching high-res posters, fanart backdrops, season banners, episode stills, media stream specs (4K/HDR/Atmos), overviews, ratings, and cast into a unified Servarr web interface.
-3. **Download Client Compatibility Layers:** Exposes Deluge JSON-RPC, qBittorrent WebAPI v2, and Transmission RPC adapters alongside native REST API v1 so existing applications can connect without modification.
+3. **Pure C# Media & Container Inspector:** In-engine metadata extractor for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata, and subtitle tracks without external CLI dependencies.
+4. **Rich REST API & Client Compatibility Layers:** Exposes a rich native REST API v1 + SignalR hub, alongside drop-in compatibility adapters for **qBittorrent WebAPI v2**, **Transmission RPC**, and **Deluge JSON-RPC** so Sonarr, Radarr, and Lidarr can connect out-of-the-box.
 
 ---
 
@@ -130,37 +131,38 @@ Leecher/
 
 ---
 
-## Requirements Capture & Elaboration Areas
+## Elaborated Technical Requirements
 
-When elaborating requirements with the user, focus on the following core domains:
+### 1. Extensible Downloader Core (`IDownloadEngine`)
+- **Primary Provider (BitTorrent):** Full C# BitTorrent implementation (Swarm, PiecePicker, AsyncDiskEngine, Trackers, DHT, uTP, MSE/PE).
+- **Future Protocol Extension:** Abstract session/task layer (`IDownloadEngine`, `IDownloadSession`, `IDownloadTask`) enabling future Usenet (NZB) or Direct HTTP/Debrid providers without altering UI or media enrichment pipelines.
 
-### Area 1: Torrent Download Engine Mechanics
-- Piece picker algorithms (Rarest-first calculation, sequential buffer sizing for streaming, endgame trigger thresholds).
-- Disk caching strategy (Fixed vs dynamic memory buffer, flush intervals, sparse allocation vs fallocate).
-- Fast-resume serialization format and checkpoint frequency.
-- Bitfield and piece availability tracking in multi-peer swarms.
+### 2. Storage & Category Management
+- **User-Defined Categories:** Configurable category registry (e.g. `tv`, `movies`, `music`, `anime`, custom).
+- **Category Paths:** Each category defines its custom destination path (e.g. `/downloads/tv`, `/downloads/movies`).
+- **Sparse Allocation (Default):** Instant, non-blocking file creation using sparse file allocation to prevent disk bottlenecking during torrent startup.
+- **Seeding Rules by Category:** Custom target seed ratio and seed time per category before automatic pausing/stopping.
 
-### Area 2: Media Enrichment & *arr Integration
-- Sonarr/Radarr/Lidarr API v3 sync schedule & webhook payload handling.
-- Release title regex parsing rules and media matching heuristics.
-- Local thumbnail and artwork caching policies (sizes, formats, cleanup rules).
-- Season pack file hierarchy mapping (parsing season/episode file trees).
-- Media stream info extraction (FFprobe / MediaInfo integration or pure C# container header parsing).
+### 3. Deep Media Enrichment & Correlation
+- **100% Exact Correlation:** Pushed downloads from Sonarr/Radarr/Lidarr contain correlation identifiers (category + download hash/transaction ID) to map 1:1 with media library entities.
+- **Scene Release Name Heuristic:** Regular expression parser extracts Title, Year, Season/Episode, Resolution, Audio Codec for manual and magnet additions.
+- **Artwork & Metadata Cache:** Local storage for high-res posters, banners, and fanart (`/config/MediaCache/`) with TTL management and automatic pruning upon torrent deletion.
+- **Pure C# Container Inspector:** Analyzes file headers for MKV, MP4, AVI, FLAC, MP3 to extract stream metadata (resolution, video codec, HDR profiles, audio channel layouts, subtitle tracks) with zero external binary requirements.
 
-### Area 3: Protocol & Network Features
-- MSE/PE stream encryption settings and negotiation fallback.
-- BEP 29 (uTP) implementation details and LEDBAT congestion tuning.
-- BEP 5 (DHT) bootstrap nodes, K-bucket persistence, and token rotation.
-- Proxy support (SOCKS5, HTTP proxy) and private tracker protection.
+### 4. Download Client API Compatibility Strategy
+To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr:
+1. **qBittorrent WebAPI v2 Adapter (`/api/v2/*`):** Primary compatibility target supporting `/api/v2/auth/login`, `/api/v2/torrents/info`, `/api/v2/torrents/add`, `/api/v2/torrents/delete`, `/api/v2/torrents/pause`, `/api/v2/torrents/resume`, `/api/v2/torrents/files`, `/api/v2/sync/maindata`.
+2. **Transmission RPC Adapter (`/transmission/rpc`):** JSON-RPC adapter for universal client compatibility.
+3. **Deluge JSON-RPC Adapter (`/json`):** Deluge web/daemon RPC emulation.
+4. **Native Leecharr REST API v1 (`/api/v1/*`):** First-class rich REST API with media entities, artwork links, stream specs, and SignalR real-time event broadcasting.
 
-### Area 4: Compatibility Adapters & APIs
-- Deluge JSON-RPC method subset needed for full Sonarr/Radarr/Prowlarr compatibility.
-- qBittorrent WebAPI v2 endpoint coverage.
-- Transmission RPC command mappings.
-- Custom Leecharr REST API v1 endpoints and schema.
-
-### Area 5: User Interface & Experience
-- Media poster grid view card layout, badges, and progress animations.
-- Interactive piece map visualizer (dynamic canvas vs high-density SVG/grid).
-- Peer swarm map with GeoIP country flags and client identification icons.
-- Torrent file inspector with selective download checkboxes, priorities, and "Stream Now" preview player.
+### 5. UI Scope (MVP vs Extended)
+- **MVP UI Scope:**
+  - Media Poster Grid View with status overlays & badges.
+  - Media Banner / Season hierarchy view.
+  - High-density data table with column customizer.
+  - Interactive Piece Map visualizer & Peer Swarm Inspector.
+  - Torrent File Tree with selective download checkboxes and file priorities (*Skip, Low, Normal, High*).
+  - Category, Speed Schedule, and Connection Settings tabs.
+- **Extended Features (Post-MVP):**
+  - In-browser HTML5 video/audio streaming player.
