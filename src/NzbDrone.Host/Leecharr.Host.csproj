@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NzbDrone.Common\Leecharr.Common.csproj" />
+    <ProjectReference Include="..\NzbDrone.Core\Leecharr.Core.csproj" />
+    <ProjectReference Include="..\NzbDrone.SignalR\Leecharr.SignalR.csproj" />
+    <ProjectReference Include="..\Leecharr.Api.V1\Leecharr.Api.V1.csproj" />
+    <ProjectReference Include="..\Leecharr.Http\Leecharr.Http.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DryIoc.Microsoft.DependencyInjection" Version="6.2.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="6.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>
