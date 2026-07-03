@@ -1,71 +1,101 @@
-# Leecharr REST API V1
+# Leecharr REST API V1 & Client Compatibility
 
-Base URL: `http://localhost:9899/api/v1`
+Base URL: `http://localhost:9899`
 
-## API Endpoints
+---
+
+## 1. Native Leecharr REST API (`/api/v1`)
 
 ### Torrents (`/api/v1/torrent`)
 
 | Method | Path | Description |
 | :--- | :--- | :--- |
-| `GET` | `/torrent` | List all torrents with current speed & progress |
-| `GET` | `/torrent/{id}` | Get torrent by ID with files and media metadata |
-| `POST` | `/torrent` | Add torrent by magnet link or info hash |
-| `POST` | `/torrent/upload` | Upload `.torrent` file (multipart form data) |
-| `PUT` | `/torrent/{id}` | Update torrent configuration & speed limits |
-| `DELETE` | `/torrent/{id}` | Remove torrent (`?deleteFiles=true/false`) |
-| `POST` | `/torrent/{id}/start` | Start / resume torrent download |
-| `POST` | `/torrent/{id}/pause` | Pause torrent download |
-| `POST` | `/torrent/{id}/recheck` | Force re-check and piece hash verification |
-| `POST` | `/torrent/{id}/announce` | Force immediate tracker announce |
-| `GET` | `/torrent/{id}/files` | List files in torrent with progress & priorities |
-| `PUT` | `/torrent/{id}/files/{fileId}/priority` | Set priority for specific file |
-| `GET` | `/torrent/{id}/pieces` | Get bitfield / piece map array |
-| `GET` | `/torrent/{id}/peers` | List connected peers with client names & speeds |
-| `GET` | `/torrent/{id}/trackers` | List configured tracker tiers & status |
+| `GET` | `/api/v1/torrent` | List all torrents with current speed, progress, and media metadata |
+| `GET` | `/api/v1/torrent/{id}` | Get torrent by ID with files, peers, trackers, and media metadata |
+| `POST` | `/api/v1/torrent` | Add torrent by magnet link or info hash |
+| `POST` | `/api/v1/torrent/upload` | Upload `.torrent` file (multipart form data) |
+| `PUT` | `/api/v1/torrent/{id}` | Update torrent configuration & speed limits |
+| `DELETE` | `/api/v1/torrent/{id}` | Remove torrent (`?deleteFiles=true/false`) |
+| `POST` | `/api/v1/torrent/{id}/start` | Start / resume torrent download |
+| `POST` | `/api/v1/torrent/{id}/pause` | Pause torrent download |
+| `POST` | `/api/v1/torrent/{id}/recheck` | Force re-check and piece hash verification |
+| `POST` | `/api/v1/torrent/{id}/announce` | Force immediate tracker announce |
+| `GET` | `/api/v1/torrent/{id}/files` | List files in torrent with progress & priorities |
+| `PUT` | `/api/v1/torrent/{id}/files/{fileId}/priority` | Set priority for specific file (*Skip, Low, Normal, High*) |
+| `GET` | `/api/v1/torrent/{id}/pieces` | Get piece completion bitfield array |
+| `GET` | `/api/v1/torrent/{id}/peers` | List connected peers with client names & speeds |
+| `GET` | `/api/v1/torrent/{id}/trackers` | List configured tracker tiers & status |
+
+### Categories (`/api/v1/category`)
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/category` | List all user-configured categories (e.g. `tv`, `movies`, `music`) |
+| `POST` | `/api/v1/category` | Create category with custom download path & seeding rules |
+| `PUT` | `/api/v1/category/{id}` | Update category |
+| `DELETE` | `/api/v1/category/{id}` | Delete category |
 
 ### Media Enrichment (`/api/v1/media`)
 
 | Method | Path | Description |
 | :--- | :--- | :--- |
-| `GET` | `/media/{torrentId}` | Get media metadata (poster, backdrop, synopsis, cast) |
-| `POST` | `/media/{torrentId}/refresh` | Force re-query `*arr` instance for updated metadata |
+| `GET` | `/api/v1/media/{torrentId}` | Get media metadata (poster, backdrop, synopsis, cast, stream specs) |
+| `POST` | `/api/v1/media/{torrentId}/refresh` | Force re-query `*arr` instance for updated metadata |
 
 ### *arr Connections (`/api/v1/arrconnections`)
 
 | Method | Path | Description |
 | :--- | :--- | :--- |
-| `GET` | `/arrconnections` | List configured Sonarr, Radarr, Lidarr connections |
-| `POST` | `/arrconnections` | Create new connection |
-| `PUT` | `/arrconnections/{id}` | Update connection |
-| `DELETE` | `/arrconnections/{id}` | Delete connection |
-| `POST` | `/arrconnections/{id}/test` | Test connectivity & API key |
-| `POST` | `/arrconnections/sync` | Trigger full synchronization |
+| `GET` | `/api/v1/arrconnections` | List configured Sonarr, Radarr, Lidarr connections |
+| `POST` | `/api/v1/arrconnections` | Create new connection |
+| `PUT` | `/api/v1/arrconnections/{id}` | Update connection |
+| `DELETE` | `/api/v1/arrconnections/{id}` | Delete connection |
+| `POST` | `/api/v1/arrconnections/{id}/test` | Test connectivity & API key |
+| `POST` | `/api/v1/arrconnections/sync` | Trigger full synchronization |
 
-### Download Client Compatibility Endpoints
+---
 
-| Protocol | Path | Description |
+## 2. Download Client Compatibility Adapters
+
+Sonarr, Radarr, Lidarr, and Prowlarr can connect to Leecharr immediately using these endpoints:
+
+### qBittorrent WebAPI v2 Compatibility (`/api/v2/*`)
+
+| Endpoint | Method | Supported Actions |
 | :--- | :--- | :--- |
-| **qBittorrent WebAPI v2** | `/api/v2/*` | Supports `/api/v2/torrents/*`, `/api/v2/app/*`, `/api/v2/sync/*` |
-| **Deluge JSON-RPC** | `/json` | Supports Deluge daemon RPC methods (`core.*`, `web.*`) |
-| **Transmission RPC** | `/transmission/rpc` | Supports Transmission JSON-RPC commands |
+| `/api/v2/auth/login` | POST | Authenticates `*arr` client session |
+| `/api/v2/app/version` | GET | Returns emulated qBittorrent version string |
+| `/api/v2/app/webapiVersion` | GET | Returns WebAPI version `2.8.3` |
+| `/api/v2/torrents/info` | GET | Filter by category, tag, hash; returns status, progress, ETA, speeds, savepath |
+| `/api/v2/torrents/add` | POST | Handles magnet links, `.torrent` uploads, category assignment, savepath |
+| `/api/v2/torrents/delete` | POST | Deletes torrents with optional file deletion |
+| `/api/v2/torrents/pause` | POST | Pauses torrents |
+| `/api/v2/torrents/resume` | POST | Resumes torrents |
+| `/api/v2/torrents/files` | GET | Returns file list with sizes, progress, priorities |
+| `/api/v2/torrents/categories` | GET | Returns category list and paths |
+| `/api/v2/torrents/setCategory` | POST | Reassigns category |
+| `/api/v2/sync/maindata` | GET | Delta sync for fast updates |
 
-### System & Health (`/api/v1/system`, `/api/v1/health`)
+### Transmission RPC Compatibility (`/transmission/rpc`)
 
-| Method | Path | Description |
-| :--- | :--- | :--- |
-| `GET` | `/system/status` | Application version, runtime, OS, paths |
-| `GET` | `/system/diskspace` | Free & total storage on download paths |
-| `GET` | `/system/tasks` | Background scheduled task status |
-| `GET` | `/health` | Health checks (storage, network, permissions) |
+- Protocol: JSON-RPC with `X-Transmission-Session-Id` header negotiation.
+- Supported methods: `session-get`, `session-set`, `torrent-get` (all fields: name, id, hashString, status, totalSize, percentDone, rateDownload, rateUpload, files), `torrent-add`, `torrent-remove`, `torrent-start`, `torrent-stop`.
 
-## SignalR Real-Time Hub
+### Deluge JSON-RPC Compatibility (`/json`)
 
-- Hub Route: `/signalr/messages`
-- Client Handler: `receiveMessage`
-- Broadcast Events:
+- Protocol: Deluge daemon / web JSON-RPC format.
+- Supported methods: `auth.login`, `core.add_torrent_magnet`, `core.add_torrent_file`, `core.get_torrents_status`, `core.remove_torrent`, `core.pause_torrent`, `core.resume_torrent`.
+
+---
+
+## 3. SignalR Real-Time Hub
+
+- **Hub Endpoint:** `/signalr/messages`
+- **Client Handler:** `receiveMessage`
+- **Payload Format:** `{ "name": "<event>", "body": <data> }`
+- **Broadcast Events:**
   - `torrent` &mdash; State changes (status, progress, speeds)
-  - `speedPulse` &mdash; Global & per-torrent throughput tick (1s interval)
-  - `pieceMap` &mdash; Bitmap piece completion changes
+  - `speedPulse` &mdash; Aggregate and per-torrent speed ticks (1s interval)
+  - `pieceMap` &mdash; Piece completion bitmap updates
   - `peerSwarm` &mdash; Peer connect/disconnect events
-  - `mediaEnriched` &mdash; Notification when metadata is resolved
+  - `mediaEnriched` &mdash; Rich metadata attachments from Sonarr/Radarr/Lidarr
