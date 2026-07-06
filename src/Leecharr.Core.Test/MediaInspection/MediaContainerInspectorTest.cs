@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text;
 using NUnit.Framework;
 using NzbDrone.Core.MediaInspection;
 
