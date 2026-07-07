@@ -9,6 +9,7 @@ It provides:
 2. **Deep Media Enrichment:** Automatically correlates torrents with Sonarr, Radarr, and Lidarr media libraries, fetching high-res posters, fanart backdrops, season banners, episode stills, media stream specs (4K/HDR/Atmos), overviews, ratings, and cast into a unified Servarr web interface.
 3. **Pure C# Media & Container Inspector:** In-engine metadata extractor for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata, and subtitle tracks without external CLI dependencies.
 4. **Rich REST API & Client Compatibility Layers:** Exposes a rich native REST API v1 + SignalR hub, alongside drop-in compatibility adapters for **qBittorrent WebAPI v2**, **Transmission RPC**, and **Deluge JSON-RPC** so Sonarr, Radarr, and Lidarr can connect out-of-the-box.
+5. **Deluge Feature & Architecture Parity:** Full support for Deluge's 60+ status metrics, queue management policies, storage allocation modes, speed scheduling matrices, and core plugin capabilities (Label, AutoAdd, Blocklist, Execute, Extractor, Scheduler, Stats).
 
 ---
 
@@ -27,7 +28,7 @@ dotnet restore src/Leecharr.sln
 # Build entire solution (Release configuration)
 dotnet build src/Leecharr.sln -c Release
 
-# Run backend console host
+# Run backend console host (Port 7889)
 dotnet run --project src/NzbDrone.Console/Leecharr.Console.csproj
 
 # Run backend with debug logging
@@ -73,6 +74,7 @@ Leecher/
 │   ├── domain-model.md              # ER diagrams, torrent state lifecycle
 │   ├── media-enrichment.md          # Sonarr/Radarr/Lidarr matching & asset cache
 │   ├── protocols.md                 # BitTorrent BEPs, MSE/PE, uTP, DHT
+│   ├── deluge-requirements.md       # Deluge architecture, status keys, plugins & RPC
 │   ├── api.md                       # REST API v1 & RPC compatibility specs
 │   └── development.md               # Local development setup
 └── src/
@@ -138,9 +140,10 @@ Leecher/
 - **Future Protocol Extension:** Abstract session/task layer (`IDownloadEngine`, `IDownloadSession`, `IDownloadTask`) enabling future Usenet (NZB) or Direct HTTP/Debrid providers without altering UI or media enrichment pipelines.
 
 ### 2. Storage & Category Management
-- **User-Defined Categories:** Configurable category registry (e.g. `tv`, `movies`, `music`, `anime`, custom).
+- **User-Defined Categories / Labels:** Configurable category registry (e.g. `tv`, `movies`, `music`, `anime`, custom).
 - **Category Paths:** Each category defines its custom destination path (e.g. `/downloads/tv`, `/downloads/movies`).
-- **Sparse Allocation (Default):** Instant, non-blocking file creation using sparse file allocation to prevent disk bottlenecking during torrent startup.
+- **Sparse Allocation (Default):** Instant, non-blocking file creation using sparse file allocation to prevent disk bottlenecking during torrent startup. Full pre-allocation option available.
+- **Move Completed:** Option to automatically move completed torrents to designated target directory upon download completion.
 - **Seeding Rules by Category:** Custom target seed ratio and seed time per category before automatic pausing/stopping.
 
 ### 3. Deep Media Enrichment & Correlation
@@ -152,11 +155,20 @@ Leecher/
 ### 4. Download Client API Compatibility Strategy
 To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr:
 1. **qBittorrent WebAPI v2 Adapter (`/api/v2/*`):** Primary compatibility target supporting `/api/v2/auth/login`, `/api/v2/torrents/info`, `/api/v2/torrents/add`, `/api/v2/torrents/delete`, `/api/v2/torrents/pause`, `/api/v2/torrents/resume`, `/api/v2/torrents/files`, `/api/v2/sync/maindata`.
-2. **Transmission RPC Adapter (`/transmission/rpc`):** JSON-RPC adapter for universal client compatibility.
-3. **Deluge JSON-RPC Adapter (`/json`):** Deluge web/daemon RPC emulation.
+2. **Deluge JSON-RPC Adapter (`/json`):** Full compatibility supporting `auth.login`, `core.get_torrents_status`, `core.add_torrent_file`, `core.add_torrent_magnet`, `core.remove_torrent`, `core.pause_torrent`, `core.resume_torrent`, `core.set_torrent_options`, `core.get_config`, `core.get_filter_tree`, `web.get_torrents_status`. (See [docs/deluge-requirements.md](file:///home/daoneill/src/usr/seedarr/Leecher/docs/deluge-requirements.md)).
+3. **Transmission RPC Adapter (`/transmission/rpc`):** JSON-RPC adapter for universal client compatibility.
 4. **Native Leecharr REST API v1 (`/api/v1/*`):** First-class rich REST API with media entities, artwork links, stream specs, and SignalR real-time event broadcasting.
 
-### 5. UI Scope (MVP vs Extended)
+### 5. Deluge Feature & Plugin Parity
+Leecharr provides direct parity with the core capabilities of major Deluge plugins:
+- **AutoAdd:** Watch folders for `.torrent` files with automated category/path mapping.
+- **Blocklist:** IP blocklist filtering against malicious or snooping peer ranges.
+- **Execute:** Post-event webhooks and script executions on download completion.
+- **Extractor:** Auto-extraction of compressed archives (rar/zip/7z) upon download completion.
+- **Scheduler:** 24x7 hourly speed throttling schedule.
+- **Stats:** Circular buffer metrics for bandwidth, cache efficiency, and swarm health.
+
+### 6. UI Scope (MVP vs Extended)
 - **MVP UI Scope:**
   - Media Poster Grid View with status overlays & badges.
   - Media Banner / Season hierarchy view.
