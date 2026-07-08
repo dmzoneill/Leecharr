@@ -138,7 +138,7 @@ Leecher/
 ## Elaborated Technical Requirements
 
 ### 1. Extensible Downloader Core (`IDownloadEngine`)
-- **Primary Provider (BitTorrent):** Full C# BitTorrent implementation (Swarm, PiecePicker, AsyncDiskEngine, Trackers, DHT, uTP, MSE/PE).
+- **Primary Provider (BitTorrent / MonoTorrent):** Powered by **MonoTorrent** wrapped behind `IDownloadEngine`, providing complete, battle-tested BEP compliance (Swarm, PiecePicker, Trackers, DHT, uTP LEDBAT, MSE/PE, Fast extension, PEX).
 - **Future Protocol Extension:** Abstract session/task layer (`IDownloadEngine`, `IDownloadSession`, `IDownloadTask`) enabling future Usenet (NZB) or Direct HTTP/Debrid providers without altering UI or media enrichment pipelines.
 
 ### 2. Storage & Category Management
@@ -150,9 +150,8 @@ Leecher/
 
 ### 3. Deep Media Enrichment & Correlation
 - **100% Exact Correlation:** Pushed downloads from Sonarr/Radarr/Lidarr contain correlation identifiers (category + download hash/transaction ID) to map 1:1 with media library entities.
-- **Scene Release Name Heuristic:** Regular expression parser extracts Title, Year, Season/Episode, Resolution, Audio Codec for manual and magnet additions.
+- **TagLib# & Pure EBML Inspection:** Combines **TagLibSharp** with custom EBML binary parsers for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata (Dolby Vision, HDR10+), and subtitle tracks with zero external binary requirements.
 - **Artwork & Metadata Cache:** Local storage for high-res posters, banners, and fanart (`/config/MediaCache/`) with TTL management and automatic pruning upon torrent deletion.
-- **Pure C# Container Inspector:** Analyzes file headers for MKV, MP4, AVI, FLAC, MP3 to extract stream metadata (resolution, video codec, HDR profiles, audio channel layouts, subtitle tracks) with zero external binary requirements.
 
 ### 4. Download Client API Compatibility Strategy
 To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr:
@@ -164,9 +163,9 @@ To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr
 ### 5. Deluge Feature & Plugin Parity
 Leecharr provides direct parity with the core capabilities of major Deluge plugins:
 - **AutoAdd:** Watch folders for `.torrent` files with automated category/path mapping.
-- **Blocklist:** IP blocklist filtering against malicious or snooping peer ranges.
+- **Blocklist & GeoIP:** IP blocklist filtering and **MaxMind.GeoIP2** integration for peer country flags in the swarm inspector.
 - **Execute:** Post-event webhooks and script executions on download completion.
-- **Extractor:** Auto-extraction of compressed archives (rar/zip/7z) upon download completion.
+- **Extractor:** Auto-extraction of compressed archives (rar/zip/7z) via **SharpCompress** upon download completion.
 - **Scheduler:** 24x7 hourly speed throttling schedule.
 - **Stats:** Circular buffer metrics for bandwidth, cache efficiency, and swarm health.
 
