@@ -37,6 +37,34 @@ Base URL: `http://localhost:7889`
 | `GET` | `/api/v1/media/{torrentId}` | Get media metadata (poster, backdrop, synopsis, stream specs) |
 | `GET` | `/api/v1/media/artwork/{torrentId}/{type}` | Serve cached high-res artwork (`poster` or `backdrop`) |
 
+### Indexers (`/api/v1/indexer`)
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/indexer` | List all configured Torznab/Newznab indexers |
+| `POST` | `/api/v1/indexer` | Add new indexer definition |
+| `PUT` | `/api/v1/indexer/{id}` | Update indexer configuration |
+| `DELETE` | `/api/v1/indexer/{id}` | Delete indexer |
+| `POST` | `/api/v1/indexer/{id}/test` | Test connectivity (`t=caps`) and API key |
+| `POST` | `/api/v1/indexer/sync-prowlarr` | Sync all indexers from connected Prowlarr instance |
+
+### Search & Grab (`/api/v1/search`)
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/search` | Multi-indexer search (`?query=...&category=...&freeleechOnly=...`) |
+| `POST` | `/api/v1/search/grab` | One-click download of selected release into Leecharr |
+
+### Notifications & Webhooks (`/api/v1/notifications`)
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/notifications` | List configured notification connections (Webhooks, Discord, etc.) |
+| `POST` | `/api/v1/notifications` | Create new connection definition |
+| `PUT` | `/api/v1/notifications/{id}` | Update connection |
+| `DELETE` | `/api/v1/notifications/{id}` | Delete connection |
+| `POST` | `/api/v1/notifications/{id}/test` | Send test payload to verify webhook delivery |
+
 ### System (`/api/v1/system`)
 
 | Method | Path | Description |
