@@ -227,7 +227,7 @@ Deluge features an extensible plugin system. Leecharr incorporates the essential
 
 ### 2. AutoAdd Plugin (Watch Folders)
 - **Deluge Functionality:** Monitors directory paths for newly dropped `.torrent` files. Applies regular expression filters on filenames, automatically assigning labels/categories, save paths, and paused states.
-- **Leecharr Parity:** Background directory watcher service with configurable polling interval, glob patterns, and automated category matching.
+- **Leecharr Parity:** Single global watch directory scanner with automatic category assignment powered by filename/scene release regex matching and automatic `.torrent` ingestion.
 
 ### 3. Blocklist Plugin (Peer IP Filtering)
 - **Deluge Functionality:** Periodically downloads IP blocklists in PeerGuardian (`.p2p`, `.dat`) or CIDR format (e.g. from Bluetack / I-Blocklist), unpacks gzip/zip archives, and filters connecting peer IPs in the transport layer.
@@ -241,16 +241,16 @@ Deluge features an extensible plugin system. Leecharr incorporates the essential
   - Passes parameters via environment variables: `TORRENT_ID`, `TORRENT_NAME`, `TORRENT_PATH`.
 - **Leecharr Parity:** Event subscriber listening to `TorrentDownloadCompletedEvent`, executing configured webhooks or local shell scripts.
 
-### 5. Extractor Plugin (Auto-Unpack)
-- **Deluge Functionality:** Detects multi-part `.rar`, `.zip`, `.7z`, `.tar.gz` archives upon torrent completion and automatically extracts them to a destination directory without modifying original seeding files.
-- **Leecharr Parity:** Pure C# archive decompression worker running as a post-download task.
+### 5. Extractor Plugin (Optional Archive Unpack)
+- **Deluge Functionality:** Detects multi-part `.rar`, `.zip`, `.7z`, `.tar.gz` archives upon torrent completion and extracts them.
+- **Leecharr Parity:** Optional post-download extraction worker (disabled by default). When enabled by the user in settings, extracts archives to the download folder using SharpCompress while keeping the original archive files intact so seeding ratio goals continue without disruption.
 
-### 6. Scheduler Plugin (Bandwidth Schedule)
+### 6. Scheduler Plugin (24x7 3-Tier Bandwidth Schedule)
 - **Deluge Functionality:** 7x24 weekly matrix dividing each hour of the week into three states:
   - **Green (Normal):** Full global speed limits.
   - **Yellow (Throttled):** Alternate download/upload speed limits.
-  - **Red (Paused / Suspended):** No downloads or uploads allowed.
-- **Leecharr Parity:** Implemented via [`SpeedSchedule`](file:///home/daoneill/src/usr/seedarr/Leecher/src/NzbDrone.Core/Datastore/Migration/007_add_speed_schedules.cs) model and periodic rate limiter evaluator.
+  - **Red (Paused / Suspended):** All transfers paused.
+- **Leecharr Parity:** 3-tier 24x7 hourly matrix implemented via [`SpeedSchedule`](file:///home/daoneill/src/usr/seedarr/Leecher/src/NzbDrone.Core/Datastore/Migration/007_add_speed_schedules.cs) model and periodic rate limiter evaluator.
 
 ### 7. Stats Plugin (Telemetry & Swarm Health)
 - **Deluge Functionality:** Records historical time-series data for download speed, upload speed, DHT nodes, and cache hit ratios.
