@@ -146,3 +146,17 @@ sequenceDiagram
 - **Configurable Memory Write Cache:** Batches 16 KB blocks in memory (default: 128 MB, configurable up to 2 GB) before issuing sequential disk writes.
 - **Sparse File Allocation:** Uses filesystem sparse allocation (instant start, non-blocking) with optional pre-allocation (`fallocate`).
 - **Fast Resume Persistence:** Serializes bitfields, verified piece masks, and byte totals to SQLite on shutdown and periodically every 5 minutes.
+
+### 3.4 Private Tracker Compliance & Client Emulation Presets
+- **Strict BEP 27 Enforcement:** When `info.private = 1` is present in torrent metadata:
+  - DHT (BEP 5), Peer Exchange / PEX (BEP 11), and Local Peer Discovery (BEP 14) are **strictly and automatically disabled** to preserve tracker ratio accounting and prevent unauthorized peer leaks.
+- **Customizable User-Agent & Peer-ID Emulation:**
+  - Configurable identification presets allowing Leecharr to emulate standard whitelisted clients on private trackers if required:
+    - `Leecharr` (Default: `-LC1000-...`, `Leecharr/1.0.0`)
+    - `qBittorrent` (`-qB4420-...`, `qBittorrent/4.4.2`)
+    - `Deluge` (`-DE2050-...`, `Deluge/2.0.5 libtorrent/1.2.14.0`)
+    - `Transmission` (`-TR3000-...`, `Transmission/3.00`)
+
+### 3.5 GeoIP Peer Resolution & MaxMind Integration
+- **Automated Database Maintenance:** Automatically downloads and updates the `GeoLite2-Country.mmdb` database into `/config/GeoIP/` on first initialization and runs a monthly background refresh.
+- **Swarm Country Badges:** Resolves peer IPv4/IPv6 addresses to ISO 3166-1 alpha-2 country codes to render country flags in the Swarm Inspector.

@@ -48,7 +48,14 @@ sequenceDiagram
 
 ## Media Stream Specs Extraction
 
-For media files, Leecharr inspects container headers (MKV, MP4, FLAC, MP3) and extracts:
+For media files, Leecharr inspects container headers (MKV, MP4, FLAC, MP3) using **TagLib#** and pure EBML analyzers to extract:
 - **Video:** Resolution (4K UHD, 1080p, 720p), Video Codec (HEVC/H.265, AVC/H.264, AV1), Color Profile (HDR10, HDR10+, Dolby Vision, SDR), Frame Rate.
 - **Audio:** Codecs (Dolby Atmos, TrueHD 7.1, DTS-HD MA, DD+ 5.1, AAC, FLAC 24-bit), Audio Channels, Languages.
 - **Subtitles:** Embedded subtitle languages and formats (SRT, PGS, ASS/SSA).
+
+---
+
+## Local Artwork & Metadata Cache Lifecycle
+
+1. **Storage Location:** High-resolution posters and fanart backdrops are cached locally under `/config/MediaCache/{torrentId}/`.
+2. **Immediate Cleanup on Removal:** When a torrent is deleted from Leecharr (via UI, API, or Servarr client call), its associated cached posters, fanart thumbnails, and metadata rows are immediately deleted from disk and the database to prevent orphaned storage bloat.
