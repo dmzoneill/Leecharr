@@ -142,11 +142,10 @@ Leecher/
 - **Future Protocol Extension:** Abstract session/task layer (`IDownloadEngine`, `IDownloadSession`, `IDownloadTask`) enabling future Usenet (NZB) or Direct HTTP/Debrid providers without altering UI or media enrichment pipelines.
 
 ### 2. Storage & Category Management
+- **Incomplete vs Completed Directory Architecture:** Torrents download into a dedicated temporary/incomplete folder (`/downloads/incomplete`) and are automatically moved to their designated category destination path (e.g., `/downloads/tv`, `/downloads/movies`) upon 100% download verification.
 - **User-Defined Categories / Labels:** Configurable category registry (e.g. `tv`, `movies`, `music`, `anime`, custom).
-- **Category Paths:** Each category defines its custom destination path (e.g. `/downloads/tv`, `/downloads/movies`).
 - **Sparse Allocation (Default):** Instant, non-blocking file creation using sparse file allocation to prevent disk bottlenecking during torrent startup. Full pre-allocation option available.
-- **Move Completed:** Option to automatically move completed torrents to designated target directory upon download completion.
-- **Seeding Rules by Category:** Custom target seed ratio and seed time per category before automatic pausing/stopping.
+- **Seeding Rules & Automation:** When a torrent reaches its category target seed ratio or seed time limit, it automatically pauses/stops seeding and fires an `OnSeedGoalReached` webhook notification for external automations while preserving data on disk for Servarr imports.
 
 ### 3. Deep Media Enrichment & Correlation
 - **100% Exact Correlation:** Pushed downloads from Sonarr/Radarr/Lidarr contain correlation identifiers (category + download hash/transaction ID) to map 1:1 with media library entities.
@@ -154,7 +153,7 @@ Leecher/
 - **Artwork & Metadata Cache:** Local storage for high-res posters, banners, and fanart (`/config/MediaCache/`) with TTL management and automatic pruning upon torrent deletion.
 
 ### 4. Download Client API Compatibility Strategy
-To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr:
+To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr out-of-the-box, all compatibility adapters are **active simultaneously on the main port (`7889`)**:
 1. **qBittorrent WebAPI v2 Adapter (`/api/v2/*`):** Primary compatibility target supporting `/api/v2/auth/login`, `/api/v2/torrents/info`, `/api/v2/torrents/add`, `/api/v2/torrents/delete`, `/api/v2/torrents/pause`, `/api/v2/torrents/resume`, `/api/v2/torrents/files`, `/api/v2/sync/maindata`.
 2. **Deluge JSON-RPC Adapter (`/json`):** Full compatibility supporting `auth.login`, `core.get_torrents_status`, `core.add_torrent_file`, `core.add_torrent_magnet`, `core.remove_torrent`, `core.pause_torrent`, `core.resume_torrent`, `core.set_torrent_options`, `core.get_config`, `core.get_filter_tree`, `web.get_torrents_status`. (See [docs/deluge-requirements.md](file:///home/daoneill/src/usr/seedarr/Leecher/docs/deluge-requirements.md)).
 3. **Transmission RPC Adapter (`/transmission/rpc`):** JSON-RPC adapter for universal client compatibility.
