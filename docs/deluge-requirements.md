@@ -274,3 +274,35 @@ When Sonarr, Radarr, or Lidarr configure a **Deluge** download client:
 4. When deleting or cleaning up, they call `core.remove_torrent(id, remove_data)`.
 
 Leecharr's native compatibility layer will service all of these exact interactions seamlessly.
+
+---
+
+## 6. Bandwidth & Rate Limiting Hierarchy
+
+Leecharr enforces a 4-level cascading bandwidth limiter hierarchy:
+
+```
+[Level 1: Global Speed Limits]
+       │
+       ▼
+[Level 2: 24x7 Weekly Speed Schedule (Normal / Throttled / Suspended)]
+       │
+       ▼
+[Level 3: Category Bandwidth Limits (e.g. TV / Movies)]
+       │
+       ▼
+[Level 4: Per-Torrent Explicit Overrides]
+```
+
+1. **Global Limits:** Baseline download and upload rate caps configured in application settings.
+2. **Speed Schedule:** 24x7 hourly matrix overriding global limits during scheduled time blocks.
+3. **Category Limits:** Bandwidth limits assigned to specific categories.
+4. **Per-Torrent Overrides:** Explicit rate limits set on individual torrents (never exceeding global or scheduled caps).
+
+---
+
+## 7. Download Queue Priority & Ordering System
+
+- **Interactive Manual Reordering:** Full drag-and-drop reordering in the UI + explicit RPC queue controls (`core.queue_top`, `core.queue_up`, `core.queue_down`, `core.queue_bottom`).
+- **Category Priority Weighting:** Optional category-level priority weights (e.g. `tv` category has priority weight 10 vs `movies` priority weight 5, ensuring newly grabbed TV episodes begin downloading ahead of bulk movie grabs).
+- **Auto-Managed Active Limits:** Strict enforcement of `max_active_downloading`, `max_active_seeding`, and `max_active_limit` to prevent swarm congestion.
