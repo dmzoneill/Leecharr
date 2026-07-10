@@ -141,9 +141,9 @@ sequenceDiagram
   - `RequireEncrypted`: Strictly drops non-encrypted handshakes.
   - `PreferPlainText`: Initiates plaintext; accepts encrypted if requested by peer.
 
-### 3.3 Asynchronous Disk Engine & Caching
-- **Dedicated Non-Blocking I/O Queue:** Prevents disk I/O latency from blocking network sockets.
-- **Configurable Memory Write Cache:** Batches 16 KB blocks in memory (default: 128 MB, configurable up to 2 GB) before issuing sequential disk writes.
+### 3.3 Asynchronous Disk Engine & Dynamic Memory Write Cache
+- **Dedicated Non-Blocking I/O Queue:** Prevents disk I/O latency from blocking network sockets using `System.Threading.Channels.Channel<DiskIoRequest>`.
+- **Dynamic Write Cache Scaling:** Defaults to 128 MB and dynamically scales up to 1 GB based on system RAM and real-time download throughput. Batches 16 KB piece blocks in memory with dirty block coalescing before issuing sequential disk writes to minimize NVMe/SSD wear and HDD head thrashing.
 - **Sparse File Allocation:** Uses filesystem sparse allocation (instant start, non-blocking) with optional pre-allocation (`fallocate`).
 - **Fast Resume Persistence:** Serializes bitfields, verified piece masks, and byte totals to SQLite on shutdown and periodically every 5 minutes.
 
@@ -157,9 +157,17 @@ sequenceDiagram
     - `Deluge` (`-DE2050-...`, `Deluge/2.0.5 libtorrent/1.2.14.0`)
     - `Transmission` (`-TR3000-...`, `Transmission/3.00`)
 
-### 3.5 GeoIP Peer Resolution & MaxMind Integration
+### 3.5 GeoIP Peer Resolution & Detailed Swarm Inspector
 - **Automated Database Maintenance:** Automatically downloads and updates the `GeoLite2-Country.mmdb` database into `/config/GeoIP/` on first initialization and runs a monthly background refresh.
-- **Swarm Country Badges:** Resolves peer IPv4/IPv6 addresses to ISO 3166-1 alpha-2 country codes to render country flags in the Swarm Inspector.
+- **Full Swarm Inspector Metrics:** The Swarm Inspector table visualizes all live peer connections with:
+  - **Country Flag & Name:** ISO 3166-1 alpha-2 code resolved via MaxMind GeoLite2.
+  - **IP & Port:** Remote endpoint (with local proxy indicator if active).
+  - **Client Identification:** Client name, version, and client icon (e.g. `qBittorrent 4.6.3`, `Deluge 2.1.1`, `Transmission 4.0.5`, `uTorrent 3.5.5`).
+  - **Progress %:** Peer's current completion percentage.
+  - **Down & Up Speed:** Real-time transfer rates per peer.
+  - **Protocol Badge:** `TCP` vs `uTP` (Micro Transport Protocol).
+  - **Encryption Status:** `RC4 Encrypted` (Green lock) vs `Plaintext` (Open lock).
+  - **Peer Flags:** `D` (Downloading), `U` (Uploading), `S` (Snubbed), `I` (Interested), `C` (Choked), `H` (Have/Seed), `E` (Encrypted), `P` (uTP).
 
 ### 3.6 Network Interface Binding & VPN Kill Switch
 - **Interface Binding:** Ability to explicitly bind BitTorrent sockets, UDP trackers, and DHT traffic to a specific network interface (e.g. `tun0`, `wg0`, `eth0`, `en0`) or specific IP address.
