@@ -5,11 +5,13 @@
 **Leecharr** is a high-performance BitTorrent and media downloader purpose-built for the Servarr (`*arr`) ecosystem (Sonarr, Radarr, Lidarr, Readarr, Prowlarr).
 
 It provides:
-1. **A Full-Fidelity C# BitTorrent Engine (Extensible Downloader Core):** Real multi-threaded download engine with rarest-first piece picker, sequential downloading, endgame mode, async non-blocking disk I/O with write caching, sparse file allocation, resume checkpoints, MSE/PE encryption, and BEP protocol suite (HTTP/UDP trackers, DHT, PEX, `ut_metadata`, Fast extension, LPD, uTP). Designed with an extensible `IDownloadEngine` abstraction for future protocol modules (e.g., Usenet/NZB).
-2. **Deep Media Enrichment:** Automatically correlates torrents with Sonarr, Radarr, and Lidarr media libraries, fetching high-res posters, fanart backdrops, season banners, episode stills, media stream specs (4K/HDR/Atmos), overviews, ratings, and cast into a unified Servarr web interface.
-3. **Pure C# Media & Container Inspector:** In-engine metadata extractor for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata, and subtitle tracks without external CLI dependencies.
-4. **Rich REST API & Client Compatibility Layers:** Exposes a rich native REST API v1 + SignalR hub, alongside drop-in compatibility adapters for **qBittorrent WebAPI v2**, **Transmission RPC**, and **Deluge JSON-RPC** so Sonarr, Radarr, and Lidarr can connect out-of-the-box.
-5. **Deluge Feature & Architecture Parity:** Full support for Deluge's 60+ status metrics, queue management policies, storage allocation modes, speed scheduling matrices, and core plugin capabilities (Label, AutoAdd, Blocklist, Execute, Extractor, Scheduler, Stats).
+1. **A Full-Fidelity C# BitTorrent Engine (Extensible Downloader Core):** Real multi-threaded download engine powered by **MonoTorrent** wrapped behind `IDownloadEngine`, featuring rarest-first piece picker, sequential downloading (head/tail priority for instant media inspection), endgame mode, async non-blocking disk I/O with dynamic write caching, sparse file allocation, resume checkpoints, MSE/PE encryption, and full BEP protocol suite (HTTP/UDP trackers, DHT, PEX, `ut_metadata`, Fast extension, LPD, uTP). Designed with an extensible `IDownloadEngine` abstraction for future protocol modules (e.g., Usenet/NZB, Debrid).
+2. **Deep Media Enrichment & 100% Exact Correlation:** Automatically correlates downloads with Sonarr, Radarr, and Lidarr media libraries, fetching high-res posters, fanart backdrops, season banners, episode stills, media stream specs (4K UHD/HDR10+/Dolby Vision/Atmos), overviews, ratings, and cast into a unified Servarr web interface.
+3. **Pure C# Media & Container Inspector:** In-engine metadata extractor combining **TagLibSharp** with custom EBML binary parsers for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata, and subtitle tracks without external CLI dependencies.
+4. **Rich REST API & Client Compatibility Layers:** Exposes a native REST API v1 + SignalR hub, alongside drop-in compatibility adapters for **qBittorrent WebAPI v2**, **Transmission RPC**, and **Deluge JSON-RPC** running simultaneously on port `7889` so Sonarr, Radarr, and Lidarr connect out-of-the-box.
+5. **Deluge Feature & Architecture Parity:** Full support for Deluge's 60+ status metrics, queue management policies, storage allocation modes, 24x7 3-tier speed scheduling matrix, and core plugin capabilities (Label, AutoAdd, Blocklist, Execute, Extractor, Scheduler, Stats).
+6. **Direct Indexer Support & Integrated Search:** Native Torznab and Newznab client integration with multi-indexer search, Freeleech filtering, one-click grab, background RSS sync rules, and dynamic Prowlarr auto-synchronization.
+7. **Network & VPN Safety:** Network interface binding with an automated VPN Kill Switch (`tun0`, `wg0`) and global SOCKS5/HTTP proxy support with Anonymous mode.
 
 ---
 
@@ -70,10 +72,10 @@ Leecher/
 ├── Containerfile                    # Multi-stage container build
 ├── version                          # Semantic version string
 ├── docs/                            # Deep architectural & protocol specifications
-│   ├── architecture.md              # System design, DI, request pipelines
+│   ├── architecture.md              # System design, DI, request pipelines, libraries
 │   ├── domain-model.md              # ER diagrams, torrent state lifecycle
 │   ├── media-enrichment.md          # Sonarr/Radarr/Lidarr matching & asset cache
-│   ├── protocols.md                 # BitTorrent BEPs, MSE/PE, uTP, DHT
+│   ├── protocols.md                 # BitTorrent BEPs, MSE/PE, uTP, DHT, VPN Kill Switch
 │   ├── deluge-requirements.md       # Deluge architecture, status keys, plugins & RPC
 │   ├── webhooks.md                  # Servarr webhook triggers, payload schemas & delivery
 │   ├── indexers.md                  # Torznab/Newznab indexer client, search & Prowlarr sync
@@ -140,17 +142,19 @@ Leecher/
 ### 1. Extensible Downloader Core (`IDownloadEngine`)
 - **Primary Provider (BitTorrent / MonoTorrent):** Powered by **MonoTorrent** wrapped behind `IDownloadEngine`, providing complete, battle-tested BEP compliance (Swarm, PiecePicker, Trackers, DHT, uTP LEDBAT, MSE/PE, Fast extension, PEX).
 - **Future Protocol Extension:** Abstract session/task layer (`IDownloadEngine`, `IDownloadSession`, `IDownloadTask`) enabling future Usenet (NZB) or Direct HTTP/Debrid providers without altering UI or media enrichment pipelines.
+- **Unified Multi-Protocol Queue:** Single download queue presenting media cards, progress, and protocol badges (`Torrent`, `Usenet`, `Debrid`).
 
 ### 2. Storage & Category Management
-- **Incomplete vs Completed Directory Architecture:** Torrents download into a dedicated temporary/incomplete folder (`/downloads/incomplete`) and are automatically moved to their designated category destination path (e.g., `/downloads/tv`, `/downloads/movies`) upon 100% download verification.
+- **Incomplete vs Completed Directory Architecture:** Torrents download into a dedicated temporary/incomplete folder (`/downloads/incomplete`) with sparse file allocation and are automatically moved to their designated category destination path (e.g., `/downloads/tv`, `/downloads/movies`) upon 100% download verification.
 - **User-Defined Categories / Labels:** Configurable category registry (e.g. `tv`, `movies`, `music`, `anime`, custom).
 - **Sparse Allocation (Default):** Instant, non-blocking file creation using sparse file allocation to prevent disk bottlenecking during torrent startup. Full pre-allocation option available.
+- **Dynamic Write Cache:** Scales dynamically from 128 MB up to 1 GB based on system RAM and download speed with dirty block coalescing.
 - **Seeding Rules & Automation:** When a torrent reaches its category target seed ratio or seed time limit, it automatically pauses/stops seeding and fires an `OnSeedGoalReached` webhook notification for external automations while preserving data on disk for Servarr imports.
 
 ### 3. Deep Media Enrichment & Correlation
 - **100% Exact Correlation:** Pushed downloads from Sonarr/Radarr/Lidarr contain correlation identifiers (category + download hash/transaction ID) to map 1:1 with media library entities.
 - **TagLib# & Pure EBML Inspection:** Combines **TagLibSharp** with custom EBML binary parsers for MKV, MP4, AVI, FLAC, MP3 extracting video resolution, codecs, audio channels, HDR metadata (Dolby Vision, HDR10+), and subtitle tracks with zero external binary requirements.
-- **Artwork & Metadata Cache:** Local storage for high-res posters, banners, and fanart (`/config/MediaCache/`) with TTL management and automatic pruning upon torrent deletion.
+- **Artwork & Metadata Cache:** Local storage for high-res posters, banners, and fanart (`/config/MediaCache/`) with immediate automated cleanup upon torrent deletion.
 
 ### 4. Download Client API Compatibility Strategy
 To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr out-of-the-box, all compatibility adapters are **active simultaneously on the main port (`7889`)**:
@@ -161,11 +165,11 @@ To allow Sonarr, Radarr, Lidarr, and Prowlarr to immediately connect to Leecharr
 
 ### 5. Deluge Feature & Plugin Parity
 Leecharr provides direct parity with the core capabilities of major Deluge plugins:
-- **AutoAdd:** Watch folders for `.torrent` files with automated category/path mapping.
-- **Blocklist & GeoIP:** IP blocklist filtering and **MaxMind.GeoIP2** integration for peer country flags in the swarm inspector.
-- **Execute:** Post-event webhooks and script executions on download completion.
-- **Extractor:** Auto-extraction of compressed archives (rar/zip/7z) via **SharpCompress** upon download completion.
-- **Scheduler:** 24x7 hourly speed throttling schedule.
+- **AutoAdd:** Single global watch folder for `.torrent` files with automated category/path mapping via scene release regex matching.
+- **Blocklist & GeoIP:** IP blocklist filtering and **MaxMind.GeoIP2** integration with automated monthly database refresh for peer country flags in the swarm inspector.
+- **Execute:** Post-event webhooks and custom local shell script execution (`.sh`, `.py`, `.bat`) with `TORRENT_ID`, `TORRENT_NAME`, `TORRENT_PATH`, `TORRENT_CATEGORY`, `TORRENT_INFOHASH` environment variables.
+- **Extractor:** Optional auto-extraction of compressed archives (rar/zip/7z) via **SharpCompress** upon download completion (disabled by default; preserves archive files for seeding).
+- **Scheduler:** 24x7 hourly 3-tier speed throttling schedule (Normal, Throttled, Paused/Suspended).
 - **Stats:** Circular buffer metrics for bandwidth, cache efficiency, and swarm health.
 
 ### 6. Webhook & Notification Connection System
@@ -177,18 +181,29 @@ Full Servarr-standard notification and webhook connection support (See [docs/web
 ### 7. Direct Indexer Support & Integrated Search
 Native Torznab and Newznab client integration with interactive discovery UI (See [docs/indexers.md](file:///home/daoneill/src/usr/seedarr/Leecher/docs/indexers.md)):
 - **Multi-Protocol Indexer Providers:** Support for Torznab (BitTorrent) and Newznab (Usenet) indexer endpoints (`t=caps`, `t=search`, `t=tvsearch`, `t=movie`).
-- **Prowlarr Dynamic Synchronization:** Automatically synchronizes and imports configured indexers directly from a linked Prowlarr instance.
+- **Prowlarr Dynamic Synchronization:** Automatically synchronizes and imports configured indexers directly from a linked Prowlarr instance on startup, hourly schedule, and via webhook.
 - **Interactive Search & Browse:** Full-text multi-indexer search with category chips, min-seeder filtering, and Freeleech badges (`downloadvolumefactor == 0`).
+- **Automated RSS Grab Rules:** Background RSS polling with regex matchers, minimum seed thresholds, and size filters.
 - **One-Click Grab:** Direct addition of search results into download queue with pre-mapped categories and pre-download file selection.
 
-### 8. UI Scope (MVP vs Extended)
+### 8. Network, VPN & Proxy Security
+- **Network Interface Binding & Kill Switch:** Ability to bind BitTorrent sockets to specific network interfaces (`tun0`, `wg0`), immediately halting all socket and tracker traffic if the interface drops.
+- **SOCKS5 / HTTP Proxy:** Support for proxying peer transfers, tracker announces, and indexer requests + Anonymous mode.
+- **Strict BEP 27 Private Tracker Policy:** Automatically disables DHT, PEX, and LPD for private torrents with customizable client emulation presets (`Leecharr`, `qBittorrent`, `Deluge`, `Transmission`).
+- **Authentication Modes:** Standard Servarr Authentication (`None`, `DisabledForLocalAddresses`, `Forms`, `Basic`, `External`).
+
+### 9. Bandwidth Limiting Hierarchy & Queueing
+- **4-Level Hierarchy:** Global Limits &rarr; 24x7 Weekly Speed Schedule &rarr; Category Limits &rarr; Per-Torrent Overrides.
+- **Queue Priority:** Interactive drag-and-drop manual queue reordering with category-based priority weighting.
+
+### 10. UI Scope (MVP vs Extended)
 - **MVP UI Scope:**
   - Media Poster Grid View with status overlays & badges.
   - Media Banner / Season hierarchy view.
   - High-density data table with column customizer.
-  - Interactive Piece Map visualizer & Peer Swarm Inspector.
+  - Interactive Piece Map visualizer & Peer Swarm Inspector (Country flags, Client icons, Protocol badges [TCP/uTP], Encryption status [RC4], and Peer Flags [D/U/S/I/C/H/E/P]).
   - Torrent File Tree with selective download checkboxes and file priorities (*Skip, Low, Normal, High*).
   - Direct Indexer Search & Browse modal with one-click download.
-  - Category, Speed Schedule, Webhook Connections, and Indexer Settings tabs.
+  - Category, Speed Schedule, Webhook Connections, Indexer, and Network Settings tabs.
 - **Extended Features (Post-MVP):**
   - In-browser HTML5 video/audio streaming player.
