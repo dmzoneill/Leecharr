@@ -233,13 +233,19 @@ Deluge features an extensible plugin system. Leecharr incorporates the essential
 - **Deluge Functionality:** Periodically downloads IP blocklists in PeerGuardian (`.p2p`, `.dat`) or CIDR format (e.g. from Bluetack / I-Blocklist), unpacks gzip/zip archives, and filters connecting peer IPs in the transport layer.
 - **Leecharr Parity:** Transport layer IP filter with interval-based URL download and binary lookup table.
 
-### 4. Execute Plugin (Event Hooks)
-- **Deluge Functionality:** Executes custom commands or scripts on three lifecycle events:
-  - `torrent_added`
-  - `torrent_finished`
-  - `torrent_deleted`
-  - Passes parameters via environment variables: `TORRENT_ID`, `TORRENT_NAME`, `TORRENT_PATH`.
-- **Leecharr Parity:** Event subscriber listening to `TorrentDownloadCompletedEvent`, executing configured webhooks or local shell scripts.
+### 4. Execute Plugin (Custom Local Script & Webhook Hooks)
+- **Deluge Functionality:** Executes custom commands or scripts on three lifecycle events: `torrent_added`, `torrent_finished`, `torrent_deleted`, passing `TORRENT_ID`, `TORRENT_NAME`, `TORRENT_PATH`.
+- **Leecharr Parity:** Full dual support for **Outbound Webhooks** and **Custom Local Shell Scripts** (`.sh`, `.py`, `.bat`).
+  - **Fired Events:** `OnGrab` (added), `OnDownloadComplete` (finished), `OnTorrentDeleted` (deleted), `OnSeedGoalReached` (seed goal met).
+  - **Injected Environment Variables:**
+    - `LEECHARR_EVENT`: Event name (e.g. `DownloadComplete`)
+    - `TORRENT_ID`: Internal integer ID
+    - `TORRENT_NAME`: Release / torrent display name
+    - `TORRENT_PATH`: Full filesystem save path
+    - `TORRENT_CATEGORY`: Assigned category name
+    - `TORRENT_INFOHASH`: 40-character hex infohash
+    - `TORRENT_SIZE_BYTES`: Total size in bytes
+    - `TORRENT_RATIO`: Final share ratio
 
 ### 5. Extractor Plugin (Optional Archive Unpack)
 - **Deluge Functionality:** Detects multi-part `.rar`, `.zip`, `.7z`, `.tar.gz` archives upon torrent completion and extracts them.
