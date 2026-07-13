@@ -207,3 +207,12 @@ Native Torznab and Newznab client integration with interactive discovery UI (See
   - Category, Speed Schedule, Webhook Connections, Indexer, and Network Settings tabs.
 - **Extended Features (Post-MVP):**
   - In-browser HTML5 video/audio streaming player.
+
+### 11. UI Theme & Design System (Color Palette)
+The official Leecharr dark design system utilizes the following palette:
+- **`#10111A` (Midnight Charcoal):** Primary application background (`--bg-primary`).
+- **`#171B35` (Deep Indigo Navy):** Card surfaces, navigation bars, headers, and modal backgrounds (`--bg-secondary`, `--bg-card`).
+- **`#23284B` (Elevated Indigo):** Hover states, active row selections, and elevated containers (`--bg-card-hover`).
+- **`#F8F4ED` (Linen Cream):** Primary high-contrast typography, headings, and active status text (`--text-primary`).
+- **`#C7C5D3` (Slate Lavender Gray):** Secondary subtitles, file sizes, peer metrics, and inactive icons (`--text-secondary`).
+- **`#FFD166` (Warm Gold / Amber):** Primary brand accent, grab buttons, speed pulse highlights, active tabs, and download progress bars (`--accent-gold`, `--accent-primary`).
