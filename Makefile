@@ -1,10 +1,13 @@
 .PHONY: setup test-setup test integration build clean restore frontend \
-       test-unit test-all publish
+       test-unit test-integration test-all publish coverage-report
 
 SOLUTION := src/Leecharr.sln
 UNIT_TEST := src/Leecharr.Core.Test/Leecharr.Core.Test.csproj
+INTEGRATION_TEST := src/NzbDrone.Integration.Test/Leecharr.Integration.Test.csproj
 CONSOLE := src/NzbDrone.Console/Leecharr.Console.csproj
 FRONTEND := src/Leecharr.Frontend
+
+# --- Build targets (called by upstream CI: make setup) ---
 
 setup:
 	dotnet restore $(SOLUTION)
@@ -26,13 +29,34 @@ restore:
 
 clean:
 	dotnet clean $(SOLUTION) 2>/dev/null || true
-	rm -rf _output _temp _tests
+	rm -rf _output _temp _tests coverage-report
+
+# --- Tests (called by upstream CI: make test / make integration) ---
 
 test:
-	dotnet test $(SOLUTION) --configuration Release --no-build \
+	dotnet test $(UNIT_TEST) --configuration Release --no-build \
 		--logger "trx;LogFileName=test-results.trx" \
 		--collect:"XPlat Code Coverage"
 
 test-unit: test
 
-test-all: test
+integration:
+	@if [ -f $(INTEGRATION_TEST) ]; then \
+		dotnet test $(INTEGRATION_TEST) --configuration Release --no-build \
+			--logger "trx;LogFileName=integration-test-results.trx" \
+			--collect:"XPlat Code Coverage"; \
+	fi
+
+test-integration: integration
+
+coverage-report:
+	@REPORTS=$$(find . -name "coverage.cobertura.xml" -path "*/TestResults/*" 2>/dev/null | tr '\n' ';'); \
+	if [ -n "$$REPORTS" ]; then \
+		dotnet reportgenerator -reports:"$$REPORTS" -targetdir:coverage-report -reporttypes:Html 2>/dev/null && \
+		echo "Coverage report generated: coverage-report/index.html" || \
+		echo "Install reportgenerator: dotnet tool install -g dotnet-reportgenerator-globaltool"; \
+	else \
+		echo "No coverage files found"; \
+	fi
+
+test-all: test integration

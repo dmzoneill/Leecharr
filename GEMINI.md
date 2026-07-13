@@ -39,25 +39,31 @@ dotnet run --project src/NzbDrone.Console/Leecharr.Console.csproj -- --log-level
 
 ### Test Commands
 ```bash
-# Run all unit tests
-dotnet test src/Leecharr.sln -c Release --no-build
+# Run all unit tests with code coverage collection
+dotnet test src/Leecharr.sln -c Release --no-build --collect:"XPlat Code Coverage"
 
 # Run specific test class
 dotnet test src/Leecharr.sln --filter "FullyQualifiedName~PiecePickerTest"
 
-# Run tests with code coverage collection
-dotnet test src/Leecharr.sln --collect:"XPlat Code Coverage"
+# Run integration tests against test server
+dotnet test src/NzbDrone.Integration.Test/Leecharr.Integration.Test.csproj --no-build
+
+# Generate HTML code coverage report
+make coverage-report
 ```
 
 ### Makefile Shortcuts
 ```bash
 make setup          # Restore .NET and frontend npm dependencies
 make test-setup     # Build solution (Release)
-make test           # Run unit tests with coverage
+make test           # Run unit tests with XPlat Code Coverage
+make integration    # Run integration tests against in-memory host
+make test-all       # Run unit + integration test suites
+make coverage-report# Generate HTML coverage report (coverage-report/index.html)
 make build          # setup + test-setup
 make publish        # Publish standalone binaries to _output/
 make frontend       # Build frontend production bundle
-make clean          # Clean build artifacts (_temp, _output, _tests)
+make clean          # Clean build artifacts (_temp, _output, _tests, coverage-report)
 ```
 
 ---
@@ -134,6 +140,12 @@ Leecher/
 - Always put `System.*` using directives first, outside the namespace declaration.
 - Prefer `var` when type is apparent.
 - Async methods must end in `Async` if public library API, or follow standard Servarr async patterns.
+
+### 7. Testing, 90% Code Coverage & CI/CD Strategy
+- **90% Unit Test Coverage Threshold:** All core logic (BitTorrent engine session wrapper, piece pickers, disk channels, media container inspector, category rules, bandwidth limiters, Torznab client, and compatibility serializers) must maintain $\ge 90\%$ line and branch coverage.
+- **Integration Test Suite (`Leecharr.Integration.Test`):** Uses `Microsoft.AspNetCore.Mvc.Testing` / `WebApplicationFactory` to spin up live in-memory Kestrel test servers on isolated temporary SQLite databases, executing real HTTP requests across `/api/v1/*`, `/api/v2/*` (qBittorrent), `/json` (Deluge), `/transmission/rpc`, and `/signalr/messages`.
+- **Coverage Collection & Reporting:** Uses `coverlet.collector` with `XPlat Code Coverage` (Cobertura format) and `reportgenerator` (`make coverage-report`).
+- **GitHub Actions CI/CD:** Workflows configured in `.github/workflows/main.yml` (dispatched to central runner with .NET 10, container builds, and test-ready gates) and `.github/workflows/ai-responder.yml`.
 
 ---
 
