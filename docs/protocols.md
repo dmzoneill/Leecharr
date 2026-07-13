@@ -145,6 +145,7 @@ sequenceDiagram
 - **Dedicated Non-Blocking I/O Queue:** Prevents disk I/O latency from blocking network sockets using `System.Threading.Channels.Channel<DiskIoRequest>`.
 - **Dynamic Write Cache Scaling:** Defaults to 128 MB and dynamically scales up to 1 GB based on system RAM and real-time download throughput. Batches 16 KB piece blocks in memory with dirty block coalescing before issuing sequential disk writes to minimize NVMe/SSD wear and HDD head thrashing.
 - **Sparse File Allocation:** Uses filesystem sparse allocation (instant start, non-blocking) with optional pre-allocation (`fallocate`).
+- **Selective File Disk Allocation:** When files in a multi-file torrent are marked as `Skip` / `Do Not Download`, Leecharr only creates the *wanted* files on disk, buffering any border pieces in memory to prevent cluttering the filesystem with 0-byte or unwanted file placeholders.
 - **Fast Resume Persistence:** Serializes bitfields, verified piece masks, and byte totals to SQLite on shutdown and periodically every 5 minutes.
 
 ### 3.4 Private Tracker Compliance & Client Emulation Presets
@@ -180,3 +181,6 @@ sequenceDiagram
   - `Proxy Tracker Connections`: Routes tracker announce requests through proxy.
   - `Proxy Indexer Requests`: Routes Torznab/Newznab searches through proxy.
 - **Anonymous Mode:** Hides user-agent strings, omits local IP from peer handshakes, and disables peer identification leaks.
+
+### 3.8 Automatic Port Forwarding (UPnP & NAT-PMP)
+- **Active Port Mapping:** Always enables UPnP and NAT-PMP by default to automatically map the incoming listening TCP and UDP ports on the local router/gateway, maximizing incoming peer connectivity and seeding efficiency.
