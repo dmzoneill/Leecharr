@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leecharr.Console", "NzbDron
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leecharr.Core.Test", "Leecharr.Core.Test\Leecharr.Core.Test.csproj", "{E71DB6C3-2ED4-4D51-AB3D-0CB031CDC2CC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NzbDrone.Integration.Test", "NzbDrone.Integration.Test", "{D4401D19-843F-3A99-2DB8-BA6882DA61EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leecharr.Integration.Test", "NzbDrone.Integration.Test\Leecharr.Integration.Test.csproj", "{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -135,6 +139,18 @@ Global
 		{E71DB6C3-2ED4-4D51-AB3D-0CB031CDC2CC}.Release|x64.Build.0 = Release|Any CPU
 		{E71DB6C3-2ED4-4D51-AB3D-0CB031CDC2CC}.Release|x86.ActiveCfg = Release|Any CPU
 		{E71DB6C3-2ED4-4D51-AB3D-0CB031CDC2CC}.Release|x86.Build.0 = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|x64.Build.0 = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -145,5 +161,6 @@ Global
 		{CC49E129-B2CF-4A34-A917-32A6C1C8F51F} = {305899D4-6194-20B8-5899-C71DDFFE0527}
 		{DB5FA9EF-7E05-448B-8206-D309ADED40A4} = {E99E5879-A8F3-15FF-EE52-18D6E5C6A531}
 		{5FF9F170-14A7-4139-838B-5D4911185A43} = {E7C9A7AA-2544-1A95-07FA-A4C89A8D7D9B}
+		{2F0CCA60-D1A1-4A48-B35C-91BA1464A3ED} = {D4401D19-843F-3A99-2DB8-BA6882DA61EE}
 	EndGlobalSection
 EndGlobal
