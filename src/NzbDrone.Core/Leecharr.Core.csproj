@@ -14,11 +14,15 @@
     <PackageReference Include="FluentMigrator.Runner" Version="8.0.1" />
     <PackageReference Include="FluentMigrator.Runner.SQLite" Version="8.0.1" />
     <PackageReference Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
+    <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageReference Include="MonoTorrent" Version="3.0.2" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Open.NAT" Version="2.1.0" NoWarn="NU1701" />
     <PackageReference Include="Polly" Version="8.7.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
 </Project>

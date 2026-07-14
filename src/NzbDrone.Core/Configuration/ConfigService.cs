@@ -25,6 +25,8 @@ public interface IConfigService
     string DefaultCategory { get; }
 
     // Storage & Disk
+    string DownloadDir { get; }
+    string IncompleteDownloadDir { get; }
     int DiskWriteCacheSizeMb { get; }
     string DiskPreAllocationMode { get; }
     int DiskFlushIntervalSeconds { get; }
@@ -38,6 +40,8 @@ public interface IConfigService
     bool WatchFolderDeleteAddedTorrents { get; }
 
     // Connection & Swarm
+    string BindInterface { get; }
+    bool EnableVpnKillSwitch { get; }
     int ListeningPort { get; }
     bool UpnpEnabled { get; }
     int MaxGlobalConnections { get; }
@@ -226,6 +230,8 @@ public class ConfigService : IConfigService
     public string DefaultCategory => GetValue("DefaultCategory", "");
 
     // Storage & Disk
+    public string DownloadDir => GetValue("DownloadDir", "");
+    public string IncompleteDownloadDir => GetValue("IncompleteDownloadDir", "");
     public int DiskWriteCacheSizeMb => GetValueInt("DiskWriteCacheSizeMb", 128);
     public string DiskPreAllocationMode => GetValue("DiskPreAllocationMode", "sparse");
     public int DiskFlushIntervalSeconds => GetValueInt("DiskFlushIntervalSeconds", 30);
@@ -239,7 +245,9 @@ public class ConfigService : IConfigService
     public bool WatchFolderDeleteAddedTorrents => GetValueBoolean("WatchFolderDeleteAddedTorrents", false);
 
     // Connection & Swarm
-    public int ListeningPort => GetValueInt("ListeningPort", 6881);
+    public string BindInterface => GetValue("BindInterface", "");
+    public bool EnableVpnKillSwitch => GetValueBoolean("EnableVpnKillSwitch", false);
+    public int ListeningPort => GetValueInt("ListeningPort", 51413);
     public bool UpnpEnabled => GetValueBoolean("UpnpEnabled", true);
     public int MaxGlobalConnections => GetValueInt("MaxGlobalConnections", 300);
     public int MaxPerTorrentConnections => GetValueInt("MaxPerTorrentConnections", 50);
