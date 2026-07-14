@@ -24,3 +24,13 @@ public class TorrentStatusChangedEvent : IEvent
     public TorrentStatus OldStatus { get; set; }
     public TorrentStatus NewStatus { get; set; }
 }
+
+public class TorrentDownloadCompletedEvent : IEvent
+{
+    public Torrent Torrent { get; set; }
+
+    public TorrentDownloadCompletedEvent(Torrent torrent)
+    {
+        Torrent = torrent;
+    }
+}
