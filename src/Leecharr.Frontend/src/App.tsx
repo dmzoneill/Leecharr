@@ -346,13 +346,7 @@ export function App() {
         </main>
 
         {/* Bottom Status Bar */}
-        <StatusBar
-          totalTorrents={torrents.length}
-          activeTorrents={activeCount}
-          totalDlSpeed={totalDlSpeed}
-          totalUlSpeed={totalUlSpeed}
-          connected={connected}
-        />
+        <StatusBar />
       </div>
 
       {/* Add Torrent Modal */}
