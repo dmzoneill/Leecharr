@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Dapper;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.Categories;
@@ -15,6 +17,10 @@ public static class TableRegistration
 {
     public static void RegisterTables()
     {
+        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
+        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<string>>());
+        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<Dictionary<string, string>>());
+
         TableMapping.Register<CommandModel>("Commands");
         TableMapping.Register<ConfigModel>("Config");
         TableMapping.Register<ScheduledTask>("ScheduledTasks");

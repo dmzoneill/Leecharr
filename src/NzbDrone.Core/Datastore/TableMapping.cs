@@ -49,7 +49,19 @@ public static class TableMapping
     {
         return PropertyCache.GetOrAdd(type, static t =>
             t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.Name != "Id" && p.CanRead && p.CanWrite)
+                .Where(p => p.Name != "Id" && p.CanRead && p.CanWrite && IsColumnType(p.PropertyType))
                 .ToArray());
+    }
+
+    private static bool IsColumnType(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+        return underlying.IsPrimitive
+            || underlying.IsEnum
+            || underlying == typeof(string)
+            || underlying == typeof(DateTime)
+            || underlying == typeof(decimal)
+            || underlying == typeof(Guid)
+            || underlying == typeof(TimeSpan);
     }
 }

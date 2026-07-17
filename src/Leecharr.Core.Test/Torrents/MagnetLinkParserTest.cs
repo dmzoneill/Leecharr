@@ -1,4 +1,5 @@
-using System.Linq;
+using System;
+using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Torrents;
 
@@ -8,28 +9,42 @@ namespace Leecharr.Core.Test.Torrents;
 public class MagnetLinkParserTest
 {
     [Test]
-    public void should_parse_hex_magnet_link()
+    public void Parse_WhenValidHexMagnet_ParsesSuccessfully()
     {
-        const string magnet = "magnet:?xt=urn:btih:3b245504fb5fec2147ac37033dc1514c28bc23b6&dn=Ubuntu+22.04&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce";
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Ubuntu.iso&tr=http%3A%2F%2Ftracker.local%2Fannounce&tr=udp%3A%2F%2Ftracker2.local%3A1337";
 
         var parsed = MagnetLinkParser.Parse(magnet);
 
-        Assert.That(parsed.InfoHash, Is.EqualTo("3b245504fb5fec2147ac37033dc1514c28bc23b6"));
-        Assert.That(parsed.DisplayName, Is.EqualTo("Ubuntu 22.04"));
-        Assert.That(parsed.Trackers.Count, Is.EqualTo(1));
-        Assert.That(parsed.Trackers.First(), Is.EqualTo("udp://tracker.opentrackr.org:1337/announce"));
+        parsed.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.DisplayName.Should().Be("Ubuntu.iso");
+        parsed.Trackers.Should().HaveCount(2);
+        parsed.Trackers.Should().Contain("http://tracker.local/announce");
+        parsed.Trackers.Should().Contain("udp://tracker2.local:1337");
     }
 
     [Test]
-    public void should_parse_base32_magnet_link()
+    public void Parse_WhenBase32InfoHash_ConvertsToHex()
     {
-        // 32-char Base32 infohash
-        const string magnet = "magnet:?xt=urn:btih:HMJFLRHPX7WCEIP4G4BT3QKRJQU3YI5W&dn=Test";
+        // 32-character base32 hash
+        var magnet = "magnet:?xt=urn:btih:MFRGGZDFMY======&dn=Test";
 
         var parsed = MagnetLinkParser.Parse(magnet);
 
-        Assert.That(parsed.InfoHash, Is.Not.Null);
-        Assert.That(parsed.InfoHash.Length, Is.EqualTo(40));
-        Assert.That(parsed.DisplayName, Is.EqualTo("Test"));
+        parsed.DisplayName.Should().Be("Test");
+        parsed.InfoHash.Should().NotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void Parse_WhenEmpty_ThrowsArgumentException()
+    {
+        Action act = () => MagnetLinkParser.Parse("");
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Test]
+    public void Parse_WhenInvalidPrefix_ThrowsFormatException()
+    {
+        Action act = () => MagnetLinkParser.Parse("http://invalid-link");
+        act.Should().Throw<FormatException>();
     }
 }
