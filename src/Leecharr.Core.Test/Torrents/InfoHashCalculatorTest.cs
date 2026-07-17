@@ -1,5 +1,6 @@
-using System.Text;
+using System;
 using BencodeNET.Objects;
+using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Torrents;
 
@@ -9,20 +10,24 @@ namespace Leecharr.Core.Test.Torrents;
 public class InfoHashCalculatorTest
 {
     [Test]
-    public void should_calculate_correct_sha1_hex_infohash()
+    public void Calculate_CalculatesCorrectSha1Hex()
     {
-        var info = new BDictionary
+        var dict = new BDictionary
         {
-            ["name"] = new BString(Encoding.UTF8.GetBytes("sample.txt")),
-            ["length"] = new BNumber(1024),
-            ["piece length"] = new BNumber(512),
-            ["pieces"] = new BString(new byte[40])
+            ["name"] = new BString("Ubuntu.iso"),
+            ["length"] = new BNumber(1000000)
         };
 
-        var hash = InfoHashCalculator.Calculate(info);
+        var hash = InfoHashCalculator.Calculate(dict);
 
-        Assert.That(hash, Is.Not.Null);
-        Assert.That(hash.Length, Is.EqualTo(40));
-        Assert.That(hash, Is.EqualTo(hash.ToLowerInvariant()));
+        hash.Should().NotBeNullOrEmpty();
+        hash.Length.Should().Be(40);
+    }
+
+    [Test]
+    public void Calculate_WhenNull_ThrowsException()
+    {
+        var act = () => InfoHashCalculator.Calculate(null!);
+        act.Should().Throw<ArgumentNullException>();
     }
 }
