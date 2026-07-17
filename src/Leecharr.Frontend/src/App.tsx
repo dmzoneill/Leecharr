@@ -6,6 +6,8 @@ import { PieceMapModal } from './components/PieceMapModal';
 import { PeersModal } from './components/PeersModal';
 import { FilesModal } from './components/FilesModal';
 import { IndexerSearchModal } from './components/IndexerSearchModal';
+import { LeecharrLogo } from './components/icons/LeecharrLogo';
+import { LeecharrText } from './components/icons/LeecharrText';
 import './App.css';
 
 export function App() {
@@ -92,11 +94,8 @@ export function App() {
       {/* Header */}
       <header className="app-header">
         <div className="brand-section">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#ffd166" />
-            <path d="M16 6 L16 20 M10 14 L16 20 L22 14 M8 24 L24 24" stroke="#10111a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="brand-title">Leecharr</span>
+          <LeecharrLogo size={32} className="brand-logo" />
+          <LeecharrText width={120} className="brand-text" />
         </div>
 
         <div className="speed-meters">
