@@ -60,6 +60,25 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
+}
+
+.brand-logo {
+  animation: logo-pulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1) drop-shadow(0 0 0px rgba(248, 244, 237, 0));
+  }
+
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.15) drop-shadow(0 0 8px rgba(248, 244, 237, 0.4));
+  }
 }
 
 .brand-title {
