@@ -23,28 +23,32 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   };
 
   return (
-    <footer className="app-statusbar">
-      <div className="statusbar-left">
-        <span className={`status-indicator ${connected ? 'connected' : 'disconnected'}`} />
-        <span className="statusbar-text">
-          {connected ? 'SignalR Connected' : 'Connecting to Server...'}
+    <footer className="status-bar">
+      <div className="status-bar-left">
+        <span className={`status-bar-dot ${connected ? 'connected' : 'disconnected'}`} />
+        <span className="status-bar-item">
+          {connected ? 'SignalR Connected' : 'Connecting...'}
         </span>
-        <span className="statusbar-divider">|</span>
-        <span className="statusbar-text">
+        <span className="status-bar-separator">|</span>
+        <span className="status-bar-item">
           Torrents: <strong>{totalTorrents}</strong> ({activeTorrents} active)
         </span>
       </div>
 
-      <div className="statusbar-right">
-        <span className="statusbar-item status-dl">
+      <div className="status-bar-right">
+        <span className="status-bar-item" style={{ color: 'var(--accent)' }}>
           ↓ {formatSpeed(totalDlSpeed)}
         </span>
-        <span className="statusbar-item status-ul">
+        <span className="status-bar-item" style={{ color: 'var(--success)' }}>
           ↑ {formatSpeed(totalUlSpeed)}
         </span>
-        <span className="statusbar-divider">|</span>
-        <span className="statusbar-text">
+        <span className="status-bar-separator">|</span>
+        <span className="status-bar-item">
           Port: <strong>7889</strong>
+        </span>
+        <span className="status-bar-separator">|</span>
+        <span className="status-bar-item">
+          Leecharr v0.1.0
         </span>
       </div>
     </footer>
