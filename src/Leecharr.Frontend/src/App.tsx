@@ -144,8 +144,8 @@ export function App() {
       {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <LeecharrLogo size={108} className="brand-logo" />
-          <LeecharrText width={150} className="brand-text" />
+          <LeecharrLogo size={86} className="brand-logo" />
+          <LeecharrText width={120} className="brand-text" />
         </div>
 
         <nav className="sidebar-nav">
