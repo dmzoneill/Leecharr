@@ -1,5 +1,6 @@
 import React from 'react';
 import { Torrent } from '../api/types';
+import { PlayIcon, StopIcon } from './icons/UIIcons';
 
 interface TorrentTableProps {
   torrents: Torrent[];
@@ -34,30 +35,30 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   if (torrents.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-icon">📁</div>
-        <h3>No Torrents Found</h3>
-        <p className="text-muted">Add a magnet link or .torrent file to begin downloading.</p>
+      <div className="card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem auto', maxWidth: '600px' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
+        <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Torrents in Queue</h3>
+        <p style={{ color: 'var(--text-muted)' }}>Add a magnet link or search indexers to begin downloading.</p>
       </div>
     );
   }
 
   return (
-    <div className="table-responsive">
-      <table className="table-torrents">
+    <div className="torrent-table-wrapper">
+      <table className="torrent-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Size</th>
-            <th>Progress</th>
-            <th>Status</th>
-            <th>Down Speed</th>
-            <th>Up Speed</th>
-            <th>Seeds</th>
-            <th>Peers</th>
-            <th>Ratio</th>
-            <th>Actions</th>
+            <th className="torrent-table-th">Name</th>
+            <th className="torrent-table-th">Category</th>
+            <th className="torrent-table-th">Size</th>
+            <th className="torrent-table-th">Progress</th>
+            <th className="torrent-table-th">Status</th>
+            <th className="torrent-table-th">Down Speed</th>
+            <th className="torrent-table-th">Up Speed</th>
+            <th className="torrent-table-th">Seeds</th>
+            <th className="torrent-table-th">Peers</th>
+            <th className="torrent-table-th">Ratio</th>
+            <th className="torrent-table-th" style={{ textAlign: 'right' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -68,48 +69,75 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             return (
               <tr
                 key={t.id}
-                className={isSelected ? 'selected-row' : ''}
+                className={`torrent-table-row ${isSelected ? 'torrent-table-row-selected' : ''}`}
                 onClick={() => onSelect(t)}
+                style={{ cursor: 'pointer' }}
               >
-                <td className="cell-title" title={t.name}>
-                  <div className="title-container">
-                    <span className="torrent-name">{t.mediaTitle || t.name}</span>
-                    {t.resolution && <span className="cell-badge">{t.resolution}</span>}
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '380px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.name}>
+                      {t.mediaTitle || t.name}
+                    </span>
+                    {t.resolution && (
+                      <span className="badge" style={{ backgroundColor: '#8b5cf6', color: '#fff', fontSize: '0.65rem' }}>
+                        {t.resolution}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td>
-                  <span className="category-tag">{t.category || 'none'}</span>
+                  <span className="badge badge-accent">
+                    {t.category || 'none'}
+                  </span>
                 </td>
-                <td>{formatSize(t.totalSize)}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{formatSize(t.totalSize)}</td>
                 <td>
-                  <div className="table-progress">
-                    <div className="progress-bar-mini">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '120px' }}>
+                    <div style={{ flex: 1, height: '5px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div
-                        className={`progress-fill-mini ${t.status === 'seeding' ? 'seeding' : ''}`}
-                        style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(100, Math.max(0, t.progress * 100))}%`,
+                          backgroundColor: t.status === 'seeding' ? 'var(--success)' : 'var(--accent)',
+                        }}
                       />
                     </div>
-                    <span className="progress-percent">{(t.progress * 100).toFixed(1)}%</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', width: '38px', textAlign: 'right' }}>
+                      {(t.progress * 100).toFixed(0)}%
+                    </span>
                   </div>
                 </td>
                 <td>
-                  <span className={`status-pill status-${t.status}`}>
+                  <span
+                    className="badge"
+                    style={{
+                      backgroundColor: t.status === 'seeding' ? 'var(--success-bg)' : t.status === 'downloading' ? 'var(--accent-bg)' : 'var(--muted-bg)',
+                      color: t.status === 'seeding' ? 'var(--success)' : t.status === 'downloading' ? 'var(--accent)' : 'var(--text-muted)',
+                      textTransform: 'capitalize'
+                    }}
+                  >
                     {t.status}
                   </span>
                 </td>
-                <td className="speed-down">{formatSpeed(t.downloadSpeed)}</td>
-                <td className="speed-up">{formatSpeed(t.uploadSpeed)}</td>
-                <td>{t.seeders || 0}</td>
-                <td>{t.leechers || 0}</td>
-                <td>{t.ratio.toFixed(2)}</td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <div className="table-actions-group">
+                <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{formatSpeed(t.downloadSpeed)}</td>
+                <td style={{ color: 'var(--success)', fontWeight: 600 }}>{formatSpeed(t.uploadSpeed)}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{t.seeders || 0}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{t.leechers || 0}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{t.ratio.toFixed(2)}</td>
+                <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'inline-flex', gap: '4px' }}>
                     {isPaused ? (
-                      <button className="btn-icon" onClick={() => onResume(t.id)} title="Resume">▶</button>
+                      <button className="btn btn-small btn-success" onClick={() => onResume(t.id)} title="Resume">
+                        <PlayIcon size={10} />
+                      </button>
                     ) : (
-                      <button className="btn-icon" onClick={() => onPause(t.id)} title="Pause">⏸</button>
+                      <button className="btn btn-small" onClick={() => onPause(t.id)} title="Pause">
+                        <StopIcon size={10} />
+                      </button>
                     )}
-                    <button className="btn-icon btn-delete" onClick={() => onDelete(t.id)} title="Delete">🗑</button>
+                    <button className="btn btn-small btn-danger" onClick={() => onDelete(t.id)} title="Delete">
+                      ✕
+                    </button>
                   </div>
                 </td>
               </tr>

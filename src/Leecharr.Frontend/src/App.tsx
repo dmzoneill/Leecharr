@@ -5,7 +5,6 @@ import { Torrent, Category } from './api/types';
 import { LeecharrLogo } from './components/icons/LeecharrLogo';
 import { LeecharrText } from './components/icons/LeecharrText';
 import {
-  DashboardIcon,
   TorrentIcon,
   SettingsIcon,
   SystemIcon,
@@ -131,12 +130,12 @@ export function App() {
   };
 
   return (
-    <div className="app-layout">
+    <div className="app">
       {/* Servarr Left Sidebar */}
-      <aside className="app-sidebar">
+      <aside className="sidebar">
         <div className="sidebar-logo">
-          <LeecharrLogo size={42} className="brand-logo" />
-          <LeecharrText width={130} className="brand-text" />
+          <LeecharrLogo size={36} className="brand-logo" />
+          <LeecharrText width={120} className="brand-text" />
         </div>
 
         <nav className="sidebar-nav">
@@ -145,9 +144,8 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === 'torrents' ? 'active' : ''}`}
             onClick={() => setActiveNav('torrents')}
           >
-            <TorrentIcon size={18} />
-            <span className="sidebar-nav-label">Torrents</span>
-            {torrents.length > 0 && <span className="nav-badge">{torrents.length}</span>}
+            <TorrentIcon size={16} />
+            <span>Torrents</span>
           </button>
 
           {/* Indexer Search */}
@@ -155,8 +153,8 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === 'indexers' ? 'active' : ''}`}
             onClick={() => setActiveNav('indexers')}
           >
-            <SearchIcon size={18} />
-            <span className="sidebar-nav-label">Indexers</span>
+            <SearchIcon size={16} />
+            <span>Indexers</span>
           </button>
 
           {/* Activity / Swarm */}
@@ -164,8 +162,8 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === 'activity' ? 'active' : ''}`}
             onClick={() => setActiveNav('activity')}
           >
-            <ActivityIcon size={18} />
-            <span className="sidebar-nav-label">Activity</span>
+            <ActivityIcon size={16} />
+            <span>Activity</span>
           </button>
 
           {/* Peer Map */}
@@ -173,8 +171,8 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === 'peermap' ? 'active' : ''}`}
             onClick={() => setActiveNav('peermap')}
           >
-            <PeerMapIcon size={18} />
-            <span className="sidebar-nav-label">Peer Map</span>
+            <PeerMapIcon size={16} />
+            <span>Peer Map</span>
           </button>
 
           {/* Speed Schedule */}
@@ -182,8 +180,8 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === 'schedule' ? 'active' : ''}`}
             onClick={() => setActiveNav('schedule')}
           >
-            <ScheduleIcon size={18} />
-            <span className="sidebar-nav-label">Schedule</span>
+            <ScheduleIcon size={16} />
+            <span>Schedule</span>
           </button>
 
           {/* Settings Top-Level & Submenu */}
@@ -194,22 +192,19 @@ export function App() {
               setActiveSubNav('general');
             }}
           >
-            <SettingsIcon size={18} />
-            <span className="sidebar-nav-label">Settings</span>
+            <SettingsIcon size={16} />
+            <span>Settings</span>
           </button>
-          {activeNav === 'settings' && (
-            <div className="sidebar-submenu">
-              {settingsSubItems.map((item) => (
-                <button
-                  key={item.id}
-                  className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveSubNav(item.id)}
-                >
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {activeNav === 'settings' &&
+            settingsSubItems.map((item) => (
+              <button
+                key={item.id}
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
+                onClick={() => setActiveSubNav(item.id)}
+              >
+                <span>{item.label}</span>
+              </button>
+            ))}
 
           {/* System Top-Level & Submenu */}
           <button
@@ -219,65 +214,63 @@ export function App() {
               setActiveSubNav('status');
             }}
           >
-            <SystemIcon size={18} />
-            <span className="sidebar-nav-label">System</span>
+            <SystemIcon size={16} />
+            <span>System</span>
           </button>
-          {activeNav === 'system' && (
-            <div className="sidebar-submenu">
-              {systemSubItems.map((item) => (
-                <button
-                  key={item.id}
-                  className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveSubNav(item.id)}
-                >
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {activeNav === 'system' &&
+            systemSubItems.map((item) => (
+              <button
+                key={item.id}
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
+                onClick={() => setActiveSubNav(item.id)}
+              >
+                <span>{item.label}</span>
+              </button>
+            ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="version-info">Leecharr v0.1.0</div>
+        <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '1rem', textAlign: 'center', borderTop: '1px solid var(--border-light)' }}>
+          <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Leecharr v0.1.0</span>
         </div>
       </aside>
 
-      {/* Main Area */}
-      <div className="app-main">
+      {/* Main Wrapper */}
+      <div className="main-wrapper">
         {/* Topbar Header */}
-        <header className="app-header">
-          <div className="header-title">
-            <h2>
-              {activeNav === 'torrents' && 'Downloads'}
-              {activeNav === 'indexers' && 'Torznab Search'}
-              {activeNav === 'activity' && 'Swarm Activity'}
-              {activeNav === 'peermap' && 'Peer Map'}
-              {activeNav === 'schedule' && 'Speed Schedule'}
-              {activeNav === 'settings' && `Settings — ${settingsSubItems.find(s => s.id === activeSubNav)?.label || 'General'}`}
-              {activeNav === 'system' && `System — ${systemSubItems.find(s => s.id === activeSubNav)?.label || 'Status'}`}
-            </h2>
+        <header className="topbar">
+          <div
+            className="topbar-search"
+            onClick={() => setShowSearchModal(true)}
+            style={{ cursor: 'pointer' }}
+            title="Search Indexers (Ctrl+K or /)"
+          >
+            <SearchIcon size={14} />
+            <input
+              type="text"
+              placeholder="Search Indexers... (Ctrl+K or /)"
+              className="topbar-search-input"
+              readOnly
+              style={{ cursor: 'pointer' }}
+            />
+            <kbd style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.16)', borderRadius: '3px', padding: '0.1rem 0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+              Ctrl+K
+            </kbd>
           </div>
 
-          <div className="header-actions">
-            <div className="speed-meters">
-              <div className="meter-item dl">
-                <span>↓</span>
-                <span>{formatSpeed(totalDlSpeed)}</span>
-              </div>
-              <div className="meter-item ul">
-                <span>↑</span>
-                <span>{formatSpeed(totalUlSpeed)}</span>
-              </div>
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="topbar-speed-meter" style={{ display: 'flex', gap: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
+              <span style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600 }}>↓ {formatSpeed(totalDlSpeed)}</span>
+              <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 600 }}>↑ {formatSpeed(totalUlSpeed)}</span>
             </div>
 
-            <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            <button className="btn btn-small btn-success" onClick={() => setShowAddModal(true)}>
               + Add Torrent
             </button>
           </div>
         </header>
 
-        {/* Content Page */}
-        <main className="app-content">
+        {/* Page Content */}
+        <main className="content">
           {activeNav === 'torrents' && (
             <TorrentIndex
               torrents={torrents}
@@ -300,7 +293,7 @@ export function App() {
           {activeNav === 'system' && <SystemStatus />}
         </main>
 
-        {/* Bottom Status Bar */}
+        {/* Status Bar */}
         <StatusBar
           totalTorrents={torrents.length}
           activeTorrents={activeCount}
@@ -310,26 +303,34 @@ export function App() {
         />
       </div>
 
-      {/* Add Modal */}
+      {/* Add Torrent Modal */}
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h2>Add Torrent Download</h2>
-            <form onSubmit={handleAddMagnet} className="modal-form">
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Add Torrent Download</h2>
+              <button className="modal-close" onClick={() => setShowAddModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleAddMagnet} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
               <div className="form-group">
-                <label>Magnet Link or InfoHash</label>
+                <label className="form-label">Magnet Link or InfoHash</label>
                 <input
                   type="text"
                   placeholder="magnet:?xt=urn:btih:..."
                   value={magnetInput}
                   onChange={(e) => setMagnetInput(e.target.value)}
+                  className="form-input"
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label>Category</label>
-                <select value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)}>
+                <label className="form-label">Category</label>
+                <select
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
+                  className="form-input"
+                >
                   <option value="">(None)</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.name}>
@@ -339,21 +340,23 @@ export function App() {
                 </select>
               </div>
 
-              <div className="checkbox-row">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="checkbox"
                   id="pausedCheck"
                   checked={isPausedInput}
                   onChange={(e) => setIsPausedInput(e.target.checked)}
                 />
-                <label htmlFor="pausedCheck">Start in Paused State</label>
+                <label htmlFor="pausedCheck" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Start in Paused State
+                </label>
               </div>
 
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                <button type="button" className="btn" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-success">
                   + Add Download
                 </button>
               </div>

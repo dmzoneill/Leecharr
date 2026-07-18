@@ -3,6 +3,7 @@ import { Torrent, Category } from '../api/types';
 import { TorrentGrid } from '../components/TorrentGrid';
 import { TorrentTable } from '../components/TorrentTable';
 import { TorrentDetailPanel } from '../components/TorrentDetailPanel';
+import { PlusIcon, PlayIcon, StopIcon, TableIcon, GridIcon } from '../components/icons/UIIcons';
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -50,97 +51,128 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     return matchesCategory && matchesStatus && matchesSearch;
   });
 
+  const handleStartAll = () => {
+    torrents.filter(t => t.status === 'paused').forEach(t => onResume(t.id));
+  };
+
+  const handleStopAll = () => {
+    torrents.filter(t => t.status !== 'paused').forEach(t => onPause(t.id));
+  };
+
   return (
-    <div className="torrent-index-page">
-      {/* Top Action Toolbar */}
-      <div className="index-toolbar">
-        <div className="toolbar-left">
-          <div className="filter-pill-group">
-            <button
-              className={`filter-pill ${statusFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              All ({torrents.length})
-            </button>
-            <button
-              className={`filter-pill ${statusFilter === 'downloading' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('downloading')}
-            >
-              Downloading ({torrents.filter(t => t.status === 'downloading').length})
-            </button>
-            <button
-              className={`filter-pill ${statusFilter === 'seeding' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('seeding')}
-            >
-              Seeding ({torrents.filter(t => t.status === 'seeding').length})
-            </button>
-            <button
-              className={`filter-pill ${statusFilter === 'paused' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('paused')}
-            >
-              Paused ({torrents.filter(t => t.status === 'paused').length})
-            </button>
-          </div>
-
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Filter downloads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-search"
-            />
-          </div>
-        </div>
-
-        <div className="toolbar-right">
-          <div className="view-toggle">
-            <button
-              className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => setViewMode('grid')}
-              title="Poster Grid View"
-            >
-              Grid
-            </button>
-            <button
-              className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-              onClick={() => setViewMode('table')}
-              title="High-Density Table View"
-            >
-              Table
-            </button>
-          </div>
-
-          <button className="btn btn-secondary" onClick={onOpenSearchModal}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', height: '100%' }}>
+      {/* Page Header with Action Bar */}
+      <div className="page-header">
+        <div className="page-header-group">
+          <h1 className="page-heading">Torrents ({torrents.length})</h1>
+          <button className="btn btn-success" onClick={onOpenAddModal}>
+            <PlusIcon size={13} /> Add Torrent
+          </button>
+          <button className="btn" onClick={onOpenSearchModal}>
             🔍 Search Indexers
           </button>
-          <button className="btn btn-primary" onClick={onOpenAddModal}>
-            + Add Torrent
+        </div>
+
+        <div className="page-header-actions">
+          <button className="btn btn-success" onClick={handleStartAll} title="Resume all downloads">
+            <PlayIcon size={13} /> Start All
           </button>
+          <button className="btn" onClick={handleStopAll} title="Pause all downloads">
+            <StopIcon size={13} /> Stop All
+          </button>
+          <div className="view-mode-toggle" style={{ display: 'flex', gap: '2px', background: 'var(--bg-secondary)', padding: '2px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+            <button
+              className={`btn btn-small ${viewMode === 'table' ? 'btn-primary' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+              style={{ padding: '4px 8px' }}
+            >
+              <TableIcon size={14} />
+            </button>
+            <button
+              className={`btn btn-small ${viewMode === 'grid' ? 'btn-primary' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Poster Grid View"
+              style={{ padding: '4px 8px' }}
+            >
+              <GridIcon size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="category-bar">
-        <button
-          className={`category-chip ${selectedCategory === 'all' ? 'active' : ''}`}
-          onClick={() => onSelectCategory('all')}
-        >
-          All Categories
-        </button>
-        {categories.map((c) => (
-          <button
-            key={c.id}
-            className={`category-chip ${selectedCategory === c.name ? 'active' : ''}`}
-            onClick={() => onSelectCategory(c.name)}
-          >
-            {c.name}
-          </button>
-        ))}
+      {/* Filter Toolbar (Status Pills, Category Chips & Search) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Status Pills */}
+          <div style={{ display: 'flex', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px' }}>
+            {['all', 'downloading', 'seeding', 'paused'].map((s) => (
+              <button
+                key={s}
+                className={`btn btn-small ${statusFilter === s ? 'btn-primary' : ''}`}
+                style={{
+                  background: statusFilter === s ? 'var(--accent)' : 'transparent',
+                  color: statusFilter === s ? '#10111a' : 'var(--text-secondary)',
+                  border: 'none',
+                  textTransform: 'capitalize',
+                  fontWeight: statusFilter === s ? 700 : 500
+                }}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s} ({s === 'all' ? torrents.length : torrents.filter(t => t.status === s).length})
+              </button>
+            ))}
+          </div>
+
+          {/* Category Chips */}
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
+            <button
+              className={`badge ${selectedCategory === 'all' ? 'badge-accent' : ''}`}
+              style={{
+                cursor: 'pointer',
+                padding: '6px 12px',
+                border: '1px solid var(--border)',
+                backgroundColor: selectedCategory === 'all' ? 'var(--accent-bg)' : 'var(--bg-secondary)',
+                color: selectedCategory === 'all' ? 'var(--accent)' : 'var(--text-secondary)'
+              }}
+              onClick={() => onSelectCategory('all')}
+            >
+              All Categories
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                className={`badge ${selectedCategory === c.name ? 'badge-accent' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  padding: '6px 12px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: selectedCategory === c.name ? 'var(--accent-bg)' : 'var(--bg-secondary)',
+                  color: selectedCategory === c.name ? 'var(--accent)' : 'var(--text-secondary)'
+                }}
+                onClick={() => onSelectCategory(c.name)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search Filter Box */}
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            placeholder="Filter torrents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="topbar-search-input"
+            style={{ width: '240px' }}
+          />
+        </div>
       </div>
 
-      {/* View Container */}
-      <div className="torrent-view-container">
+      {/* Main Grid or Table View */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {viewMode === 'grid' ? (
           <TorrentGrid
             torrents={filteredTorrents}
@@ -162,7 +194,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         )}
       </div>
 
-      {/* Slide-Up Detail Panel */}
+      {/* Slide-Up Detail Drawer */}
       {selectedTorrent && (
         <TorrentDetailPanel
           torrent={selectedTorrent}
