@@ -22,19 +22,33 @@ import { TorrentIndex } from './pages/TorrentIndex';
 import { SpeedSchedule } from './pages/SpeedSchedule';
 import { Indexers } from './pages/Indexers';
 import { Settings } from './pages/Settings';
-import { SystemStatus } from './pages/SystemStatus';
+import SystemStatus from './pages/SystemStatus';
+import Activity from './pages/Activity';
+import PeerMap from './pages/PeerMap';
+import Statistics from './pages/Statistics';
+import SystemTasks from './pages/SystemTasks';
+import SystemBackup from './pages/SystemBackup';
+import SystemUpdates from './pages/SystemUpdates';
+import SystemEvents from './pages/SystemEvents';
+import SystemLogs from './pages/SystemLogs';
+import SystemNetwork from './pages/SystemNetwork';
 import { StatusBar } from './components/StatusBar';
 import { IndexerSearchModal } from './components/IndexerSearchModal';
 import './App.css';
 
 const settingsSubItems = [
   { id: 'general', label: 'General' },
-  { id: 'categories', label: 'Categories' },
+  { id: 'webui', label: 'Web UI' },
   { id: 'notifications', label: 'Notifications' },
-  { id: 'bandwidth', label: 'Bandwidth' },
+  { id: 'seeding', label: 'Seeding & Storage' },
+  { id: 'bittorrent', label: 'BitTorrent Engine' },
   { id: 'network', label: 'Network & VPN' },
-  { id: 'clients', label: 'Client Adapters' },
+  { id: 'peer-protocol', label: 'Peer Protocol' },
+  { id: 'protocols', label: 'Protocols' },
+  { id: 'scheduler', label: 'Scheduler' },
   { id: 'indexers', label: 'Indexers' },
+  { id: 'connections', label: 'Connections' },
+  { id: 'download-clients', label: 'Client Adapters' },
   { id: 'advanced', label: 'Advanced' },
 ];
 
@@ -308,13 +322,23 @@ export function App() {
             />
           )}
 
+          {activeNav === 'activity' && <Activity />}
           {activeNav === 'indexers' && <Indexers />}
-          {activeNav === 'activity' && <SystemStatus />}
-          {activeNav === 'peermap' && <Indexers />}
+          {activeNav === 'peermap' && <PeerMap />}
           {activeNav === 'schedule' && <SpeedSchedule />}
-          {activeNav === 'statistics' && <Dashboard torrents={torrents} onNavigateTorrents={() => setActiveNav('torrents')} />}
-          {activeNav === 'settings' && <Settings categories={categories} />}
-          {activeNav === 'system' && <SystemStatus />}
+          {activeNav === 'statistics' && <Statistics />}
+          {activeNav === 'settings' && <Settings section={activeSubNav} />}
+          {activeNav === 'system' && (
+            <>
+              {activeSubNav === 'status' && <SystemStatus />}
+              {activeSubNav === 'tasks' && <SystemTasks />}
+              {activeSubNav === 'backup' && <SystemBackup />}
+              {activeSubNav === 'updates' && <SystemUpdates />}
+              {activeSubNav === 'events' && <SystemEvents />}
+              {activeSubNav === 'logs' && <SystemLogs />}
+              {activeSubNav === 'network' && <SystemNetwork />}
+            </>
+          )}
         </main>
 
         {/* Bottom Status Bar */}
