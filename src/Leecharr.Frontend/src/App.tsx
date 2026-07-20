@@ -5,6 +5,7 @@ import { Torrent, Category } from './api/types';
 import { LeecharrLogo } from './components/icons/LeecharrLogo';
 import { LeecharrText } from './components/icons/LeecharrText';
 import {
+  DashboardIcon,
   TorrentIcon,
   SettingsIcon,
   SystemIcon,
@@ -14,7 +15,9 @@ import {
   ScheduleIcon,
   SearchIcon,
   PeerMapIcon,
+  StatsIcon,
 } from './components/icons/AppIcons';
+import { Dashboard } from './pages/Dashboard';
 import { TorrentIndex } from './pages/TorrentIndex';
 import { SpeedSchedule } from './pages/SpeedSchedule';
 import { Indexers } from './pages/Indexers';
@@ -46,7 +49,7 @@ const systemSubItems = [
 ];
 
 export function App() {
-  const [activeNav, setActiveNav] = useState<string>('torrents');
+  const [activeNav, setActiveNav] = useState<string>('dashboard');
   const [activeSubNav, setActiveSubNav] = useState<string>('general');
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -122,16 +125,9 @@ export function App() {
     }
   };
 
-  const formatSpeed = (bytesPerSec: number) => {
-    if (!bytesPerSec || bytesPerSec === 0) return '0 KB/s';
-    const mb = bytesPerSec / (1024 * 1024);
-    if (mb >= 1) return `${mb.toFixed(1)} MB/s`;
-    return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
-  };
-
   return (
     <div className="app">
-      {/* Servarr Left Sidebar */}
+      {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <LeecharrLogo size={36} className="brand-logo" />
@@ -139,102 +135,127 @@ export function App() {
         </div>
 
         <nav className="sidebar-nav">
-          {/* Torrents / Downloads */}
-          <button
+          {/* Dashboard */}
+          <div
+            className={`sidebar-nav-item ${activeNav === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveNav('dashboard')}
+            style={{ cursor: 'pointer' }}
+          >
+            <DashboardIcon size={16} />
+            <span>Dashboard</span>
+          </div>
+
+          {/* Torrents */}
+          <div
             className={`sidebar-nav-item ${activeNav === 'torrents' ? 'active' : ''}`}
             onClick={() => setActiveNav('torrents')}
+            style={{ cursor: 'pointer' }}
           >
             <TorrentIcon size={16} />
             <span>Torrents</span>
-          </button>
+          </div>
 
-          {/* Indexer Search */}
-          <button
-            className={`sidebar-nav-item ${activeNav === 'indexers' ? 'active' : ''}`}
-            onClick={() => setActiveNav('indexers')}
-          >
-            <SearchIcon size={16} />
-            <span>Indexers</span>
-          </button>
-
-          {/* Activity / Swarm */}
-          <button
+          {/* Activity */}
+          <div
             className={`sidebar-nav-item ${activeNav === 'activity' ? 'active' : ''}`}
             onClick={() => setActiveNav('activity')}
+            style={{ cursor: 'pointer' }}
           >
             <ActivityIcon size={16} />
             <span>Activity</span>
-          </button>
+          </div>
+
+          {/* Indexers */}
+          <div
+            className={`sidebar-nav-item ${activeNav === 'indexers' ? 'active' : ''}`}
+            onClick={() => setActiveNav('indexers')}
+            style={{ cursor: 'pointer' }}
+          >
+            <SearchIcon size={16} />
+            <span>Indexers</span>
+          </div>
 
           {/* Peer Map */}
-          <button
+          <div
             className={`sidebar-nav-item ${activeNav === 'peermap' ? 'active' : ''}`}
             onClick={() => setActiveNav('peermap')}
+            style={{ cursor: 'pointer' }}
           >
             <PeerMapIcon size={16} />
             <span>Peer Map</span>
-          </button>
+          </div>
 
-          {/* Speed Schedule */}
-          <button
+          {/* Schedule */}
+          <div
             className={`sidebar-nav-item ${activeNav === 'schedule' ? 'active' : ''}`}
             onClick={() => setActiveNav('schedule')}
+            style={{ cursor: 'pointer' }}
           >
             <ScheduleIcon size={16} />
             <span>Schedule</span>
-          </button>
+          </div>
 
-          {/* Settings Top-Level & Submenu */}
-          <button
+          {/* Statistics */}
+          <div
+            className={`sidebar-nav-item ${activeNav === 'statistics' ? 'active' : ''}`}
+            onClick={() => setActiveNav('statistics')}
+            style={{ cursor: 'pointer' }}
+          >
+            <StatsIcon size={16} />
+            <span>Statistics</span>
+          </div>
+
+          {/* Settings */}
+          <div
             className={`sidebar-nav-item ${activeNav === 'settings' ? 'active' : ''}`}
             onClick={() => {
               setActiveNav('settings');
               setActiveSubNav('general');
             }}
+            style={{ cursor: 'pointer' }}
           >
             <SettingsIcon size={16} />
             <span>Settings</span>
-          </button>
+          </div>
           {activeNav === 'settings' &&
             settingsSubItems.map((item) => (
-              <button
+              <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
                 onClick={() => setActiveSubNav(item.id)}
+                style={{ cursor: 'pointer' }}
               >
                 <span>{item.label}</span>
-              </button>
+              </div>
             ))}
 
-          {/* System Top-Level & Submenu */}
-          <button
+          {/* System */}
+          <div
             className={`sidebar-nav-item ${activeNav === 'system' ? 'active' : ''}`}
             onClick={() => {
               setActiveNav('system');
               setActiveSubNav('status');
             }}
+            style={{ cursor: 'pointer' }}
           >
             <SystemIcon size={16} />
             <span>System</span>
-          </button>
+          </div>
           {activeNav === 'system' &&
             systemSubItems.map((item) => (
-              <button
+              <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? 'active' : ''}`}
                 onClick={() => setActiveSubNav(item.id)}
+                style={{ cursor: 'pointer' }}
               >
                 <span>{item.label}</span>
-              </button>
+              </div>
             ))}
         </nav>
-
-        <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '1rem', textAlign: 'center', borderTop: '1px solid var(--border-light)' }}>
-          <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Leecharr v0.1.0</span>
-        </div>
       </aside>
 
-      {/* Main Wrapper */}
+      {/* Main Content Area */}
       <div className="main-wrapper">
         {/* Topbar Header */}
         <header className="topbar">
@@ -242,27 +263,22 @@ export function App() {
             className="topbar-search"
             onClick={() => setShowSearchModal(true)}
             style={{ cursor: 'pointer' }}
-            title="Search Indexers (Ctrl+K or /)"
+            title="Quick Jump / Search... (Ctrl+K or /)"
           >
             <SearchIcon size={14} />
             <input
               type="text"
-              placeholder="Search Indexers... (Ctrl+K or /)"
+              placeholder="Quick Jump / Search... (Ctrl+K or /)"
               className="topbar-search-input"
               readOnly
               style={{ cursor: 'pointer' }}
             />
             <kbd style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.16)', borderRadius: '3px', padding: '0.1rem 0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-              Ctrl+K
+              ⌘K
             </kbd>
           </div>
 
           <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div className="topbar-speed-meter" style={{ display: 'flex', gap: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-              <span style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600 }}>↓ {formatSpeed(totalDlSpeed)}</span>
-              <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 600 }}>↑ {formatSpeed(totalUlSpeed)}</span>
-            </div>
-
             <button className="btn btn-small btn-success" onClick={() => setShowAddModal(true)}>
               + Add Torrent
             </button>
@@ -271,6 +287,13 @@ export function App() {
 
         {/* Page Content */}
         <main className="content">
+          {activeNav === 'dashboard' && (
+            <Dashboard
+              torrents={torrents}
+              onNavigateTorrents={() => setActiveNav('torrents')}
+            />
+          )}
+
           {activeNav === 'torrents' && (
             <TorrentIndex
               torrents={torrents}
@@ -289,11 +312,12 @@ export function App() {
           {activeNav === 'activity' && <SystemStatus />}
           {activeNav === 'peermap' && <Indexers />}
           {activeNav === 'schedule' && <SpeedSchedule />}
+          {activeNav === 'statistics' && <Dashboard torrents={torrents} onNavigateTorrents={() => setActiveNav('torrents')} />}
           {activeNav === 'settings' && <Settings categories={categories} />}
           {activeNav === 'system' && <SystemStatus />}
         </main>
 
-        {/* Status Bar */}
+        {/* Bottom Status Bar */}
         <StatusBar
           totalTorrents={torrents.length}
           activeTorrents={activeCount}
