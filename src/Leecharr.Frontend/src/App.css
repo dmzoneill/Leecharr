@@ -1,13 +1,13 @@
 :root {
-  --sidebar-bg: #10111a;
+  --sidebar-bg: #0d0e17;
   --sidebar-width: 220px;
-  --topbar-bg: #171b35;
-  --bg-primary: #10111a;
-  --bg-secondary: #171b35;
-  --bg-hover: #23284b;
-  --bg-hover-elevated: #2a315e;
-  --border: #2c325b;
-  --border-light: #1f2444;
+  --topbar-bg: #121424;
+  --bg-primary: #181b30;
+  --bg-secondary: #222644;
+  --bg-hover: #2b3056;
+  --bg-hover-elevated: #333965;
+  --border: #2e3560;
+  --border-light: #1c203b;
   --text-primary: #f8f4ed;
   --text-secondary: #c7c5d3;
   --text-muted: #8a879e;
@@ -41,10 +41,10 @@
   --muted-bg: rgba(138, 135, 158, 0.2);
   --overlay: rgba(0, 0, 0, 0.7);
   --shadow-toast: rgba(0, 0, 0, 0.5);
-  --table-scroll-fade: rgba(16, 17, 26, 0.8);
+  --table-scroll-fade: rgba(13, 14, 23, 0.8);
   --table-row-alt: rgba(255, 209, 102, 0.02);
   --table-row-hover: rgba(255, 209, 102, 0.08);
-  --bg-lighter: #23284b;
+  --bg-lighter: #282e54;
 }
 
 [data-theme="light"] {
@@ -162,6 +162,7 @@ body {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
   background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -254,6 +255,7 @@ body {
   max-height: 100vh;
   overflow: hidden;
   max-width: calc(100vw - var(--sidebar-width));
+  background-color: var(--bg-primary);
 }
 
 /* Top Bar */
@@ -518,22 +520,32 @@ body {
 .status-bar {
   background-color: var(--sidebar-bg);
   border-top: 1px solid var(--border-light);
-  padding: 0.6rem 1.5rem;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .status-bar-content {
   display: flex;
-  gap: 2rem;
-  font-size: 0.85rem;
+  align-items: center;
+  width: 100%;
+  gap: 1.5rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 .status-bar-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  color: var(--text-color);
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .status-bar-upload {
