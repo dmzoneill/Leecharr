@@ -44,10 +44,12 @@ export function formatSeconds(seconds: number): string {
   return `${s}s`;
 }
 
-export function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+export function formatUptime(seconds: number | undefined | null): string {
+  if (!seconds || isNaN(Number(seconds)) || Number(seconds) <= 0) return "0m";
+  const sec = Number(seconds);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
   if (days > 0) return `${days}d ${hours}h ${minutes}m`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;

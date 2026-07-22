@@ -300,33 +300,37 @@ export function App() {
         </header>
 
         {/* Page Content */}
-        <main className="content">
+        <main className="app-main">
           {activeNav === 'dashboard' && (
-            <Dashboard
-              torrents={torrents}
-              onNavigateTorrents={() => setActiveNav('torrents')}
-            />
+            <div className="content-area">
+              <Dashboard
+                torrents={torrents}
+                onNavigateTorrents={() => setActiveNav('torrents')}
+              />
+            </div>
           )}
 
           {activeNav === 'torrents' && (
-            <TorrentIndex
-              torrents={torrents}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              onPause={handlePause}
-              onResume={handleResume}
-              onDelete={handleDelete}
-              onOpenAddModal={() => setShowAddModal(true)}
-              onOpenSearchModal={() => setShowSearchModal(true)}
-            />
+            <div className="content-area">
+              <TorrentIndex
+                torrents={torrents}
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                onPause={handlePause}
+                onResume={handleResume}
+                onDelete={handleDelete}
+                onOpenAddModal={() => setShowAddModal(true)}
+                onOpenSearchModal={() => setShowSearchModal(true)}
+              />
+            </div>
           )}
 
-          {activeNav === 'activity' && <Activity />}
-          {activeNav === 'indexers' && <Indexers />}
-          {activeNav === 'peermap' && <PeerMap />}
-          {activeNav === 'schedule' && <SpeedSchedule />}
-          {activeNav === 'statistics' && <Statistics />}
+          {activeNav === 'activity' && <div className="content-area"><Activity /></div>}
+          {activeNav === 'indexers' && <div className="content-area"><Indexers /></div>}
+          {activeNav === 'peermap' && <div className="content-area"><PeerMap /></div>}
+          {activeNav === 'schedule' && <div className="content-area"><SpeedSchedule /></div>}
+          {activeNav === 'statistics' && <div className="content-area"><Statistics /></div>}
           {activeNav === 'settings' && <Settings section={activeSubNav} />}
           {activeNav === 'system' && (
             <>
