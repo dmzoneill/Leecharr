@@ -202,6 +202,19 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
             if (root.ValueKind == JsonValueKind.Object)
             {
+                if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                {
+                    if (dataProp.TryGetProperty("ip", out var dataIpProp) && dataIpProp.ValueKind == JsonValueKind.String)
+                    {
+                        var extractedIp = dataIpProp.GetString();
+                        if (IPAddress.TryParse(extractedIp, out _))
+                        {
+                            ip = extractedIp;
+                            return true;
+                        }
+                    }
+                }
+
                 if (root.TryGetProperty("ip", out var ipProp) && ipProp.ValueKind == JsonValueKind.String)
                 {
                     var extractedIp = ipProp.GetString();
