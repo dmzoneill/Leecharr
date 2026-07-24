@@ -68,6 +68,7 @@ graph TB
 ## 2. Supported Indexer Protocols
 
 ### 1. Torznab Protocol
+
 - **Standard:** Extends Newznab XML specification for BitTorrent swarms.
 - **Capabilities Query (`t=caps`):** Probes supported categories (e.g. `2000` Movies, `5000` TV, `3000` Audio, `7000` Anime) and search modes (`search`, `tvsearch`, `movie`, `music`, `book`).
 - **Search Queries:**
@@ -85,6 +86,7 @@ graph TB
   - `minimumratio` & `minimumseedtime`: Tracker-specific mandatory seeding requirements.
 
 ### 2. Newznab Protocol (Future Usenet Extension)
+
 - Standard NZB indexer protocol for Usenet binary search (`t=search`, `t=tvsearch`, `t=movie`).
 
 ---
@@ -92,6 +94,7 @@ graph TB
 ## 3. Prowlarr Dynamic Synchronization
 
 Leecharr can link directly to a running **Prowlarr** instance:
+
 - **Automatic Discovery:** Connects to Prowlarr via API key (`/api/v1/indexer`).
 - **Real-Time Sync:** Automatically imports all enabled Prowlarr indexers into Leecharr.
 - **Proxying Support:** Respects FlareSolverr or SOCKS5 proxies configured in Prowlarr.
@@ -104,28 +107,30 @@ Leecharr can link directly to a running **Prowlarr** instance:
 When querying across multiple indexers, Leecharr aggregates, deduplicates, and ranks releases:
 
 ### Release Model (`ReleaseInfo`)
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `indexerId` | `int` | ID of the source indexer. |
-| `indexerName` | `string` | Display name of the indexer (e.g. `TorrentLeech`, `IPTorrents`). |
-| `title` | `string` | Release name (e.g. `Dune.Part.Two.2024.2160p.UHD.Remux.HEVC.DV.TrueHD.Atmos-FraMeSToR`). |
-| `downloadUrl` | `string` | HTTP download link for the `.torrent` file. |
-| `magnetUrl` | `string` | Direct magnet link. |
-| `infoHash` | `string` | SHA-1 infohash. |
-| `size` | `int64` | Total release size in bytes. |
-| `publishDate` | `DateTime` | Publication timestamp. |
-| `seeders` | `int` | Number of seeders. |
-| `leechers` | `int` | Number of leechers. |
-| `downloadVolumeFactor` | `double` | Freeleech factor (`0.0` = Freeleech). |
-| `uploadVolumeFactor` | `double` | Upload credit factor. |
-| `category` | `string` | Standardized category name (`tv`, `movies`, `music`, `anime`, etc.). |
-| `quality` | `QualityModel` | Extracted specs: Resolution (`2160p`, `1080p`), Codec (`HEVC`, `AVC`), Audio (`Atmos`, `DTS-HD`), Source (`Remux`, `WEB-DL`, `BluRay`). |
+
+| Property               | Type           | Description                                                                                                                             |
+| :--------------------- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| `indexerId`            | `int`          | ID of the source indexer.                                                                                                               |
+| `indexerName`          | `string`       | Display name of the indexer (e.g. `TorrentLeech`, `IPTorrents`).                                                                        |
+| `title`                | `string`       | Release name (e.g. `Dune.Part.Two.2024.2160p.UHD.Remux.HEVC.DV.TrueHD.Atmos-FraMeSToR`).                                                |
+| `downloadUrl`          | `string`       | HTTP download link for the `.torrent` file.                                                                                             |
+| `magnetUrl`            | `string`       | Direct magnet link.                                                                                                                     |
+| `infoHash`             | `string`       | SHA-1 infohash.                                                                                                                         |
+| `size`                 | `int64`        | Total release size in bytes.                                                                                                            |
+| `publishDate`          | `DateTime`     | Publication timestamp.                                                                                                                  |
+| `seeders`              | `int`          | Number of seeders.                                                                                                                      |
+| `leechers`             | `int`          | Number of leechers.                                                                                                                     |
+| `downloadVolumeFactor` | `double`       | Freeleech factor (`0.0` = Freeleech).                                                                                                   |
+| `uploadVolumeFactor`   | `double`       | Upload credit factor.                                                                                                                   |
+| `category`             | `string`       | Standardized category name (`tv`, `movies`, `music`, `anime`, etc.).                                                                    |
+| `quality`              | `QualityModel` | Extracted specs: Resolution (`2160p`, `1080p`), Codec (`HEVC`, `AVC`), Audio (`Atmos`, `DTS-HD`), Source (`Remux`, `WEB-DL`, `BluRay`). |
 
 ---
 
 ## 5. REST API Specification (`/api/v1/indexer` & `/api/v1/search`)
 
 ### 1. Indexer CRUD (`/api/v1/indexer`)
+
 - `GET /api/v1/indexer`: List all configured indexers with status, priority, and enabled flags.
 - `POST /api/v1/indexer`: Add new Torznab / Newznab indexer definition.
 - `PUT /api/v1/indexer/{id}`: Update indexer settings.
@@ -134,6 +139,7 @@ When querying across multiple indexers, Leecharr aggregates, deduplicates, and r
 - `POST /api/v1/indexer/sync-prowlarr`: Force re-synchronization with Prowlarr.
 
 ### 2. Search & Grab (`/api/v1/search`)
+
 - `GET /api/v1/search`: Multi-indexer search.
   - **Query Parameters:**
     - `query`: Text query string (e.g. `Blade Runner 2049`).
@@ -176,6 +182,7 @@ When querying across multiple indexers, Leecharr aggregates, deduplicates, and r
 ## 7. Automated RSS Feeds & Grab Rules
 
 In addition to manual search, Leecharr supports automated background RSS polling:
+
 - **Interval:** Periodic background RSS sync (default: every 15 minutes).
 - **Quality & Filter Rules:**
   - `Must Contain` / `Must Not Contain` regex patterns.
