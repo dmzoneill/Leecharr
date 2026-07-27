@@ -20,7 +20,7 @@ jobs:
       test-ready: "true"
       dotnet: "true"
       dotnet-version: "10.0.x"
-      docker-build: "true"
+      docker-build: "false"
       container-file: "Containerfile"
       VALIDATE_JSCPD: "false"
       VALIDATE_BIOME_FORMAT: "false"
