@@ -82,6 +82,15 @@ export function parsePeerClient(clientStr: string): ClientMeta {
       icon: "🐸",
     };
   }
+  if (lower.includes("leecharr")) {
+    const version = normalized.split(/[/ ]/)[1] || "";
+    return {
+      name: "Leecharr",
+      version,
+      badgeClass: "badge-primary",
+      icon: "💀",
+    };
+  }
   if (lower.includes("seedarr")) {
     const version = normalized.split(/[/ ]/)[1] || "";
     return {

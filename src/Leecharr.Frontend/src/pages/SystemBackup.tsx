@@ -147,7 +147,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            Create, download, and restore Seedarr configuration and database
+            Create, download, and restore Leecharr configuration and database
             snapshots
           </div>
         </div>

@@ -356,7 +356,7 @@ function PeerMap() {
       .attr("fill", "#27ae60");
 
     node.append("title").text((d) => {
-      if (d.type === "center") return "Seedarr Instance (Click for details)";
+      if (d.type === "center") return "Leecharr Instance (Click for details)";
       if (d.type === "torrent")
         return `Torrent: ${d.label}\n${d.infoHash || ""}\n(Click to view details)`;
       return `Peer: ${d.label}${d.isEncrypted ? " (encrypted)" : ""}\n(Click for details)`;
@@ -449,7 +449,7 @@ function PeerMap() {
               marginTop: "0.2rem",
             }}
           >
-            Live swarm topology visualization connecting Seedarr, active
+            Live swarm topology visualization connecting Leecharr, active
             torrents, and remote peers
           </div>
         </div>
@@ -506,7 +506,7 @@ function PeerMap() {
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.center }}
           />
-          Seedarr
+          Leecharr
         </span>
         <span className="peer-map-legend-item">
           <span

@@ -105,8 +105,8 @@ function SystemUpdates() {
             </span>
             <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>
               {isUpToDate
-                ? "The latest version of Seedarr is already installed"
-                : "A new version of Seedarr is available"}
+                ? "The latest version of Leecharr is already installed"
+                : "A new version of Leecharr is available"}
             </div>
           </div>
 

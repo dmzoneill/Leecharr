@@ -64,7 +64,7 @@ export function NetworkTab() {
 
       <SectionCard
         title="Network Status"
-        description="Current local and public IP addresses detected for this Seedarr instance"
+        description="Current local and public IP addresses detected for this Leecharr instance"
       >
         <div className="status-row">
           <span className="status-label">Local IP Address</span>

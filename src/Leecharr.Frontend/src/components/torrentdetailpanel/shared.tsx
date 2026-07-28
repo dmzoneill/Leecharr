@@ -29,7 +29,7 @@ export function PanelEmpty({ children }: { children: string }) {
 
 export function usePanelHeight() {
   const [height, setHeight] = useState(() => {
-    const stored = localStorage.getItem("seedarr-detail-height");
+    const stored = localStorage.getItem("leecharr-detail-height");
     return stored ? parseInt(stored, 10) : 280;
   });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ export function usePanelHeight() {
         document.body.style.userSelect = "";
         if (dragRef.current) {
           const finalH = panelRef.current?.offsetHeight ?? height;
-          localStorage.setItem("seedarr-detail-height", String(finalH));
+          localStorage.setItem("leecharr-detail-height", String(finalH));
         }
         dragRef.current = null;
       };
