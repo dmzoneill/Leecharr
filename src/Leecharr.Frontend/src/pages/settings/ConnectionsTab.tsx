@@ -320,8 +320,8 @@ export function ConnectionsTab() {
                 label="Webhook Host"
                 value={editing.webhookHost || ""}
                 onChange={(v) => setEditing({ ...editing, webhookHost: v })}
-                placeholder="seedarr"
-                hint="Hostname or IP for *arr to reach Seedarr (leave empty to use default)"
+                placeholder="leecharr"
+                hint="Hostname or IP for *arr to reach Leecharr (leave empty to use default)"
               />
             )}
 

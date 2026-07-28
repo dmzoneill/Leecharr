@@ -62,7 +62,7 @@ export function WebUITab() {
           onChange={(v) => set("port", v)}
           min={1}
           max={65535}
-          hint="HTTP port to access Seedarr Web UI"
+          hint="HTTP port to access Leecharr Web UI"
         />
         <TextInput
           label="Bind Address"
