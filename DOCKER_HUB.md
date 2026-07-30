@@ -81,7 +81,7 @@ podman-compose up -d
 
 ## Key Features
 
-- *_🌟 Deep *arr Media Enrichment*_ &mdash; 100% exact correlation with Sonarr, Radarr, and Lidarr libraries; displays high-res posters, season banners, episode screenshots, audio codecs (Dolby Atmos, TrueHD, FLAC), HDR metadata (Dolby Vision, HDR10+), and cast overviews.
+- **🌟 Deep \*arr Media Enrichment** &mdash; 100% exact correlation with Sonarr, Radarr, and Lidarr libraries; displays high-res posters, season banners, episode screenshots, audio codecs (Dolby Atmos, TrueHD, FLAC), HDR metadata (Dolby Vision, HDR10+), and cast overviews.
 - **⚡ Pure C# .NET 10 BitTorrent Engine** &mdash; full-fidelity downloader powered by MonoTorrent with rarest-first piece picker, sequential download mode (head/tail priority for instant media inspection/streaming), endgame mode, and non-blocking async disk I/O with dynamic write cache.
 - **🔌 Drop-In Client API Compatibility** &mdash; simultaneous support on port `7889` for:
   - **qBittorrent WebAPI v2** (`/api/v2/*`)
