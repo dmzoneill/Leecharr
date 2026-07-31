@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Torrent } from '../api/types';
 import { api } from '../api/client';
+import HealthAlerts from '../components/HealthAlerts';
 
 interface DashboardProps {
   torrents: Torrent[];
@@ -59,6 +60,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ torrents, onNavigateTorren
 
   return (
     <div className="dashboard-page" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {/* Setup & System Health Guidance Alerts */}
+      <HealthAlerts />
+
       {/* Hero Achievement / Status Banner */}
       <div
         className="card"

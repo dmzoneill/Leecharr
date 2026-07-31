@@ -34,6 +34,7 @@ import SystemLogs from './pages/SystemLogs';
 import SystemNetwork from './pages/SystemNetwork';
 import { StatusBar } from './components/StatusBar';
 import { IndexerSearchModal } from './components/IndexerSearchModal';
+import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from './components/GettingStartedModal';
 import './App.css';
 
 const settingsSubItems = [
@@ -73,6 +74,9 @@ export function App() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
+  const [showGettingStartedModal, setShowGettingStartedModal] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
+  });
   const [magnetInput, setMagnetInput] = useState<string>('');
   const [categoryInput, setCategoryInput] = useState<string>('');
   const [isPausedInput, setIsPausedInput] = useState<boolean>(false);
@@ -292,7 +296,23 @@ export function App() {
             </kbd>
           </div>
 
-          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              className="btn btn-small"
+              onClick={() => setShowGettingStartedModal(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                backgroundColor: 'rgba(255, 209, 102, 0.12)',
+                color: 'var(--accent, #ffd166)',
+                border: '1px solid rgba(255, 209, 102, 0.3)',
+                fontWeight: 600,
+              }}
+              title="Getting Started & Setup Guide (Prowlarr, Sonarr, Radarr, Lidarr)"
+            >
+              🚀 Setup Guide
+            </button>
             <button className="btn btn-small btn-success" onClick={() => setShowAddModal(true)}>
               + Add Torrent
             </button>
@@ -418,6 +438,18 @@ export function App() {
           onTorrentAdded={loadData}
         />
       )}
+
+      {/* Getting Started & Setup Guide Modal */}
+      <GettingStartedModal
+        isOpen={showGettingStartedModal}
+        onClose={() => setShowGettingStartedModal(false)}
+        onNavigateSettings={(tab) => {
+          setActiveNav('settings');
+          setActiveSubNav(tab);
+        }}
+        onNavigateTorrents={() => setActiveNav('torrents')}
+        onNavigateIndexers={() => setActiveNav('indexers')}
+      />
     </div>
   );
 }
