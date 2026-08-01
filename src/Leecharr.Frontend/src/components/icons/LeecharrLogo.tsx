@@ -14,7 +14,7 @@ export const LeecharrLogo: React.FC<LogoProps> = ({ size = 28, className }) => {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      <g transform="translate(0,5190) scale(1,-1)" fill="#F8F4ED">
+      <g transform="translate(0,5190) scale(1,-1)" fill="#FFD166">
         <path
           d="M2335 4364 c-356 -53 -638 -207 -815 -447 -55 -74 -61 -122 -31 -264
 22 -105 26 -176 15 -257 -6 -37 -9 -44 -20 -35 -8 6 -14 20 -14 31 0 28 -59
