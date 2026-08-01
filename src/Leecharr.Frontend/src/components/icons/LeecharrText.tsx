@@ -26,8 +26,8 @@ export const LeecharrText: React.FC<TextProps> = ({ width = 120, className }) =>
       className={className}
     >
       <g transform="translate(-1.3085942,-9.7539063)">
-        <path d={LEECH_PATH} fill="#C7C5D3" />
-        <path d={ARR_PATH} fill="#b5443a" />
+        <path d={LEECH_PATH} fill="#FFFFFF" />
+        <path d={ARR_PATH} fill="#FFD166" />
       </g>
     </svg>
   );
