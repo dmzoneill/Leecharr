@@ -88,7 +88,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ torrents, onNavigateTorren
           </div>
         </div>
         <button className="btn btn-small" onClick={onNavigateTorrents} style={{ backgroundColor: 'rgba(255, 209, 102, 0.1)', color: 'var(--accent)', border: '1px solid var(--accent)' }}>
-          Queue & Torrents &rarr;
+          Queue & Torrents →
         </button>
       </div>
 
