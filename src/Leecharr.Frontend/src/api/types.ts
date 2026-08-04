@@ -901,3 +901,54 @@ export interface TrackerBoostLogEntry {
   infoHash: string;
   message: string;
 }
+
+export interface MediaActor {
+  name: string;
+  character?: string | null;
+  imageUrl?: string | null;
+}
+
+export interface MediaMetadata {
+  mediaType?: string | null;
+  mediaId?: number | null;
+  title?: string | null;
+  year?: number | null;
+  overview?: string | null;
+  posterUrl?: string | null;
+  fanartUrl?: string | null;
+  backdropUrl?: string | null;
+  bannerUrl?: string | null;
+  genres?: string[];
+  actors?: MediaActor[];
+  studioOrNetwork?: string | null;
+  rating?: number | null;
+  imdbId?: string | null;
+  tmdbId?: number | null;
+  tvdbId?: number | null;
+  mediaInfoJson?: string | null;
+}
+
+export interface DownloadHistoryEntry {
+  id: number;
+  torrentId: number | null;
+  title: string;
+  infoHash: string;
+  totalSize: number;
+  dateAdded: string;
+  dateCompleted: string | null;
+  dateRemoved: string | null;
+  uploaded: number;
+  downloaded: number;
+  ratio: number;
+  seedingTime: number;
+  primaryTracker: string | null;
+  indexerName: string | null;
+  source: string | null;
+  magnetUrl: string | null;
+  downloadUrl: string | null;
+  status: string;
+  removalReason: string | null;
+  dataJson?: string | null;
+  metadata?: MediaMetadata | null;
+}
+
