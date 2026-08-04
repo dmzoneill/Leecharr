@@ -16,6 +16,7 @@ import {
   SearchIcon,
   PeerMapIcon,
   StatsIcon,
+  HistoryIcon,
 } from './components/icons/AppIcons';
 import { Dashboard } from './pages/Dashboard';
 import { TorrentIndex } from './pages/TorrentIndex';
@@ -24,6 +25,7 @@ import { Indexers } from './pages/Indexers';
 import { Settings } from './pages/Settings';
 import SystemStatus from './pages/SystemStatus';
 import Activity from './pages/Activity';
+import DownloadHistory from './pages/DownloadHistory';
 import PeerMap from './pages/PeerMap';
 import Statistics from './pages/Statistics';
 import SystemTasks from './pages/SystemTasks';
@@ -65,7 +67,7 @@ const systemSubItems = [
 
 export function App() {
   const [activeNav, setActiveNav] = useState<string>('dashboard');
-  const [activeSubNav, setActiveSubNav] = useState<string>('general');
+  const [activeSubNav, setActiveSubNav] = useState<string>('history');
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -163,25 +165,68 @@ export function App() {
             <span>Dashboard</span>
           </div>
 
-          {/* Torrents */}
+          {/* Torrents (History & Add Torrent) */}
           <div
             className={`sidebar-nav-item ${activeNav === 'torrents' ? 'active' : ''}`}
-            onClick={() => setActiveNav('torrents')}
+            onClick={() => {
+              setActiveNav('torrents');
+              setActiveSubNav('history');
+            }}
             style={{ cursor: 'pointer' }}
           >
             <TorrentIcon size={16} />
             <span>Torrents</span>
           </div>
+          {activeNav === 'torrents' && (
+            <>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === 'history' ? 'active' : ''}`}
+                onClick={() => setActiveSubNav('history')}
+                style={{ cursor: 'pointer' }}
+              >
+                <HistoryIcon /> <span>History</span>
+              </div>
+              <div
+                className="sidebar-nav-item sidebar-nav-sub"
+                onClick={() => setShowAddModal(true)}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span>{' '}
+                <span>Add Torrent</span>
+              </div>
+            </>
+          )}
 
-          {/* Activity */}
+          {/* Activity (Torrents Downloads & Metrics) */}
           <div
             className={`sidebar-nav-item ${activeNav === 'activity' ? 'active' : ''}`}
-            onClick={() => setActiveNav('activity')}
+            onClick={() => {
+              setActiveNav('activity');
+              setActiveSubNav('torrents');
+            }}
             style={{ cursor: 'pointer' }}
           >
             <ActivityIcon size={16} />
             <span>Activity</span>
           </div>
+          {activeNav === 'activity' && (
+            <>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === 'torrents' ? 'active' : ''}`}
+                onClick={() => setActiveSubNav('torrents')}
+                style={{ cursor: 'pointer' }}
+              >
+                <DashboardIcon size={14} /> <span>Torrents</span>
+              </div>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === 'metrics' ? 'active' : ''}`}
+                onClick={() => setActiveSubNav('metrics')}
+                style={{ cursor: 'pointer' }}
+              >
+                <StatsIcon size={14} /> <span>Metrics</span>
+              </div>
+            </>
+          )}
 
           {/* Indexers */}
           <div
@@ -325,28 +370,39 @@ export function App() {
             <div className="content-area">
               <Dashboard
                 torrents={torrents}
-                onNavigateTorrents={() => setActiveNav('torrents')}
+                onNavigateTorrents={() => {
+                  setActiveNav('activity');
+                  setActiveSubNav('torrents');
+                }}
               />
             </div>
           )}
 
           {activeNav === 'torrents' && (
-            <div className="content-area">
-              <TorrentIndex
-                torrents={torrents}
-                categories={categories}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                onPause={handlePause}
-                onResume={handleResume}
-                onDelete={handleDelete}
-                onOpenAddModal={() => setShowAddModal(true)}
-                onOpenSearchModal={() => setShowSearchModal(true)}
-              />
+            <div className="content-area" style={{ height: '100%', minHeight: 0 }}>
+              <DownloadHistory />
             </div>
           )}
 
-          {activeNav === 'activity' && <div className="content-area"><Activity /></div>}
+          {activeNav === 'activity' && (
+            <div className="content-area" style={{ height: '100%', minHeight: 0 }}>
+              {activeSubNav === 'torrents' && (
+                <TorrentIndex
+                  torrents={torrents}
+                  categories={categories}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                  onDelete={handleDelete}
+                  onOpenAddModal={() => setShowAddModal(true)}
+                  onOpenSearchModal={() => setShowSearchModal(true)}
+                />
+              )}
+              {activeSubNav === 'metrics' && <Activity />}
+            </div>
+          )}
+
           {activeNav === 'indexers' && <div className="content-area"><Indexers /></div>}
           {activeNav === 'peermap' && <div className="content-area"><PeerMap /></div>}
           {activeNav === 'schedule' && <div className="content-area"><SpeedSchedule /></div>}
@@ -447,7 +503,10 @@ export function App() {
           setActiveNav('settings');
           setActiveSubNav(tab);
         }}
-        onNavigateTorrents={() => setActiveNav('torrents')}
+        onNavigateTorrents={() => {
+          setActiveNav('activity');
+          setActiveSubNav('torrents');
+        }}
         onNavigateIndexers={() => setActiveNav('indexers')}
       />
     </div>
