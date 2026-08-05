@@ -11,11 +11,19 @@ export const LeecharrLogo: React.FC<LogoProps> = ({ size = 28, className }) => {
       width={size}
       height={size}
       viewBox="0 0 5290 5190"
+      fill="#FFFFFF"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      style={{ display: "inline-block", verticalAlign: "middle" }}
     >
-      <g transform="translate(0,5190) scale(1,-1)" fill="#FFFFFF">
+      <g
+        transform="translate(0,5190) scale(1,-1)"
+        fill="#FFFFFF"
+        style={{ fill: "#FFFFFF" }}
+      >
         <path
+          fill="#FFFFFF"
+          style={{ fill: "#FFFFFF" }}
           d="M2335 4364 c-356 -53 -638 -207 -815 -447 -55 -74 -61 -122 -31 -264
 22 -105 26 -176 15 -257 -6 -37 -9 -44 -20 -35 -8 6 -14 20 -14 31 0 28 -59
 140 -70 133 -6 -3 -10 -14 -10 -24 0 -28 -56 -238 -85 -321 -43 -121 -119
@@ -48,10 +56,14 @@ l-1 -51 -25 30 c-35 42 -128 237 -147 310 -29 107 -48 325 -30 325 4 0 37 -31
 -8 35 5 162 81 133 79 245 164 330 253 39 40 73 73 78 73 4 0 7 -21 7 -48z"
         />
         <path
+          fill="#FFFFFF"
+          style={{ fill: "#FFFFFF" }}
           d="M1814 2665 c-15 -38 60 -115 131 -134 61 -17 175 -11 175 8 0 4 -37
 22 -82 40 -46 17 -114 47 -151 65 -51 26 -70 31 -73 21z"
         />
         <path
+          fill="#FFFFFF"
+          style={{ fill: "#FFFFFF" }}
           d="M3205 2640 c-33 -16 -97 -43 -142 -61 -46 -18 -83 -36 -83 -40 0 -9
 53 -19 99 -19 84 0 166 42 196 100 30 59 19 62 -70 20z"
         />
