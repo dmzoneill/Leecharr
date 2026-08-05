@@ -138,6 +138,13 @@ export function useDeleteTorrentTracker() {
   });
 }
 
+export function useCategories() {
+  return useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get("/categories"),
+  });
+}
+
 export function useAddTorrentTracker() {
   const queryClient = useQueryClient();
   return useMutation<
@@ -199,11 +206,11 @@ export function useAddTorrent() {
         const formData = new FormData();
         input.files.forEach((file) => formData.append("file", file));
         return apiClient.postForm<AddTorrentResult>(
-          "/torrent/upload",
+          "/torrents/upload",
           formData,
         );
       }
-      return apiClient.post("/torrent", { magnetLink: input.magnetLink });
+      return apiClient.post("/torrents", { magnetLink: input.magnetLink });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["torrents"] }),
   });

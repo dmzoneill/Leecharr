@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +13,19 @@ using NzbDrone.Core.Torrents;
 using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Torrents;
+
+public record TorrentUploadFailure(string FileName, string Reason);
+public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploadFailure> Failed);
+
+public class AddTorrentJsonRequest
+{
+    public string MagnetLink { get; set; }
+    public string DownloadUrl { get; set; }
+    public string Title { get; set; }
+    public string Category { get; set; }
+    public string SavePath { get; set; }
+    public bool Paused { get; set; }
+}
 
 [V1ApiController("torrents")]
 public class TorrentController : RestControllerWithSignalR<TorrentResource, Torrent>
@@ -80,6 +95,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpPost]
+    [Consumes("multipart/form-data", "application/x-www-form-urlencoded")]
     public async Task<ActionResult<TorrentResource>> AddTorrent(
         [FromForm] IFormFile file = null,
         [FromForm] string magnetUrl = null,
@@ -107,6 +123,74 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         return BadRequest("Either a .torrent file or a magnetUrl is required.");
+    }
+
+    [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Upload([FromForm(Name = "file")] List<IFormFile> files, [FromForm] string category = null, [FromForm] bool isPaused = false)
+    {
+        if (files == null || files.Count == 0)
+        {
+            return BadRequest("No torrent file provided");
+        }
+
+        var added = new List<TorrentResource>();
+        var failed = new List<TorrentUploadFailure>();
+
+        foreach (var file in files)
+        {
+            if (file == null || file.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var ms = new MemoryStream();
+                await file.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                var parsed = _torrentFileParser.Parse(bytes);
+
+                var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
+                var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+                added.Add(TorrentResourceMapper.ToResource(torrent, meta));
+            }
+            catch (Exception ex)
+            {
+                failed.Add(new TorrentUploadFailure(file.FileName, ex.Message));
+            }
+        }
+
+        return Ok(new TorrentUploadResult(added, failed));
+    }
+
+    [HttpPost("grab")]
+    [Consumes("application/json")]
+    public async Task<ActionResult<TorrentResource>> GrabRelease([FromBody] AddTorrentJsonRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest("Request body is empty.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MagnetLink))
+        {
+            var torrent = await _torrentService.AddFromMagnetAsync(request.MagnetLink, request.Category, request.SavePath, request.Paused);
+            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
+        {
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            var bytes = await httpClient.GetByteArrayAsync(request.DownloadUrl);
+            var parsed = _torrentFileParser.Parse(bytes);
+            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.Paused, bytes);
+            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        }
+
+        return BadRequest("Either magnetLink or downloadUrl is required.");
     }
 
     [HttpPost("{id:int}/pause")]

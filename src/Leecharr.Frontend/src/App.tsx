@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api/client';
 import { signalRManager } from './api/signalr';
 import { Torrent, Category } from './api/types';
+import { useIndexers } from './api/hooks';
 import { LeecharrLogo } from './components/icons/LeecharrLogo';
 import { LeecharrText } from './components/icons/LeecharrText';
 import {
@@ -26,6 +27,7 @@ import { Settings } from './pages/Settings';
 import SystemStatus from './pages/SystemStatus';
 import Activity from './pages/Activity';
 import DownloadHistory from './pages/DownloadHistory';
+import AddTorrentPage from './pages/AddTorrentPage';
 import PeerMap from './pages/PeerMap';
 import Statistics from './pages/Statistics';
 import SystemTasks from './pages/SystemTasks';
@@ -36,6 +38,7 @@ import SystemLogs from './pages/SystemLogs';
 import SystemNetwork from './pages/SystemNetwork';
 import { StatusBar } from './components/StatusBar';
 import { IndexerSearchModal } from './components/IndexerSearchModal';
+import { AddTorrentModal } from './components/AddTorrentModal';
 import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from './components/GettingStartedModal';
 import './App.css';
 
@@ -73,15 +76,14 @@ export function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [connected, setConnected] = useState<boolean>(false);
 
+  const { data: indexersList } = useIndexers();
+
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
   const [showGettingStartedModal, setShowGettingStartedModal] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
   });
-  const [magnetInput, setMagnetInput] = useState<string>('');
-  const [categoryInput, setCategoryInput] = useState<string>('');
-  const [isPausedInput, setIsPausedInput] = useState<boolean>(false);
 
   const loadData = async () => {
     try {
@@ -110,10 +112,6 @@ export function App() {
     return () => unsubscribe();
   }, []);
 
-  const totalDlSpeed = torrents.reduce((acc, t) => acc + (t.downloadSpeed || 0), 0);
-  const totalUlSpeed = torrents.reduce((acc, t) => acc + (t.uploadSpeed || 0), 0);
-  const activeCount = torrents.filter(t => t.status === 'downloading' || t.status === 'seeding').length;
-
   const handlePause = async (id: number) => {
     await api.pauseTorrent(id);
     loadData();
@@ -128,20 +126,6 @@ export function App() {
     if (window.confirm('Are you sure you want to delete this torrent?')) {
       await api.deleteTorrent(id, false);
       loadData();
-    }
-  };
-
-  const handleAddMagnet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!magnetInput) return;
-
-    try {
-      await api.addTorrentMagnet(magnetInput, categoryInput, '', isPausedInput);
-      setMagnetInput('');
-      setShowAddModal(false);
-      loadData();
-    } catch (err) {
-      alert(`Error adding torrent: ${err}`);
     }
   };
 
@@ -187,8 +171,8 @@ export function App() {
                 <HistoryIcon /> <span>History</span>
               </div>
               <div
-                className="sidebar-nav-item sidebar-nav-sub"
-                onClick={() => setShowAddModal(true)}
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === 'add' ? 'active' : ''}`}
+                onClick={() => setActiveSubNav('add')}
                 style={{ cursor: 'pointer' }}
               >
                 <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span>{' '}
@@ -228,15 +212,62 @@ export function App() {
             </>
           )}
 
-          {/* Indexers */}
+          {/* Indexers (All + Individual Indexers + Add Indexer) */}
           <div
             className={`sidebar-nav-item ${activeNav === 'indexers' ? 'active' : ''}`}
-            onClick={() => setActiveNav('indexers')}
+            onClick={() => {
+              setActiveNav('indexers');
+              setActiveSubNav('all');
+            }}
             style={{ cursor: 'pointer' }}
           >
             <SearchIcon size={16} />
             <span>Indexers</span>
           </div>
+          {activeNav === 'indexers' && (
+            <>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveSubNav('all')}
+                style={{ cursor: 'pointer' }}
+              >
+                <SearchIcon size={14} /> <span>All Indexers</span>
+              </div>
+              {(indexersList || []).map((idx) => (
+                <div
+                  key={idx.id}
+                  className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === String(idx.id) ? 'active' : ''}`}
+                  onClick={() => setActiveSubNav(String(idx.id))}
+                  style={{ cursor: 'pointer' }}
+                  title={`${idx.name} (${idx.indexerType})`}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: idx.enable ? 'var(--success, #22c55e)' : 'var(--text-muted, #7e8092)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {idx.name}
+                  </span>
+                </div>
+              ))}
+              <div
+                className="sidebar-nav-item sidebar-nav-sub"
+                onClick={() => {
+                  setActiveNav('settings');
+                  setActiveSubNav('indexers');
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span>{' '}
+                <span>Add Indexer</span>
+              </div>
+            </>
+          )}
 
           {/* Peer Map */}
           <div
@@ -374,13 +405,26 @@ export function App() {
                   setActiveNav('activity');
                   setActiveSubNav('torrents');
                 }}
+                onNavigateSettings={(tab) => {
+                  setActiveNav('settings');
+                  setActiveSubNav(tab);
+                }}
               />
             </div>
           )}
 
           {activeNav === 'torrents' && (
             <div className="content-area" style={{ height: '100%', minHeight: 0 }}>
-              <DownloadHistory />
+              {activeSubNav === 'history' && <DownloadHistory />}
+              {activeSubNav === 'add' && (
+                <AddTorrentPage
+                  onSuccess={() => {
+                    setActiveNav('activity');
+                    setActiveSubNav('torrents');
+                    loadData();
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -403,7 +447,19 @@ export function App() {
             </div>
           )}
 
-          {activeNav === 'indexers' && <div className="content-area"><Indexers /></div>}
+          {activeNav === 'indexers' && (
+            <div className="content-area" style={{ height: '100%', minHeight: 0 }}>
+              <Indexers
+                selectedSubNav={activeSubNav}
+                onSelectIndexer={(id) => setActiveSubNav(id)}
+                onNavigateSettings={(tab) => {
+                  setActiveNav('settings');
+                  setActiveSubNav(tab);
+                }}
+              />
+            </div>
+          )}
+
           {activeNav === 'peermap' && <div className="content-area"><PeerMap /></div>}
           {activeNav === 'schedule' && <div className="content-area"><SpeedSchedule /></div>}
           {activeNav === 'statistics' && <div className="content-area"><Statistics /></div>}
@@ -427,64 +483,14 @@ export function App() {
 
       {/* Add Torrent Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Add Torrent Download</h2>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleAddMagnet} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-              <div className="form-group">
-                <label className="form-label">Magnet Link or InfoHash</label>
-                <input
-                  type="text"
-                  placeholder="magnet:?xt=urn:btih:..."
-                  value={magnetInput}
-                  onChange={(e) => setMagnetInput(e.target.value)}
-                  className="form-input"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Category</label>
-                <select
-                  value={categoryInput}
-                  onChange={(e) => setCategoryInput(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="">(None)</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name} ({c.savePath})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input
-                  type="checkbox"
-                  id="pausedCheck"
-                  checked={isPausedInput}
-                  onChange={(e) => setIsPausedInput(e.target.checked)}
-                />
-                <label htmlFor="pausedCheck" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Start in Paused State
-                </label>
-              </div>
-
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-                <button type="button" className="btn" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-success">
-                  + Add Download
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddTorrentModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            loadData();
+          }}
+        />
       )}
 
       {/* Indexer Search Modal */}
