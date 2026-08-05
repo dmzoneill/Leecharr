@@ -27,10 +27,11 @@ export const LeecharrText: React.FC<TextProps> = ({
       viewBox="0 0 151.84 32.60"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      style={{ display: "inline-block", verticalAlign: "middle" }}
     >
       <g transform="translate(-1.3085942,-9.7539063)">
-        <path d={LEECH_PATH} fill="#FFFFFF" />
-        <path d={ARR_PATH} fill="#FFD166" />
+        <path d={LEECH_PATH} fill="#FFFFFF" style={{ fill: "#FFFFFF" }} />
+        <path d={ARR_PATH} fill="#FFD166" style={{ fill: "#FFD166" }} />
       </g>
     </svg>
   );
