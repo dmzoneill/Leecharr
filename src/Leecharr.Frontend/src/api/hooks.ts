@@ -167,7 +167,10 @@ export function useAddTorrentTracker() {
   });
 }
 
-export function useTorrentLogs(torrentId: number, options?: { polling?: boolean }) {
+export function useTorrentLogs(
+  torrentId: number,
+  options?: { polling?: boolean },
+) {
   return useQuery<TorrentEventLogEntry[]>({
     queryKey: ["torrents", torrentId, "logs"],
     queryFn: () => apiClient.get(`/torrent/${torrentId}/logs?count=100`),
@@ -184,7 +187,10 @@ export function useAnnounceTorrentTracker() {
     { torrentId: number; trackerId: number }
   >({
     mutationFn: ({ torrentId, trackerId }) =>
-      apiClient.post(`/torrent/${torrentId}/trackers/${trackerId}/announce`, {}),
+      apiClient.post(
+        `/torrent/${torrentId}/trackers/${trackerId}/announce`,
+        {},
+      ),
     onSuccess: (_, { torrentId }) => {
       queryClient.invalidateQueries({
         queryKey: ["torrents", torrentId, "trackers"],
@@ -1300,4 +1306,3 @@ export function useDeleteTrackerMetric() {
     },
   });
 }
-

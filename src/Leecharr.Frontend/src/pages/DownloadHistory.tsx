@@ -1188,9 +1188,11 @@ export default function DownloadHistory() {
               style={{
                 position: "relative",
                 height: "230px",
-                backgroundImage: selectedDetailItem.metadata?.backdropUrl || selectedDetailItem.metadata?.fanartUrl
-                  ? `url(${selectedDetailItem.metadata.backdropUrl || selectedDetailItem.metadata.fanartUrl})`
-                  : undefined,
+                backgroundImage:
+                  selectedDetailItem.metadata?.backdropUrl ||
+                  selectedDetailItem.metadata?.fanartUrl
+                    ? `url(${selectedDetailItem.metadata.backdropUrl || selectedDetailItem.metadata.fanartUrl})`
+                    : undefined,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundColor: "#111",
