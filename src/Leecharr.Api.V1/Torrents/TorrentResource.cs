@@ -34,7 +34,7 @@ public class TorrentResource : RestResource
     public int? DownloadLimit { get; set; }
     public int? UploadLimit { get; set; }
     public bool? SequentialDownload { get; set; }
-    public bool? SuperSeeding { get; set; }
+    public bool? InitialSeeding { get; set; }
     public bool? ForceStart { get; set; }
     public double TargetRatio { get; set; }
     public int TargetSeedTimeMinutes { get; set; }

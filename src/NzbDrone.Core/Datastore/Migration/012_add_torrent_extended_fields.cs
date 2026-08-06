@@ -11,7 +11,7 @@ public class AddTorrentExtendedFields : NzbDroneMigrationBase
             .AddColumn("TrackerUrl").AsString().Nullable()
             .AddColumn("QueuePosition").AsInt32().NotNullable().WithDefaultValue(0)
             .AddColumn("Label").AsString().Nullable()
-            .AddColumn("SuperSeeding").AsBoolean().NotNullable().WithDefaultValue(false)
+            .AddColumn("InitialSeeding").AsBoolean().NotNullable().WithDefaultValue(false)
             .AddColumn("ForceStart").AsBoolean().NotNullable().WithDefaultValue(false);
     }
 

@@ -61,12 +61,23 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
         var port = _configService.ListeningPort > 0 ? _configService.ListeningPort : 51413;
         _logger.Info("Initializing MonoTorrent download engine on port {0}...", port);
 
+        var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
+        try
+        {
+            Directory.CreateDirectory(cacheDir);
+        }
+        catch
+        {
+        }
+
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
             AllowPortForwarding = _configService.UpnpEnabled,
+            AllowLocalPeerDiscovery = _configService.EnableLpd,
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = true,
-            CacheDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache"),
+            DhtEndPoint = new IPEndPoint(IPAddress.Any, port),
+            CacheDirectory = cacheDir,
             DiskCacheBytes = Math.Max(128, _configService.DiskWriteCacheSizeMb) * 1024 * 1024,
             MaximumConnections = _configService.MaxGlobalConnections > 0 ? _configService.MaxGlobalConnections : 300,
             MaximumDownloadRate = _configService.MaxDownloadSpeedKbps > 0 ? _configService.MaxDownloadSpeedKbps * 1024 : 0,
@@ -121,6 +132,14 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
         }
 
         var workingPath = _storagePathService.GetIncompleteDirectory();
+        try
+        {
+            Directory.CreateDirectory(workingPath);
+        }
+        catch
+        {
+        }
+
         var torrentSettingsBuilder = new TorrentSettingsBuilder
         {
             MaximumConnections = _configService.MaxPerTorrentConnections > 0 ? _configService.MaxPerTorrentConnections : 50,
@@ -268,9 +287,17 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
         var manager = e.TorrentManager;
         var infoHash = manager.InfoHashes.V1OrV2.ToHex();
 
-        if (e.HashPassed && _infoHashToId.TryGetValue(infoHash, out var torrentId))
+        if (e.HashPassed)
         {
-            _eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
+            _logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
+            if (_infoHashToId.TryGetValue(infoHash, out var torrentId))
+            {
+                _eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
+            }
+        }
+        else
+        {
+            _logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
         }
     }
 

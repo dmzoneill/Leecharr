@@ -33,7 +33,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           ? "Normal"
           : "Low",
     ],
-    ["Super Seeding", torrent.superSeeding ? "Yes" : "No"],
+    ["Initial Seeding", torrent.initialSeeding ? "Yes" : "No"],
     ["Force Start", torrent.forceStart ? "Yes" : "No"],
     ["Label", torrent.label ?? "-"],
     ["Added", formatDate(torrent.dateAdded)],

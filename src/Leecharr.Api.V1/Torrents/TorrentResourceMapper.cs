@@ -45,7 +45,7 @@ public static class TorrentResourceMapper
             DownloadLimit = model.DownloadLimit,
             UploadLimit = model.UploadLimit,
             SequentialDownload = model.SequentialDownload,
-            SuperSeeding = model.SuperSeeding,
+            InitialSeeding = model.InitialSeeding,
             ForceStart = model.ForceStart,
             TargetRatio = model.TargetRatio,
             TargetSeedTimeMinutes = model.TargetSeedTimeMinutes,

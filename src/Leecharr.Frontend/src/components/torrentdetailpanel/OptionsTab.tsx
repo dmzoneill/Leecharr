@@ -13,7 +13,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [priority, setPriority] = useState(String(torrent.priority));
   const [uploadLimit, setUploadLimit] = useState(torrent.uploadLimit);
   const [downloadLimit, setDownloadLimit] = useState(torrent.downloadLimit);
-  const [superSeeding, setSuperSeeding] = useState(torrent.superSeeding);
+  const [initialSeeding, setInitialSeeding] = useState(torrent.initialSeeding);
   const [forceStart, setForceStart] = useState(torrent.forceStart);
   const [sequentialDownload, setSequentialDownload] = useState(
     torrent.sequentialDownload,
@@ -45,7 +45,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setPriority(String(torrent.priority));
     setUploadLimit(torrent.uploadLimit);
     setDownloadLimit(torrent.downloadLimit);
-    setSuperSeeding(torrent.superSeeding);
+    setInitialSeeding(torrent.initialSeeding);
     setForceStart(torrent.forceStart);
     setSequentialDownload(torrent.sequentialDownload);
     setActive(torrent.active);
@@ -69,7 +69,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         priority: parseInt(priority, 10),
         uploadLimit,
         downloadLimit,
-        superSeeding,
+        initialSeeding,
         forceStart,
         sequentialDownload,
         active,
@@ -173,12 +173,12 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           </label>
         </div>
         <div className="form-group form-group-inline">
-          <label className="form-label">Super Seeding</label>
+          <label className="form-label">Initial Seeding</label>
           <label className="toggle-switch">
             <input
               type="checkbox"
-              checked={superSeeding}
-              onChange={(e) => mark(setSuperSeeding)(e.target.checked)}
+              checked={initialSeeding}
+              onChange={(e) => mark(setInitialSeeding)(e.target.checked)}
             />
             <span className="toggle-slider" />
           </label>
