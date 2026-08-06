@@ -27,10 +27,15 @@ public class TorrentResource : RestResource
     public int Leechers { get; set; }
     public string SavePath { get; set; }
     public string Category { get; set; }
-    public int Priority { get; set; }
-    public int DownloadLimit { get; set; }
-    public int UploadLimit { get; set; }
-    public bool SequentialDownload { get; set; }
+    public string Label { get; set; }
+    public string TrackerUrl { get; set; }
+    public int? Priority { get; set; }
+    public int? QueuePosition { get; set; }
+    public int? DownloadLimit { get; set; }
+    public int? UploadLimit { get; set; }
+    public bool? SequentialDownload { get; set; }
+    public bool? SuperSeeding { get; set; }
+    public bool? ForceStart { get; set; }
     public double TargetRatio { get; set; }
     public int TargetSeedTimeMinutes { get; set; }
     public DateTime DateAdded { get; set; }

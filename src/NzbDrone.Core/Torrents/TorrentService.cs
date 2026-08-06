@@ -4,26 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Torrents;
-
-public interface ITorrentService
-{
-    IEnumerable<Torrent> GetAll();
-    Torrent Get(int id);
-    Torrent GetByInfoHash(string infoHash);
-    Task<Torrent> AddFromParsedTorrentAsync(ParsedTorrent parsed, string category = null, string savePath = null, bool startPaused = false, byte[] rawBytes = null);
-    Task<Torrent> AddFromMagnetAsync(string magnetUri, string category = null, string savePath = null, bool startPaused = false);
-    Task<Torrent> UpdateAsync(Torrent torrent);
-    Task DeleteAsync(int id, bool deleteFiles = false);
-    Task PauseAsync(int id);
-    Task ResumeAsync(int id);
-    Task ForceRecheckAsync(int id);
-}
 
 public class TorrentService : ITorrentService
 {
@@ -32,6 +19,7 @@ public class TorrentService : ITorrentService
     private readonly ICategoryService _categoryService;
     private readonly IMediaEnrichmentService _mediaEnrichmentService;
     private readonly IConfigService _configService;
+    private readonly IDownloadEngine _downloadEngine;
     private readonly IEventAggregator _eventAggregator;
     private readonly Logger _logger;
 
@@ -41,6 +29,7 @@ public class TorrentService : ITorrentService
         ICategoryService categoryService,
         IMediaEnrichmentService mediaEnrichmentService,
         IConfigService configService,
+        IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator)
     {
         _torrentRepository = torrentRepository;
@@ -48,18 +37,31 @@ public class TorrentService : ITorrentService
         _categoryService = categoryService;
         _mediaEnrichmentService = mediaEnrichmentService;
         _configService = configService;
+        _downloadEngine = downloadEngine;
         _eventAggregator = eventAggregator;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
     public IEnumerable<Torrent> GetAll()
     {
-        return _torrentRepository.All().OrderByDescending(t => t.DateAdded);
+        var torrents = _torrentRepository.All().OrderByDescending(t => t.DateAdded).ToList();
+        foreach (var torrent in torrents)
+        {
+            SyncWithEngine(torrent);
+        }
+
+        return torrents;
     }
 
     public Torrent Get(int id)
     {
-        return _torrentRepository.Get(id);
+        var torrent = _torrentRepository.Get(id);
+        if (torrent != null)
+        {
+            SyncWithEngine(torrent);
+        }
+
+        return torrent;
     }
 
     public Torrent GetByInfoHash(string infoHash)
@@ -69,7 +71,13 @@ public class TorrentService : ITorrentService
             return null;
         }
 
-        return _torrentRepository.GetByInfoHash(infoHash.ToLowerInvariant());
+        var torrent = _torrentRepository.GetByInfoHash(infoHash.ToLowerInvariant());
+        if (torrent != null)
+        {
+            SyncWithEngine(torrent);
+        }
+
+        return torrent;
     }
 
     public async Task<Torrent> AddFromParsedTorrentAsync(
@@ -107,7 +115,7 @@ public class TorrentService : ITorrentService
             CreatedBy = parsed.CreatedBy,
             CreationDate = parsed.CreationDate,
             IsPrivate = parsed.IsPrivate,
-            Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Queued,
+            Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
             DateAdded = DateTime.UtcNow,
@@ -139,6 +147,21 @@ public class TorrentService : ITorrentService
         }
 
         _logger.Info("Added torrent: {0} ({1})", inserted.Name, inserted.InfoHash);
+
+        // Start torrent in BitTorrent download engine
+        try
+        {
+            await _downloadEngine.AddTorrentAsync(inserted, rawBytes, null);
+            if (startPaused)
+            {
+                await _downloadEngine.PauseTorrentAsync(inserted.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to start download engine task for torrent {0}", inserted.Name);
+        }
+
         _eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = inserted });
 
         // Trigger asynchronous media enrichment
@@ -186,7 +209,8 @@ public class TorrentService : ITorrentService
             TotalSize = 0,
             PieceCount = 0,
             PieceLength = 0,
-            Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Queued,
+            TrackerUrl = parsedMagnet.Trackers?.FirstOrDefault(),
+            Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
             DateAdded = DateTime.UtcNow,
@@ -195,8 +219,24 @@ public class TorrentService : ITorrentService
 
         var inserted = _torrentRepository.Insert(torrent);
         _logger.Info("Added magnet torrent: {0} ({1})", inserted.Name, inserted.InfoHash);
+
+        // Start torrent in BitTorrent download engine
+        try
+        {
+            await _downloadEngine.AddTorrentAsync(inserted, null, magnetUri);
+            if (startPaused)
+            {
+                await _downloadEngine.PauseTorrentAsync(inserted.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to start download engine task for magnet {0}", inserted.Name);
+        }
+
         _eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = inserted });
 
+        // Trigger asynchronous media enrichment
         if (_configService.AutoEnrichEnabled)
         {
             _ = Task.Run(async () =>
@@ -224,7 +264,7 @@ public class TorrentService : ITorrentService
 
         var updated = _torrentRepository.Update(torrent);
         _eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = updated });
-        return updated;
+        return await Task.FromResult(updated);
     }
 
     public async Task DeleteAsync(int id, bool deleteFiles = false)
@@ -236,6 +276,15 @@ public class TorrentService : ITorrentService
         }
 
         _logger.Info("Deleting torrent {0} (DeleteFiles={1})", torrent.Name, deleteFiles);
+
+        try
+        {
+            await _downloadEngine.RemoveTorrentAsync(id, deleteFiles);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Error removing torrent {0} from download engine", id);
+        }
 
         _fileRepository.DeleteByTorrentId(id);
         _mediaEnrichmentService.DeleteMetadata(id);
@@ -272,10 +321,18 @@ public class TorrentService : ITorrentService
             var old = torrent.Status;
             torrent.Status = TorrentStatus.Paused;
             _torrentRepository.Update(torrent);
+
+            try
+            {
+                await _downloadEngine.PauseTorrentAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Error pausing torrent in download engine {0}", id);
+            }
+
             _eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = TorrentStatus.Paused });
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task ResumeAsync(int id)
@@ -287,10 +344,18 @@ public class TorrentService : ITorrentService
             var old = torrent.Status;
             torrent.Status = newStatus;
             _torrentRepository.Update(torrent);
+
+            try
+            {
+                await _downloadEngine.ResumeTorrentAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Error resuming torrent in download engine {0}", id);
+            }
+
             _eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = newStatus });
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task ForceRecheckAsync(int id)
@@ -301,9 +366,90 @@ public class TorrentService : ITorrentService
             var old = torrent.Status;
             torrent.Status = TorrentStatus.Checking;
             _torrentRepository.Update(torrent);
+
+            try
+            {
+                await _downloadEngine.ForceRecheckAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Error rechecking torrent in download engine {0}", id);
+            }
+
             _eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = TorrentStatus.Checking });
+        }
+    }
+
+    public async Task ForceAnnounceAsync(int id)
+    {
+        try
+        {
+            await _downloadEngine.ForceAnnounceAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Error announcing torrent in download engine {0}", id);
+        }
+    }
+
+    public async Task MoveQueueAsync(int id, string position)
+    {
+        var torrent = _torrentRepository.Get(id);
+        if (torrent == null)
+        {
+            return;
+        }
+
+        var allTorrents = _torrentRepository.All().OrderBy(t => t.QueuePosition).ToList();
+        var index = allTorrents.FindIndex(t => t.Id == id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        allTorrents.RemoveAt(index);
+
+        switch (position?.ToLowerInvariant())
+        {
+            case "top":
+                allTorrents.Insert(0, torrent);
+                break;
+            case "up":
+                allTorrents.Insert(Math.Max(0, index - 1), torrent);
+                break;
+            case "down":
+                allTorrents.Insert(Math.Min(allTorrents.Count, index + 1), torrent);
+                break;
+            case "bottom":
+                allTorrents.Add(torrent);
+                break;
+            default:
+                allTorrents.Insert(index, torrent);
+                break;
+        }
+
+        for (var i = 0; i < allTorrents.Count; i++)
+        {
+            allTorrents[i].QueuePosition = i + 1;
+            _torrentRepository.Update(allTorrents[i]);
         }
 
         await Task.CompletedTask;
+    }
+
+    private void SyncWithEngine(Torrent torrent)
+    {
+        var task = _downloadEngine.GetTask(torrent.Id);
+        if (task != null)
+        {
+            torrent.Status = task.Status;
+            torrent.Progress = task.Progress;
+            torrent.Downloaded = task.DownloadedBytes;
+            torrent.Uploaded = task.UploadedBytes;
+            torrent.DownloadSpeed = task.DownloadSpeed;
+            torrent.UploadSpeed = task.UploadSpeed;
+            torrent.Seeders = task.ConnectedSeeders;
+            torrent.Leechers = task.ConnectedLeechers;
+        }
     }
 }

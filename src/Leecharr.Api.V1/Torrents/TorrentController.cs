@@ -17,6 +17,11 @@ namespace Leecharr.Api.V1.Torrents;
 public record TorrentUploadFailure(string FileName, string Reason);
 public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploadFailure> Failed);
 
+public class MoveQueueRequest
+{
+    public string Position { get; set; }
+}
+
 public class AddTorrentJsonRequest
 {
     public string MagnetLink { get; set; }
@@ -211,6 +216,74 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     public async Task<ActionResult> Recheck(int id)
     {
         await _torrentService.ForceRecheckAsync(id);
+        return Ok();
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<TorrentResource>> Update(int id, [FromBody] TorrentResource resource)
+    {
+        var existing = _torrentService.Get(id);
+        if (existing == null)
+        {
+            return NotFound();
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.Category))
+        {
+            existing.Category = resource.Category;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.Label))
+        {
+            existing.Label = resource.Label;
+        }
+
+        if (resource.Priority.HasValue)
+        {
+            existing.Priority = resource.Priority.Value;
+        }
+
+        if (resource.UploadLimit.HasValue)
+        {
+            existing.UploadLimit = resource.UploadLimit.Value;
+        }
+
+        if (resource.DownloadLimit.HasValue)
+        {
+            existing.DownloadLimit = resource.DownloadLimit.Value;
+        }
+
+        if (resource.SequentialDownload.HasValue)
+        {
+            existing.SequentialDownload = resource.SequentialDownload.Value;
+        }
+
+        if (resource.SuperSeeding.HasValue)
+        {
+            existing.SuperSeeding = resource.SuperSeeding.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.Name))
+        {
+            existing.Name = resource.Name;
+        }
+
+        var updated = await _torrentService.UpdateAsync(existing);
+        var meta = _mediaEnrichmentService.GetMetadata(id);
+        return Ok(TorrentResourceMapper.ToResource(updated, meta));
+    }
+
+    [HttpPost("{id:int}/announce")]
+    public async Task<ActionResult> Announce(int id)
+    {
+        await _torrentService.ForceAnnounceAsync(id);
+        return Ok();
+    }
+
+    [HttpPost("{id:int}/queue")]
+    public async Task<ActionResult> MoveQueue(int id, [FromBody] MoveQueueRequest request)
+    {
+        await _torrentService.MoveQueueAsync(id, request?.Position);
         return Ok();
     }
 
