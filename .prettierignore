@@ -1,0 +1,12 @@
+_output/
+_temp/
+_tests/
+coverage-report/
+bin/
+obj/
+node_modules/
+*.trx
+*.xml
+*.cobertura.xml
+*.js
+wwwroot/
