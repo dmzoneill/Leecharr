@@ -153,39 +153,7 @@ export function App() {
             <span>Dashboard</span>
           </div>
 
-          {/* Torrents (History & Add Torrent) */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("torrents");
-              setActiveSubNav("history");
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            <TorrentIcon size={16} />
-            <span>Torrents</span>
-          </div>
-          {activeNav === "torrents" && (
-            <>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("history")}
-                style={{ cursor: "pointer" }}
-              >
-                <HistoryIcon /> <span>History</span>
-              </div>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("add")}
-                style={{ cursor: "pointer" }}
-              >
-                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
-                <span>Add Torrent</span>
-              </div>
-            </>
-          )}
-
-          {/* Activity (Torrents Downloads & Metrics) */}
+          {/* Activity (Torrents Downloads, Add Torrent & Metrics) */}
           <div
             className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
             onClick={() => {
@@ -207,6 +175,14 @@ export function App() {
                 <DashboardIcon size={14} /> <span>Torrents</span>
               </div>
               <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
+                onClick={() => setActiveSubNav("add")}
+                style={{ cursor: "pointer" }}
+              >
+                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
+                <span>Add Torrent</span>
+              </div>
+              <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
                 onClick={() => setActiveSubNav("metrics")}
                 style={{ cursor: "pointer" }}
@@ -214,6 +190,28 @@ export function App() {
                 <StatsIcon size={14} /> <span>Metrics</span>
               </div>
             </>
+          )}
+
+          {/* Torrents (History) */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
+            onClick={() => {
+              setActiveNav("torrents");
+              setActiveSubNav("history");
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <TorrentIcon size={16} />
+            <span>Torrents</span>
+          </div>
+          {activeNav === "torrents" && (
+            <div
+              className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
+              onClick={() => setActiveSubNav("history")}
+              style={{ cursor: "pointer" }}
+            >
+              <HistoryIcon /> <span>History</span>
+            </div>
           )}
 
           {/* Indexers (All + Individual Indexers + Add Indexer) */}
@@ -441,24 +439,6 @@ export function App() {
             </div>
           )}
 
-          {activeNav === "torrents" && (
-            <div
-              className="content-area"
-              style={{ height: "100%", minHeight: 0 }}
-            >
-              {activeSubNav === "history" && <DownloadHistory />}
-              {activeSubNav === "add" && (
-                <AddTorrentPage
-                  onSuccess={() => {
-                    setActiveNav("activity");
-                    setActiveSubNav("torrents");
-                    loadData();
-                  }}
-                />
-              )}
-            </div>
-          )}
-
           {activeNav === "activity" && (
             <div
               className="content-area"
@@ -481,7 +461,25 @@ export function App() {
                   }}
                 />
               )}
+              {activeSubNav === "add" && (
+                <AddTorrentPage
+                  onSuccess={() => {
+                    setActiveNav("activity");
+                    setActiveSubNav("torrents");
+                    loadData();
+                  }}
+                />
+              )}
               {activeSubNav === "metrics" && <Activity />}
+            </div>
+          )}
+
+          {activeNav === "torrents" && (
+            <div
+              className="content-area"
+              style={{ height: "100%", minHeight: 0 }}
+            >
+              <DownloadHistory />
             </div>
           )}
 
