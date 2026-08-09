@@ -11,7 +11,7 @@ import type {
   ArrConnection,
   ArrTestResult,
 } from "../api/types";
-import { TextInput, SelectInput, Toggle, NumberInput } from "../pages/settings/shared";
+import { TextInput, SelectInput, Toggle } from "../pages/settings/shared";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
 
@@ -36,10 +36,10 @@ interface StepMeta {
 
 const STEPS: StepMeta[] = [
   { id: "welcome", stepNum: 0, shortName: "Welcome", title: "Welcome to Leecharr" },
-  { id: "prowlarr", stepNum: 1, shortName: "Prowlarr", title: "Add Indexer" },
-  { id: "sonarr", stepNum: 2, shortName: "Sonarr", title: "Connect Sonarr TV" },
-  { id: "radarr", stepNum: 3, shortName: "Radarr", title: "Connect Radarr Movies" },
-  { id: "lidarr", stepNum: 4, shortName: "Lidarr", title: "Connect Lidarr Music" },
+  { id: "prowlarr", stepNum: 1, shortName: "Prowlarr", title: "Add Prowlarr Indexer" },
+  { id: "sonarr", stepNum: 2, shortName: "Sonarr", title: "Add Sonarr Connection" },
+  { id: "radarr", stepNum: 3, shortName: "Radarr", title: "Add Radarr Connection" },
+  { id: "lidarr", stepNum: 4, shortName: "Lidarr", title: "Add Lidarr Connection" },
   { id: "finish", stepNum: 5, shortName: "Finished", title: "Setup Complete" },
 ];
 
@@ -56,7 +56,7 @@ export function GettingStartedModal({
     return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) === "true";
   });
 
-  // Prowlarr Indexer Form State
+  // Prowlarr Indexer Form State (Full Real Form)
   const [indexerForm, setIndexerForm] = useState<Partial<IndexerDefinition>>({
     name: "Prowlarr",
     indexerType: "Prowlarr",
@@ -69,9 +69,8 @@ export function GettingStartedModal({
     enableSearch: true,
   });
   const [indexerTestResult, setIndexerTestResult] = useState<IndexerTestResult | null>(null);
-  const [indexerSaved, setIndexerSaved] = useState(false);
 
-  // Sonarr Form State
+  // Sonarr Form State (Full Real Form)
   const [sonarrForm, setSonarrForm] = useState<Partial<ArrConnection>>({
     name: "Sonarr",
     arrType: "Sonarr",
@@ -84,9 +83,8 @@ export function GettingStartedModal({
     webhookHost: "leecharr",
   });
   const [sonarrTestResult, setSonarrTestResult] = useState<ArrTestResult | null>(null);
-  const [sonarrSaved, setSonarrSaved] = useState(false);
 
-  // Radarr Form State
+  // Radarr Form State (Full Real Form)
   const [radarrForm, setRadarrForm] = useState<Partial<ArrConnection>>({
     name: "Radarr",
     arrType: "Radarr",
@@ -99,9 +97,8 @@ export function GettingStartedModal({
     webhookHost: "leecharr",
   });
   const [radarrTestResult, setRadarrTestResult] = useState<ArrTestResult | null>(null);
-  const [radarrSaved, setRadarrSaved] = useState(false);
 
-  // Lidarr Form State
+  // Lidarr Form State (Full Real Form)
   const [lidarrForm, setLidarrForm] = useState<Partial<ArrConnection>>({
     name: "Lidarr",
     arrType: "Lidarr",
@@ -114,7 +111,6 @@ export function GettingStartedModal({
     webhookHost: "leecharr",
   });
   const [lidarrTestResult, setLidarrTestResult] = useState<ArrTestResult | null>(null);
-  const [lidarrSaved, setLidarrSaved] = useState(false);
 
   // API Mutations
   const testIndexerMutation = useTestDirectIndexer();
@@ -168,7 +164,7 @@ export function GettingStartedModal({
 
   const isReadOnly = mode === "readonly";
 
-  // Test Handlers
+  // Test Connection Handlers
   const handleTestIndexer = () => {
     setIndexerTestResult(null);
     testIndexerMutation.mutate(indexerForm, {
@@ -187,7 +183,6 @@ export function GettingStartedModal({
       },
       {
         onSuccess: () => {
-          setIndexerSaved(true);
           handleNext();
         },
       }
@@ -202,7 +197,7 @@ export function GettingStartedModal({
     });
   };
 
-  const handleSaveArr = (form: Partial<ArrConnection>, setSaved: (v: boolean) => void) => {
+  const handleSaveArr = (form: Partial<ArrConnection>) => {
     createArrMutation.mutate(
       {
         ...form,
@@ -212,7 +207,6 @@ export function GettingStartedModal({
       },
       {
         onSuccess: () => {
-          setSaved(true);
           handleNext();
         },
       }
@@ -471,10 +465,10 @@ export function GettingStartedModal({
                 >
                   <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>⚡</div>
                   <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)" }}>
-                    Port 7889 Client
+                    Port 7889 Engine
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-                    Acts directly as a qBittorrent, Deluge, or Transmission client for Sonarr and Radarr.
+                    Pure C# BitTorrent engine running with simultaneous qBittorrent, Deluge, and Transmission API endpoints.
                   </div>
                 </div>
 
@@ -492,7 +486,7 @@ export function GettingStartedModal({
                     Media Enrichment
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-                    Automatically correlates active downloads with high-res posters, banners, and 4K stream specs.
+                    Correlates active downloads with high-res posters, banners, and 4K stream specs directly from your library.
                   </div>
                 </div>
 
@@ -510,7 +504,7 @@ export function GettingStartedModal({
                     Prowlarr Sync
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-                    Synchronize your Torznab indexers directly from Prowlarr for search and one-click grab.
+                    Synchronize Torznab indexers directly from Prowlarr for search and one-click grab.
                   </div>
                 </div>
               </div>
@@ -525,7 +519,7 @@ export function GettingStartedModal({
                   color: "var(--text-secondary)",
                 }}
               >
-                💡 <strong>Getting Started:</strong> This walkthrough will help you connect{" "}
+                💡 <strong>Getting Started:</strong> Follow these steps to connect{" "}
                 <strong>Prowlarr</strong>, <strong>Sonarr</strong>, <strong>Radarr</strong>, and{" "}
                 <strong>Lidarr</strong> so downloads and media cards populate seamlessly.
               </div>
@@ -538,85 +532,123 @@ export function GettingStartedModal({
               {isReadOnly ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   <div style={{ fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Connect Prowlarr to automatically synchronize your configured BitTorrent indexers
+                    Connect Prowlarr to automatically import all your configured BitTorrent indexers
                     into Leecharr for integrated search, Freeleech filtering, and RSS rules.
                   </div>
 
                   <div
                     className="card"
                     style={{
-                      padding: "1rem 1.25rem",
+                      padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
                       border: "1px solid var(--border-light, #1c203b)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      Option A: Add Leecharr as Download Client in Prowlarr
+                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.75rem" }}>
+                      Import Indexers from Prowlarr
                     </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Prowlarr, go to <strong>Settings &rarr; Download Clients &rarr; Add (+)</strong>.</li>
-                      <li>Select <strong>qBittorrent</strong>.</li>
-                      <li>Host: <code>leecharr</code> (or your server IP), Port: <code>7889</code>.</li>
-                      <li>Click <strong>Test</strong> then <strong>Save</strong>.</li>
-                    </ol>
-                  </div>
-
-                  <div
-                    className="card"
-                    style={{
-                      padding: "1rem 1.25rem",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      Option B: Import Indexers from Prowlarr into Leecharr
-                    </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Prowlarr, copy your API key from <strong>Settings &rarr; General &rarr; API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above or go to <strong>Settings &rarr; Indexers</strong> in Leecharr.</li>
-                      <li>Enter your Prowlarr URL (e.g. <code>http://prowlarr:9696</code>) and API Key.</li>
-                      <li>Click <strong>Test & Save</strong> &mdash; indexers will sync automatically!</li>
+                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <li>In Prowlarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Indexers</strong>).</li>
+                      <li>Enter your Prowlarr Server URL (e.g. <code>http://localhost:9696</code> or <code>http://prowlarr:9696</code>) and paste your API Key.</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> &mdash; Leecharr will automatically import and sync all indexers!</li>
                     </ol>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                   <TextInput
-                    label="Prowlarr Server URL"
-                    value={indexerForm.url || ""}
-                    onChange={(v) => setIndexerForm({ ...indexerForm, url: v })}
-                    placeholder="http://localhost:9696"
-                    hint="Full URL to your Prowlarr instance"
+                    label="Name"
+                    value={indexerForm.name || ""}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, name: v });
+                      setIndexerTestResult(null);
+                    }}
+                    placeholder="My Prowlarr"
+                  />
+                  <SelectInput
+                    label="Type"
+                    value={indexerForm.indexerType || "Prowlarr"}
+                    onChange={(v) => {
+                      const defaults: Record<string, string> = {
+                        Prowlarr: "http://localhost:9696",
+                        Torznab: "http://localhost:9117",
+                        Newznab: "http://localhost:5076",
+                      };
+                      setIndexerForm({
+                        ...indexerForm,
+                        indexerType: v,
+                        url: defaults[v] || indexerForm.url || "",
+                      });
+                      setIndexerTestResult(null);
+                    }}
+                    options={[
+                      { value: "Prowlarr", label: "Prowlarr" },
+                      { value: "Torznab", label: "Torznab" },
+                      { value: "Newznab", label: "Newznab" },
+                    ]}
                   />
                   <TextInput
-                    label="Prowlarr API Key"
+                    label="URL"
+                    value={indexerForm.url || ""}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, url: v });
+                      setIndexerTestResult(null);
+                    }}
+                    placeholder="http://localhost:9696"
+                  />
+                  <TextInput
+                    label="API Key"
                     value={indexerForm.apiKey || ""}
-                    onChange={(v) => setIndexerForm({ ...indexerForm, apiKey: v })}
-                    placeholder="Paste Prowlarr API key here"
-                    hint="Found in Prowlarr > Settings > General"
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, apiKey: v });
+                      setIndexerTestResult(null);
+                    }}
+                    type="password"
+                  />
+                  <TextInput
+                    label="API Path"
+                    value={indexerForm.apiPath || "/api"}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, apiPath: v });
+                      setIndexerTestResult(null);
+                    }}
+                    placeholder="/api"
                   />
                   <TextInput
                     label="Categories"
-                    value={indexerForm.categories || "2000,5000"}
-                    onChange={(v) => setIndexerForm({ ...indexerForm, categories: v })}
+                    value={indexerForm.categories || ""}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, categories: v });
+                      setIndexerTestResult(null);
+                    }}
                     placeholder="2000,5000"
-                    hint="Newznab/Torznab categories (2000=Movies, 5000=TV, 3000=Audio)"
                   />
-                  <div style={{ display: "flex", gap: "1rem" }}>
-                    <Toggle
-                      label="Enable Search"
-                      checked={indexerForm.enableSearch ?? true}
-                      onChange={(v) => setIndexerForm({ ...indexerForm, enableSearch: v })}
-                    />
-                    <Toggle
-                      label="Enable RSS Sync"
-                      checked={indexerForm.enableRss ?? true}
-                      onChange={(v) => setIndexerForm({ ...indexerForm, enableRss: v })}
-                    />
-                  </div>
+                  <Toggle
+                    label="Enable"
+                    checked={indexerForm.enable ?? true}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, enable: v });
+                      setIndexerTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="RSS"
+                    checked={indexerForm.enableRss ?? true}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, enableRss: v });
+                      setIndexerTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Search"
+                    checked={indexerForm.enableSearch ?? true}
+                    onChange={(v) => {
+                      setIndexerForm({ ...indexerForm, enableSearch: v });
+                      setIndexerTestResult(null);
+                    }}
+                  />
 
                   {indexerTestResult && (
                     <div
@@ -627,8 +659,8 @@ export function GettingStartedModal({
                         backgroundColor: indexerTestResult.success
                           ? "rgba(40, 167, 69, 0.15)"
                           : "rgba(220, 53, 69, 0.15)",
-                        color: indexerTestResult.success ? "var(--success)" : "var(--danger)",
-                        border: `1px solid ${indexerTestResult.success ? "var(--success)" : "var(--danger)"}`,
+                        color: indexerTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)",
+                        border: `1px solid ${indexerTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)"}`,
                       }}
                     >
                       {indexerTestResult.success ? "✓ Connection successful!" : `✗ ${indexerTestResult.message || "Connection failed"}`}
@@ -663,73 +695,125 @@ export function GettingStartedModal({
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   <div style={{ fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                     Connect Sonarr to Leecharr for 1:1 TV episode correlation, high-res season banners,
-                    and episode thumbnails.
+                    and episode stills.
                   </div>
 
                   <div
                     className="card"
                     style={{
-                      padding: "1rem 1.25rem",
+                      padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
                       border: "1px solid var(--border-light, #1c203b)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      1. Add Leecharr in Sonarr
+                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.75rem" }}>
+                      Connect Sonarr Library
                     </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Sonarr, go to <strong>Settings &rarr; Download Clients &rarr; Add (+)</strong>.</li>
-                      <li>Select <strong>qBittorrent</strong>.</li>
-                      <li>Name: <code>Leecharr</code></li>
-                      <li>Host: <code>leecharr</code> (or server IP / localhost), Port: <code>7889</code>.</li>
-                      <li>Category: <code>tv</code> (optional, maps to TV incomplete folder).</li>
-                      <li>Click <strong>Test</strong> and <strong>Save</strong>.</li>
-                    </ol>
-                  </div>
-
-                  <div
-                    className="card"
-                    style={{
-                      padding: "1rem 1.25rem",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      2. Add Sonarr API in Leecharr
-                    </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Sonarr, copy your API key from <strong>Settings &rarr; General &rarr; API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above or go to <strong>Settings &rarr; Connections</strong> in Leecharr.</li>
-                      <li>Enter Sonarr URL (e.g. <code>http://sonarr:8989</code>) and API Key.</li>
-                      <li>Click <strong>Test & Save</strong> &mdash; media cards will immediately enrich!</li>
+                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <li>In Sonarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>Enter Sonarr URL (e.g. <code>http://localhost:8989</code> or <code>http://sonarr:8989</code>) and paste your API Key.</li>
+                      <li>Keep <strong>Sync Enabled</strong> and <strong>Webhook</strong> active.</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> &mdash; media cards will enrich instantly!</li>
                     </ol>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                   <TextInput
-                    label="Sonarr Server URL"
-                    value={sonarrForm.url || ""}
-                    onChange={(v) => setSonarrForm({ ...sonarrForm, url: v })}
-                    placeholder="http://localhost:8989"
-                    hint="Full URL to your Sonarr instance"
+                    label="Name"
+                    value={sonarrForm.name || ""}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, name: v });
+                      setSonarrTestResult(null);
+                    }}
+                    placeholder="Sonarr"
+                  />
+                  <SelectInput
+                    label="Type"
+                    value={sonarrForm.arrType || "Sonarr"}
+                    onChange={(v) => {
+                      const defaults: Record<string, string> = {
+                        Sonarr: "http://localhost:8989",
+                        Radarr: "http://localhost:7878",
+                        Lidarr: "http://localhost:8686",
+                      };
+                      setSonarrForm({
+                        ...sonarrForm,
+                        arrType: v,
+                        url: defaults[v] || sonarrForm.url || "",
+                      });
+                      setSonarrTestResult(null);
+                    }}
+                    options={[
+                      { value: "Sonarr", label: "Sonarr" },
+                      { value: "Radarr", label: "Radarr" },
+                      { value: "Lidarr", label: "Lidarr" },
+                    ]}
                   />
                   <TextInput
-                    label="Sonarr API Key"
+                    label="URL"
+                    value={sonarrForm.url || ""}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, url: v });
+                      setSonarrTestResult(null);
+                    }}
+                    placeholder="http://localhost:8989"
+                  />
+                  <TextInput
+                    label="API Key"
                     value={sonarrForm.apiKey || ""}
-                    onChange={(v) => setSonarrForm({ ...sonarrForm, apiKey: v })}
-                    placeholder="Paste Sonarr API key here"
-                    hint="Found in Sonarr > Settings > General"
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, apiKey: v });
+                      setSonarrTestResult(null);
+                    }}
+                    type="password"
                   />
                   <Toggle
-                    label="Enable Media Enrichment Sync"
-                    checked={sonarrForm.syncEnabled ?? true}
-                    onChange={(v) => setSonarrForm({ ...sonarrForm, syncEnabled: v })}
-                    hint="Fetch posters, banners, and episode titles for TV torrents"
+                    label="Enable Connection"
+                    checked={sonarrForm.enable ?? true}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, enable: v });
+                      setSonarrTestResult(null);
+                    }}
                   />
+                  <Toggle
+                    label="Sync Enabled"
+                    checked={sonarrForm.syncEnabled ?? true}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, syncEnabled: v });
+                      setSonarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Auto Add"
+                    checked={sonarrForm.enableAutomaticAdd ?? true}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, enableAutomaticAdd: v });
+                      setSonarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Webhook"
+                    checked={sonarrForm.webhookEnabled ?? true}
+                    onChange={(v) => {
+                      setSonarrForm({ ...sonarrForm, webhookEnabled: v });
+                      setSonarrTestResult(null);
+                    }}
+                  />
+                  {sonarrForm.webhookEnabled !== false && (
+                    <TextInput
+                      label="Webhook Host"
+                      value={sonarrForm.webhookHost || ""}
+                      onChange={(v) => {
+                        setSonarrForm({ ...sonarrForm, webhookHost: v });
+                        setSonarrTestResult(null);
+                      }}
+                      placeholder="leecharr"
+                      hint="Hostname or IP for Sonarr to reach Leecharr (leave empty for default)"
+                    />
+                  )}
 
                   {sonarrTestResult && (
                     <div
@@ -740,8 +824,8 @@ export function GettingStartedModal({
                         backgroundColor: sonarrTestResult.success
                           ? "rgba(40, 167, 69, 0.15)"
                           : "rgba(220, 53, 69, 0.15)",
-                        color: sonarrTestResult.success ? "var(--success)" : "var(--danger)",
-                        border: `1px solid ${sonarrTestResult.success ? "var(--success)" : "var(--danger)"}`,
+                        color: sonarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)",
+                        border: `1px solid ${sonarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)"}`,
                       }}
                     >
                       {sonarrTestResult.success ? "✓ Connection successful!" : `✗ ${sonarrTestResult.message || "Connection failed"}`}
@@ -758,7 +842,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(sonarrForm, setSonarrSaved)}
+                      onClick={() => handleSaveArr(sonarrForm)}
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
@@ -782,67 +866,118 @@ export function GettingStartedModal({
                   <div
                     className="card"
                     style={{
-                      padding: "1rem 1.25rem",
+                      padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
                       border: "1px solid var(--border-light, #1c203b)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      1. Add Leecharr in Radarr
+                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.75rem" }}>
+                      Connect Radarr Library
                     </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Radarr, go to <strong>Settings &rarr; Download Clients &rarr; Add (+)</strong>.</li>
-                      <li>Select <strong>qBittorrent</strong>.</li>
-                      <li>Name: <code>Leecharr</code></li>
-                      <li>Host: <code>leecharr</code> (or server IP / localhost), Port: <code>7889</code>.</li>
-                      <li>Category: <code>movies</code>.</li>
-                      <li>Click <strong>Test</strong> and <strong>Save</strong>.</li>
-                    </ol>
-                  </div>
-
-                  <div
-                    className="card"
-                    style={{
-                      padding: "1rem 1.25rem",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      2. Add Radarr API in Leecharr
-                    </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Radarr, copy your API key from <strong>Settings &rarr; General &rarr; API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above or go to <strong>Settings &rarr; Connections</strong> in Leecharr.</li>
-                      <li>Enter Radarr URL (e.g. <code>http://radarr:7878</code>) and API Key.</li>
-                      <li>Click <strong>Test & Save</strong>.</li>
+                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <li>In Radarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>Enter Radarr URL (e.g. <code>http://localhost:7878</code> or <code>http://radarr:7878</code>) and paste your API Key.</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.</li>
                     </ol>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                   <TextInput
-                    label="Radarr Server URL"
-                    value={radarrForm.url || ""}
-                    onChange={(v) => setRadarrForm({ ...radarrForm, url: v })}
-                    placeholder="http://localhost:7878"
-                    hint="Full URL to your Radarr instance"
+                    label="Name"
+                    value={radarrForm.name || ""}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, name: v });
+                      setRadarrTestResult(null);
+                    }}
+                    placeholder="Radarr"
+                  />
+                  <SelectInput
+                    label="Type"
+                    value={radarrForm.arrType || "Radarr"}
+                    onChange={(v) => {
+                      const defaults: Record<string, string> = {
+                        Sonarr: "http://localhost:8989",
+                        Radarr: "http://localhost:7878",
+                        Lidarr: "http://localhost:8686",
+                      };
+                      setRadarrForm({
+                        ...radarrForm,
+                        arrType: v,
+                        url: defaults[v] || radarrForm.url || "",
+                      });
+                      setRadarrTestResult(null);
+                    }}
+                    options={[
+                      { value: "Sonarr", label: "Sonarr" },
+                      { value: "Radarr", label: "Radarr" },
+                      { value: "Lidarr", label: "Lidarr" },
+                    ]}
                   />
                   <TextInput
-                    label="Radarr API Key"
+                    label="URL"
+                    value={radarrForm.url || ""}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, url: v });
+                      setRadarrTestResult(null);
+                    }}
+                    placeholder="http://localhost:7878"
+                  />
+                  <TextInput
+                    label="API Key"
                     value={radarrForm.apiKey || ""}
-                    onChange={(v) => setRadarrForm({ ...radarrForm, apiKey: v })}
-                    placeholder="Paste Radarr API key here"
-                    hint="Found in Radarr > Settings > General"
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, apiKey: v });
+                      setRadarrTestResult(null);
+                    }}
+                    type="password"
                   />
                   <Toggle
-                    label="Enable Movie Enrichment Sync"
-                    checked={radarrForm.syncEnabled ?? true}
-                    onChange={(v) => setRadarrForm({ ...radarrForm, syncEnabled: v })}
-                    hint="Fetch posters, backdrops, and movie details"
+                    label="Enable Connection"
+                    checked={radarrForm.enable ?? true}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, enable: v });
+                      setRadarrTestResult(null);
+                    }}
                   />
+                  <Toggle
+                    label="Sync Enabled"
+                    checked={radarrForm.syncEnabled ?? true}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, syncEnabled: v });
+                      setRadarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Auto Add"
+                    checked={radarrForm.enableAutomaticAdd ?? true}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, enableAutomaticAdd: v });
+                      setRadarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Webhook"
+                    checked={radarrForm.webhookEnabled ?? true}
+                    onChange={(v) => {
+                      setRadarrForm({ ...radarrForm, webhookEnabled: v });
+                      setRadarrTestResult(null);
+                    }}
+                  />
+                  {radarrForm.webhookEnabled !== false && (
+                    <TextInput
+                      label="Webhook Host"
+                      value={radarrForm.webhookHost || ""}
+                      onChange={(v) => {
+                        setRadarrForm({ ...radarrForm, webhookHost: v });
+                        setRadarrTestResult(null);
+                      }}
+                      placeholder="leecharr"
+                      hint="Hostname or IP for Radarr to reach Leecharr (leave empty for default)"
+                    />
+                  )}
 
                   {radarrTestResult && (
                     <div
@@ -853,8 +988,8 @@ export function GettingStartedModal({
                         backgroundColor: radarrTestResult.success
                           ? "rgba(40, 167, 69, 0.15)"
                           : "rgba(220, 53, 69, 0.15)",
-                        color: radarrTestResult.success ? "var(--success)" : "var(--danger)",
-                        border: `1px solid ${radarrTestResult.success ? "var(--success)" : "var(--danger)"}`,
+                        color: radarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)",
+                        border: `1px solid ${radarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)"}`,
                       }}
                     >
                       {radarrTestResult.success ? "✓ Connection successful!" : `✗ ${radarrTestResult.message || "Connection failed"}`}
@@ -871,7 +1006,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(radarrForm, setRadarrSaved)}
+                      onClick={() => handleSaveArr(radarrForm)}
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
@@ -895,67 +1030,118 @@ export function GettingStartedModal({
                   <div
                     className="card"
                     style={{
-                      padding: "1rem 1.25rem",
+                      padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
                       border: "1px solid var(--border-light, #1c203b)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      1. Add Leecharr in Lidarr
+                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.75rem" }}>
+                      Connect Lidarr Library
                     </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Lidarr, go to <strong>Settings &rarr; Download Clients &rarr; Add (+)</strong>.</li>
-                      <li>Select <strong>qBittorrent</strong>.</li>
-                      <li>Name: <code>Leecharr</code></li>
-                      <li>Host: <code>leecharr</code> (or server IP / localhost), Port: <code>7889</code>.</li>
-                      <li>Category: <code>music</code>.</li>
-                      <li>Click <strong>Test</strong> and <strong>Save</strong>.</li>
-                    </ol>
-                  </div>
-
-                  <div
-                    className="card"
-                    style={{
-                      padding: "1rem 1.25rem",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: "var(--accent, #ffd166)", marginBottom: "0.5rem" }}>
-                      2. Add Lidarr API in Leecharr
-                    </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <li>In Lidarr, copy your API key from <strong>Settings &rarr; General &rarr; API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above or go to <strong>Settings &rarr; Connections</strong> in Leecharr.</li>
-                      <li>Enter Lidarr URL (e.g. <code>http://lidarr:8686</code>) and API Key.</li>
-                      <li>Click <strong>Test & Save</strong>.</li>
+                    <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <li>In Lidarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>Enter Lidarr URL (e.g. <code>http://localhost:8686</code> or <code>http://lidarr:8686</code>) and paste your API Key.</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.</li>
                     </ol>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                   <TextInput
-                    label="Lidarr Server URL"
-                    value={lidarrForm.url || ""}
-                    onChange={(v) => setLidarrForm({ ...lidarrForm, url: v })}
-                    placeholder="http://localhost:8686"
-                    hint="Full URL to your Lidarr instance"
+                    label="Name"
+                    value={lidarrForm.name || ""}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, name: v });
+                      setLidarrTestResult(null);
+                    }}
+                    placeholder="Lidarr"
+                  />
+                  <SelectInput
+                    label="Type"
+                    value={lidarrForm.arrType || "Lidarr"}
+                    onChange={(v) => {
+                      const defaults: Record<string, string> = {
+                        Sonarr: "http://localhost:8989",
+                        Radarr: "http://localhost:7878",
+                        Lidarr: "http://localhost:8686",
+                      };
+                      setLidarrForm({
+                        ...lidarrForm,
+                        arrType: v,
+                        url: defaults[v] || lidarrForm.url || "",
+                      });
+                      setLidarrTestResult(null);
+                    }}
+                    options={[
+                      { value: "Sonarr", label: "Sonarr" },
+                      { value: "Radarr", label: "Radarr" },
+                      { value: "Lidarr", label: "Lidarr" },
+                    ]}
                   />
                   <TextInput
-                    label="Lidarr API Key"
+                    label="URL"
+                    value={lidarrForm.url || ""}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, url: v });
+                      setLidarrTestResult(null);
+                    }}
+                    placeholder="http://localhost:8686"
+                  />
+                  <TextInput
+                    label="API Key"
                     value={lidarrForm.apiKey || ""}
-                    onChange={(v) => setLidarrForm({ ...lidarrForm, apiKey: v })}
-                    placeholder="Paste Lidarr API key here"
-                    hint="Found in Lidarr > Settings > General"
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, apiKey: v });
+                      setLidarrTestResult(null);
+                    }}
+                    type="password"
                   />
                   <Toggle
-                    label="Enable Music Enrichment Sync"
-                    checked={lidarrForm.syncEnabled ?? true}
-                    onChange={(v) => setLidarrForm({ ...lidarrForm, syncEnabled: v })}
-                    hint="Fetch album art, artist backdrops, and track details"
+                    label="Enable Connection"
+                    checked={lidarrForm.enable ?? true}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, enable: v });
+                      setLidarrTestResult(null);
+                    }}
                   />
+                  <Toggle
+                    label="Sync Enabled"
+                    checked={lidarrForm.syncEnabled ?? true}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, syncEnabled: v });
+                      setLidarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Auto Add"
+                    checked={lidarrForm.enableAutomaticAdd ?? true}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, enableAutomaticAdd: v });
+                      setLidarrTestResult(null);
+                    }}
+                  />
+                  <Toggle
+                    label="Webhook"
+                    checked={lidarrForm.webhookEnabled ?? true}
+                    onChange={(v) => {
+                      setLidarrForm({ ...lidarrForm, webhookEnabled: v });
+                      setLidarrTestResult(null);
+                    }}
+                  />
+                  {lidarrForm.webhookEnabled !== false && (
+                    <TextInput
+                      label="Webhook Host"
+                      value={lidarrForm.webhookHost || ""}
+                      onChange={(v) => {
+                        setLidarrForm({ ...lidarrForm, webhookHost: v });
+                        setLidarrTestResult(null);
+                      }}
+                      placeholder="leecharr"
+                      hint="Hostname or IP for Lidarr to reach Leecharr (leave empty for default)"
+                    />
+                  )}
 
                   {lidarrTestResult && (
                     <div
@@ -966,8 +1152,8 @@ export function GettingStartedModal({
                         backgroundColor: lidarrTestResult.success
                           ? "rgba(40, 167, 69, 0.15)"
                           : "rgba(220, 53, 69, 0.15)",
-                        color: lidarrTestResult.success ? "var(--success)" : "var(--danger)",
-                        border: `1px solid ${lidarrTestResult.success ? "var(--success)" : "var(--danger)"}`,
+                        color: lidarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)",
+                        border: `1px solid ${lidarrTestResult.success ? "var(--success, #28a745)" : "var(--danger, #dc3545)"}`,
                       }}
                     >
                       {lidarrTestResult.success ? "✓ Connection successful!" : `✗ ${lidarrTestResult.message || "Connection failed"}`}
@@ -984,7 +1170,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(lidarrForm, setLidarrSaved)}
+                      onClick={() => handleSaveArr(lidarrForm)}
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
