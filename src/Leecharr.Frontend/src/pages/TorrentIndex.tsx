@@ -1,21 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Torrent, Category } from "../api/types";
 import { TorrentGrid } from "../components/TorrentGrid";
 import { TorrentTable } from "../components/TorrentTable";
 import { TorrentDetailPanel } from "../components/TorrentDetailPanel";
-import {
-  PlusIcon,
-  PlayIcon,
-  StopIcon,
-  TableIcon,
-  GridIcon,
-} from "../components/icons/UIIcons";
+import { TorrentToolbar } from "./torrentindex/TorrentToolbar";
+import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
+import { ViewMode } from "./torrentindex/types";
+import { extractTrackerDomain } from "../utils/formatters";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
-  categories: Category[];
-  selectedCategory: string;
-  onSelectCategory: (cat: string) => void;
+  categories?: Category[];
+  selectedCategory?: string;
+  onSelectCategory?: (cat: string) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
   onDelete: (id: number) => void;
@@ -26,9 +23,6 @@ interface TorrentIndexProps {
 
 export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   torrents,
-  categories,
-  selectedCategory,
-  onSelectCategory,
   onPause,
   onResume,
   onDelete,
@@ -36,38 +30,66 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   onOpenSearchModal,
   onNavigateTab,
 }) => {
-  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [selectedState, setSelectedState] = useState<string>("All");
+  const [selectedTracker, setSelectedTracker] = useState<string>("All");
+  const [filter, setFilter] = useState<string>("");
   const [selectedTorrent, setSelectedTorrent] = useState<Torrent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [bulkPending, setBulkPending] = useState<boolean>(false);
 
-  // Filter by category, status, and search query
-  const filteredTorrents = torrents.filter((t) => {
-    const matchesCategory =
-      selectedCategory === "all" ||
-      (t.category || "").toLowerCase() === selectedCategory.toLowerCase();
+  const stateCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      All: torrents.length,
+      Downloading: 0,
+      Seeding: 0,
+      Paused: 0,
+      Queued: 0,
+      Error: 0,
+    };
+    for (const t of torrents) {
+      const st = (t.status || "").toLowerCase();
+      if (st === "downloading") counts.Downloading++;
+      else if (st === "seeding" || st === "completed") counts.Seeding++;
+      else if (st === "paused" || st === "stopped" || st === "idle")
+        counts.Paused++;
+      else if (st === "queued") counts.Queued++;
+      else if (st === "error") counts.Error++;
+    }
+    return counts;
+  }, [torrents]);
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      t.status.toLowerCase() === statusFilter.toLowerCase();
+  const trackerGroups = useMemo(() => {
+    const groups: Record<string, number> = {};
+    for (const t of torrents) {
+      const domain = extractTrackerDomain(t.trackerUrl || "");
+      if (domain) {
+        groups[domain] = (groups[domain] || 0) + 1;
+      }
+    }
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [torrents]);
 
-    const matchesSearch =
-      !searchQuery.trim() ||
-      (t.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.mediaTitle || "").toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesCategory && matchesStatus && matchesSearch;
-  });
+  const { totalUploadSpeed, totalDownloadSpeed } = useMemo(() => {
+    let ul = 0;
+    let dl = 0;
+    for (const t of torrents) {
+      ul += t.uploadSpeed ?? 0;
+      dl += t.downloadSpeed ?? 0;
+    }
+    return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
+  }, [torrents]);
 
   const handleStartAll = () => {
     torrents
-      .filter((t) => t.status === "paused")
+      .filter((t) => (t.status || "").toLowerCase() === "paused")
       .forEach((t) => onResume(t.id));
   };
 
   const handleStopAll = () => {
-    torrents.filter((t) => t.status !== "paused").forEach((t) => onPause(t.id));
+    torrents
+      .filter((t) => (t.status || "").toLowerCase() !== "paused")
+      .forEach((t) => onPause(t.id));
   };
 
   const handleToggleSelect = (id: number) => {
@@ -83,310 +105,108 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setSelectedIds(new Set(ids));
   };
 
-  const handleBulkStart = () => {
-    selectedIds.forEach((id) => onResume(id));
-    setSelectedIds(new Set());
+  const handleBulkStart = async () => {
+    setBulkPending(true);
+    try {
+      selectedIds.forEach((id) => onResume(id));
+      setSelectedIds(new Set());
+    } finally {
+      setBulkPending(false);
+    }
   };
 
-  const handleBulkStop = () => {
-    selectedIds.forEach((id) => onPause(id));
-    setSelectedIds(new Set());
+  const handleBulkStop = async () => {
+    setBulkPending(true);
+    try {
+      selectedIds.forEach((id) => onPause(id));
+      setSelectedIds(new Set());
+    } finally {
+      setBulkPending(false);
+    }
   };
 
-  const handleBulkDelete = () => {
-    if (confirm(`Delete ${selectedIds.size} selected torrent(s)?`)) {
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.size} selected torrent(s)?`)) return;
+    setBulkPending(true);
+    try {
       selectedIds.forEach((id) => onDelete(id));
       setSelectedIds(new Set());
+    } finally {
+      setBulkPending(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.75rem",
-        height: "100%",
-        minHeight: 0,
-      }}
-    >
-      {/* Page Header with Action Bar */}
-      <div className="page-header" style={{ marginBottom: "0.25rem" }}>
-        <div className="page-header-group">
-          <h1 className="page-heading">Torrents ({torrents.length})</h1>
-          <button
-            type="button"
-            className="btn btn-success"
-            onClick={onOpenAddModal}
-          >
-            <PlusIcon size={13} /> Add Torrent
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={onOpenSearchModal}
-          >
-            🔍 Search Indexers
-          </button>
-        </div>
-
-        <div className="page-header-actions">
-          {selectedIds.size > 0 ? (
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <span
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--accent, #ffd166)",
-                  fontWeight: 600,
-                }}
-              >
-                {selectedIds.size} Selected
-              </span>
-              <button
-                type="button"
-                className="btn btn-small btn-success"
-                onClick={handleBulkStart}
-              >
-                ▶ Start
-              </button>
-              <button
-                type="button"
-                className="btn btn-small btn-warning"
-                onClick={handleBulkStop}
-              >
-                ⏸ Pause
-              </button>
-              <button
-                type="button"
-                className="btn btn-small btn-danger"
-                onClick={handleBulkDelete}
-              >
-                × Delete
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="btn btn-success"
-                onClick={handleStartAll}
-                title="Resume all downloads"
-              >
-                <PlayIcon size={13} /> Start All
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={handleStopAll}
-                title="Pause all downloads"
-              >
-                <StopIcon size={13} /> Stop All
-              </button>
-            </>
-          )}
-
-          <div
-            className="view-mode-toggle"
-            style={{
-              display: "flex",
-              gap: "2px",
-              background: "var(--bg-secondary, #171b35)",
-              padding: "2px",
-              borderRadius: "4px",
-              border: "1px solid var(--border-light, #1c203b)",
-            }}
-          >
-            <button
-              type="button"
-              className={`btn btn-small ${viewMode === "table" ? "btn-primary" : ""}`}
-              onClick={() => setViewMode("table")}
-              title="Table View"
-              style={{ padding: "4px 8px" }}
-            >
-              <TableIcon size={14} />
-            </button>
-            <button
-              type="button"
-              className={`btn btn-small ${viewMode === "grid" ? "btn-primary" : ""}`}
-              onClick={() => setViewMode("grid")}
-              title="Poster Grid View"
-              style={{ padding: "4px 8px" }}
-            >
-              <GridIcon size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Toolbar (Status Pills, Category Chips & Search) */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* Status Pills */}
-          <div
-            style={{
-              display: "flex",
-              background: "var(--bg-secondary, #171b35)",
-              border: "1px solid var(--border-light, #1c203b)",
-              borderRadius: "4px",
-              padding: "2px",
-            }}
-          >
-            {["all", "downloading", "seeding", "paused"].map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`btn btn-small ${statusFilter === s ? "btn-primary" : ""}`}
-                style={{
-                  background:
-                    statusFilter === s
-                      ? "var(--accent, #ffd166)"
-                      : "transparent",
-                  color:
-                    statusFilter === s
-                      ? "#10111a"
-                      : "var(--text-secondary, #c7c5d3)",
-                  border: "none",
-                  textTransform: "capitalize",
-                  fontWeight: statusFilter === s ? 700 : 500,
-                  fontSize: "0.75rem",
-                  padding: "0.25rem 0.6rem",
-                }}
-                onClick={() => setStatusFilter(s)}
-              >
-                {s} (
-                {s === "all"
-                  ? torrents.length
-                  : torrents.filter((t) => t.status === s).length}
-                )
-              </button>
-            ))}
-          </div>
-
-          {/* Category Chips */}
-          <div style={{ display: "flex", gap: "6px", overflowX: "auto" }}>
-            <button
-              type="button"
-              className={`badge ${selectedCategory === "all" ? "badge-accent" : ""}`}
-              style={{
-                cursor: "pointer",
-                padding: "6px 12px",
-                border: "1px solid var(--border-light, #1c203b)",
-                backgroundColor:
-                  selectedCategory === "all"
-                    ? "var(--accent-bg, rgba(255, 209, 102, 0.15))"
-                    : "var(--bg-secondary, #171b35)",
-                color:
-                  selectedCategory === "all"
-                    ? "var(--accent, #ffd166)"
-                    : "var(--text-secondary, #c7c5d3)",
-                fontWeight: selectedCategory === "all" ? 700 : 500,
-              }}
-              onClick={() => onSelectCategory("all")}
-            >
-              ALL CATEGORIES
-            </button>
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`badge ${selectedCategory === c.name ? "badge-accent" : ""}`}
-                style={{
-                  cursor: "pointer",
-                  padding: "6px 12px",
-                  border: "1px solid var(--border-light, #1c203b)",
-                  backgroundColor:
-                    selectedCategory === c.name
-                      ? "var(--accent-bg, rgba(255, 209, 102, 0.15))"
-                      : "var(--bg-secondary, #171b35)",
-                  color:
-                    selectedCategory === c.name
-                      ? "var(--accent, #ffd166)"
-                      : "var(--text-secondary, #c7c5d3)",
-                  fontWeight: selectedCategory === c.name ? 700 : 500,
-                }}
-                onClick={() => onSelectCategory(c.name)}
-              >
-                {c.name.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Search Filter Box */}
-        <div className="search-input-wrapper">
-          <input
-            type="text"
-            placeholder="Filter torrents..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="topbar-search-input"
-            style={{ width: "240px" }}
-          />
-        </div>
-      </div>
-
-      {/* Main Grid or Table View */}
-      <div
-        style={{
-          flex: "1 1 auto",
-          minHeight: 0,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {viewMode === "grid" ? (
-          <div style={{ flex: "1 1 auto", overflowY: "auto" }}>
-            <TorrentGrid
-              torrents={filteredTorrents}
-              selectedId={selectedTorrent?.id ?? null}
-              onSelect={setSelectedTorrent}
-              onPause={onPause}
-              onResume={onResume}
-              onDelete={onDelete}
-            />
-          </div>
-        ) : (
-          <TorrentTable
-            torrents={filteredTorrents}
-            selectedId={selectedTorrent?.id ?? null}
-            onSelect={setSelectedTorrent}
-            onPause={onPause}
-            onResume={onResume}
-            onDelete={onDelete}
-            selectedIds={selectedIds}
-            onToggleSelect={handleToggleSelect}
-            onSelectAll={handleSelectAll}
-            onSearchIndexers={(q) => onOpenSearchModal()}
-            onNavigateTab={onNavigateTab}
-          />
-        )}
-      </div>
-
-      {/* Slide-Up Detail Drawer */}
-      {selectedTorrent && (
-        <TorrentDetailPanel
-          torrent={selectedTorrent}
-          onClose={() => setSelectedTorrent(null)}
+    <div className="torrent-index-page">
+      <TorrentToolbar
+        count={torrents.length}
+        totalUploadSpeed={totalUploadSpeed}
+        totalDownloadSpeed={totalDownloadSpeed}
+        filter={filter}
+        onFilterChange={setFilter}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onAddTorrent={onOpenAddModal}
+        onSearchIndexers={onOpenSearchModal}
+        onStartAll={handleStartAll}
+        onStopAll={handleStopAll}
+        selectedCount={selectedIds.size}
+        bulkPending={bulkPending}
+        onBulkStart={handleBulkStart}
+        onBulkStop={handleBulkStop}
+        onBulkDelete={handleBulkDelete}
+        onBulkClear={() => setSelectedIds(new Set())}
+      />
+      <div className="torrent-content-layout">
+        <TorrentFilterPanel
+          selectedState={selectedState}
+          onSelectState={setSelectedState}
+          selectedTracker={selectedTracker}
+          onSelectTracker={setSelectedTracker}
+          stateCounts={stateCounts}
+          trackerGroups={trackerGroups}
+          count={torrents.length}
         />
-      )}
+        <div className="filter-content">
+          <div className="torrent-split-pane">
+            <div className="torrent-split-top">
+              {viewMode === "table" ? (
+                <TorrentTable
+                  torrents={torrents}
+                  filter={filter}
+                  stateFilter={selectedState}
+                  trackerFilter={selectedTracker}
+                  selectedId={selectedTorrent?.id ?? null}
+                  onSelect={setSelectedTorrent}
+                  onPause={onPause}
+                  onResume={onResume}
+                  onDelete={onDelete}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onSelectAll={handleSelectAll}
+                  onSearchIndexers={onOpenSearchModal}
+                  onNavigateTab={onNavigateTab}
+                />
+              ) : (
+                <TorrentGrid
+                  torrents={torrents}
+                  selectedId={selectedTorrent?.id ?? null}
+                  onSelect={setSelectedTorrent}
+                  onPause={onPause}
+                  onResume={onResume}
+                  onDelete={onDelete}
+                />
+              )}
+            </div>
+            {selectedTorrent && (
+              <TorrentDetailPanel
+                torrent={selectedTorrent}
+                onClose={() => setSelectedTorrent(null)}
+              />
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

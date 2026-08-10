@@ -1,0 +1,168 @@
+import React from "react";
+import { formatSpeed } from "../../utils/formatters";
+import {
+  PlusIcon,
+  PlayIcon,
+  StopIcon,
+  TableIcon,
+  GridIcon,
+} from "../../components/icons/UIIcons";
+import { ViewMode } from "./types";
+
+interface TorrentToolbarProps {
+  count: number;
+  totalUploadSpeed: number;
+  totalDownloadSpeed: number;
+  filter: string;
+  onFilterChange: (value: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  onAddTorrent: () => void;
+  onSearchIndexers?: () => void;
+  onStartAll: () => void;
+  onStopAll: () => void;
+  selectedCount: number;
+  bulkPending?: boolean;
+  onBulkStart: () => void;
+  onBulkStop: () => void;
+  onBulkDelete: () => void;
+  onBulkClear: () => void;
+}
+
+export function TorrentToolbar({
+  count,
+  totalUploadSpeed,
+  totalDownloadSpeed,
+  filter,
+  onFilterChange,
+  viewMode,
+  onViewModeChange,
+  onAddTorrent,
+  onSearchIndexers,
+  onStartAll,
+  onStopAll,
+  selectedCount,
+  bulkPending = false,
+  onBulkStart,
+  onBulkStop,
+  onBulkDelete,
+  onBulkClear,
+}: TorrentToolbarProps) {
+  return (
+    <div className="page-header" style={{ marginBottom: 0 }}>
+      <div className="page-header-group">
+        <h1 className="page-heading">Torrents ({count})</h1>
+        <button
+          type="button"
+          className="btn btn-success"
+          onClick={onAddTorrent}
+        >
+          <PlusIcon size={13} /> Add Torrent
+        </button>
+        {onSearchIndexers && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={onSearchIndexers}
+            style={{ fontSize: "0.82rem" }}
+          >
+            🔍 Search Indexers
+          </button>
+        )}
+        {selectedCount > 0 && (
+          <div className="bulk-actions">
+            <span className="bulk-actions-count">{selectedCount} selected</span>
+            <button
+              type="button"
+              className="btn btn-small btn-success"
+              onClick={onBulkStart}
+              disabled={bulkPending}
+            >
+              <PlayIcon size={12} /> Start
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={onBulkStop}
+              disabled={bulkPending}
+            >
+              <StopIcon size={12} /> Pause
+            </button>
+            <button
+              type="button"
+              className="btn btn-small btn-danger"
+              onClick={onBulkDelete}
+              disabled={bulkPending}
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={onBulkClear}
+              disabled={bulkPending}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="page-header-actions">
+        <button
+          type="button"
+          className="btn btn-success"
+          onClick={onStartAll}
+          title="Resume all torrents"
+        >
+          <PlayIcon size={13} /> Start All
+        </button>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={onStopAll}
+          title="Pause all torrents"
+        >
+          <StopIcon size={13} /> Stop All
+        </button>
+        <div
+          className="speed-controls"
+          style={{ display: "flex", alignItems: "center", gap: "4px" }}
+        >
+          <span style={{ fontSize: "0.85em", opacity: 0.8 }}>
+            UL: {formatSpeed(totalUploadSpeed)}
+          </span>
+          <span style={{ fontSize: "0.85em", opacity: 0.8, marginLeft: "8px" }}>
+            DL: {formatSpeed(totalDownloadSpeed)}
+          </span>
+        </div>
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Filter torrents..."
+          value={filter}
+          onChange={(e) => onFilterChange(e.target.value)}
+        />
+        <div className="view-toggle">
+          <button
+            type="button"
+            className={`view-toggle-btn${viewMode === "table" ? " active" : ""}`}
+            onClick={() => onViewModeChange("table")}
+            title="Table view"
+          >
+            <TableIcon size={13} /> Table
+          </button>
+          <button
+            type="button"
+            className={`view-toggle-btn${viewMode === "grid" ? " active" : ""}`}
+            onClick={() => onViewModeChange("grid")}
+            title="Grid view"
+          >
+            <GridIcon size={13} /> Grid
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default TorrentToolbar;

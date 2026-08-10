@@ -200,7 +200,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
           <button
             key={t.key}
             type="button"
-            className={`detail-panel-tab ${tab === t.key ? "active" : ""}`}
+            className={`tab-btn${tab === t.key ? " tab-btn-active" : ""}`}
             onClick={() => setTab(t.key)}
           >
             {TAB_ICONS[t.key]}
@@ -210,7 +210,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       </div>
 
       {/* Tab Content Body */}
-      <div className="detail-panel-content">
+      <div className="detail-panel-body">
         {tab === "status" && <StatusTab torrent={currentTorrent} />}
         {tab === "details" && <DetailsTab torrent={currentTorrent} />}
         {tab === "files" && <FilesTab torrent={currentTorrent} />}
