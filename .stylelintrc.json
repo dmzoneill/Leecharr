@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "alpha-value-notation": null,
+    "no-duplicate-selectors": true,
+    "no-descending-specificity": null,
+    "declaration-block-no-duplicate-properties": true,
+    "declaration-block-no-redundant-longhand-properties": null
+  }
+}
