@@ -148,48 +148,43 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               className="btn btn-small btn-success"
               onClick={() => startSeeding.mutate(currentTorrent.id)}
             >
-              ▶ Resume
+              Start
             </button>
           ) : (
             <button
               type="button"
-              className="btn btn-small btn-warning"
+              className="btn btn-small btn-danger"
               onClick={() => stopSeeding.mutate(currentTorrent.id)}
             >
-              ⏸ Pause
+              Stop
             </button>
           )}
 
           <button
             type="button"
-            className="btn btn-small btn-outline"
+            className="btn btn-small"
             onClick={() => recheckTorrent.mutate(currentTorrent.id)}
             title="Force recheck torrent piece integrity"
           >
-            🛡 Recheck
+            Recheck
           </button>
 
           <button
             type="button"
-            className="btn btn-small btn-outline"
+            className="btn btn-small"
             onClick={() => announceTorrent.mutate(currentTorrent.id)}
             title="Force announce to all trackers"
           >
-            ⚡ Announce
+            Announce
           </button>
 
           <button
             type="button"
-            className="btn-icon"
+            className="btn btn-small"
             onClick={onClose}
-            title="Close details panel"
-            style={{
-              fontSize: "1.2rem",
-              color: "var(--text-muted, #7e8092)",
-              padding: "0 0.4rem",
-            }}
+            title="Close panel"
           >
-            &times;
+            X
           </button>
         </div>
       </div>

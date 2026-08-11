@@ -860,24 +860,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   </div>
                 </th>
               ))}
-
-              <th
-                className="torrent-table-th"
-                style={{
-                  width: 75,
-                  textAlign: "right",
-                  padding: "0.6rem 0.75rem",
-                }}
-              >
-                Actions
-              </th>
             </tr>
           </thead>
           <tbody>
             {sortedTorrents.map((t, idx) => {
               const isSelected = t.id === selectedId;
               const isChecked = selectedIds.has(t.id);
-              const isPaused = t.status?.toLowerCase() === "paused";
 
               return (
                 <tr
@@ -920,64 +908,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                       {renderCell(t, c.key, idx)}
                     </td>
                   ))}
-
-                  <td
-                    style={{
-                      textAlign: "right",
-                      padding: "0.55rem 0.75rem",
-                      whiteSpace: "nowrap",
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: "4px",
-                      }}
-                    >
-                      {isPaused ? (
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          title="Resume download"
-                          onClick={() => {
-                            if (onResume) onResume(t.id);
-                            else startSeeding.mutate(t.id);
-                          }}
-                          style={{ color: "var(--success, #22c55e)" }}
-                        >
-                          <PlayIcon size={12} />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          title="Pause download"
-                          onClick={() => {
-                            if (onPause) onPause(t.id);
-                            else stopSeeding.mutate(t.id);
-                          }}
-                          style={{ color: "var(--warning, #eab308)" }}
-                        >
-                          <StopIcon size={12} />
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn-icon"
-                        title="Delete torrent"
-                        onClick={() => {
-                          if (onDelete) onDelete(t.id);
-                          else deleteTorrent.mutate({ id: t.id });
-                        }}
-                        style={{ color: "var(--danger, #ef4444)" }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               );
             })}
