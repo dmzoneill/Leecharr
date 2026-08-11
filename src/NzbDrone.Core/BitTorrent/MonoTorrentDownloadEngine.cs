@@ -397,6 +397,69 @@ public class MonoTorrentDownloadTask : IDownloadTask
             return availability;
         }
     }
+
+    public IReadOnlyList<PeerInfo> GetPeers()
+    {
+        if (Manager == null)
+        {
+            return Array.Empty<PeerInfo>();
+        }
+
+        try
+        {
+            var peers = Manager.GetPeersAsync().GetAwaiter().GetResult();
+            var list = new List<PeerInfo>();
+            foreach (var p in peers)
+            {
+                var flags = string.Empty;
+                if (p.AmInterested)
+                {
+                    flags += "I";
+                }
+
+                if (p.AmChoking)
+                {
+                    flags += "C";
+                }
+
+                if (p.IsInterested)
+                {
+                    flags += "i";
+                }
+
+                if (p.IsChoking)
+                {
+                    flags += "c";
+                }
+
+                var isEncrypted = p.EncryptionType.ToString() != "None";
+                if (isEncrypted)
+                {
+                    flags += "E";
+                }
+
+                list.Add(new PeerInfo
+                {
+                    Ip = p.Uri?.Host ?? "unknown",
+                    Port = p.Uri?.Port ?? 0,
+                    Client = p.ClientApp.Client.ToString(),
+                    Flags = flags,
+                    Progress = p.BitField != null && p.BitField.Length > 0 ? (double)p.BitField.PercentComplete / 100.0 : 0.0,
+                    DownloadSpeed = p.Monitor?.DownloadRate ?? 0,
+                    UploadSpeed = p.Monitor?.UploadRate ?? 0,
+                    Downloaded = p.Monitor?.DataBytesReceived ?? 0,
+                    Uploaded = p.Monitor?.DataBytesSent ?? 0,
+                    IsEncrypted = isEncrypted
+                });
+            }
+
+            return list;
+        }
+        catch
+        {
+            return Array.Empty<PeerInfo>();
+        }
+    }
 }
 
 public class PieceVerifiedEvent : IEvent

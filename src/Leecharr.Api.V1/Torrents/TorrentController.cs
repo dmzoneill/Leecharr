@@ -102,6 +102,33 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return Ok(resources);
     }
 
+    [HttpGet("{id:int}/peers")]
+    public ActionResult<List<PeerResource>> GetPeers(int id)
+    {
+        var task = _torrentService.GetDownloadTask(id);
+        if (task == null)
+        {
+            return Ok(new List<PeerResource>());
+        }
+
+        var peers = task.GetPeers();
+        var resources = peers.Select((p, idx) => new PeerResource
+        {
+            Id = idx + 1,
+            Ip = p.Ip,
+            Port = p.Port,
+            Client = p.Client,
+            UploadSpeed = p.UploadSpeed,
+            DownloadSpeed = p.DownloadSpeed,
+            Uploaded = p.Uploaded,
+            Downloaded = p.Downloaded,
+            Progress = p.Progress,
+            Flags = p.Flags
+        }).ToList();
+
+        return Ok(resources);
+    }
+
     [HttpPost]
     [Consumes("application/json")]
     public async Task<ActionResult<TorrentResource>> AddTorrentJson([FromBody] AddTorrentJsonRequest request)

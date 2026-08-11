@@ -452,4 +452,9 @@ public class TorrentService : ITorrentService
             torrent.Leechers = task.ConnectedLeechers;
         }
     }
+
+    public IDownloadTask GetDownloadTask(int torrentId)
+    {
+        return _downloadEngine.GetTask(torrentId);
+    }
 }

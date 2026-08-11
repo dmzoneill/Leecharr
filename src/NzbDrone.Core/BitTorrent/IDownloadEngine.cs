@@ -33,4 +33,19 @@ public interface IDownloadTask
     int ConnectedLeechers { get; }
     bool[] PieceBitfield { get; }
     int[] PieceAvailability { get; }
+    IReadOnlyList<PeerInfo> GetPeers();
+}
+
+public class PeerInfo
+{
+    public string Ip { get; set; }
+    public int Port { get; set; }
+    public string Client { get; set; }
+    public string Flags { get; set; }
+    public double Progress { get; set; }
+    public long DownloadSpeed { get; set; }
+    public long UploadSpeed { get; set; }
+    public long Downloaded { get; set; }
+    public long Uploaded { get; set; }
+    public bool IsEncrypted { get; set; }
 }
