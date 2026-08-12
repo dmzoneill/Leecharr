@@ -83,6 +83,8 @@ public class Startup
                     .AllowCredentials();
             });
         });
+
+        services.AddHostedService<AppLifetime>();
     }
 
     public void Configure(WebApplication app)

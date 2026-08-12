@@ -70,4 +70,27 @@ public class LogFileController : ControllerBase
         var stream = global::System.IO.File.OpenRead(fullPath);
         return File(stream, "text/plain", sanitized);
     }
+
+    [HttpDelete]
+    public ActionResult ClearLogs()
+    {
+        var logDir = Path.Combine(_appFolderInfo.AppDataFolder, "logs");
+        if (Directory.Exists(logDir))
+        {
+            var files = Directory.GetFiles(logDir, "*.*", SearchOption.TopDirectoryOnly);
+            foreach (var f in files)
+            {
+                try
+                {
+                    global::System.IO.File.Delete(f);
+                }
+                catch
+                {
+                    // Ignore open files
+                }
+            }
+        }
+
+        return Ok();
+    }
 }

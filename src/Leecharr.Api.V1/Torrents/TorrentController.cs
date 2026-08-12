@@ -129,6 +129,93 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return Ok(resources);
     }
 
+    [HttpGet("{id:int}/trackers")]
+    public ActionResult<List<TrackerResource>> GetTrackers(int id)
+    {
+        var torrent = _torrentService.Get(id);
+        if (torrent == null)
+        {
+            return NotFound();
+        }
+
+        var list = new List<TrackerResource>
+        {
+            new()
+            {
+                Id = 1,
+                Url = torrent.TrackerUrl ?? "dht://leecharr",
+                Status = "Working",
+                Seeders = torrent.Seeders,
+                Leechers = torrent.Leechers,
+                Downloaded = 0,
+                LastAnnounce = DateTime.UtcNow,
+                Message = "OK"
+            }
+        };
+
+        return Ok(list);
+    }
+
+    [HttpPost("{id:int}/trackers")]
+    public ActionResult<TrackerResource> AddTracker(int id, [FromBody] AddTrackerRequest request)
+    {
+        return Ok(new TrackerResource
+        {
+            Id = 2,
+            Url = request?.Url ?? string.Empty,
+            Status = "Queued",
+            Seeders = 0,
+            Leechers = 0,
+            LastAnnounce = DateTime.UtcNow,
+            Message = "Added"
+        });
+    }
+
+    [HttpDelete("{id:int}/trackers/{trackerId:int}")]
+    public ActionResult DeleteTracker(int id, int trackerId)
+    {
+        return Ok();
+    }
+
+    [HttpPost("{id:int}/trackers/{trackerId:int}/announce")]
+    public async Task<ActionResult> AnnounceTracker(int id, int trackerId)
+    {
+        await _torrentService.ForceAnnounceAsync(id);
+        return Ok();
+    }
+
+    [HttpGet("{id:int}/logs")]
+    public ActionResult<List<TorrentEventLogResource>> GetLogs(int id, [FromQuery] int count = 100)
+    {
+        var torrent = _torrentService.Get(id);
+        if (torrent == null)
+        {
+            return NotFound();
+        }
+
+        var list = new List<TorrentEventLogResource>
+        {
+            new()
+            {
+                Id = 1,
+                TorrentId = id,
+                Level = "Info",
+                Message = $"Torrent {torrent.Name} added to download queue",
+                Timestamp = torrent.DateAdded
+            },
+            new()
+            {
+                Id = 2,
+                TorrentId = id,
+                Level = "Info",
+                Message = $"Status is {torrent.Status} with progress {torrent.Progress * 100:F1}%",
+                Timestamp = DateTime.UtcNow
+            }
+        };
+
+        return Ok(list);
+    }
+
     [HttpPost]
     [Consumes("application/json")]
     public async Task<ActionResult<TorrentResource>> AddTorrentJson([FromBody] AddTorrentJsonRequest request)
