@@ -208,13 +208,26 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       <div className="detail-panel-body">
         {tab === "status" && <StatusTab torrent={currentTorrent} />}
         {tab === "details" && <DetailsTab torrent={currentTorrent} />}
-        {tab === "files" && <FilesTab torrent={currentTorrent} />}
-        {tab === "peers" && <PeersTab torrent={currentTorrent} />}
-        {tab === "trackers" && <TrackersTab torrent={currentTorrent} />}
+        {tab === "files" && (
+          <FilesTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+        )}
+        {tab === "peers" && (
+          <PeersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+        )}
+        {tab === "trackers" && (
+          <TrackersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+        )}
         {tab === "options" && <OptionsTab torrent={currentTorrent} />}
         {tab === "piecemap" && <PieceMap torrentId={currentTorrent.id} />}
-        {tab === "monitoring" && <MonitoringTab torrent={currentTorrent} />}
-        {tab === "log" && <LogTab torrent={currentTorrent} />}
+        {tab === "monitoring" && (
+          <MonitoringTab
+            torrent={currentTorrent}
+            torrentId={currentTorrent.id}
+          />
+        )}
+        {tab === "log" && (
+          <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+        )}
       </div>
     </div>
   );

@@ -60,17 +60,24 @@ function getAttachedTrackerIndicator(
   };
 }
 
-export function TrackersTab({ torrentId }: { torrentId: number }) {
+export function TrackersTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: { id: number };
+  torrentId?: number;
+}) {
+  const effectiveId = torrentId ?? torrent?.id ?? 0;
   const {
     data: trackers,
     isLoading,
     isError,
     refetch,
-  } = useTorrentTrackers(torrentId);
+  } = useTorrentTrackers(effectiveId);
   const { data: availableTrackers } = useTrackerBoostTrackers();
   const { data: inspection } = useInspectTorrentTrackers(
-    torrentId,
-    torrentId > 0,
+    effectiveId,
+    effectiveId > 0,
   );
   const addTracker = useAddTorrentTracker();
   const deleteTracker = useDeleteTorrentTracker();

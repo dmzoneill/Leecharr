@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.EnvironmentInfo;
 
 namespace Leecharr.Api.V1.System;

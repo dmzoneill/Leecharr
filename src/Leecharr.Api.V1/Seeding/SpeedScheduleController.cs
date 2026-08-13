@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Bandwidth;
 
 namespace Leecharr.Api.V1.Seeding;

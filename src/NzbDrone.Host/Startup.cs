@@ -1,13 +1,13 @@
 using System;
 using System.Reflection;
 using DryIoc;
+using Leecharr.Http.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
-using Leecharr.Http.Authentication;
 using NzbDrone.Common.Serializer;
 using NzbDrone.SignalR;
 

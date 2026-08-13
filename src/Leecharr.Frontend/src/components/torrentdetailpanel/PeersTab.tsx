@@ -3,9 +3,17 @@ import { formatBytes, formatSpeed } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 import CountryFlag from "../CountryFlag";
 import PeerClientBadge from "../PeerClientBadge";
+import type { Torrent } from "../../api/types";
 
-export function PeersTab({ torrentId }: { torrentId: number }) {
-  const { data: peers, isLoading, isError } = usePeers(torrentId);
+export function PeersTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
+  const effectiveId = torrentId ?? torrent?.id ?? 0;
+  const { data: peers, isLoading, isError } = usePeers(effectiveId);
 
   if (isLoading) return <PanelLoading>Loading peers...</PanelLoading>;
   if (isError) return <PanelEmpty>Failed to load peers.</PanelEmpty>;
