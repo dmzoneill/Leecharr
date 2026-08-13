@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
-using Leecharr.Http;
 
 namespace Leecharr.Api.V1.Torrents;
 

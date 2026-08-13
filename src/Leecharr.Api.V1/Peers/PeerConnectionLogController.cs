@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Torrents;
 

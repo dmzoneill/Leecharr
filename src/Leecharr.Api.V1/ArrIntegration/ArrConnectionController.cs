@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Leecharr.Api.V1.ArrIntegration;
 

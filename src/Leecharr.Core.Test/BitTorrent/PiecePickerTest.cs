@@ -32,6 +32,7 @@ public class PiecePickerTest
         var requests = picker.PickBlocks(peer3Bitfield, 2);
 
         requests.Should().HaveCount(2);
+
         // Piece 3 is rarer than Piece 5, so Piece 3 must be picked first!
         requests.All(r => r.PieceIndex == 3).Should().BeTrue();
     }

@@ -82,11 +82,18 @@ function MiniChart({
   );
 }
 
-export function MonitoringTab({ torrent }: { torrent: Torrent }) {
-  const { data: history } = useTorrentSpeedHistory(torrent.id);
+export function MonitoringTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
+  const effectiveId = torrentId ?? torrent?.id ?? 0;
+  const { data: history } = useTorrentSpeedHistory(effectiveId);
   const histRef = useRef<{ up: number[]; down: number[] }>({
-    up: [],
-    down: [],
+    up: Array(20).fill(0),
+    down: Array(20).fill(0),
   });
   const seededRef = useRef(false);
   const prevRef = useRef<{
@@ -106,6 +113,7 @@ export function MonitoringTab({ torrent }: { torrent: Torrent }) {
   }, [history]);
 
   useEffect(() => {
+    if (!torrent) return;
     const now = Date.now();
     const prev = prevRef.current;
     const idChanged = prevIdRef.current !== torrent.id;
@@ -121,11 +129,18 @@ export function MonitoringTab({ torrent }: { torrent: Torrent }) {
         };
         histRef.current.up = push(
           histRef.current.up,
-          Math.max(0, (torrent.uploaded - prev.uploaded) / dt),
+          Math.max(
+            0,
+            torrent.uploadSpeed || (torrent.uploaded - prev.uploaded) / dt,
+          ),
         );
         histRef.current.down = push(
           histRef.current.down,
-          Math.max(0, (torrent.downloaded - prev.downloaded) / dt),
+          Math.max(
+            0,
+            torrent.downloadSpeed ||
+              (torrent.downloaded - prev.downloaded) / dt,
+          ),
         );
         setTick((t) => t + 1);
       }
@@ -135,11 +150,21 @@ export function MonitoringTab({ torrent }: { torrent: Torrent }) {
       downloaded: torrent.downloaded,
       ts: now,
     };
-  }, [torrent.id, torrent.uploaded, torrent.downloaded]);
+  }, [torrent]);
 
   const h = histRef.current;
-  const curUp = h.up.length > 0 ? h.up[h.up.length - 1] : 0;
-  const curDown = h.down.length > 0 ? h.down[h.down.length - 1] : 0;
+  const curUp =
+    torrent?.uploadSpeed && torrent.uploadSpeed > 0
+      ? torrent.uploadSpeed
+      : h.up.length > 0
+        ? h.up[h.up.length - 1]
+        : 0;
+  const curDown =
+    torrent?.downloadSpeed && torrent.downloadSpeed > 0
+      ? torrent.downloadSpeed
+      : h.down.length > 0
+        ? h.down[h.down.length - 1]
+        : 0;
 
   return (
     <div className="detail-panel-monitoring">
@@ -147,13 +172,13 @@ export function MonitoringTab({ torrent }: { torrent: Torrent }) {
         title="Upload"
         value={formatSpeed(curUp)}
         data={h.up}
-        color="#c8a84e"
+        color="#ffd166"
       />
       <MiniChart
         title="Download"
         value={formatSpeed(curDown)}
         data={h.down}
-        color="#b5443a"
+        color="#06d6a0"
       />
     </div>
   );

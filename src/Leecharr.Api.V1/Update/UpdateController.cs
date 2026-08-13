@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.EnvironmentInfo;
 
 namespace Leecharr.Api.V1.Update;

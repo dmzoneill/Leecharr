@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Seeding;

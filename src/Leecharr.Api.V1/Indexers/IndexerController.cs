@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using NLog;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
 

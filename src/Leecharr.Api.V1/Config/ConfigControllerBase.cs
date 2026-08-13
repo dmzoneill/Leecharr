@@ -1,8 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;
