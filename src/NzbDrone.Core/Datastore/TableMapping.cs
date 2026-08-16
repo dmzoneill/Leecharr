@@ -23,6 +23,11 @@ public static class TableMapping
             return name;
         }
 
+        if (type.Name.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+        {
+            return type.Name;
+        }
+
         return type.Name + "s";
     }
 
