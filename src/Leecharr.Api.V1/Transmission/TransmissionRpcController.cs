@@ -62,8 +62,29 @@ public class TransmissionRpcController : ControllerBase
     }
 
     [HttpGet]
+    public IActionResult HandleGet()
+    {
+        if (!Request.Headers.TryGetValue(SessionHeaderName, out var sessionVal) || string.IsNullOrEmpty(sessionVal))
+        {
+            var newSessionId = Guid.NewGuid().ToString("N");
+            Response.Headers[SessionHeaderName] = newSessionId;
+            return StatusCode(409, "Conflict: Session ID generated.");
+        }
+
+        return Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
+            {
+                { "version", "3.00 (Leecharr)" },
+                { "rpc-version", 17 },
+                { "rpc-version-minimum", 1 }
+            }
+        });
+    }
+
     [HttpPost]
-    public async Task<IActionResult> HandleRpc([FromBody] TransmissionRpcRequest request)
+    public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] TransmissionRpcRequest request = null)
     {
         // 1. Transmission CSRF token check
         if (!Request.Headers.TryGetValue(SessionHeaderName, out var sessionVal) || string.IsNullOrEmpty(sessionVal))
@@ -75,7 +96,7 @@ public class TransmissionRpcController : ControllerBase
 
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
         {
-            return Ok(new TransmissionRpcResponse { Result = "invalid arguments", Tag = null });
+            return Ok(new TransmissionRpcResponse { Result = "success", Tag = null });
         }
 
         var tag = request.Tag.ValueKind != JsonValueKind.Undefined ? (object)request.Tag : 1;

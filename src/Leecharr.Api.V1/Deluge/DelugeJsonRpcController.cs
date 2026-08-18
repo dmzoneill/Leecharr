@@ -71,7 +71,60 @@ public class DelugeJsonRpcController : ControllerBase
                 case "auth.check_session":
                 case "auth.delete_session":
                 case "web.connected":
+                case "web.connect":
                     return Ok(new { result = true, error = (object)null, id });
+
+                case "core.get_enabled_plugins":
+                case "web.get_plugins":
+                case "web.get_installed_plugins":
+                case "core.get_available_plugins":
+                    return Ok(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+
+                case "web.get_hosts":
+                    return Ok(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
+
+                case "web.get_host_status":
+                    return Ok(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
+
+                case "web.update_ui":
+                    var allTorrentsForUi = _torrentService.GetAll().ToList();
+                    var torrentDict = new Dictionary<string, Dictionary<string, object>>();
+                    foreach (var t in allTorrentsForUi)
+                    {
+                        torrentDict[t.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(t);
+                    }
+
+                    return Ok(new
+                    {
+                        result = new
+                        {
+                            connected = true,
+                            torrents = torrentDict,
+                            filters = new
+                            {
+                                state = new object[]
+                                {
+                                    new object[] { "All", allTorrentsForUi.Count },
+                                    new object[] { "Downloading", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading) },
+                                    new object[] { "Seeding", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Seeding) },
+                                    new object[] { "Active", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
+                                    new object[] { "Paused", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Paused) }
+                                },
+                                label = _categoryService.GetAll().Select(c => new object[] { c.Name, allTorrentsForUi.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToArray()
+                            },
+                            stats = new
+                            {
+                                max_download = _configService.MaxDownloadSpeedKbps,
+                                max_upload = _configService.MaxUploadSpeedKbps,
+                                num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
+                                upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
+                                download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
+                                free_space = 1099511627776L
+                            }
+                        },
+                        error = (object)null,
+                        id
+                    });
 
                 case "core.get_config":
                 case "web.get_config":
