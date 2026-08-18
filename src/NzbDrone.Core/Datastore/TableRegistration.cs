@@ -32,5 +32,6 @@ public static class TableRegistration
         TableMapping.Register<TrackerEntry>("TrackerEntries");
         TableMapping.Register<ArrConnectionDefinition>("ArrConnectionDefinitions");
         TableMapping.Register<SpeedSchedule>("SpeedSchedules");
+        TableMapping.Register<DownloadHistory>("DownloadHistory");
     }
 }
