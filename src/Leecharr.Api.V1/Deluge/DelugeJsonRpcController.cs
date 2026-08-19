@@ -74,6 +74,72 @@ public class DelugeJsonRpcController : ControllerBase
                 case "web.connect":
                     return Ok(new { result = true, error = (object)null, id });
 
+                case "system.listmethods":
+                case "system.list_methods":
+                case "daemon.get_method_list":
+                case "system.get_methods":
+                    return Ok(new
+                    {
+                        result = new[]
+                        {
+                            "auth.login",
+                            "auth.check_session",
+                            "auth.delete_session",
+                            "web.connected",
+                            "web.connect",
+                            "web.get_hosts",
+                            "web.get_host_status",
+                            "web.update_ui",
+                            "web.get_plugins",
+                            "web.get_installed_plugins",
+                            "web.get_config",
+                            "web.get_torrents_status",
+                            "core.get_version",
+                            "daemon.get_version",
+                            "daemon.info",
+                            "system.listMethods",
+                            "system.list_methods",
+                            "system.get_methods",
+                            "core.get_config",
+                            "core.get_session_status",
+                            "core.get_free_space",
+                            "core.get_path_free_space",
+                            "core.get_torrents_status",
+                            "core.get_torrent_status",
+                            "core.add_torrent_file",
+                            "core.add_torrent_magnet",
+                            "core.add_torrent_url",
+                            "core.pause_torrent",
+                            "core.pause_torrents",
+                            "core.resume_torrent",
+                            "core.resume_torrents",
+                            "core.remove_torrent",
+                            "core.remove_torrents",
+                            "core.force_recheck",
+                            "core.set_torrent_options",
+                            "core.get_filter_tree",
+                            "core.get_enabled_plugins",
+                            "core.get_available_plugins",
+                            "label.get_labels",
+                            "label.set_torrent"
+                        },
+                        error = (object)null,
+                        id
+                    });
+
+                case "daemon.get_version":
+                case "daemon.info":
+                case "core.get_version":
+                case "web.get_version":
+                    return Ok(new { result = "2.1.1", error = (object)null, id });
+
+                case "label.get_labels":
+                    var labels = _categoryService.GetAll().Select(c => c.Name).ToArray();
+                    return Ok(new { result = labels, error = (object)null, id });
+
+                case "label.set_torrent":
+                    return Ok(new { result = true, error = (object)null, id });
+
                 case "core.get_enabled_plugins":
                 case "web.get_plugins":
                 case "web.get_installed_plugins":
