@@ -137,6 +137,33 @@ public class DelugeJsonRpcController : ControllerBase
                     var labels = _categoryService.GetAll().Select(c => c.Name).ToArray();
                     return Ok(new { result = labels, error = (object)null, id });
 
+                case "label.add":
+                case "label.add_label":
+                    var newLabel = GetFirstStringParam(paramsElem);
+                    if (!string.IsNullOrWhiteSpace(newLabel))
+                    {
+                        var existing = _categoryService.GetByName(newLabel);
+                        if (existing == null)
+                        {
+                            _categoryService.Add(new Category
+                            {
+                                Name = newLabel,
+                                SavePath = global::System.IO.Path.Combine(_configService.DownloadDir ?? "/downloads", newLabel)
+                            });
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "label.remove":
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "label.get_options":
+                    return Ok(new { result = new Dictionary<string, object>(), error = (object)null, id });
+
+                case "label.set_options":
+                    return Ok(new { result = true, error = (object)null, id });
+
                 case "label.set_torrent":
                     return Ok(new { result = true, error = (object)null, id });
 
