@@ -46,6 +46,7 @@ public class NzbgetRpcController : ControllerBase
     [HttpPost]
     [Route("nzbget/jsonrpc")]
     [Route("nzbget/xmlrpc")]
+    [Route("nzbget")]
     [Route("{user}:{pass}/jsonrpc")]
     [Route("{user}:{pass}/xmlrpc")]
     public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] NzbgetRequest request = null)
@@ -63,6 +64,23 @@ public class NzbgetRpcController : ControllerBase
             {
                 case "version":
                     return Ok(new { version = "1.1", result = "24.0", id });
+
+                case "config":
+                case "loadconfig":
+                    return Ok(new
+                    {
+                        version = "1.1",
+                        result = new object[]
+                        {
+                            new { Name = "MainDir", Value = _configService.DownloadDir ?? "/downloads" },
+                            new { Name = "DestDir", Value = _configService.DownloadDir ?? "/downloads" },
+                            new { Name = "InterDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
+                            new { Name = "NzbDir", Value = _configService.DownloadDir ?? "/downloads" },
+                            new { Name = "QueueDir", Value = _configService.DownloadDir ?? "/downloads" },
+                            new { Name = "TempDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" }
+                        },
+                        id
+                    });
 
                 case "status":
                     var all = _torrentService.GetAll().ToList();
