@@ -47,6 +47,8 @@ public class HadoukenRpcController : ControllerBase
     [Route("api/hadouken")]
     [Route("api/rpc")]
     [Route("hadouken/api")]
+    [Route("hadouken/rpc")]
+    [Route("hadouken")]
     public async Task<IActionResult> HandleRpc([FromBody] HadoukenRpcRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
