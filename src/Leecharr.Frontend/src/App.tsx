@@ -475,6 +475,10 @@ export function App() {
                   onDelete={handleDelete}
                   onOpenAddModal={() => setShowAddModal(true)}
                   onOpenSearchModal={() => setShowSearchModal(true)}
+                  onNavigateTab={(nav, subNav) => {
+                    setActiveNav(nav);
+                    if (subNav) setActiveSubNav(subNav);
+                  }}
                 />
               )}
               {activeSubNav === "metrics" && <Activity />}

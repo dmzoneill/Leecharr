@@ -1,313 +1,228 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Torrent, TorrentFile, Peer } from "../api/types";
-import { api } from "../api/client";
+import React, { useState } from "react";
+import {
+  useTorrent,
+  useStartSeeding,
+  useStopSeeding,
+  useRecheckTorrent,
+  useAnnounceTorrent,
+} from "../api/hooks";
+import {
+  InfoIcon,
+  ClipboardIcon,
+  FileIcon,
+  UsersIcon,
+  GlobeIcon,
+  SlidersIcon,
+  ActivityIcon,
+} from "./icons/UIIcons";
+import { PeerMapIcon } from "./icons/AppIcons";
+import { usePanelHeight } from "./torrentdetailpanel/shared";
+import { StatusTab } from "./torrentdetailpanel/StatusTab";
+import { DetailsTab } from "./torrentdetailpanel/DetailsTab";
+import { FilesTab } from "./torrentdetailpanel/FilesTab";
+import { PeersTab } from "./torrentdetailpanel/PeersTab";
+import { TrackersTab } from "./torrentdetailpanel/TrackersTab";
+import { OptionsTab } from "./torrentdetailpanel/OptionsTab";
+import { MonitoringTab } from "./torrentdetailpanel/MonitoringTab";
+import { LogTab } from "./torrentdetailpanel/LogTab";
+import PieceMap from "./PieceMap";
+import type { Torrent } from "../api/types";
 
-interface TorrentDetailPanelProps {
-  torrent: Torrent;
+export type DetailTab =
+  | "status"
+  | "details"
+  | "files"
+  | "peers"
+  | "trackers"
+  | "options"
+  | "piecemap"
+  | "monitoring"
+  | "log";
+
+export interface TorrentDetailPanelProps {
+  torrent?: Torrent | null;
+  torrentId?: number | null;
   onClose: () => void;
 }
 
+const TAB_ICONS: Record<DetailTab, React.ReactNode> = {
+  status: <InfoIcon size={13} />,
+  details: <ClipboardIcon size={13} />,
+  files: <FileIcon size={13} />,
+  peers: <UsersIcon size={13} />,
+  trackers: <GlobeIcon size={13} />,
+  options: <SlidersIcon size={13} />,
+  piecemap: <PeerMapIcon size={13} />,
+  monitoring: <ActivityIcon size={13} />,
+  log: <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>#</span>,
+};
+
+const DETAIL_TABS: { key: DetailTab; label: string }[] = [
+  { key: "status", label: "Status" },
+  { key: "details", label: "Details" },
+  { key: "files", label: "Files" },
+  { key: "peers", label: "Peers" },
+  { key: "trackers", label: "Trackers" },
+  { key: "options", label: "Options" },
+  { key: "piecemap", label: "Piece Map" },
+  { key: "monitoring", label: "Monitoring" },
+  { key: "log", label: "Engine Log" },
+];
+
 export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
-  torrent,
+  torrent: initialTorrent,
+  torrentId: initialTorrentId,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    "details" | "files" | "peers" | "piecemap"
-  >("details");
-  const [files, setFiles] = useState<TorrentFile[]>([]);
-  const [peers, setPeers] = useState<Peer[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const targetId = initialTorrent?.id ?? initialTorrentId ?? 0;
+  const { data: fetchedTorrent, isLoading, isError } = useTorrent(targetId);
+  const currentTorrent = fetchedTorrent || initialTorrent;
 
-  useEffect(() => {
-    // Load files
-    api.getTorrentFiles(torrent.id).then(setFiles).catch(console.error);
+  const startSeeding = useStartSeeding();
+  const stopSeeding = useStopSeeding();
+  const recheckTorrent = useRecheckTorrent();
+  const announceTorrent = useAnnounceTorrent();
 
-    // Mock peers based on seeders / leechers
-    const mockPeers: Peer[] = [];
-    const seeders = torrent.seeders || 0;
-    const leechers = torrent.leechers || 0;
-    const clients = [
-      "qBittorrent 4.6.5",
-      "Transmission 4.0.5",
-      "Deluge 2.1.1",
-      "Leecharr 1.0.0",
-    ];
-    const countries = [
-      { code: "US", name: "United States" },
-      { code: "DE", name: "Germany" },
-      { code: "NL", name: "Netherlands" },
-      { code: "CA", name: "Canada" },
-      { code: "SE", name: "Sweden" },
-      { code: "GB", name: "United Kingdom" },
-    ];
+  const [tab, setTab] = useState<DetailTab>("status");
+  const { height, panelRef, onMouseDown } = usePanelHeight();
 
-    for (let i = 0; i < Math.min(12, seeders + leechers); i++) {
-      const isSeeder = i < seeders;
-      const c = countries[i % countries.length];
-      mockPeers.push({
-        ip: `198.51.${100 + i}.${10 + ((i * 7) % 200)}`,
-        port: 51413 + ((i * 13) % 1000),
-        client: clients[i % clients.length],
-        progress: isSeeder ? 1.0 : 0.2 + ((i * 0.1) % 0.8),
-        downloadSpeed: isSeeder ? Math.floor(1024 * 1024 * (1 + (i % 5))) : 0,
-        uploadSpeed: Math.floor(256 * 1024 * (1 + (i % 3))),
-        countryCode: c.code,
-        countryName: c.name,
-        protocol: i % 3 === 0 ? "uTP" : "TCP",
-        isEncrypted: i % 2 === 0,
-        flags: isSeeder ? "D E S" : "U I H",
-      });
-    }
-    setPeers(mockPeers);
-  }, [torrent.id, torrent.seeders, torrent.leechers]);
+  if (isLoading && !currentTorrent) {
+    return (
+      <div className="detail-panel" style={{ height }}>
+        <div className="detail-panel-loading">
+          Loading torrent specifications...
+        </div>
+      </div>
+    );
+  }
 
-  // Render piece map canvas
-  useEffect(() => {
-    if (activeTab !== "piecemap") return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  if (isError && !currentTorrent) {
+    return (
+      <div className="detail-panel" style={{ height }}>
+        <div className="detail-panel-empty">
+          Failed to load torrent specifications.
+        </div>
+      </div>
+    );
+  }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  if (!currentTorrent) {
+    return (
+      <div className="detail-panel" style={{ height }}>
+        <div className="detail-panel-empty">Torrent not found</div>
+      </div>
+    );
+  }
 
-    const totalPieces = torrent.pieceCount || 100;
-    const progressPieces = Math.floor((torrent.progress || 0) * totalPieces);
-    const cols = Math.ceil(Math.sqrt(totalPieces * 2.5));
-    const rows = Math.ceil(totalPieces / cols);
-
-    const pieceWidth = Math.max(3, Math.floor(canvas.width / cols));
-    const pieceHeight = Math.max(3, Math.floor(canvas.height / rows));
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let i = 0; i < totalPieces; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = col * pieceWidth;
-      const y = row * pieceHeight;
-
-      if (i < progressPieces) {
-        ctx.fillStyle = "#ffd166";
-      } else if (i === progressPieces && torrent.status === "downloading") {
-        ctx.fillStyle = "#38bdf8";
-      } else {
-        ctx.fillStyle = "#23284b";
-      }
-
-      ctx.fillRect(x + 0.5, y + 0.5, pieceWidth - 1, pieceHeight - 1);
-    }
-  }, [activeTab, torrent]);
-
-  const formatSize = (bytes: number) => {
-    if (!bytes) return "0 B";
-    const gb = bytes / (1024 * 1024 * 1024);
-    if (gb >= 1) return `${gb.toFixed(2)} GB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const formatSpeed = (bytesPerSec: number) => {
-    if (!bytesPerSec) return "0 B/s";
-    const kb = bytesPerSec / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB/s`;
-    return `${(kb / 1024).toFixed(1)} MB/s`;
-  };
+  const isPaused = currentTorrent.status?.toLowerCase() === "paused";
 
   return (
-    <div className="torrent-detail-panel">
+    <div className="detail-panel" ref={panelRef} style={{ height }}>
+      {/* Resizable handle */}
+      <div className="detail-panel-resize-handle" onMouseDown={onMouseDown} />
+
+      {/* Top Header */}
       <div className="detail-panel-header">
         <div className="detail-panel-title">
-          <strong>{torrent.mediaTitle || torrent.name}</strong>
-          <span className={`status-pill status-${torrent.status}`}>
-            {torrent.status}
+          <span style={{ fontWeight: 700, color: "var(--accent, #ffd166)" }}>
+            {currentTorrent.mediaTitle || currentTorrent.name}
           </span>
+          {currentTorrent.mediaTitle &&
+            currentTorrent.mediaTitle !== currentTorrent.name && (
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted, #7e8092)",
+                  marginLeft: "0.5rem",
+                }}
+              >
+                ({currentTorrent.name})
+              </span>
+            )}
         </div>
 
-        <div className="detail-panel-tabs">
+        <div className="detail-panel-actions">
+          {isPaused ? (
+            <button
+              type="button"
+              className="btn btn-small btn-success"
+              onClick={() => startSeeding.mutate(currentTorrent.id)}
+            >
+              ▶ Resume
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-small btn-warning"
+              onClick={() => stopSeeding.mutate(currentTorrent.id)}
+            >
+              ⏸ Pause
+            </button>
+          )}
+
           <button
-            className={`tab-btn ${activeTab === "details" ? "active" : ""}`}
-            onClick={() => setActiveTab("details")}
+            type="button"
+            className="btn btn-small btn-outline"
+            onClick={() => recheckTorrent.mutate(currentTorrent.id)}
+            title="Force recheck torrent piece integrity"
           >
-            Details
+            🛡 Recheck
           </button>
+
           <button
-            className={`tab-btn ${activeTab === "files" ? "active" : ""}`}
-            onClick={() => setActiveTab("files")}
+            type="button"
+            className="btn btn-small btn-outline"
+            onClick={() => announceTorrent.mutate(currentTorrent.id)}
+            title="Force announce to all trackers"
           >
-            Files ({files.length})
+            ⚡ Announce
           </button>
+
           <button
-            className={`tab-btn ${activeTab === "peers" ? "active" : ""}`}
-            onClick={() => setActiveTab("peers")}
+            type="button"
+            className="btn-icon"
+            onClick={onClose}
+            title="Close details panel"
+            style={{
+              fontSize: "1.2rem",
+              color: "var(--text-muted, #7e8092)",
+              padding: "0 0.4rem",
+            }}
           >
-            Peers ({peers.length})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "piecemap" ? "active" : ""}`}
-            onClick={() => setActiveTab("piecemap")}
-          >
-            Piece Map
+            &times;
           </button>
         </div>
-
-        <button className="detail-panel-close" onClick={onClose}>
-          &times;
-        </button>
       </div>
 
-      <div className="detail-panel-body">
-        {activeTab === "details" && (
-          <div className="details-grid">
-            <div className="details-card">
-              <h4>General Info</h4>
-              <div className="detail-row">
-                <span className="label">Save Path:</span>
-                <span className="value">{torrent.savePath}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Total Size:</span>
-                <span className="value">{formatSize(torrent.totalSize)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">InfoHash:</span>
-                <span className="value font-mono">{torrent.infoHash}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Ratio:</span>
-                <span className="value">{torrent.ratio.toFixed(2)}</span>
-              </div>
-            </div>
+      {/* 9 Tab Navigation Bar */}
+      <div className="detail-panel-tabs">
+        {DETAIL_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`detail-panel-tab ${tab === t.key ? "active" : ""}`}
+            onClick={() => setTab(t.key)}
+          >
+            {TAB_ICONS[t.key]}
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
 
-            <div className="details-card">
-              <h4>Media Stream Specs</h4>
-              <div className="detail-row">
-                <span className="label">Resolution:</span>
-                <span className="value">
-                  {torrent.resolution || "Auto-detecting..."}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Video Codec:</span>
-                <span className="value">
-                  {torrent.videoCodec || "Auto-detecting..."}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Audio Codec:</span>
-                <span className="value">
-                  {torrent.audioCodec || "Auto-detecting..."}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">HDR Format:</span>
-                <span className="value">{torrent.hdrFormat || "SDR"}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "files" && (
-          <div className="table-responsive">
-            <table className="table-torrents">
-              <thead>
-                <tr>
-                  <th>File Name</th>
-                  <th>Size</th>
-                  <th>Progress</th>
-                  <th>Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {files.map((f) => (
-                  <tr key={f.id}>
-                    <td>{f.path}</td>
-                    <td>{formatSize(f.size)}</td>
-                    <td>{Math.round((f.progress || 0) * 100)}%</td>
-                    <td>Normal</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === "peers" && (
-          <div className="table-responsive">
-            <table className="table-torrents">
-              <thead>
-                <tr>
-                  <th>Country</th>
-                  <th>IP Address</th>
-                  <th>Client</th>
-                  <th>Protocol</th>
-                  <th>Encryption</th>
-                  <th>Flags</th>
-                  <th>Progress</th>
-                  <th>Down Speed</th>
-                  <th>Up Speed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {peers.map((p, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <span className="country-badge">{p.countryCode}</span>
-                    </td>
-                    <td>
-                      {p.ip}:{p.port}
-                    </td>
-                    <td>{p.client}</td>
-                    <td>
-                      <span
-                        className={`protocol-badge ${p.protocol.toLowerCase()}`}
-                      >
-                        {p.protocol}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`lock-badge ${p.isEncrypted ? "encrypted" : "plain"}`}
-                      >
-                        {p.isEncrypted ? "RC4" : "Plain"}
-                      </span>
-                    </td>
-                    <td>
-                      <code>{p.flags}</code>
-                    </td>
-                    <td>{Math.round(p.progress * 100)}%</td>
-                    <td className="speed-down">
-                      {formatSpeed(p.downloadSpeed)}
-                    </td>
-                    <td className="speed-up">{formatSpeed(p.uploadSpeed)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === "piecemap" && (
-          <div className="piecemap-container">
-            <canvas
-              ref={canvasRef}
-              width={800}
-              height={180}
-              className="piece-canvas"
-            />
-            <div className="piece-legend">
-              <span className="legend-item">
-                <span className="legend-box piece-done" /> Completed
-              </span>
-              <span className="legend-item">
-                <span className="legend-box piece-active" /> In-Flight
-              </span>
-              <span className="legend-item">
-                <span className="legend-box piece-missing" /> Missing
-              </span>
-            </div>
-          </div>
-        )}
+      {/* Tab Content Body */}
+      <div className="detail-panel-content">
+        {tab === "status" && <StatusTab torrent={currentTorrent} />}
+        {tab === "details" && <DetailsTab torrent={currentTorrent} />}
+        {tab === "files" && <FilesTab torrent={currentTorrent} />}
+        {tab === "peers" && <PeersTab torrent={currentTorrent} />}
+        {tab === "trackers" && <TrackersTab torrent={currentTorrent} />}
+        {tab === "options" && <OptionsTab torrent={currentTorrent} />}
+        {tab === "piecemap" && <PieceMap torrentId={currentTorrent.id} />}
+        {tab === "monitoring" && <MonitoringTab torrent={currentTorrent} />}
+        {tab === "log" && <LogTab torrent={currentTorrent} />}
       </div>
     </div>
   );
 };
+
 export default TorrentDetailPanel;
