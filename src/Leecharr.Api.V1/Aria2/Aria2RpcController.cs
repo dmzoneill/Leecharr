@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
@@ -59,27 +60,72 @@ public class Aria2RpcController : ControllerBase
 
     [HttpGet]
     [HttpPost]
-    public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] Aria2RpcRequest request = null)
+    public async Task<IActionResult> HandleRpc()
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Method))
+        string method = null;
+        JsonElement paramsElem = default;
+        object id = 1;
+
+        if (HttpMethods.IsPost(Request.Method))
         {
-            return Ok(new
+            try
             {
-                jsonrpc = "2.0",
-                id = (object)1,
-                result = new
+                using var reader = new global::System.IO.StreamReader(Request.Body, global::System.Text.Encoding.UTF8);
+                var rawBody = await reader.ReadToEndAsync();
+                if (!string.IsNullOrWhiteSpace(rawBody))
                 {
-                    version = "1.36.0",
-                    enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" }
+                    using var doc = JsonDocument.Parse(rawBody);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("method", out var mElem))
+                    {
+                        method = mElem.GetString();
+                    }
+
+                    if (root.TryGetProperty("params", out var pElem))
+                    {
+                        paramsElem = pElem.Clone();
+                    }
+
+                    if (root.TryGetProperty("id", out var idElem))
+                    {
+                        if (idElem.ValueKind == JsonValueKind.String)
+                        {
+                            id = idElem.GetString();
+                        }
+                        else if (idElem.ValueKind == JsonValueKind.Number)
+                        {
+                            id = idElem.GetInt64();
+                        }
+                    }
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Could not parse Aria2 JSON payload");
+            }
         }
 
-        var id = request.Id ?? 1;
+        if (string.IsNullOrWhiteSpace(method))
+        {
+            method = Request.Query["method"].ToString();
+            if (string.IsNullOrWhiteSpace(method))
+            {
+                return Ok(new
+                {
+                    jsonrpc = "2.0",
+                    id,
+                    result = new
+                    {
+                        version = "1.36.0",
+                        enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" }
+                    }
+                });
+            }
+        }
 
         try
         {
-            var res = await ExecuteMethodAsync(request.Method, request.Params);
+            var res = await ExecuteMethodAsync(method, paramsElem);
             return Ok(new
             {
                 jsonrpc = "2.0",
@@ -89,7 +135,7 @@ public class Aria2RpcController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error handling Aria2 RPC method: {0}", request.Method);
+            _logger.Error(ex, "Error handling Aria2 RPC method: {0}", method);
             return Ok(new
             {
                 jsonrpc = "2.0",
