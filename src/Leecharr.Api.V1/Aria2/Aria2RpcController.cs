@@ -74,6 +74,14 @@ public class Aria2RpcController : ControllerBase
                 var rawBody = await reader.ReadToEndAsync();
                 if (!string.IsNullOrWhiteSpace(rawBody))
                 {
+                    var trimmed = rawBody.TrimStart();
+                    if (trimmed.StartsWith("<", StringComparison.Ordinal))
+                    {
+                        var xmlDoc = global::System.Xml.Linq.XDocument.Parse(rawBody);
+                        var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
+                        return HandleXmlRpc(xmlMethodName);
+                    }
+
                     using var doc = JsonDocument.Parse(rawBody);
                     var root = doc.RootElement;
                     if (root.TryGetProperty("method", out var mElem))
@@ -101,7 +109,7 @@ public class Aria2RpcController : ControllerBase
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Could not parse Aria2 JSON payload");
+                _logger.Debug(ex, "Could not parse Aria2 payload");
             }
         }
 
@@ -417,5 +425,63 @@ public class Aria2RpcController : ControllerBase
         }
 
         return string.Empty;
+    }
+
+    private IActionResult HandleXmlRpc(string method)
+    {
+        switch (method.ToLowerInvariant())
+        {
+            case "aria2.getversion":
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "version"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1.36.0"))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "enabledFeatures"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data",
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "BitTorrent")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "GZip")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "HTTPS")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "MessageDigest")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "Async DNS"))))))));
+
+            case "aria2.getglobalstat":
+                var all = _torrentService.GetAll().ToList();
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "downloadSpeed"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.DownloadSpeed).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "uploadSpeed"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.UploadSpeed).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numActive"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numWaiting"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Queued).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numStopped"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString())))));
+
+            case "aria2.tellactive":
+            case "aria2.tellwaiting":
+            case "aria2.tellstopped":
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data")));
+
+            default:
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", "OK"));
+        }
+    }
+
+    private IActionResult BuildXmlRpcResponse(global::System.Xml.Linq.XElement valueContent)
+    {
+        var doc = new global::System.Xml.Linq.XDocument(
+            new global::System.Xml.Linq.XElement("methodResponse",
+                new global::System.Xml.Linq.XElement("params",
+                    new global::System.Xml.Linq.XElement("param",
+                        new global::System.Xml.Linq.XElement("value", valueContent)))));
+
+        return Content(doc.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting), "text/xml", global::System.Text.Encoding.UTF8);
     }
 }
