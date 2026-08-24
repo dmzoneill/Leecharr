@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FluentValidation;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,10 +22,26 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
 
     public override ActionResult<GeneralConfigResource> SaveConfig([FromBody] GeneralConfigResource resource)
     {
+        if (resource == null)
+        {
+            return BadRequest();
+        }
+
         if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
         {
             resource.ApiKey = _configFileProvider.ApiKey;
         }
+
+        var fileUpdates = new Dictionary<string, object>
+        {
+            ["Port"] = resource.Port,
+            ["BindAddress"] = resource.BindAddress,
+            ["UrlBase"] = resource.UrlBase,
+            ["AuthenticationEnabled"] = resource.AuthenticationEnabled,
+            ["ApiKey"] = resource.ApiKey
+        };
+
+        _configFileProvider.SaveConfigDictionary(fileUpdates);
 
         return base.SaveConfig(resource);
     }
@@ -288,5 +305,29 @@ public class AdvancedConfigController : ConfigController<AdvancedConfigResource>
     protected override AdvancedConfigResource ToResource(IConfigService model)
     {
         return AdvancedConfigResourceMapper.ToResource(model);
+    }
+}
+
+[V1ApiController("config/ai")]
+public class AiConfigController : ConfigController<AiConfigResource>
+{
+    public AiConfigController(IConfigService configService)
+        : base(configService)
+    {
+    }
+
+    public override ActionResult<AiConfigResource> SaveConfig([FromBody] AiConfigResource resource)
+    {
+        if (!string.IsNullOrEmpty(resource.GeminiApiKey) && resource.GeminiApiKey.Contains('*'))
+        {
+            resource.GeminiApiKey = _configService.GeminiApiKey;
+        }
+
+        return base.SaveConfig(resource);
+    }
+
+    protected override AiConfigResource ToResource(IConfigService model)
+    {
+        return AiConfigResourceMapper.ToResource(model);
     }
 }

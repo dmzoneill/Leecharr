@@ -51,7 +51,15 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # hadolint ignore=DL3008
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        transmission-daemon \
+        libtorrent-rasterbar-dev \
+        p7zip-full \
+        unrar-free \
+        mediainfo \
+        ffmpeg \
+        ipset && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /config /downloads

@@ -75,6 +75,27 @@ public class ConfigFileProvider : IConfigFileProvider
         SaveToFile();
     }
 
+    public void SaveConfigDictionary(Dictionary<string, object> values)
+    {
+        if (values == null)
+        {
+            return;
+        }
+
+        lock (Mutex)
+        {
+            foreach (var (key, value) in values)
+            {
+                if (value != null)
+                {
+                    _config[key] = value.ToString();
+                }
+            }
+
+            SaveToFile();
+        }
+    }
+
     private void SaveToFile()
     {
         lock (Mutex)

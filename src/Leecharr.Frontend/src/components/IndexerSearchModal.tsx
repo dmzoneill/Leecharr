@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { IndexerSearchResult } from "../api/types";
+import React, { useState, useEffect } from "react";
+import { SparklesIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon } from "./icons/AiIcons";
+import { IndexerSearchResult, AiSearchParameters } from "../api/types";
 import { api } from "../api/client";
+import { useAiNaturalSearch } from "../api/hooks";
 
 interface IndexerSearchModalProps {
   onClose: () => void;
@@ -16,19 +18,53 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [freeleechOnly, setFreeleechOnly] = useState<boolean>(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  // Collapsible AI Search Bar State
+  const [isAiExpanded, setIsAiExpanded] = useState<boolean>(() => {
+    return localStorage.getItem("leecharr_ai_search_expanded") === "true";
+  });
+  const [naturalQuery, setNaturalQuery] = useState<string>("");
+  const [aiParams, setAiParams] = useState<AiSearchParameters | null>(null);
 
+  const naturalSearchMutation = useAiNaturalSearch();
+
+  useEffect(() => {
+    localStorage.setItem("leecharr_ai_search_expanded", isAiExpanded ? "true" : "false");
+  }, [isAiExpanded]);
+
+  const handleAiNaturalParse = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!naturalQuery.trim() || naturalSearchMutation.isPending) return;
+
+    naturalSearchMutation.mutate(
+      { query: naturalQuery.trim() },
+      {
+        onSuccess: (params) => {
+          setAiParams(params);
+        },
+      }
+    );
+  };
+
+  const handleApplyAiParams = () => {
+    if (!aiParams) return;
+    const cleanSearch = aiParams.cleanTitle || aiParams.cleanQuery || naturalQuery;
+    setQuery(cleanSearch);
+    if (aiParams.freeleechOnly) {
+      setFreeleechOnly(true);
+    }
+    executeSearch(cleanSearch, aiParams.freeleechOnly, aiParams.minSeeders);
+  };
+
+  const executeSearch = async (searchTerm: string, freeleech: boolean, minSeeds = 0) => {
+    if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      // Query sample Torznab indexer discovery
       const mockResults: IndexerSearchResult[] = [
         {
-          title: `${query}.2024.2160p.UHD.HDR.DV.TrueHD.Atmos.7.1-FLUX`,
+          title: `${searchTerm}.2024.2160p.UHD.HDR.DV.TrueHD.Atmos.7.1-FLUX`,
           guid: "1001",
           downloadUrl: "",
-          magnetUrl: `magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=${encodeURIComponent(query)}.2160p`,
+          magnetUrl: `magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=${encodeURIComponent(searchTerm)}.2160p`,
           infoHash: "0123456789abcdef0123456789abcdef01234567",
           size: 48 * 1024 * 1024 * 1024,
           seeders: 142,
@@ -40,10 +76,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           indexerId: 1,
         },
         {
-          title: `${query}.S01.1080p.WEB-DL.DDP5.1.Atmos.x265`,
+          title: `${searchTerm}.S01.1080p.WEB-DL.DDP5.1.Atmos.x265`,
           guid: "1002",
           downloadUrl: "",
-          magnetUrl: `magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=${encodeURIComponent(query)}.1080p`,
+          magnetUrl: `magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=${encodeURIComponent(searchTerm)}.1080p`,
           infoHash: "abcdef0123456789abcdef0123456789abcdef01",
           size: 14 * 1024 * 1024 * 1024,
           seeders: 89,
@@ -55,10 +91,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           indexerId: 2,
         },
         {
-          title: `${query}.FLAC.24bit.96kHz.Lossless.Audiophile`,
+          title: `${searchTerm}.FLAC.24bit.96kHz.Lossless.Audiophile`,
           guid: "1003",
           downloadUrl: "",
-          magnetUrl: `magnet:?xt=urn:btih:fedcba9876543210fedcba9876543210fedcba98&dn=${encodeURIComponent(query)}.FLAC`,
+          magnetUrl: `magnet:?xt=urn:btih:fedcba9876543210fedcba9876543210fedcba98&dn=${encodeURIComponent(searchTerm)}.FLAC`,
           infoHash: "fedcba9876543210fedcba9876543210fedcba98",
           size: 1200 * 1024 * 1024,
           seeders: 45,
@@ -71,12 +107,18 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         },
       ];
 
-      setResults(mockResults);
+      const filtered = minSeeds > 0 ? mockResults.filter((r) => r.seeders >= minSeeds) : mockResults;
+      setResults(filtered);
     } catch (err) {
       console.error("Search failed:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(query, freeleechOnly);
   };
 
   const handleGrab = async (result: IndexerSearchResult) => {
@@ -112,14 +154,207 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       <div
         className="modal-content indexer-search-modal"
         onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: "780px" }}
       >
         <div className="modal-header">
-          <h3>Indexer Discovery & Search</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <SparklesIcon size={18} style={{ color: "var(--accent-gold, #FFD166)" }} />
+            <h3>Indexer Discovery & Search</h3>
+          </div>
           <button className="btn-close" onClick={onClose}>
             &times;
           </button>
         </div>
-        <div className="modal-body">
+
+        <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Collapsible Discrete AI Smart Search Accordion */}
+          <div
+            style={{
+              borderRadius: "8px",
+              border: "1px solid var(--border-color, #23284B)",
+              backgroundColor: "var(--bg-secondary, #171B35)",
+              overflow: "hidden",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsAiExpanded(!isAiExpanded)}
+              style={{
+                width: "100%",
+                padding: "0.5rem 0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text-primary, #F8F4ED)",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <SparklesIcon size={14} style={{ color: "var(--accent-gold, #FFD166)" }} />
+                <span>AI Smart Search & Natural Language Filter</span>
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    padding: "0.1rem 0.35rem",
+                    borderRadius: "4px",
+                    backgroundColor: "#23284B",
+                    color: "#FFD166",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  AI
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "var(--text-muted, #C7C5D3)" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 400 }}>
+                  {isAiExpanded ? "Collapse" : "Expand"}
+                </span>
+                {isAiExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+              </div>
+            </button>
+
+            {isAiExpanded && (
+              <div
+                style={{
+                  padding: "0.75rem",
+                  borderTop: "1px solid var(--border-color, #23284B)",
+                  backgroundColor: "var(--bg-primary, #10111A)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6rem",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)" }}>
+                  Describe what you want in natural language (e.g.{" "}
+                  <em style={{ color: "var(--accent-gold, #FFD166)" }}>
+                    "Find Dune Part 2 in 4k bluray freeleech with at least 20 seeders"
+                  </em>
+                  ). AI extracts resolution, codec, category, and seeder threshold.
+                </p>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <input
+                    type="text"
+                    value={naturalQuery}
+                    onChange={(e) => setNaturalQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAiNaturalParse(e);
+                    }}
+                    placeholder="Type natural query..."
+                    style={{
+                      flex: 1,
+                      backgroundColor: "var(--bg-secondary, #171B35)",
+                      border: "1px solid var(--border-color, #23284B)",
+                      borderRadius: "6px",
+                      padding: "0.4rem 0.6rem",
+                      fontSize: "0.75rem",
+                      color: "var(--text-primary, #F8F4ED)",
+                      outline: "none",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAiNaturalParse()}
+                    disabled={!naturalQuery.trim() || naturalSearchMutation.isPending}
+                    style={{
+                      padding: "0.4rem 0.75rem",
+                      backgroundColor: "#23284B",
+                      color: "#FFD166",
+                      border: "1px solid rgba(255, 209, 102, 0.3)",
+                      borderRadius: "6px",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      opacity: !naturalQuery.trim() || naturalSearchMutation.isPending ? 0.5 : 1,
+                    }}
+                  >
+                    <SparklesIcon size={13} />
+                    <span>{naturalSearchMutation.isPending ? "Parsing..." : "Extract Intent"}</span>
+                  </button>
+                </div>
+
+                {/* Parsed Parameter Chips */}
+                {aiParams && (
+                  <div
+                    style={{
+                      backgroundColor: "var(--bg-secondary, #171B35)",
+                      border: "1px solid var(--border-color, #23284B)",
+                      borderRadius: "6px",
+                      padding: "0.6rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary, #F8F4ED)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <CheckCircleIcon size={14} style={{ color: "#34d399" }} />
+                        Extracted Filters (Confidence: {Math.round(aiParams.confidenceScore * 100)}%):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleApplyAiParams}
+                        style={{
+                          padding: "0.25rem 0.6rem",
+                          backgroundColor: "var(--accent-gold, #FFD166)",
+                          color: "#10111A",
+                          border: "none",
+                          borderRadius: "4px",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Apply & Search &rarr;
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                      {aiParams.cleanTitle && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#F8F4ED", fontFamily: "monospace" }}>
+                          Title: <strong>{aiParams.cleanTitle}</strong>
+                        </span>
+                      )}
+                      {aiParams.category && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#FFD166", fontFamily: "monospace" }}>
+                          Category: <strong>{aiParams.category}</strong>
+                        </span>
+                      )}
+                      {aiParams.resolution && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#7dd3fc", fontFamily: "monospace" }}>
+                          Res: <strong>{aiParams.resolution}</strong>
+                        </span>
+                      )}
+                      {aiParams.quality && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#d8b4fe", fontFamily: "monospace" }}>
+                          Quality: <strong>{aiParams.quality}</strong>
+                        </span>
+                      )}
+                      {aiParams.minSeeders > 0 && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "rgba(52, 211, 153, 0.2)", color: "#6ee7b7", fontFamily: "monospace" }}>
+                          Seeds: &ge;<strong>{aiParams.minSeeders}</strong>
+                        </span>
+                      )}
+                      {aiParams.freeleechOnly && (
+                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "rgba(245, 158, 11, 0.2)", color: "#fcd34d", fontFamily: "monospace", fontWeight: 700 }}>
+                          Freeleech Only
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Standard Search Bar */}
           <form onSubmit={handleSearch} className="search-form">
             <input
               type="text"

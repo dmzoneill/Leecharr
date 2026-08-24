@@ -13,6 +13,7 @@ import {
 import { getTorrentBadges, calculateHnrStatus } from "../../utils/milestones";
 import PieceMap from "../PieceMap";
 import SeedingSimulator from "../SeedingSimulator";
+import { AiSwarmDiagnosticCard } from "./AiSwarmDiagnosticCard";
 import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
 
@@ -252,6 +253,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
         progress={torrent.progress}
         isSeeding={torrent.status === "Seeding"}
       />
+
+      <AiSwarmDiagnosticCard torrent={torrent} />
 
       <div className="detail-panel-grid">
         {rows.map(([label, value]) => (

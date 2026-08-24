@@ -19,7 +19,7 @@ using MtTorrent = MonoTorrent.Torrent;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
+public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 {
     private readonly IConfigService _configService;
     private readonly IStoragePathService _storagePathService;
@@ -35,6 +35,42 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
     private bool _disposed;
 
     public string ProtocolName => "BitTorrent";
+    public string EngineId => "MonoTorrent";
+    public string DisplayName => "MonoTorrent (Pure .NET)";
+    public string Version => typeof(ClientEngine).Assembly.GetName().Version?.ToString() ?? "3.0.2";
+    public string Description => "Pure managed C# BitTorrent engine powered by MonoTorrent. Zero native dependencies, runs anywhere.";
+    public bool IsAvailable => true;
+
+    public TorrentEngineCapabilities Capabilities { get; } = new()
+    {
+        SupportsUtp = true,
+        SupportsDht = true,
+        SupportsPex = true,
+        SupportsLpd = true,
+        SupportsV2Torrents = false,
+        SupportsSequentialDownload = true,
+        SupportsFastResume = true,
+        SupportsCustomPiecePickers = true,
+        SupportsDynamicRateLimits = true,
+        SupportsSparseAllocation = true,
+        SupportsMemoryMappedIo = false,
+        SupportsEncryptionToggle = true
+    };
+
+    public Task<EngineHealthCheckResult> ProbeHealthAsync()
+    {
+        return Task.FromResult(new EngineHealthCheckResult
+        {
+            IsHealthy = true,
+            StatusMessage = "MonoTorrent managed runtime is ready and operational.",
+            DependencyChecks = new List<string>
+            {
+                ".NET Runtime: OK",
+                "MonoTorrent Assembly: OK",
+                "Managed Sockets: Ready"
+            }
+        });
+    }
 
     public MonoTorrentDownloadEngine(
         IConfigService configService,
@@ -78,7 +114,7 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
             AutoSaveLoadDhtCache = true,
             DhtEndPoint = new IPEndPoint(IPAddress.Any, port),
             CacheDirectory = cacheDir,
-            DiskCacheBytes = Math.Max(128, _configService.DiskWriteCacheSizeMb) * 1024 * 1024,
+            DiskCacheBytes = _configService.DiskCacheBytes > 0 ? _configService.DiskCacheBytes : Math.Max(128, _configService.DiskWriteCacheSizeMb) * 1024 * 1024,
             MaximumConnections = _configService.MaxGlobalConnections > 0 ? _configService.MaxGlobalConnections : 300,
             MaximumDownloadRate = _configService.MaxDownloadSpeedKbps > 0 ? _configService.MaxDownloadSpeedKbps * 1024 : 0,
             MaximumUploadRate = _configService.MaxUploadSpeedKbps > 0 ? _configService.MaxUploadSpeedKbps * 1024 : 0,
@@ -157,6 +193,14 @@ public class MonoTorrentDownloadEngine : IDownloadEngine, IDisposable
         else if (!string.IsNullOrWhiteSpace(magnetUri))
         {
             var magnetLink = MagnetLink.Parse(magnetUri);
+            manager = await _engine.AddAsync(magnetLink, workingPath, torrentSettingsBuilder.ToSettings());
+        }
+        else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+        {
+            var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+                ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
+                : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+            var magnetLink = MagnetLink.Parse(magnetString);
             manager = await _engine.AddAsync(magnetLink, workingPath, torrentSettingsBuilder.ToSettings());
         }
 

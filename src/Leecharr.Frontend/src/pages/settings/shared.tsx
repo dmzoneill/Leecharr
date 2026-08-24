@@ -286,6 +286,7 @@ export function NumberInput({
   max,
   step,
   hint,
+  helpText,
   suffix,
   disabled,
 }: {
@@ -296,14 +297,16 @@ export function NumberInput({
   max?: number;
   step?: number;
   hint?: string;
+  helpText?: string;
   suffix?: string;
   disabled?: boolean;
 }) {
+  const displayHint = hint || helpText;
   const inputEl = (
     <input
       type="number"
       className="form-input"
-      value={value}
+      value={isNaN(value) ? "" : value}
       onChange={(e) =>
         onChange(
           step && step < 1
@@ -331,7 +334,7 @@ export function NumberInput({
         ) : (
           inputEl
         )}
-        {hint && <span className="form-hint">{hint}</span>}
+        {displayHint && <span className="form-hint">{displayHint}</span>}
       </div>
     </div>
   );
@@ -343,6 +346,7 @@ export function TextInput({
   onChange,
   placeholder,
   hint,
+  helpText,
   disabled,
   type,
 }: {
@@ -351,9 +355,11 @@ export function TextInput({
   onChange: (v: string) => void;
   placeholder?: string;
   hint?: string;
+  helpText?: string;
   disabled?: boolean;
   type?: string;
 }) {
+  const displayHint = hint || helpText;
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
@@ -361,13 +367,13 @@ export function TextInput({
         <input
           type={type || "text"}
           className="form-input"
-          value={value}
+          value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
           style={{ borderRadius: "6px" }}
         />
-        {hint && <span className="form-hint">{hint}</span>}
+        {displayHint && <span className="form-hint">{displayHint}</span>}
       </div>
     </div>
   );
@@ -378,28 +384,42 @@ export function Toggle({
   checked,
   onChange,
   hint,
+  helpText,
+  disabled,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   hint?: string;
+  helpText?: string;
+  disabled?: boolean;
 }) {
+  const displayHint = hint || helpText;
   return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <div className="form-input-wrapper">
-        <div className="form-toggle-row">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(e) => onChange(e.target.checked)}
-            />
-            <span className="toggle-slider" />
-          </label>
-          {hint && <span className="form-toggle-description">{hint}</span>}
-        </div>
+    <div className="form-group form-group-toggle">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", width: "100%" }}>
+        <span
+          className="form-label"
+          style={{
+            cursor: disabled ? "not-allowed" : "pointer",
+            userSelect: "none",
+            flex: 1,
+          }}
+          onClick={() => !disabled && onChange(!checked)}
+        >
+          {label}
+        </span>
+        <label className="toggle-switch" style={{ flexShrink: 0, margin: 0 }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          <span className="toggle-slider" />
+        </label>
       </div>
+      {displayHint && <span className="form-hint" style={{ marginTop: "0.15rem" }}>{displayHint}</span>}
     </div>
   );
 }
@@ -410,6 +430,7 @@ export function SelectInput({
   onChange,
   options,
   hint,
+  helpText,
   disabled,
 }: {
   label: string;
@@ -417,15 +438,17 @@ export function SelectInput({
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   hint?: string;
+  helpText?: string;
   disabled?: boolean;
 }) {
+  const displayHint = hint || helpText;
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
       <div className="form-input-wrapper">
         <select
           className="form-select"
-          value={value}
+          value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           style={{ borderRadius: "6px" }}
@@ -436,7 +459,7 @@ export function SelectInput({
             </option>
           ))}
         </select>
-        {hint && <span className="form-hint">{hint}</span>}
+        {displayHint && <span className="form-hint">{displayHint}</span>}
       </div>
     </div>
   );

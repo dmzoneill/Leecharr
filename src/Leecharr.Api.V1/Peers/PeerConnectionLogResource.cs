@@ -13,6 +13,9 @@ public class PeerConnectionLogResource : RestResource
     public string PeerId { get; set; }
     public bool IsEncrypted { get; set; }
     public string EventType { get; set; }
+    public string CountryCode { get; set; }
+    public string CountryName { get; set; }
+    public string City { get; set; }
     public DateTime Timestamp { get; set; }
 }
 

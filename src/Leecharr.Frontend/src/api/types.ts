@@ -305,9 +305,16 @@ export interface NetworkConfig {
   id: number;
   listeningPort: number;
   upnpEnabled: boolean;
+  bindInterface?: string;
+  enableVpnKillSwitch?: boolean;
   maxGlobalConnections: number;
   maxPerTorrentConnections: number;
   maxUploadSlots: number;
+  maxConnectionsPerIp?: number;
+  maximumHalfOpenConnections?: number;
+  anonymousMode?: boolean;
+  forceProxy?: boolean;
+  peerDscp?: number;
   proxyType: string;
   proxyHost: string;
   proxyPort: number;
@@ -318,6 +325,9 @@ export interface NetworkConfig {
 
 export interface BitTorrentConfig {
   id: number;
+  activeTorrentEngine?: string;
+
+  // BitTorrent Core
   enableDht: boolean;
   enablePex: boolean;
   enableLpd: boolean;
@@ -327,7 +337,73 @@ export interface BitTorrentConfig {
   announceIntervalSeconds: number;
   minAnnounceIntervalSeconds: number;
   scrapeIntervalSeconds: number;
+
+  // Storage & Incomplete Staging & Preallocation
+  incompleteDownloadDir?: string;
+  enableIncompleteDir?: boolean;
+  preallocationMode?: string;
+  renamePartialFiles?: boolean;
+  umask?: string;
+
+  // Queue & Concurrency Management
+  downloadQueueSize?: number;
+  seedQueueSize?: number;
+  queueStalledEnabled?: boolean;
+  queueStalledMinutes?: number;
+  idleSeedingLimitMinutes?: number;
+
+  // Network & Sockets Extended
+  networkInterfaceBinding?: string;
+  maxConnectionsPerIp?: number;
+  maximumHalfOpenConnections?: number;
+  anonymousMode?: boolean;
+  forceProxy?: boolean;
+  peerDscp?: number;
+  peerPortRandomOnStart?: boolean;
+  peerPortRandomLow?: number;
+  peerPortRandomHigh?: number;
+
+  // MonoTorrent Specific
+  diskCacheBytes?: number;
+  diskCachePolicy?: string;
+  fastResumeMode?: string;
+  autoSaveFastResumeIntervalSeconds?: number;
+  autoSaveLoadMagnetMetadata?: boolean;
+  autoSaveLoadDhtCache?: boolean;
+  piecePickerStrategy?: string;
+  endGamePickerEnabled?: boolean;
+  staleRequestTimeoutSeconds?: number;
+  webSeedDelaySeconds?: number;
+  maximumDiskReadRateKbps?: number;
+  maximumDiskWriteRateKbps?: number;
+
+  // libtorrent Specific
+  hashingThreads?: number;
+  aioThreads?: number;
+  diskIoWriteMode?: string;
+  diskIoReadMode?: string;
+  filePoolSize?: number;
+  chokingAlgorithm?: string;
+  seedChokingAlgorithm?: string;
+  mixedModeAlgorithm?: string;
+  alertMask?: string;
+
+  // Transmission Specific
+  scriptTorrentDoneFilename?: string;
+  scriptTorrentAddedFilename?: string;
+  scriptTorrentDoneSeedingFilename?: string;
+  prefetchEnabled?: boolean;
+  scrapePausedTorrentsEnabled?: boolean;
+  rpcWhitelistEnabled?: boolean;
+  rpcWhitelist?: string;
+
+  // Swarm & Scripts
+  onDownloadCompleteScript?: string;
+  onSeedGoalReachedScript?: string;
+  defaultTrackers?: string;
+  dhtBootstrapNodes?: string;
 }
+
 
 export interface PeerProtocolConfig {
   id: number;
@@ -950,4 +1026,267 @@ export interface DownloadHistoryEntry {
   removalReason: string | null;
   dataJson?: string | null;
   metadata?: MediaMetadata | null;
+}
+
+export interface TorrentEngineCapabilities {
+  supportsUtp: boolean;
+  supportsDht: boolean;
+  supportsPex: boolean;
+  supportsLpd: boolean;
+  supportsV2Torrents: boolean;
+  supportsSequentialDownload: boolean;
+  supportsFastResume: boolean;
+  supportsCustomPiecePickers: boolean;
+  supportsDynamicRateLimits: boolean;
+  supportsSparseAllocation: boolean;
+  supportsMemoryMappedIo: boolean;
+  supportsEncryptionToggle: boolean;
+}
+
+export interface TorrentEngine {
+  id: number;
+  engineId: string;
+  displayName: string;
+  version: string;
+  isActive: boolean;
+  isAvailable: boolean;
+  status: string;
+  description: string;
+  capabilities: TorrentEngineCapabilities;
+  warnings: string[];
+}
+
+export interface ActiveEngineStatus {
+  engineId: string;
+  displayName: string;
+  version: string;
+  activeTorrentsCount: number;
+  connectedPeersCount: number;
+  downloadSpeedBytes: number;
+  uploadSpeedBytes: number;
+  protocolName: string;
+}
+
+export interface SwitchEngineRequest {
+  engineId: string;
+  preserveTransfers: boolean;
+}
+
+export interface SwitchEngineResult {
+  success: boolean;
+  previousEngine: string;
+  activeEngine: string;
+  torrentsMigrated: number;
+  message?: string;
+  error?: string;
+}
+
+export interface EngineProbeResult {
+  engineId: string;
+  isHealthy: boolean;
+  statusMessage: string;
+  dependencyChecks: string[];
+  warnings: string[];
+}
+
+export interface SubsystemProvider {
+  providerId: string;
+  displayName: string;
+  version: string;
+  description: string;
+  isActive: boolean;
+  isAvailable: boolean;
+  status: string;
+  capabilities: Record<string, boolean | string | number>;
+}
+
+export interface SubsystemOverview {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  activeProviderId: string;
+  providers: SubsystemProvider[];
+}
+
+export interface SwitchSubsystemRequest {
+  subsystemId: string;
+  providerId: string;
+}
+
+export interface SwitchSubsystemResult {
+  success: boolean;
+  subsystemId: string;
+  previousProvider: string;
+  activeProvider: string;
+  message?: string;
+  error?: string;
+}
+
+export interface SubsystemProbeResult {
+  subsystemId: string;
+  providerId: string;
+  isHealthy: boolean;
+  statusMessage: string;
+  dependencyChecks?: string[];
+  warnings?: string[];
+}
+
+export interface AiCapabilities {
+  supportsNaturalLanguageSearch: boolean;
+  supportsReleaseNameParsing: boolean;
+  supportsDiagnosticCopilot: boolean;
+  supportsMalwareAnomalyDetection: boolean;
+  supportsSwarmOptimization: boolean;
+  supportsLocalOfflineInference: boolean;
+  supportsCloudLlm: boolean;
+}
+
+export interface AiStatus {
+  activeProviderId: string;
+  displayName: string;
+  version: string;
+  description: string;
+  capabilities: AiCapabilities;
+  health: {
+    isHealthy: boolean;
+    statusMessage: string;
+    warnings: string[];
+    latencyMs: number;
+    modelName: string;
+    version: string;
+  };
+}
+
+export interface AiParsedRelease {
+  rawTitle: string;
+  cleanTitle: string;
+  year?: number | null;
+  season?: number | null;
+  episode?: number | null;
+  episodes: number[];
+  resolution?: string;
+  quality?: string;
+  videoCodec?: string;
+  audioCodec?: string;
+  audioChannels?: string;
+  dynamicRange?: string;
+  releaseGroup?: string;
+  language?: string;
+  edition?: string;
+  isProper: boolean;
+  isRepack: boolean;
+  isRemux: boolean;
+  confidenceScore: number;
+  additionalTags: Record<string, string>;
+}
+
+export interface AiDiagnosticReport {
+  torrentId: number;
+  torrentName: string;
+  overallHealth: string;
+  severity: "Low" | "Medium" | "High" | string;
+  summary: string;
+  issues: string[];
+  recommendations: string[];
+  suggestedActions: string[];
+  swarmAnalysis: string;
+  trackerAnalysis: string;
+  healthScore: number;
+  analyzedAt: string;
+}
+
+export interface AiSearchParameters {
+  rawQuery: string;
+  cleanQuery: string;
+  cleanTitle?: string;
+  category?: string;
+  year?: number | null;
+  season?: number | null;
+  episode?: number | null;
+  resolution?: string;
+  quality?: string;
+  codec?: string;
+  releaseGroup?: string;
+  minSeeders: number;
+  maxAgeDays?: number | null;
+  freeleechOnly: boolean;
+  tags: string[];
+  confidenceScore: number;
+}
+
+export interface AiMalwareRiskAssessment {
+  torrentName: string;
+  riskScore: number;
+  riskLevel: "Low" | "Medium" | "High" | "Critical" | string;
+  isSuspicious: boolean;
+  analyzedFilesCount: number;
+  suspiciousFileNames: string[];
+  threatReasons: string[];
+  recommendations: string[];
+  assessedAt: string;
+}
+
+export interface AiChatRequest {
+  message: string;
+  context?: string;
+}
+
+export interface AiChatResponse {
+  reply: string;
+  provider: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface AiConfig {
+  activeAiProvider: string;
+  ollamaHost: string;
+  ollamaModel: string;
+  geminiApiKey: string;
+  geminiModel: string;
+  onnxModelPath: string;
+  enableCopilotButton: boolean;
+  enableNaturalSearch: boolean;
+  enableSwarmDiagnostics: boolean;
+}
+
+export type IdentityProviderType = 0 | 1 | 2 | 3; // 0=Oidc, 1=Saml, 2=Social, 3=ForwardAuth
+
+export interface AuthProvider {
+  id: number;
+  providerId: string;
+  name: string;
+  providerType: IdentityProviderType;
+  iconUrl?: string | null;
+  buttonText?: string | null;
+  loginUrl: string;
+}
+
+export interface CurrentUser {
+  id?: number;
+  identifier?: string;
+  username: string;
+  email?: string | null;
+  displayName?: string | null;
+  roles: string[];
+  avatarUrl?: string | null;
+  isAuthenticated: boolean;
+}
+
+export interface IdentityProviderDefinition {
+  id: number;
+  providerId: string;
+  name: string;
+  providerType: IdentityProviderType;
+  isEnabled: boolean;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  issuerUrl?: string | null;
+  metadataUrl?: string | null;
+  scopes?: string | null;
+  certificate?: string | null;
+  roleMappingRules?: string | null;
+  iconUrl?: string | null;
+  buttonText?: string | null;
 }
