@@ -1,7 +1,9 @@
 using System;
 using System.Reflection;
+using System.Threading.Tasks;
 using DryIoc;
 using Leecharr.Http.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -42,13 +44,76 @@ public class Startup
             });
 
         services.AddSignalR();
+        services.AddDataProtection();
+        services.AddHttpClient();
 
-        services.AddAuthentication(ApiKeyAuthenticationOptions.DefaultScheme)
-            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-                ApiKeyAuthenticationOptions.DefaultScheme, _ => { });
+        services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = "SmartAuth";
+            options.DefaultChallengeScheme = "SmartAuth";
+        })
+        .AddPolicyScheme("SmartAuth", "Smart Authentication Router", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                var req = context.Request;
+
+                // 1. API Key present in header or query parameter
+                if (req.Headers.ContainsKey("X-Api-Key") || req.Query.ContainsKey("apikey"))
+                {
+                    return ApiKeyAuthenticationOptions.DefaultScheme;
+                }
+
+                // 2. Forward-Auth reverse proxy headers
+                if (req.Headers.ContainsKey("Remote-User") ||
+                    req.Headers.ContainsKey("X-authentik-username") ||
+                    req.Headers.ContainsKey("X-Forwarded-User"))
+                {
+                    return ForwardAuthOptions.DefaultScheme;
+                }
+
+                // 3. Default to Cookie authentication for interactive browser
+                return "Cookies";
+            };
+        })
+        .AddCookie("Cookies", options =>
+        {
+            options.Cookie.Name = "Leecharr_Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.ExpireTimeSpan = TimeSpan.FromDays(30);
+            options.SlidingExpiration = true;
+            options.LoginPath = "/login";
+            options.AccessDeniedPath = "/login?accessDenied=true";
+            options.Events.OnRedirectToLogin = ctx =>
+            {
+                if (ctx.Request.Path.StartsWithSegments("/api") ||
+                    ctx.Request.Path.StartsWithSegments("/signalr") ||
+                    ctx.Request.Path.StartsWithSegments("/transmission") ||
+                    ctx.Request.Path.StartsWithSegments("/json"))
+                {
+                    ctx.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                ctx.Response.Redirect(ctx.RedirectUri);
+                return Task.CompletedTask;
+            };
+        })
+        .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationOptions.DefaultScheme, _ => { })
+        .AddScheme<ForwardAuthOptions, ForwardAuthHandler>(
+            ForwardAuthOptions.DefaultScheme, _ => { });
+
+        services.AddOptions<OpenIdConnectOptions>();
+        services.AddSingleton<IDynamicAuthSchemeManager, DynamicAuthSchemeManager>();
 
         services.AddAuthorization(options =>
         {
+            options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
+            options.AddPolicy("RequireOperator", policy => policy.RequireRole("Admin", "Operator"));
+            options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Operator", "User"));
+
             options.FallbackPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();

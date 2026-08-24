@@ -170,4 +170,43 @@ export const api = {
 
   // System
   getSystemStatus: () => fetchJson<SystemStatus>(`${BASE_URL}/system/status`),
+
+  // Authentication & SSO
+  getAuthProviders: () => fetchJson<import("./types").AuthProvider[]>(`${BASE_URL}/auth/providers`),
+  getCurrentUser: () => fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/me`),
+  login: (credentials: { username: string; password: string; rememberMe?: boolean }) =>
+    fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credentials),
+    }),
+  logout: () =>
+    fetchJson<{ message: string }>(`${BASE_URL}/auth/logout`, {
+      method: "POST",
+    }),
+
+  // Identity Provider Config (Admin)
+  getIdProviders: () => fetchJson<import("./types").IdentityProviderDefinition[]>(`${BASE_URL}/config/auth/providers`),
+  getIdProvider: (id: number) => fetchJson<import("./types").IdentityProviderDefinition>(`${BASE_URL}/config/auth/providers/${id}`),
+  createIdProvider: (provider: Partial<import("./types").IdentityProviderDefinition>) =>
+    fetchJson<import("./types").IdentityProviderDefinition>(`${BASE_URL}/config/auth/providers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(provider),
+    }),
+  updateIdProvider: (id: number, provider: Partial<import("./types").IdentityProviderDefinition>) =>
+    fetchJson<import("./types").IdentityProviderDefinition>(`${BASE_URL}/config/auth/providers/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(provider),
+    }),
+  deleteIdProvider: (id: number) =>
+    fetch(`${BASE_URL}/config/auth/providers/${id}`, { method: "DELETE" }),
+  testIdProvider: (provider: Partial<import("./types").IdentityProviderDefinition>) =>
+    fetchJson<{ success: boolean; message: string }>(`${BASE_URL}/config/auth/providers/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(provider),
+    }),
 };
+

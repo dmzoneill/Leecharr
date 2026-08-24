@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router";
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
@@ -36,30 +37,20 @@ import SystemUpdates from "./pages/SystemUpdates";
 import SystemEvents from "./pages/SystemEvents";
 import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
+import { LoginPage } from "./pages/LoginPage";
 import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
 import { AddTorrentModal } from "./components/AddTorrentModal";
+import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
 } from "./components/GettingStartedModal";
+import {
+  SETTINGS_GROUPS,
+  LEGACY_SETTINGS_MAP,
+} from "./pages/settings/settingsNavData";
 import "./App.css";
-
-const settingsSubItems = [
-  { id: "general", label: "General" },
-  { id: "webui", label: "Web UI" },
-  { id: "notifications", label: "Notifications" },
-  { id: "seeding", label: "Seeding & Storage" },
-  { id: "bittorrent", label: "BitTorrent Engine" },
-  { id: "network", label: "Network & VPN" },
-  { id: "peer-protocol", label: "Peer Protocol" },
-  { id: "protocols", label: "Protocols" },
-  { id: "scheduler", label: "Scheduler" },
-  { id: "indexers", label: "Indexers" },
-  { id: "connections", label: "Connections" },
-  { id: "download-clients", label: "Client Adapters" },
-  { id: "advanced", label: "Advanced" },
-];
 
 const systemSubItems = [
   { id: "status", label: "Status" },
@@ -72,14 +63,38 @@ const systemSubItems = [
 ];
 
 export function App() {
-  const [activeNav, setActiveNav] = useState<string>("dashboard");
-  const [activeSubNav, setActiveSubNav] = useState<string>("history");
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [connected, setConnected] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<import("./api/types").CurrentUser | null>(null);
 
   const { data: indexersList } = useIndexers();
+
+  const loadUser = async () => {
+    try {
+      const user = await api.getCurrentUser();
+      setCurrentUser(user);
+    } catch {
+      // Auth might not be enabled or user not logged in
+    }
+  };
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+      setCurrentUser(null);
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -88,6 +103,58 @@ export function App() {
     useState<boolean>(() => {
       return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
     });
+
+  const pathname = location.pathname;
+
+  // Determine active top-level nav & sub-nav from URL path
+  let activeNav = "dashboard";
+  let activeSubNav = "";
+
+  if (pathname === "/" || pathname === "/dashboard") {
+    activeNav = "dashboard";
+  } else if (pathname.startsWith("/torrents")) {
+    activeNav = "torrents";
+    if (pathname.includes("/add")) activeSubNav = "add";
+    else activeSubNav = "all";
+  } else if (pathname.startsWith("/activity")) {
+    activeNav = "activity";
+    if (pathname.includes("/history")) activeSubNav = "history";
+    else if (pathname.includes("/metrics")) activeSubNav = "metrics";
+    else activeSubNav = "history";
+  } else if (pathname.startsWith("/peermap")) {
+    activeNav = "peermap";
+  } else if (pathname.startsWith("/schedule")) {
+    activeNav = "schedule";
+  } else if (pathname.startsWith("/statistics")) {
+    activeNav = "statistics";
+  } else if (pathname.startsWith("/indexers") || pathname.startsWith("/search")) {
+    activeNav = "indexers";
+  } else if (pathname.startsWith("/settings")) {
+    activeNav = "settings";
+    const section = (pathname.split("/")[2] || "host").toLowerCase();
+    const legacy = LEGACY_SETTINGS_MAP[section];
+    if (legacy) {
+      activeSubNav = legacy.pageId;
+    } else {
+      let foundPageId = "host";
+      for (const g of SETTINGS_GROUPS) {
+        if (g.id === section) {
+          foundPageId = g.pages[0].id;
+          break;
+        }
+        const p = g.pages.find((page) => page.id === section);
+        if (p) {
+          foundPageId = p.id;
+          break;
+        }
+      }
+      activeSubNav = foundPageId;
+    }
+  } else if (pathname.startsWith("/system")) {
+    activeNav = "system";
+    const parts = pathname.split("/");
+    activeSubNav = parts[2] || "status";
+  }
 
   const loadData = async () => {
     try {
@@ -133,11 +200,22 @@ export function App() {
     }
   };
 
+  if (pathname === "/login") {
+    return (
+      <LoginPage
+        onLoginSuccess={() => {
+          loadUser();
+          navigate("/");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="app">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <div className="sidebar-logo">
+        <div className="sidebar-logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
           <LeecharrLogo size={86} className="brand-logo" />
           <LeecharrText width={120} className="brand-text" />
         </div>
@@ -146,20 +224,46 @@ export function App() {
           {/* Dashboard */}
           <div
             className={`sidebar-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
-            onClick={() => setActiveNav("dashboard")}
+            onClick={() => navigate("/")}
             style={{ cursor: "pointer" }}
           >
             <DashboardIcon size={16} />
             <span>Dashboard</span>
           </div>
 
-          {/* Activity (Torrents Downloads, Add Torrent & Metrics) */}
+          {/* Torrents (Primary Client / Transfers) */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
+            onClick={() => navigate("/torrents")}
+            style={{ cursor: "pointer" }}
+          >
+            <TorrentIcon size={16} />
+            <span>Torrents</span>
+          </div>
+          {activeNav === "torrents" && (
+            <>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
+                onClick={() => navigate("/torrents")}
+                style={{ cursor: "pointer" }}
+              >
+                <DashboardIcon size={14} /> <span>All Transfers</span>
+              </div>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
+                onClick={() => navigate("/torrents/add")}
+                style={{ cursor: "pointer" }}
+              >
+                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
+                <span>Add Torrent</span>
+              </div>
+            </>
+          )}
+
+          {/* Activity (History & Real-time Metrics) */}
           <div
             className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("activity");
-              setActiveSubNav("torrents");
-            }}
+            onClick={() => navigate("/activity/history")}
             style={{ cursor: "pointer" }}
           >
             <ActivityIcon size={16} />
@@ -168,23 +272,15 @@ export function App() {
           {activeNav === "activity" && (
             <>
               <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "torrents" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("torrents")}
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
+                onClick={() => navigate("/activity/history")}
                 style={{ cursor: "pointer" }}
               >
-                <DashboardIcon size={14} /> <span>Torrents</span>
-              </div>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("add")}
-                style={{ cursor: "pointer" }}
-              >
-                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
-                <span>Add Torrent</span>
+                <HistoryIcon /> <span>History</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("metrics")}
+                onClick={() => navigate("/activity/metrics")}
                 style={{ cursor: "pointer" }}
               >
                 <StatsIcon size={14} /> <span>Metrics</span>
@@ -192,97 +288,20 @@ export function App() {
             </>
           )}
 
-          {/* Torrents (History) */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("torrents");
-              setActiveSubNav("history");
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            <TorrentIcon size={16} />
-            <span>Torrents</span>
-          </div>
-          {activeNav === "torrents" && (
-            <div
-              className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
-              onClick={() => setActiveSubNav("history")}
-              style={{ cursor: "pointer" }}
-            >
-              <HistoryIcon /> <span>History</span>
-            </div>
-          )}
-
-          {/* Indexers (All + Individual Indexers + Add Indexer) */}
+          {/* Indexer Search & Discovery */}
           <div
             className={`sidebar-nav-item ${activeNav === "indexers" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("indexers");
-              setActiveSubNav("all");
-            }}
+            onClick={() => navigate("/indexers")}
             style={{ cursor: "pointer" }}
           >
             <SearchIcon size={16} />
             <span>Indexers</span>
           </div>
-          {activeNav === "indexers" && (
-            <>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
-                onClick={() => setActiveSubNav("all")}
-                style={{ cursor: "pointer" }}
-              >
-                <SearchIcon size={14} /> <span>All Indexers</span>
-              </div>
-              {(indexersList || []).map((idx) => (
-                <div
-                  key={idx.id}
-                  className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === String(idx.id) ? "active" : ""}`}
-                  onClick={() => setActiveSubNav(String(idx.id))}
-                  style={{ cursor: "pointer" }}
-                  title={`${idx.name} (${idx.indexerType})`}
-                >
-                  <span
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: idx.enable
-                        ? "var(--success, #22c55e)"
-                        : "var(--text-muted, #7e8092)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {idx.name}
-                  </span>
-                </div>
-              ))}
-              <div
-                className="sidebar-nav-item sidebar-nav-sub"
-                onClick={() => {
-                  setActiveNav("settings");
-                  setActiveSubNav("indexers");
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
-                <span>Add Indexer</span>
-              </div>
-            </>
-          )}
 
           {/* Peer Map */}
           <div
             className={`sidebar-nav-item ${activeNav === "peermap" ? "active" : ""}`}
-            onClick={() => setActiveNav("peermap")}
+            onClick={() => navigate("/peermap")}
             style={{ cursor: "pointer" }}
           >
             <PeerMapIcon size={16} />
@@ -292,7 +311,7 @@ export function App() {
           {/* Schedule */}
           <div
             className={`sidebar-nav-item ${activeNav === "schedule" ? "active" : ""}`}
-            onClick={() => setActiveNav("schedule")}
+            onClick={() => navigate("/schedule")}
             style={{ cursor: "pointer" }}
           >
             <ScheduleIcon size={16} />
@@ -302,7 +321,7 @@ export function App() {
           {/* Statistics */}
           <div
             className={`sidebar-nav-item ${activeNav === "statistics" ? "active" : ""}`}
-            onClick={() => setActiveNav("statistics")}
+            onClick={() => navigate("/statistics")}
             style={{ cursor: "pointer" }}
           >
             <StatsIcon size={16} />
@@ -311,35 +330,82 @@ export function App() {
 
           {/* Settings */}
           <div
-            className={`sidebar-nav-item ${activeNav === "settings" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("settings");
-              setActiveSubNav("general");
-            }}
+            className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
+            onClick={() => navigate("/settings/host")}
             style={{ cursor: "pointer" }}
           >
             <SettingsIcon size={16} />
             <span>Settings</span>
           </div>
-          {activeNav === "settings" &&
-            settingsSubItems.map((item) => (
-              <div
-                key={item.id}
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
-                onClick={() => setActiveSubNav(item.id)}
-                style={{ cursor: "pointer" }}
-              >
-                <span>{item.label}</span>
-              </div>
-            ))}
+          {activeNav === "settings" && (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {SETTINGS_GROUPS.map((group) => (
+                <div key={group.id} style={{ marginTop: "0.4rem" }}>
+                  <div
+                    style={{
+                      padding: "0.35rem 1rem 0.2rem 1.6rem",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: "var(--text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                    }}
+                  >
+                    <span>{group.icon}</span>
+                    <span>{group.shortLabel}</span>
+                  </div>
+                  {group.pages.map((page) => {
+                    const isPageActive = activeSubNav === page.id;
+                    return (
+                      <div
+                        key={page.id}
+                        className={`sidebar-nav-item sidebar-nav-sub ${isPageActive ? "active" : ""}`}
+                        onClick={() => navigate(`/settings/${page.id}`)}
+                        style={{
+                          cursor: "pointer",
+                          paddingLeft: "2.2rem",
+                          paddingTop: "0.35rem",
+                          paddingBottom: "0.35rem",
+                          fontSize: "0.82rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                        title={page.description}
+                      >
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                          <span style={{ fontSize: "0.85rem" }}>{page.icon}</span>
+                          <span>{page.shortLabel}</span>
+                        </span>
+                        {page.badge && (
+                          <span
+                            style={{
+                              fontSize: "0.6rem",
+                              padding: "0.05rem 0.3rem",
+                              borderRadius: "3px",
+                              backgroundColor: isPageActive ? "var(--accent)" : "rgba(255,255,255,0.06)",
+                              color: isPageActive ? "#10111a" : "var(--text-muted)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {page.badge}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* System */}
           <div
             className={`sidebar-nav-item ${activeNav === "system" ? "active" : ""}`}
-            onClick={() => {
-              setActiveNav("system");
-              setActiveSubNav("status");
-            }}
+            onClick={() => navigate("/system/status")}
             style={{ cursor: "pointer" }}
           >
             <SystemIcon size={16} />
@@ -350,7 +416,7 @@ export function App() {
               <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
-                onClick={() => setActiveSubNav(item.id)}
+                onClick={() => navigate(`/system/${item.id}`)}
                 style={{ cursor: "pointer" }}
               >
                 <span>{item.label}</span>
@@ -418,30 +484,62 @@ export function App() {
             >
               + Add Torrent
             </button>
+
+            {currentUser?.isAuthenticated && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "0.5rem", borderLeft: "1px solid var(--border)", paddingLeft: "0.75rem" }}>
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  backgroundColor: "#23284B",
+                  color: "#FFD166",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: "1px solid rgba(255, 209, 102, 0.3)"
+                }}>
+                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : currentUser.username.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                  {currentUser.displayName || currentUser.username}
+                </span>
+                <button
+                  className="btn btn-small btn-outline"
+                  onClick={handleLogout}
+                  style={{ fontSize: "0.75rem", padding: "3px 8px" }}
+                  title="Sign Out"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Declarative React Router Viewport */}
         <main className="app-main">
-          {activeNav === "dashboard" && (
-            <div className="content-area">
-              <Dashboard
-                torrents={torrents}
-                onNavigateTorrents={() => {
-                  setActiveNav("activity");
-                  setActiveSubNav("torrents");
-                }}
-                onNavigateSettings={(tab) => {
-                  setActiveNav("settings");
-                  setActiveSubNav(tab);
-                }}
-              />
-            </div>
-          )}
+          <Routes>
+            {/* Dashboard */}
+            <Route
+              path="/"
+              element={
+                <div className="content-area">
+                  <Dashboard
+                    torrents={torrents}
+                    onNavigateTorrents={() => navigate("/torrents")}
+                    onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
+                  />
+                </div>
+              }
+            />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
-          {activeNav === "activity" && (
-            <>
-              {activeSubNav === "torrents" && (
+            {/* Torrents (Primary Client) */}
+            <Route
+              path="/torrents"
+              element={
                 <TorrentIndex
                   torrents={torrents}
                   onPause={handlePause}
@@ -450,52 +548,60 @@ export function App() {
                   onOpenAddModal={() => setShowAddModal(true)}
                   onOpenSearchModal={() => setShowSearchModal(true)}
                   onNavigateTab={(nav, subNav) => {
-                    setActiveNav(nav);
-                    if (subNav) setActiveSubNav(subNav);
+                    if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
+                    else if (nav === "system") navigate(`/system/${subNav || "status"}`);
+                    else if (subNav) navigate(`/${nav}/${subNav}`);
+                    else navigate(`/${nav}`);
                   }}
                 />
-              )}
-              {activeSubNav === "add" && (
+              }
+            />
+            <Route
+              path="/torrents/add"
+              element={
                 <AddTorrentPage
                   onSuccess={() => {
-                    setActiveNav("activity");
-                    setActiveSubNav("torrents");
+                    navigate("/torrents");
                     loadData();
                   }}
                 />
-              )}
-              {activeSubNav === "metrics" && <Activity />}
-            </>
-          )}
-
-          {activeNav === "torrents" && <DownloadHistory />}
-
-          {activeNav === "indexers" && (
-            <Indexers
-              selectedSubNav={activeSubNav}
-              onSelectIndexer={(id) => setActiveSubNav(id)}
-              onNavigateSettings={(tab) => {
-                setActiveNav("settings");
-                setActiveSubNav(tab);
-              }}
+              }
             />
-          )}
 
-          {activeNav === "peermap" && <PeerMap />}
-          {activeNav === "schedule" && <SpeedSchedule />}
-          {activeNav === "statistics" && <Statistics />}
-          {activeNav === "settings" && <Settings section={activeSubNav} />}
-          {activeNav === "system" && (
-            <>
-              {activeSubNav === "status" && <SystemStatus />}
-              {activeSubNav === "tasks" && <SystemTasks />}
-              {activeSubNav === "backup" && <SystemBackup />}
-              {activeSubNav === "updates" && <SystemUpdates />}
-              {activeSubNav === "events" && <SystemEvents />}
-              {activeSubNav === "logs" && <SystemLogs />}
-              {activeSubNav === "network" && <SystemNetwork />}
-            </>
-          )}
+            {/* Activity Hub */}
+            <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
+            <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
+            <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
+            <Route path="/activity/history" element={<DownloadHistory />} />
+            <Route path="/history" element={<Navigate to="/activity/history" replace />} />
+            <Route path="/activity/metrics" element={<Activity />} />
+
+            {/* Indexers */}
+            <Route path="/indexers" element={<Indexers />} />
+            <Route path="/search" element={<Navigate to="/indexers" replace />} />
+
+            {/* Operational Visualizations */}
+            <Route path="/peermap" element={<PeerMap />} />
+            <Route path="/schedule" element={<SpeedSchedule />} />
+            <Route path="/statistics" element={<Statistics />} />
+
+            {/* Settings */}
+            <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
+            <Route path="/settings/:section" element={<Settings />} />
+
+            {/* System Diagnostics & Maintenance */}
+            <Route path="/system" element={<Navigate to="/system/status" replace />} />
+            <Route path="/system/status" element={<SystemStatus />} />
+            <Route path="/system/tasks" element={<SystemTasks />} />
+            <Route path="/system/backup" element={<SystemBackup />} />
+            <Route path="/system/updates" element={<SystemUpdates />} />
+            <Route path="/system/events" element={<SystemEvents />} />
+            <Route path="/system/logs" element={<SystemLogs />} />
+            <Route path="/system/network" element={<SystemNetwork />} />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
 
         {/* Bottom Status Bar */}
@@ -526,17 +632,15 @@ export function App() {
       <GettingStartedModal
         isOpen={showGettingStartedModal}
         onClose={() => setShowGettingStartedModal(false)}
-        onNavigateSettings={(tab) => {
-          setActiveNav("settings");
-          setActiveSubNav(tab);
-        }}
-        onNavigateTorrents={() => {
-          setActiveNav("activity");
-          setActiveSubNav("torrents");
-        }}
-        onNavigateIndexers={() => setActiveNav("indexers")}
+        onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
+        onNavigateTorrents={() => navigate("/torrents")}
+        onNavigateIndexers={() => navigate("/indexers")}
       />
+
+      {/* Discrete Collapsible AI Copilot Drawer */}
+      <AiCopilotDrawer />
     </div>
   );
 }
+
 export default App;

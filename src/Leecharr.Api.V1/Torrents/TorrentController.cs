@@ -9,6 +9,7 @@ using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
 using NzbDrone.SignalR;
 
@@ -42,19 +43,22 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly IMediaEnrichmentService _mediaEnrichmentService;
+    private readonly IGeoIpService _geoIpService;
 
     public TorrentController(
         ITorrentService torrentService,
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         IMediaEnrichmentService mediaEnrichmentService,
-        IBroadcastSignalRMessage signalRBroadcaster)
+        IBroadcastSignalRMessage signalRBroadcaster,
+        IGeoIpService geoIpService = null)
         : base(signalRBroadcaster)
     {
         _torrentService = torrentService;
         _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _mediaEnrichmentService = mediaEnrichmentService;
+        _geoIpService = geoIpService;
     }
 
     [HttpGet]
@@ -112,18 +116,25 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var peers = task.GetPeers();
-        var resources = peers.Select((p, idx) => new PeerResource
+        var resources = peers.Select((p, idx) =>
         {
-            Id = idx + 1,
-            Ip = p.Ip,
-            Port = p.Port,
-            Client = p.Client,
-            UploadSpeed = p.UploadSpeed,
-            DownloadSpeed = p.DownloadSpeed,
-            Uploaded = p.Uploaded,
-            Downloaded = p.Downloaded,
-            Progress = p.Progress,
-            Flags = p.Flags
+            var geo = _geoIpService?.Lookup(p.Ip);
+            return new PeerResource
+            {
+                Id = idx + 1,
+                Ip = p.Ip,
+                Port = p.Port,
+                Client = p.Client,
+                UploadSpeed = p.UploadSpeed,
+                DownloadSpeed = p.DownloadSpeed,
+                Uploaded = p.Uploaded,
+                Downloaded = p.Downloaded,
+                Progress = p.Progress,
+                Flags = p.Flags,
+                CountryCode = geo?.CountryCode ?? string.Empty,
+                CountryName = geo?.CountryName ?? string.Empty,
+                City = geo?.City ?? string.Empty
+            };
         }).ToList();
 
         return Ok(resources);

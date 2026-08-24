@@ -19,6 +19,23 @@ public interface IConfigService
     string InstanceUuid { get; }
 
     // General
+    string ActiveTorrentEngine { get; }
+    string ActiveArchiveExtractor { get; }
+    string ActiveMediaInspector { get; }
+    string ActiveNetworkBindingProvider { get; }
+    string ActiveMediaMetadataProvider { get; }
+    string ActiveHttpTransportProvider { get; }
+    string ActiveGeoIpProvider { get; }
+    string ActiveBlocklistProvider { get; }
+    string ActiveAiProvider { get; }
+    string OllamaHost { get; }
+    string OllamaModel { get; }
+    string GeminiApiKey { get; }
+    string GeminiModel { get; }
+    string OnnxModelPath { get; }
+    bool EnableCopilotButton { get; }
+    bool EnableNaturalSearch { get; }
+    bool EnableSwarmDiagnostics { get; }
     bool AutoStart { get; }
     string ThemeStyle { get; }
     string ColorScheme { get; }
@@ -58,7 +75,7 @@ public interface IConfigService
     string ProxyUsername { get; }
     string ProxyPassword { get; }
 
-    // BitTorrent
+    // BitTorrent Core
     bool EnableDht { get; }
     bool EnablePex { get; }
     bool EnableLpd { get; }
@@ -68,6 +85,70 @@ public interface IConfigService
     int AnnounceIntervalSeconds { get; }
     int MinAnnounceIntervalSeconds { get; }
     int ScrapeIntervalSeconds { get; }
+
+    // Storage & Incomplete Staging & Preallocation
+    bool EnableIncompleteDir { get; }
+    string PreallocationMode { get; }
+    bool RenamePartialFiles { get; }
+    string Umask { get; }
+
+    // Queue & Concurrency Management
+    int DownloadQueueSize { get; }
+    int SeedQueueSize { get; }
+    bool QueueStalledEnabled { get; }
+    int QueueStalledMinutes { get; }
+    int IdleSeedingLimitMinutes { get; }
+
+    // Network & Sockets Extended
+    string NetworkInterfaceBinding { get; }
+    int MaxConnectionsPerIp { get; }
+    int MaximumHalfOpenConnections { get; }
+    bool AnonymousMode { get; }
+    bool ForceProxy { get; }
+    int PeerDscp { get; }
+    bool PeerPortRandomOnStart { get; }
+    int PeerPortRandomLow { get; }
+    int PeerPortRandomHigh { get; }
+
+    // MonoTorrent Specific
+    int DiskCacheBytes { get; }
+    string DiskCachePolicy { get; }
+    string FastResumeMode { get; }
+    int AutoSaveFastResumeIntervalSeconds { get; }
+    bool AutoSaveLoadMagnetMetadata { get; }
+    bool AutoSaveLoadDhtCache { get; }
+    string PiecePickerStrategy { get; }
+    bool EndGamePickerEnabled { get; }
+    int StaleRequestTimeoutSeconds { get; }
+    int WebSeedDelaySeconds { get; }
+    int MaximumDiskReadRateKbps { get; }
+    int MaximumDiskWriteRateKbps { get; }
+
+    // libtorrent Specific
+    int HashingThreads { get; }
+    int AioThreads { get; }
+    string DiskIoWriteMode { get; }
+    string DiskIoReadMode { get; }
+    int FilePoolSize { get; }
+    string ChokingAlgorithm { get; }
+    string SeedChokingAlgorithm { get; }
+    string MixedModeAlgorithm { get; }
+    string AlertMask { get; }
+
+    // Transmission Specific
+    string ScriptTorrentDoneFilename { get; }
+    string ScriptTorrentAddedFilename { get; }
+    string ScriptTorrentDoneSeedingFilename { get; }
+    bool PrefetchEnabled { get; }
+    bool ScrapePausedTorrentsEnabled { get; }
+    bool RpcWhitelistEnabled { get; }
+    string RpcWhitelist { get; }
+
+    // Swarm & Scripts
+    string OnDownloadCompleteScript { get; }
+    string OnSeedGoalReachedScript { get; }
+    string DefaultTrackers { get; }
+    string DhtBootstrapNodes { get; }
 
     // Speed
     int MaxUploadSpeedKbps { get; }
@@ -317,6 +398,23 @@ public class ConfigService : IConfigService
     }
 
     // General
+    public string ActiveTorrentEngine => GetValue("ActiveTorrentEngine", "MonoTorrent");
+    public string ActiveArchiveExtractor => GetValue("ActiveArchiveExtractor", "SharpCompress");
+    public string ActiveMediaInspector => GetValue("ActiveMediaInspector", "TagLib");
+    public string ActiveNetworkBindingProvider => GetValue("ActiveNetworkBindingProvider", "ManagedSocket");
+    public string ActiveMediaMetadataProvider => GetValue("ActiveMediaMetadataProvider", "ServarrSync");
+    public string ActiveHttpTransportProvider => GetValue("ActiveHttpTransportProvider", "SocketsHttpHandler");
+    public string ActiveGeoIpProvider => GetValue("ActiveGeoIpProvider", "MaxMind");
+    public string ActiveBlocklistProvider => GetValue("ActiveBlocklistProvider", "RadixTree");
+    public string ActiveAiProvider => GetValue("ActiveAiProvider", "RuleHeuristic");
+    public string OllamaHost => GetValue("OllamaHost", "http://127.0.0.1:11434");
+    public string OllamaModel => GetValue("OllamaModel", "llama3");
+    public string GeminiApiKey => GetValue("GeminiApiKey", string.Empty);
+    public string GeminiModel => GetValue("GeminiModel", "gemini-2.0-flash");
+    public string OnnxModelPath => GetValue("OnnxModelPath", "/config/models/leecharr-ai.onnx");
+    public bool EnableCopilotButton => GetValueBoolean("EnableCopilotButton", true);
+    public bool EnableNaturalSearch => GetValueBoolean("EnableNaturalSearch", true);
+    public bool EnableSwarmDiagnostics => GetValueBoolean("EnableSwarmDiagnostics", true);
     public bool AutoStart => GetValueBoolean("AutoStart", true);
     public string ThemeStyle => GetValue("ThemeStyle", "dark");
     public string ColorScheme => GetValue("ColorScheme", "auto");
@@ -356,7 +454,7 @@ public class ConfigService : IConfigService
     public string ProxyUsername => GetValue("ProxyUsername", string.Empty);
     public string ProxyPassword => GetValue("ProxyPassword", string.Empty);
 
-    // BitTorrent
+    // BitTorrent Core
     public bool EnableDht => GetValueBoolean("EnableDht", true);
     public bool EnablePex => GetValueBoolean("EnablePex", true);
     public bool EnableLpd => GetValueBoolean("EnableLpd", true);
@@ -366,6 +464,70 @@ public class ConfigService : IConfigService
     public int AnnounceIntervalSeconds => GetValueInt("AnnounceIntervalSeconds", 1800);
     public int MinAnnounceIntervalSeconds => GetValueInt("MinAnnounceIntervalSeconds", 300);
     public int ScrapeIntervalSeconds => GetValueInt("ScrapeIntervalSeconds", 900);
+
+    // Storage & Incomplete Staging & Preallocation
+    public bool EnableIncompleteDir => GetValueBoolean("EnableIncompleteDir", true);
+    public string PreallocationMode => GetValue("PreallocationMode", "Sparse");
+    public bool RenamePartialFiles => GetValueBoolean("RenamePartialFiles", true);
+    public string Umask => GetValue("Umask", "022");
+
+    // Queue & Concurrency Management
+    public int DownloadQueueSize => GetValueInt("DownloadQueueSize", 5);
+    public int SeedQueueSize => GetValueInt("SeedQueueSize", 10);
+    public bool QueueStalledEnabled => GetValueBoolean("QueueStalledEnabled", true);
+    public int QueueStalledMinutes => GetValueInt("QueueStalledMinutes", 30);
+    public int IdleSeedingLimitMinutes => GetValueInt("IdleSeedingLimitMinutes", 0);
+
+    // Network & Sockets Extended
+    public string NetworkInterfaceBinding => GetValue("NetworkInterfaceBinding", string.Empty);
+    public int MaxConnectionsPerIp => GetValueInt("MaxConnectionsPerIp", 5);
+    public int MaximumHalfOpenConnections => GetValueInt("MaximumHalfOpenConnections", 50);
+    public bool AnonymousMode => GetValueBoolean("AnonymousMode", false);
+    public bool ForceProxy => GetValueBoolean("ForceProxy", false);
+    public int PeerDscp => GetValueInt("PeerDscp", 4);
+    public bool PeerPortRandomOnStart => GetValueBoolean("PeerPortRandomOnStart", false);
+    public int PeerPortRandomLow => GetValueInt("PeerPortRandomLow", 49152);
+    public int PeerPortRandomHigh => GetValueInt("PeerPortRandomHigh", 65535);
+
+    // MonoTorrent Specific
+    public int DiskCacheBytes => GetValueInt("DiskCacheBytes", 67108864);
+    public string DiskCachePolicy => GetValue("DiskCachePolicy", "ReadsAndWrites");
+    public string FastResumeMode => GetValue("FastResumeMode", "BestEffort");
+    public int AutoSaveFastResumeIntervalSeconds => GetValueInt("AutoSaveFastResumeIntervalSeconds", 300);
+    public bool AutoSaveLoadMagnetMetadata => GetValueBoolean("AutoSaveLoadMagnetMetadata", true);
+    public bool AutoSaveLoadDhtCache => GetValueBoolean("AutoSaveLoadDhtCache", true);
+    public string PiecePickerStrategy => GetValue("PiecePickerStrategy", "RarestFirst");
+    public bool EndGamePickerEnabled => GetValueBoolean("EndGamePickerEnabled", true);
+    public int StaleRequestTimeoutSeconds => GetValueInt("StaleRequestTimeoutSeconds", 20);
+    public int WebSeedDelaySeconds => GetValueInt("WebSeedDelaySeconds", 30);
+    public int MaximumDiskReadRateKbps => GetValueInt("MaximumDiskReadRateKbps", 0);
+    public int MaximumDiskWriteRateKbps => GetValueInt("MaximumDiskWriteRateKbps", 0);
+
+    // libtorrent Specific
+    public int HashingThreads => GetValueInt("HashingThreads", 2);
+    public int AioThreads => GetValueInt("AioThreads", 4);
+    public string DiskIoWriteMode => GetValue("DiskIoWriteMode", "OsCacheEnabled");
+    public string DiskIoReadMode => GetValue("DiskIoReadMode", "OsCacheEnabled");
+    public int FilePoolSize => GetValueInt("FilePoolSize", 256);
+    public string ChokingAlgorithm => GetValue("ChokingAlgorithm", "FixedSlots");
+    public string SeedChokingAlgorithm => GetValue("SeedChokingAlgorithm", "RoundRobin");
+    public string MixedModeAlgorithm => GetValue("MixedModeAlgorithm", "PeerProportional");
+    public string AlertMask => GetValue("AlertMask", "Error,Status,Storage,Tracker");
+
+    // Transmission Specific
+    public string ScriptTorrentDoneFilename => GetValue("ScriptTorrentDoneFilename", string.Empty);
+    public string ScriptTorrentAddedFilename => GetValue("ScriptTorrentAddedFilename", string.Empty);
+    public string ScriptTorrentDoneSeedingFilename => GetValue("ScriptTorrentDoneSeedingFilename", string.Empty);
+    public bool PrefetchEnabled => GetValueBoolean("PrefetchEnabled", true);
+    public bool ScrapePausedTorrentsEnabled => GetValueBoolean("ScrapePausedTorrentsEnabled", true);
+    public bool RpcWhitelistEnabled => GetValueBoolean("RpcWhitelistEnabled", false);
+    public string RpcWhitelist => GetValue("RpcWhitelist", "127.0.0.1,::1");
+
+    // Swarm & Scripts
+    public string OnDownloadCompleteScript => GetValue("OnDownloadCompleteScript", string.Empty);
+    public string OnSeedGoalReachedScript => GetValue("OnSeedGoalReachedScript", string.Empty);
+    public string DefaultTrackers => GetValue("DefaultTrackers", string.Empty);
+    public string DhtBootstrapNodes => GetValue("DhtBootstrapNodes", "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881");
 
     // Speed & Bandwidth
     public int MaxUploadSpeedKbps => GetValueInt("MaxUploadSpeedKbps", 0);

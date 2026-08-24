@@ -13,4 +13,7 @@ public class PeerResource : RestResource
     public long Downloaded { get; set; }
     public double Progress { get; set; }
     public string Flags { get; set; }
+    public string CountryCode { get; set; }
+    public string CountryName { get; set; }
+    public string City { get; set; }
 }

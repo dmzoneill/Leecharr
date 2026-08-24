@@ -7,8 +7,17 @@ using Microsoft.Extensions.DependencyInjection;
 using NLog;
 using NzbDrone.Common.Composition;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Ai;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Extraction;
+using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.MediaEnrichment.Providers;
+using NzbDrone.Core.MediaInspection;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Blocklist;
+using NzbDrone.Core.Network.GeoIp;
 
 namespace NzbDrone.Host;
 
@@ -33,6 +42,24 @@ public static class Bootstrap
         var container = new Container(rules => rules.WithNzbDroneRules());
         container.RegisterInstance(startupContext);
         container.AutoAddServices(Assemblies);
+        container.Register<IDownloadEngine, DynamicDownloadEngineProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<ITorrentEngineManager, DynamicDownloadEngineProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<INetworkBindingService, DynamicNetworkBindingProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<INetworkBindingManager, DynamicNetworkBindingProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IMediaMetadataService, DynamicMediaMetadataProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IMediaMetadataManager, DynamicMediaMetadataProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IHttpTransportEngine, DynamicHttpTransportProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IHttpTransportManager, DynamicHttpTransportProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IGeoIpService, DynamicGeoIpProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IGeoIpManager, DynamicGeoIpProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IBlocklistService, DynamicBlocklistProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IBlocklistManager, DynamicBlocklistProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IArchiveExtractorService, DynamicArchiveExtractorProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IArchiveExtractorManager, DynamicArchiveExtractorProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IMediaContainerInspector, DynamicMediaInspectorProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IMediaInspectorManager, DynamicMediaInspectorProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IAiService, DynamicAiProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IAiManager, DynamicAiProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.ConfigureKestrel(serverOptions =>
