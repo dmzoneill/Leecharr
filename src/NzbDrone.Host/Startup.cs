@@ -57,6 +57,13 @@ public class Startup
             options.ForwardDefaultSelector = context =>
             {
                 var req = context.Request;
+                var configFileProvider = context.RequestServices.GetService<NzbDrone.Core.Configuration.IConfigFileProvider>();
+
+                // 0. When authentication is disabled, automatically grant local access
+                if (configFileProvider != null && !configFileProvider.AuthenticationEnabled)
+                {
+                    return ApiKeyAuthenticationOptions.DefaultScheme;
+                }
 
                 // 1. API Key present in header or query parameter
                 if (req.Headers.ContainsKey("X-Api-Key") || req.Query.ContainsKey("apikey"))
