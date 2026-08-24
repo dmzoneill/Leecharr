@@ -25,14 +25,17 @@ public class MoveQueueRequest
 public class AddTorrentJsonRequest
 {
     public string MagnetLink { get; set; }
+    public string MagnetUrl { get; set; }
     public string DownloadUrl { get; set; }
     public string Title { get; set; }
     public string Category { get; set; }
     public string SavePath { get; set; }
     public bool Paused { get; set; }
+    public bool StartPaused { get; set; }
 }
 
 [V1ApiController("torrents")]
+[Route("api/v1/torrent")]
 public class TorrentController : RestControllerWithSignalR<TorrentResource, Torrent>
 {
     private readonly ITorrentService _torrentService;
@@ -100,14 +103,49 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpPost]
+    [Consumes("application/json")]
+    public async Task<ActionResult<TorrentResource>> AddTorrentJson([FromBody] AddTorrentJsonRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest("Request body is empty.");
+        }
+
+        var magnet = !string.IsNullOrWhiteSpace(request.MagnetLink) ? request.MagnetLink : request.MagnetUrl;
+        var isPaused = request.Paused || request.StartPaused;
+
+        if (!string.IsNullOrWhiteSpace(magnet))
+        {
+            var torrent = await _torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
+            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
+        {
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            var bytes = await httpClient.GetByteArrayAsync(request.DownloadUrl);
+            var parsed = _torrentFileParser.Parse(bytes);
+            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
+            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        }
+
+        return BadRequest("Either magnetLink or downloadUrl is required.");
+    }
+
+    [HttpPost]
     [Consumes("multipart/form-data", "application/x-www-form-urlencoded")]
-    public async Task<ActionResult<TorrentResource>> AddTorrent(
+    public async Task<ActionResult<TorrentResource>> AddTorrentForm(
         [FromForm] IFormFile file = null,
         [FromForm] string magnetUrl = null,
         [FromForm] string category = null,
         [FromForm] string savePath = null,
-        [FromForm] bool paused = false)
+        [FromForm] bool paused = false,
+        [FromForm] bool startPaused = false)
     {
+        var isPaused = paused || startPaused;
+
         if (file != null && file.Length > 0)
         {
             using var ms = new MemoryStream();
@@ -115,14 +153,14 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bytes = ms.ToArray();
             var parsed = _torrentFileParser.Parse(bytes);
 
-            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, paused, bytes);
+            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
-            var torrent = await _torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, paused);
+            var torrent = await _torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPaused);
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
@@ -132,17 +170,39 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> Upload([FromForm(Name = "file")] List<IFormFile> files, [FromForm] string category = null, [FromForm] bool isPaused = false)
+    public async Task<IActionResult> Upload(
+        [FromForm] List<IFormFile> files = null,
+        [FromForm] string category = null,
+        [FromForm] bool isPaused = false,
+        [FromForm] bool startPaused = false)
     {
-        if (files == null || files.Count == 0)
+        var formFiles = new List<IFormFile>();
+        if (files != null && files.Count > 0)
+        {
+            formFiles.AddRange(files);
+        }
+
+        if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        {
+            foreach (var f in Request.Form.Files)
+            {
+                if (!formFiles.Contains(f))
+                {
+                    formFiles.Add(f);
+                }
+            }
+        }
+
+        if (formFiles.Count == 0)
         {
             return BadRequest("No torrent file provided");
         }
 
+        var pausedFlag = isPaused || startPaused;
         var added = new List<TorrentResource>();
         var failed = new List<TorrentUploadFailure>();
 
-        foreach (var file in files)
+        foreach (var file in formFiles)
         {
             if (file == null || file.Length == 0)
             {
@@ -156,7 +216,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 var bytes = ms.ToArray();
                 var parsed = _torrentFileParser.Parse(bytes);
 
-                var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
+                var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, pausedFlag, bytes);
                 var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
                 added.Add(TorrentResourceMapper.ToResource(torrent, meta));
             }
@@ -173,29 +233,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [Consumes("application/json")]
     public async Task<ActionResult<TorrentResource>> GrabRelease([FromBody] AddTorrentJsonRequest request)
     {
-        if (request == null)
-        {
-            return BadRequest("Request body is empty.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.MagnetLink))
-        {
-            var torrent = await _torrentService.AddFromMagnetAsync(request.MagnetLink, request.Category, request.SavePath, request.Paused);
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
-        {
-            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            var bytes = await httpClient.GetByteArrayAsync(request.DownloadUrl);
-            var parsed = _torrentFileParser.Parse(bytes);
-            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.Paused, bytes);
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
-        }
-
-        return BadRequest("Either magnetLink or downloadUrl is required.");
+        return await AddTorrentJson(request);
     }
 
     [HttpPost("{id:int}/pause")]
@@ -258,9 +296,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.SequentialDownload = resource.SequentialDownload.Value;
         }
 
-        if (resource.SuperSeeding.HasValue)
+        if (resource.InitialSeeding.HasValue)
         {
-            existing.SuperSeeding = resource.SuperSeeding.Value;
+            existing.InitialSeeding = resource.InitialSeeding.Value;
         }
 
         if (!string.IsNullOrWhiteSpace(resource.Name))
@@ -281,6 +319,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpPost("{id:int}/queue")]
+    [HttpPut("{id:int}/queue")]
     public async Task<ActionResult> MoveQueue(int id, [FromBody] MoveQueueRequest request)
     {
         await _torrentService.MoveQueueAsync(id, request?.Position);

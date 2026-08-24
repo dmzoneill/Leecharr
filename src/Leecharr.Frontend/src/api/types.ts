@@ -23,7 +23,7 @@ export interface Torrent {
   priority: number;
   uploadLimit: number;
   downloadLimit: number;
-  superSeeding: boolean;
+  initialSeeding: boolean;
   forceStart: boolean;
   label: string | null;
   sequentialDownload: boolean;

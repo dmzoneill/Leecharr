@@ -49,7 +49,7 @@ export type ColumnKey =
   | "priority"
   | "uploadLimit"
   | "downloadLimit"
-  | "superSeeding"
+  | "initialSeeding"
   | "forceStart"
   | "category"
   | "label"
@@ -85,7 +85,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "label", label: "Label", sortable: true },
   { key: "uploadLimit", label: "Upload Limit", sortable: true },
   { key: "downloadLimit", label: "Download Limit", sortable: true },
-  { key: "superSeeding", label: "Super Seeding", sortable: true },
+  { key: "initialSeeding", label: "Initial Seeding", sortable: true },
   { key: "sequentialDownload", label: "Sequential", sortable: true },
   { key: "dateAdded", label: "Added", sortable: true },
   { key: "lastActive", label: "Last Active", sortable: true },
@@ -97,7 +97,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "createdBy", label: "Created By", sortable: true },
 ];
 
-const STORAGE_KEY = "leecharr-visible-columns-v2";
+const PREF_VISIBLE_COLS_STORAGE = "leecharr_cols_v2";
 
 const DEFAULT_VISIBLE: Set<string> = new Set([
   "#",
@@ -115,7 +115,7 @@ const DEFAULT_VISIBLE: Set<string> = new Set([
 
 function loadVisibleColumns(): Set<string> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(PREF_VISIBLE_COLS_STORAGE);
     if (stored) {
       const parsed = JSON.parse(stored) as string[];
       if (Array.isArray(parsed) && parsed.length > 0) return new Set(parsed);
@@ -127,7 +127,7 @@ function loadVisibleColumns(): Set<string> {
 }
 
 function saveVisibleColumns(cols: Set<string>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...cols]));
+  localStorage.setItem(PREF_VISIBLE_COLS_STORAGE, JSON.stringify([...cols]));
 }
 
 interface ContextMenuState {
@@ -198,6 +198,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const handleContextMenu = (e: React.MouseEvent, torrent: Torrent | null) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, torrent });
   };
 
