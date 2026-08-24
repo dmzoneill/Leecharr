@@ -295,34 +295,41 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   if (filteredTorrents.length === 0) {
     return (
       <div
-        className="card"
         style={{
-          padding: "3.5rem 2rem",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+          minHeight: "50vh",
+          height: "100%",
           textAlign: "center",
-          margin: "2rem auto",
-          maxWidth: "600px",
-          backgroundColor: "var(--bg-secondary, #171b35)",
-          border: "1px solid var(--border-light, #1c203b)",
-          borderRadius: "8px",
+          padding: "2rem",
+          background: "transparent",
+          border: "none",
+          boxShadow: "none",
         }}
       >
-        <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📁</div>
+        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",
+            fontSize: "1.25rem",
+            fontWeight: 600,
             marginBottom: "0.5rem",
           }}
         >
-          No Torrents in Queue
+          No torrent in the queue
         </h3>
         <p
           style={{
             color: "var(--text-secondary, #c7c5d3)",
             fontSize: "0.9rem",
+            maxWidth: "400px",
+            margin: 0,
           }}
         >
-          Add a torrent file, magnet URI, or search indexers to begin
-          downloading.
+          Add a torrent file, magnet URI, or search indexers to begin downloading.
         </p>
       </div>
     );

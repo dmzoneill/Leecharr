@@ -35,10 +35,17 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
     {
         if (!_configFileProvider.AuthenticationEnabled)
         {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1"),
+                new Claim(ClaimTypes.Name, "Admin"),
+                new Claim(ClaimTypes.Role, "Admin"),
+                new Claim(ClaimTypes.Role, "Operator"),
+                new Claim(ClaimTypes.Role, "User")
+            };
+            var identity = new ClaimsIdentity(claims, ApiKeyAuthenticationOptions.DefaultScheme);
             return Task.FromResult(AuthenticateResult.Success(
-                new AuthenticationTicket(
-                    new ClaimsPrincipal(new ClaimsIdentity("NoAuth")),
-                    ApiKeyAuthenticationOptions.DefaultScheme)));
+                new AuthenticationTicket(new ClaimsPrincipal(identity), ApiKeyAuthenticationOptions.DefaultScheme)));
         }
 
         var apiKey = Request.Headers[Options.HeaderName].FirstOrDefault();
