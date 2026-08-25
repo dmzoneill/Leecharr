@@ -4,13 +4,7 @@ import {
   useSaveTrackerServerConfig,
   useTrackerServerStats,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function TrackerServerSettingsTab() {
   const { data: config, isLoading } = useTrackerServerConfig();
@@ -54,7 +48,10 @@ export function TrackerServerSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -79,12 +76,16 @@ export function TrackerServerSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading tracker server settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading tracker server settings...
+      </div>
+    );
   }
 
   return (
@@ -99,22 +100,125 @@ export function TrackerServerSettingsTab() {
       />
 
       {stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1.25rem" }}>
-          <div className="card" style={{ padding: "0.85rem", textAlign: "center", borderRadius: "8px", border: "1px solid var(--border)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>Tracked Torrents</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--accent)" }}>{stats.totalTorrents}</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "0.75rem",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              padding: "0.85rem",
+              textAlign: "center",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                marginBottom: "0.2rem",
+              }}
+            >
+              Tracked Torrents
+            </div>
+            <div
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "var(--accent)",
+              }}
+            >
+              {stats.totalTorrents}
+            </div>
           </div>
-          <div className="card" style={{ padding: "0.85rem", textAlign: "center", borderRadius: "8px", border: "1px solid var(--border)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>Active Peers</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)" }}>{stats.totalPeers}</div>
+          <div
+            className="card"
+            style={{
+              padding: "0.85rem",
+              textAlign: "center",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                marginBottom: "0.2rem",
+              }}
+            >
+              Active Peers
+            </div>
+            <div
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
+              {stats.totalPeers}
+            </div>
           </div>
-          <div className="card" style={{ padding: "0.85rem", textAlign: "center", borderRadius: "8px", border: "1px solid var(--border)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>Total Announces</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)" }}>{stats.totalAnnounces}</div>
+          <div
+            className="card"
+            style={{
+              padding: "0.85rem",
+              textAlign: "center",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                marginBottom: "0.2rem",
+              }}
+            >
+              Total Announces
+            </div>
+            <div
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
+              {stats.totalAnnounces}
+            </div>
           </div>
-          <div className="card" style={{ padding: "0.85rem", textAlign: "center", borderRadius: "8px", border: "1px solid var(--border)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>Total Scrapes</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)" }}>{stats.totalScrapes}</div>
+          <div
+            className="card"
+            style={{
+              padding: "0.85rem",
+              textAlign: "center",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                marginBottom: "0.2rem",
+              }}
+            >
+              Total Scrapes
+            </div>
+            <div
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
+              {stats.totalScrapes}
+            </div>
           </div>
         </div>
       )}
@@ -131,7 +235,13 @@ export function TrackerServerSettingsTab() {
             hint="Starts internal high-performance HTTP and UDP tracker listener"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <TextInput
               label="Tracker Bind Address"
               value={form.trackerBindAddress}
@@ -152,8 +262,19 @@ export function TrackerServerSettingsTab() {
             />
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               <div>
                 <Toggle
                   label="Enable HTTP Announce Endpoint"
@@ -165,7 +286,9 @@ export function TrackerServerSettingsTab() {
                   label="HTTP Tracker Port"
                   value={form.trackerHttpPort}
                   onChange={(v) => update("trackerHttpPort", v)}
-                  disabled={!form.trackerServerEnabled || !form.trackerHttpEnabled}
+                  disabled={
+                    !form.trackerServerEnabled || !form.trackerHttpEnabled
+                  }
                   min={1}
                   max={65535}
                   hint="e.g. http://your-ip:6969/announce"
@@ -183,7 +306,9 @@ export function TrackerServerSettingsTab() {
                   label="UDP Tracker Port"
                   value={form.trackerUdpPort}
                   onChange={(v) => update("trackerUdpPort", v)}
-                  disabled={!form.trackerServerEnabled || !form.trackerUdpEnabled}
+                  disabled={
+                    !form.trackerServerEnabled || !form.trackerUdpEnabled
+                  }
                   min={1}
                   max={65535}
                   hint="e.g. udp://your-ip:6969/announce"
@@ -192,8 +317,19 @@ export function TrackerServerSettingsTab() {
             </div>
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               <Toggle
                 label="Enable /scrape Statistics Endpoint"
                 checked={form.trackerEnableScrape}

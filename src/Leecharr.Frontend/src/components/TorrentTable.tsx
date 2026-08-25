@@ -310,7 +310,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           boxShadow: "none",
         }}
       >
-        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
+        <div
+          style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}
+        >
+          📁
+        </div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",
@@ -329,7 +333,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             margin: 0,
           }}
         >
-          Add a torrent file, magnet URI, or search indexers to begin downloading.
+          Add a torrent file, magnet URI, or search indexers to begin
+          downloading.
         </p>
       </div>
     );

@@ -54,13 +54,17 @@ export function Settings() {
   }, [rawSection]);
 
   const activeGroup = useMemo(
-    () => SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) || SETTINGS_GROUPS[0],
-    [resolved.groupId]
+    () =>
+      SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) ||
+      SETTINGS_GROUPS[0],
+    [resolved.groupId],
   );
 
   const activePage = useMemo(
-    () => activeGroup.pages.find((p) => p.id === resolved.pageId) || activeGroup.pages[0],
-    [activeGroup, resolved.pageId]
+    () =>
+      activeGroup.pages.find((p) => p.id === resolved.pageId) ||
+      activeGroup.pages[0],
+    [activeGroup, resolved.pageId],
   );
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,7 +91,11 @@ export function Settings() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return null;
 
-    const results: { group: (typeof SETTINGS_GROUPS)[0]; page: SettingsPageDefinition; matchedKeywords: string[] }[] = [];
+    const results: {
+      group: (typeof SETTINGS_GROUPS)[0];
+      page: SettingsPageDefinition;
+      matchedKeywords: string[];
+    }[] = [];
     for (const g of SETTINGS_GROUPS) {
       for (const p of g.pages) {
         const titleMatch = p.title.toLowerCase().includes(q);
@@ -169,7 +177,10 @@ export function Settings() {
   };
 
   return (
-    <div className="content-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div
+      className="content-area"
+      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+    >
       {/* 1. Header Banner & Quick Filter Search */}
       <div
         className="card"
@@ -187,29 +198,66 @@ export function Settings() {
       >
         {/* Breadcrumb Heading */}
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontSize: "0.8rem",
+              color: "var(--text-muted)",
+            }}
+          >
             <span>Settings</span>
             <span>&rsaquo;</span>
-            <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{activeGroup.title}</span>
+            <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
+              {activeGroup.title}
+            </span>
             <span>&rsaquo;</span>
-            <span style={{ color: "var(--accent)", fontWeight: 700 }}>{activePage.shortLabel}</span>
+            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+              {activePage.shortLabel}
+            </span>
           </div>
-          <h1 className="page-heading" style={{ margin: "0.25rem 0 0 0", fontSize: "1.4rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <h1
+            className="page-heading"
+            style={{
+              margin: "0.25rem 0 0 0",
+              fontSize: "1.4rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
             <span>{activePage.icon}</span>
             <span>{activePage.title}</span>
             {activePage.badge && (
-              <span className="badge badge-primary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.5rem" }}>
+              <span
+                className="badge badge-primary"
+                style={{ fontSize: "0.7rem", padding: "0.15rem 0.5rem" }}
+              >
                 {activePage.badge}
               </span>
             )}
           </h1>
-          <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+          <div
+            style={{
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+              marginTop: "0.15rem",
+            }}
+          >
             {activePage.description}
           </div>
         </div>
 
         {/* Quick Filter Search Bar */}
-        <div style={{ position: "relative", minWidth: "260px", maxWidth: "340px", width: "100%" }}>
+        <div
+          style={{
+            position: "relative",
+            minWidth: "260px",
+            maxWidth: "340px",
+            width: "100%",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -241,7 +289,13 @@ export function Settings() {
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.8rem" }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                }}
               >
                 ✕
               </button>
@@ -261,9 +315,24 @@ export function Settings() {
             border: "1px solid var(--accent)",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              Search Results for &ldquo;{searchQuery}&rdquo; ({searchResults.length} {searchResults.length === 1 ? "page" : "pages"} found)
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+              }}
+            >
+              Search Results for &ldquo;{searchQuery}&rdquo; (
+              {searchResults.length}{" "}
+              {searchResults.length === 1 ? "page" : "pages"} found)
             </span>
             <button
               type="button"
@@ -276,11 +345,24 @@ export function Settings() {
           </div>
 
           {searchResults.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-              No settings match your query. Try keywords like <em>port</em>, <em>vpn</em>, <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
+            <div
+              style={{
+                textAlign: "center",
+                padding: "2rem",
+                color: "var(--text-muted)",
+              }}
+            >
+              No settings match your query. Try keywords like <em>port</em>,{" "}
+              <em>vpn</em>, <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.85rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "0.85rem",
+              }}
+            >
               {searchResults.map(({ group, page, matchedKeywords }) => (
                 <div
                   key={page.id}
@@ -297,24 +379,58 @@ export function Settings() {
                     gap: "0.5rem",
                     transition: "border-color 0.15s ease",
                   }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "var(--accent)")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "var(--border)")}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "var(--accent)")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "var(--border)")
+                  }
                 >
                   <div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        marginBottom: "0.2rem",
+                      }}
+                    >
                       {group.title}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        fontWeight: 700,
+                        color: "var(--text-primary)",
+                      }}
+                    >
                       <span>{page.icon}</span>
                       <span>{page.title}</span>
                     </div>
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.3rem", lineHeight: 1.35 }}>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "var(--text-secondary)",
+                        marginTop: "0.3rem",
+                        lineHeight: 1.35,
+                      }}
+                    >
                       {page.description}
                     </div>
                   </div>
 
                   {matchedKeywords.length > 0 && (
-                    <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.3rem",
+                        flexWrap: "wrap",
+                        marginTop: "0.4rem",
+                      }}
+                    >
                       {matchedKeywords.map((kw) => (
                         <span
                           key={kw}

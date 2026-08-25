@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router";
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
@@ -69,7 +75,9 @@ export function App() {
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<import("./api/types").CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<
+    import("./api/types").CurrentUser | null
+  >(null);
 
   const { data: indexersList } = useIndexers();
 
@@ -127,7 +135,10 @@ export function App() {
     activeNav = "schedule";
   } else if (pathname.startsWith("/statistics")) {
     activeNav = "statistics";
-  } else if (pathname.startsWith("/indexers") || pathname.startsWith("/search")) {
+  } else if (
+    pathname.startsWith("/indexers") ||
+    pathname.startsWith("/search")
+  ) {
     activeNav = "indexers";
   } else if (pathname.startsWith("/settings")) {
     activeNav = "settings";
@@ -215,7 +226,11 @@ export function App() {
     <div className="app">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <div className="sidebar-logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
+        <div
+          className="sidebar-logo"
+          onClick={() => navigate("/")}
+          style={{ cursor: "pointer" }}
+        >
           <LeecharrLogo size={86} className="brand-logo" />
           <LeecharrText width={120} className="brand-text" />
         </div>
@@ -376,8 +391,16 @@ export function App() {
                         }}
                         title={page.description}
                       >
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
-                          <span style={{ fontSize: "0.85rem" }}>{page.icon}</span>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.85rem" }}>
+                            {page.icon}
+                          </span>
                           <span>{page.shortLabel}</span>
                         </span>
                         {page.badge && (
@@ -386,8 +409,12 @@ export function App() {
                               fontSize: "0.6rem",
                               padding: "0.05rem 0.3rem",
                               borderRadius: "3px",
-                              backgroundColor: isPageActive ? "var(--accent)" : "rgba(255,255,255,0.06)",
-                              color: isPageActive ? "#10111a" : "var(--text-muted)",
+                              backgroundColor: isPageActive
+                                ? "var(--accent)"
+                                : "rgba(255,255,255,0.06)",
+                              color: isPageActive
+                                ? "#10111a"
+                                : "var(--text-muted)",
                               fontWeight: 700,
                             }}
                           >
@@ -486,23 +513,42 @@ export function App() {
             </button>
 
             {currentUser?.isAuthenticated && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "0.5rem", borderLeft: "1px solid var(--border)", paddingLeft: "0.75rem" }}>
-                <div style={{
-                  display: "inline-flex",
+              <div
+                style={{
+                  display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "50%",
-                  backgroundColor: "#23284B",
-                  color: "#FFD166",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  border: "1px solid rgba(255, 209, 102, 0.3)"
-                }}>
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : currentUser.username.charAt(0).toUpperCase()}
+                  gap: "0.5rem",
+                  marginLeft: "0.5rem",
+                  borderLeft: "1px solid var(--border)",
+                  paddingLeft: "0.75rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    backgroundColor: "#23284B",
+                    color: "#FFD166",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    border: "1px solid rgba(255, 209, 102, 0.3)",
+                  }}
+                >
+                  {currentUser.displayName
+                    ? currentUser.displayName.charAt(0).toUpperCase()
+                    : currentUser.username.charAt(0).toUpperCase()}
                 </div>
-                <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                <span
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-primary)",
+                    fontWeight: 500,
+                  }}
+                >
                   {currentUser.displayName || currentUser.username}
                 </span>
                 <button
@@ -548,8 +594,10 @@ export function App() {
                   onOpenAddModal={() => setShowAddModal(true)}
                   onOpenSearchModal={() => setShowSearchModal(true)}
                   onNavigateTab={(nav, subNav) => {
-                    if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
-                    else if (nav === "system") navigate(`/system/${subNav || "status"}`);
+                    if (nav === "settings")
+                      navigate(`/settings/${subNav || "general"}`);
+                    else if (nav === "system")
+                      navigate(`/system/${subNav || "status"}`);
                     else if (subNav) navigate(`/${nav}/${subNav}`);
                     else navigate(`/${nav}`);
                   }}
@@ -569,16 +617,31 @@ export function App() {
             />
 
             {/* Activity Hub */}
-            <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
-            <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
-            <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
+            <Route
+              path="/activity"
+              element={<Navigate to="/activity/history" replace />}
+            />
+            <Route
+              path="/activity/torrents"
+              element={<Navigate to="/torrents" replace />}
+            />
+            <Route
+              path="/activity/add"
+              element={<Navigate to="/torrents/add" replace />}
+            />
             <Route path="/activity/history" element={<DownloadHistory />} />
-            <Route path="/history" element={<Navigate to="/activity/history" replace />} />
+            <Route
+              path="/history"
+              element={<Navigate to="/activity/history" replace />}
+            />
             <Route path="/activity/metrics" element={<Activity />} />
 
             {/* Indexers */}
             <Route path="/indexers" element={<Indexers />} />
-            <Route path="/search" element={<Navigate to="/indexers" replace />} />
+            <Route
+              path="/search"
+              element={<Navigate to="/indexers" replace />}
+            />
 
             {/* Operational Visualizations */}
             <Route path="/peermap" element={<PeerMap />} />
@@ -586,11 +649,17 @@ export function App() {
             <Route path="/statistics" element={<Statistics />} />
 
             {/* Settings */}
-            <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
+            <Route
+              path="/settings"
+              element={<Navigate to="/settings/general" replace />}
+            />
             <Route path="/settings/:section" element={<Settings />} />
 
             {/* System Diagnostics & Maintenance */}
-            <Route path="/system" element={<Navigate to="/system/status" replace />} />
+            <Route
+              path="/system"
+              element={<Navigate to="/system/status" replace />}
+            />
             <Route path="/system/status" element={<SystemStatus />} />
             <Route path="/system/tasks" element={<SystemTasks />} />
             <Route path="/system/backup" element={<SystemBackup />} />

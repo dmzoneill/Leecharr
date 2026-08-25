@@ -1577,7 +1577,9 @@ input[type="number"].form-input::-webkit-inner-spin-button {
   background-color: var(--bg-hover);
   border-radius: 22px;
   border: 1px solid var(--border);
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 
 .toggle-slider::before {
@@ -1589,7 +1591,9 @@ input[type="number"].form-input::-webkit-inner-spin-button {
   bottom: 2px;
   background-color: var(--text-secondary);
   border-radius: 50%;
-  transition: transform 0.2s, background-color 0.2s;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
 }
 
 .toggle-switch input:checked + .toggle-slider {

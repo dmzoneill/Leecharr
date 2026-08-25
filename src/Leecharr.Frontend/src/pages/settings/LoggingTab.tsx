@@ -36,7 +36,10 @@ export function LoggingTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -53,7 +56,7 @@ export function LoggingTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
@@ -71,7 +74,11 @@ export function LoggingTab() {
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading diagnostics settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading diagnostics settings...
+      </div>
+    );
   }
 
   return (
@@ -89,7 +96,13 @@ export function LoggingTab() {
         title="Logging & Diagnostic Verbosity"
         description="Configure rolling disk log file retention and diagnostic trace logging."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <Toggle
             label="Enable File Logging"
             checked={form.logToFile}
@@ -133,16 +146,44 @@ export function LoggingTab() {
         title="System Maintenance & Optimization"
         description="Perform on-demand database compaction and media cache cleanup."
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "1rem",
+          }}
+        >
           <div>
-            <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.95rem" }}>
+            <div
+              style={{
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                fontSize: "0.95rem",
+              }}
+            >
               SQLite Database Compaction (VACUUM)
             </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-              Rebuilds the SQLite database file to reclaim unused disk space and defragment database indices.
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-muted)",
+                marginTop: "0.2rem",
+              }}
+            >
+              Rebuilds the SQLite database file to reclaim unused disk space and
+              defragment database indices.
             </div>
             {vacuumMsg && (
-              <div style={{ fontSize: "0.85rem", color: "var(--success, #27ae60)", marginTop: "0.4rem", fontWeight: 600 }}>
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--success, #27ae60)",
+                  marginTop: "0.4rem",
+                  fontWeight: 600,
+                }}
+              >
                 {vacuumMsg}
               </div>
             )}

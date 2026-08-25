@@ -6,7 +6,11 @@ interface IconProps {
   style?: React.CSSProperties;
 }
 
-export const SparklesIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const SparklesIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -27,7 +31,11 @@ export const SparklesIcon: React.FC<IconProps> = ({ size = 16, className, style 
   </svg>
 );
 
-export const BotIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const BotIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -49,7 +57,11 @@ export const BotIcon: React.FC<IconProps> = ({ size = 16, className, style }) =>
   </svg>
 );
 
-export const UserIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const UserIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -67,7 +79,11 @@ export const UserIcon: React.FC<IconProps> = ({ size = 16, className, style }) =
   </svg>
 );
 
-export const SendIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const SendIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -85,7 +101,11 @@ export const SendIcon: React.FC<IconProps> = ({ size = 16, className, style }) =
   </svg>
 );
 
-export const ShieldCheckIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const ShieldCheckIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -103,7 +123,11 @@ export const ShieldCheckIcon: React.FC<IconProps> = ({ size = 16, className, sty
   </svg>
 );
 
-export const RefreshIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const RefreshIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -120,7 +144,11 @@ export const RefreshIcon: React.FC<IconProps> = ({ size = 16, className, style }
   </svg>
 );
 
-export const AlertIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const AlertIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -139,7 +167,11 @@ export const AlertIcon: React.FC<IconProps> = ({ size = 16, className, style }) 
   </svg>
 );
 
-export const CheckCircleIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const CheckCircleIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -157,7 +189,11 @@ export const CheckCircleIcon: React.FC<IconProps> = ({ size = 16, className, sty
   </svg>
 );
 
-export const ChevronDownIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const ChevronDownIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -174,7 +210,11 @@ export const ChevronDownIcon: React.FC<IconProps> = ({ size = 16, className, sty
   </svg>
 );
 
-export const ChevronUpIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const ChevronUpIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}
@@ -191,7 +231,11 @@ export const ChevronUpIcon: React.FC<IconProps> = ({ size = 16, className, style
   </svg>
 );
 
-export const CloseIcon: React.FC<IconProps> = ({ size = 16, className, style }) => (
+export const CloseIcon: React.FC<IconProps> = ({
+  size = 16,
+  className,
+  style,
+}) => (
   <svg
     width={size}
     height={size}

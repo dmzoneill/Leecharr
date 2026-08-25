@@ -59,32 +59,52 @@ export function ProtocolsSettingsTab() {
         extensionFastExtension: protoConfig?.extensionFastExtension ?? true,
         utpEnabled: protoConfig?.utpEnabled ?? true,
         tcpFallback: protoConfig?.tcpFallback ?? true,
-        transportConnectionTimeoutSeconds: protoConfig?.transportConnectionTimeoutSeconds ?? 30,
+        transportConnectionTimeoutSeconds:
+          protoConfig?.transportConnectionTimeoutSeconds ?? 30,
         handshakeTimeoutSeconds: peerConfig?.handshakeTimeoutSeconds ?? 30,
         messageReadTimeoutSeconds: peerConfig?.messageReadTimeoutSeconds ?? 60,
         keepAliveIntervalSeconds: peerConfig?.keepAliveIntervalSeconds ?? 120,
-        peerContactIntervalSeconds: peerConfig?.peerContactIntervalSeconds ?? 30,
+        peerContactIntervalSeconds:
+          peerConfig?.peerContactIntervalSeconds ?? 30,
         multiTrackerEnabled: protoConfig?.multiTrackerEnabled ?? true,
-        multiTrackerFailoverEnabled: protoConfig?.multiTrackerFailoverEnabled ?? true,
+        multiTrackerFailoverEnabled:
+          protoConfig?.multiTrackerFailoverEnabled ?? true,
         announceToAllTiers: protoConfig?.announceToAllTiers ?? true,
         announceToAllInTier: protoConfig?.announceToAllInTier ?? false,
-        failoverMaxConsecutiveFailures: protoConfig?.failoverMaxConsecutiveFailures ?? 3,
-        failoverBackoffBaseSeconds: protoConfig?.failoverBackoffBaseSeconds ?? 30,
-        failoverMaxBackoffSeconds: protoConfig?.failoverMaxBackoffSeconds ?? 1800,
+        failoverMaxConsecutiveFailures:
+          protoConfig?.failoverMaxConsecutiveFailures ?? 3,
+        failoverBackoffBaseSeconds:
+          protoConfig?.failoverBackoffBaseSeconds ?? 30,
+        failoverMaxBackoffSeconds:
+          protoConfig?.failoverMaxBackoffSeconds ?? 1800,
       });
       setDirty(false);
     }
   }, [btConfig, protoConfig, peerConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
-  const isPending = saveBtMutation.isPending || saveProtoMutation.isPending || savePeerMutation.isPending;
-  const isError = saveBtMutation.isError || saveProtoMutation.isError || savePeerMutation.isError;
-  const isSuccess = saveBtMutation.isSuccess && saveProtoMutation.isSuccess && savePeerMutation.isSuccess;
-  const error = (saveBtMutation.error || saveProtoMutation.error || savePeerMutation.error) as Error | null;
+  const isPending =
+    saveBtMutation.isPending ||
+    saveProtoMutation.isPending ||
+    savePeerMutation.isPending;
+  const isError =
+    saveBtMutation.isError ||
+    saveProtoMutation.isError ||
+    savePeerMutation.isError;
+  const isSuccess =
+    saveBtMutation.isSuccess &&
+    saveProtoMutation.isSuccess &&
+    savePeerMutation.isSuccess;
+  const error = (saveBtMutation.error ||
+    saveProtoMutation.error ||
+    savePeerMutation.error) as Error | null;
 
   const handleSave = () => {
     if (btConfig) {
@@ -102,7 +122,8 @@ export function ProtocolsSettingsTab() {
         extensionFastExtension: form.extensionFastExtension,
         utpEnabled: form.utpEnabled,
         tcpFallback: form.tcpFallback,
-        transportConnectionTimeoutSeconds: form.transportConnectionTimeoutSeconds,
+        transportConnectionTimeoutSeconds:
+          form.transportConnectionTimeoutSeconds,
         multiTrackerEnabled: form.multiTrackerEnabled,
         multiTrackerFailoverEnabled: form.multiTrackerFailoverEnabled,
         announceToAllTiers: form.announceToAllTiers,
@@ -125,7 +146,11 @@ export function ProtocolsSettingsTab() {
   };
 
   if (btLoading || protoLoading || peerLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading protocol settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading protocol settings...
+      </div>
+    );
   }
 
   return (
@@ -143,15 +168,30 @@ export function ProtocolsSettingsTab() {
         title="Protocol Encryption & Transport Standards"
         description="Configure BitTorrent Enhancement Proposals (BEPs), MSE/PE encryption, and uTP transport."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <SelectInput
             label="Protocol Encryption (MSE/PE)"
             value={form.encryptionMode}
             onChange={(v) => update("encryptionMode", v)}
             options={[
-              { value: "preferEncrypted", label: "Prefer Encryption (Compatible & Secure)" },
-              { value: "forceEncrypted", label: "Require Encryption (Strict, Drops Plaintext)" },
-              { value: "allowPlaintext", label: "Allow Plaintext & Encryption" },
+              {
+                value: "preferEncrypted",
+                label: "Prefer Encryption (Compatible & Secure)",
+              },
+              {
+                value: "forceEncrypted",
+                label: "Require Encryption (Strict, Drops Plaintext)",
+              },
+              {
+                value: "allowPlaintext",
+                label: "Allow Plaintext & Encryption",
+              },
               { value: "disabled", label: "Disable Encryption" },
             ]}
           />
@@ -167,11 +207,30 @@ export function ProtocolsSettingsTab() {
           />
         </div>
 
-        <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+        <div
+          style={{
+            marginTop: "1rem",
+            borderTop: "1px solid var(--border-light)",
+            paddingTop: "1rem",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: "0.75rem",
+            }}
+          >
             BitTorrent Enhancement Proposals (BEP Suite)
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "0.75rem",
+            }}
+          >
             <Toggle
               label="ut_metadata (BEP 9)"
               checked={form.extensionUtMetadata}
@@ -216,7 +275,13 @@ export function ProtocolsSettingsTab() {
         title="Protocol Timeouts & Keepalive Cadence"
         description="Fine-tune network socket read/write deadlines and keepalive intervals."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Handshake Timeout"
             value={form.handshakeTimeoutSeconds}
@@ -263,7 +328,13 @@ export function ProtocolsSettingsTab() {
         title="Multi-Tracker Tier Policies & Failover"
         description="Configure announcement behavior across tiered tracker lists (BEP 12)."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <Toggle
             label="Enable Multi-Tracker Management (BEP 12)"
             checked={form.multiTrackerEnabled}

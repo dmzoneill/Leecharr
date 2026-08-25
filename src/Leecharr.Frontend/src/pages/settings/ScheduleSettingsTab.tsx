@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSchedulerConfig, useSaveSchedulerConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, Toggle } from "./shared";
 
 export function ScheduleSettingsTab() {
   const { data: config, isLoading } = useSchedulerConfig();
@@ -48,7 +43,10 @@ export function ScheduleSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -73,12 +71,16 @@ export function ScheduleSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading scheduler settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading scheduler settings...
+      </div>
+    );
   }
 
   const days = [
@@ -114,7 +116,13 @@ export function ScheduleSettingsTab() {
             hint="Switches between normal speed and throttled alternative speed according to schedule"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <NumberInput
               label="Schedule Window Start Hour"
               value={form.schedulerStartHour}
@@ -156,11 +164,29 @@ export function ScheduleSettingsTab() {
             />
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.75rem",
+              }}
+            >
               Active Days of the Week
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: "0.75rem",
+              }}
+            >
               {days.map(({ key, label }) => (
                 <Toggle
                   key={key}

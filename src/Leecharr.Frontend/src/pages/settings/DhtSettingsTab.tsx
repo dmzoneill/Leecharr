@@ -5,13 +5,7 @@ import {
   useProtocolsConfig,
   useSaveProtocolsConfig,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function DhtSettingsTab() {
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
@@ -22,7 +16,8 @@ export function DhtSettingsTab() {
 
   const [form, setForm] = useState({
     enableDht: true,
-    dhtBootstrapNodes: "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881",
+    dhtBootstrapNodes:
+      "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881",
     dhtRoutingTableSize: 200,
     dhtAnnouncementInterval: 1800,
     dhtBootstrapTimeout: 30,
@@ -46,7 +41,9 @@ export function DhtSettingsTab() {
     if (btConfig || protoConfig) {
       setForm({
         enableDht: btConfig?.enableDht ?? true,
-        dhtBootstrapNodes: btConfig?.dhtBootstrapNodes || "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881",
+        dhtBootstrapNodes:
+          btConfig?.dhtBootstrapNodes ||
+          "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881",
         dhtRoutingTableSize: protoConfig?.dhtRoutingTableSize ?? 200,
         dhtAnnouncementInterval: protoConfig?.dhtAnnouncementInterval ?? 1800,
         dhtBootstrapTimeout: protoConfig?.dhtBootstrapTimeout ?? 30,
@@ -67,7 +64,10 @@ export function DhtSettingsTab() {
     }
   }, [btConfig, protoConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -75,7 +75,8 @@ export function DhtSettingsTab() {
   const isPending = saveBtMutation.isPending || saveProtoMutation.isPending;
   const isError = saveBtMutation.isError || saveProtoMutation.isError;
   const isSuccess = saveBtMutation.isSuccess && saveProtoMutation.isSuccess;
-  const error = (saveBtMutation.error || saveProtoMutation.error) as Error | null;
+  const error = (saveBtMutation.error ||
+    saveProtoMutation.error) as Error | null;
 
   const handleSave = () => {
     if (btConfig) {
@@ -109,7 +110,11 @@ export function DhtSettingsTab() {
   };
 
   if (btLoading || protoLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading DHT discovery settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading DHT discovery settings...
+      </div>
+    );
   }
 
   return (
@@ -143,7 +148,13 @@ export function DhtSettingsTab() {
             hint="Comma-separated bootstrap routers used on startup"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <NumberInput
               label="Routing Table Size (K-Buckets)"
               value={form.dhtRoutingTableSize}
@@ -181,8 +192,19 @@ export function DhtSettingsTab() {
             />
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               <Toggle
                 label="Rate-Limit Inbound DHT Queries"
                 checked={form.dhtRateLimitEnabled}
@@ -209,7 +231,13 @@ export function DhtSettingsTab() {
         title="Peer Exchange (PEX) & Local Discovery (LPD)"
         description="Exchange connected peer lists and discover peers on local LAN subnets."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <div>
             <Toggle
               label="Enable Peer Exchange (PEX, BEP 11)"
@@ -217,7 +245,14 @@ export function DhtSettingsTab() {
               onChange={(v) => update("enablePex", v)}
               hint="Exchanges known peer IP addresses directly with connected swarm peers"
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem",
+                marginTop: "0.5rem",
+              }}
+            >
               <NumberInput
                 label="PEX Broadcast Cadence"
                 value={form.pexInterval}

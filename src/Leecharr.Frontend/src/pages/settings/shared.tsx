@@ -397,7 +397,15 @@ export function Toggle({
   const displayHint = hint || helpText;
   return (
     <div className="form-group form-group-toggle">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", width: "100%" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          width: "100%",
+        }}
+      >
         <span
           className="form-label"
           style={{
@@ -419,7 +427,11 @@ export function Toggle({
           <span className="toggle-slider" />
         </label>
       </div>
-      {displayHint && <span className="form-hint" style={{ marginTop: "0.15rem" }}>{displayHint}</span>}
+      {displayHint && (
+        <span className="form-hint" style={{ marginTop: "0.15rem" }}>
+          {displayHint}
+        </span>
+      )}
     </div>
   );
 }

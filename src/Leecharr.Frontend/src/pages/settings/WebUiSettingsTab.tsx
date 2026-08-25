@@ -41,7 +41,9 @@ export function WebUiSettingsTab() {
   const [notifForm, setNotifForm] = useState<NotificationSettings>(() => {
     try {
       const stored = localStorage.getItem(NOTIFICATION_SETTINGS_KEY);
-      return stored ? { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(stored) } : DEFAULT_NOTIFICATION_SETTINGS;
+      return stored
+        ? { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(stored) }
+        : DEFAULT_NOTIFICATION_SETTINGS;
     } catch {
       return DEFAULT_NOTIFICATION_SETTINGS;
     }
@@ -59,12 +61,18 @@ export function WebUiSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
-  const updateNotif = <K extends keyof NotificationSettings>(key: K, val: NotificationSettings[K]) => {
+  const updateNotif = <K extends keyof NotificationSettings>(
+    key: K,
+    val: NotificationSettings[K],
+  ) => {
     setNotifForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -72,7 +80,10 @@ export function WebUiSettingsTab() {
   const handleSave = () => {
     if (!config) return;
     try {
-      localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(notifForm));
+      localStorage.setItem(
+        NOTIFICATION_SETTINGS_KEY,
+        JSON.stringify(notifForm),
+      );
     } catch (e) {
       console.error("Failed to save toast settings", e);
     }
@@ -85,12 +96,16 @@ export function WebUiSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading appearance settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading appearance settings...
+      </div>
+    );
   }
 
   return (
@@ -108,7 +123,13 @@ export function WebUiSettingsTab() {
         title="Visual Theme & Color Palette"
         description="Customize dark surfaces, contrast, and interactive brand accent colors."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <SelectInput
             label="Theme Surface Style"
             value={form.themeStyle}
@@ -148,7 +169,13 @@ export function WebUiSettingsTab() {
             hint="Display floating toast notifications for download completions and system events"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <SelectInput
               label="Screen Docking Position"
               value={notifForm.position}
@@ -175,11 +202,29 @@ export function WebUiSettingsTab() {
             />
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.75rem",
+              }}
+            >
               Filter Visible Notification Categories
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "0.75rem",
+              }}
+            >
               <Toggle
                 label="Info Alerts"
                 checked={notifForm.showInfo}
