@@ -5,12 +5,7 @@ import {
   useSeedingConfig,
   useSaveSeedingConfig,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, Toggle } from "./shared";
 
 export function QueueSettingsTab() {
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
@@ -44,7 +39,10 @@ export function QueueSettingsTab() {
     }
   }, [btConfig, seedConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -52,7 +50,8 @@ export function QueueSettingsTab() {
   const isPending = saveBtMutation.isPending || saveSeedMutation.isPending;
   const isError = saveBtMutation.isError || saveSeedMutation.isError;
   const isSuccess = saveBtMutation.isSuccess && saveSeedMutation.isSuccess;
-  const error = (saveBtMutation.error || saveSeedMutation.error) as Error | null;
+  const error = (saveBtMutation.error ||
+    saveSeedMutation.error) as Error | null;
 
   const handleSave = () => {
     if (btConfig) {
@@ -75,7 +74,11 @@ export function QueueSettingsTab() {
   };
 
   if (btLoading || seedLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading queue parameters...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading queue parameters...
+      </div>
+    );
   }
 
   return (
@@ -93,7 +96,13 @@ export function QueueSettingsTab() {
         title="Active Queue Concurrency Limits"
         description="Limit the number of simultaneous active downloading and seeding swarms."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Maximum Active Downloads"
             value={form.downloadQueueSize}
@@ -126,7 +135,13 @@ export function QueueSettingsTab() {
             hint="If a transfer is stalled at 0 KB/s, promote the next queued torrent automatically"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <NumberInput
               label="Stalled Inactivity Timeout"
               value={form.queueStalledMinutes}
@@ -155,7 +170,13 @@ export function QueueSettingsTab() {
         title="Global Share Ratio & Seeding Goals"
         description="Configure target share ratio goals before automatically pausing or stopping seeds."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Global Share Ratio Target"
             value={form.globalSeedRatioLimit}

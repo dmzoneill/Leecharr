@@ -51,7 +51,11 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           boxShadow: "none",
         }}
       >
-        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
+        <div
+          style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}
+        >
+          📁
+        </div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",

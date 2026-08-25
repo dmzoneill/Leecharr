@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { SparklesIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon } from "./icons/AiIcons";
+import {
+  SparklesIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CheckCircleIcon,
+} from "./icons/AiIcons";
 import { IndexerSearchResult, AiSearchParameters } from "../api/types";
 import { api } from "../api/client";
 import { useAiNaturalSearch } from "../api/hooks";
@@ -28,7 +33,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   const naturalSearchMutation = useAiNaturalSearch();
 
   useEffect(() => {
-    localStorage.setItem("leecharr_ai_search_expanded", isAiExpanded ? "true" : "false");
+    localStorage.setItem(
+      "leecharr_ai_search_expanded",
+      isAiExpanded ? "true" : "false",
+    );
   }, [isAiExpanded]);
 
   const handleAiNaturalParse = (e?: React.FormEvent) => {
@@ -41,13 +49,14 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         onSuccess: (params) => {
           setAiParams(params);
         },
-      }
+      },
     );
   };
 
   const handleApplyAiParams = () => {
     if (!aiParams) return;
-    const cleanSearch = aiParams.cleanTitle || aiParams.cleanQuery || naturalQuery;
+    const cleanSearch =
+      aiParams.cleanTitle || aiParams.cleanQuery || naturalQuery;
     setQuery(cleanSearch);
     if (aiParams.freeleechOnly) {
       setFreeleechOnly(true);
@@ -55,7 +64,11 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     executeSearch(cleanSearch, aiParams.freeleechOnly, aiParams.minSeeders);
   };
 
-  const executeSearch = async (searchTerm: string, freeleech: boolean, minSeeds = 0) => {
+  const executeSearch = async (
+    searchTerm: string,
+    freeleech: boolean,
+    minSeeds = 0,
+  ) => {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
@@ -107,7 +120,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         },
       ];
 
-      const filtered = minSeeds > 0 ? mockResults.filter((r) => r.seeders >= minSeeds) : mockResults;
+      const filtered =
+        minSeeds > 0
+          ? mockResults.filter((r) => r.seeders >= minSeeds)
+          : mockResults;
       setResults(filtered);
     } catch (err) {
       console.error("Search failed:", err);
@@ -158,7 +174,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       >
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <SparklesIcon size={18} style={{ color: "var(--accent-gold, #FFD166)" }} />
+            <SparklesIcon
+              size={18}
+              style={{ color: "var(--accent-gold, #FFD166)" }}
+            />
             <h3>Indexer Discovery & Search</h3>
           </div>
           <button className="btn-close" onClick={onClose}>
@@ -166,7 +185,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           </button>
         </div>
 
-        <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div
+          className="modal-body"
+          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        >
           {/* Collapsible Discrete AI Smart Search Accordion */}
           <div
             style={{
@@ -193,8 +215,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 fontWeight: 600,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <SparklesIcon size={14} style={{ color: "var(--accent-gold, #FFD166)" }} />
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+              >
+                <SparklesIcon
+                  size={14}
+                  style={{ color: "var(--accent-gold, #FFD166)" }}
+                />
                 <span>AI Smart Search & Natural Language Filter</span>
                 <span
                   style={{
@@ -209,11 +236,22 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   AI
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "var(--text-muted, #C7C5D3)" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  color: "var(--text-muted, #C7C5D3)",
+                }}
+              >
                 <span style={{ fontSize: "0.7rem", fontWeight: 400 }}>
                   {isAiExpanded ? "Collapse" : "Expand"}
                 </span>
-                {isAiExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+                {isAiExpanded ? (
+                  <ChevronUpIcon size={14} />
+                ) : (
+                  <ChevronDownIcon size={14} />
+                )}
               </div>
             </button>
 
@@ -228,15 +266,29 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   gap: "0.6rem",
                 }}
               >
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.75rem",
+                    color: "var(--text-muted, #C7C5D3)",
+                  }}
+                >
                   Describe what you want in natural language (e.g.{" "}
                   <em style={{ color: "var(--accent-gold, #FFD166)" }}>
-                    "Find Dune Part 2 in 4k bluray freeleech with at least 20 seeders"
+                    "Find Dune Part 2 in 4k bluray freeleech with at least 20
+                    seeders"
                   </em>
-                  ). AI extracts resolution, codec, category, and seeder threshold.
+                  ). AI extracts resolution, codec, category, and seeder
+                  threshold.
                 </p>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
                   <input
                     type="text"
                     value={naturalQuery}
@@ -259,7 +311,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleAiNaturalParse()}
-                    disabled={!naturalQuery.trim() || naturalSearchMutation.isPending}
+                    disabled={
+                      !naturalQuery.trim() || naturalSearchMutation.isPending
+                    }
                     style={{
                       padding: "0.4rem 0.75rem",
                       backgroundColor: "#23284B",
@@ -272,11 +326,18 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       display: "flex",
                       alignItems: "center",
                       gap: "0.3rem",
-                      opacity: !naturalQuery.trim() || naturalSearchMutation.isPending ? 0.5 : 1,
+                      opacity:
+                        !naturalQuery.trim() || naturalSearchMutation.isPending
+                          ? 0.5
+                          : 1,
                     }}
                   >
                     <SparklesIcon size={13} />
-                    <span>{naturalSearchMutation.isPending ? "Parsing..." : "Extract Intent"}</span>
+                    <span>
+                      {naturalSearchMutation.isPending
+                        ? "Parsing..."
+                        : "Extract Intent"}
+                    </span>
                   </button>
                 </div>
 
@@ -293,10 +354,29 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       gap: "0.5rem",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary, #F8F4ED)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                        <CheckCircleIcon size={14} style={{ color: "#34d399" }} />
-                        Extracted Filters (Confidence: {Math.round(aiParams.confidenceScore * 100)}%):
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "var(--text-primary, #F8F4ED)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                        }}
+                      >
+                        <CheckCircleIcon
+                          size={14}
+                          style={{ color: "#34d399" }}
+                        />
+                        Extracted Filters (Confidence:{" "}
+                        {Math.round(aiParams.confidenceScore * 100)}%):
                       </span>
                       <button
                         type="button"
@@ -316,34 +396,95 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       </button>
                     </div>
 
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.3rem",
+                      }}
+                    >
                       {aiParams.cleanTitle && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#F8F4ED", fontFamily: "monospace" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "#23284B",
+                            color: "#F8F4ED",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           Title: <strong>{aiParams.cleanTitle}</strong>
                         </span>
                       )}
                       {aiParams.category && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#FFD166", fontFamily: "monospace" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "#23284B",
+                            color: "#FFD166",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           Category: <strong>{aiParams.category}</strong>
                         </span>
                       )}
                       {aiParams.resolution && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#7dd3fc", fontFamily: "monospace" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "#23284B",
+                            color: "#7dd3fc",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           Res: <strong>{aiParams.resolution}</strong>
                         </span>
                       )}
                       {aiParams.quality && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "#23284B", color: "#d8b4fe", fontFamily: "monospace" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "#23284B",
+                            color: "#d8b4fe",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           Quality: <strong>{aiParams.quality}</strong>
                         </span>
                       )}
                       {aiParams.minSeeders > 0 && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "rgba(52, 211, 153, 0.2)", color: "#6ee7b7", fontFamily: "monospace" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "rgba(52, 211, 153, 0.2)",
+                            color: "#6ee7b7",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           Seeds: &ge;<strong>{aiParams.minSeeders}</strong>
                         </span>
                       )}
                       {aiParams.freeleechOnly && (
-                        <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: "rgba(245, 158, 11, 0.2)", color: "#fcd34d", fontFamily: "monospace", fontWeight: 700 }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "4px",
+                            backgroundColor: "rgba(245, 158, 11, 0.2)",
+                            color: "#fcd34d",
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                          }}
+                        >
                           Freeleech Only
                         </span>
                       )}

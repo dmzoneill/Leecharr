@@ -12,7 +12,13 @@ import type {
 import { SectionCard } from "./shared";
 
 export function SubsystemsTab() {
-  const { data: subsystems, isLoading, isError, error, refetch } = useSubsystems();
+  const {
+    data: subsystems,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useSubsystems();
   const switchSubsystem = useSwitchSubsystem();
   const probeProvider = useProbeSubsystemProvider();
 
@@ -21,10 +27,13 @@ export function SubsystemsTab() {
     provider: SubsystemProvider;
   } | null>(null);
 
-  const [probeResult, setProbeResult] = useState<SubsystemProbeResult | null>(null);
+  const [probeResult, setProbeResult] = useState<SubsystemProbeResult | null>(
+    null,
+  );
   const [probeLoadingKey, setProbeLoadingKey] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
+  const [activeCategoryFilter, setActiveCategoryFilter] =
+    useState<string>("all");
 
   const handleProbe = async (subsystemId: string, providerId: string) => {
     const key = `${subsystemId}:${providerId}`;
@@ -50,7 +59,7 @@ export function SubsystemsTab() {
       if (res.success) {
         setSuccessMessage(
           res.message ||
-            `Successfully switched ${selectedForSwitch.subsystem.name} provider to ${selectedForSwitch.provider.displayName}.`
+            `Successfully switched ${selectedForSwitch.subsystem.name} provider to ${selectedForSwitch.provider.displayName}.`,
         );
         setSelectedForSwitch(null);
         setTimeout(() => setSuccessMessage(null), 6000);
@@ -123,7 +132,8 @@ export function SubsystemsTab() {
               fontSize: "0.9rem",
             }}
           >
-            Switch underlying engines, inspectors, geolocation resolvers, and security layers at runtime with zero downtime.
+            Switch underlying engines, inspectors, geolocation resolvers, and
+            security layers at runtime with zero downtime.
           </p>
         </div>
 
@@ -291,7 +301,8 @@ export function SubsystemsTab() {
                         marginBottom: "0.5rem",
                       }}
                     >
-                      v{provider.version} &bull; ID: <code>{provider.providerId}</code>
+                      v{provider.version} &bull; ID:{" "}
+                      <code>{provider.providerId}</code>
                     </div>
 
                     <p
@@ -316,28 +327,31 @@ export function SubsystemsTab() {
                             marginBottom: "0.75rem",
                           }}
                         >
-                          {Object.entries(provider.capabilities).map(([k, v]) => {
-                            if (typeof v === "boolean" && !v) return null;
-                            const label = k
-                              .replace(/^supports/, "")
-                              .replace(/([A-Z])/g, " $1")
-                              .trim();
+                          {Object.entries(provider.capabilities).map(
+                            ([k, v]) => {
+                              if (typeof v === "boolean" && !v) return null;
+                              const label = k
+                                .replace(/^supports/, "")
+                                .replace(/([A-Z])/g, " $1")
+                                .trim();
 
-                            return (
-                              <span
-                                key={k}
-                                style={{
-                                  backgroundColor: "var(--bg-card-hover, #23284b)",
-                                  color: "var(--text-secondary, #c7c5d3)",
-                                  padding: "0.15rem 0.45rem",
-                                  borderRadius: "3px",
-                                  fontSize: "0.7rem",
-                                }}
-                              >
-                                {label}
-                              </span>
-                            );
-                          })}
+                              return (
+                                <span
+                                  key={k}
+                                  style={{
+                                    backgroundColor:
+                                      "var(--bg-card-hover, #23284b)",
+                                    color: "var(--text-secondary, #c7c5d3)",
+                                    padding: "0.15rem 0.45rem",
+                                    borderRadius: "3px",
+                                    fontSize: "0.7rem",
+                                  }}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            },
+                          )}
                         </div>
                       )}
                   </div>
@@ -354,7 +368,9 @@ export function SubsystemsTab() {
                     <button
                       type="button"
                       disabled={isProbing}
-                      onClick={() => handleProbe(subsystem.id, provider.providerId)}
+                      onClick={() =>
+                        handleProbe(subsystem.id, provider.providerId)
+                      }
                       style={{
                         flex: 1,
                         padding: "0.4rem 0.6rem",
@@ -372,7 +388,9 @@ export function SubsystemsTab() {
                     {!provider.isActive && (
                       <button
                         type="button"
-                        onClick={() => setSelectedForSwitch({ subsystem, provider })}
+                        onClick={() =>
+                          setSelectedForSwitch({ subsystem, provider })
+                        }
                         style={{
                           flex: 1,
                           padding: "0.4rem 0.6rem",
@@ -431,7 +449,12 @@ export function SubsystemsTab() {
               Hot-Swap Subsystem Provider
             </h3>
 
-            <p style={{ color: "var(--text-secondary, #c7c5d3)", fontSize: "0.9rem" }}>
+            <p
+              style={{
+                color: "var(--text-secondary, #c7c5d3)",
+                fontSize: "0.9rem",
+              }}
+            >
               Are you sure you want to switch{" "}
               <strong>{selectedForSwitch.subsystem.name}</strong> to{" "}
               <strong style={{ color: "var(--accent-gold, #ffd166)" }}>
@@ -450,7 +473,9 @@ export function SubsystemsTab() {
                 border: "1px solid var(--border-color, #23284b)",
               }}
             >
-              ℹ️ Provider switching executes atomically with zero application restart. Active workloads will seamlessly migrate to the new provider.
+              ℹ️ Provider switching executes atomically with zero application
+              restart. Active workloads will seamlessly migrate to the new
+              provider.
             </p>
 
             <div
@@ -489,7 +514,9 @@ export function SubsystemsTab() {
                   cursor: "pointer",
                 }}
               >
-                {switchSubsystem.isPending ? "Switching..." : "Confirm Hot-Swap"}
+                {switchSubsystem.isPending
+                  ? "Switching..."
+                  : "Confirm Hot-Swap"}
               </button>
             </div>
           </div>
@@ -535,7 +562,9 @@ export function SubsystemsTab() {
               </h3>
               <span
                 style={{
-                  backgroundColor: probeResult.isHealthy ? "#27ae60" : "#e74c3c",
+                  backgroundColor: probeResult.isHealthy
+                    ? "#27ae60"
+                    : "#e74c3c",
                   color: "#ffffff",
                   padding: "0.2rem 0.5rem",
                   borderRadius: "4px",
@@ -543,11 +572,18 @@ export function SubsystemsTab() {
                   fontWeight: 700,
                 }}
               >
-                {probeResult.isHealthy ? "HEALTHY / READY" : "WARNING / UNHEALTHY"}
+                {probeResult.isHealthy
+                  ? "HEALTHY / READY"
+                  : "WARNING / UNHEALTHY"}
               </span>
             </div>
 
-            <p style={{ color: "var(--text-secondary, #c7c5d3)", fontSize: "0.9rem" }}>
+            <p
+              style={{
+                color: "var(--text-secondary, #c7c5d3)",
+                fontSize: "0.9rem",
+              }}
+            >
               <strong>Status:</strong> {probeResult.statusMessage}
             </p>
 

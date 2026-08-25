@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function WatchFolderSettingsTab() {
   const { data: config, isLoading } = useGeneralConfig();
@@ -27,15 +21,21 @@ export function WatchFolderSettingsTab() {
       setForm({
         watchFolderEnabled: config.watchFolderEnabled ?? false,
         watchFolderPath: config.watchFolderPath || "/downloads/watch",
-        watchFolderScanIntervalSeconds: config.watchFolderScanIntervalSeconds ?? 10,
-        watchFolderAutoStartTorrents: config.watchFolderAutoStartTorrents ?? true,
-        watchFolderDeleteAddedTorrents: config.watchFolderDeleteAddedTorrents ?? false,
+        watchFolderScanIntervalSeconds:
+          config.watchFolderScanIntervalSeconds ?? 10,
+        watchFolderAutoStartTorrents:
+          config.watchFolderAutoStartTorrents ?? true,
+        watchFolderDeleteAddedTorrents:
+          config.watchFolderDeleteAddedTorrents ?? false,
       });
       setDirty(false);
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -53,12 +53,16 @@ export function WatchFolderSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading watch folder settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading watch folder settings...
+      </div>
+    );
   }
 
   return (
@@ -103,8 +107,19 @@ export function WatchFolderSettingsTab() {
             hint="Interval between directory scans"
           />
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               <Toggle
                 label="Auto-Start Ingested Torrents"
                 checked={form.watchFolderAutoStartTorrents}

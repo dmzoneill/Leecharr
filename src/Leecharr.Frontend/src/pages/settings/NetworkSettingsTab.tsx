@@ -4,13 +4,7 @@ import {
   useSaveNetworkConfig,
   useNetworkStatus,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function NetworkSettingsTab() {
   const { data: config, isLoading } = useNetworkConfig();
@@ -50,7 +44,10 @@ export function NetworkSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -73,12 +70,16 @@ export function NetworkSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading network settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading network settings...
+      </div>
+    );
   }
 
   return (
@@ -93,15 +94,49 @@ export function NetworkSettingsTab() {
       />
 
       {netStatus && (
-        <div className="card" style={{ padding: "1rem", borderRadius: "8px", border: "1px solid var(--border)", marginBottom: "1.25rem", backgroundColor: "var(--bg-secondary)" }}>
-          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.5rem" }}>
+        <div
+          className="card"
+          style={{
+            padding: "1rem",
+            borderRadius: "8px",
+            border: "1px solid var(--border)",
+            marginBottom: "1.25rem",
+            backgroundColor: "var(--bg-secondary)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: "0.5rem",
+            }}
+          >
             Live Network Interface Status
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.75rem", fontSize: "0.82rem" }}>
-            <div>Local IP: <strong>{netStatus.localIp || "0.0.0.0"}</strong></div>
-            <div>Public IP: <strong>{netStatus.externalIp || "Not Detected"}</strong></div>
-            <div>UPnP Active: <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong></div>
-            <div>Active Port Mappings: <strong>{netStatus.portMappings?.length ?? 0}</strong></div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "0.75rem",
+              fontSize: "0.82rem",
+            }}
+          >
+            <div>
+              Local IP: <strong>{netStatus.localIp || "0.0.0.0"}</strong>
+            </div>
+            <div>
+              Public IP:{" "}
+              <strong>{netStatus.externalIp || "Not Detected"}</strong>
+            </div>
+            <div>
+              UPnP Active:{" "}
+              <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
+            </div>
+            <div>
+              Active Port Mappings:{" "}
+              <strong>{netStatus.portMappings?.length ?? 0}</strong>
+            </div>
           </div>
         </div>
       )}
@@ -110,7 +145,13 @@ export function NetworkSettingsTab() {
         title="Incoming Peer Listening Ports & UPnP"
         description="Configure listening ports for inbound BitTorrent peer connections."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="BitTorrent Listening Port"
             value={form.listeningPort}
@@ -156,7 +197,13 @@ export function NetworkSettingsTab() {
         title="Socket Connection Limits & Packet QoS"
         description="Tune active socket pools, half-open connection queues, and IP DSCP priority flags."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Maximum Global Connections"
             value={form.maxGlobalConnections}

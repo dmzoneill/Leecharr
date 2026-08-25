@@ -1384,10 +1384,14 @@ export function useSwitchSubsystem() {
   const queryClient = useQueryClient();
   return useMutation<SwitchSubsystemResult, Error, SwitchSubsystemRequest>({
     mutationFn: (req: SwitchSubsystemRequest) =>
-      apiClient.post(`/subsystems/${req.subsystemId}/switch`, { providerId: req.providerId }),
+      apiClient.post(`/subsystems/${req.subsystemId}/switch`, {
+        providerId: req.providerId,
+      }),
     onSuccess: (_, req) => {
       queryClient.invalidateQueries({ queryKey: ["subsystems"] });
-      queryClient.invalidateQueries({ queryKey: ["subsystems", req.subsystemId] });
+      queryClient.invalidateQueries({
+        queryKey: ["subsystems", req.subsystemId],
+      });
       queryClient.invalidateQueries({ queryKey: ["config"] });
       if (req.subsystemId === "bittorrent") {
         queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
@@ -1398,9 +1402,16 @@ export function useSwitchSubsystem() {
 }
 
 export function useProbeSubsystemProvider() {
-  return useMutation<SubsystemProbeResult, Error, { subsystemId: string; providerId: string }>({
+  return useMutation<
+    SubsystemProbeResult,
+    Error,
+    { subsystemId: string; providerId: string }
+  >({
     mutationFn: (vars) =>
-      apiClient.post(`/subsystems/${vars.subsystemId}/probe/${vars.providerId}`, {}),
+      apiClient.post(
+        `/subsystems/${vars.subsystemId}/probe/${vars.providerId}`,
+        {},
+      ),
   });
 }
 
@@ -1430,7 +1441,8 @@ export function useAiNaturalSearch() {
 
 export function useAiDiagnoseTorrent() {
   return useMutation<AiDiagnosticReport, Error, number>({
-    mutationFn: (torrentId: number) => apiClient.post(`/ai/diagnose/${torrentId}`, {}),
+    mutationFn: (torrentId: number) =>
+      apiClient.post(`/ai/diagnose/${torrentId}`, {}),
   });
 }
 
@@ -1457,8 +1469,3 @@ export function useAiConfig() {
 export function useSaveAiConfig() {
   return useConfigMutation<AiConfig>("ai");
 }
-
-
-
-
-

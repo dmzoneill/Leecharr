@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function HostSettingsTab() {
   const { data: config, isLoading } = useGeneralConfig();
@@ -33,7 +27,10 @@ export function HostSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -50,12 +47,16 @@ export function HostSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading host parameters...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading host parameters...
+      </div>
+    );
   }
 
   return (
@@ -73,7 +74,13 @@ export function HostSettingsTab() {
         title="Web Server Runtime & Ports"
         description="Configure Kestrel HTTP web server hosting parameters and reverse proxy routing."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="HTTP Port"
             value={form.port}
@@ -98,7 +105,13 @@ export function HostSettingsTab() {
           />
         </div>
 
-        <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
+        <div
+          style={{
+            marginTop: "1rem",
+            borderTop: "1px solid var(--border-light)",
+            paddingTop: "1rem",
+          }}
+        >
           <Toggle
             label="Auto-Resume Torrents on Startup"
             checked={form.autoStart}

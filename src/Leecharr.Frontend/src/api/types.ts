@@ -404,7 +404,6 @@ export interface BitTorrentConfig {
   dhtBootstrapNodes?: string;
 }
 
-
 export interface PeerProtocolConfig {
   id: number;
   handshakeTimeoutSeconds: number;
