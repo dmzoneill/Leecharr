@@ -68,13 +68,13 @@ export const AiCopilotDrawer: React.FC = () => {
   const dragStartRef = useRef<{
     startX: number;
     startY: number;
-    initialX: number;
-    initialY: number;
+    origX: number;
+    origY: number;
   }>({
     startX: 0,
     startY: 0,
-    initialX: 0,
-    initialY: 0,
+    origX: 0,
+    origY: 0,
   });
   const hasMovedRef = useRef(false);
 
@@ -126,8 +126,8 @@ export const AiCopilotDrawer: React.FC = () => {
     dragStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      initialX: buttonPos ? buttonPos.x : btn.left,
-      initialY: buttonPos ? buttonPos.y : btn.top,
+      origX: buttonPos ? buttonPos.x : btn.left,
+      origY: buttonPos ? buttonPos.y : btn.top,
     };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -144,11 +144,11 @@ export const AiCopilotDrawer: React.FC = () => {
       hasMovedRef.current = true;
     }
     const newX = Math.min(
-      Math.max(10, dragStartRef.current.initialX + dx),
+      Math.max(10, dragStartRef.current.origX + dx),
       window.innerWidth - 180,
     );
     const newY = Math.min(
-      Math.max(10, dragStartRef.current.initialY + dy),
+      Math.max(10, dragStartRef.current.origY + dy),
       window.innerHeight - 50,
     );
     setButtonPos({ x: newX, y: newY });
