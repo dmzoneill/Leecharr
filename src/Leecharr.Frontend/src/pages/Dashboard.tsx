@@ -4,8 +4,11 @@ import {
   useArrConnections,
   useIndexers,
   useSchedulerConfig,
+  useDiskSpace,
+  useSeedingStats,
 } from "../api/hooks";
 import { extractTrackerDomain } from "../utils/formatters";
+import { calculateAchievements } from "../utils/milestones";
 import HealthAlerts from "../components/HealthAlerts";
 
 interface DashboardProps {
@@ -26,6 +29,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
   const { data: schedulerConfig } = useSchedulerConfig();
+  const { data: diskSpace } = useDiskSpace();
+  const { data: seedingStats } = useSeedingStats();
+
+  const achievements = calculateAchievements(torrents, seedingStats);
+  const totalSize = torrents.reduce((acc, t) => acc + (t.totalSize || 0), 0);
+  const totalLibrarySize = (diskSpace || []).reduce((acc, d) => acc + (d.totalSpace - d.freeSpace), 0) || totalSize;
 
   const totalDlSpeed = torrents.reduce(
     (acc, t) => acc + (t.downloadSpeed || 0),
@@ -35,7 +44,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     (acc, t) => acc + (t.uploadSpeed || 0),
     0,
   );
-  const totalSize = torrents.reduce((acc, t) => acc + (t.totalSize || 0), 0);
   const avgRatio =
     torrents.length > 0
       ? torrents.reduce((acc, t) => acc + t.ratio, 0) / torrents.length
@@ -185,7 +193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 fontSize: "1rem",
               }}
             >
-              Level 3: Swarm Leecher & Peer Accelerant{" "}
+              Level {achievements.overallLevel}: {achievements.rankTitle}{" "}
               <span
                 style={{
                   color: "var(--text-muted, #7e8092)",
@@ -193,7 +201,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   fontWeight: 500,
                 }}
               >
-                3/10 BADGES
+                {achievements.unlockedCount}/{achievements.totalCount} BADGES
               </span>
             </div>
             <div
@@ -203,8 +211,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginTop: "2px",
               }}
             >
-              🛡 Rarest-first piece picker active &bull; Non-blocking async disk
-              write cache running
+              🛡 {achievements.totalSwarmGuardians.length} Swarm Guardian{achievements.totalSwarmGuardians.length === 1 ? "" : "s"} protected &bull; Non-blocking async disk cache running
             </div>
           </div>
         </div>
@@ -338,7 +345,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: "var(--success, #22c55e)",
             }}
           >
-            {formatSize(totalSize * 1.4)}
+            {formatSize(totalLibrarySize)}
           </div>
           <div
             style={{
@@ -488,7 +495,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Downloading:{" "}
-              {torrents.filter((t) => t.status === "downloading").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "downloading",
+                ).length
+              }
             </div>
             <div
               style={{
@@ -499,7 +510,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Seeding:{" "}
-              {torrents.filter((t) => t.status === "seeding").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "seeding",
+                ).length
+              }
             </div>
             <div
               style={{
@@ -509,7 +524,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Paused:{" "}
-              {torrents.filter((t) => t.status === "paused").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "paused",
+                ).length
+              }
             </div>
           </div>
         </div>

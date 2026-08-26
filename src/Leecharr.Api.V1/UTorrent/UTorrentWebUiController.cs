@@ -20,6 +20,7 @@ public class UTorrentWebUiController : ControllerBase
 {
     private const string UtorrentToken = "LEECHARR_UTORRENT_AUTH_TOKEN";
     private readonly ITorrentService _torrentService;
+    private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly ICategoryService _categoryService;
     private readonly IConfigService _configService;
@@ -27,11 +28,13 @@ public class UTorrentWebUiController : ControllerBase
 
     public UTorrentWebUiController(
         ITorrentService torrentService,
+        ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService)
     {
         _torrentService = torrentService;
+        _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _categoryService = categoryService;
         _configService = configService;
@@ -55,10 +58,16 @@ public class UTorrentWebUiController : ControllerBase
         [FromQuery] string hash,
         [FromQuery] string s,
         [FromQuery] string v,
+        [FromQuery] string label,
+        [FromQuery] string path,
+        [FromQuery] string download_dir,
         [FromQuery] string token)
     {
         if (!string.IsNullOrWhiteSpace(action))
         {
+            var targetCategory = label ?? (Request.HasFormContentType ? Request.Form["label"].ToString() : null);
+            var targetDir = download_dir ?? path ?? (Request.HasFormContentType ? (Request.Form["download_dir"].ToString() ?? Request.Form["path"].ToString()) : null);
+
             switch (action.ToLowerInvariant())
             {
                 case "add-url":
@@ -66,14 +75,14 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         if (s.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
-                            await _torrentService.AddFromMagnetAsync(s, null, null, false);
+                            await _torrentService.AddFromMagnetAsync(s, targetCategory, targetDir, false);
                         }
                         else
                         {
                             using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                             var bytes = await client.GetByteArrayAsync(s);
                             var parsed = _torrentFileParser.Parse(bytes);
-                            await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                            await _torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                         }
                     }
 
@@ -87,7 +96,7 @@ public class UTorrentWebUiController : ControllerBase
                         await file.CopyToAsync(ms);
                         var bytes = ms.ToArray();
                         var parsed = _torrentFileParser.Parse(bytes);
-                        await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                        await _torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                     }
 
                     return BuildTorrentListResponse();
@@ -157,13 +166,134 @@ public class UTorrentWebUiController : ControllerBase
                     return BuildTorrentListResponse();
 
                 case "setprops":
-                    if (!string.IsNullOrWhiteSpace(hash) && string.Equals(s, "label", StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(hash))
                     {
                         var t = _torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            t.Category = v ?? string.Empty;
+                            if (string.Equals(s, "label", StringComparison.OrdinalIgnoreCase))
+                            {
+                                t.Category = v ?? string.Empty;
+                            }
+                            else if (string.Equals(s, "seed_ratio", StringComparison.OrdinalIgnoreCase) && double.TryParse(v, out var rVal))
+                            {
+                                t.TargetRatio = rVal / 1000.0;
+                            }
+                            else if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dlVal))
+                            {
+                                t.DownloadLimit = dlVal * 1024;
+                            }
+                            else if (string.Equals(s, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var ulVal))
+                            {
+                                t.UploadLimit = ulVal * 1024;
+                            }
+
                             await _torrentService.UpdateAsync(t);
+                        }
+                    }
+
+                    return BuildTorrentListResponse();
+
+                case "getprops":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            return Ok(new
+                            {
+                                build = 45000,
+                                props = new object[]
+                                {
+                                    new Dictionary<string, object>
+                                    {
+                                        { "hash", t.InfoHash.ToUpperInvariant() },
+                                        { "trackers", string.Empty },
+                                        { "ulrate", t.UploadLimit / 1024 },
+                                        { "dlrate", t.DownloadLimit / 1024 },
+                                        { "superseed", 0 },
+                                        { "dht", 1 },
+                                        { "pex", 1 },
+                                        { "seed_override", t.TargetRatio > 0 ? 1 : 0 },
+                                        { "seed_ratio", (int)(t.TargetRatio * 1000) },
+                                        { "seed_time", 0 },
+                                        { "ul_slots", 0 }
+                                    }
+                                }
+                            });
+                        }
+                    }
+
+                    return Ok(new { build = 45000, props = Array.Empty<object>() });
+
+                case "getfiles":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            var files = _torrentFileService.GetFiles(t.Id);
+                            var fileRows = files.Select(f => new object[]
+                            {
+                                f.Path,
+                                f.Size,
+                                (long)(f.Size * f.Progress),
+                                f.Priority
+                            }).ToList();
+
+                            return Ok(new
+                            {
+                                build = 45000,
+                                files = new object[] { t.InfoHash.ToUpperInvariant(), fileRows }
+                            });
+                        }
+                    }
+
+                    return Ok(new { build = 45000, files = Array.Empty<object>() });
+
+                case "queueup":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "up");
+                        }
+                    }
+
+                    return BuildTorrentListResponse();
+
+                case "queuedown":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "down");
+                        }
+                    }
+
+                    return BuildTorrentListResponse();
+
+                case "queuetop":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "top");
+                        }
+                    }
+
+                    return BuildTorrentListResponse();
+
+                case "queuebottom":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "bottom");
                         }
                     }
 
@@ -183,6 +313,32 @@ public class UTorrentWebUiController : ControllerBase
                     });
 
                 case "setsetting":
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        var dict = new Dictionary<string, object>();
+                        if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dl))
+                        {
+                            dict["MaxDownloadSpeedKbps"] = dl;
+                        }
+                        else if (string.Equals(s, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var ul))
+                        {
+                            dict["MaxUploadSpeedKbps"] = ul;
+                        }
+                        else if (string.Equals(s, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
+                        {
+                            dict["DownloadDir"] = v;
+                        }
+                        else if (string.Equals(s, "dir_active_download", StringComparison.OrdinalIgnoreCase))
+                        {
+                            dict["IncompleteDownloadDir"] = v;
+                        }
+
+                        if (dict.Count > 0)
+                        {
+                            _configService.SaveConfigDictionary(dict);
+                        }
+                    }
+
                     return Ok(new { build = 45000 });
             }
         }
@@ -197,18 +353,36 @@ public class UTorrentWebUiController : ControllerBase
 
         foreach (var t in torrents)
         {
-            var statusFlag = 201;
-            if (t.Status == TorrentStatus.Paused)
+            var isFinished = t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding;
+            var statusFlag = 1; // Loaded
+
+            if (t.Status == TorrentStatus.Downloading)
             {
-                statusFlag = 136;
+                statusFlag = 1 | 2 | 16 | 512; // 531: Loaded + Queued + Checked + Started
             }
-            else if (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
+            else if (t.Status == TorrentStatus.Seeding)
             {
-                statusFlag = 201;
+                statusFlag = 1 | 2 | 16 | 128 | 512; // 659: Loaded + Queued + Checked + Finished + Started
+            }
+            else if (t.Status == TorrentStatus.Paused)
+            {
+                statusFlag = 1 | 4 | 16 | (isFinished ? 128 : 0);
+            }
+            else if (t.Status == TorrentStatus.Stopped)
+            {
+                statusFlag = 1 | 16 | (isFinished ? 128 : 0);
+            }
+            else if (t.Status == TorrentStatus.Checking)
+            {
+                statusFlag = 1 | 64;
             }
             else if (t.Status == TorrentStatus.Error)
             {
-                statusFlag = 144;
+                statusFlag = 1 | 8 | 16;
+            }
+            else
+            {
+                statusFlag = 1 | 2 | 16 | (isFinished ? 128 : 0);
             }
 
             rows.Add(new object[]
@@ -223,7 +397,7 @@ public class UTorrentWebUiController : ControllerBase
                 (int)(t.Ratio * 1000),
                 t.UploadSpeed,
                 t.DownloadSpeed,
-                0,
+                t.Eta,
                 t.Category ?? string.Empty,
                 t.Leechers,
                 t.Leechers,
@@ -231,7 +405,7 @@ public class UTorrentWebUiController : ControllerBase
                 t.Seeders,
                 0,
                 0,
-                t.Downloaded,
+                Math.Max(0, t.TotalSize - t.Downloaded),
                 t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
             });
         }

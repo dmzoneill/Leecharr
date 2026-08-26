@@ -156,6 +156,16 @@ public class DelugeJsonRpcController : ControllerBase
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "label.remove":
+                    var labelToRemove = GetFirstStringParam(paramsElem);
+                    if (!string.IsNullOrEmpty(labelToRemove))
+                    {
+                        var cat = _categoryService.GetByName(labelToRemove);
+                        if (cat != null)
+                        {
+                            _categoryService.Delete(cat.Id);
+                        }
+                    }
+
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "label.get_options":
@@ -165,6 +175,21 @@ public class DelugeJsonRpcController : ControllerBase
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "label.set_torrent":
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+                    {
+                        var torrentHash = paramsElem[0].GetString();
+                        var labelName = paramsElem[1].GetString();
+                        if (!string.IsNullOrEmpty(torrentHash))
+                        {
+                            var torrent = _torrentService.GetByInfoHash(torrentHash);
+                            if (torrent != null)
+                            {
+                                torrent.Category = labelName;
+                                await _torrentService.UpdateAsync(torrent);
+                            }
+                        }
+                    }
+
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "core.get_enabled_plugins":
@@ -181,8 +206,26 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "web.update_ui":
                     var allTorrentsForUi = _torrentService.GetAll().ToList();
+                    var filteredTorrents = allTorrentsForUi;
+
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1)
+                    {
+                        var filterElem = paramsElem[1];
+                        if (filterElem.ValueKind == JsonValueKind.Object)
+                        {
+                            if (filterElem.TryGetProperty("label", out var labelProp) && labelProp.ValueKind == JsonValueKind.String)
+                            {
+                                var targetLabel = labelProp.GetString();
+                                if (!string.IsNullOrWhiteSpace(targetLabel) && !string.Equals(targetLabel, "All", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    filteredTorrents = filteredTorrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) || string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
+                                }
+                            }
+                        }
+                    }
+
                     var torrentDict = new Dictionary<string, Dictionary<string, object>>();
-                    foreach (var t in allTorrentsForUi)
+                    foreach (var t in filteredTorrents)
                     {
                         torrentDict[t.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(t);
                     }
@@ -212,7 +255,7 @@ public class DelugeJsonRpcController : ControllerBase
                                 num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
                                 upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
                                 download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
-                                free_space = 1099511627776L
+                                free_space = GetDriveFreeSpace(_configService.DownloadDir)
                             }
                         },
                         error = (object)null,
@@ -254,7 +297,8 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_free_space":
                 case "core.get_path_free_space":
-                    return Ok(new { result = 1099511627776L, error = (object)null, id });
+                    var targetPath = GetFirstStringParam(paramsElem) ?? _configService.DownloadDir ?? "/downloads";
+                    return Ok(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
@@ -492,6 +536,58 @@ public class DelugeJsonRpcController : ControllerBase
 
                     return Ok(new { result = true, error = (object)null, id });
 
+                case "core.queue_top":
+                    var topHashes = ExtractHashes(paramsElem);
+                    foreach (var hash in topHashes)
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "top");
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "core.queue_up":
+                    var upHashes = ExtractHashes(paramsElem);
+                    foreach (var hash in upHashes)
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "up");
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "core.queue_down":
+                    var downHashes = ExtractHashes(paramsElem);
+                    foreach (var hash in downHashes)
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "down");
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "core.queue_bottom":
+                    var bottomHashes = ExtractHashes(paramsElem);
+                    foreach (var hash in bottomHashes)
+                    {
+                        var t = _torrentService.GetByInfoHash(hash);
+                        if (t != null)
+                        {
+                            await _torrentService.MoveQueueAsync(t.Id, "bottom");
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
                 case "core.get_filter_tree":
                     var allTorrents = _torrentService.GetAll().ToList();
                     var stateCounts = new Dictionary<string, int>
@@ -642,7 +738,32 @@ public class DelugeJsonRpcController : ControllerBase
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
             { "all_time_download", t.Downloaded },
             { "active_time", (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds },
-            { "seeding_time", t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0 }
+            { "seeding_time", t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0 },
+            { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
+            { "is_auto_managed", true },
+            { "stop_at_ratio", t.TargetRatio > 0 },
+            { "remove_at_ratio", false },
+            { "stop_ratio", t.TargetRatio }
         };
+    }
+
+    private static long GetDriveFreeSpace(string path)
+    {
+        try
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var fullPath = global::System.IO.Path.GetFullPath(target);
+            var root = global::System.IO.Path.GetPathRoot(fullPath);
+            if (!string.IsNullOrEmpty(root))
+            {
+                var drive = new global::System.IO.DriveInfo(root);
+                return drive.AvailableFreeSpace;
+            }
+        }
+        catch
+        {
+        }
+
+        return 1099511627776L;
     }
 }

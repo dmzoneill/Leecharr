@@ -8,6 +8,7 @@ import {
   useTestDirectDownloadClient,
   useDownloadClientSync,
 } from "../../api/hooks";
+import { useToast } from "../../context/ToastContext";
 import type {
   DownloadClientDefinition,
   DownloadClientTestResult,
@@ -21,6 +22,7 @@ import {
 } from "./shared";
 
 export function DownloadClientsTab() {
+  const { showToast } = useToast();
   const { data: clients, isLoading } = useDownloadClients();
   const createMutation = useCreateDownloadClient();
   const updateMutation = useUpdateDownloadClient();
@@ -119,9 +121,12 @@ export function DownloadClientsTab() {
             onClick={() => {
               syncMutation.mutate(undefined, {
                 onSuccess: (res) =>
-                  alert(
-                    `Sync Complete.\nAdded: ${res.added}\nSkipped: ${res.skipped}\nFailed: ${res.failed}`,
+                  showToast(
+                    `Sync Complete: ${res.syncedCount || 0} torrents synchronized.`,
+                    "success",
                   ),
+                onError: (err: any) =>
+                  showToast(`Sync failed: ${err?.message || "Unknown error"}`, "error"),
               });
             }}
             disabled={syncMutation.isPending}

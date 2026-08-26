@@ -20,17 +20,20 @@ public class AuthController : ControllerBase
     private readonly IIdentityProviderService _identityProviderService;
     private readonly IConfigFileProvider _configFileProvider;
     private readonly IConfigService _configService;
+    private readonly IUserSessionRepository _userSessionRepository;
 
     public AuthController(
         IUserService userService,
         IIdentityProviderService identityProviderService,
         IConfigFileProvider configFileProvider,
-        IConfigService configService)
+        IConfigService configService,
+        IUserSessionRepository userSessionRepository = null)
     {
         _userService = userService;
         _identityProviderService = identityProviderService;
         _configFileProvider = configFileProvider;
         _configService = configService;
+        _userSessionRepository = userSessionRepository;
     }
 
     [HttpGet("providers")]
@@ -114,6 +117,28 @@ public class AuthController : ControllerBase
         };
 
         await HttpContext.SignInAsync("Cookies", principal, authProps);
+
+        if (_userSessionRepository != null)
+        {
+            try
+            {
+                var session = new UserSession
+                {
+                    UserId = user.Id,
+                    SessionToken = Guid.NewGuid().ToString("N"),
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                    UserAgent = Request.Headers["User-Agent"].ToString(),
+                    CreatedAt = DateTime.UtcNow,
+                    Expiry = (authProps.ExpiresUtc ?? DateTimeOffset.UtcNow.AddDays(30)).UtcDateTime,
+                    LastActivity = DateTime.UtcNow
+                };
+                _userSessionRepository.Insert(session);
+            }
+            catch
+            {
+                // Non-fatal if session insertion fails
+            }
+        }
 
         return Ok(new CurrentUserResource
         {

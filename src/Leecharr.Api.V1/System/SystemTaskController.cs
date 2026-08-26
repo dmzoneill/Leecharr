@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Messaging.Commands;
 
 namespace Leecharr.Api.V1.System;
 
@@ -31,6 +33,13 @@ public class CommandResource : RestResource
 [V1ApiController("system/task")]
 public class SystemTaskController : Controller
 {
+    private readonly IManageCommandQueue _commandQueueManager;
+
+    public SystemTaskController(IManageCommandQueue commandQueueManager = null)
+    {
+        _commandQueueManager = commandQueueManager;
+    }
+
     [HttpGet]
     public ActionResult<List<ScheduledTaskResource>> GetTasks()
     {
@@ -46,15 +55,64 @@ public class SystemTaskController : Controller
 
         return Ok(list);
     }
+
+    [HttpPost("{id:int}")]
+    [HttpPost("{id:int}/execute")]
+    public ActionResult ExecuteTask(int id)
+    {
+        var taskNames = new Dictionary<int, string>
+        {
+            [1] = "WatchFolderScan",
+            [2] = "RssSync",
+            [3] = "VpnKillSwitchCheck",
+            [4] = "Backup",
+            [5] = "ProwlarrSync"
+        };
+
+        var name = taskNames.TryGetValue(id, out var tn) ? tn : "SystemTask";
+        _commandQueueManager?.PushRaw(name, "{}", CommandTrigger.Manual);
+        return Ok(new { success = true, task = name });
+    }
 }
 
 [V1ApiController("system/command")]
 public class SystemCommandController : Controller
 {
+    private readonly IManageCommandQueue _commandQueueManager;
+
+    public SystemCommandController(IManageCommandQueue commandQueueManager = null)
+    {
+        _commandQueueManager = commandQueueManager;
+    }
+
     [HttpGet]
     public ActionResult<List<CommandResource>> GetCommands()
     {
-        return Ok(new List<CommandResource>());
+        if (_commandQueueManager == null)
+        {
+            return Ok(new List<CommandResource>());
+        }
+
+        var commands = _commandQueueManager.GetAll().Select(c =>
+        {
+            var duration = (c.EndedAt ?? DateTime.UtcNow) - (c.StartedAt ?? c.QueuedAt);
+            var result = c.Status == CommandStatus.Completed ? "Successful" : (c.Status == CommandStatus.Failed ? "Failed" : "Pending");
+
+            return new CommandResource
+            {
+                Id = c.Id,
+                Name = c.Name,
+                CommandName = c.Name,
+                Status = c.Status.ToString(),
+                Result = result,
+                Queued = c.QueuedAt,
+                Started = c.StartedAt ?? c.QueuedAt,
+                Ended = c.EndedAt ?? c.QueuedAt,
+                Duration = duration.ToString(@"hh\:mm\:ss")
+            };
+        }).ToList();
+
+        return Ok(commands);
     }
 
     [HttpPost]
@@ -63,6 +121,32 @@ public class SystemCommandController : Controller
         if (command == null)
         {
             return BadRequest();
+        }
+
+        var cmdName = !string.IsNullOrWhiteSpace(command.Name) ? command.Name : command.CommandName;
+        if (string.IsNullOrWhiteSpace(cmdName))
+        {
+            cmdName = "ManualCommand";
+        }
+
+        if (_commandQueueManager != null)
+        {
+            var model = _commandQueueManager.PushRaw(cmdName, "{}", CommandTrigger.Manual);
+            var duration = (model.EndedAt ?? DateTime.UtcNow) - (model.StartedAt ?? model.QueuedAt);
+            var result = model.Status == CommandStatus.Completed ? "Successful" : (model.Status == CommandStatus.Failed ? "Failed" : "Pending");
+
+            return Ok(new CommandResource
+            {
+                Id = model.Id,
+                Name = model.Name,
+                CommandName = model.Name,
+                Status = model.Status.ToString(),
+                Result = result,
+                Queued = model.QueuedAt,
+                Started = model.StartedAt ?? model.QueuedAt,
+                Ended = model.EndedAt ?? model.QueuedAt,
+                Duration = duration.ToString(@"hh\:mm\:ss")
+            });
         }
 
         command.Id = 1;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,6 +40,11 @@ public class TorrentSpeedSnapshotResource
 [V1ApiController("seeding")]
 public class SeedingController : Controller
 {
+    private static readonly ConcurrentQueue<SpeedSnapshotResource> GlobalHistory = new();
+    private static readonly ConcurrentDictionary<int, ConcurrentQueue<TorrentSpeedSnapshotResource>> TorrentHistories = new();
+    private static readonly object SyncLock = new();
+    private static DateTime _lastSampleTime = DateTime.MinValue;
+
     private readonly ITorrentService _torrentService;
 
     public SeedingController(ITorrentService torrentService)
@@ -52,6 +58,8 @@ public class SeedingController : Controller
         var torrents = _torrentService.GetAll().ToList();
         var totalDown = torrents.Sum(t => t.Downloaded);
         var totalUp = torrents.Sum(t => t.Uploaded);
+
+        RecordSample(torrents);
 
         return Ok(new SeedingStatsResource
         {
@@ -71,17 +79,9 @@ public class SeedingController : Controller
     public ActionResult<List<SpeedSnapshotResource>> GetHistory()
     {
         var torrents = _torrentService.GetAll().ToList();
-        var now = DateTime.UtcNow;
-        var currentDown = torrents.Sum(t => t.DownloadSpeed);
-        var currentUp = torrents.Sum(t => t.UploadSpeed);
+        RecordSample(torrents);
 
-        var list = new List<SpeedSnapshotResource>
-        {
-            new() { Timestamp = now.AddSeconds(-60), DownloadSpeed = (long)(currentDown * 0.9), UploadSpeed = (long)(currentUp * 0.9) },
-            new() { Timestamp = now.AddSeconds(-30), DownloadSpeed = (long)(currentDown * 0.95), UploadSpeed = (long)(currentUp * 0.95) },
-            new() { Timestamp = now, DownloadSpeed = currentDown, UploadSpeed = currentUp }
-        };
-
+        var list = GlobalHistory.ToList();
         return Ok(list);
     }
 
@@ -94,12 +94,17 @@ public class SeedingController : Controller
             return NotFound();
         }
 
-        var now = DateTime.UtcNow;
+        var torrents = _torrentService.GetAll().ToList();
+        RecordSample(torrents);
+
+        if (TorrentHistories.TryGetValue(torrentId, out var queue))
+        {
+            return Ok(queue.ToList());
+        }
+
         return Ok(new List<TorrentSpeedSnapshotResource>
         {
-            new() { Timestamp = now.AddSeconds(-60), TorrentId = torrentId, DownloadSpeed = (long)(torrent.DownloadSpeed * 0.9), UploadSpeed = (long)(torrent.UploadSpeed * 0.9) },
-            new() { Timestamp = now.AddSeconds(-30), TorrentId = torrentId, DownloadSpeed = (long)(torrent.DownloadSpeed * 0.95), UploadSpeed = (long)(torrent.UploadSpeed * 0.95) },
-            new() { Timestamp = now, TorrentId = torrentId, DownloadSpeed = torrent.DownloadSpeed, UploadSpeed = torrent.UploadSpeed }
+            new() { Timestamp = DateTime.UtcNow, TorrentId = torrentId, DownloadSpeed = torrent.DownloadSpeed, UploadSpeed = torrent.UploadSpeed }
         });
     }
 
@@ -139,5 +144,51 @@ public class SeedingController : Controller
         }
 
         return Ok();
+    }
+
+    private static void RecordSample(List<Torrent> torrents)
+    {
+        var now = DateTime.UtcNow;
+        lock (SyncLock)
+        {
+            if ((now - _lastSampleTime).TotalSeconds < 2.0)
+            {
+                return;
+            }
+
+            _lastSampleTime = now;
+
+            var totalDown = torrents.Sum(t => t.DownloadSpeed);
+            var totalUp = torrents.Sum(t => t.UploadSpeed);
+
+            GlobalHistory.Enqueue(new SpeedSnapshotResource
+            {
+                Timestamp = now,
+                DownloadSpeed = totalDown,
+                UploadSpeed = totalUp
+            });
+
+            while (GlobalHistory.Count > 120)
+            {
+                GlobalHistory.TryDequeue(out _);
+            }
+
+            foreach (var t in torrents)
+            {
+                var q = TorrentHistories.GetOrAdd(t.Id, _ => new ConcurrentQueue<TorrentSpeedSnapshotResource>());
+                q.Enqueue(new TorrentSpeedSnapshotResource
+                {
+                    Timestamp = now,
+                    TorrentId = t.Id,
+                    DownloadSpeed = t.DownloadSpeed,
+                    UploadSpeed = t.UploadSpeed
+                });
+
+                while (q.Count > 120)
+                {
+                    q.TryDequeue(out _);
+                }
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -18,6 +19,7 @@ public interface ITorznabClient
 public class TorznabClient : ITorznabClient
 {
     private static readonly XNamespace TorznabNs = "http://torznab.com/schemas/2015/feed";
+    private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
     private readonly HttpClient _httpClient;
     private readonly Logger _logger;
 
@@ -48,6 +50,10 @@ public class TorznabClient : ITorznabClient
             {
                 queryParams += $"&cat={categoryId.Value}";
             }
+            else if (indexer.Categories != null && indexer.Categories.Count > 0)
+            {
+                queryParams += $"&cat={string.Join(",", indexer.Categories)}";
+            }
 
             uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
                 ? queryParams
@@ -75,11 +81,16 @@ public class TorznabClient : ITorznabClient
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
-            var queryParams = $"t=tvsearch&limit={limit}";
+            var queryParams = $"t=search&limit={limit}";
 
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
             {
                 queryParams += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
+            }
+
+            if (indexer.Categories != null && indexer.Categories.Count > 0)
+            {
+                queryParams += $"&cat={string.Join(",", indexer.Categories)}";
             }
 
             uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
@@ -121,6 +132,14 @@ public class TorznabClient : ITorznabClient
                 var enclosure = item.Element("enclosure");
                 var downloadUrl = enclosure?.Attribute("url")?.Value ?? link;
 
+                var pubDateStr = item.Element("pubDate")?.Value ?? item.Element("published")?.Value ?? item.Element("updated")?.Value;
+                var publishDate = DateTime.UtcNow;
+                if (!string.IsNullOrWhiteSpace(pubDateStr) &&
+                    DateTime.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsedPubDate))
+                {
+                    publishDate = parsedPubDate;
+                }
+
                 long size = 0;
                 if (enclosure != null && long.TryParse(enclosure.Attribute("length")?.Value, out var len))
                 {
@@ -139,7 +158,11 @@ public class TorznabClient : ITorznabClient
                 var magnetUrl = string.Empty;
                 var category = item.Element("category")?.Value ?? string.Empty;
 
-                foreach (var attr in item.Elements(TorznabNs + "attr"))
+                var attrElements = item.Elements(TorznabNs + "attr")
+                    .Concat(item.Elements(NewznabNs + "attr"))
+                    .Concat(item.Elements().Where(e => e.Name.LocalName.Equals("attr", StringComparison.OrdinalIgnoreCase)));
+
+                foreach (var attr in attrElements.Distinct())
                 {
                     var name = attr.Attribute("name")?.Value?.ToLowerInvariant();
                     var value = attr.Attribute("value")?.Value;
@@ -165,6 +188,13 @@ public class TorznabClient : ITorznabClient
                         case "magneturl":
                             magnetUrl = value ?? string.Empty;
                             break;
+                        case "category":
+                            if (string.IsNullOrWhiteSpace(category))
+                            {
+                                category = value ?? string.Empty;
+                            }
+
+                            break;
                         case "size":
                             if (size == 0 && long.TryParse(value, out var parsedSize))
                             {
@@ -188,6 +218,7 @@ public class TorznabClient : ITorznabClient
                     DownloadVolumeFactor = downloadVolumeFactor,
                     UploadVolumeFactor = uploadVolumeFactor,
                     Category = category,
+                    PublishDate = publishDate,
                     IndexerName = indexer?.Name ?? "Indexer",
                     IndexerId = indexer?.Id ?? 0
                 };

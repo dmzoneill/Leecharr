@@ -116,7 +116,10 @@ export function StatusBar() {
           <SeedingIcon size={14} /> Active:{" "}
           {stats?.activeTorrents ??
             torrents?.filter(
-              (t) => t.status === "downloading" || t.status === "seeding",
+              (t) => {
+                const s = (t.status || "").toLowerCase();
+                return s === "downloading" || s === "seeding";
+              },
             ).length ??
             0}
         </span>

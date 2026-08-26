@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using NLog;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network;
@@ -29,15 +30,18 @@ public interface INetworkSecurityService
 public class NetworkSecurityService : INetworkSecurityService
 {
     private readonly INetworkSettingsRepository _repository;
+    private readonly IConfigService _configService;
     private readonly IEventAggregator _eventAggregator;
     private readonly Logger _logger;
 
     public NetworkSecurityService(
         INetworkSettingsRepository repository,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        Configuration.IConfigService configService = null)
     {
         _repository = repository;
         _eventAggregator = eventAggregator;
+        _configService = configService;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -98,7 +102,21 @@ public class NetworkSecurityService : INetworkSecurityService
 
     public NetworkSettings GetCurrentSettings()
     {
-        return _repository.GetSettings();
+        var settings = _repository.GetSettings() ?? new NetworkSettings();
+        if (_configService != null)
+        {
+            if (!string.IsNullOrWhiteSpace(_configService.BindInterface))
+            {
+                settings.BindInterface = _configService.BindInterface;
+            }
+
+            if (_configService.EnableVpnKillSwitch)
+            {
+                settings.EnableVpnKillSwitch = _configService.EnableVpnKillSwitch;
+            }
+        }
+
+        return settings;
     }
 
     public void SaveSettings(NetworkSettings settings)
