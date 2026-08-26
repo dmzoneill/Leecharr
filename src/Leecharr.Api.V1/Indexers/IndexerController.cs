@@ -140,7 +140,14 @@ public class IndexerController : Controller
         [FromQuery] string query = null,
         [FromQuery] string category = null,
         [FromQuery] int? indexerId = null,
-        [FromQuery] bool freeleechOnly = false)
+        [FromQuery] bool freeleechOnly = false,
+        [FromQuery] int? season = null,
+        [FromQuery] int? ep = null,
+        [FromQuery] string imdbId = null,
+        [FromQuery] string tmdbId = null,
+        [FromQuery] int offset = 0,
+        [FromQuery] int limit = 50,
+        [FromQuery] string type = null)
     {
         var indexers = indexerId.HasValue
             ? new List<IndexerDefinition> { _indexerRepository.Get(indexerId.Value) }.Where(i => i != null).ToList()
@@ -153,7 +160,7 @@ public class IndexerController : Controller
         {
             try
             {
-                var results = await _torznabClient.SearchAsync(idx, query ?? string.Empty, catId);
+                var results = await _torznabClient.SearchAsync(idx, query ?? string.Empty, catId, limit, offset, season, ep, imdbId, tmdbId, type);
                 return results.Select(r => new ReleaseInfoResource
                 {
                     Title = r.Title,

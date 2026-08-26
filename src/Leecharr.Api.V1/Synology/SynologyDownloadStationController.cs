@@ -43,6 +43,8 @@ public class SynologyDownloadStationController : ControllerBase
         var apis = new Dictionary<string, object>
         {
             ["SYNO.API.Auth"] = new { maxVersion = 7, minVersion = 1, path = "auth.cgi" },
+            ["SYNO.DSM.Info"] = new { maxVersion = 2, minVersion = 1, path = "entry.cgi" },
+            ["SYNO.FileStation.List"] = new { maxVersion = 2, minVersion = 1, path = "entry.cgi" },
             ["SYNO.DownloadStation.Info"] = new { maxVersion = 2, minVersion = 1, path = "DownloadStation/info.cgi" },
             ["SYNO.DownloadStation.Statistic"] = new { maxVersion = 1, minVersion = 1, path = "DownloadStation/statistic.cgi" },
             ["SYNO.DownloadStation.Task"] = new { maxVersion = 2, minVersion = 1, path = "DownloadStation/task.cgi" },
@@ -120,6 +122,35 @@ public class SynologyDownloadStationController : ControllerBase
         [FromQuery] string url,
         [FromQuery] string destination)
     {
+        if (string.Equals(api, "SYNO.DSM.Info", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(new
+            {
+                data = new
+                {
+                    serial = "123456789",
+                    version = "7.2-64570",
+                    version_details = new { major = 7, minor = 2, buildnumber = 64570 }
+                },
+                success = true
+            });
+        }
+
+        if (string.Equals(api, "SYNO.FileStation.List", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(new
+            {
+                data = new
+                {
+                    shares = new[]
+                    {
+                        new { name = "downloads", path = "/downloads" }
+                    }
+                },
+                success = true
+            });
+        }
+
         var formMethod = Request.HasFormContentType ? Request.Form["method"].ToString() : string.Empty;
         var effectiveMethod = (!string.IsNullOrWhiteSpace(method) ? method : formMethod).ToLowerInvariant();
 
@@ -185,7 +216,7 @@ public class SynologyDownloadStationController : ControllerBase
 
             case "create":
                 var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : (Request.HasFormContentType ? (Request.Form["uri"].ToString() ?? Request.Form["url"].ToString()) : string.Empty));
-                var targetDest = destination ?? (Request.HasFormContentType ? Request.Form["destination"].ToString() : null);
+                var targetDest = (destination ?? (Request.HasFormContentType ? Request.Form["destination"].ToString() : null))?.Trim('\"', '\'');
 
                 if (!string.IsNullOrWhiteSpace(targetUri))
                 {

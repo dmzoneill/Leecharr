@@ -11,7 +11,18 @@ namespace NzbDrone.Core.Indexers;
 
 public interface ITorznabClient
 {
-    Task<List<TorznabSearchResult>> SearchAsync(IndexerDefinition indexer, string query, int? categoryId = null, int limit = 50);
+    Task<List<TorznabSearchResult>> SearchAsync(
+        IndexerDefinition indexer,
+        string query,
+        int? categoryId = null,
+        int limit = 50,
+        int offset = 0,
+        int? season = null,
+        int? ep = null,
+        string imdbId = null,
+        string tmdbId = null,
+        string searchType = null);
+
     Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50);
     List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer);
 }
@@ -29,7 +40,17 @@ public class TorznabClient : ITorznabClient
         _logger = LogManager.GetCurrentClassLogger();
     }
 
-    public async Task<List<TorznabSearchResult>> SearchAsync(IndexerDefinition indexer, string query, int? categoryId = null, int limit = 50)
+    public async Task<List<TorznabSearchResult>> SearchAsync(
+        IndexerDefinition indexer,
+        string query,
+        int? categoryId = null,
+        int limit = 50,
+        int offset = 0,
+        int? season = null,
+        int? ep = null,
+        string imdbId = null,
+        string tmdbId = null,
+        string searchType = null)
     {
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
         {
@@ -39,7 +60,35 @@ public class TorznabClient : ITorznabClient
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
-            var queryParams = $"t=search&q={Uri.EscapeDataString(query ?? string.Empty)}&limit={limit}";
+            var mode = !string.IsNullOrWhiteSpace(searchType)
+                ? searchType
+                : (season.HasValue || ep.HasValue ? "tvsearch" : (!string.IsNullOrWhiteSpace(imdbId) ? "movie" : "search"));
+            var queryParams = $"t={mode}&limit={limit}&offset={offset}";
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                queryParams += $"&q={Uri.EscapeDataString(query)}";
+            }
+
+            if (season.HasValue)
+            {
+                queryParams += $"&season={season.Value}";
+            }
+
+            if (ep.HasValue)
+            {
+                queryParams += $"&ep={ep.Value}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(imdbId))
+            {
+                queryParams += $"&imdbid={Uri.EscapeDataString(imdbId)}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(tmdbId))
+            {
+                queryParams += $"&tmdbid={Uri.EscapeDataString(tmdbId)}";
+            }
 
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
             {

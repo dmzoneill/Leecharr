@@ -44,6 +44,7 @@ public class HadoukenRpcController : ControllerBase
     }
 
     [HttpPost]
+    [Route("api")]
     [Route("api/hadouken")]
     [Route("api/rpc")]
     [Route("hadouken/api")]
@@ -62,49 +63,138 @@ public class HadoukenRpcController : ControllerBase
         {
             switch (request.Method.ToLowerInvariant())
             {
-                case "core.getversion":
-                case "hadouken.getversion":
-                    return Ok(new { result = "5.3.0", error = (object)null, id });
-
-                case "torrents.list":
-                    var all = _torrentService.GetAll().ToList();
-                    var dict = new Dictionary<string, object>();
-                    foreach (var t in all)
+                case "core.getsysteminfo":
+                case "core.get_system_info":
+                    return Ok(new
                     {
-                        dict[t.InfoHash.ToLowerInvariant()] = new
+                        result = new
                         {
-                            infoHash = t.InfoHash.ToLowerInvariant(),
-                            name = t.Name ?? string.Empty,
-                            totalSize = t.TotalSize,
-                            progress = t.Progress,
-                            downloadRate = t.DownloadSpeed,
-                            uploadRate = t.UploadSpeed,
-                            eta = t.Eta,
-                            ratio = t.Ratio,
-                            tags = string.IsNullOrWhiteSpace(t.Category) ? Array.Empty<string>() : new[] { t.Category },
-                            savePath = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                            isPaused = t.Status == TorrentStatus.Paused,
-                            isFinished = t.Progress >= 1.0 || t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding
-                        };
+                            commitish = "5.3.0",
+                            branch = "master",
+                            versions = new Dictionary<string, string>
+                            {
+                                { "hadouken", "5.3.0" },
+                                { "libtorrent", "1.2.14" }
+                            }
+                        },
+                        error = (object)null,
+                        id
+                    });
+
+                case "webui.getsettings":
+                case "webui.get_settings":
+                    return Ok(new
+                    {
+                        result = new Dictionary<string, object>
+                        {
+                            { "bittorrent.default_save_path", _configService.DownloadDir ?? "/downloads" }
+                        },
+                        error = (object)null,
+                        id
+                    });
+
+                case "webui.list":
+                    var allTorrents = _torrentService.GetAll().ToList();
+                    var torrentRows = new List<object[]>();
+                    foreach (var t in allTorrents)
+                    {
+                        var isFinished = t.Progress >= 1.0;
+                        int statusFlag;
+                        if (t.Status == TorrentStatus.Downloading)
+                        {
+                            statusFlag = 1 | 2;
+                        }
+                        else if (t.Status == TorrentStatus.Seeding)
+                        {
+                            statusFlag = 1 | 8 | 16 | (isFinished ? 128 : 0);
+                        }
+                        else if (t.Status == TorrentStatus.Paused)
+                        {
+                            statusFlag = 1 | 4 | 16 | (isFinished ? 128 : 0);
+                        }
+                        else if (t.Status == TorrentStatus.Stopped)
+                        {
+                            statusFlag = 1 | 16 | (isFinished ? 128 : 0);
+                        }
+                        else if (t.Status == TorrentStatus.Error)
+                        {
+                            statusFlag = 1 | 8 | 16;
+                        }
+                        else
+                        {
+                            statusFlag = 1 | 2 | 16;
+                        }
+
+                        var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
+                        var completedUnix = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0;
+                        var modifiedUnix = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedUnix;
+
+                        torrentRows.Add(new object[]
+                        {
+                            t.InfoHash.ToUpperInvariant(),
+                            statusFlag,
+                            t.Name ?? string.Empty,
+                            t.TotalSize,
+                            (int)(t.Progress * 1000),
+                            t.Downloaded,
+                            t.Uploaded,
+                            (int)(t.Ratio * 1000),
+                            t.UploadSpeed,
+                            t.DownloadSpeed,
+                            t.Eta,
+                            t.Category ?? string.Empty,
+                            t.Leechers,
+                            t.Leechers,
+                            t.Seeders,
+                            t.Seeders,
+                            65536,
+                            0,
+                            Math.Max(0, t.TotalSize - t.Downloaded),
+                            string.Empty,
+                            string.Empty,
+                            string.Empty,
+                            string.Empty,
+                            addedUnix,
+                            completedUnix,
+                            string.Empty,
+                            t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            string.Empty,
+                            modifiedUnix
+                        });
                     }
 
-                    return Ok(new { result = dict, error = (object)null, id });
-
-                case "torrents.add":
-                case "torrents.addfile":
-                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
+                    return Ok(new
                     {
-                        var b64 = request.Params[0].GetString();
+                        result = new
+                        {
+                            torrents = torrentRows,
+                            torrentc = "1"
+                        },
+                        error = (object)null,
+                        id
+                    });
+
+                case "webui.addtorrent":
+                case "webui.add_torrent":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
+                    {
+                        var type = request.Params[0].GetString();
+                        var data = request.Params[1].GetString();
                         string savePath = null;
                         string category = null;
                         var isPaused = false;
 
-                        if (request.Params.GetArrayLength() > 1 && request.Params[1].ValueKind == JsonValueKind.Object)
+                        if (request.Params.GetArrayLength() >= 3 && request.Params[2].ValueKind == JsonValueKind.Object)
                         {
-                            var opts = request.Params[1];
+                            var opts = request.Params[2];
                             if (opts.TryGetProperty("save_path", out var spProp))
                             {
                                 savePath = spProp.GetString();
+                            }
+
+                            if (opts.TryGetProperty("label", out var lblProp))
+                            {
+                                category = lblProp.GetString();
                             }
 
                             if (opts.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array && tagsProp.GetArrayLength() > 0)
@@ -118,16 +208,84 @@ public class HadoukenRpcController : ControllerBase
                             }
                         }
 
-                        if (!string.IsNullOrWhiteSpace(b64))
+                        if (string.Equals(type, "file", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
-                            var bytes = Convert.FromBase64String(b64);
+                            var bytes = Convert.FromBase64String(data);
                             var parsed = _torrentFileParser.Parse(bytes);
                             var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                             return Ok(new { result = added?.InfoHash, error = (object)null, id });
                         }
+                        else if (string.Equals(type, "url", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
+                        {
+                            if (data.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var added = await _torrentService.AddFromMagnetAsync(data, category, savePath, isPaused);
+                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            }
+                            else
+                            {
+                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                                var bytes = await client.GetByteArrayAsync(data);
+                                var parsed = _torrentFileParser.Parse(bytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            }
+                        }
                     }
 
                     return Ok(new { result = true, error = (object)null, id });
+
+                case "webui.perform":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
+                    {
+                        var action = request.Params[0].GetString()?.ToLowerInvariant();
+                        var hashesElem = request.Params[1];
+                        var targetHashes = new List<string>();
+                        if (hashesElem.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var h in hashesElem.EnumerateArray())
+                            {
+                                if (h.ValueKind == JsonValueKind.String)
+                                {
+                                    targetHashes.Add(h.GetString());
+                                }
+                            }
+                        }
+                        else if (hashesElem.ValueKind == JsonValueKind.String)
+                        {
+                            targetHashes.Add(hashesElem.GetString());
+                        }
+
+                        foreach (var targetHash in targetHashes)
+                        {
+                            var t = _torrentService.GetByInfoHash(targetHash);
+                            if (t != null)
+                            {
+                                switch (action)
+                                {
+                                    case "pause":
+                                        await _torrentService.PauseAsync(t.Id);
+                                        break;
+                                    case "resume":
+                                    case "start":
+                                        await _torrentService.ResumeAsync(t.Id);
+                                        break;
+                                    case "remove":
+                                        await _torrentService.DeleteAsync(t.Id, false);
+                                        break;
+                                    case "removedata":
+                                        await _torrentService.DeleteAsync(t.Id, true);
+                                        break;
+                                }
+                            }
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "core.getversion":
+                case "hadouken.getversion":
+                    return Ok(new { result = "5.3.0", error = (object)null, id });
 
                 case "torrents.adduri":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)

@@ -9,3 +9,9 @@ public class ApplicationStartedEvent : IEvent
 public class ApplicationShutdownRequested : IEvent
 {
 }
+
+public class ApplicationUpdatedEvent : IEvent
+{
+    public string PreviousVersion { get; set; }
+    public string NewVersion { get; set; }
+}

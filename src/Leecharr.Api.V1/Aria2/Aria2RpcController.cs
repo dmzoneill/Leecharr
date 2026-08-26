@@ -522,6 +522,22 @@ public class Aria2RpcController : ControllerBase
         var stringParams = GetXmlRpcStringParams(xmlDoc);
         var downloadDir = _configService.DownloadDir ?? "/downloads";
 
+        string customDir = null;
+        var structElem = xmlDoc?.Root?.Element("params")?.Elements("param")
+            .Select(p => p.Element("value")?.Element("struct"))
+            .FirstOrDefault(s => s != null);
+        if (structElem != null)
+        {
+            foreach (var member in structElem.Elements("member"))
+            {
+                var name = member.Element("name")?.Value;
+                if (string.Equals(name, "dir", StringComparison.OrdinalIgnoreCase))
+                {
+                    customDir = member.Element("value")?.Element("string")?.Value ?? member.Element("value")?.Value;
+                }
+            }
+        }
+
         switch (method.ToLowerInvariant())
         {
             case "aria2.getversion":
@@ -574,26 +590,26 @@ public class Aria2RpcController : ControllerBase
                 var activeList = _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
                     .ToList();
-                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(activeList, downloadDir));
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(activeList, downloadDir, _torrentFileService));
 
             case "aria2.tellwaiting":
                 var waitingList = _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Queued)
                     .ToList();
-                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(waitingList, downloadDir));
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(waitingList, downloadDir, _torrentFileService));
 
             case "aria2.tellstopped":
                 var stoppedList = _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
                     .ToList();
-                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(stoppedList, downloadDir));
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(stoppedList, downloadDir, _torrentFileService));
 
             case "aria2.tellstatus":
                 var gid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
                 var found = FindByGid(gid);
                 if (found != null)
                 {
-                    return BuildXmlRpcResponse(BuildXmlRpcTorrentStruct(found, downloadDir));
+                    return BuildXmlRpcResponse(BuildXmlRpcTorrentStruct(found, downloadDir, _torrentFileService));
                 }
 
                 return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct"));
@@ -604,7 +620,7 @@ public class Aria2RpcController : ControllerBase
                     var b64 = stringParams[0];
                     var bytes = Convert.FromBase64String(b64);
                     var parsed = _torrentFileParser.Parse(bytes);
-                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
                     return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
                 }
 
@@ -616,7 +632,7 @@ public class Aria2RpcController : ControllerBase
                     var uri = stringParams[0];
                     if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        var added = await _torrentService.AddFromMagnetAsync(uri, null, null, false);
+                        var added = await _torrentService.AddFromMagnetAsync(uri, null, customDir, false);
                         return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
                     }
                     else
@@ -624,7 +640,7 @@ public class Aria2RpcController : ControllerBase
                         using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                         var bytes = await client.GetByteArrayAsync(uri);
                         var parsed = _torrentFileParser.Parse(bytes);
-                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
                         return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
                     }
                 }
@@ -670,7 +686,7 @@ public class Aria2RpcController : ControllerBase
         }
     }
 
-    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir)
+    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir, ITorrentFileService torrentFileService)
     {
         var gid = t.InfoHash.Length >= 16 ? t.InfoHash[..16] : t.InfoHash;
         var status = t.Status switch
@@ -684,6 +700,32 @@ public class Aria2RpcController : ControllerBase
         };
         var dir = t.SavePath ?? downloadDir ?? "/downloads";
         var name = t.Name ?? string.Empty;
+
+        var filesDataElem = new global::System.Xml.Linq.XElement("data");
+        var files = torrentFileService?.GetFiles(t.Id)?.ToList();
+        if (files != null && files.Count > 0)
+        {
+            for (var i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                var filePath = string.IsNullOrWhiteSpace(f.Path) ? name : f.Path;
+                filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (i + 1).ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, filePath)))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", f.Size.ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", ((long)(f.Size * f.Progress)).ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (f.Priority > 0).ToString().ToLowerInvariant()))))));
+            }
+        }
+        else
+        {
+            filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("struct",
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1"))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, name)))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "true"))))));
+        }
 
         return new global::System.Xml.Linq.XElement("struct",
             new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "gid"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", gid))),
@@ -704,21 +746,15 @@ public class Aria2RpcController : ControllerBase
                             new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "name"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", name)))))),
                     new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "mode"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "multi")))))),
             new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "files"), new global::System.Xml.Linq.XElement("value",
-                new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data",
-                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("struct",
-                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1"))),
-                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, name)))),
-                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
-                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
-                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "true"))))))))));
+                new global::System.Xml.Linq.XElement("array", filesDataElem))));
     }
 
-    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentArray(IEnumerable<Torrent> torrents, string downloadDir)
+    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentArray(IEnumerable<Torrent> torrents, string downloadDir, ITorrentFileService torrentFileService)
     {
         var dataElem = new global::System.Xml.Linq.XElement("data");
         foreach (var t in torrents)
         {
-            dataElem.Add(new global::System.Xml.Linq.XElement("value", BuildXmlRpcTorrentStruct(t, downloadDir)));
+            dataElem.Add(new global::System.Xml.Linq.XElement("value", BuildXmlRpcTorrentStruct(t, downloadDir, torrentFileService)));
         }
 
         return new global::System.Xml.Linq.XElement("array", dataElem);

@@ -212,6 +212,10 @@ public class UTorrentWebUiController : ControllerBase
                             {
                                 t.TargetRatio = rVal / 1000.0;
                             }
+                            else if (string.Equals(s, "seed_time", StringComparison.OrdinalIgnoreCase) && long.TryParse(v, out var stVal))
+                            {
+                                t.TargetSeedTimeMinutes = (int)(stVal / 60);
+                            }
                             else if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dlVal))
                             {
                                 t.DownloadLimit = dlVal * 1024;
@@ -418,6 +422,10 @@ public class UTorrentWebUiController : ControllerBase
                 statusFlag = 1 | 2 | 16 | (isFinished ? 128 : 0);
             }
 
+            var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
+            var completedUnix = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0;
+            var modifiedUnix = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedUnix;
+
             rows.Add(new object[]
             {
                 t.InfoHash.ToUpperInvariant(),
@@ -436,10 +444,19 @@ public class UTorrentWebUiController : ControllerBase
                 t.Leechers,
                 t.Seeders,
                 t.Seeders,
-                0,
+                65536,
                 0,
                 Math.Max(0, t.TotalSize - t.Downloaded),
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                addedUnix,
+                completedUnix,
+                string.Empty,
                 t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                string.Empty,
+                modifiedUnix
             });
         }
 

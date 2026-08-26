@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,13 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Freebox;
+
+public class FreeboxUpdateRequest
+{
+    public string Status { get; set; }
+    public string QueuePos { get; set; }
+    public double? StopRatio { get; set; }
+}
 
 [AllowAnonymous]
 [ApiController]
@@ -27,6 +35,24 @@ public class FreeboxDownloadController : ControllerBase
         _torrentService = torrentService;
         _torrentFileParser = torrentFileParser;
         _configService = configService;
+    }
+
+    [HttpGet]
+    [Route("api/v4/downloads/config")]
+    public IActionResult GetDownloadConfig()
+    {
+        var downloadDir = _configService.DownloadDir ?? "/downloads";
+        var b64Dir = Convert.ToBase64String(Encoding.UTF8.GetBytes(downloadDir));
+        return Ok(new
+        {
+            success = true,
+            result = new
+            {
+                download_dir = b64Dir,
+                max_downloading_tasks = 10,
+                use_watch_dir = false
+            }
+        });
     }
 
     [HttpGet]
@@ -67,7 +93,7 @@ public class FreeboxDownloadController : ControllerBase
     public IActionResult GetDownloads()
     {
         var all = _torrentService.GetAll().ToList();
-        var list = all.Select(t => new
+        var results = all.Select(t => new
         {
             id = t.Id,
             name = t.Name ?? string.Empty,
@@ -79,64 +105,58 @@ public class FreeboxDownloadController : ControllerBase
                 TorrentStatus.Paused => "stopped",
                 TorrentStatus.Stopped => "done",
                 TorrentStatus.Error => "error",
-                _ => "waiting"
+                _ => "queued"
             },
+            type = "bt",
             rx_bytes = t.Downloaded,
             tx_bytes = t.Uploaded,
             rx_rate = t.DownloadSpeed,
             tx_rate = t.UploadSpeed,
-            eta = t.Eta,
+            queue_pos = t.QueuePosition,
             io_priority = "normal",
-            download_dir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads")
+            stop_ratio = (int)(t.TargetRatio * 100),
+            error = "none",
+            created_ts = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
+            eta = t.Eta
         }).ToList();
 
         return Ok(new
         {
             success = true,
-            result = list
+            result = results
         });
     }
 
     [HttpPost]
     [Route("api/v4/downloads/add")]
-    public async Task<IActionResult> AddDownload()
+    public async Task<IActionResult> AddDownload([FromForm] string download_url, [FromForm] string download_dir)
     {
-        var addedId = 1;
-        if (Request.HasFormContentType)
+        var addedId = 0;
+        if (!string.IsNullOrWhiteSpace(download_url))
         {
-            var downloadUrl = Request.Form["download_url"].ToString();
-            var downloadDir = Request.Form["download_dir"].ToString();
-            if (string.IsNullOrWhiteSpace(downloadDir))
+            if (download_url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
-                downloadDir = null;
+                var added = await _torrentService.AddFromMagnetAsync(download_url, null, download_dir, false);
+                addedId = added?.Id ?? 0;
             }
-
-            if (!string.IsNullOrWhiteSpace(downloadUrl))
+            else
             {
-                if (downloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                {
-                    var added = await _torrentService.AddFromMagnetAsync(downloadUrl, null, downloadDir, false);
-                    addedId = added?.Id ?? addedId;
-                }
-                else
-                {
-                    using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                    var bytes = await client.GetByteArrayAsync(downloadUrl);
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, false, bytes);
-                    addedId = added?.Id ?? addedId;
-                }
-            }
-            else if (Request.Form.Files.Count > 0)
-            {
-                var file = Request.Form.Files[0];
-                using var ms = new MemoryStream();
-                await file.CopyToAsync(ms);
-                var bytes = ms.ToArray();
+                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var bytes = await client.GetByteArrayAsync(download_url);
                 var parsed = _torrentFileParser.Parse(bytes);
-                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, false, bytes);
-                addedId = added?.Id ?? addedId;
+                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, download_dir, false, bytes);
+                addedId = added?.Id ?? 0;
             }
+        }
+        else if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        {
+            var file = Request.Form.Files[0];
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var parsed = _torrentFileParser.Parse(bytes);
+            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, download_dir, false, bytes);
+            addedId = added?.Id ?? 0;
         }
 
         return Ok(new
@@ -154,21 +174,44 @@ public class FreeboxDownloadController : ControllerBase
         return Ok(new { success = true });
     }
 
+    [HttpDelete]
+    [Route("api/v4/downloads/{id}/erase")]
+    public async Task<IActionResult> EraseDownload(int id)
+    {
+        await _torrentService.DeleteAsync(id, true);
+        return Ok(new { success = true });
+    }
+
     [HttpPut]
     [Route("api/v4/downloads/{id}")]
-    public async Task<IActionResult> UpdateDownload(int id)
+    public async Task<IActionResult> UpdateDownload(int id, [FromBody] FreeboxUpdateRequest jsonRequest = null)
     {
+        string status = null;
         if (Request.HasFormContentType)
         {
-            var status = Request.Form["status"].ToString().ToLowerInvariant();
-            if (status == "stopped")
+            status = Request.Form["status"].ToString().ToLowerInvariant();
+        }
+        else if (jsonRequest != null)
+        {
+            status = jsonRequest.Status?.ToLowerInvariant();
+            if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value > 0)
             {
-                await _torrentService.PauseAsync(id);
+                var t = _torrentService.Get(id);
+                if (t != null)
+                {
+                    t.TargetRatio = jsonRequest.StopRatio.Value;
+                    await _torrentService.UpdateAsync(t);
+                }
             }
-            else if (status == "downloading")
-            {
-                await _torrentService.ResumeAsync(id);
-            }
+        }
+
+        if (status == "stopped")
+        {
+            await _torrentService.PauseAsync(id);
+        }
+        else if (status == "downloading")
+        {
+            await _torrentService.ResumeAsync(id);
         }
 
         return Ok(new { success = true });

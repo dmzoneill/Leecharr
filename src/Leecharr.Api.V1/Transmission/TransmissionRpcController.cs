@@ -314,6 +314,11 @@ public class TransmissionRpcController : ControllerBase
                                 t.TargetRatio = ratioVal.GetDouble();
                             }
 
+                            if (request.Arguments.TryGetValue("seedIdleLimit", out var idleVal) && idleVal.ValueKind == JsonValueKind.Number)
+                            {
+                                t.TargetSeedTimeMinutes = idleVal.GetInt32();
+                            }
+
                             if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal))
                             {
                                 t.DownloadLimit = dlLimitVal.GetInt32();
@@ -617,9 +622,10 @@ public class TransmissionRpcController : ControllerBase
             { "secondsSeeding", secondsSeeding },
             { "seedRatioLimit", t.TargetRatio },
             { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
-            { "seedIdleLimit", 0 },
-            { "seedIdleMode", 0 },
+            { "seedIdleLimit", t.TargetSeedTimeMinutes },
+            { "seedIdleMode", t.TargetSeedTimeMinutes > 0 ? 1 : 0 },
             { "fileCount", filesList.Count },
+            { "file-count", filesList.Count },
             { "files", filesList },
             { "fileStats", fileStats }
         };

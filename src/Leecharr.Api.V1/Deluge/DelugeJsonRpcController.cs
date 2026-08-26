@@ -404,6 +404,7 @@ public class DelugeJsonRpcController : ControllerBase
                             var isPaused = false;
                             string savePath = null;
                             string category = null;
+                            double? targetRatio = null;
 
                             if (paramsElem.GetArrayLength() >= 3 && paramsElem[2].ValueKind == JsonValueKind.Object)
                             {
@@ -417,14 +418,29 @@ public class DelugeJsonRpcController : ControllerBase
                                 {
                                     savePath = dl.GetString();
                                 }
+                                else if (opts.TryGetProperty("move_completed_path", out var mcp))
+                                {
+                                    savePath = mcp.GetString();
+                                }
 
                                 if (opts.TryGetProperty("label", out var lbl))
                                 {
                                     category = lbl.GetString();
                                 }
+
+                                if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
+                                {
+                                    targetRatio = sr.GetDouble();
+                                }
                             }
 
                             var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                            if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
+                            {
+                                added.TargetRatio = targetRatio.Value;
+                                await _torrentService.UpdateAsync(added);
+                            }
+
                             addedHash = added?.InfoHash;
                         }
                     }
@@ -439,6 +455,7 @@ public class DelugeJsonRpcController : ControllerBase
                         var isPaused = false;
                         string savePath = null;
                         string category = null;
+                        double? targetRatio = null;
 
                         if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
                         {
@@ -452,14 +469,29 @@ public class DelugeJsonRpcController : ControllerBase
                             {
                                 savePath = dl.GetString();
                             }
+                            else if (opts.TryGetProperty("move_completed_path", out var mcp))
+                            {
+                                savePath = mcp.GetString();
+                            }
 
                             if (opts.TryGetProperty("label", out var lbl))
                             {
                                 category = lbl.GetString();
                             }
+
+                            if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
+                            {
+                                targetRatio = sr.GetDouble();
+                            }
                         }
 
                         var added = await _torrentService.AddFromMagnetAsync(magnetUri, category, savePath, isPaused);
+                        if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
+                        {
+                            added.TargetRatio = targetRatio.Value;
+                            await _torrentService.UpdateAsync(added);
+                        }
+
                         magnetHash = added?.InfoHash;
                     }
 
@@ -583,6 +615,10 @@ public class DelugeJsonRpcController : ControllerBase
                                 {
                                     t.SavePath = dl.GetString();
                                 }
+                                else if (opts.TryGetProperty("move_completed_path", out var mcp))
+                                {
+                                    t.SavePath = mcp.GetString();
+                                }
 
                                 if (opts.TryGetProperty("max_download_speed", out var mds))
                                 {
@@ -604,6 +640,9 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "web.disconnect":
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "core.queue_top":
