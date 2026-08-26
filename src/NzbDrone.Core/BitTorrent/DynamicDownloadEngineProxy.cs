@@ -15,6 +15,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     private readonly IEnumerable<ITorrentEngine> _availableEngines;
     private readonly IConfigService _configService;
     private readonly ITorrentRepository _torrentRepository;
+    private readonly ITorrentFileRepository _torrentFileRepository;
     private readonly IEventAggregator _eventAggregator;
     private readonly Logger _logger;
 
@@ -30,11 +31,13 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         IEnumerable<ITorrentEngine> availableEngines,
         IConfigService configService,
         ITorrentRepository torrentRepository,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        ITorrentFileRepository torrentFileRepository = null)
     {
         _availableEngines = availableEngines;
         _configService = configService;
         _torrentRepository = torrentRepository;
+        _torrentFileRepository = torrentFileRepository;
         _eventAggregator = eventAggregator;
         _logger = LogManager.GetCurrentClassLogger();
 
@@ -162,6 +165,18 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                             : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
 
                         await targetEngine.AddTorrentAsync(torrent, null, magnetUri);
+
+                        if (_torrentFileRepository != null)
+                        {
+                            var files = _torrentFileRepository.GetByTorrentId(torrent.Id);
+                            foreach (var file in files)
+                            {
+                                if (file.Priority != 1)
+                                {
+                                    await targetEngine.SetFilePriorityAsync(torrent.Id, file.Path, file.Priority);
+                                }
+                            }
+                        }
 
                         if (torrent.Status == TorrentStatus.Paused || torrent.Status == TorrentStatus.Stopped)
                         {

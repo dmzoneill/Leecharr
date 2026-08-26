@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -418,6 +419,21 @@ public class QBittorrentApiController : ControllerBase
     [HttpPost("torrents/createTags")]
     public ActionResult CreateTags([FromForm] string tags)
     {
+        if (!string.IsNullOrWhiteSpace(tags) && _tagRepository != null)
+        {
+            var tagList = tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var existingTags = _tagRepository.All().Select(x => x.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var t in tagList)
+            {
+                var trimmed = t.Trim();
+                if (!string.IsNullOrWhiteSpace(trimmed) && !existingTags.Contains(trimmed))
+                {
+                    _tagRepository.Insert(new Tag { Label = trimmed });
+                    existingTags.Add(trimmed);
+                }
+            }
+        }
+
         return Content("Ok.", "text/plain");
     }
 
@@ -739,6 +755,118 @@ public class QBittorrentApiController : ControllerBase
         };
 
         return Ok(result);
+    }
+
+    [HttpPost("torrents/setLocation")]
+    [HttpPost("torrents/setSavePath")]
+    public async Task<ActionResult> SetLocation([FromForm] string hashes, [FromForm] string location)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes) && !string.IsNullOrWhiteSpace(location))
+        {
+            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var h in hashList)
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    t.SavePath = location;
+                    await _torrentService.UpdateAsync(t);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/topPrio")]
+    public async Task<ActionResult> TopPrio([FromForm] string hashes)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    await _torrentService.MoveQueueAsync(t.Id, "top");
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/bottomPrio")]
+    public async Task<ActionResult> BottomPrio([FromForm] string hashes)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    await _torrentService.MoveQueueAsync(t.Id, "bottom");
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/increasePrio")]
+    public async Task<ActionResult> IncreasePrio([FromForm] string hashes)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    await _torrentService.MoveQueueAsync(t.Id, "up");
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/decreasePrio")]
+    public async Task<ActionResult> DecreasePrio([FromForm] string hashes)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    await _torrentService.MoveQueueAsync(t.Id, "down");
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/filePrio")]
+    public async Task<ActionResult> FilePrio([FromForm] string hash, [FromForm] string id, [FromForm] int priority)
+    {
+        if (!string.IsNullOrWhiteSpace(hash) && int.TryParse(id, out var fileIndex))
+        {
+            var t = _torrentService.GetByInfoHash(hash);
+            if (t != null)
+            {
+                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                if (fileIndex >= 0 && fileIndex < files.Count)
+                {
+                    await _torrentFileService.SetPriorityAsync(files[fileIndex].Id, priority);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
     }
 
     private static string MapToQBitState(TorrentStatus status, double progress)

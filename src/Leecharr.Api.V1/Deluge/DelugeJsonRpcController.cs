@@ -169,10 +169,56 @@ public class DelugeJsonRpcController : ControllerBase
                     return Ok(new { result = true, error = (object)null, id });
 
                 case "label.get_options":
-                    return Ok(new { result = new Dictionary<string, object>(), error = (object)null, id });
+                    {
+                        var labelOptName = GetFirstStringParam(paramsElem);
+                        var targetCat = !string.IsNullOrWhiteSpace(labelOptName) ? _categoryService.GetByName(labelOptName) : null;
+                        var labelOpts = new Dictionary<string, object>
+                        {
+                            ["apply_max"] = false,
+                            ["max_download_speed"] = targetCat?.DefaultDownloadLimit ?? -1,
+                            ["max_upload_speed"] = targetCat?.DefaultUploadLimit ?? -1,
+                            ["apply_queue"] = false,
+                            ["stop_at_ratio"] = (targetCat?.TargetRatio ?? 0) > 0,
+                            ["stop_ratio"] = targetCat?.TargetRatio ?? 2.0,
+                            ["remove_at_ratio"] = false,
+                            ["apply_move_completed"] = !string.IsNullOrWhiteSpace(targetCat?.SavePath),
+                            ["move_completed_path"] = targetCat?.SavePath ?? string.Empty
+                        };
+                        return Ok(new { result = labelOpts, error = (object)null, id });
+                    }
 
                 case "label.set_options":
-                    return Ok(new { result = true, error = (object)null, id });
+                    {
+                        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+                        {
+                            var lName = paramsElem[0].GetString();
+                            var lOptions = paramsElem[1];
+                            if (!string.IsNullOrWhiteSpace(lName) && lOptions.ValueKind == JsonValueKind.Object)
+                            {
+                                var cat = _categoryService.GetByName(lName) ?? new Category { Name = lName };
+                                if (lOptions.TryGetProperty("move_completed_path", out var mcpProp) && mcpProp.ValueKind == JsonValueKind.String)
+                                {
+                                    cat.SavePath = mcpProp.GetString();
+                                }
+
+                                if (lOptions.TryGetProperty("stop_ratio", out var srProp) && srProp.ValueKind == JsonValueKind.Number)
+                                {
+                                    cat.TargetRatio = srProp.GetDouble();
+                                }
+
+                                if (cat.Id > 0)
+                                {
+                                    _categoryService.Update(cat);
+                                }
+                                else
+                                {
+                                    _categoryService.Add(cat);
+                                }
+                            }
+                        }
+
+                        return Ok(new { result = true, error = (object)null, id });
+                    }
 
                 case "label.set_torrent":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
@@ -302,7 +348,31 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
-                    var torrents = _torrentService.GetAll();
+                    var torrents = _torrentService.GetAll().ToList();
+
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Object)
+                    {
+                        var filterObj = paramsElem[0];
+                        if (filterObj.TryGetProperty("label", out var labelProp) && labelProp.ValueKind == JsonValueKind.String)
+                        {
+                            var targetLabel = labelProp.GetString();
+                            if (!string.IsNullOrWhiteSpace(targetLabel))
+                            {
+                                torrents = torrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) ||
+                                                               string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
+                            }
+                        }
+
+                        if (filterObj.TryGetProperty("state", out var stateProp) && stateProp.ValueKind == JsonValueKind.String)
+                        {
+                            var stateStr = stateProp.GetString()?.ToLowerInvariant();
+                            if (!string.IsNullOrWhiteSpace(stateStr) && stateStr != "all")
+                            {
+                                torrents = torrents.Where(t => t.Status.ToString().ToLowerInvariant() == stateStr).ToList();
+                            }
+                        }
+                    }
+
                     var resultDict = new Dictionary<string, Dictionary<string, object>>();
 
                     foreach (var torrent in torrents)

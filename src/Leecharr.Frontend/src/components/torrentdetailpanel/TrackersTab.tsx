@@ -147,7 +147,7 @@ export function TrackersTab({
       return {
         url: tr.url,
         host: tr.host,
-        protocol: tr.protocol,
+        protocol: String(tr.protocol ?? ""),
         isAttached,
         isVerified,
         isAlive,
@@ -318,6 +318,7 @@ export function TrackersTab({
                             fontSize: "0.72rem",
                           }}
                           onClick={() => {
+                            if (!torrentId) return;
                             announceTracker.mutate(
                               { torrentId, trackerId: t.id },
                               {

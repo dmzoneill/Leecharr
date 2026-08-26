@@ -576,6 +576,35 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    private IList<PeerId> _cachedMonoPeers;
+    private DateTime _lastPeersUpdate = DateTime.MinValue;
+
+    private IList<PeerId> GetCachedPeers()
+    {
+        if (Manager == null)
+        {
+            return Array.Empty<PeerId>();
+        }
+
+        if (DateTime.UtcNow - _lastPeersUpdate > TimeSpan.FromSeconds(2) || _cachedMonoPeers == null)
+        {
+            try
+            {
+                var task = Manager.GetPeersAsync();
+                if (task.Wait(100))
+                {
+                    _cachedMonoPeers = task.Result;
+                    _lastPeersUpdate = DateTime.UtcNow;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return _cachedMonoPeers ?? Array.Empty<PeerId>();
+    }
+
     public int[] PieceAvailability
     {
         get
@@ -594,7 +623,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             var availability = new int[pieceCount];
             try
             {
-                var peers = Manager.GetPeersAsync().GetAwaiter().GetResult();
+                var peers = GetCachedPeers();
                 foreach (var p in peers)
                 {
                     if (p.BitField != null)
@@ -626,7 +655,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         try
         {
-            var peers = Manager.GetPeersAsync().GetAwaiter().GetResult();
+            var peers = GetCachedPeers();
             var list = new List<PeerInfo>();
             foreach (var p in peers)
             {

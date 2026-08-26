@@ -3,6 +3,7 @@ import { apiClient } from "./client";
 import type {
   Torrent,
   TorrentFileInfo,
+  Category,
   SeedingStats,
   SpeedSnapshot,
   TorrentSpeedSnapshot,

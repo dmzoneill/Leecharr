@@ -75,8 +75,20 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
 
         var activeSchedules = _repository.GetEnabled()
             .Where(s => (s.Days & dayFlag) != 0)
-            .Where(s => string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
-                        string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0)
+            .Where(s =>
+            {
+                if (string.Compare(s.StartTime, s.EndTime, StringComparison.Ordinal) <= 0)
+                {
+                    return string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
+                           string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
+                }
+                else
+                {
+                    // Overnight schedule (e.g. 22:00 to 06:00)
+                    return string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 ||
+                           string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
+                }
+            })
             .OrderByDescending(s => s.Priority)
             .ToList();
 

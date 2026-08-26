@@ -1,6 +1,7 @@
 import { useLogFiles, useClearLogFiles, useSystemStatus } from "../api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { useToast } from "../context/ToastContext";
 
 function DownloadIcon() {
   return (
@@ -86,6 +87,7 @@ function SystemLogFiles() {
   const { data: status } = useSystemStatus();
   const clearLogFiles = useClearLogFiles();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const logPath = status?.appDataPath
     ? `${status.appDataPath}/logs`
@@ -96,7 +98,14 @@ function SystemLogFiles() {
   };
 
   const handleClear = () => {
-    clearLogFiles.mutate();
+    clearLogFiles.mutate(undefined, {
+      onSuccess: () => {
+        toast?.showToast("Disk log files successfully cleared.", "success");
+      },
+      onError: (err) => {
+        toast?.showToast(`Failed to clear log files: ${err.message}`, "error");
+      },
+    });
   };
 
   return (

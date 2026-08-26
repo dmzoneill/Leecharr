@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
@@ -208,6 +209,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
     public Torrent ReAdd(int historyId)
     {
+        return ReAddAsync(historyId).GetAwaiter().GetResult();
+    }
+
+    public async Task<Torrent> ReAddAsync(int historyId)
+    {
         var entry = _historyRepository.Get(historyId);
         if (entry == null)
         {
@@ -255,7 +261,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         try
         {
-            _downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl).GetAwaiter().GetResult();
+            await _downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl);
         }
         catch (Exception ex)
         {

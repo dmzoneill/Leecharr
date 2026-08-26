@@ -4,6 +4,7 @@ using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
 
 namespace Leecharr.Api.V1.System;
@@ -34,17 +35,21 @@ public class CommandResource : RestResource
 public class SystemTaskController : Controller
 {
     private readonly IManageCommandQueue _commandQueueManager;
+    private readonly IScheduledTaskRepository _scheduledTaskRepository;
 
-    public SystemTaskController(IManageCommandQueue commandQueueManager = null)
+    public SystemTaskController(
+        IManageCommandQueue commandQueueManager = null,
+        IScheduledTaskRepository scheduledTaskRepository = null)
     {
         _commandQueueManager = commandQueueManager;
+        _scheduledTaskRepository = scheduledTaskRepository;
     }
 
     [HttpGet]
     public ActionResult<List<ScheduledTaskResource>> GetTasks()
     {
         var now = DateTime.UtcNow;
-        var list = new List<ScheduledTaskResource>
+        var defaultTasks = new List<ScheduledTaskResource>
         {
             new() { Id = 1, TypeName = "WatchFolderScanTask", Name = "Watch Folder Scan", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-10), NextExecution = now.AddSeconds(10) },
             new() { Id = 2, TypeName = "RssSyncTask", Name = "RSS Sync", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5), NextExecution = now.AddMinutes(10) },
@@ -53,7 +58,31 @@ public class SystemTaskController : Controller
             new() { Id = 5, TypeName = "ProwlarrSyncTask", Name = "Prowlarr Indexer Sync", Interval = 60, LastExecution = now.AddMinutes(-20), LastStartTime = now.AddMinutes(-20), NextExecution = now.AddMinutes(40) }
         };
 
-        return Ok(list);
+        if (_scheduledTaskRepository != null)
+        {
+            var dbTasks = _scheduledTaskRepository.All().ToList();
+            if (dbTasks.Count > 0)
+            {
+                var list = new List<ScheduledTaskResource>();
+                foreach (var t in dbTasks)
+                {
+                    list.Add(new ScheduledTaskResource
+                    {
+                        Id = t.Id,
+                        TypeName = t.TypeName,
+                        Name = t.TypeName.Replace("Task", string.Empty),
+                        Interval = t.Interval,
+                        LastExecution = t.LastExecution,
+                        LastStartTime = t.LastStartTime,
+                        NextExecution = t.LastExecution.AddMinutes(t.Interval > 0 ? t.Interval : 15)
+                    });
+                }
+
+                return Ok(list);
+            }
+        }
+
+        return Ok(defaultTasks);
     }
 
     [HttpPost("{id:int}")]

@@ -243,25 +243,50 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return NotFound();
         }
 
-        var list = new List<TorrentEventLogResource>
+        var list = new List<TorrentEventLogResource>();
+        var logId = 1;
+
+        list.Add(new TorrentEventLogResource
         {
-            new()
+            Id = logId++,
+            TorrentId = id,
+            Level = "Info",
+            Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
+            Timestamp = torrent.DateAdded
+        });
+
+        if (!string.IsNullOrWhiteSpace(torrent.SavePath))
+        {
+            list.Add(new TorrentEventLogResource
             {
-                Id = 1,
+                Id = logId++,
                 TorrentId = id,
                 Level = "Info",
-                Message = $"Torrent {torrent.Name} added to download queue",
-                Timestamp = torrent.DateAdded
-            },
-            new()
+                Message = $"Storage allocation configured at '{torrent.SavePath}'",
+                Timestamp = torrent.DateAdded.AddSeconds(1)
+            });
+        }
+
+        if (torrent.DateCompleted.HasValue)
+        {
+            list.Add(new TorrentEventLogResource
             {
-                Id = 2,
+                Id = logId++,
                 TorrentId = id,
                 Level = "Info",
-                Message = $"Status is {torrent.Status} with progress {torrent.Progress * 100:F1}%",
-                Timestamp = DateTime.UtcNow
-            }
-        };
+                Message = "Torrent download completed (100% verified)",
+                Timestamp = torrent.DateCompleted.Value
+            });
+        }
+
+        list.Add(new TorrentEventLogResource
+        {
+            Id = logId++,
+            TorrentId = id,
+            Level = torrent.Status == TorrentStatus.Error ? "Error" : "Info",
+            Message = $"Current state: {torrent.Status} (Progress: {torrent.Progress * 100:F1}%, DL: {torrent.DownloadSpeed / 1024} KB/s, UL: {torrent.UploadSpeed / 1024} KB/s, Seeds: {torrent.Seeders}, Peers: {torrent.Leechers})",
+            Timestamp = DateTime.UtcNow
+        });
 
         return Ok(list);
     }

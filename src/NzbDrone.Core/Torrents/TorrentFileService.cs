@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
 
@@ -8,6 +9,7 @@ public interface ITorrentFileService
 {
     IEnumerable<TorrentFile> GetFiles(int torrentId);
     void SetPriority(int fileId, int priority);
+    Task SetPriorityAsync(int fileId, int priority);
 }
 
 public class TorrentFileService : ITorrentFileService
@@ -33,12 +35,17 @@ public class TorrentFileService : ITorrentFileService
 
     public void SetPriority(int fileId, int priority)
     {
+        SetPriorityAsync(fileId, priority).GetAwaiter().GetResult();
+    }
+
+    public async Task SetPriorityAsync(int fileId, int priority)
+    {
         var file = _repository.Get(fileId);
         if (file != null)
         {
             file.Priority = priority;
             _repository.Update(file);
-            _downloadEngine.SetFilePriorityAsync(file.TorrentId, file.Path, priority);
+            await _downloadEngine.SetFilePriorityAsync(file.TorrentId, file.Path, priority);
         }
     }
 }

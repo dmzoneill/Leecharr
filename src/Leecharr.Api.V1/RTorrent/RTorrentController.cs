@@ -20,6 +20,7 @@ public class RTorrentController : ControllerBase
 {
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileParser _torrentFileParser;
+    private readonly ITorrentFileService _torrentFileService;
     private readonly ICategoryService _categoryService;
     private readonly IConfigService _configService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
@@ -28,12 +29,14 @@ public class RTorrentController : ControllerBase
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        ITorrentFileService torrentFileService = null)
     {
         _torrentService = torrentService;
         _torrentFileParser = torrentFileParser;
         _categoryService = categoryService;
         _configService = configService;
+        _torrentFileService = torrentFileService;
     }
 
     [HttpPost]
@@ -104,6 +107,90 @@ public class RTorrentController : ControllerBase
                 case "d.multicall2":
                 case "d.multicall":
                     return HandleMulticall(paramValues);
+
+                case "f.multicall":
+                    if (paramValues.Count > 0 && paramValues[0] is string fHash)
+                    {
+                        var t = _torrentService.GetByInfoHash(fHash);
+                        var fArrayData = new XElement("data");
+                        if (t != null && _torrentFileService != null)
+                        {
+                            var files = _torrentFileService.GetFiles(t.Id).ToList();
+                            var fFields = paramValues.Skip(2).OfType<string>().ToList();
+                            foreach (var file in files)
+                            {
+                                var fRowData = new XElement("data");
+                                foreach (var field in fFields)
+                                {
+                                    var cleanField = field.Trim().TrimEnd('=', '(', ')');
+                                    if (cleanField.Equals("f.get_path", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.path", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        fRowData.Add(new XElement("value", new XElement("string", file.Path ?? string.Empty)));
+                                    }
+                                    else if (cleanField.Equals("f.get_size_bytes", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.size_bytes", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        fRowData.Add(new XElement("value", new XElement("i8", file.Size)));
+                                    }
+                                    else if (cleanField.Equals("f.get_completed_chunks", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.completed_chunks", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        fRowData.Add(new XElement("value", new XElement("i8", file.Progress >= 1.0 ? 100 : (long)(file.Progress * 100))));
+                                    }
+                                    else if (cleanField.Equals("f.get_priority", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.priority", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        fRowData.Add(new XElement("value", new XElement("i4", file.Priority)));
+                                    }
+                                    else
+                                    {
+                                        fRowData.Add(new XElement("value", new XElement("string", string.Empty)));
+                                    }
+                                }
+
+                                fArrayData.Add(new XElement("value", new XElement("array", fRowData)));
+                            }
+                        }
+
+                        return BuildXmlRpcResponse(new XElement("array", fArrayData));
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("array", new XElement("data")));
+
+                case "t.multicall":
+                    if (paramValues.Count > 0 && paramValues[0] is string tHash)
+                    {
+                        var t = _torrentService.GetByInfoHash(tHash);
+                        var tArrayData = new XElement("data");
+                        if (t != null && !string.IsNullOrWhiteSpace(t.TrackerUrl))
+                        {
+                            var tRowData = new XElement("data");
+                            var tFields = paramValues.Skip(2).OfType<string>().ToList();
+                            foreach (var field in tFields)
+                            {
+                                var cleanField = field.Trim().TrimEnd('=', '(', ')');
+                                if (cleanField.Equals("t.get_url", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.url", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("string", t.TrackerUrl)));
+                                }
+                                else if (cleanField.Equals("t.get_type", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                }
+                                else if (cleanField.Equals("t.is_enabled", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                }
+                                else
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("string", string.Empty)));
+                                }
+                            }
+
+                            tArrayData.Add(new XElement("value", new XElement("array", tRowData)));
+                        }
+
+                        return BuildXmlRpcResponse(new XElement("array", tArrayData));
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("array", new XElement("data")));
 
                 case "load.raw_start":
                 case "load.raw_verbose":
@@ -397,6 +484,52 @@ public class RTorrentController : ControllerBase
             case "d.ratio":
             case "d.get_ratio":
                 return new XElement("i8", (long)(torrent.Ratio * 1000));
+
+            case "d.peers_connected":
+            case "d.get_peers_connected":
+            case "d.peers_accounted":
+            case "d.get_peers_accounted":
+                return new XElement("i4", torrent.Seeders + torrent.Leechers);
+
+            case "d.peers_not_connected":
+            case "d.get_peers_not_connected":
+                return new XElement("i4", 0);
+
+            case "d.peers_complete":
+            case "d.get_peers_complete":
+                return new XElement("i4", torrent.Seeders);
+
+            case "d.up.total":
+            case "d.get_up_total":
+                return new XElement("i8", torrent.Uploaded);
+
+            case "d.down.total":
+            case "d.get_down_total":
+                return new XElement("i8", torrent.Downloaded);
+
+            case "d.priority":
+            case "d.get_priority":
+                return new XElement("i4", torrent.Priority);
+
+            case "d.chunk_size":
+            case "d.get_chunk_size":
+                return new XElement("i8", 1024 * 1024);
+
+            case "d.size_chunks":
+            case "d.get_size_chunks":
+                return new XElement("i8", Math.Max(1, torrent.TotalSize / (1024 * 1024)));
+
+            case "d.completed_chunks":
+            case "d.get_completed_chunks":
+                return new XElement("i8", (long)(torrent.Progress * Math.Max(1, torrent.TotalSize / (1024 * 1024))));
+
+            case "d.is_hash_checking":
+            case "d.get_is_hash_checking":
+                return new XElement("i4", torrent.Status == TorrentStatus.Checking ? 1 : 0);
+
+            case "d.connection_current":
+            case "d.get_connection_current":
+                return new XElement("string", torrent.Status == TorrentStatus.Seeding ? "seed" : "leech");
 
             default:
                 return new XElement("string", string.Empty);

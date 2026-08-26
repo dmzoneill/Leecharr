@@ -41,6 +41,12 @@ export interface Torrent {
   sortOrder: number;
   forceCompleted: boolean;
   seedingTime: number;
+  queuePosition?: number;
+  category?: string | null;
+  resolution?: string | null;
+  hdrFormat?: string | null;
+  audioCodec?: string | null;
+  artworkUrl?: string | null;
   posterUrl?: string | null;
   fanartUrl?: string | null;
   bannerUrl?: string | null;
@@ -153,6 +159,18 @@ export interface TrackerMetricsSummary {
   hourlyHistory: HourlyTrafficPoint[];
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  savePath?: string;
+  defaultUploadLimit?: number;
+  defaultDownloadLimit?: number;
+  targetRatio?: number;
+  targetSeedTimeMinutes?: number;
+  autoStop?: boolean;
+  isDefault?: boolean;
+}
+
 export interface TorrentFileInfo {
   id: number;
   torrentId: number;
@@ -160,13 +178,21 @@ export interface TorrentFileInfo {
   size: number;
   pieceOffset: number;
   pieceCount: number;
+  priority?: number;
+  bytesCompleted?: number;
+  progress?: number;
 }
+
+export type TorrentFile = TorrentFileInfo;
 
 export interface SeedingStats {
   activeTorrents: number;
   totalUploaded: number;
   totalDownloaded: number;
   averageRatio: number;
+  overallRatio?: number;
+  uploadSpeed?: number;
+  downloadSpeed?: number;
 }
 
 export interface SpeedSnapshot {
@@ -483,6 +509,9 @@ export interface TrackerServerConfig {
 export interface SchedulerConfig {
   id: number;
   schedulerEnabled: boolean;
+  enabled?: boolean;
+  uploadLimitKBs?: number;
+  downloadLimitKBs?: number;
   schedulerStartHour: number;
   schedulerStartMinute: number;
   schedulerEndHour: number;
@@ -587,6 +616,7 @@ export interface IndexerDefinition {
 export interface IndexerTestResult {
   success: boolean;
   message?: string;
+  responseTimeMs?: number;
 }
 
 export interface TrackerEntry {
@@ -747,6 +777,7 @@ export interface SyncResult {
   added: number;
   skipped: number;
   failed: number;
+  syncedCount?: number;
 }
 
 export interface MediaActor {
@@ -811,6 +842,8 @@ export interface ReleaseInfo {
   infoHash?: string | null;
   categories?: string[];
   protocol?: string;
+  isFreeleech?: boolean;
+  downloadVolumeFactor?: number;
 }
 
 export interface DownloadReleaseRequest {
@@ -820,6 +853,7 @@ export interface DownloadReleaseRequest {
   infoHash?: string;
   indexerId?: number;
   indexerName?: string;
+  category?: string;
 }
 
 export type TrackerProtocol = "Udp" | "Http" | "Https" | number;
@@ -1001,30 +1035,6 @@ export interface MediaMetadata {
   tmdbId?: number | null;
   tvdbId?: number | null;
   mediaInfoJson?: string | null;
-}
-
-export interface DownloadHistoryEntry {
-  id: number;
-  torrentId: number | null;
-  title: string;
-  infoHash: string;
-  totalSize: number;
-  dateAdded: string;
-  dateCompleted: string | null;
-  dateRemoved: string | null;
-  uploaded: number;
-  downloaded: number;
-  ratio: number;
-  seedingTime: number;
-  primaryTracker: string | null;
-  indexerName: string | null;
-  source: string | null;
-  magnetUrl: string | null;
-  downloadUrl: string | null;
-  status: string;
-  removalReason: string | null;
-  dataJson?: string | null;
-  metadata?: MediaMetadata | null;
 }
 
 export interface TorrentEngineCapabilities {

@@ -399,8 +399,8 @@ export function TorrentContextMenu({
               if (l !== null)
                 onUpdate({
                   ...ct,
-                  category: l || undefined,
-                  label: l || undefined,
+                  category: l || null,
+                  label: l || null,
                 });
               onClose();
             }}
