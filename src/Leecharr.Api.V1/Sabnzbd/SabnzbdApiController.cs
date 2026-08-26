@@ -115,12 +115,16 @@ public class SabnzbdApiController : ControllerBase
                     ? Request.Query["value2"].ToString()
                     : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
 
+                var delFiles = Request.Query["del_files"] == "1" ||
+                               (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                               string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+
                 if (queueSubAction == "delete")
                 {
                     var target = _torrentService.GetByInfoHash(queueVal);
                     if (target != null)
                     {
-                        await _torrentService.DeleteAsync(target.Id, false);
+                        await _torrentService.DeleteAsync(target.Id, delFiles);
                     }
 
                     return Ok(new { status = true });
@@ -178,6 +182,32 @@ public class SabnzbdApiController : ControllerBase
                 }
                 else if (queueSubAction == "priority" || queueSubAction.StartsWith("move_"))
                 {
+                    var target = _torrentService.GetByInfoHash(queueVal);
+                    if (target != null)
+                    {
+                        if (queueSubAction == "priority" && int.TryParse(queueVal2, out var prio))
+                        {
+                            target.Priority = prio;
+                            await _torrentService.UpdateAsync(target);
+                        }
+                        else if (queueSubAction.Contains("top") || queueVal2 == "0")
+                        {
+                            await _torrentService.MoveQueueAsync(target.Id, "top");
+                        }
+                        else if (queueSubAction.Contains("bottom") || queueSubAction.Contains("end"))
+                        {
+                            await _torrentService.MoveQueueAsync(target.Id, "bottom");
+                        }
+                        else if (queueSubAction.Contains("up"))
+                        {
+                            await _torrentService.MoveQueueAsync(target.Id, "up");
+                        }
+                        else if (queueSubAction.Contains("down"))
+                        {
+                            await _torrentService.MoveQueueAsync(target.Id, "down");
+                        }
+                    }
+
                     return Ok(new { status = true });
                 }
 
@@ -228,13 +258,16 @@ public class SabnzbdApiController : ControllerBase
             case "history":
                 var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
                 var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+                var histDelFiles = Request.Query["del_files"] == "1" ||
+                                   (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                                   string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
 
                 if (historySubAction == "delete")
                 {
                     var target = _torrentService.GetByInfoHash(historyVal);
                     if (target != null)
                     {
-                        await _torrentService.DeleteAsync(target.Id, false);
+                        await _torrentService.DeleteAsync(target.Id, histDelFiles);
                     }
 
                     return Ok(new { status = true });
@@ -348,11 +381,11 @@ public class SabnzbdApiController : ControllerBase
             case "delete":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var delFiles = Request.Query["del_files"] == "1" || (Request.HasFormContentType && Request.Form["del_files"] == "1");
+                    var directDelFiles = Request.Query["del_files"] == "1" || (Request.HasFormContentType && Request.Form["del_files"] == "1");
                     var t = _torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
-                        await _torrentService.DeleteAsync(t.Id, delFiles);
+                        await _torrentService.DeleteAsync(t.Id, directDelFiles);
                     }
                 }
 

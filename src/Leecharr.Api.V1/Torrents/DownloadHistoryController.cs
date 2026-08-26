@@ -50,11 +50,11 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("{id:int}/readd")]
-    public ActionResult<TorrentResource> ReAdd(int id)
+    public async Task<ActionResult<TorrentResource>> ReAdd(int id)
     {
         try
         {
-            var added = _historyService.ReAdd(id);
+            var added = await _historyService.ReAddAsync(id);
             return Ok(TorrentResourceMapper.ToResource(added));
         }
         catch (ArgumentException ex)

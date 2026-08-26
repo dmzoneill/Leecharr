@@ -141,14 +141,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { name: "Lidarr", icon: "🎵", status: getArrStatus("Lidarr") },
     { name: "Prowlarr", icon: "🔍", status: getArrStatus("Prowlarr") },
     {
-      name: "Deluge RPC",
-      icon: "⚡",
-      status: { label: "Port 7889 (Active)", color: "var(--success, #22c55e)" },
-    },
-    {
       name: "qBittorrent API",
       icon: "🔌",
-      status: { label: "Port 7889 (Active)", color: "var(--success, #22c55e)" },
+      status: { label: "Port 7889 (/api/v2)", color: "var(--success, #22c55e)" },
+    },
+    {
+      name: "Deluge RPC",
+      icon: "⚡",
+      status: { label: "Port 7889 (/json)", color: "var(--success, #22c55e)" },
+    },
+    {
+      name: "Transmission RPC",
+      icon: "🧲",
+      status: { label: "Port 7889 (/transmission/rpc)", color: "var(--success, #22c55e)" },
     },
   ];
 

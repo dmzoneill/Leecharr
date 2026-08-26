@@ -94,11 +94,11 @@ export function UserIcon() {
   );
 }
 
-export function PeerMapIcon() {
+export function PeerMapIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -115,11 +115,11 @@ export function PeerMapIcon() {
   );
 }
 
-export function ScheduleIcon() {
+export function ScheduleIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -133,11 +133,11 @@ export function ScheduleIcon() {
   );
 }
 
-export function StatsIcon() {
+export function StatsIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -152,11 +152,11 @@ export function StatsIcon() {
   );
 }
 
-export function HistoryIcon() {
+export function HistoryIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -171,11 +171,11 @@ export function HistoryIcon() {
   );
 }
 
-export function SearchIcon() {
+export function SearchIcon({ size = 14 }: { size?: number } = {}) {
   return (
     <svg
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

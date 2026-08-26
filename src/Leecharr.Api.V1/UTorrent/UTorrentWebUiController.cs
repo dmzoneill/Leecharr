@@ -106,10 +106,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "forcestart":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            await _torrentService.ResumeAsync(t.Id);
+                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await _torrentService.ResumeAsync(t.Id);
+                            }
                         }
                     }
 
@@ -119,10 +122,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "pause":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            await _torrentService.PauseAsync(t.Id);
+                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await _torrentService.PauseAsync(t.Id);
+                            }
                         }
                     }
 
@@ -131,10 +137,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "remove":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            await _torrentService.DeleteAsync(t.Id, false);
+                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await _torrentService.DeleteAsync(t.Id, false);
+                            }
                         }
                     }
 
@@ -144,10 +153,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "removedatatorrent":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            await _torrentService.DeleteAsync(t.Id, true);
+                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await _torrentService.DeleteAsync(t.Id, true);
+                            }
                         }
                     }
 
@@ -156,10 +168,31 @@ public class UTorrentWebUiController : ControllerBase
                 case "recheck":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            await _torrentService.ForceRecheckAsync(t.Id);
+                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await _torrentService.ForceRecheckAsync(t.Id);
+                            }
+                        }
+                    }
+
+                    return BuildTorrentListResponse();
+
+                case "setprio":
+                    if (!string.IsNullOrWhiteSpace(hash))
+                    {
+                        var target = _torrentService.GetByInfoHash(hash.Trim());
+                        var pVal = Request.Query["p"].ToString();
+                        var fVal = Request.Query["f"].ToString();
+                        if (target != null && int.TryParse(pVal, out var prio) && int.TryParse(fVal, out var fileIdx))
+                        {
+                            var files = _torrentFileService.GetFiles(target.Id).ToList();
+                            if (fileIdx >= 0 && fileIdx < files.Count)
+                            {
+                                await _torrentFileService.SetPriorityAsync(files[fileIdx].Id, prio);
+                            }
                         }
                     }
 

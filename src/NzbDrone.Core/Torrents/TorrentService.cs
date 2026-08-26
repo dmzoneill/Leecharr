@@ -344,6 +344,7 @@ public class TorrentService : ITorrentService
         }
 
         _fileRepository.DeleteByTorrentId(id);
+        _trackerEntryRepository?.DeleteByTorrentId(id);
         _mediaEnrichmentService.DeleteMetadata(id);
         _torrentRepository.Delete(id);
 
