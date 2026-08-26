@@ -29,7 +29,7 @@ public class NzbVortexApiController : ControllerBase
     }
 
     [HttpGet]
-    [Route("api/v1/auth/nonce")]
+    [Route("nzbvortex/api/v1/auth/nonce")]
     public IActionResult GetNonce()
     {
         return Ok(new
@@ -41,7 +41,7 @@ public class NzbVortexApiController : ControllerBase
 
     [HttpGet]
     [HttpPost]
-    [Route("api/v1/auth/login")]
+    [Route("nzbvortex/api/v1/auth/login")]
     public IActionResult Login()
     {
         return Ok(new
@@ -52,7 +52,7 @@ public class NzbVortexApiController : ControllerBase
     }
 
     [HttpGet]
-    [Route("api/v1/queue")]
+    [Route("nzbvortex/api/v1/queue")]
     public IActionResult GetQueue()
     {
         var all = _torrentService.GetAll().ToList();
@@ -77,7 +77,7 @@ public class NzbVortexApiController : ControllerBase
     }
 
     [HttpGet]
-    [Route("api/v1/history")]
+    [Route("nzbvortex/api/v1/history")]
     public IActionResult GetHistory()
     {
         var all = _torrentService.GetAll().ToList();
@@ -101,7 +101,7 @@ public class NzbVortexApiController : ControllerBase
     }
 
     [HttpPost]
-    [Route("api/v1/queue/add")]
+    [Route("nzbvortex/api/v1/queue/add")]
     public async Task<IActionResult> AddQueue()
     {
         if (Request.HasFormContentType && Request.Form.Files.Count > 0)
@@ -127,7 +127,7 @@ public class NzbVortexApiController : ControllerBase
     }
 
     [HttpDelete]
-    [Route("api/v1/queue/{id}")]
+    [Route("nzbvortex/api/v1/queue/{id}")]
     public async Task<IActionResult> DeleteQueue(int id)
     {
         await _torrentService.DeleteAsync(id, false);

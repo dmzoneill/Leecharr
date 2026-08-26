@@ -32,6 +32,7 @@ public class FloodActionRequest
 public class FloodApiController : ControllerBase
 {
     private readonly ITorrentService _torrentService;
+    private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly ICategoryService _categoryService;
     private readonly IConfigService _configService;
@@ -39,11 +40,13 @@ public class FloodApiController : ControllerBase
 
     public FloodApiController(
         ITorrentService torrentService,
+        ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService)
     {
         _torrentService = torrentService;
+        _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _categoryService = categoryService;
         _configService = configService;
@@ -222,6 +225,14 @@ public class FloodApiController : ControllerBase
         return Ok(new { success = true });
     }
 
+    [HttpGet]
+    [Route("api/torrents/tags")]
+    public IActionResult GetTags()
+    {
+        var cats = _categoryService.GetAll().Select(c => c.Name).ToList();
+        return Ok(cats);
+    }
+
     [HttpPost]
     [Route("api/torrents/set-tags")]
     public async Task<IActionResult> SetTags([FromBody] FloodActionRequest request)
@@ -235,11 +246,45 @@ public class FloodApiController : ControllerBase
                 if (t != null)
                 {
                     t.Category = newCategory;
+                    t.Label = string.Join(",", request.Tags ?? new List<string>());
                     await _torrentService.UpdateAsync(t);
                 }
             }
         }
 
         return Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [Route("api/torrents/check-hash")]
+    public async Task<IActionResult> CheckHash([FromBody] FloodActionRequest request)
+    {
+        if (request?.Hashes != null)
+        {
+            foreach (var hash in request.Hashes)
+            {
+                var t = _torrentService.GetByInfoHash(hash);
+                if (t != null)
+                {
+                    await _torrentService.ForceRecheckAsync(t.Id);
+                }
+            }
+        }
+
+        return Ok(new { success = true });
+    }
+
+    [HttpGet]
+    [Route("api/torrents/{hash}/contents")]
+    public IActionResult GetContents([FromRoute] string hash)
+    {
+        var t = _torrentService.GetByInfoHash(hash);
+        if (t == null)
+        {
+            return NotFound();
+        }
+
+        var files = _torrentFileService.GetFiles(t.Id);
+        return Ok(files);
     }
 }

@@ -9,6 +9,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
 
@@ -20,6 +21,7 @@ public class TorrentService : ITorrentService
     private readonly IMediaEnrichmentService _mediaEnrichmentService;
     private readonly IConfigService _configService;
     private readonly IDownloadEngine _downloadEngine;
+    private readonly ITrackerEntryRepository _trackerEntryRepository;
     private readonly IEventAggregator _eventAggregator;
     private readonly Logger _logger;
 
@@ -30,7 +32,8 @@ public class TorrentService : ITorrentService
         IMediaEnrichmentService mediaEnrichmentService,
         IConfigService configService,
         IDownloadEngine downloadEngine,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         _torrentRepository = torrentRepository;
         _fileRepository = fileRepository;
@@ -39,6 +42,7 @@ public class TorrentService : ITorrentService
         _configService = configService;
         _downloadEngine = downloadEngine;
         _eventAggregator = eventAggregator;
+        _trackerEntryRepository = trackerEntryRepository;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -146,6 +150,40 @@ public class TorrentService : ITorrentService
             }
         }
 
+        // Insert trackers
+        if (_trackerEntryRepository != null)
+        {
+            if (parsed.AnnounceList != null && parsed.AnnounceList.Count > 0)
+            {
+                for (var tier = 0; tier < parsed.AnnounceList.Count; tier++)
+                {
+                    foreach (var url in parsed.AnnounceList[tier])
+                    {
+                        if (!string.IsNullOrWhiteSpace(url))
+                        {
+                            _trackerEntryRepository.Insert(new TrackerEntry
+                            {
+                                TorrentId = inserted.Id,
+                                Url = url,
+                                Tier = tier,
+                                Enabled = true
+                            });
+                        }
+                    }
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(parsed.AnnounceUrl))
+            {
+                _trackerEntryRepository.Insert(new TrackerEntry
+                {
+                    TorrentId = inserted.Id,
+                    Url = parsed.AnnounceUrl,
+                    Tier = 0,
+                    Enabled = true
+                });
+            }
+        }
+
         _logger.Info("Added torrent: {0} ({1})", inserted.Name, inserted.InfoHash);
 
         // Start torrent in BitTorrent download engine
@@ -218,6 +256,25 @@ public class TorrentService : ITorrentService
         };
 
         var inserted = _torrentRepository.Insert(torrent);
+
+        // Insert trackers from magnet
+        if (_trackerEntryRepository != null && parsedMagnet.Trackers != null)
+        {
+            foreach (var trackerUrl in parsedMagnet.Trackers)
+            {
+                if (!string.IsNullOrWhiteSpace(trackerUrl))
+                {
+                    _trackerEntryRepository.Insert(new TrackerEntry
+                    {
+                        TorrentId = inserted.Id,
+                        Url = trackerUrl,
+                        Tier = 0,
+                        Enabled = true
+                    });
+                }
+            }
+        }
+
         _logger.Info("Added magnet torrent: {0} ({1})", inserted.Name, inserted.InfoHash);
 
         // Start torrent in BitTorrent download engine

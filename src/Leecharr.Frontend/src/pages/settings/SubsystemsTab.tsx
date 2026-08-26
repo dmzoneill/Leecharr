@@ -4,6 +4,7 @@ import {
   useSwitchSubsystem,
   useProbeSubsystemProvider,
 } from "../../api/hooks";
+import { useToast } from "../../context/ToastContext";
 import type {
   SubsystemOverview,
   SubsystemProvider,
@@ -12,6 +13,7 @@ import type {
 import { SectionCard } from "./shared";
 
 export function SubsystemsTab() {
+  const { showToast } = useToast();
   const {
     data: subsystems,
     isLoading,
@@ -42,7 +44,7 @@ export function SubsystemsTab() {
       const res = await probeProvider.mutateAsync({ subsystemId, providerId });
       setProbeResult(res);
     } catch (err: any) {
-      alert(`Probe failed: ${err.message}`);
+      showToast(`Probe failed: ${err.message || "Unknown error"}`, "error");
     } finally {
       setProbeLoadingKey(null);
     }
@@ -57,17 +59,20 @@ export function SubsystemsTab() {
       });
 
       if (res.success) {
-        setSuccessMessage(
+        showToast(
           res.message ||
             `Successfully switched ${selectedForSwitch.subsystem.name} provider to ${selectedForSwitch.provider.displayName}.`,
+          "success",
         );
         setSelectedForSwitch(null);
-        setTimeout(() => setSuccessMessage(null), 6000);
       } else {
-        alert(`Failed to switch provider: ${res.error || "Unknown error"}`);
+        showToast(
+          `Failed to switch provider: ${res.error || "Unknown error"}`,
+          "error",
+        );
       }
     } catch (err: any) {
-      alert(`Failed to switch provider: ${err.message}`);
+      showToast(`Failed to switch provider: ${err.message || "Unknown error"}`, "error");
     }
   };
 

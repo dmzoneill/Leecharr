@@ -8,6 +8,7 @@ import {
 } from "../api/hooks";
 import { formatSpeed } from "../utils/formatters";
 import type { SpeedScheduleEntry } from "../api/types";
+import { useToast } from "../context/ToastContext";
 
 const DAY_FLAGS = [
   { label: "Mon", value: 1 },
@@ -458,6 +459,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
 }
 
 export function SpeedSchedule() {
+  const { showToast } = useToast();
   const { data: schedules, isLoading, isError } = useSpeedSchedules();
   const { data: activeLimits } = useActiveSpeedLimits();
   const createSchedule = useCreateSpeedSchedule();
@@ -469,10 +471,33 @@ export function SpeedSchedule() {
   function handleSave(form: Partial<SpeedScheduleEntry>) {
     if (form.id) {
       updateSchedule.mutate(form as SpeedScheduleEntry, {
-        onSuccess: () => setModal(null),
+        onSuccess: () => {
+          showToast("Speed schedule updated", "info");
+          setModal(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to update speed schedule", "error");
+        },
       });
     } else {
-      createSchedule.mutate(form, { onSuccess: () => setModal(null) });
+      createSchedule.mutate(form, {
+        onSuccess: () => {
+          showToast("Speed schedule created", "info");
+          setModal(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to create speed schedule", "error");
+        },
+      });
+    }
+  }
+
+  function handleDelete(id: number, name: string) {
+    if (window.confirm(`Are you sure you want to delete the schedule "${name}"?`)) {
+      deleteSchedule.mutate(id, {
+        onSuccess: () => showToast("Speed schedule deleted", "info"),
+        onError: (err: any) => showToast(err?.message || "Failed to delete schedule", "error"),
+      });
     }
   }
 
@@ -832,7 +857,7 @@ export function SpeedSchedule() {
                           </button>
                           <button
                             className="btn btn-small btn-danger"
-                            onClick={() => deleteSchedule.mutate(s.id)}
+                            onClick={() => handleDelete(s.id, s.name)}
                           >
                             Delete
                           </button>

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
@@ -19,18 +20,24 @@ public class RssSyncService : IRssSyncService
     private readonly IRssRuleRepository _rssRuleRepository;
     private readonly ITorznabClient _torznabClient;
     private readonly ITorrentService _torrentService;
+    private readonly ITorrentFileParser _torrentFileParser;
+    private readonly HttpClient _httpClient;
     private readonly Logger _logger;
 
     public RssSyncService(
         IIndexerRepository indexerRepository,
         IRssRuleRepository rssRuleRepository,
         ITorznabClient torznabClient,
-        ITorrentService torrentService)
+        ITorrentService torrentService,
+        ITorrentFileParser torrentFileParser = null,
+        HttpClient httpClient = null)
     {
         _indexerRepository = indexerRepository;
         _rssRuleRepository = rssRuleRepository;
         _torznabClient = torznabClient;
         _torrentService = torrentService;
+        _torrentFileParser = torrentFileParser ?? new TorrentFileParser();
+        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -69,6 +76,21 @@ public class RssSyncService : IRssSyncService
                                 await _torrentService.AddFromMagnetAsync(release.MagnetUrl);
                                 grabbedCount++;
                                 break;
+                            }
+                            else if (!string.IsNullOrEmpty(release.DownloadUrl))
+                            {
+                                try
+                                {
+                                    var torrentBytes = await _httpClient.GetByteArrayAsync(release.DownloadUrl);
+                                    var parsed = _torrentFileParser.Parse(torrentBytes);
+                                    await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
+                                    grabbedCount++;
+                                    break;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
+                                }
                             }
                         }
                     }
@@ -144,6 +166,16 @@ public class RssSyncService : IRssSyncService
         if (rule.FreeleechOnly && !release.IsFreeleech)
         {
             return false;
+        }
+
+        // 7. CategoryId matching
+        if (rule.CategoryId > 0 && !string.IsNullOrWhiteSpace(release.Category))
+        {
+            var catStr = rule.CategoryId.ToString();
+            if (!release.Category.Contains(catStr, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
         }
 
         return true;

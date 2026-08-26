@@ -108,54 +108,106 @@ public class RTorrentController : ControllerBase
                 case "load.raw_start":
                 case "load.raw_verbose":
                 case "load_raw_start":
-                    if (paramValues.Count >= 2)
-                    {
-                        var rawData = paramValues[1];
-                        byte[] torrentBytes = null;
-                        if (rawData is byte[] b)
-                        {
-                            torrentBytes = b;
-                        }
-                        else if (rawData is string s)
-                        {
-                            try
-                            {
-                                torrentBytes = Convert.FromBase64String(s);
-                            }
-                            catch
-                            {
-                                torrentBytes = Encoding.Latin1.GetBytes(s);
-                            }
-                        }
-
-                        if (torrentBytes != null && torrentBytes.Length > 0)
-                        {
-                            var parsed = _torrentFileParser.Parse(torrentBytes);
-                            await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
-                        }
-                    }
-
-                    return BuildXmlRpcResponse(new XElement("i4", 0));
-
+                case "load.raw":
+                case "load.normal":
                 case "load.start":
                 case "load.verbose":
                 case "load_start":
-                    if (paramValues.Count >= 2 && paramValues[1] is string uriStr)
+                    if (paramValues.Count >= 2)
                     {
-                        if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                        var isRaw = methodName.Contains("raw", StringComparison.OrdinalIgnoreCase);
+                        var isStart = !methodName.Equals("load.normal", StringComparison.OrdinalIgnoreCase) && !methodName.Equals("load.raw", StringComparison.OrdinalIgnoreCase);
+
+                        string customCategory = null;
+                        string customDir = null;
+                        for (var i = 2; i < paramValues.Count; i++)
                         {
-                            await _torrentService.AddFromMagnetAsync(uriStr, null, null, false);
+                            if (paramValues[i] is string arg)
+                            {
+                                if (arg.StartsWith("d.custom1.set=", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    customCategory = arg["d.custom1.set=".Length..].Trim('\"', '\'');
+                                }
+                                else if (arg.StartsWith("d.directory.set=", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    customDir = arg["d.directory.set=".Length..].Trim('\"', '\'');
+                                }
+                                else if (arg.StartsWith("d.directory_base.set=", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    customDir = arg["d.directory_base.set=".Length..].Trim('\"', '\'');
+                                }
+                            }
                         }
-                        else
+
+                        if (isRaw)
                         {
-                            using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                            var bytes = await client.GetByteArrayAsync(uriStr);
-                            var parsed = _torrentFileParser.Parse(bytes);
-                            await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                            var rawData = paramValues[1];
+                            byte[] torrentBytes = null;
+                            if (rawData is byte[] b)
+                            {
+                                torrentBytes = b;
+                            }
+                            else if (rawData is string s)
+                            {
+                                try
+                                {
+                                    torrentBytes = Convert.FromBase64String(s);
+                                }
+                                catch
+                                {
+                                    torrentBytes = Encoding.Latin1.GetBytes(s);
+                                }
+                            }
+
+                            if (torrentBytes != null && torrentBytes.Length > 0)
+                            {
+                                var parsed = _torrentFileParser.Parse(torrentBytes);
+                                await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
+                            }
+                        }
+                        else if (paramValues[1] is string uriStr)
+                        {
+                            if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                            {
+                                await _torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                            }
+                            else
+                            {
+                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                                var bytes = await client.GetByteArrayAsync(uriStr);
+                                var parsed = _torrentFileParser.Parse(bytes);
+                                await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                            }
                         }
                     }
 
                     return BuildXmlRpcResponse(new XElement("i4", 0));
+
+                case "d.name":
+                case "d.get_name":
+                    if (paramValues.Count > 0 && paramValues[0] is string hashForName)
+                    {
+                        var t = _torrentService.GetByInfoHash(hashForName);
+                        if (t != null)
+                        {
+                            return BuildXmlRpcResponse(new XElement("string", t.Name ?? string.Empty));
+                        }
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("string", string.Empty));
+
+                case "d.custom1":
+                case "d.get_custom1":
+                    if (paramValues.Count > 0 && paramValues[0] is string hashForCustom)
+                    {
+                        var t = _torrentService.GetByInfoHash(hashForCustom);
+                        if (t != null)
+                        {
+                            return BuildXmlRpcResponse(new XElement("string", t.Category ?? string.Empty));
+                        }
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("string", string.Empty));
 
                 case "d.erase":
                 case "d.delete":
@@ -211,6 +263,7 @@ public class RTorrentController : ControllerBase
                     return BuildXmlRpcResponse(new XElement("i4", 0));
 
                 case "d.custom1.set":
+                    var targetCat = string.Empty;
                     if (paramValues.Count >= 2 && paramValues[0] is string targetHash && paramValues[1] is string newCategory)
                     {
                         var t = _torrentService.GetByInfoHash(targetHash);
@@ -218,10 +271,11 @@ public class RTorrentController : ControllerBase
                         {
                             t.Category = newCategory;
                             await _torrentService.UpdateAsync(t);
+                            targetCat = newCategory;
                         }
                     }
 
-                    return BuildXmlRpcResponse(new XElement("i4", 0));
+                    return BuildXmlRpcResponse(new XElement("string", targetCat));
 
                 default:
                     _logger.Debug("Unhandled rTorrent XML-RPC method: {0}", methodName);
@@ -300,6 +354,10 @@ public class RTorrentController : ControllerBase
             case "d.get_size_bytes":
                 return new XElement("i8", torrent.TotalSize);
 
+            case "d.left_bytes":
+            case "d.get_left_bytes":
+                return new XElement("i8", Math.Max(0, torrent.TotalSize - torrent.Downloaded));
+
             case "d.down.rate":
             case "d.get_down_rate":
                 return new XElement("i8", torrent.DownloadSpeed);
@@ -322,11 +380,19 @@ public class RTorrentController : ControllerBase
 
             case "d.message":
             case "d.get_message":
-                return new XElement("string", string.Empty);
+                return new XElement("string", torrent.Status == TorrentStatus.Error ? "Error" : string.Empty);
 
             case "d.custom1":
             case "d.get_custom1":
                 return new XElement("string", torrent.Category ?? string.Empty);
+
+            case "d.timestamp.started":
+            case "d.get_timestamp.started":
+                return new XElement("i8", new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds());
+
+            case "d.timestamp.finished":
+            case "d.get_timestamp.finished":
+                return new XElement("i8", torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0);
 
             case "d.ratio":
             case "d.get_ratio":

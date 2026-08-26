@@ -9,8 +9,10 @@ import {
 } from "../../api/hooks";
 import type { IndexerDefinition, IndexerTestResult } from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
+import { useToast } from "../../context/ToastContext";
 
 export function IndexersTab() {
+  const { showToast } = useToast();
   const { data: indexers, isLoading } = useIndexers();
   const createMutation = useCreateIndexer();
   const updateMutation = useUpdateIndexer();
@@ -138,7 +140,12 @@ export function IndexersTab() {
                   title="Delete Indexer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteMutation.mutate(idx.id);
+                    if (window.confirm(`Are you sure you want to delete the indexer "${idx.name}"?`)) {
+                      deleteMutation.mutate(idx.id, {
+                        onSuccess: () => showToast(`Indexer "${idx.name}" deleted`, "info"),
+                        onError: (err: any) => showToast(err?.message || "Failed to delete indexer", "error"),
+                      });
+                    }
                   }}
                 >
                   &#x2715;

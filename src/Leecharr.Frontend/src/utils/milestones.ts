@@ -86,7 +86,10 @@ export function getTorrentBadges(
   }[] = [];
 
   // Swarm Guardian: <= 2 total seeders
-  if ((torrent.seeders ?? 0) <= 2 && torrent.status === "Seeding") {
+  if (
+    (torrent.seeders ?? 0) <= 2 &&
+    (torrent.status || "").toLowerCase() === "seeding"
+  ) {
     badges.push({
       label: "Guardian",
       icon: "🛡️",
@@ -168,7 +171,7 @@ export function calculateAchievements(
   const maxSeedTime =
     tList.length > 0 ? Math.max(...tList.map((t) => t.seedingTime || 0)) : 0;
   const swarmGuardians = tList.filter(
-    (t) => (t.seeders ?? 0) <= 2 && t.status === "Seeding",
+    (t) => (t.seeders ?? 0) <= 2 && (t.status || "").toLowerCase() === "seeding",
   );
 
   const badges: MilestoneBadge[] = [

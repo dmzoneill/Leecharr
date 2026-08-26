@@ -2,6 +2,7 @@ import {
   useDownloadHistory,
   useArrConnections,
   useIndexers,
+  useAiConfig,
 } from "../../api/hooks";
 import { formatBytes, formatDate } from "../../utils/formatters";
 import {
@@ -21,6 +22,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
+  const { data: aiConfig } = useAiConfig();
+  const isSwarmDiagnosticsEnabled = aiConfig?.enableSwarmDiagnostics !== false;
 
   // Find corresponding enriched history entry by infoHash or name match
   const historyMatch = history?.find(
@@ -254,7 +257,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
         isSeeding={torrent.status === "Seeding"}
       />
 
-      <AiSwarmDiagnosticCard torrent={torrent} />
+      {isSwarmDiagnosticsEnabled && <AiSwarmDiagnosticCard torrent={torrent} />}
 
       <div className="detail-panel-grid">
         {rows.map(([label, value]) => (

@@ -85,6 +85,7 @@ public class FreeboxDownloadController : ControllerBase
             tx_bytes = t.Uploaded,
             rx_rate = t.DownloadSpeed,
             tx_rate = t.UploadSpeed,
+            eta = t.Eta,
             io_priority = "normal",
             download_dir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads")
         }).ToList();
@@ -100,21 +101,30 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads/add")]
     public async Task<IActionResult> AddDownload()
     {
+        var addedId = 1;
         if (Request.HasFormContentType)
         {
             var downloadUrl = Request.Form["download_url"].ToString();
+            var downloadDir = Request.Form["download_dir"].ToString();
+            if (string.IsNullOrWhiteSpace(downloadDir))
+            {
+                downloadDir = null;
+            }
+
             if (!string.IsNullOrWhiteSpace(downloadUrl))
             {
                 if (downloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    await _torrentService.AddFromMagnetAsync(downloadUrl, null, null, false);
+                    var added = await _torrentService.AddFromMagnetAsync(downloadUrl, null, downloadDir, false);
+                    addedId = added?.Id ?? addedId;
                 }
                 else
                 {
                     using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                     var bytes = await client.GetByteArrayAsync(downloadUrl);
                     var parsed = _torrentFileParser.Parse(bytes);
-                    await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, false, bytes);
+                    addedId = added?.Id ?? addedId;
                 }
             }
             else if (Request.Form.Files.Count > 0)
@@ -124,14 +134,15 @@ public class FreeboxDownloadController : ControllerBase
                 await file.CopyToAsync(ms);
                 var bytes = ms.ToArray();
                 var parsed = _torrentFileParser.Parse(bytes);
-                await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, false, bytes);
+                addedId = added?.Id ?? addedId;
             }
         }
 
         return Ok(new
         {
             success = true,
-            result = new { id = 1 }
+            result = new { id = addedId }
         });
     }
 

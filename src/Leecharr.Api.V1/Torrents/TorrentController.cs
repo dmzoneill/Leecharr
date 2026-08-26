@@ -8,9 +8,11 @@ using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Torrents;
@@ -43,22 +45,28 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly IMediaEnrichmentService _mediaEnrichmentService;
+    private readonly ITrackerEntryRepository _trackerEntryRepository;
     private readonly IGeoIpService _geoIpService;
+    private readonly IDownloadEngine _downloadEngine;
 
     public TorrentController(
         ITorrentService torrentService,
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         IMediaEnrichmentService mediaEnrichmentService,
+        ITrackerEntryRepository trackerEntryRepository,
         IBroadcastSignalRMessage signalRBroadcaster,
-        IGeoIpService geoIpService = null)
+        IGeoIpService geoIpService = null,
+        IDownloadEngine downloadEngine = null)
         : base(signalRBroadcaster)
     {
         _torrentService = torrentService;
         _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _mediaEnrichmentService = mediaEnrichmentService;
+        _trackerEntryRepository = trackerEntryRepository;
         _geoIpService = geoIpService;
+        _downloadEngine = downloadEngine;
     }
 
     [HttpGet]
@@ -149,42 +157,73 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return NotFound();
         }
 
-        var list = new List<TrackerResource>
+        var dbTrackers = _trackerEntryRepository.GetByTorrentId(id).ToList();
+        if (dbTrackers.Count == 0 && !string.IsNullOrWhiteSpace(torrent.TrackerUrl))
         {
-            new()
+            dbTrackers.Add(new TrackerEntry
             {
                 Id = 1,
-                Url = torrent.TrackerUrl ?? "dht://leecharr",
-                Status = "Working",
+                TorrentId = id,
+                Url = torrent.TrackerUrl,
+                Status = 1,
                 Seeders = torrent.Seeders,
                 Leechers = torrent.Leechers,
-                Downloaded = 0,
-                LastAnnounce = DateTime.UtcNow,
-                Message = "OK"
-            }
-        };
+                LastAnnounce = DateTime.UtcNow
+            });
+        }
 
-        return Ok(list);
+        var resources = dbTrackers.Select(t => new TrackerResource
+        {
+            Id = t.Id,
+            Url = t.Url,
+            Status = t.Status == 1 ? "Working" : (t.Status == 2 ? "Error" : "Queued"),
+            Seeders = t.Seeders > 0 ? t.Seeders : torrent.Seeders,
+            Leechers = t.Leechers > 0 ? t.Leechers : torrent.Leechers,
+            Downloaded = t.Downloaded,
+            LastAnnounce = t.LastAnnounce ?? DateTime.UtcNow,
+            Message = !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "OK"
+        }).ToList();
+
+        return Ok(resources);
     }
 
     [HttpPost("{id:int}/trackers")]
     public ActionResult<TrackerResource> AddTracker(int id, [FromBody] AddTrackerRequest request)
     {
-        return Ok(new TrackerResource
+        var torrent = _torrentService.Get(id);
+        if (torrent == null)
         {
-            Id = 2,
+            return NotFound();
+        }
+
+        var entry = new TrackerEntry
+        {
+            TorrentId = id,
             Url = request?.Url ?? string.Empty,
-            Status = "Queued",
+            Tier = 0,
+            Enabled = true,
+            Status = 1,
             Seeders = 0,
             Leechers = 0,
-            LastAnnounce = DateTime.UtcNow,
-            Message = "Added"
+            LastAnnounce = DateTime.UtcNow
+        };
+        var created = _trackerEntryRepository.Insert(entry);
+        return Ok(new TrackerResource
+        {
+            Id = created.Id,
+            Url = created.Url,
+            Status = "Working",
+            Seeders = 0,
+            Leechers = 0,
+            LastAnnounce = created.LastAnnounce ?? DateTime.UtcNow,
+            Message = "OK"
         });
     }
 
     [HttpDelete("{id:int}/trackers/{trackerId:int}")]
     public ActionResult DeleteTracker(int id, int trackerId)
     {
+        _trackerEntryRepository.Delete(trackerId);
         return Ok();
     }
 
@@ -432,6 +471,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var updated = await _torrentService.UpdateAsync(existing);
+        if (_downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
+        {
+            await _downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);
+        }
+
         var meta = _mediaEnrichmentService.GetMetadata(id);
         return Ok(TorrentResourceMapper.ToResource(updated, meta));
     }

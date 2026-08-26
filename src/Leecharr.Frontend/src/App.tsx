@@ -48,6 +48,8 @@ import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
 import { AddTorrentModal } from "./components/AddTorrentModal";
 import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
+import ToastContainer from "./components/Toast";
+import { useToast } from "./context/ToastContext";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
@@ -180,13 +182,23 @@ export function App() {
     }
   };
 
+  const { showToast } = useToast();
+
   useEffect(() => {
     loadData();
     signalRManager.start();
     setConnected(true);
 
     const unsubscribe = signalRManager.subscribe((msg) => {
-      if (msg.name === "torrent" || msg.name === "speedpulse") {
+      if (
+        msg.name === "torrent" ||
+        msg.name === "torrentAdded" ||
+        msg.name === "torrentUpdated" ||
+        msg.name === "torrentDeleted" ||
+        msg.name === "category" ||
+        msg.name === "subsystemSwitched" ||
+        msg.name === "pieceMapUpdated"
+      ) {
         loadData();
       }
     });
@@ -195,19 +207,34 @@ export function App() {
   }, []);
 
   const handlePause = async (id: number) => {
-    await api.pauseTorrent(id);
-    loadData();
+    try {
+      await api.pauseTorrent(id);
+      showToast("Torrent paused", "info");
+      loadData();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to pause torrent", "error");
+    }
   };
 
   const handleResume = async (id: number) => {
-    await api.resumeTorrent(id);
-    loadData();
+    try {
+      await api.resumeTorrent(id);
+      showToast("Torrent resumed", "success");
+      loadData();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to resume torrent", "error");
+    }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this torrent?")) {
-      await api.deleteTorrent(id, false);
-      loadData();
+      try {
+        await api.deleteTorrent(id, false);
+        showToast("Torrent deleted", "info");
+        loadData();
+      } catch (err: any) {
+        showToast(err?.message || "Failed to delete torrent", "error");
+      }
     }
   };
 
@@ -223,9 +250,9 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app nav-${activeNav}`}>
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar sidebar-${activeNav}`}>
         <div
           className="sidebar-logo"
           onClick={() => navigate("/")}
@@ -356,19 +383,7 @@ export function App() {
             <div style={{ display: "flex", flexDirection: "column" }}>
               {SETTINGS_GROUPS.map((group) => (
                 <div key={group.id} style={{ marginTop: "0.4rem" }}>
-                  <div
-                    style={{
-                      padding: "0.35rem 1rem 0.2rem 1.6rem",
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      color: "var(--text-muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.35rem",
-                    }}
-                  >
+                  <div className="sidebar-group-header">
                     <span>{group.icon}</span>
                     <span>{group.shortLabel}</span>
                   </div>
@@ -396,26 +411,28 @@ export function App() {
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "0.4rem",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          <span style={{ fontSize: "0.85rem" }}>
+                          <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>
                             {page.icon}
                           </span>
-                          <span>{page.shortLabel}</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {page.shortLabel}
+                          </span>
                         </span>
                         {page.badge && (
                           <span
+                            className="sidebar-badge"
                             style={{
-                              fontSize: "0.6rem",
-                              padding: "0.05rem 0.3rem",
-                              borderRadius: "3px",
                               backgroundColor: isPageActive
                                 ? "var(--accent)"
                                 : "rgba(255,255,255,0.06)",
                               color: isPageActive
                                 ? "#10111a"
                                 : "var(--text-muted)",
-                              fontWeight: 700,
                             }}
                           >
                             {page.badge}
@@ -708,6 +725,9 @@ export function App() {
 
       {/* Discrete Collapsible AI Copilot Drawer */}
       <AiCopilotDrawer />
+
+      {/* Global Floating Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Torrents;
@@ -12,11 +13,16 @@ public interface ITorrentFileService
 public class TorrentFileService : ITorrentFileService
 {
     private readonly ITorrentFileRepository _repository;
+    private readonly IDownloadEngine _downloadEngine;
     private readonly IEventAggregator _eventAggregator;
 
-    public TorrentFileService(ITorrentFileRepository repository, IEventAggregator eventAggregator)
+    public TorrentFileService(
+        ITorrentFileRepository repository,
+        IDownloadEngine downloadEngine,
+        IEventAggregator eventAggregator)
     {
         _repository = repository;
+        _downloadEngine = downloadEngine;
         _eventAggregator = eventAggregator;
     }
 
@@ -32,6 +38,7 @@ public class TorrentFileService : ITorrentFileService
         {
             file.Priority = priority;
             _repository.Update(file);
+            _downloadEngine.SetFilePriorityAsync(file.TorrentId, file.Path, priority);
         }
     }
 }

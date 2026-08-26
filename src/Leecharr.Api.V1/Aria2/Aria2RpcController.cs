@@ -79,7 +79,7 @@ public class Aria2RpcController : ControllerBase
                     {
                         var xmlDoc = global::System.Xml.Linq.XDocument.Parse(rawBody);
                         var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
-                        return HandleXmlRpc(xmlMethodName);
+                        return await HandleXmlRpcAsync(xmlMethodName, xmlDoc);
                     }
 
                     using var doc = JsonDocument.Parse(rawBody);
@@ -155,6 +155,8 @@ public class Aria2RpcController : ControllerBase
 
     private async Task<object> ExecuteMethodAsync(string method, JsonElement parameters)
     {
+        var cleanParams = GetCleanParams(parameters);
+
         switch (method.ToLowerInvariant())
         {
             case "aria2.getversion":
@@ -176,40 +178,72 @@ public class Aria2RpcController : ControllerBase
                 };
 
             case "aria2.tellactive":
-                var activeTorrents = _torrentService.GetAll()
+                return _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
                     .Select(MapTorrentToAria2)
                     .ToList();
-                return activeTorrents;
 
             case "aria2.tellwaiting":
-                var waitingTorrents = _torrentService.GetAll()
+                return _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Queued)
                     .Select(MapTorrentToAria2)
                     .ToList();
-                return waitingTorrents;
 
             case "aria2.tellstopped":
-                var stoppedTorrents = _torrentService.GetAll()
+                return _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
                     .Select(MapTorrentToAria2)
                     .ToList();
-                return stoppedTorrents;
 
             case "aria2.tellstatus":
-                var gid = GetFirstStringParam(parameters);
+                var gid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
                 var torrent = FindByGid(gid);
                 return torrent != null ? MapTorrentToAria2(torrent) : new object();
 
             case "aria2.addtorrent":
-                if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
+                if (cleanParams.Count > 0)
                 {
-                    var b64 = parameters[0].GetString();
+                    var b64 = cleanParams[0].GetString();
                     if (!string.IsNullOrWhiteSpace(b64))
                     {
+                        var savePath = (string)null;
+                        var isPaused = false;
+                        if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
+                        {
+                            var opts = cleanParams[1];
+                            if (opts.TryGetProperty("dir", out var dirProp))
+                            {
+                                savePath = dirProp.GetString();
+                            }
+
+                            if (opts.TryGetProperty("pause", out var pauseProp))
+                            {
+                                if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
+                                {
+                                    isPaused = true;
+                                }
+                            }
+                        }
+                        else if (cleanParams.Count > 2 && cleanParams[2].ValueKind == JsonValueKind.Object)
+                        {
+                            var opts = cleanParams[2];
+                            if (opts.TryGetProperty("dir", out var dirProp))
+                            {
+                                savePath = dirProp.GetString();
+                            }
+
+                            if (opts.TryGetProperty("pause", out var pauseProp))
+                            {
+                                if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
+                                {
+                                    isPaused = true;
+                                }
+                            }
+                        }
+
                         var bytes = Convert.FromBase64String(b64);
                         var parsed = _torrentFileParser.Parse(bytes);
-                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
                         return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
                     }
                 }
@@ -217,17 +251,36 @@ public class Aria2RpcController : ControllerBase
                 return Guid.NewGuid().ToString("N")[..16];
 
             case "aria2.adduri":
-                if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
+                if (cleanParams.Count > 0)
                 {
-                    var urisArray = parameters[0];
+                    var urisArray = cleanParams[0];
                     if (urisArray.ValueKind == JsonValueKind.Array && urisArray.GetArrayLength() > 0)
                     {
                         var uri = urisArray[0].GetString();
                         if (!string.IsNullOrWhiteSpace(uri))
                         {
+                            var savePath = (string)null;
+                            var isPaused = false;
+                            if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
+                            {
+                                var opts = cleanParams[1];
+                                if (opts.TryGetProperty("dir", out var dirProp))
+                                {
+                                    savePath = dirProp.GetString();
+                                }
+
+                                if (opts.TryGetProperty("pause", out var pauseProp))
+                                {
+                                    if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
+                                    {
+                                        isPaused = true;
+                                    }
+                                }
+                            }
+
                             if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                var added = await _torrentService.AddFromMagnetAsync(uri, null, null, false);
+                                var added = await _torrentService.AddFromMagnetAsync(uri, null, savePath, isPaused);
                                 return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
                             }
                             else
@@ -235,7 +288,7 @@ public class Aria2RpcController : ControllerBase
                                 using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                 var bytes = await client.GetByteArrayAsync(uri);
                                 var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
                                 return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
                             }
                         }
@@ -246,54 +299,64 @@ public class Aria2RpcController : ControllerBase
 
             case "aria2.remove":
             case "aria2.forceremove":
-                var removeGid = GetFirstStringParam(parameters);
+            case "aria2.removedownloadresult":
+                var removeGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
                 var toRemove = FindByGid(removeGid);
                 if (toRemove != null)
                 {
                     await _torrentService.DeleteAsync(toRemove.Id, false);
                 }
 
-                return removeGid;
+                return removeGid ?? "OK";
 
             case "aria2.pause":
             case "aria2.forcepause":
-                var pauseGid = GetFirstStringParam(parameters);
+                var pauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
                 var toPause = FindByGid(pauseGid);
                 if (toPause != null)
                 {
                     await _torrentService.PauseAsync(toPause.Id);
                 }
 
-                return pauseGid;
+                return pauseGid ?? "OK";
 
             case "aria2.unpause":
             case "aria2.forceunpause":
-                var unpauseGid = GetFirstStringParam(parameters);
+                var unpauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
                 var toUnpause = FindByGid(unpauseGid);
                 if (toUnpause != null)
                 {
                     await _torrentService.ResumeAsync(toUnpause.Id);
                 }
 
-                return unpauseGid;
+                return unpauseGid ?? "OK";
 
             case "aria2.getfiles":
-                var filesGid = GetFirstStringParam(parameters);
-                var tForFiles = FindByGid(filesGid);
-                if (tForFiles != null)
+                var filesGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+                var filesTorrent = FindByGid(filesGid);
+                if (filesTorrent != null)
                 {
-                    var files = _torrentFileService.GetFiles(tForFiles.Id);
+                    var files = _torrentFileService.GetFiles(filesTorrent.Id);
                     return files.Select((f, idx) => new
                     {
                         index = (idx + 1).ToString(),
                         path = f.Path,
                         length = f.Size.ToString(),
-                        completedLength = (f.Size * tForFiles.Progress).ToString("0"),
-                        selected = f.Priority > 0 ? "true" : "false"
+                        completedLength = (filesTorrent.Progress * f.Size).ToString("F0"),
+                        selected = "true"
                     }).ToList();
                 }
 
-                return new List<object>();
+                return Array.Empty<object>();
+
+            case "aria2.getglobaloption":
+            case "aria2.getoption":
+                return new Dictionary<string, string>
+                {
+                    { "dir", _configService.DownloadDir ?? "/downloads" },
+                    { "max-overall-download-limit", "0" },
+                    { "max-overall-upload-limit", "0" }
+                };
 
             case "system.multicall":
                 if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
@@ -336,8 +399,19 @@ public class Aria2RpcController : ControllerBase
                     "aria2.tellActive",
                     "aria2.tellWaiting",
                     "aria2.tellStopped",
-                    "aria2.getVersion",
+                    "aria2.changePosition",
+                    "aria2.changeUri",
+                    "aria2.getOption",
+                    "aria2.changeOption",
+                    "aria2.getGlobalOption",
+                    "aria2.changeGlobalOption",
                     "aria2.getGlobalStat",
+                    "aria2.purgeDownloadResult",
+                    "aria2.removeDownloadResult",
+                    "aria2.getVersion",
+                    "aria2.getSessionInfo",
+                    "aria2.shutdown",
+                    "aria2.forceShutdown",
                     "system.multicall",
                     "system.listMethods"
                 };
@@ -346,6 +420,272 @@ public class Aria2RpcController : ControllerBase
                 _logger.Debug("Unhandled Aria2 RPC method: {0}", method);
                 return "OK";
         }
+    }
+
+    private static List<JsonElement> GetCleanParams(JsonElement parameters)
+    {
+        var list = new List<JsonElement>();
+        if (parameters.ValueKind != JsonValueKind.Array)
+        {
+            return list;
+        }
+
+        foreach (var item in parameters.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String && item.GetString()?.StartsWith("token:", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                continue;
+            }
+
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    private static List<string> GetXmlRpcStringParams(global::System.Xml.Linq.XDocument xmlDoc)
+    {
+        var list = new List<string>();
+        var paramsElem = xmlDoc?.Root?.Element("params");
+        if (paramsElem == null)
+        {
+            return list;
+        }
+
+        foreach (var p in paramsElem.Elements("param"))
+        {
+            var val = p.Element("value");
+            var strVal = val?.Element("string")?.Value ?? val?.Value;
+            if (!string.IsNullOrWhiteSpace(strVal))
+            {
+                if (strVal.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                list.Add(strVal);
+            }
+        }
+
+        return list;
+    }
+
+    private async Task<IActionResult> HandleXmlRpcAsync(string method, global::System.Xml.Linq.XDocument xmlDoc)
+    {
+        var stringParams = GetXmlRpcStringParams(xmlDoc);
+        var downloadDir = _configService.DownloadDir ?? "/downloads";
+
+        switch (method.ToLowerInvariant())
+        {
+            case "aria2.getversion":
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "version"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1.36.0"))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "enabledFeatures"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data",
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "BitTorrent")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "GZip")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "HTTPS")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "MessageDigest")),
+                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "Async DNS"))))))));
+
+            case "aria2.getglobalstat":
+                var all = _torrentService.GetAll().ToList();
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "downloadSpeed"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.DownloadSpeed).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "uploadSpeed"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.UploadSpeed).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numActive"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numWaiting"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Queued).ToString()))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "numStopped"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString())))));
+
+            case "aria2.getglobaloption":
+            case "aria2.getoption":
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "dir"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", downloadDir))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "max-overall-download-limit"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0"))),
+                    new global::System.Xml.Linq.XElement("member",
+                        new global::System.Xml.Linq.XElement("name", "max-overall-upload-limit"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0")))));
+
+            case "aria2.tellactive":
+                var activeList = _torrentService.GetAll()
+                    .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
+                    .ToList();
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(activeList, downloadDir));
+
+            case "aria2.tellwaiting":
+                var waitingList = _torrentService.GetAll()
+                    .Where(t => t.Status == TorrentStatus.Queued)
+                    .ToList();
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(waitingList, downloadDir));
+
+            case "aria2.tellstopped":
+                var stoppedList = _torrentService.GetAll()
+                    .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
+                    .ToList();
+                return BuildXmlRpcResponse(BuildXmlRpcTorrentArray(stoppedList, downloadDir));
+
+            case "aria2.tellstatus":
+                var gid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var found = FindByGid(gid);
+                if (found != null)
+                {
+                    return BuildXmlRpcResponse(BuildXmlRpcTorrentStruct(found, downloadDir));
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct"));
+
+            case "aria2.addtorrent":
+                if (stringParams.Count > 0)
+                {
+                    var b64 = stringParams[0];
+                    var bytes = Convert.FromBase64String(b64);
+                    var parsed = _torrentFileParser.Parse(bytes);
+                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                    return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]));
+
+            case "aria2.adduri":
+                if (stringParams.Count > 0)
+                {
+                    var uri = stringParams[0];
+                    if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var added = await _torrentService.AddFromMagnetAsync(uri, null, null, false);
+                        return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                    }
+                    else
+                    {
+                        using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                        var bytes = await client.GetByteArrayAsync(uri);
+                        var parsed = _torrentFileParser.Parse(bytes);
+                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, bytes);
+                        return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                    }
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]));
+
+            case "aria2.remove":
+            case "aria2.forceremove":
+            case "aria2.removedownloadresult":
+                var removeGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var toRemove = FindByGid(removeGid);
+                if (toRemove != null)
+                {
+                    await _torrentService.DeleteAsync(toRemove.Id, false);
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", removeGid));
+
+            case "aria2.pause":
+            case "aria2.forcepause":
+                var pauseGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var toPause = FindByGid(pauseGid);
+                if (toPause != null)
+                {
+                    await _torrentService.PauseAsync(toPause.Id);
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", pauseGid));
+
+            case "aria2.unpause":
+            case "aria2.forceunpause":
+                var unpauseGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var toUnpause = FindByGid(unpauseGid);
+                if (toUnpause != null)
+                {
+                    await _torrentService.ResumeAsync(toUnpause.Id);
+                }
+
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", unpauseGid));
+
+            default:
+                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", "OK"));
+        }
+    }
+
+    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir)
+    {
+        var gid = t.InfoHash.Length >= 16 ? t.InfoHash[..16] : t.InfoHash;
+        var status = t.Status switch
+        {
+            TorrentStatus.Downloading => "active",
+            TorrentStatus.Seeding => "active",
+            TorrentStatus.Paused => "paused",
+            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Error => "error",
+            _ => "waiting"
+        };
+        var dir = t.SavePath ?? downloadDir ?? "/downloads";
+        var name = t.Name ?? string.Empty;
+
+        return new global::System.Xml.Linq.XElement("struct",
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "gid"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", gid))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "status"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", status))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "totalLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "uploadLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Uploaded.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "downloadSpeed"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.DownloadSpeed.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "uploadSpeed"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.UploadSpeed.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "infoHash"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.InfoHash.ToLowerInvariant()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "numSeeders"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Seeders.ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "connections"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (t.Leechers + t.Seeders).ToString()))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "dir"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", dir))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "bittorrent"), new global::System.Xml.Linq.XElement("value",
+                new global::System.Xml.Linq.XElement("struct",
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "info"), new global::System.Xml.Linq.XElement("value",
+                        new global::System.Xml.Linq.XElement("struct",
+                            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "name"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", name)))))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "mode"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "multi")))))),
+            new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "files"), new global::System.Xml.Linq.XElement("value",
+                new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data",
+                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("struct",
+                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1"))),
+                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, name)))),
+                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
+                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
+                        new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "true"))))))))));
+    }
+
+    private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentArray(IEnumerable<Torrent> torrents, string downloadDir)
+    {
+        var dataElem = new global::System.Xml.Linq.XElement("data");
+        foreach (var t in torrents)
+        {
+            dataElem.Add(new global::System.Xml.Linq.XElement("value", BuildXmlRpcTorrentStruct(t, downloadDir)));
+        }
+
+        return new global::System.Xml.Linq.XElement("array", dataElem);
+    }
+
+    private IActionResult BuildXmlRpcResponse(global::System.Xml.Linq.XElement valueContent)
+    {
+        var doc = new global::System.Xml.Linq.XDocument(
+            new global::System.Xml.Linq.XElement("methodResponse",
+                new global::System.Xml.Linq.XElement("params",
+                    new global::System.Xml.Linq.XElement("param",
+                        new global::System.Xml.Linq.XElement("value", valueContent)))));
+
+        return Content(doc.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting), "text/xml", global::System.Text.Encoding.UTF8);
     }
 
     private Torrent FindByGid(string gid)
@@ -394,94 +734,27 @@ public class Aria2RpcController : ControllerBase
                 }
             },
             {
-                "files", new object[]
-                {
-                    new
+                "files", (_torrentFileService.GetFiles(t.Id)?.ToList() is { Count: > 0 } torrentFiles)
+                    ? torrentFiles.Select((f, idx) => (object)new
                     {
-                        index = "1",
-                        path = global::System.IO.Path.Combine(t.SavePath ?? "/downloads", t.Name ?? string.Empty),
-                        length = t.TotalSize.ToString(),
-                        completedLength = t.Downloaded.ToString(),
-                        selected = "true"
+                        index = (idx + 1).ToString(),
+                        path = global::System.IO.Path.Combine(t.SavePath ?? "/downloads", f.Path ?? string.Empty),
+                        length = f.Size.ToString(),
+                        completedLength = (f.Progress >= 1.0 ? f.Size : (long)(f.Size * f.Progress)).ToString(),
+                        selected = f.Priority > 0 ? "true" : "false"
+                    }).ToArray()
+                    : new object[]
+                    {
+                        new
+                        {
+                            index = "1",
+                            path = global::System.IO.Path.Combine(t.SavePath ?? "/downloads", t.Name ?? string.Empty),
+                            length = t.TotalSize.ToString(),
+                            completedLength = t.Downloaded.ToString(),
+                            selected = "true"
+                        }
                     }
-                }
             }
         };
-    }
-
-    private static string GetFirstStringParam(JsonElement parameters)
-    {
-        if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
-        {
-            var first = parameters[0];
-            if (first.ValueKind == JsonValueKind.String)
-            {
-                return first.GetString() ?? string.Empty;
-            }
-        }
-        else if (parameters.ValueKind == JsonValueKind.String)
-        {
-            return parameters.GetString() ?? string.Empty;
-        }
-
-        return string.Empty;
-    }
-
-    private IActionResult HandleXmlRpc(string method)
-    {
-        switch (method.ToLowerInvariant())
-        {
-            case "aria2.getversion":
-                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "version"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1.36.0"))),
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "enabledFeatures"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data",
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "BitTorrent")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "GZip")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "HTTPS")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "MessageDigest")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "Async DNS"))))))));
-
-            case "aria2.getglobalstat":
-                var all = _torrentService.GetAll().ToList();
-                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct",
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "downloadSpeed"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.DownloadSpeed).ToString()))),
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "uploadSpeed"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Sum(t => t.UploadSpeed).ToString()))),
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "numActive"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString()))),
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "numWaiting"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Queued).ToString()))),
-                    new global::System.Xml.Linq.XElement("member",
-                        new global::System.Xml.Linq.XElement("name", "numStopped"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString())))));
-
-            case "aria2.tellactive":
-            case "aria2.tellwaiting":
-            case "aria2.tellstopped":
-                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data")));
-
-            default:
-                return BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", "OK"));
-        }
-    }
-
-    private IActionResult BuildXmlRpcResponse(global::System.Xml.Linq.XElement valueContent)
-    {
-        var doc = new global::System.Xml.Linq.XDocument(
-            new global::System.Xml.Linq.XElement("methodResponse",
-                new global::System.Xml.Linq.XElement("params",
-                    new global::System.Xml.Linq.XElement("param",
-                        new global::System.Xml.Linq.XElement("value", valueContent)))));
-
-        return Content(doc.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting), "text/xml", global::System.Text.Encoding.UTF8);
     }
 }

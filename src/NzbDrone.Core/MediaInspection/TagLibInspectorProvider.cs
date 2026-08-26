@@ -133,7 +133,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return InspectByFileName(fileName);
         }
 
-        var header = new byte[Math.Min(4096, stream.Length)];
+        var header = new byte[Math.Min(65536, stream.Length)];
         var originalPos = stream.Position;
         stream.Seek(0, SeekOrigin.Begin);
         var bytesRead = stream.Read(header, 0, header.Length);
@@ -183,11 +183,69 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "Matroska (MKV)",
-            VideoCodec = "H.264",
-            AudioCodec = "AAC",
-            AudioChannels = "5.1"
+            ContainerFormat = "Matroska (MKV)"
         };
+
+        var text = System.Text.Encoding.ASCII.GetString(header);
+
+        // Detect video codec from EBML CodecID strings
+        if (text.Contains("V_MPEGH/ISO/HEVC"))
+        {
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (text.Contains("V_AV1"))
+        {
+            info.VideoCodec = "AV1";
+        }
+        else if (text.Contains("V_VP9"))
+        {
+            info.VideoCodec = "VP9";
+        }
+        else if (text.Contains("V_VP8"))
+        {
+            info.VideoCodec = "VP8";
+        }
+        else if (text.Contains("V_MPEG4/ISO/AVC"))
+        {
+            info.VideoCodec = "H.264";
+        }
+
+        // Detect audio codec from EBML CodecID strings
+        if (text.Contains("A_TRUEHD"))
+        {
+            info.AudioCodec = "Dolby TrueHD / Atmos";
+            info.AudioChannels = "7.1";
+        }
+        else if (text.Contains("A_EAC3"))
+        {
+            info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+            info.AudioChannels = "5.1";
+        }
+        else if (text.Contains("A_AC3"))
+        {
+            info.AudioCodec = "AC3 / Dolby Digital";
+            info.AudioChannels = "5.1";
+        }
+        else if (text.Contains("A_DTS"))
+        {
+            info.AudioCodec = "DTS";
+            info.AudioChannels = "5.1";
+        }
+        else if (text.Contains("A_FLAC"))
+        {
+            info.AudioCodec = "FLAC";
+            info.AudioChannels = "2.0";
+        }
+        else if (text.Contains("A_OPUS"))
+        {
+            info.AudioCodec = "Opus";
+            info.AudioChannels = "2.0";
+        }
+        else if (text.Contains("A_AAC"))
+        {
+            info.AudioCodec = "AAC";
+            info.AudioChannels = "2.0";
+        }
 
         ApplyFilenameHints(info, fileName);
         return info;
@@ -197,11 +255,50 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "MP4",
-            VideoCodec = "H.264",
-            AudioCodec = "AAC",
-            AudioChannels = "2.0"
+            ContainerFormat = "MP4"
         };
+
+        var text = System.Text.Encoding.ASCII.GetString(header);
+
+        // Detect video codec from MP4 FourCC sample entries
+        if (text.Contains("hvc1") || text.Contains("hev1"))
+        {
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (text.Contains("av01"))
+        {
+            info.VideoCodec = "AV1";
+        }
+        else if (text.Contains("vp09"))
+        {
+            info.VideoCodec = "VP9";
+        }
+        else if (text.Contains("avc1") || text.Contains("avc3"))
+        {
+            info.VideoCodec = "H.264";
+        }
+
+        // Detect audio codec from MP4 FourCC sample entries
+        if (text.Contains("ec-3"))
+        {
+            info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+            info.AudioChannels = "5.1";
+        }
+        else if (text.Contains("ac-3"))
+        {
+            info.AudioCodec = "AC3 / Dolby Digital";
+            info.AudioChannels = "5.1";
+        }
+        else if (text.Contains("alac"))
+        {
+            info.AudioCodec = "Apple Lossless (ALAC)";
+            info.AudioChannels = "2.0";
+        }
+        else if (text.Contains("mp4a"))
+        {
+            info.AudioCodec = "AAC";
+            info.AudioChannels = "2.0";
+        }
 
         ApplyFilenameHints(info, fileName);
         return info;
@@ -251,11 +348,22 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "AVI",
-            VideoCodec = "Xvid / MPEG-4",
-            AudioCodec = "MP3",
-            AudioChannels = "2.0"
+            ContainerFormat = "AVI"
         };
+
+        var text = System.Text.Encoding.ASCII.GetString(header);
+
+        if (text.Contains("XVID") || text.Contains("xvid") || text.Contains("DX50") || text.Contains("DIVX"))
+        {
+            info.VideoCodec = "Xvid / MPEG-4";
+        }
+        else if (text.Contains("H264") || text.Contains("h264") || text.Contains("AVC1"))
+        {
+            info.VideoCodec = "H.264";
+        }
+
+        info.AudioCodec = text.Contains("AC3") ? "AC3" : "MP3";
+        info.AudioChannels = "2.0";
 
         ApplyFilenameHints(info, fileName);
         return info;

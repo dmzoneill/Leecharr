@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
 import {
   IdentityProviderDefinition,
   IdentityProviderType,
@@ -82,6 +83,7 @@ const PROVIDER_TEMPLATES: Record<
 };
 
 export function SecuritySettingsTab() {
+  const { showToast } = useToast();
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
 
@@ -204,8 +206,9 @@ export function SecuritySettingsTab() {
       }
       setEditingProvider(null);
       await loadProviders();
+      showToast("Identity provider saved successfully", "success");
     } catch (err: any) {
-      alert(err?.message || "Failed to save identity provider");
+      showToast(err?.message || "Failed to save identity provider", "error");
     }
   };
 
@@ -217,8 +220,9 @@ export function SecuritySettingsTab() {
     try {
       await api.deleteIdProvider(id);
       await loadProviders();
+      showToast("Identity provider removed", "success");
     } catch (err: any) {
-      alert(err?.message || "Failed to delete identity provider");
+      showToast(err?.message || "Failed to delete identity provider", "error");
     }
   };
 

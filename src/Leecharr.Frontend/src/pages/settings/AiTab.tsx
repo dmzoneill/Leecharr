@@ -6,6 +6,7 @@ import {
   useSwitchSubsystem,
   useProbeSubsystemProvider,
 } from "../../api/hooks";
+import { useToast } from "../../context/ToastContext";
 import { SectionCard, SaveBar } from "./shared";
 import {
   SparklesIcon,
@@ -18,6 +19,7 @@ import {
 import type { AiConfig, SubsystemProbeResult } from "../../api/types";
 
 export function AiTab() {
+  const { showToast } = useToast();
   const { data: config, isLoading: configLoading } = useAiConfig();
   const saveConfig = useSaveAiConfig();
   const { data: subsystems } = useSubsystems();
@@ -70,13 +72,12 @@ export function AiTab() {
       });
       if (res.success) {
         setFormData((prev) => ({ ...prev, activeAiProvider: providerId }));
-        setSwitchSuccessMsg(`Switched active AI engine to ${providerId}.`);
-        setTimeout(() => setSwitchSuccessMsg(null), 5000);
+        showToast(`Switched active AI engine to ${providerId}.`, "success");
       } else {
-        alert(`Failed to switch AI engine: ${res.error}`);
+        showToast(`Failed to switch AI engine: ${res.error || "Unknown error"}`, "error");
       }
     } catch (err: any) {
-      alert(`Failed to switch AI engine: ${err.message}`);
+      showToast(`Failed to switch AI engine: ${err.message || "Unknown error"}`, "error");
     }
   };
 
@@ -89,7 +90,7 @@ export function AiTab() {
       });
       setProbeResult(res);
     } catch (err: any) {
-      alert(`Probe failed: ${err.message}`);
+      showToast(`Probe failed: ${err.message || "Unknown error"}`, "error");
     } finally {
       setProbeLoadingId(null);
     }
@@ -97,8 +98,9 @@ export function AiTab() {
 
   const handleResetButtonPosition = () => {
     localStorage.removeItem("leecharr_copilot_btn_pos");
-    alert(
+    showToast(
       "Floating AI Copilot button position reset to default (bottom-right above status bar).",
+      "success",
     );
   };
 

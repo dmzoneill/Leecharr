@@ -40,6 +40,7 @@ public static class TableRegistration
         TableMapping.Register<NotificationDefinition>("NotificationDefinitions");
         TableMapping.Register<IndexerDefinition>("IndexerDefinitions");
         TableMapping.Register<RssRule>("RssRules");
+        TableMapping.Register<DownloadClients.DownloadClientDefinition>("DownloadClientDefinitions");
         TableMapping.Register<Authentication.User>("Users");
         TableMapping.Register<Authentication.IdentityProviderDefinition>("IdentityProviders");
         TableMapping.Register<Authentication.UserSession>("UserSessions");

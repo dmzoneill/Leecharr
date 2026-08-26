@@ -90,8 +90,14 @@ export function useRefetchInterval(): number {
     : DEFAULT_REFETCH_MS;
 }
 
-type AddTorrentInput =
-  { files: File[]; magnetLink?: never } | { magnetLink: string; files?: never };
+export type AddTorrentInput = {
+  files?: File[];
+  magnetLink?: string;
+  category?: string;
+  isPaused?: boolean;
+  paused?: boolean;
+  savePath?: string;
+};
 
 export interface TorrentUploadFailure {
   fileName: string;
@@ -225,15 +231,24 @@ export function useAddTorrent() {
   const queryClient = useQueryClient();
   return useMutation<AddTorrentResult, Error, AddTorrentInput>({
     mutationFn: async (input) => {
+      const isPaused = input.isPaused ?? input.paused ?? false;
       if (input.files && input.files.length > 0) {
         const formData = new FormData();
         input.files.forEach((file) => formData.append("file", file));
+        if (input.category) formData.append("category", input.category);
+        if (isPaused) formData.append("paused", "true");
+        if (input.savePath) formData.append("savePath", input.savePath);
         return apiClient.postForm<AddTorrentResult>(
           "/torrents/upload",
           formData,
         );
       }
-      return apiClient.post("/torrents", { magnetLink: input.magnetLink });
+      return apiClient.post("/torrents", {
+        magnetLink: input.magnetLink,
+        category: input.category,
+        paused: isPaused,
+        savePath: input.savePath,
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["torrents"] }),
   });

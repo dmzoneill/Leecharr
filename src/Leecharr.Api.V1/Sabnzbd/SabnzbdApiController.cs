@@ -46,7 +46,13 @@ public class SabnzbdApiController : ControllerBase
         [FromQuery] string priority,
         [FromQuery] string output)
     {
-        var effectiveMode = (mode ?? Request.Form["mode"].ToString() ?? string.Empty).ToLowerInvariant();
+        var formMode = Request.HasFormContentType ? Request.Form["mode"].ToString() : string.Empty;
+        var formName = Request.HasFormContentType ? Request.Form["name"].ToString() : string.Empty;
+        var formValue = Request.HasFormContentType ? Request.Form["value"].ToString() : string.Empty;
+        var formValue2 = Request.HasFormContentType ? Request.Form["value2"].ToString() : string.Empty;
+        var formCat = Request.HasFormContentType ? Request.Form["cat"].ToString() : string.Empty;
+
+        var effectiveMode = (!string.IsNullOrWhiteSpace(mode) ? mode : formMode).ToLowerInvariant();
 
         switch (effectiveMode)
         {
@@ -103,22 +109,104 @@ public class SabnzbdApiController : ControllerBase
                 return Ok(new { categories = allCats.ToList() });
 
             case "queue":
+                var queueSubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
+                var queueVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+                var queueVal2 = !string.IsNullOrWhiteSpace(Request.Query["value2"].ToString())
+                    ? Request.Query["value2"].ToString()
+                    : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
+
+                if (queueSubAction == "delete")
+                {
+                    var target = _torrentService.GetByInfoHash(queueVal);
+                    if (target != null)
+                    {
+                        await _torrentService.DeleteAsync(target.Id, false);
+                    }
+
+                    return Ok(new { status = true });
+                }
+                else if (queueSubAction == "pause")
+                {
+                    if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        foreach (var t in _torrentService.GetAll())
+                        {
+                            await _torrentService.PauseAsync(t.Id);
+                        }
+                    }
+                    else
+                    {
+                        var target = _torrentService.GetByInfoHash(queueVal);
+                        if (target != null)
+                        {
+                            await _torrentService.PauseAsync(target.Id);
+                        }
+                    }
+
+                    return Ok(new { status = true });
+                }
+                else if (queueSubAction == "resume")
+                {
+                    if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        foreach (var t in _torrentService.GetAll())
+                        {
+                            await _torrentService.ResumeAsync(t.Id);
+                        }
+                    }
+                    else
+                    {
+                        var target = _torrentService.GetByInfoHash(queueVal);
+                        if (target != null)
+                        {
+                            await _torrentService.ResumeAsync(target.Id);
+                        }
+                    }
+
+                    return Ok(new { status = true });
+                }
+                else if (queueSubAction == "change_cat")
+                {
+                    var target = _torrentService.GetByInfoHash(queueVal);
+                    if (target != null && !string.IsNullOrWhiteSpace(queueVal2))
+                    {
+                        target.Category = queueVal2;
+                        await _torrentService.UpdateAsync(target);
+                    }
+
+                    return Ok(new { status = true });
+                }
+                else if (queueSubAction == "priority" || queueSubAction.StartsWith("move_"))
+                {
+                    return Ok(new { status = true });
+                }
+
                 var allTorrents = _torrentService.GetAll().ToList();
                 var queueSlots = allTorrents
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
-                    .Select(t => new
+                    .Select(t =>
                     {
-                        nzo_id = t.InfoHash,
-                        filename = t.Name ?? string.Empty,
-                        size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        sizeleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2"),
-                        mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
-                        status = t.Status == TorrentStatus.Paused ? "Paused" : "Downloading",
-                        cat = t.Category ?? "default",
-                        timeleft = "0:00:00",
-                        percentage = ((int)(t.Progress * 100)).ToString()
+                        var secondsLeft = t.DownloadSpeed > 0 ? (t.TotalSize - t.Downloaded) / t.DownloadSpeed : 0;
+                        var ts = TimeSpan.FromSeconds(secondsLeft);
+                        var timeleftStr = $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+
+                        return new
+                        {
+                            nzo_id = t.InfoHash,
+                            filename = t.Name ?? string.Empty,
+                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                            sizeleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                            mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2"),
+                            mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
+                            status = t.Status == TorrentStatus.Paused ? "Paused" : "Downloading",
+                            cat = t.Category ?? "default",
+                            timeleft = timeleftStr,
+                            percentage = ((int)(t.Progress * 100)).ToString()
+                        };
                     }).ToList();
+
+                var freeSpaceGb = (GetDriveFreeSpace(_configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incFreeSpaceGb = (GetDriveFreeSpace(_configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
 
                 return Ok(new
                 {
@@ -129,11 +217,29 @@ public class SabnzbdApiController : ControllerBase
                         speedlimit = _configService.MaxDownloadSpeedKbps.ToString(),
                         paused = false,
                         noofslots_total = queueSlots.Count,
+                        diskspace1 = freeSpaceGb,
+                        diskspace2 = incFreeSpaceGb,
+                        diskspacetotal1 = "1000.00",
+                        diskspacetotal2 = "1000.00",
                         slots = queueSlots
                     }
                 });
 
             case "history":
+                var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
+                var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+
+                if (historySubAction == "delete")
+                {
+                    var target = _torrentService.GetByInfoHash(historyVal);
+                    if (target != null)
+                    {
+                        await _torrentService.DeleteAsync(target.Id, false);
+                    }
+
+                    return Ok(new { status = true });
+                }
+
                 var finishedTorrents = _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
                     .Select(t => new
@@ -162,8 +268,8 @@ public class SabnzbdApiController : ControllerBase
                 });
 
             case "addurl":
-                var url = name ?? Request.Form["name"].ToString();
-                var targetCat = cat ?? Request.Form["cat"].ToString();
+                var url = !string.IsNullOrWhiteSpace(name) ? name : formName;
+                var targetCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
                 var addedId = Guid.NewGuid().ToString("N");
 
                 if (!string.IsNullOrWhiteSpace(url))
@@ -190,7 +296,7 @@ public class SabnzbdApiController : ControllerBase
                 if (Request.HasFormContentType && Request.Form.Files.Count > 0)
                 {
                     var file = Request.Form.Files[0];
-                    var fileCat = cat ?? Request.Form["cat"].ToString();
+                    var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
                     using var ms = new MemoryStream();
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
@@ -210,6 +316,13 @@ public class SabnzbdApiController : ControllerBase
                         await _torrentService.PauseAsync(t.Id);
                     }
                 }
+                else
+                {
+                    foreach (var t in _torrentService.GetAll())
+                    {
+                        await _torrentService.PauseAsync(t.Id);
+                    }
+                }
 
                 return Ok(new { status = true });
 
@@ -222,16 +335,24 @@ public class SabnzbdApiController : ControllerBase
                         await _torrentService.ResumeAsync(t.Id);
                     }
                 }
+                else
+                {
+                    foreach (var t in _torrentService.GetAll())
+                    {
+                        await _torrentService.ResumeAsync(t.Id);
+                    }
+                }
 
                 return Ok(new { status = true });
 
             case "delete":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
+                    var delFiles = Request.Query["del_files"] == "1" || (Request.HasFormContentType && Request.Form["del_files"] == "1");
                     var t = _torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
-                        await _torrentService.DeleteAsync(t.Id, false);
+                        await _torrentService.DeleteAsync(t.Id, delFiles);
                     }
                 }
 
@@ -253,6 +374,27 @@ public class SabnzbdApiController : ControllerBase
 
             default:
                 return Ok(new { status = true, version = "4.3.2" });
+        }
+    }
+
+    private static long GetDriveFreeSpace(string path)
+    {
+        try
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var fullPath = global::System.IO.Path.GetFullPath(target);
+            var root = global::System.IO.Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = "/";
+            }
+
+            var driveInfo = new global::System.IO.DriveInfo(root);
+            return driveInfo.AvailableFreeSpace;
+        }
+        catch
+        {
+            return 1099511627776L;
         }
     }
 }

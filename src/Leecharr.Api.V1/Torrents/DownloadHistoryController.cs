@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
@@ -71,7 +72,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("{id:int}/enrich")]
-    public ActionResult<DownloadHistoryResource> Enrich(int id)
+    public async Task<ActionResult<DownloadHistoryResource>> Enrich(int id)
     {
         var record = _historyService.Get(id);
         if (record == null)
@@ -79,14 +80,46 @@ public class DownloadHistoryController : Controller
             return NotFound();
         }
 
+        if (_mediaEnrichmentService != null)
+        {
+            var torrent = new Torrent
+            {
+                Id = record.TorrentId ?? record.Id,
+                Name = record.Title,
+                InfoHash = record.InfoHash ?? string.Empty
+            };
+            await _mediaEnrichmentService.EnrichTorrentAsync(torrent);
+        }
+
         var resource = ToResource(record);
         return Ok(resource);
     }
 
     [HttpPost("enrich-all")]
-    public ActionResult EnrichAll()
+    public async Task<ActionResult> EnrichAll()
     {
-        return Ok(new { message = "Enrichment completed" });
+        var records = _historyService.GetAll(null, null, 1000);
+        if (_mediaEnrichmentService != null)
+        {
+            foreach (var record in records)
+            {
+                try
+                {
+                    var torrent = new Torrent
+                    {
+                        Id = record.TorrentId ?? record.Id,
+                        Name = record.Title,
+                        InfoHash = record.InfoHash ?? string.Empty
+                    };
+                    await _mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        return Ok(new { message = "Enrichment completed", processedCount = records.Count });
     }
 
     [HttpPost("reconcile")]

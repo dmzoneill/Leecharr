@@ -24,7 +24,10 @@ public class OllamaAiProviderTest
         Environment.SetEnvironmentVariable("OLLAMA_HOST", null);
 
         _configService = Substitute.For<IConfigService>();
+        _configService.OllamaHost.Returns("http://127.0.0.1:11434");
+        _configService.OllamaModel.Returns("llama3.2");
         _configService.GetValue("OllamaUrl", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
+        _configService.GetValue("OllamaHost", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
         _configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("llama3.2");
     }
 

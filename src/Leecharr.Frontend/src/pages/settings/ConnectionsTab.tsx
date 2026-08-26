@@ -10,8 +10,10 @@ import {
 } from "../../api/hooks";
 import type { ArrConnection, ArrTestResult } from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
+import { useToast } from "../../context/ToastContext";
 
 export function ConnectionsTab() {
+  const { showToast } = useToast();
   const { data: connections, isLoading } = useArrConnections();
   const createMutation = useCreateArrConnection();
   const updateMutation = useUpdateArrConnection();
@@ -168,7 +170,12 @@ export function ConnectionsTab() {
                   title="Delete Connection"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteMutation.mutate(conn.id);
+                    if (window.confirm(`Are you sure you want to delete the connection "${conn.name}"?`)) {
+                      deleteMutation.mutate(conn.id, {
+                        onSuccess: () => showToast(`Connection "${conn.name}" deleted`, "info"),
+                        onError: (err: any) => showToast(err?.message || "Failed to delete connection", "error"),
+                      });
+                    }
                   }}
                 >
                   &#x2715;

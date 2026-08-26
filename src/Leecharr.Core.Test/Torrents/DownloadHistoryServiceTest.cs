@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -14,6 +16,8 @@ public class DownloadHistoryServiceTest
     private IDownloadHistoryRepository _historyRepository = null!;
     private ITorrentRepository _torrentRepository = null!;
     private ITrackerEntryRepository _trackerEntryRepository = null!;
+    private IDownloadEngine _downloadEngine = null!;
+    private IEventAggregator _eventAggregator = null!;
     private DownloadHistoryService _service = null!;
 
     [SetUp]
@@ -22,7 +26,9 @@ public class DownloadHistoryServiceTest
         _historyRepository = Substitute.For<IDownloadHistoryRepository>();
         _torrentRepository = Substitute.For<ITorrentRepository>();
         _trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
-        _service = new DownloadHistoryService(_historyRepository, _torrentRepository, _trackerEntryRepository);
+        _downloadEngine = Substitute.For<IDownloadEngine>();
+        _eventAggregator = Substitute.For<IEventAggregator>();
+        _service = new DownloadHistoryService(_historyRepository, _torrentRepository, _trackerEntryRepository, _downloadEngine, _eventAggregator);
     }
 
     [Test]

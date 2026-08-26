@@ -84,9 +84,10 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
     <div className="torrent-grid">
       {torrents.map((t) => {
         const isSelected = t.id === selectedId;
-        const isDownloading = t.status === "downloading";
-        const isSeeding = t.status === "seeding";
-        const isPaused = t.status === "paused";
+        const statusLower = (t.status || "").toLowerCase();
+        const isDownloading = statusLower === "downloading";
+        const isSeeding = statusLower === "seeding";
+        const isPaused = statusLower === "paused";
 
         return (
           <div

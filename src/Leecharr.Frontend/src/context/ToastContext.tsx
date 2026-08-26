@@ -33,12 +33,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback(
     (message: string, type: ToastType = "info") => {
+      let durationMs = 4000;
+      try {
+        const stored = localStorage.getItem("leecharr-notification-settings");
+        if (stored) {
+          const settings = JSON.parse(stored);
+          if (settings.enabled === false) return;
+          if (type === "info" && settings.showInfo === false) return;
+          if (type === "success" && settings.showSuccess === false) return;
+          if (type === "error" && settings.showError === false) return;
+          if (settings.autoDismissSeconds > 0) {
+            durationMs = settings.autoDismissSeconds * 1000;
+          }
+        }
+      } catch {
+        // Fallback to default
+      }
+
       const id = nextId.current++;
       setToasts((prev) => [...prev, { id, message, type }]);
 
       setTimeout(() => {
         removeToast(id);
-      }, 4000);
+      }, durationMs);
     },
     [removeToast],
   );

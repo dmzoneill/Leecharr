@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using NzbDrone.Common.Serializer;
+using NzbDrone.Core.Configuration;
 using NzbDrone.SignalR;
 
 namespace NzbDrone.Host;
@@ -161,6 +162,18 @@ public class Startup
 
     public void Configure(WebApplication app)
     {
+        var configFileProvider = app.Services.GetRequiredService<IConfigFileProvider>();
+        if (!string.IsNullOrWhiteSpace(configFileProvider.UrlBase))
+        {
+            var urlBase = configFileProvider.UrlBase.Trim();
+            if (!urlBase.StartsWith('/'))
+            {
+                urlBase = "/" + urlBase;
+            }
+
+            app.UsePathBase(urlBase);
+        }
+
         app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto

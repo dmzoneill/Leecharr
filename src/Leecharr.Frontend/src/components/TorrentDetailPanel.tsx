@@ -217,14 +217,21 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
         {tab === "trackers" && (
           <TrackersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
         )}
-        {tab === "options" && <OptionsTab torrent={currentTorrent} />}
-        {tab === "piecemap" && <PieceMap torrentId={currentTorrent.id} />}
+        {tab === "piecemap" && (
+          <PieceMap
+            pieceCount={currentTorrent.pieceCount}
+            pieceLength={currentTorrent.pieceLength}
+            progress={currentTorrent.progress}
+            isSeeding={(currentTorrent.status || "").toLowerCase() === "seeding"}
+          />
+        )}
         {tab === "monitoring" && (
           <MonitoringTab
             torrent={currentTorrent}
             torrentId={currentTorrent.id}
           />
         )}
+        {tab === "options" && <OptionsTab torrent={currentTorrent} />}
         {tab === "log" && (
           <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />
         )}
