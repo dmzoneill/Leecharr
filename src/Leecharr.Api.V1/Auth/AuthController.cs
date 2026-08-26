@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -215,6 +217,92 @@ public class AuthController : ControllerBase
         };
 
         return Challenge(props, schemeName);
+    }
+
+    [HttpGet("login/saml/{providerId}")]
+    [AllowAnonymous]
+    public ActionResult ChallengeSaml(string providerId, [FromQuery] string returnUrl = "/")
+    {
+        var provider = _identityProviderService.GetByProviderId(providerId);
+        if (provider == null || provider.ProviderType != IdentityProviderType.Saml || string.IsNullOrWhiteSpace(provider.IssuerUrl))
+        {
+            return NotFound("SAML Identity Provider not found");
+        }
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{providerId}";
+        var id = "_" + Guid.NewGuid().ToString("N");
+        var issueInstant = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{provider.IssuerUrl}"" AssertionConsumerServiceURL=""{acsUrl}""><saml:Issuer>{baseUrl}/saml/metadata</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
+
+        var b64Request = Convert.ToBase64String(Encoding.UTF8.GetBytes(samlRequest));
+        var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(returnUrl ?? "/")}";
+
+        return Redirect(redirectUrl);
+    }
+
+    [HttpPost("callback/saml/{providerId?}")]
+    [HttpPost("callback/saml")]
+    [AllowAnonymous]
+    public async Task<ActionResult> SamlCallback(
+        [FromRoute] string providerId = null,
+        [FromForm(Name = "SAMLResponse")] string samlResponse = null,
+        [FromForm(Name = "RelayState")] string relayState = "/")
+    {
+        if (string.IsNullOrWhiteSpace(samlResponse))
+        {
+            return BadRequest("Missing SAMLResponse payload");
+        }
+
+        try
+        {
+            var rawXml = Encoding.UTF8.GetString(Convert.FromBase64String(samlResponse));
+            var doc = XDocument.Parse(rawXml);
+
+            var nameId = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
+            var email = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("email", StringComparison.OrdinalIgnoreCase) == true))
+                ?.Elements().FirstOrDefault(e => e.Name.LocalName == "AttributeValue")?.Value ?? nameId;
+            var displayName = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("displayName", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("name", StringComparison.OrdinalIgnoreCase) == true))
+                ?.Elements().FirstOrDefault(e => e.Name.LocalName == "AttributeValue")?.Value ?? nameId;
+
+            if (string.IsNullOrWhiteSpace(nameId) && string.IsNullOrWhiteSpace(email))
+            {
+                return Unauthorized("Unable to resolve NameID or Email from SAML response");
+            }
+
+            var username = !string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : (nameId ?? "saml_user");
+            var user = _userService.GetByUsername(username);
+
+            if (user == null)
+            {
+                user = _userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, new List<string> { "User" });
+            }
+
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name, user.Username),
+                new("DisplayName", user.DisplayName ?? user.Username)
+            };
+
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                claims.Add(new Claim(ClaimTypes.Email, user.Email));
+            }
+
+            claims.Add(new Claim(ClaimTypes.Role, "User"));
+
+            var identity = new ClaimsIdentity(claims, "Cookies");
+            var principal = new ClaimsPrincipal(identity);
+            await HttpContext.SignInAsync("Cookies", principal);
+
+            return Redirect(string.IsNullOrWhiteSpace(relayState) ? "/" : relayState);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "Failed to process SAML assertion", details = ex.Message });
+        }
     }
 
     [HttpGet("saml/metadata")]

@@ -207,6 +207,7 @@ public class RTorrentController : ControllerBase
 
                         string customCategory = null;
                         string customDir = null;
+                        int? customPriority = null;
                         for (var i = 2; i < paramValues.Count; i++)
                         {
                             if (paramValues[i] is string arg)
@@ -222,6 +223,13 @@ public class RTorrentController : ControllerBase
                                 else if (arg.StartsWith("d.directory_base.set=", StringComparison.OrdinalIgnoreCase))
                                 {
                                     customDir = arg["d.directory_base.set=".Length..].Trim('\"', '\'');
+                                }
+                                else if (arg.StartsWith("d.priority.set=", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (int.TryParse(arg["d.priority.set=".Length..].Trim('\"', '\''), out var prio))
+                                    {
+                                        customPriority = prio;
+                                    }
                                 }
                             }
                         }
@@ -249,21 +257,36 @@ public class RTorrentController : ControllerBase
                             if (torrentBytes != null && torrentBytes.Length > 0)
                             {
                                 var parsed = _torrentFileParser.Parse(torrentBytes);
-                                await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
+                                if (added != null && customPriority.HasValue)
+                                {
+                                    added.Priority = customPriority.Value;
+                                    await _torrentService.UpdateAsync(added);
+                                }
                             }
                         }
                         else if (paramValues[1] is string uriStr)
                         {
                             if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                await _torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                                var added = await _torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                                if (added != null && customPriority.HasValue)
+                                {
+                                    added.Priority = customPriority.Value;
+                                    await _torrentService.UpdateAsync(added);
+                                }
                             }
                             else
                             {
                                 using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                 var bytes = await client.GetByteArrayAsync(uriStr);
                                 var parsed = _torrentFileParser.Parse(bytes);
-                                await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                                if (added != null && customPriority.HasValue)
+                                {
+                                    added.Priority = customPriority.Value;
+                                    await _torrentService.UpdateAsync(added);
+                                }
                             }
                         }
                     }
@@ -363,6 +386,30 @@ public class RTorrentController : ControllerBase
                     }
 
                     return BuildXmlRpcResponse(new XElement("string", targetCat));
+
+                case "d.priority.set":
+                    if (paramValues.Count >= 2 && paramValues[0] is string prioHash)
+                    {
+                        var t = _torrentService.GetByInfoHash(prioHash);
+                        if (t != null)
+                        {
+                            if (paramValues[1] is int prioInt)
+                            {
+                                t.Priority = prioInt;
+                                await _torrentService.UpdateAsync(t);
+                            }
+                            else if (paramValues[1] is string prioStr && int.TryParse(prioStr, out var parsedPrio))
+                            {
+                                t.Priority = parsedPrio;
+                                await _torrentService.UpdateAsync(t);
+                            }
+                        }
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("i4", 0));
+
+                case "d.views.push_back_unique":
+                    return BuildXmlRpcResponse(new XElement("i4", 0));
 
                 default:
                     _logger.Debug("Unhandled rTorrent XML-RPC method: {0}", methodName);

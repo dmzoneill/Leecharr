@@ -189,7 +189,11 @@ public class QBittorrentApiController : ControllerBase
                 ["downloaded"] = t.Downloaded,
                 ["uploaded"] = t.Uploaded,
                 ["max_ratio"] = t.TargetRatio,
-                ["max_seeding_time"] = t.TargetSeedTimeMinutes * 60
+                ["max_seeding_time"] = t.TargetSeedTimeMinutes * 60,
+                ["ratio_limit"] = t.TargetRatio > 0 ? t.TargetRatio : -2.0,
+                ["seeding_time_limit"] = t.TargetSeedTimeMinutes > 0 ? t.TargetSeedTimeMinutes : -2,
+                ["seeding_time"] = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0,
+                ["last_activity"] = new DateTimeOffset(t.LastActive ?? t.DateAdded).ToUnixTimeSeconds()
             };
         }).ToList();
 
@@ -203,11 +207,18 @@ public class QBittorrentApiController : ControllerBase
         [FromForm] string category = null,
         [FromForm] string savepath = null,
         [FromForm] string paused = null,
+        [FromForm] string stopped = null,
         [FromForm] string tags = null,
-        [FromForm] string sequentialDownload = null)
+        [FromForm] string sequentialDownload = null,
+        [FromForm] string firstLastPiecePrio = null,
+        [FromForm] double? ratioLimit = null,
+        [FromForm] int? seedingTimeLimit = null,
+        [FromForm] string contentLayout = null)
     {
-        var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase);
-        var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
+        var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
+        var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
 
         // 1. URLs (magnets or http/https torrent links)
         if (!string.IsNullOrWhiteSpace(urls))
@@ -231,6 +242,18 @@ public class QBittorrentApiController : ControllerBase
                         if (isSequential)
                         {
                             added.SequentialDownload = true;
+                            needsUpdate = true;
+                        }
+
+                        if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                        {
+                            added.TargetRatio = ratioLimit.Value;
+                            needsUpdate = true;
+                        }
+
+                        if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                        {
+                            added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
                             needsUpdate = true;
                         }
 
@@ -263,6 +286,18 @@ public class QBittorrentApiController : ControllerBase
                                 needsUpdate = true;
                             }
 
+                            if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                            {
+                                added.TargetRatio = ratioLimit.Value;
+                                needsUpdate = true;
+                            }
+
+                            if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                            {
+                                added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
+                                needsUpdate = true;
+                            }
+
                             if (needsUpdate)
                             {
                                 await _torrentService.UpdateAsync(added);
@@ -271,14 +306,14 @@ public class QBittorrentApiController : ControllerBase
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to download and parse .torrent file from {0}", trimmed);
+                        _logger.Error(ex, "Failed to download torrent file from URL: {0}", trimmed);
                     }
                 }
             }
         }
 
-        // 2. Uploaded .torrent files
-        if (torrents != null)
+        // 2. Uploaded files
+        if (torrents != null && torrents.Count > 0)
         {
             foreach (var file in torrents)
             {
@@ -304,12 +339,91 @@ public class QBittorrentApiController : ControllerBase
                             needsUpdate = true;
                         }
 
+                        if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                        {
+                            added.TargetRatio = ratioLimit.Value;
+                            needsUpdate = true;
+                        }
+
+                        if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                        {
+                            added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
+                            needsUpdate = true;
+                        }
+
                         if (needsUpdate)
                         {
                             await _torrentService.UpdateAsync(added);
                         }
                     }
                 }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setShareLimits")]
+    public async Task<ActionResult> SetShareLimits(
+        [FromForm] string hashes,
+        [FromForm] double? ratioLimit = null,
+        [FromForm] int? seedingTimeLimit = null,
+        [FromForm] int? inactiveSeedingTimeLimit = null)
+    {
+        if (string.IsNullOrEmpty(hashes))
+        {
+            return BadRequest();
+        }
+
+        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var hash in hashList)
+        {
+            var torrent = _torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                var updated = false;
+                if (ratioLimit.HasValue)
+                {
+                    torrent.TargetRatio = ratioLimit.Value >= 0 ? ratioLimit.Value : 0;
+                    updated = true;
+                }
+
+                if (seedingTimeLimit.HasValue)
+                {
+                    torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? seedingTimeLimit.Value : 0;
+                    updated = true;
+                }
+
+                if (updated)
+                {
+                    await _torrentService.UpdateAsync(torrent);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setForceStart")]
+    public async Task<ActionResult> SetForceStart(
+        [FromForm] string hashes,
+        [FromForm] string value = null,
+        [FromForm] bool? enable = null)
+    {
+        if (string.IsNullOrEmpty(hashes))
+        {
+            return BadRequest();
+        }
+
+        var force = enable ?? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var hash in hashList)
+        {
+            var torrent = _torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                torrent.ForceStart = force;
+                await _torrentService.UpdateAsync(torrent);
             }
         }
 

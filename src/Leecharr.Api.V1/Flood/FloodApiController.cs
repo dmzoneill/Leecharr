@@ -20,6 +20,14 @@ public class FloodAddUrlsRequest
     public bool Start { get; set; } = true;
 }
 
+public class FloodAddFilesRequest
+{
+    public List<string> Files { get; set; } = new();
+    public string Destination { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public bool Start { get; set; } = true;
+}
+
 public class FloodActionRequest
 {
     public List<string> Hashes { get; set; } = new();
@@ -64,58 +72,68 @@ public class FloodApiController : ControllerBase
     [Route("api/auth/verify")]
     public IActionResult Verify()
     {
-        return Ok(new { success = true });
+        return Ok(new { isInitialUser = false, isAllowed = true });
+    }
+
+    [HttpGet]
+    [Route("api/client/settings")]
+    public IActionResult GetClientSettings()
+    {
+        return Ok(new
+        {
+            directoryDefault = _configService.DownloadDir ?? "/downloads"
+        });
     }
 
     [HttpGet]
     [Route("api/torrents")]
     public IActionResult GetTorrents()
     {
-        var all = _torrentService.GetAll().ToList();
+        var torrents = _torrentService.GetAll().ToList();
         var dict = new Dictionary<string, object>();
 
-        foreach (var t in all)
+        foreach (var t in torrents)
         {
-            var statusList = new List<string>();
-            if (t.Status == TorrentStatus.Downloading)
+            var hash = t.InfoHash.ToLowerInvariant();
+            dict[hash] = new
             {
-                statusList.Add("downloading");
-            }
-            else if (t.Status == TorrentStatus.Seeding)
-            {
-                statusList.Add("seeding");
-            }
-            else if (t.Status == TorrentStatus.Paused)
-            {
-                statusList.Add("stopped");
-            }
-            else if (t.Status == TorrentStatus.Stopped)
-            {
-                statusList.Add("complete");
-            }
-            else
-            {
-                statusList.Add("inactive");
-            }
-
-            dict[t.InfoHash.ToLowerInvariant()] = new
-            {
-                hash = t.InfoHash.ToLowerInvariant(),
-                name = t.Name ?? string.Empty,
+                hash = t.InfoHash,
+                name = t.Name,
                 bytesDone = t.Downloaded,
-                totalSize = t.TotalSize,
+                sizeBytes = t.TotalSize,
+                percentComplete = (t.Progress * 100).ToString("F1"),
                 downRate = t.DownloadSpeed,
                 upRate = t.UploadSpeed,
-                percentComplete = t.Progress * 100.0,
                 ratio = t.Ratio,
-                status = statusList,
-                tags = string.IsNullOrWhiteSpace(t.Category) ? new List<string>() : new List<string> { t.Category },
-                directory = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                isComplete = t.Progress >= 1.0 || t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding
+                eta = t.Eta,
+                status = new[] { MapToFloodStatus(t.Status) },
+                tags = string.IsNullOrWhiteSpace(t.Category)
+                    ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
+                    : new[] { t.Category },
+                directory = t.SavePath ?? string.Empty,
+                isPrivate = false,
+                isInitialSeeding = false,
+                isSequential = t.SequentialDownload,
+                seedsConnected = t.Seeders,
+                seedsTotal = t.Seeders,
+                peersConnected = t.Leechers,
+                peersTotal = t.Leechers
             };
         }
 
         return Ok(new { torrents = dict });
+    }
+
+    private string MapToFloodStatus(TorrentStatus status)
+    {
+        return status switch
+        {
+            TorrentStatus.Downloading => "downloading",
+            TorrentStatus.Seeding => "seeding",
+            TorrentStatus.Paused => "stopped",
+            TorrentStatus.Stopped => "complete",
+            _ => "inactive"
+        };
     }
 
     [HttpPost]
@@ -146,7 +164,7 @@ public class FloodApiController : ControllerBase
 
     [HttpPost]
     [Route("api/torrents/add-files")]
-    public async Task<IActionResult> AddFiles()
+    public async Task<IActionResult> AddFiles([FromBody] FloodAddFilesRequest jsonRequest = null)
     {
         if (Request.HasFormContentType && Request.Form.Files.Count > 0)
         {
@@ -162,6 +180,19 @@ public class FloodApiController : ControllerBase
                 var bytes = ms.ToArray();
                 var parsed = _torrentFileParser.Parse(bytes);
                 await _torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
+            }
+        }
+        else if (jsonRequest?.Files != null && jsonRequest.Files.Count > 0)
+        {
+            var category = jsonRequest.Tags?.FirstOrDefault()?.Trim();
+            foreach (var b64 in jsonRequest.Files)
+            {
+                if (!string.IsNullOrWhiteSpace(b64))
+                {
+                    var bytes = Convert.FromBase64String(b64);
+                    var parsed = _torrentFileParser.Parse(bytes);
+                    await _torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                }
             }
         }
 
@@ -234,6 +265,8 @@ public class FloodApiController : ControllerBase
     }
 
     [HttpPost]
+    [HttpPatch]
+    [Route("api/torrents/tags")]
     [Route("api/torrents/set-tags")]
     public async Task<IActionResult> SetTags([FromBody] FloodActionRequest request)
     {

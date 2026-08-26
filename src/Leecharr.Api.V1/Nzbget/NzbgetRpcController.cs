@@ -133,23 +133,41 @@ public class NzbgetRpcController : ControllerBase
                 case "listgroups":
                     var queueTorrents = _torrentService.GetAll()
                         .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
-                        .Select((t, index) => new
+                        .Select((t, index) =>
                         {
-                            NZBID = t.Id,
-                            NZBName = t.Name ?? string.Empty,
-                            NZBNicename = t.Name ?? string.Empty,
-                            Kind = "NZB",
-                            URL = string.Empty,
-                            DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                            Category = t.Category ?? string.Empty,
-                            FileSizeMB = (int)(t.TotalSize / (1024 * 1024)),
-                            RemainingSizeMB = (int)((t.TotalSize - t.Downloaded) / (1024 * 1024)),
-                            PausedSizeMB = 0,
-                            FileCount = 1,
-                            RemainingFileCount = 1,
-                            PausedFileCount = 0,
-                            Status = t.Status == TorrentStatus.Paused ? "PAUSED" : "DOWNLOADING",
-                            ActiveDownloads = 1
+                            var totalMb = (int)(t.TotalSize / (1024 * 1024));
+                            var remMb = (int)((t.TotalSize - t.Downloaded) / (1024 * 1024));
+                            var totalLo = (int)(t.TotalSize & 0xFFFFFFFF);
+                            var totalHi = (int)(t.TotalSize >> 32);
+                            var remBytes = Math.Max(0, t.TotalSize - t.Downloaded);
+                            var remLo = (int)(remBytes & 0xFFFFFFFF);
+                            var remHi = (int)(remBytes >> 32);
+
+                            return new
+                            {
+                                NZBID = t.Id,
+                                NZBName = t.Name ?? string.Empty,
+                                NZBNicename = t.Name ?? string.Empty,
+                                Kind = "NZB",
+                                URL = string.Empty,
+                                DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                                Category = t.Category ?? string.Empty,
+                                FileSizeMB = totalMb,
+                                RemainingSizeMB = remMb,
+                                PausedSizeMB = 0,
+                                FileSizeLo = totalLo,
+                                FileSizeHi = totalHi,
+                                RemainingSizeLo = remLo,
+                                RemainingSizeHi = remHi,
+                                PausedSizeLo = 0,
+                                PausedSizeHi = 0,
+                                FileCount = 1,
+                                RemainingFileCount = 1,
+                                PausedFileCount = 0,
+                                Status = t.Status == TorrentStatus.Paused ? "PAUSED" : "DOWNLOADING",
+                                ActiveDownloads = 1,
+                                Parameters = Array.Empty<object>()
+                            };
                         }).ToList();
 
                     return Ok(new { version = "1.1", result = queueTorrents, id });
@@ -157,21 +175,33 @@ public class NzbgetRpcController : ControllerBase
                 case "history":
                     var finished = _torrentService.GetAll()
                         .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
-                        .Select(t => new
+                        .Select(t =>
                         {
-                            NZBID = t.Id,
-                            Name = t.Name ?? string.Empty,
-                            DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                            Category = t.Category ?? string.Empty,
-                            FileSizeMB = (int)(t.TotalSize / (1024 * 1024)),
-                            Status = "SUCCESS/ALL",
-                            ParStatus = "SUCCESS",
-                            UnpackStatus = "SUCCESS",
-                            MoveStatus = "SUCCESS",
-                            ScriptStatus = "NONE",
-                            DeleteStatus = "NONE",
-                            MarkStatus = "NONE",
-                            UrlStatus = "NONE"
+                            var totalMb = (int)(t.TotalSize / (1024 * 1024));
+                            var totalLo = (int)(t.TotalSize & 0xFFFFFFFF);
+                            var totalHi = (int)(t.TotalSize >> 32);
+
+                            return new
+                            {
+                                NZBID = t.Id,
+                                Name = t.Name ?? string.Empty,
+                                NZBName = t.Name ?? string.Empty,
+                                NZBNicename = t.Name ?? string.Empty,
+                                DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                                Category = t.Category ?? string.Empty,
+                                FileSizeMB = totalMb,
+                                FileSizeLo = totalLo,
+                                FileSizeHi = totalHi,
+                                Status = "SUCCESS/ALL",
+                                ParStatus = "SUCCESS",
+                                UnpackStatus = "SUCCESS",
+                                MoveStatus = "SUCCESS",
+                                ScriptStatus = "NONE",
+                                DeleteStatus = "NONE",
+                                MarkStatus = "NONE",
+                                UrlStatus = "NONE",
+                                Parameters = Array.Empty<object>()
+                            };
                         }).ToList();
 
                     return Ok(new { version = "1.1", result = finished, id });
@@ -309,6 +339,10 @@ public class NzbgetRpcController : ControllerBase
                             else if (command == "groupdelete" || command == "historydelete")
                             {
                                 await _torrentService.DeleteAsync(targetId, false);
+                            }
+                            else if (command == "groupfinaldelete")
+                            {
+                                await _torrentService.DeleteAsync(targetId, true);
                             }
                             else if (command == "groupmovetop")
                             {

@@ -5,6 +5,7 @@ using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Extraction;
+using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
@@ -19,7 +20,8 @@ public class NotificationEventHandler :
     IHandle<TorrentStatusChangedEvent>,
     IHandle<MediaEnrichedEvent>,
     IHandle<ArchiveExtractionCompletedEvent>,
-    IHandle<VpnKillSwitchTriggeredEvent>
+    IHandle<VpnKillSwitchTriggeredEvent>,
+    IHandle<ApplicationUpdatedEvent>
 {
     private readonly INotificationRepository _notificationRepository;
     private readonly IWebhookDispatcher _webhookDispatcher;
@@ -168,6 +170,36 @@ public class NotificationEventHandler :
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
                 Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue"));
+            }
+            else
+            {
+                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, payload));
+            }
+        }
+    }
+
+    public void Handle(ApplicationUpdatedEvent message)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        var activeNotifications = _notificationRepository.GetEnabled().Where(n => n.OnApplicationUpdate).ToList();
+        var payload = new
+        {
+            EventType = "OnApplicationUpdate",
+            PreviousVersion = message.PreviousVersion ?? string.Empty,
+            NewVersion = message.NewVersion ?? string.Empty,
+            Message = $"Leecharr updated to version {message.NewVersion}",
+            Timestamp = DateTime.UtcNow
+        };
+
+        foreach (var notif in activeNotifications)
+        {
+            if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
+            {
+                Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate"));
             }
             else
             {
