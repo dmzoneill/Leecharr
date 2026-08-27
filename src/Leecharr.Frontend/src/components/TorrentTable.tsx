@@ -137,9 +137,14 @@ interface ContextMenuState {
 }
 
 export interface TorrentTableProps {
-  torrents: Torrent[];
-  selectedId: number | null;
-  onSelect: (torrent: Torrent) => void;
+  torrents?: Torrent[];
+  filter?: string;
+  stateFilter?: string;
+  trackerFilter?: string;
+  selectedId?: number | null;
+  selectedTorrentId?: number | null;
+  onSelect?: (torrent: Torrent) => void;
+  onSelectTorrent?: (id: number | null) => void;
   onPause?: (id: number) => void;
   onResume?: (id: number) => void;
   onDelete?: (id: number) => void;
@@ -151,9 +156,14 @@ export interface TorrentTableProps {
 }
 
 export const TorrentTable: React.FC<TorrentTableProps> = ({
-  torrents,
+  torrents: propTorrents,
+  filter,
+  stateFilter,
+  trackerFilter,
   selectedId,
+  selectedTorrentId,
   onSelect,
+  onSelectTorrent,
   onPause,
   onResume,
   onDelete,
@@ -211,7 +221,32 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     }
   };
 
-  const sortedTorrents = [...torrents].sort((a, b) => {
+  const sourceTorrents = propTorrents || [];
+
+  const filteredTorrents = sourceTorrents.filter((t) => {
+    if (filter) {
+      const q = filter.toLowerCase();
+      const matchName = (t.name || "").toLowerCase().includes(q);
+      const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
+      if (!matchName && !matchMedia) return false;
+    }
+    if (stateFilter && stateFilter !== "All") {
+      const st = (t.status || "").toLowerCase();
+      const target = stateFilter.toLowerCase();
+      if (target === "stopped" || target === "paused") {
+        if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
+      } else if (st !== target) {
+        return false;
+      }
+    }
+    if (trackerFilter && trackerFilter !== "All") {
+      const trackerDomain = extractTrackerDomain(t.trackerUrl || "");
+      if (trackerDomain !== trackerFilter) return false;
+    }
+    return true;
+  });
+
+  const sortedTorrents = [...filteredTorrents].sort((a, b) => {
     let valA: any = (a as any)[sortKey];
     let valB: any = (b as any)[sortKey];
 
@@ -255,9 +290,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.has(col.key));
   const allSelected =
-    torrents.length > 0 && selectedIds.size === torrents.length;
+    filteredTorrents.length > 0 && selectedIds.size === filteredTorrents.length;
 
-  if (torrents.length === 0) {
+  if (filteredTorrents.length === 0) {
     return (
       <div
         className="card"
@@ -311,94 +346,147 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               h.infoHash?.toLowerCase() === t.infoHash.toLowerCase()) ||
             h.title?.toLowerCase() === t.name?.toLowerCase(),
         );
+        const meta = historyMatch?.metadata;
         const arrLink = historyMatch
           ? getMediaDeepLink(historyMatch, arrConnections)
           : null;
         const badges = getTorrentBadges(t);
+        const posterSrc =
+          t.posterUrl || t.artworkUrl || t.bannerUrl || meta?.posterUrl;
 
         return (
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
-              gap: "2px",
+              alignItems: "center",
+              gap: "0.6rem",
               minWidth: 200,
-              maxWidth: 420,
+              maxWidth: 460,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span
+            {posterSrc ? (
+              <img
+                src={posterSrc}
+                alt=""
                 style={{
-                  fontWeight: 600,
-                  color: "var(--text-primary, #f8f4ed)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  width: "22px",
+                  height: "32px",
+                  objectFit: "cover",
+                  borderRadius: "3px",
+                  flexShrink: 0,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                 }}
-                title={t.name}
-              >
-                {t.mediaTitle || t.name}
-              </span>
-              {arrLink && (
-                <a
-                  href={arrLink.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    fontSize: "0.68rem",
-                    padding: "0.1rem 0.35rem",
-                    borderRadius: "3px",
-                    backgroundColor: "rgba(255, 209, 102, 0.15)",
-                    color: "var(--accent, #ffd166)",
-                    textDecoration: "none",
-                    fontWeight: 600,
-                  }}
-                >
-                  {arrLink.label} ↗
-                </a>
-              )}
-            </div>
-
-            {t.mediaTitle && t.mediaTitle !== t.name && (
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  color: "var(--text-muted, #7e8092)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
                 }}
-              >
-                {t.name}
-              </span>
-            )}
-
-            {badges.length > 0 && (
+              />
+            ) : (
               <div
                 style={{
+                  width: "22px",
+                  height: "32px",
+                  borderRadius: "3px",
+                  backgroundColor: "rgba(255, 255, 255, 0.06)",
                   display: "flex",
-                  gap: "4px",
-                  flexWrap: "wrap",
-                  marginTop: "2px",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.75rem",
+                  flexShrink: 0,
+                  color: "var(--text-muted)",
                 }}
               >
-                {badges.slice(0, 3).map((b, i) => (
-                  <span
-                    key={i}
-                    className="badge"
-                    style={{
-                      fontSize: "0.65rem",
-                      padding: "0.05rem 0.3rem",
-                      backgroundColor: "rgba(255, 255, 255, 0.08)",
-                      color: "var(--text-secondary, #c7c5d3)",
-                    }}
-                  >
-                    {b}
-                  </span>
-                ))}
+                🎬
               </div>
             )}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: "var(--text-primary, #f8f4ed)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={t.name}
+                >
+                  {meta?.title || t.mediaTitle || t.name}{" "}
+                  {meta?.year ? `(${meta.year})` : ""}
+                </span>
+                {arrLink && (
+                  <a
+                    href={arrLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      fontSize: "0.68rem",
+                      padding: "0.1rem 0.35rem",
+                      borderRadius: "3px",
+                      backgroundColor: "rgba(255, 209, 102, 0.15)",
+                      color: "var(--accent, #ffd166)",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {arrLink.label} ↗
+                  </a>
+                )}
+              </div>
+
+              {t.mediaTitle && t.mediaTitle !== t.name && (
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "var(--text-muted, #7e8092)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={t.name}
+                >
+                  {t.name}
+                </span>
+              )}
+
+              {badges.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "4px",
+                    flexWrap: "wrap",
+                    marginTop: "2px",
+                  }}
+                >
+                  {badges.slice(0, 3).map((b, i) => (
+                    <span
+                      key={i}
+                      className="badge"
+                      style={{
+                        fontSize: "0.65rem",
+                        padding: "0.05rem 0.3rem",
+                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                        color: "var(--text-secondary, #c7c5d3)",
+                      }}
+                    >
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         );
       }
@@ -582,8 +670,21 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         );
       }
 
-      case "trackerUrl":
-        return <span>{extractTrackerDomain(t.trackerUrl)}</span>;
+      case "trackerUrl": {
+        const domain = extractTrackerDomain(t.trackerUrl);
+        return (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+            }}
+          >
+            <TrackerFavicon urlOrHost={domain} size={14} />
+            <span>{domain || "-"}</span>
+          </div>
+        );
+      }
 
       case "priority":
         return (
