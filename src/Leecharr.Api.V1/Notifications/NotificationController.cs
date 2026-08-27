@@ -129,11 +129,19 @@ public class NotificationController : Controller
         }
         else if (string.Equals(notif.Implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
-            payload = new
+            var chatId = ExtractSetting(notif.Settings, "chat_id", "chatId");
+            var telegramPayload = new Dictionary<string, object>
             {
-                text = "*Leecharr Test Notification*\nYour Telegram notification connection is working properly.",
-                parse_mode = "Markdown"
+                ["text"] = "*Leecharr Test Notification*\nYour Telegram notification connection is working properly.",
+                ["parse_mode"] = "Markdown"
             };
+
+            if (!string.IsNullOrEmpty(chatId))
+            {
+                telegramPayload["chat_id"] = chatId;
+            }
+
+            payload = telegramPayload;
         }
         else if (string.Equals(notif.Implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
         {
@@ -146,11 +154,25 @@ public class NotificationController : Controller
         }
         else if (string.Equals(notif.Implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
-            payload = new
+            var token = ExtractSetting(notif.Settings, "token", "botToken", "apiKey");
+            var user = ExtractSetting(notif.Settings, "user", "userKey");
+            var pushoverPayload = new Dictionary<string, object>
             {
-                title = "Leecharr: Test",
-                message = "This is a test notification from Leecharr."
+                ["title"] = "Leecharr: Test",
+                ["message"] = "This is a test notification from Leecharr."
             };
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                pushoverPayload["token"] = token;
+            }
+
+            if (!string.IsNullOrEmpty(user))
+            {
+                pushoverPayload["user"] = user;
+            }
+
+            payload = pushoverPayload;
         }
         else
         {
@@ -228,5 +250,46 @@ public class NotificationController : Controller
             OnApplicationUpdate = r.OnApplicationUpdate,
             Tags = r.Tags ?? new List<int>()
         };
+    }
+
+    private static string ExtractSetting(string settings, params string[] propertyNames)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return string.Empty;
+        }
+
+        if (settings.TrimStart().StartsWith("{"))
+        {
+            try
+            {
+                using var doc = global::System.Text.Json.JsonDocument.Parse(settings);
+                var root = doc.RootElement;
+                foreach (var prop in propertyNames)
+                {
+                    if (root.TryGetProperty(prop, out var val))
+                    {
+                        return val.GetString() ?? val.ToString();
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        foreach (var prop in propertyNames)
+        {
+            if (settings.Contains(prop + "="))
+            {
+                var match = global::System.Text.RegularExpressions.Regex.Match(settings, $@"{prop}=([^&]+)");
+                if (match.Success)
+                {
+                    return Uri.UnescapeDataString(match.Groups[1].Value);
+                }
+            }
+        }
+
+        return string.Empty;
     }
 }

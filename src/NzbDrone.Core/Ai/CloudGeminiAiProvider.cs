@@ -69,14 +69,14 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
         return _configService?.GetValue("GeminiModel", "gemini-2.0-flash") ?? "gemini-2.0-flash";
     }
 
-    public Task<AiHealthResult> ProbeHealthAsync()
+    public async Task<AiHealthResult> ProbeHealthAsync()
     {
         var apiKey = GetApiKey();
         var model = GetModelName();
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return Task.FromResult(new AiHealthResult
+            return new AiHealthResult
             {
                 IsHealthy = false,
                 StatusMessage = "Gemini API key is not configured. Please set 'GeminiApiKey' in configuration or GEMINI_API_KEY environment variable.",
@@ -84,17 +84,53 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                 LatencyMs = 0,
                 ModelName = model,
                 Version = Version
-            });
+            };
         }
 
-        return Task.FromResult(new AiHealthResult
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
         {
-            IsHealthy = true,
-            StatusMessage = $"Google Gemini API configured with model '{model}'.",
-            LatencyMs = 5,
-            ModelName = model,
-            Version = Version
-        });
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}?key={apiKey}";
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
+            sw.Stop();
+
+            if (response.IsSuccessStatusCode)
+            {
+                return new AiHealthResult
+                {
+                    IsHealthy = true,
+                    StatusMessage = $"Google Gemini API healthy and reachable with model '{model}'.",
+                    LatencyMs = sw.ElapsedMilliseconds,
+                    ModelName = model,
+                    Version = Version
+                };
+            }
+
+            var errorBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return new AiHealthResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"Google Gemini API returned HTTP {(int)response.StatusCode}: {response.ReasonPhrase}",
+                Warnings = new List<string> { errorBody },
+                LatencyMs = sw.ElapsedMilliseconds,
+                ModelName = model,
+                Version = Version
+            };
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            return new AiHealthResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"Failed to reach Google Gemini API: {ex.Message}",
+                Warnings = new List<string> { ex.ToString() },
+                LatencyMs = sw.ElapsedMilliseconds,
+                ModelName = model,
+                Version = Version
+            };
+        }
     }
 
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)

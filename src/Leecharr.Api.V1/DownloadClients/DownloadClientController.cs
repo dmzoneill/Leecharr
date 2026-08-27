@@ -73,6 +73,11 @@ public class DownloadClientController : Controller
 
         var model = ToModel(resource);
         model.Id = id;
+        if (string.IsNullOrEmpty(model.Password) || model.Password.Contains('*'))
+        {
+            model.Password = existing.Password;
+        }
+
         _repository.Update(model);
         return Ok(ToResource(model));
     }
@@ -108,27 +113,75 @@ public class DownloadClientController : Controller
     }
 
     [HttpGet("{id:int}/items")]
-    public ActionResult<List<DownloadClientRemoteItem>> GetItems(int id)
+    public async Task<ActionResult<List<DownloadClientRemoteItem>>> GetItems(int id)
     {
-        return Ok(new List<DownloadClientRemoteItem>());
-    }
-
-    [HttpPost("{id:int}/import/{hash}")]
-    public ActionResult<TorrentResource> ImportTorrent(int id, string hash)
-    {
-        var torrent = _torrentService.GetByInfoHash(hash);
-        if (torrent == null)
+        var client = _repository.Get(id);
+        if (client == null)
         {
             return NotFound();
         }
 
-        return Ok(TorrentResourceMapper.ToResource(torrent));
+        var items = await QueryRemoteClientItemsAsync(client);
+        return Ok(items);
+    }
+
+    [HttpPost("{id:int}/import/{hash}")]
+    public async Task<ActionResult<TorrentResource>> ImportTorrent(int id, string hash)
+    {
+        var client = _repository.Get(id);
+        if (client == null)
+        {
+            return NotFound();
+        }
+
+        var existing = _torrentService.GetByInfoHash(hash);
+        if (existing != null)
+        {
+            return Ok(TorrentResourceMapper.ToResource(existing));
+        }
+
+        // Add magnet by hash to engine
+        var magnetUri = $"magnet:?xt=urn:btih:{hash}";
+        var added = await _torrentService.AddFromMagnetAsync(magnetUri, client.Category, null, false);
+        return Ok(TorrentResourceMapper.ToResource(added));
     }
 
     [HttpPost("{id:int}/import")]
-    public ActionResult<SyncResultResource> ImportTorrents(int id, [FromBody] ImportRequest request)
+    public async Task<ActionResult<SyncResultResource>> ImportTorrents(int id, [FromBody] ImportRequest request)
     {
-        return Ok(new SyncResultResource { Success = true, SyncedCount = request?.Hashes?.Count ?? 0, Message = "Import completed." });
+        var client = _repository.Get(id);
+        if (client == null)
+        {
+            return NotFound();
+        }
+
+        var count = 0;
+        if (request?.Hashes != null)
+        {
+            foreach (var hash in request.Hashes)
+            {
+                try
+                {
+                    var existing = _torrentService.GetByInfoHash(hash);
+                    if (existing == null)
+                    {
+                        var magnetUri = $"magnet:?xt=urn:btih:{hash}";
+                        await _torrentService.AddFromMagnetAsync(magnetUri, request.Category ?? client.Category, request.SavePath, request.StartPaused);
+                        count++;
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        return Ok(new SyncResultResource
+        {
+            Success = true,
+            SyncedCount = count,
+            Message = $"Import completed ({count} torrent(s) imported)."
+        });
     }
 
     private static DownloadClientResource ToResource(DownloadClientDefinition model)
@@ -142,7 +195,7 @@ public class DownloadClientController : Controller
             Port = model.Port,
             UseSsl = model.UseSsl,
             Username = model.Username,
-            Password = model.Password,
+            Password = string.IsNullOrEmpty(model.Password) ? string.Empty : "********",
             Enabled = model.Enable
         };
     }
@@ -171,15 +224,47 @@ public class DownloadClientController : Controller
         }
 
         var port = resource.Port > 0 ? resource.Port : 8080;
+        var scheme = resource.UseSsl ? "https" : "http";
+        var baseUrl = $"{scheme}://{resource.Host}:{port}";
+
         try
         {
+            using var http = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+
+            if (string.Equals(resource.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
+            {
+                var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion");
+                if (resp.IsSuccessStatusCode)
+                {
+                    var ver = await resp.Content.ReadAsStringAsync();
+                    return Ok(new DownloadClientTestResult { Success = true, Message = $"qBittorrent WebAPI connected (v{ver.Trim()})." });
+                }
+            }
+            else if (string.Equals(resource.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
+            {
+                var resp = await http.GetAsync($"{baseUrl}/transmission/rpc");
+                if (resp.StatusCode == global::System.Net.HttpStatusCode.Conflict || resp.IsSuccessStatusCode)
+                {
+                    return Ok(new DownloadClientTestResult { Success = true, Message = "Transmission RPC endpoint reachable." });
+                }
+            }
+            else if (string.Equals(resource.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
+            {
+                var content = new global::System.Net.Http.StringContent("{\"method\":\"auth.check_session\",\"params\":[],\"id\":1}", global::System.Text.Encoding.UTF8, "application/json");
+                var resp = await http.PostAsync($"{baseUrl}/json", content);
+                if (resp.IsSuccessStatusCode)
+                {
+                    return Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC endpoint reachable." });
+                }
+            }
+
             using var client = new TcpClient();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await client.ConnectAsync(resource.Host, port, cts.Token);
             return Ok(new DownloadClientTestResult
             {
                 Success = true,
-                Message = $"Connected to {resource.ClientType ?? "Client"} at {resource.Host}:{port} successfully."
+                Message = $"Connected to {resource.ClientType ?? "Client"} socket at {resource.Host}:{port} successfully."
             });
         }
         catch (Exception ex)
@@ -190,5 +275,59 @@ public class DownloadClientController : Controller
                 Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}"
             });
         }
+    }
+
+    private async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(DownloadClientDefinition client)
+    {
+        var items = new List<DownloadClientRemoteItem>();
+        var port = client.Port > 0 ? client.Port : 8080;
+        var scheme = client.UseSsl ? "https" : "http";
+        var baseUrl = $"{scheme}://{client.Host}:{port}";
+
+        try
+        {
+            using var http = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+
+            if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
+            {
+                var resp = await http.GetAsync($"{baseUrl}/api/v2/torrents/info");
+                if (resp.IsSuccessStatusCode)
+                {
+                    var json = await resp.Content.ReadAsStringAsync();
+                    using var doc = global::System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.ValueKind == global::System.Text.Json.JsonValueKind.Array)
+                    {
+                        var idx = 1;
+                        foreach (var el in doc.RootElement.EnumerateArray())
+                        {
+                            var hash = el.TryGetProperty("hash", out var h) ? h.GetString() : string.Empty;
+                            var name = el.TryGetProperty("name", out var n) ? n.GetString() : string.Empty;
+                            var size = el.TryGetProperty("size", out var s) && s.TryGetInt64(out var sz) ? sz : 0;
+                            var prog = el.TryGetProperty("progress", out var p) && p.TryGetDouble(out var pr) ? pr : 0.0;
+                            var state = el.TryGetProperty("state", out var st) ? st.GetString() : "unknown";
+                            var save = el.TryGetProperty("save_path", out var sp) ? sp.GetString() : string.Empty;
+                            var cat = el.TryGetProperty("category", out var c) ? c.GetString() : string.Empty;
+
+                            items.Add(new DownloadClientRemoteItem
+                            {
+                                Id = (idx++).ToString(),
+                                InfoHash = hash,
+                                Name = name,
+                                Size = size,
+                                Progress = prog,
+                                State = state,
+                                SavePath = save,
+                                Category = cat
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return items;
     }
 }

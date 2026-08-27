@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentValidation;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Ai;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;
@@ -311,9 +314,12 @@ public class AdvancedConfigController : ConfigController<AdvancedConfigResource>
 [V1ApiController("config/ai")]
 public class AiConfigController : ConfigController<AiConfigResource>
 {
-    public AiConfigController(IConfigService configService)
+    private readonly IAiManager _aiManager;
+
+    public AiConfigController(IConfigService configService, IAiManager aiManager = null)
         : base(configService)
     {
+        _aiManager = aiManager;
     }
 
     public override ActionResult<AiConfigResource> SaveConfig([FromBody] AiConfigResource resource)
@@ -323,7 +329,23 @@ public class AiConfigController : ConfigController<AiConfigResource>
             resource.GeminiApiKey = _configService.GeminiApiKey;
         }
 
-        return base.SaveConfig(resource);
+        var result = base.SaveConfig(resource);
+
+        if (_aiManager != null && !string.IsNullOrWhiteSpace(resource.ActiveAiProvider) && !string.Equals(_aiManager.ActiveProviderId, resource.ActiveAiProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await _aiManager.SwitchProviderAsync(resource.ActiveAiProvider);
+                }
+                catch
+                {
+                }
+            });
+        }
+
+        return result;
     }
 
     protected override AiConfigResource ToResource(IConfigService model)
