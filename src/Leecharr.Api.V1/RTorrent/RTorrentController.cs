@@ -428,17 +428,17 @@ public class RTorrentController : ControllerBase
         var torrents = _torrentService.GetAll().ToList();
         var requestedFields = new List<string>();
 
-        var startIndex = 0;
-        if (paramValues.Count > 0 && (paramValues[0] is string s) && (string.IsNullOrEmpty(s) || s == "default" || s == "main" || s == "started" || s == "stopped" || s == "complete" || s == "incomplete"))
+        foreach (var item in paramValues)
         {
-            startIndex = 1;
-        }
-
-        for (var i = startIndex; i < paramValues.Count; i++)
-        {
-            if (paramValues[i] is string field)
+            if (item is string field && !string.IsNullOrWhiteSpace(field))
             {
-                requestedFields.Add(field);
+                var trimmed = field.Trim();
+                if (trimmed.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("t.", StringComparison.OrdinalIgnoreCase))
+                {
+                    requestedFields.Add(trimmed);
+                }
             }
         }
 

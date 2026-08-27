@@ -274,9 +274,21 @@ public class AuthController : ControllerBase
             var username = !string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : (nameId ?? "saml_user");
             var user = _userService.GetByUsername(username);
 
+            var roles = doc.Descendants()
+                .Where(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("role", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("group", StringComparison.OrdinalIgnoreCase) == true))
+                .SelectMany(e => e.Elements().Where(v => v.Name.LocalName == "AttributeValue").Select(v => v.Value))
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .ToList();
+
+            if (roles.Count == 0)
+            {
+                var isFirstUser = !_userService.HasAnyUsers();
+                roles.Add(isFirstUser ? "Admin" : "User");
+            }
+
             if (user == null)
             {
-                user = _userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, new List<string> { "User" });
+                user = _userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
             }
 
             var claims = new List<Claim>
@@ -291,11 +303,36 @@ public class AuthController : ControllerBase
                 claims.Add(new Claim(ClaimTypes.Email, user.Email));
             }
 
-            claims.Add(new Claim(ClaimTypes.Role, "User"));
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
             await HttpContext.SignInAsync("Cookies", principal);
+
+            if (_userSessionRepository != null)
+            {
+                try
+                {
+                    var session = new UserSession
+                    {
+                        UserId = user.Id,
+                        SessionToken = Guid.NewGuid().ToString("N"),
+                        IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                        UserAgent = Request.Headers["User-Agent"].ToString(),
+                        CreatedAt = DateTime.UtcNow,
+                        Expiry = DateTime.UtcNow.AddDays(30),
+                        LastActivity = DateTime.UtcNow
+                    };
+                    _userSessionRepository.Insert(session);
+                }
+                catch
+                {
+                    // Non-fatal if session insertion fails
+                }
+            }
 
             return Redirect(string.IsNullOrWhiteSpace(relayState) ? "/" : relayState);
         }

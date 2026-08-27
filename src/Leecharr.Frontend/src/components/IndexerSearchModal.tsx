@@ -17,17 +17,30 @@ import { useToast } from "../context/ToastContext";
 interface IndexerSearchModalProps {
   onClose: () => void;
   onTorrentAdded: () => void;
+  initialQuery?: string;
+  isOpen?: boolean;
 }
 
 export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   onClose,
   onTorrentAdded,
+  initialQuery,
+  isOpen,
 }) => {
-  const [query, setQuery] = useState<string>("");
-  const [activeSearchTerm, setActiveSearchTerm] = useState<string>("");
+  const [query, setQuery] = useState<string>(initialQuery || "");
+  const [activeSearchTerm, setActiveSearchTerm] = useState<string>(initialQuery || "");
   const [freeleechOnly, setFreeleechOnly] = useState<boolean>(false);
   const [minSeedersFilter, setMinSeedersFilter] = useState<number>(0);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialQuery) {
+      setQuery(initialQuery);
+      setActiveSearchTerm(initialQuery);
+    }
+  }, [initialQuery]);
+
+  if (isOpen !== undefined && !isOpen) return null;
 
   const { showToast } = useToast();
   const { data: aiConfig } = useAiConfig();
