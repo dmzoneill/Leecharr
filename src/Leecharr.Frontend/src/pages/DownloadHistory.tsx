@@ -1827,6 +1827,7 @@ export default function DownloadHistory() {
       {/* Indexer Search Modal */}
       {searchModalQuery && (
         <IndexerSearchModal
+          initialQuery={searchModalQuery}
           onClose={() => setSearchModalQuery(null)}
           onTorrentAdded={() => {
             setSearchModalQuery(null);

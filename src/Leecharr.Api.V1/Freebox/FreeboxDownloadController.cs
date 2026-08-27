@@ -93,31 +93,39 @@ public class FreeboxDownloadController : ControllerBase
     public IActionResult GetDownloads()
     {
         var all = _torrentService.GetAll().ToList();
-        var results = all.Select(t => new
+        var results = all.Select(t =>
         {
-            id = t.Id,
-            name = t.Name ?? string.Empty,
-            size = t.TotalSize,
-            status = t.Status switch
+            var savePath = t.SavePath ?? (_configService.DownloadDir ?? "/downloads");
+            var b64Dir = Convert.ToBase64String(Encoding.UTF8.GetBytes(savePath));
+            return new
             {
-                TorrentStatus.Downloading => "downloading",
-                TorrentStatus.Seeding => "seeding",
-                TorrentStatus.Paused => "stopped",
-                TorrentStatus.Stopped => "done",
-                TorrentStatus.Error => "error",
-                _ => "queued"
-            },
-            type = "bt",
-            rx_bytes = t.Downloaded,
-            tx_bytes = t.Uploaded,
-            rx_rate = t.DownloadSpeed,
-            tx_rate = t.UploadSpeed,
-            queue_pos = t.QueuePosition,
-            io_priority = "normal",
-            stop_ratio = (int)(t.TargetRatio * 100),
-            error = "none",
-            created_ts = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
-            eta = t.Eta
+                id = t.Id,
+                name = t.Name ?? string.Empty,
+                download_dir = b64Dir,
+                size = t.TotalSize,
+                rx_pct = (long)(t.Progress * 10000),
+                tx_pct = (long)(t.Ratio * 10000),
+                rx_bytes = t.Downloaded,
+                tx_bytes = t.Uploaded,
+                rx_rate = t.DownloadSpeed,
+                tx_rate = t.UploadSpeed,
+                status = t.Status switch
+                {
+                    TorrentStatus.Downloading => "downloading",
+                    TorrentStatus.Seeding => "seeding",
+                    TorrentStatus.Paused => "stopped",
+                    TorrentStatus.Stopped => "done",
+                    TorrentStatus.Error => "error",
+                    _ => "queued"
+                },
+                type = "bt",
+                queue_pos = t.QueuePosition,
+                io_priority = "normal",
+                stop_ratio = (int)(t.TargetRatio * 100),
+                error = "none",
+                created_ts = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
+                eta = t.Eta
+            };
         }).ToList();
 
         return Ok(new
@@ -187,13 +195,17 @@ public class FreeboxDownloadController : ControllerBase
     public async Task<IActionResult> UpdateDownload(int id, [FromBody] FreeboxUpdateRequest jsonRequest = null)
     {
         string status = null;
+        string queuePos = null;
+
         if (Request.HasFormContentType)
         {
             status = Request.Form["status"].ToString().ToLowerInvariant();
+            queuePos = Request.Form["queue_pos"].ToString().ToLowerInvariant();
         }
         else if (jsonRequest != null)
         {
             status = jsonRequest.Status?.ToLowerInvariant();
+            queuePos = jsonRequest.QueuePos?.ToLowerInvariant();
             if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value > 0)
             {
                 var t = _torrentService.Get(id);
@@ -212,6 +224,11 @@ public class FreeboxDownloadController : ControllerBase
         else if (status == "downloading")
         {
             await _torrentService.ResumeAsync(id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queuePos))
+        {
+            await _torrentService.MoveQueueAsync(id, queuePos);
         }
 
         return Ok(new { success = true });

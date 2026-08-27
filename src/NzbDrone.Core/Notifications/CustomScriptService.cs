@@ -10,7 +10,7 @@ namespace NzbDrone.Core.Notifications;
 
 public interface ICustomScriptService
 {
-    Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType);
+    Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null);
 }
 
 public class CustomScriptService : ICustomScriptService
@@ -23,7 +23,7 @@ public class CustomScriptService : ICustomScriptService
         _mediaEnrichmentService = mediaEnrichmentService;
     }
 
-    public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType)
+    public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
     {
         if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
         {
@@ -40,6 +40,7 @@ public class CustomScriptService : ICustomScriptService
             var startInfo = new ProcessStartInfo
             {
                 FileName = scriptPath,
+                Arguments = arguments ?? string.Empty,
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

@@ -588,18 +588,18 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         if (DateTime.UtcNow - _lastPeersUpdate > TimeSpan.FromSeconds(2) || _cachedMonoPeers == null)
         {
-            try
+            _lastPeersUpdate = DateTime.UtcNow;
+            Task.Run(async () =>
             {
-                var task = Manager.GetPeersAsync();
-                if (task.Wait(100))
+                try
                 {
-                    _cachedMonoPeers = task.Result;
-                    _lastPeersUpdate = DateTime.UtcNow;
+                    var peers = await Manager.GetPeersAsync().ConfigureAwait(false);
+                    _cachedMonoPeers = peers;
                 }
-            }
-            catch
-            {
-            }
+                catch
+                {
+                }
+            });
         }
 
         return _cachedMonoPeers ?? Array.Empty<PeerId>();

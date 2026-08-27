@@ -197,7 +197,8 @@ export function App() {
         msg.name === "torrentDeleted" ||
         msg.name === "category" ||
         msg.name === "subsystemSwitched" ||
-        msg.name === "pieceMapUpdated"
+        msg.name === "pieceMapUpdated" ||
+        msg.name === "speedPulse"
       ) {
         loadData();
       }

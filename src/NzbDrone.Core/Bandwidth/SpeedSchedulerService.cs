@@ -95,23 +95,27 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
         if (activeSchedules.Count > 0)
         {
             var match = activeSchedules.First();
+            var isPaused = match.MaxDownloadSpeed < 0 || match.MaxUploadSpeed < 0;
+            var isThrottled = match.MaxDownloadSpeed > 0 || match.MaxUploadSpeed > 0;
             return new EffectiveSpeedLimits
             {
-                MaxDownloadSpeedKbps = match.MaxDownloadSpeed,
-                MaxUploadSpeedKbps = match.MaxUploadSpeed,
-                IsThrottled = true,
-                IsPaused = match.MaxDownloadSpeed == 0 && match.MaxUploadSpeed == 0
+                MaxDownloadSpeedKbps = match.MaxDownloadSpeed < 0 ? 0 : match.MaxDownloadSpeed,
+                MaxUploadSpeedKbps = match.MaxUploadSpeed < 0 ? 0 : match.MaxUploadSpeed,
+                IsThrottled = isThrottled,
+                IsPaused = isPaused
             };
         }
 
         if (_configService.AlternativeSpeedEnabled)
         {
+            var isPaused = _configService.AltDownloadSpeedKbps < 0 || _configService.AltUploadSpeedKbps < 0;
+            var isThrottled = _configService.AltDownloadSpeedKbps > 0 || _configService.AltUploadSpeedKbps > 0;
             return new EffectiveSpeedLimits
             {
-                MaxDownloadSpeedKbps = _configService.AltDownloadSpeedKbps,
-                MaxUploadSpeedKbps = _configService.AltUploadSpeedKbps,
-                IsThrottled = true,
-                IsPaused = _configService.AltDownloadSpeedKbps == 0 && _configService.AltUploadSpeedKbps == 0
+                MaxDownloadSpeedKbps = _configService.AltDownloadSpeedKbps < 0 ? 0 : _configService.AltDownloadSpeedKbps,
+                MaxUploadSpeedKbps = _configService.AltUploadSpeedKbps < 0 ? 0 : _configService.AltUploadSpeedKbps,
+                IsThrottled = isThrottled,
+                IsPaused = isPaused
             };
         }
 

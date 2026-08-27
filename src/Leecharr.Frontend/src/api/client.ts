@@ -141,13 +141,13 @@ export const api = {
   getTorrentFiles: (id: number) =>
     fetchJson<TorrentFile[]>(`${BASE_URL}/torrents/${id}/files`),
   pauseTorrent: (id: number) =>
-    fetch(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
+    fetchJson<void>(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
   resumeTorrent: (id: number) =>
-    fetch(`${BASE_URL}/torrents/${id}/resume`, { method: "POST" }),
+    fetchJson<void>(`${BASE_URL}/torrents/${id}/resume`, { method: "POST" }),
   recheckTorrent: (id: number) =>
-    fetch(`${BASE_URL}/torrents/${id}/recheck`, { method: "POST" }),
+    fetchJson<void>(`${BASE_URL}/torrents/${id}/recheck`, { method: "POST" }),
   deleteTorrent: (id: number, deleteFiles = false) =>
-    fetch(`${BASE_URL}/torrents/${id}?deleteFiles=${deleteFiles}`, {
+    fetchJson<void>(`${BASE_URL}/torrents/${id}?deleteFiles=${deleteFiles}`, {
       method: "DELETE",
     }),
 
@@ -194,7 +194,7 @@ export const api = {
       body: JSON.stringify(category),
     }),
   deleteCategory: (id: number) =>
-    fetch(`${BASE_URL}/categories/${id}`, { method: "DELETE" }),
+    fetchJson<void>(`${BASE_URL}/categories/${id}`, { method: "DELETE" }),
 
   // System
   getSystemStatus: () => fetchJson<SystemStatus>(`${BASE_URL}/system/status`),
@@ -252,7 +252,9 @@ export const api = {
       },
     ),
   deleteIdProvider: (id: number) =>
-    fetch(`${BASE_URL}/config/auth/providers/${id}`, { method: "DELETE" }),
+    fetchJson<void>(`${BASE_URL}/config/auth/providers/${id}`, {
+      method: "DELETE",
+    }),
   testIdProvider: (
     provider: Partial<import("./types").IdentityProviderDefinition>,
   ) =>
