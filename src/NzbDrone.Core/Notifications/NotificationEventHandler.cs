@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
@@ -173,7 +174,8 @@ public class NotificationEventHandler :
             }
             else
             {
-                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, payload));
+                var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
+                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
@@ -203,7 +205,8 @@ public class NotificationEventHandler :
             }
             else
             {
-                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, payload));
+                var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
+                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
@@ -228,21 +231,22 @@ public class NotificationEventHandler :
         {
             EventType = eventType,
             TorrentId = torrent.Id,
-            Name = torrent.Name,
+            TorrentName = torrent.Name,
             InfoHash = torrent.InfoHash,
             Category = torrent.Category,
             SavePath = torrent.SavePath,
             TotalSize = torrent.TotalSize,
+            Downloaded = torrent.Downloaded,
+            Uploaded = torrent.Uploaded,
+            DownloadSpeed = torrent.DownloadSpeed,
+            UploadSpeed = torrent.UploadSpeed,
             Progress = torrent.Progress,
+            Ratio = torrent.Ratio,
             Status = torrent.Status.ToString(),
             MediaTitle = meta?.Title,
             MediaYear = meta?.Year,
-            PosterUrl = meta?.PosterUrl,
-            BackdropUrl = meta?.BackdropUrl,
-            Overview = meta?.Overview,
-            Genres = meta?.Genres,
-            Rating = meta?.Rating,
-            ImdbId = meta?.ImdbId,
+            MediaOverview = meta?.Overview,
+            MediaGenres = meta?.Genres,
             Files = files,
             Timestamp = DateTime.UtcNow
         };
@@ -264,18 +268,101 @@ public class NotificationEventHandler :
             }
             else
             {
-                var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload);
+                var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
                 Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
 
-    private static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload)
+    private static (string ChatId, string Token, string User) ExtractProviderSettings(string settings)
     {
+        var chatId = string.Empty;
+        var token = string.Empty;
+        var user = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return (chatId, token, user);
+        }
+
+        if (settings.TrimStart().StartsWith("{"))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(settings);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("chat_id", out var c) || root.TryGetProperty("chatId", out c))
+                {
+                    chatId = c.GetString() ?? c.ToString();
+                }
+
+                if (root.TryGetProperty("token", out var t) || root.TryGetProperty("botToken", out t) || root.TryGetProperty("apiKey", out t))
+                {
+                    token = t.GetString() ?? t.ToString();
+                }
+
+                if (root.TryGetProperty("user", out var u) || root.TryGetProperty("userKey", out u))
+                {
+                    user = u.GetString() ?? u.ToString();
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        if (string.IsNullOrEmpty(chatId) && settings.Contains("chat_id="))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(settings, @"chat_id=([^&]+)");
+            if (match.Success)
+            {
+                chatId = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+        }
+
+        if (string.IsNullOrEmpty(token) && settings.Contains("token="))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(settings, @"token=([^&]+)");
+            if (match.Success)
+            {
+                token = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+        }
+
+        if (string.IsNullOrEmpty(user) && settings.Contains("user="))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(settings, @"user=([^&]+)");
+            if (match.Success)
+            {
+                user = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+        }
+
+        return (chatId, token, user);
+    }
+
+    private static string EscapeMarkdown(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Replace("_", "\\_").Replace("*", "\\*").Replace("[", "\\[").Replace("]", "\\]").Replace("`", "\\`");
+    }
+
+    private static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
+    {
+        var (chatId, token, user) = ExtractProviderSettings(settings);
+        var torrentName = torrent?.Name ?? (genericPayload as dynamic)?.Message ?? eventType;
+
         if (string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
-            var title = $"[{eventType}] {torrent.Name}";
-            var desc = meta?.Overview ?? $"Category: {torrent.Category ?? "None"} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB";
+            var title = $"[{eventType}] {torrentName}";
+            var desc = meta?.Overview ?? (torrent != null
+                ? $"Category: {torrent.Category ?? "None"} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                : (genericPayload as dynamic)?.Message ?? $"Event: {eventType}");
+
             return new
             {
                 username = "Leecharr",
@@ -294,12 +381,22 @@ public class NotificationEventHandler :
 
         if (string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
-            var text = $"*Leecharr [{eventType}]*\n*{torrent.Name}*\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}";
-            return new
+            var text = torrent != null
+                ? $"*Leecharr [{EscapeMarkdown(eventType)}]*\n*{EscapeMarkdown(torrent.Name)}*\nCategory: {EscapeMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}"
+                : $"*Leecharr [{EscapeMarkdown(eventType)}]*\n{EscapeMarkdown((genericPayload as dynamic)?.Message ?? eventType)}";
+
+            var payloadDict = new Dictionary<string, object>
             {
-                text,
-                parse_mode = "Markdown"
+                ["text"] = text,
+                ["parse_mode"] = "Markdown"
             };
+
+            if (!string.IsNullOrEmpty(chatId))
+            {
+                payloadDict["chat_id"] = chatId;
+            }
+
+            return payloadDict;
         }
 
         if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
@@ -307,18 +404,30 @@ public class NotificationEventHandler :
             return new
             {
                 title = $"Leecharr: {eventType}",
-                message = $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}",
+                message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType),
                 priority = 5
             };
         }
 
         if (string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
-            return new
+            var payloadDict = new Dictionary<string, object>
             {
-                title = $"Leecharr: {eventType}",
-                message = $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}"
+                ["title"] = $"Leecharr: {eventType}",
+                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType)
             };
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                payloadDict["token"] = token;
+            }
+
+            if (!string.IsNullOrEmpty(user))
+            {
+                payloadDict["user"] = user;
+            }
+
+            return payloadDict;
         }
 
         return genericPayload;
