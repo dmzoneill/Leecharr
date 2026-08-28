@@ -182,6 +182,20 @@ public class NzbVortexApiController : ControllerBase
             var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
             addedId = added?.Id ?? addedId;
         }
+        else
+        {
+            var url = Request.Query["url"].ToString();
+            if (string.IsNullOrEmpty(url) && Request.HasFormContentType)
+            {
+                url = Request.Form["url"].ToString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                var added = await _torrentService.AddFromMagnetAsync(url, category, null, false);
+                addedId = added?.Id ?? addedId;
+            }
+        }
 
         return Ok(new
         {
@@ -190,6 +204,28 @@ public class NzbVortexApiController : ControllerBase
             error = 0,
             result = 0
         });
+    }
+
+    [HttpPost]
+    [Route("nzbvortex/api/v1/nzb/{id}/pause")]
+    [Route("api/v1/nzb/{id}/pause")]
+    [Route("nzbvortex/api/v1/queue/{id}/pause")]
+    [Route("api/v1/queue/{id}/pause")]
+    public async Task<IActionResult> PauseNzb(int id)
+    {
+        await _torrentService.PauseAsync(id);
+        return Ok(new { error = 0, result = 0 });
+    }
+
+    [HttpPost]
+    [Route("nzbvortex/api/v1/nzb/{id}/resume")]
+    [Route("api/v1/nzb/{id}/resume")]
+    [Route("nzbvortex/api/v1/queue/{id}/resume")]
+    [Route("api/v1/queue/{id}/resume")]
+    public async Task<IActionResult> ResumeNzb(int id)
+    {
+        await _torrentService.ResumeAsync(id);
+        return Ok(new { error = 0, result = 0 });
     }
 
     [HttpGet]
@@ -230,5 +266,23 @@ public class NzbVortexApiController : ControllerBase
             files = result,
             result = 0
         });
+    }
+
+    [HttpPost]
+    [Route("nzbvortex/api/v1/file/{fileId}/ignore")]
+    [Route("api/v1/file/{fileId}/ignore")]
+    public async Task<IActionResult> IgnoreFile(int fileId)
+    {
+        await _torrentFileService.SetPriorityAsync(fileId, 0);
+        return Ok(new { error = 0, result = 0 });
+    }
+
+    [HttpPost]
+    [Route("nzbvortex/api/v1/file/{fileId}/unignore")]
+    [Route("api/v1/file/{fileId}/unignore")]
+    public async Task<IActionResult> UnignoreFile(int fileId)
+    {
+        await _torrentFileService.SetPriorityAsync(fileId, 1);
+        return Ok(new { error = 0, result = 0 });
     }
 }

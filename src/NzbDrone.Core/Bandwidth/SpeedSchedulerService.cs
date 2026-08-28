@@ -70,23 +70,33 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
     public EffectiveSpeedLimits GetCurrentLimits(DateTime? currentTime = null)
     {
         var now = currentTime ?? DateTime.Now;
-        var dayFlag = 1 << (int)now.DayOfWeek;
+        var todayFlag = 1 << (int)now.DayOfWeek;
+        var prevDayFlag = 1 << (((int)now.DayOfWeek + 6) % 7);
         var timeStr = now.ToString("HH:mm:ss");
 
         var activeSchedules = _repository.GetEnabled()
-            .Where(s => (s.Days & dayFlag) != 0)
             .Where(s =>
             {
                 if (string.Compare(s.StartTime, s.EndTime, StringComparison.Ordinal) <= 0)
                 {
-                    return string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
+                    return (s.Days & todayFlag) != 0 &&
+                           string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
                            string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
                 }
                 else
                 {
                     // Overnight schedule (e.g. 22:00 to 06:00)
-                    return string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 ||
-                           string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
+                    if (string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0)
+                    {
+                        return (s.Days & todayFlag) != 0;
+                    }
+
+                    if (string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0)
+                    {
+                        return (s.Days & prevDayFlag) != 0;
+                    }
+
+                    return false;
                 }
             })
             .OrderByDescending(s => s.Priority)

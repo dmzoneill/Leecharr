@@ -366,6 +366,54 @@ public class TransmissionRpcController : ControllerBase
                                 }
                             }
 
+                            if (request.Arguments.TryGetValue("priority-high", out var prioHighVal) && prioHighVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                foreach (var item in prioHighVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var idx = item.GetInt32();
+                                        if (idx >= 0 && idx < files.Count)
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[idx].Id, 2);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("priority-low", out var prioLowVal) && prioLowVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                foreach (var item in prioLowVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var idx = item.GetInt32();
+                                        if (idx >= 0 && idx < files.Count)
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[idx].Id, 0);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("priority-normal", out var prioNormVal) && prioNormVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                foreach (var item in prioNormVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var idx = item.GetInt32();
+                                        if (idx >= 0 && idx < files.Count)
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[idx].Id, 1);
+                                        }
+                                    }
+                                }
+                            }
+
                             await _torrentService.UpdateAsync(t);
                         }
                     }

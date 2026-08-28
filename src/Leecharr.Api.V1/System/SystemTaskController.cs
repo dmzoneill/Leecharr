@@ -98,7 +98,11 @@ public class SystemTaskController : Controller
             [5] = "ProwlarrSync"
         };
 
-        var name = taskNames.TryGetValue(id, out var tn) ? tn : "SystemTask";
+        var dbTask = _scheduledTaskRepository?.Get(id);
+        var name = dbTask != null && !string.IsNullOrWhiteSpace(dbTask.TypeName)
+            ? dbTask.TypeName.Replace("Task", string.Empty)
+            : (taskNames.TryGetValue(id, out var tn) ? tn : "SystemTask");
+
         _commandQueueManager?.PushRaw(name, "{}", CommandTrigger.Manual);
         return Ok(new { success = true, task = name });
     }

@@ -189,7 +189,7 @@ public class SynologyDownloadStationController : ControllerBase
                         {
                             destination = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
                             uri = string.Empty,
-                            create_time = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
+                            create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                             priority = "auto"
                         },
                         transfer = new
@@ -261,7 +261,7 @@ public class SynologyDownloadStationController : ControllerBase
 
                 var infoTasks = infoTorrents.Select(t => new
                 {
-                    id = t.InfoHash,
+                    id = t.InfoHash.ToLowerInvariant(),
                     title = t.Name ?? string.Empty,
                     size = t.TotalSize,
                     status = t.Status switch
@@ -281,7 +281,7 @@ public class SynologyDownloadStationController : ControllerBase
                         {
                             destination = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
                             uri = string.Empty,
-                            create_time = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
+                            create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                             priority = "auto"
                         },
                         transfer = new

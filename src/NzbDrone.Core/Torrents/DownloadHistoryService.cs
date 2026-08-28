@@ -186,7 +186,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 Uploaded = torrent.Uploaded,
                 Downloaded = torrent.Downloaded,
                 Ratio = torrent.Ratio,
-                SeedingTime = 0,
+                SeedingTime = torrent.DateAdded != default ? (long)(DateTime.UtcNow - torrent.DateAdded).TotalSeconds : 0,
                 PrimaryTracker = tracker,
                 Source = "Library",
                 Status = "Removed",

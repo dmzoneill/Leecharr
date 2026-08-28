@@ -83,4 +83,39 @@ public class SpeedSchedulerServiceTest
         _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0)
             .Should().Be(50000);
     }
+
+    [Test]
+    public void GetCurrentLimits_WhenOvernightScheduleCrossesMidnight_MatchesCorrectly()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Night Throttling",
+                Days = 1 << (int)DayOfWeek.Monday, // Monday only
+                StartTime = "22:00:00",
+                EndTime = "06:00:00",
+                MaxDownloadSpeed = 2000,
+                MaxUploadSpeed = 1000,
+                IsEnabled = true,
+                Priority = 10
+            }
+        };
+
+        _repository.GetEnabled().Returns(schedules);
+
+        // Monday 23:00 (inside Monday evening)
+        var eveningLimits = _service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 0, 0));
+        eveningLimits.IsThrottled.Should().BeTrue();
+        eveningLimits.MaxDownloadSpeedKbps.Should().Be(2000);
+
+        // Tuesday 04:00 (inside early morning portion started on Monday)
+        var morningLimits = _service.GetCurrentLimits(new DateTime(2026, 9, 1, 4, 0, 0));
+        morningLimits.IsThrottled.Should().BeTrue();
+        morningLimits.MaxDownloadSpeedKbps.Should().Be(2000);
+
+        // Tuesday 10:00 (outside schedule)
+        var daytimeLimits = _service.GetCurrentLimits(new DateTime(2026, 9, 1, 10, 0, 0));
+        daytimeLimits.IsThrottled.Should().BeFalse();
+    }
 }

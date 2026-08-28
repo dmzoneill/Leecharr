@@ -123,7 +123,7 @@ public class FreeboxDownloadController : ControllerBase
                 io_priority = "normal",
                 stop_ratio = (int)(t.TargetRatio * 100),
                 error = "none",
-                created_ts = (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
+                created_ts = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 eta = t.Eta
             };
         }).ToList();
@@ -201,6 +201,15 @@ public class FreeboxDownloadController : ControllerBase
         {
             status = Request.Form["status"].ToString().ToLowerInvariant();
             queuePos = Request.Form["queue_pos"].ToString().ToLowerInvariant();
+            if (double.TryParse(Request.Form["stop_ratio"].ToString(), out var formRatio) && formRatio > 0)
+            {
+                var t = _torrentService.Get(id);
+                if (t != null)
+                {
+                    t.TargetRatio = formRatio;
+                    await _torrentService.UpdateAsync(t);
+                }
+            }
         }
         else if (jsonRequest != null)
         {

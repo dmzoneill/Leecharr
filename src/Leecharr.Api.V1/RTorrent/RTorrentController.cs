@@ -408,6 +408,25 @@ public class RTorrentController : ControllerBase
 
                     return BuildXmlRpcResponse(new XElement("i4", 0));
 
+                case "f.priority.set":
+                case "f.set_priority":
+                    if (paramValues.Count >= 3 && paramValues[0] is string filePrioHash && _torrentFileService != null)
+                    {
+                        var t = _torrentService.GetByInfoHash(filePrioHash);
+                        if (t != null)
+                        {
+                            var fIdx = paramValues[1] is int fi ? fi : (int.TryParse(paramValues[1]?.ToString(), out var pfi) ? pfi : -1);
+                            var fPrio = paramValues[2] is int fp ? fp : (int.TryParse(paramValues[2]?.ToString(), out var pfp) ? pfp : 1);
+                            var files = _torrentFileService.GetFiles(t.Id).ToList();
+                            if (fIdx >= 0 && fIdx < files.Count)
+                            {
+                                await _torrentFileService.SetPriorityAsync(files[fIdx].Id, fPrio);
+                            }
+                        }
+                    }
+
+                    return BuildXmlRpcResponse(new XElement("i4", 0));
+
                 case "d.views.push_back_unique":
                     return BuildXmlRpcResponse(new XElement("i4", 0));
 
@@ -560,15 +579,17 @@ public class RTorrentController : ControllerBase
 
             case "d.chunk_size":
             case "d.get_chunk_size":
-                return new XElement("i8", 1024 * 1024);
+                return new XElement("i8", torrent.PieceLength > 0 ? torrent.PieceLength : 1024 * 1024);
 
             case "d.size_chunks":
             case "d.get_size_chunks":
-                return new XElement("i8", Math.Max(1, torrent.TotalSize / (1024 * 1024)));
+                var pieceLen = torrent.PieceLength > 0 ? torrent.PieceLength : 1024 * 1024;
+                return new XElement("i8", torrent.PieceCount > 0 ? torrent.PieceCount : Math.Max(1, torrent.TotalSize / pieceLen));
 
             case "d.completed_chunks":
             case "d.get_completed_chunks":
-                return new XElement("i8", (long)(torrent.Progress * Math.Max(1, torrent.TotalSize / (1024 * 1024))));
+                var totalP = torrent.PieceCount > 0 ? torrent.PieceCount : Math.Max(1, torrent.TotalSize / (torrent.PieceLength > 0 ? torrent.PieceLength : 1024 * 1024));
+                return new XElement("i8", (long)(torrent.Progress * totalP));
 
             case "d.is_hash_checking":
             case "d.get_is_hash_checking":

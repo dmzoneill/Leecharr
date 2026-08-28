@@ -240,6 +240,18 @@ public class NzbgetRpcController : ControllerBase
                                 return Ok(new { version = "1.1", result = 1, id });
                             }
                         }
+                        else if (!string.IsNullOrWhiteSpace(nzbName) && (nzbName.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            try
+                            {
+                                var added = await _torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
+                                return Ok(new { version = "1.1", result = added?.Id ?? 1, id });
+                            }
+                            catch
+                            {
+                                return Ok(new { version = "1.1", result = 1, id });
+                            }
+                        }
                     }
 
                     return Ok(new { version = "1.1", result = 1, id });

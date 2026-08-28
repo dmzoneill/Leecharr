@@ -384,6 +384,43 @@ public class Aria2RpcController : ControllerBase
             case "aria2.changeglobaloption":
                 var coParams = GetCleanParams(parameters);
                 var optDictElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.Object);
+                var gidStr = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.String).GetString();
+
+                if (!string.IsNullOrWhiteSpace(gidStr) && _torrentService != null)
+                {
+                    var t = _torrentService.GetByInfoHash(gidStr);
+                    if (t != null && optDictElem.ValueKind == JsonValueKind.Object)
+                    {
+                        if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && int.TryParse(tdl.GetString(), out var tdlBps))
+                        {
+                            t.DownloadLimit = tdlBps / 1024;
+                        }
+
+                        if (optDictElem.TryGetProperty("max-upload-limit", out var tul) && int.TryParse(tul.GetString(), out var tulBps))
+                        {
+                            t.UploadLimit = tulBps / 1024;
+                        }
+
+                        await _torrentService.UpdateAsync(t);
+
+                        if (optDictElem.TryGetProperty("select-file", out var sfElem) && _torrentFileService != null)
+                        {
+                            var sfStr = sfElem.GetString();
+                            if (!string.IsNullOrWhiteSpace(sfStr))
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                var selectedIndices = ParseAria2FileIndices(sfStr);
+                                for (var fIdx = 0; fIdx < files.Count; fIdx++)
+                                {
+                                    // 1-based indices in aria2
+                                    var prio = selectedIndices.Contains(fIdx + 1) ? 1 : 0;
+                                    await _torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (optDictElem.ValueKind == JsonValueKind.Object)
                 {
                     var updateDict = new Dictionary<string, object>();
@@ -839,5 +876,37 @@ public class Aria2RpcController : ControllerBase
                     }
             }
         };
+    }
+
+    private static HashSet<int> ParseAria2FileIndices(string selectFile)
+    {
+        var result = new HashSet<int>();
+        if (string.IsNullOrWhiteSpace(selectFile))
+        {
+            return result;
+        }
+
+        var parts = selectFile.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var p = part.Trim();
+            if (p.Contains('-'))
+            {
+                var range = p.Split('-');
+                if (range.Length == 2 && int.TryParse(range[0], out var start) && int.TryParse(range[1], out var end))
+                {
+                    for (var i = start; i <= end; i++)
+                    {
+                        result.Add(i);
+                    }
+                }
+            }
+            else if (int.TryParse(p, out var single))
+            {
+                result.Add(single);
+            }
+        }
+
+        return result;
     }
 }

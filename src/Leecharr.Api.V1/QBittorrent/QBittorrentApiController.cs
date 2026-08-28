@@ -964,18 +964,76 @@ public class QBittorrentApiController : ControllerBase
         return Content("Ok.", "text/plain");
     }
 
+    [HttpPost("transfer/setDownloadLimit")]
+    public ActionResult SetTransferDownloadLimit([FromForm] long limit)
+    {
+        _configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxDownloadSpeedKbps"] = (int)(limit / 1024) });
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("transfer/setUploadLimit")]
+    public ActionResult SetTransferUploadLimit([FromForm] long limit)
+    {
+        _configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxUploadSpeedKbps"] = (int)(limit / 1024) });
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setDownloadLimit")]
+    public async Task<ActionResult> SetTorrentDownloadLimit([FromForm] string hashes, [FromForm] long limit)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var h in hashList)
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    t.DownloadLimit = (int)(limit / 1024);
+                    await _torrentService.UpdateAsync(t);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setUploadLimit")]
+    public async Task<ActionResult> SetTorrentUploadLimit([FromForm] string hashes, [FromForm] long limit)
+    {
+        if (!string.IsNullOrWhiteSpace(hashes))
+        {
+            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var h in hashList)
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    t.UploadLimit = (int)(limit / 1024);
+                    await _torrentService.UpdateAsync(t);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
     [HttpPost("torrents/filePrio")]
     public async Task<ActionResult> FilePrio([FromForm] string hash, [FromForm] string id, [FromForm] int priority)
     {
-        if (!string.IsNullOrWhiteSpace(hash) && int.TryParse(id, out var fileIndex))
+        if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(id))
         {
             var t = _torrentService.GetByInfoHash(hash);
             if (t != null)
             {
                 var files = _torrentFileService.GetFiles(t.Id).ToList();
-                if (fileIndex >= 0 && fileIndex < files.Count)
+                var idStrings = id.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var idStr in idStrings)
                 {
-                    await _torrentFileService.SetPriorityAsync(files[fileIndex].Id, priority);
+                    if (int.TryParse(idStr, out var fileIndex) && fileIndex >= 0 && fileIndex < files.Count)
+                    {
+                        await _torrentFileService.SetPriorityAsync(files[fileIndex].Id, priority);
+                    }
                 }
             }
         }
