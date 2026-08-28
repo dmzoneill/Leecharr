@@ -317,7 +317,62 @@ public class FloodApiController : ControllerBase
             return NotFound();
         }
 
-        var files = _torrentFileService.GetFiles(t.Id);
-        return Ok(files);
+        var files = _torrentFileService.GetFiles(t.Id).ToList();
+        var result = files.Select((f, idx) => new
+        {
+            index = idx,
+            path = f.Path,
+            sizeBytes = f.Size,
+            percentComplete = f.Progress * 100.0,
+            priority = f.Priority
+        });
+
+        return Ok(result);
     }
+
+    [HttpPatch]
+    [HttpPost]
+    [Route("api/torrents/{hash}/contents")]
+    [Route("api/torrents/contents-priority")]
+    public async Task<IActionResult> SetContentsPriority([FromRoute] string hash = null, [FromBody] FloodSetPriorityRequest request = null)
+    {
+        var targetHashes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(hash))
+        {
+            targetHashes.Add(hash);
+        }
+
+        if (request?.Hashes != null)
+        {
+            targetHashes.AddRange(request.Hashes);
+        }
+
+        if (request?.Indices != null)
+        {
+            foreach (var h in targetHashes)
+            {
+                var t = _torrentService.GetByInfoHash(h);
+                if (t != null)
+                {
+                    var files = _torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var idx in request.Indices)
+                    {
+                        if (idx >= 0 && idx < files.Count)
+                        {
+                            await _torrentFileService.SetPriorityAsync(files[idx].Id, request.Priority);
+                        }
+                    }
+                }
+            }
+        }
+
+        return Ok(new { success = true });
+    }
+}
+
+public class FloodSetPriorityRequest
+{
+    public List<string> Hashes { get; set; } = new();
+    public List<int> Indices { get; set; } = new();
+    public int Priority { get; set; } = 1;
 }

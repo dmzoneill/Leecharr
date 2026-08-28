@@ -129,24 +129,29 @@ public class TorrentService : ITorrentService
         var inserted = _torrentRepository.Insert(torrent);
 
         // Insert torrent files
-        var pieceOffset = 0;
         if (parsed.Files != null)
         {
+            var pieceLength = Math.Max(1, parsed.PieceLength);
+            long currentByteOffset = 0;
             foreach (var file in parsed.Files)
             {
-                var pieceCount = (int)Math.Ceiling((double)file.Size / Math.Max(1, parsed.PieceLength));
+                var startPiece = (int)(currentByteOffset / pieceLength);
+                var endByte = currentByteOffset + file.Size - 1;
+                var endPiece = file.Size > 0 ? (int)(endByte / pieceLength) : startPiece;
+                var pieceCount = file.Size > 0 ? (endPiece - startPiece + 1) : 0;
+
                 var torrentFile = new TorrentFile
                 {
                     TorrentId = inserted.Id,
                     Path = file.Path,
                     Size = file.Size,
-                    PieceOffset = pieceOffset,
+                    PieceOffset = startPiece,
                     PieceCount = pieceCount,
                     Priority = 1,
                     Progress = 0.0
                 };
                 _fileRepository.Insert(torrentFile);
-                pieceOffset += pieceCount;
+                currentByteOffset += file.Size;
             }
         }
 

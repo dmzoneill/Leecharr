@@ -77,7 +77,38 @@ public class SabnzbdApiController : ControllerBase
 
             case "auth":
             case "get_config":
+            case "set_config":
             case "config":
+                var paramName = Request.Query["name"].ToString();
+                var paramVal = Request.Query["value"].ToString();
+                if (string.IsNullOrEmpty(paramName) && Request.HasFormContentType)
+                {
+                    paramName = Request.Form["name"].ToString();
+                    paramVal = Request.Form["value"].ToString();
+                }
+
+                if (!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramVal))
+                {
+                    var cfgDict = new Dictionary<string, object>();
+                    if (string.Equals(paramName, "speedlimit", StringComparison.OrdinalIgnoreCase) && int.TryParse(paramVal, out var speedKb))
+                    {
+                        cfgDict["MaxDownloadSpeedKbps"] = speedKb;
+                    }
+                    else if (string.Equals(paramName, "complete_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
+                    {
+                        cfgDict["DownloadDir"] = paramVal;
+                    }
+                    else if (string.Equals(paramName, "download_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_inprogress_download", StringComparison.OrdinalIgnoreCase))
+                    {
+                        cfgDict["IncompleteDownloadDir"] = paramVal;
+                    }
+
+                    if (cfgDict.Count > 0)
+                    {
+                        _configService.SaveConfigDictionary(cfgDict);
+                    }
+                }
+
                 var configuredCats = _categoryService.GetAll().ToList();
                 var catNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
                 foreach (var c in configuredCats)

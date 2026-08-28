@@ -30,17 +30,20 @@ public class HadoukenRpcController : ControllerBase
 {
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileParser _torrentFileParser;
+    private readonly ITorrentFileService _torrentFileService;
     private readonly IConfigService _configService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public HadoukenRpcController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
-        IConfigService configService)
+        IConfigService configService,
+        ITorrentFileService torrentFileService = null)
     {
         _torrentService = torrentService;
         _torrentFileParser = torrentFileParser;
         _configService = configService;
+        _torrentFileService = torrentFileService;
     }
 
     [HttpPost]
@@ -270,6 +273,9 @@ public class HadoukenRpcController : ControllerBase
                                     case "start":
                                         await _torrentService.ResumeAsync(t.Id);
                                         break;
+                                    case "recheck":
+                                        await _torrentService.ForceRecheckAsync(t.Id);
+                                        break;
                                     case "remove":
                                         await _torrentService.DeleteAsync(t.Id, false);
                                         break;
@@ -282,6 +288,33 @@ public class HadoukenRpcController : ControllerBase
                     }
 
                     return Ok(new { result = true, error = (object)null, id });
+
+                case "torrents.get_files":
+                case "webui.getfiles":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0 && _torrentFileService != null)
+                    {
+                        var reqHash = request.Params[0].GetString();
+                        if (!string.IsNullOrWhiteSpace(reqHash))
+                        {
+                            var t = _torrentService.GetByInfoHash(reqHash);
+                            if (t != null)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                var fileRes = files.Select((f, idx) => new
+                                {
+                                    index = idx,
+                                    path = f.Path,
+                                    size = f.Size,
+                                    progress = f.Progress,
+                                    priority = f.Priority
+                                });
+
+                                return Ok(new { result = fileRes, error = (object)null, id });
+                            }
+                        }
+                    }
+
+                    return Ok(new { result = new object[] { }, error = (object)null, id });
 
                 case "core.getversion":
                 case "hadouken.getversion":
