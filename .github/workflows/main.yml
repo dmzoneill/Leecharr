@@ -33,4 +33,3 @@ jobs:
       VALIDATE_BASH: "false"
       VALIDATE_SHELL_SHFMT: "false"
       VALIDATE_CSS: "false"
-      VALIDATE_SPELL_CODESPELL: "false"
