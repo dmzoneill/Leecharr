@@ -216,9 +216,9 @@ public class QBittorrentApiController : ControllerBase
         [FromForm] string contentLayout = null)
     {
         var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
+            string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
         var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase) ||
-                           string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
+            string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
 
         // 1. URLs (magnets or http/https torrent links)
         if (!string.IsNullOrWhiteSpace(urls))

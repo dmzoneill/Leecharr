@@ -68,6 +68,10 @@
     <AdditionalFiles Include="$(SolutionDir)stylecop.json" />
   </ItemGroup>
 
+  <PropertyGroup Condition="'$(TestProject)'=='true'">
+    <RunSettingsFilePath Condition="Exists('$(LeecharrRootDir).runsettings')">$(LeecharrRootDir).runsettings</RunSettingsFilePath>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(TestProject)'=='true'">
     <PackageReference Include="coverlet.collector" Version="10.0.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />

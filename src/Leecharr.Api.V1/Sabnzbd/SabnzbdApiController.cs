@@ -147,8 +147,8 @@ public class SabnzbdApiController : ControllerBase
                     : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
 
                 var delFiles = Request.Query["del_files"] == "1" ||
-                               (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
-                               string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+                    (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                    string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
 
                 if (queueSubAction == "delete")
                 {
@@ -291,8 +291,8 @@ public class SabnzbdApiController : ControllerBase
                 var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
                 var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
                 var histDelFiles = Request.Query["del_files"] == "1" ||
-                                   (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
-                                   string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+                    (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                    string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
 
                 if (historySubAction == "delete")
                 {

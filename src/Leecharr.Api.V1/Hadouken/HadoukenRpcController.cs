@@ -72,7 +72,7 @@ public class HadoukenRpcController : ControllerBase
                     {
                         result = new
                         {
-                            commitish = "5.3.0",
+                            committish = "5.3.0",
                             branch = "master",
                             versions = new Dictionary<string, string>
                             {

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!-- Configurations for VSTest execution -->
+  <RunConfiguration>
+    <!-- Limit simultaneous test executions to 4 threads / 2 CPU cores -->
+    <MaxCpuCount>4</MaxCpuCount>
+  </RunConfiguration>
+
+  <!-- NUnit adapter specific configurations -->
+  <NUnit>
+    <NumberOfTestWorkers>4</NumberOfTestWorkers>
+    <DefaultTestNamePattern>{m}{a}</DefaultTestNamePattern>
+    <StopOnError>false</StopOnError>
+  </NUnit>
+</RunSettings>
