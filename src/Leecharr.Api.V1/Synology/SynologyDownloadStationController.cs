@@ -313,9 +313,9 @@ public class SynologyDownloadStationController : ControllerBase
                 var formDeleteData = Request.HasFormContentType ? Request.Form["delete_data"].ToString() : string.Empty;
 
                 var deleteFiles = string.Equals(Request.Query["force_complete"], "true", StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(formForceComplete, "true", StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(formDeleteData, "true", StringComparison.OrdinalIgnoreCase);
+                    string.Equals(Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(formForceComplete, "true", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(formDeleteData, "true", StringComparison.OrdinalIgnoreCase);
 
                 foreach (var taskId in idsToDelete)
                 {
