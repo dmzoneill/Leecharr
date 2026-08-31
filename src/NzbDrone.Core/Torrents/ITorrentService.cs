@@ -17,4 +17,5 @@ public interface ITorrentService
     Task ForceRecheckAsync(int id);
     Task ForceAnnounceAsync(int id);
     Task MoveQueueAsync(int id, string position);
+    NzbDrone.Core.BitTorrent.IDownloadTask GetDownloadTask(int torrentId);
 }

@@ -1,0 +1,8 @@
+_output/
+_temp/
+_tests/
+node_modules/
+wwwroot/
+dist/
+build/
+*.min.css
