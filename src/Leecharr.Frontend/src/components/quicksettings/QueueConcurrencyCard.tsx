@@ -6,7 +6,9 @@ export const QueueConcurrencyCard: React.FC = () => {
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
 
-  const handleUpdate = (updates: Partial<import("../../api/types").BitTorrentConfig>) => {
+  const handleUpdate = (
+    updates: Partial<import("../../api/types").BitTorrentConfig>,
+  ) => {
     if (!config) return;
     saveMutation.mutate({
       ...config,
@@ -43,7 +45,10 @@ export const QueueConcurrencyCard: React.FC = () => {
     <div className="quick-card">
       <div className="quick-card-header">
         <span className="quick-card-title">📋 Queue Concurrency</span>
-        <span className="quick-card-subtitle" style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        <span
+          className="quick-card-subtitle"
+          style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}
+        >
           Max active transfers
         </span>
       </div>
@@ -115,7 +120,9 @@ export const QueueConcurrencyCard: React.FC = () => {
             <input
               type="checkbox"
               checked={ignoreStalled}
-              onChange={(e) => handleUpdate({ queueStalledEnabled: e.target.checked })}
+              onChange={(e) =>
+                handleUpdate({ queueStalledEnabled: e.target.checked })
+              }
             />
             <span>Ignore stalled torrents in queue limit</span>
           </label>

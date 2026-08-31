@@ -126,7 +126,10 @@ export function DownloadClientsTab() {
                     "success",
                   ),
                 onError: (err: any) =>
-                  showToast(`Sync failed: ${err?.message || "Unknown error"}`, "error"),
+                  showToast(
+                    `Sync failed: ${err?.message || "Unknown error"}`,
+                    "error",
+                  ),
               });
             }}
             disabled={syncMutation.isPending}

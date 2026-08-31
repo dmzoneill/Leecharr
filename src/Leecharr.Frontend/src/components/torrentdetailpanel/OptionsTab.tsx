@@ -231,4 +231,3 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     </div>
   );
 }
-

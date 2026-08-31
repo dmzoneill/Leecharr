@@ -170,10 +170,22 @@ export function ConnectionsTab() {
                   title="Delete Connection"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm(`Are you sure you want to delete the connection "${conn.name}"?`)) {
+                    if (
+                      window.confirm(
+                        `Are you sure you want to delete the connection "${conn.name}"?`,
+                      )
+                    ) {
                       deleteMutation.mutate(conn.id, {
-                        onSuccess: () => showToast(`Connection "${conn.name}" deleted`, "info"),
-                        onError: (err: any) => showToast(err?.message || "Failed to delete connection", "error"),
+                        onSuccess: () =>
+                          showToast(
+                            `Connection "${conn.name}" deleted`,
+                            "info",
+                          ),
+                        onError: (err: any) =>
+                          showToast(
+                            err?.message || "Failed to delete connection",
+                            "error",
+                          ),
                       });
                     }
                   }}

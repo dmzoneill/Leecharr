@@ -34,7 +34,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const achievements = calculateAchievements(torrents, seedingStats);
   const totalSize = torrents.reduce((acc, t) => acc + (t.totalSize || 0), 0);
-  const totalLibrarySize = (diskSpace || []).reduce((acc, d) => acc + (d.totalSpace - d.freeSpace), 0) || totalSize;
+  const totalLibrarySize =
+    (diskSpace || []).reduce(
+      (acc, d) => acc + (d.totalSpace - d.freeSpace),
+      0,
+    ) || totalSize;
 
   const totalDlSpeed = torrents.reduce(
     (acc, t) => acc + (t.downloadSpeed || 0),
@@ -143,7 +147,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     {
       name: "qBittorrent API",
       icon: "🔌",
-      status: { label: "Port 7889 (/api/v2)", color: "var(--success, #22c55e)" },
+      status: {
+        label: "Port 7889 (/api/v2)",
+        color: "var(--success, #22c55e)",
+      },
     },
     {
       name: "Deluge RPC",
@@ -153,7 +160,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     {
       name: "Transmission RPC",
       icon: "🧲",
-      status: { label: "Port 7889 (/transmission/rpc)", color: "var(--success, #22c55e)" },
+      status: {
+        label: "Port 7889 (/transmission/rpc)",
+        color: "var(--success, #22c55e)",
+      },
     },
   ];
 
@@ -216,7 +226,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginTop: "2px",
               }}
             >
-              🛡 {achievements.totalSwarmGuardians.length} Swarm Guardian{achievements.totalSwarmGuardians.length === 1 ? "" : "s"} protected &bull; Non-blocking async disk cache running
+              🛡 {achievements.totalSwarmGuardians.length} Swarm Guardian
+              {achievements.totalSwarmGuardians.length === 1 ? "" : "s"}{" "}
+              protected &bull; Non-blocking async disk cache running
             </div>
           </div>
         </div>

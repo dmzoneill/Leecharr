@@ -171,7 +171,8 @@ export function calculateAchievements(
   const maxSeedTime =
     tList.length > 0 ? Math.max(...tList.map((t) => t.seedingTime || 0)) : 0;
   const swarmGuardians = tList.filter(
-    (t) => (t.seeders ?? 0) <= 2 && (t.status || "").toLowerCase() === "seeding",
+    (t) =>
+      (t.seeders ?? 0) <= 2 && (t.status || "").toLowerCase() === "seeding",
   );
 
   const badges: MilestoneBadge[] = [

@@ -222,7 +222,9 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             pieceCount={currentTorrent.pieceCount}
             pieceLength={currentTorrent.pieceLength}
             progress={currentTorrent.progress}
-            isSeeding={(currentTorrent.status || "").toLowerCase() === "seeding"}
+            isSeeding={
+              (currentTorrent.status || "").toLowerCase() === "seeding"
+            }
           />
         )}
         {tab === "monitoring" && (

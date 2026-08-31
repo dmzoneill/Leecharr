@@ -27,7 +27,9 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
 
-  const handleSeedUpdate = (updates: Partial<import("../../api/types").SeedingConfig>) => {
+  const handleSeedUpdate = (
+    updates: Partial<import("../../api/types").SeedingConfig>,
+  ) => {
     if (!seedConfig) return;
     saveSeedMutation.mutate({
       ...seedConfig,
@@ -35,7 +37,9 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
     });
   };
 
-  const handleBtUpdate = (updates: Partial<import("../../api/types").BitTorrentConfig>) => {
+  const handleBtUpdate = (
+    updates: Partial<import("../../api/types").BitTorrentConfig>,
+  ) => {
     if (!btConfig) return;
     saveBtMutation.mutate({
       ...btConfig,
@@ -71,7 +75,9 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
           <div className="quick-control-label">
             <span>Ratio Goal:</span>
             <span className="quick-control-current">
-              {currentRatio === 0 ? "∞ No Limit" : `${currentRatio.toFixed(2)}x`}
+              {currentRatio === 0
+                ? "∞ No Limit"
+                : `${currentRatio.toFixed(2)}x`}
             </span>
           </div>
           <div className="quick-presets-group">
@@ -82,7 +88,9 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                   key={p.label}
                   type="button"
                   className={`preset-chip ${active ? "active" : ""}`}
-                  onClick={() => handleSeedUpdate({ globalSeedRatioLimit: p.value })}
+                  onClick={() =>
+                    handleSeedUpdate({ globalSeedRatioLimit: p.value })
+                  }
                 >
                   {p.label}
                 </button>
@@ -93,13 +101,18 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
 
         {/* Piece Picker / Sequential Mode Toggle */}
         <div className="quick-toggle-row" style={{ marginTop: "0.25rem" }}>
-          <label className="quick-checkbox-label" title="Prioritize first and last pieces for instant media inspection">
+          <label
+            className="quick-checkbox-label"
+            title="Prioritize first and last pieces for instant media inspection"
+          >
             <input
               type="checkbox"
               checked={isSequential}
               onChange={(e) =>
                 handleBtUpdate({
-                  piecePickerStrategy: e.target.checked ? "Sequential" : "RarestFirst",
+                  piecePickerStrategy: e.target.checked
+                    ? "Sequential"
+                    : "RarestFirst",
                 })
               }
             />
@@ -109,7 +122,13 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
 
         {/* Deep Link to Full Settings */}
         {onNavigateSettings && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.4rem" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "0.4rem",
+            }}
+          >
             <button
               type="button"
               className="quick-settings-link-btn"
