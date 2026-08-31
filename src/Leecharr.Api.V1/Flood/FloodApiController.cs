@@ -1,16 +1,25 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Flood;
+
+public class FloodAuthRequest
+{
+    public string Username { get; set; }
+    public string Password { get; set; }
+}
 
 public class FloodAddUrlsRequest
 {
@@ -39,11 +48,14 @@ public class FloodActionRequest
 [ApiController]
 public class FloodApiController : ControllerBase
 {
+    private static readonly ConcurrentDictionary<string, DateTime> _authenticatedSessions = new();
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly ICategoryService _categoryService;
     private readonly IConfigService _configService;
+    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IUserService _userService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public FloodApiController(
@@ -51,20 +63,99 @@ public class FloodApiController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null,
+        IUserService userService = null)
     {
         _torrentService = torrentService;
         _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _categoryService = categoryService;
         _configService = configService;
+        _configFileProvider = configFileProvider;
+        _userService = userService;
+    }
+
+    private bool IsFloodAuthenticated()
+    {
+        if (_configFileProvider == null || !_configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            return true;
+        }
+
+        if (Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
+        {
+            if (_authenticatedSessions.TryGetValue(token, out var expiry) && expiry > DateTime.UtcNow)
+            {
+                return true;
+            }
+        }
+
+        var apiKey = Request.Headers["X-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && Request.Query.TryGetValue("apikey", out var qKey))
+        {
+            apiKey = qKey.FirstOrDefault();
+        }
+
+        if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(_configFileProvider.ApiKey))
+        {
+            if (string.Equals(apiKey, _configFileProvider.ApiKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [HttpPost]
     [Route("api/auth/authenticate")]
-    public IActionResult Authenticate()
+    public IActionResult Authenticate([FromBody] FloodAuthRequest request = null)
     {
-        Response.Cookies.Append("flood-auth", "leecharr-flood-token");
+        if (_configFileProvider != null && _configFileProvider.AuthenticationEnabled)
+        {
+            var username = request?.Username;
+            var password = request?.Password;
+
+            var authenticated = false;
+            var masterKey = _configFileProvider.ApiKey;
+
+            if (!string.IsNullOrWhiteSpace(masterKey) &&
+                ((!string.IsNullOrWhiteSpace(password) && string.Equals(password, masterKey, StringComparison.Ordinal)) ||
+                 (!string.IsNullOrWhiteSpace(username) && string.Equals(username, masterKey, StringComparison.Ordinal))))
+            {
+                authenticated = true;
+            }
+            else if (_userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+            {
+                var user = _userService.Authenticate(username, password);
+                if (user != null)
+                {
+                    authenticated = true;
+                }
+            }
+
+            if (!authenticated)
+            {
+                return Unauthorized(new { success = false, message = "Invalid username or password" });
+            }
+        }
+
+        var token = Guid.NewGuid().ToString("N");
+        _authenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
+
+        Response.Cookies.Append("flood-auth", token, new CookieOptions
+        {
+            Path = "/",
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax
+        });
+
         return Ok(new { success = true });
     }
 
@@ -72,7 +163,8 @@ public class FloodApiController : ControllerBase
     [Route("api/auth/verify")]
     public IActionResult Verify()
     {
-        return Ok(new { isInitialUser = false, isAllowed = true });
+        var isAllowed = IsFloodAuthenticated();
+        return Ok(new { isInitialUser = false, isAllowed = isAllowed });
     }
 
     [HttpGet]

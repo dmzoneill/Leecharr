@@ -148,7 +148,7 @@ export interface TorrentTableProps {
   onSelectTorrent?: (id: number | null) => void;
   onPause?: (id: number) => void;
   onResume?: (id: number) => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (payload: { id: number; deleteFiles?: boolean }) => void;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
   onSelectAll?: (ids: number[]) => void;
@@ -946,7 +946,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           onAnnounce={(id) => announceTorrent.mutate(id)}
           onRecheck={(id) => recheckTorrent.mutate(id)}
           onDelete={(payload) =>
-            onDelete ? onDelete(payload.id) : deleteTorrent.mutate(payload)
+            onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
           }
           onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
           onSearchIndexers={onSearchIndexers}

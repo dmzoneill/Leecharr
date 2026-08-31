@@ -1,19 +1,68 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Notifications;
+using Polly;
+using Polly.Retry;
 
 namespace Leecharr.Core.Test.Notifications;
 
 [TestFixture]
 public class WebhookDispatcherTest
 {
+    private class TestHttpMessageHandler : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> SentRequests { get; } = new();
+        public Func<HttpRequestMessage, HttpResponseMessage> ResponseFactory { get; set; } = _ => new HttpResponseMessage(HttpStatusCode.OK);
+        public Func<HttpRequestMessage, Exception> ExceptionFactory { get; set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            SentRequests.Add(request);
+
+            if (ExceptionFactory != null)
+            {
+                var ex = ExceptionFactory(request);
+                if (ex != null)
+                {
+                    throw ex;
+                }
+            }
+
+            return Task.FromResult(ResponseFactory(request));
+        }
+    }
+
+    private TestHttpMessageHandler _handler = null!;
+    private HttpClient _httpClient = null!;
+    private AsyncRetryPolicy<HttpResponseMessage> _fastRetryPolicy = null!;
     private WebhookDispatcher _dispatcher = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _dispatcher = new WebhookDispatcher();
+        _handler = new TestHttpMessageHandler();
+        _httpClient = new HttpClient(_handler);
+        _fastRetryPolicy = Policy<HttpResponseMessage>
+            .Handle<HttpRequestException>()
+            .OrResult(r => (int)r.StatusCode >= 500)
+            .WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(1));
+
+        _dispatcher = new WebhookDispatcher(_httpClient, _fastRetryPolicy);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _httpClient.Dispose();
+        _handler.Dispose();
     }
 
     [Test]
@@ -21,13 +70,111 @@ public class WebhookDispatcherTest
     {
         var result = await _dispatcher.DispatchAsync(string.Empty, new { eventType = "Test" });
         result.Should().BeFalse();
+        _handler.SentRequests.Should().BeEmpty();
     }
 
     [Test]
-    public async Task DispatchAsync_WhenUnreachableUrl_ReturnsFalseAfterRetries()
+    public async Task DispatchAsync_SuccessfulRequest_SendsPostWithJsonPayloadAndReturnsTrue()
     {
-        // Port 1 is blocked/unreachable, will fail fast
-        var result = await _dispatcher.DispatchAsync("http://127.0.0.1:1/nonexistent", new { eventType = "Test" });
+        var payload = new { EventType = "OnGrab", TorrentName = "Ubuntu.iso" };
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", payload);
+
+        result.Should().BeTrue();
+        _handler.SentRequests.Should().HaveCount(1);
+
+        var request = _handler.SentRequests.Single();
+        request.Method.Should().Be(HttpMethod.Post);
+        request.RequestUri.Should().Be(new Uri("https://example.com/webhook"));
+        request.Content.Should().NotBeNull();
+        request.Content!.Headers.ContentType!.MediaType.Should().Be("application/json");
+
+        var contentBody = await request.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(contentBody);
+        doc.RootElement.GetProperty("eventType").GetString().Should().Be("OnGrab");
+        doc.RootElement.GetProperty("torrentName").GetString().Should().Be("Ubuntu.iso");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithCustomHeaders_AddsHeadersToRequest()
+    {
+        var customHeaders = "{\"X-Auth-Token\":\"secret123\",\"X-Custom-Header\":\"val456\"}";
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        _handler.SentRequests.Should().HaveCount(1);
+
+        var request = _handler.SentRequests.Single();
+        request.Headers.GetValues("X-Auth-Token").Should().ContainSingle().Which.Should().Be("secret123");
+        request.Headers.GetValues("X-Custom-Header").Should().ContainSingle().Which.Should().Be("val456");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenServerError500_RetriesAndSucceeds()
+    {
+        var attempts = 0;
+        _handler.ResponseFactory = req =>
+        {
+            attempts++;
+            return attempts < 3
+                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                : new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        _handler.SentRequests.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenAllRetriesFail500_ReturnsFalse()
+    {
+        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
         result.Should().BeFalse();
+        _handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenHttpRequestException_RetriesAndSucceeds()
+    {
+        var attempts = 0;
+        _handler.ExceptionFactory = req =>
+        {
+            attempts++;
+            return attempts < 2 ? new HttpRequestException("Connection reset") : null;
+        };
+        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.OK);
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        _handler.SentRequests.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenClientError400_DoesNotRetryAndReturnsFalse()
+    {
+        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.BadRequest);
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        _handler.SentRequests.Should().HaveCount(1); // 4xx does not retry
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenCustomHeadersJsonInvalid_StillDispatchesPayloadSuccessfully()
+    {
+        var invalidHeadersJson = "{ not-a-valid-json }";
+
+        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, invalidHeadersJson);
+
+        result.Should().BeTrue();
+        _handler.SentRequests.Should().HaveCount(1);
     }
 }

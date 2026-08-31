@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Dapper;
 
 namespace NzbDrone.Core.Datastore;
 
@@ -67,6 +69,11 @@ public static class TableMapping
             || underlying == typeof(DateTime)
             || underlying == typeof(decimal)
             || underlying == typeof(Guid)
-            || underlying == typeof(TimeSpan);
+            || underlying == typeof(TimeSpan)
+            || underlying == typeof(List<int>)
+            || underlying == typeof(List<string>)
+            || underlying == typeof(Dictionary<string, string>)
+            || SqlMapper.HasTypeHandler(type)
+            || SqlMapper.HasTypeHandler(underlying);
     }
 }

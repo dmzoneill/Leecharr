@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Torrent, Category } from "../api/types";
 import { TorrentGrid } from "../components/TorrentGrid";
 import { TorrentTable } from "../components/TorrentTable";
 import { TorrentDetailPanel } from "../components/TorrentDetailPanel";
 import { TorrentToolbar } from "./torrentindex/TorrentToolbar";
 import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
+import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDrawer";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 
@@ -15,7 +16,7 @@ interface TorrentIndexProps {
   onSelectCategory?: (cat: string) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
   onOpenAddModal: () => void;
   onOpenSearchModal: () => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
@@ -37,6 +38,31 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [selectedTorrent, setSelectedTorrent] = useState<Torrent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkPending, setBulkPending] = useState<boolean>(false);
+  const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
+    return localStorage.getItem("leecharr_quick_settings_open") === "true";
+  });
+
+  const handleToggleQuickSettings = () => {
+    setShowQuickSettings((prev) => {
+      const next = !prev;
+      localStorage.setItem("leecharr_quick_settings_open", String(next));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+      if (e.key === "q" || e.key === "Q") {
+        e.preventDefault();
+        handleToggleQuickSettings();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {
@@ -129,7 +155,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     if (!confirm(`Delete ${selectedIds.size} selected torrent(s)?`)) return;
     setBulkPending(true);
     try {
-      selectedIds.forEach((id) => onDelete(id));
+      selectedIds.forEach((id) => onDelete({ id, deleteFiles: false }));
       setSelectedIds(new Set());
     } finally {
       setBulkPending(false);
@@ -156,6 +182,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onBulkStop={handleBulkStop}
         onBulkDelete={handleBulkDelete}
         onBulkClear={() => setSelectedIds(new Set())}
+        showQuickSettings={showQuickSettings}
+        onToggleQuickSettings={handleToggleQuickSettings}
+      />
+      <QuickSettingsDrawer
+        isOpen={showQuickSettings}
+        onClose={() => {
+          setShowQuickSettings(false);
+          localStorage.setItem("leecharr_quick_settings_open", "false");
+        }}
+        onNavigateSettings={(tab) =>
+          onNavigateTab && onNavigateTab("settings", tab)
+        }
       />
       <div className="torrent-content-layout">
         <TorrentFilterPanel

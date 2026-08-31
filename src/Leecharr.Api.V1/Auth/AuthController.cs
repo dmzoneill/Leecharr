@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authentication;
@@ -259,6 +262,129 @@ public class AuthController : ControllerBase
         {
             var rawXml = Encoding.UTF8.GetString(Convert.FromBase64String(samlResponse));
             var doc = XDocument.Parse(rawXml);
+
+            // 1. Resolve Identity Provider
+            IdentityProviderDefinition provider = null;
+            if (!string.IsNullOrWhiteSpace(providerId))
+            {
+                provider = _identityProviderService.GetByProviderId(providerId);
+                if (provider == null && int.TryParse(providerId, out var pid))
+                {
+                    provider = _identityProviderService.GetById(pid);
+                }
+            }
+
+            if (provider == null)
+            {
+                var issuer = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Issuer")?.Value;
+                if (!string.IsNullOrWhiteSpace(issuer))
+                {
+                    provider = _identityProviderService.GetEnabled().FirstOrDefault(p =>
+                        string.Equals(p.IssuerUrl, issuer, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.ProviderId, issuer, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            if (provider == null)
+            {
+                provider = _identityProviderService.GetEnabled().FirstOrDefault(p => p.ProviderType == IdentityProviderType.Saml);
+            }
+
+            if (provider == null || !provider.IsEnabled)
+            {
+                return Unauthorized("SAML Identity Provider not found or is disabled");
+            }
+
+            // 2. Validate SAML Digital Signature using System.Security.Cryptography.Xml.SignedXml
+            if (string.IsNullOrWhiteSpace(provider.Certificate))
+            {
+                return Unauthorized("SAML certificate not configured for Identity Provider");
+            }
+
+            X509Certificate2 cert;
+            try
+            {
+                var certStr = provider.Certificate.Trim();
+                if (certStr.Contains("BEGIN CERTIFICATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    var b64 = certStr
+                        .Replace("-----BEGIN CERTIFICATE-----", string.Empty)
+                        .Replace("-----END CERTIFICATE-----", string.Empty)
+                        .Replace("\r", string.Empty)
+                        .Replace("\n", string.Empty)
+                        .Trim();
+                    cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(b64));
+                }
+                else
+                {
+                    cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(certStr));
+                }
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized($"Invalid SAML certificate in Identity Provider configuration: {ex.Message}");
+            }
+
+            var xmlDoc = new XmlDocument { PreserveWhitespace = true };
+            xmlDoc.LoadXml(rawXml);
+
+            var signatureNodes = xmlDoc.GetElementsByTagName("Signature", "http://www.w3.org/2000/09/xmldsig#");
+            if (signatureNodes.Count == 0)
+            {
+                signatureNodes = xmlDoc.GetElementsByTagName("Signature");
+            }
+
+            if (signatureNodes.Count == 0)
+            {
+                return Unauthorized("SAML response is missing digital signature");
+            }
+
+            var isSignatureValid = false;
+            foreach (XmlElement sigElement in signatureNodes)
+            {
+                var signedXml = new SignedXml(xmlDoc);
+                signedXml.LoadXml(sigElement);
+                if (signedXml.CheckSignature(cert, true))
+                {
+                    isSignatureValid = true;
+                    break;
+                }
+            }
+
+            if (!isSignatureValid)
+            {
+                return Unauthorized("SAML digital signature verification failed");
+            }
+
+            // 3. Validate SAML timestamp attributes (NotBefore, NotOnOrAfter)
+            var now = DateTime.UtcNow;
+            var allowedSkew = TimeSpan.FromMinutes(5);
+
+            var notBeforeElements = doc.Descendants().Where(e => e.Attribute("NotBefore") != null);
+            foreach (var elem in notBeforeElements)
+            {
+                var notBeforeVal = elem.Attribute("NotBefore")?.Value;
+                if (!string.IsNullOrWhiteSpace(notBeforeVal) && DateTimeOffset.TryParse(notBeforeVal, out var notBefore))
+                {
+                    if (now < notBefore.UtcDateTime - allowedSkew)
+                    {
+                        return Unauthorized("SAML assertion is not yet valid (NotBefore constraint violation)");
+                    }
+                }
+            }
+
+            var notOnOrAfterElements = doc.Descendants().Where(e => e.Attribute("NotOnOrAfter") != null);
+            foreach (var elem in notOnOrAfterElements)
+            {
+                var notOnOrAfterVal = elem.Attribute("NotOnOrAfter")?.Value;
+                if (!string.IsNullOrWhiteSpace(notOnOrAfterVal) && DateTimeOffset.TryParse(notOnOrAfterVal, out var notOnOrAfter))
+                {
+                    if (now >= notOnOrAfter.UtcDateTime + allowedSkew)
+                    {
+                        return Unauthorized("SAML assertion has expired (NotOnOrAfter constraint violation)");
+                    }
+                }
+            }
 
             var nameId = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
             var email = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("email", StringComparison.OrdinalIgnoreCase) == true))

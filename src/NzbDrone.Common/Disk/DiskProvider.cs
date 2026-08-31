@@ -10,8 +10,8 @@ public class DiskProvider : IDiskProvider
     {
         try
         {
-            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path)) ?? "/");
-            return drive.AvailableFreeSpace;
+            var drive = GetBestMatchingDrive(path);
+            return drive?.AvailableFreeSpace;
         }
         catch
         {
@@ -23,13 +23,79 @@ public class DiskProvider : IDiskProvider
     {
         try
         {
-            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path)) ?? "/");
-            return drive.TotalSize;
+            var drive = GetBestMatchingDrive(path);
+            return drive?.TotalSize;
         }
         catch
         {
             return null;
         }
+    }
+
+    private static DriveInfo GetBestMatchingDrive(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+
+        if (OperatingSystem.IsWindows())
+        {
+            var root = Path.GetPathRoot(fullPath);
+            if (!string.IsNullOrEmpty(root))
+            {
+                return new DriveInfo(root);
+            }
+        }
+
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch
+        {
+            drives = Array.Empty<DriveInfo>();
+        }
+
+        DriveInfo bestMatch = null;
+        var longestMatchLength = -1;
+
+        var normalizedFullPath = fullPath;
+        if (!normalizedFullPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+        {
+            normalizedFullPath += Path.DirectorySeparatorChar;
+        }
+
+        foreach (var drive in drives)
+        {
+            try
+            {
+                var mountPath = drive.RootDirectory.FullName;
+                if (!mountPath.EndsWith(Path.DirectorySeparatorChar.ToString()) && mountPath != "/")
+                {
+                    mountPath += Path.DirectorySeparatorChar;
+                }
+
+                if (normalizedFullPath.StartsWith(mountPath, StringComparison.OrdinalIgnoreCase) ||
+                    fullPath.Equals(drive.Name.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                {
+                    if (mountPath.Length > longestMatchLength)
+                    {
+                        longestMatchLength = mountPath.Length;
+                        bestMatch = drive;
+                    }
+                }
+            }
+            catch
+            {
+                // Skip drives that cannot be inspected
+            }
+        }
+
+        if (bestMatch != null)
+        {
+            return bestMatch;
+        }
+
+        return new DriveInfo(Path.GetPathRoot(fullPath) ?? "/");
     }
 
     public DateTime FolderGetCreationTime(string path) => Directory.GetCreationTime(path);
@@ -177,5 +243,15 @@ public class DiskProvider : IDiskProvider
     }
 
     public FileStream OpenReadStream(string path) => File.OpenRead(path);
-    public FileStream OpenWriteStream(string path) => File.OpenWrite(path);
+
+    public FileStream OpenWriteStream(string path)
+    {
+        var destDir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(destDir) && !FolderExists(destDir))
+        {
+            CreateFolder(destDir);
+        }
+
+        return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+    }
 }

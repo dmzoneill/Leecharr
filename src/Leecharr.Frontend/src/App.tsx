@@ -190,15 +190,68 @@ export function App() {
     setConnected(true);
 
     const unsubscribe = signalRManager.subscribe((msg) => {
+      if (msg.name === "speedPulse") {
+        if (msg.body) {
+          const updates: any[] = Array.isArray(msg.body)
+            ? msg.body
+            : Array.isArray((msg.body as any).torrents)
+              ? (msg.body as any).torrents
+              : typeof (msg.body as any).id === "number"
+                ? [msg.body]
+                : typeof msg.body === "object"
+                  ? Object.entries(msg.body).map(([id, data]: [string, any]) => ({
+                      id: Number(id) || data?.id,
+                      ...(typeof data === "object" ? data : {}),
+                    }))
+                  : [];
+
+          if (updates.length > 0) {
+            const updateMap = new Map<number, any>();
+            for (const u of updates) {
+              if (u && typeof u.id === "number") {
+                updateMap.set(u.id, u);
+              }
+            }
+
+            if (updateMap.size > 0) {
+              setTorrents((prevTorrents) =>
+                prevTorrents.map((t) => {
+                  const u = updateMap.get(t.id);
+                  if (!u) return t;
+                  return {
+                    ...t,
+                    uploadSpeed: u.uploadSpeed ?? u.upSpeed ?? t.uploadSpeed,
+                    downloadSpeed:
+                      u.downloadSpeed ?? u.downSpeed ?? t.downloadSpeed,
+                    progress: u.progress ?? t.progress,
+                    uploaded: u.uploaded ?? t.uploaded,
+                    downloaded: u.downloaded ?? t.downloaded,
+                    ratio: u.ratio ?? t.ratio,
+                    eta: u.eta ?? t.eta,
+                    status: u.status ?? t.status,
+                    seeders: u.seeders ?? t.seeders,
+                    leechers: u.leechers ?? t.leechers,
+                  };
+                }),
+              );
+            }
+          }
+        }
+        return;
+      }
+
+      if (msg.name === "pieceMapUpdated") {
+        // High-frequency piece map events are handled by dedicated components; do not reload full data
+        return;
+      }
+
       if (
         msg.name === "torrent" ||
         msg.name === "torrentAdded" ||
         msg.name === "torrentUpdated" ||
         msg.name === "torrentDeleted" ||
         msg.name === "category" ||
-        msg.name === "subsystemSwitched" ||
-        msg.name === "pieceMapUpdated" ||
-        msg.name === "speedPulse"
+        msg.name === "subsystemSwitched"
       ) {
         loadData();
       }
@@ -227,15 +280,22 @@ export function App() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this torrent?")) {
-      try {
-        await api.deleteTorrent(id, false);
-        showToast("Torrent deleted", "info");
-        loadData();
-      } catch (err: any) {
-        showToast(err?.message || "Failed to delete torrent", "error");
-      }
+  const handleDelete = async (
+    payload: { id: number; deleteFiles?: boolean } | number,
+  ) => {
+    const id = typeof payload === "number" ? payload : payload.id;
+    const deleteFiles =
+      typeof payload === "number" ? false : Boolean(payload.deleteFiles);
+
+    try {
+      await api.deleteTorrent(id, deleteFiles);
+      showToast(
+        deleteFiles ? "Torrent and files deleted" : "Torrent removed",
+        "info",
+      );
+      loadData();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to delete torrent", "error");
     }
   };
 

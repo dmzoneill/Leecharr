@@ -58,6 +58,23 @@ public static class MagnetLinkParser
                             result.InfoHash = hash.ToLowerInvariant();
                         }
                     }
+                    else if (value.StartsWith("urn:btmh:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var hash = value.Substring("urn:btmh:".Length);
+
+                        if (hash.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && hash.Length == 68)
+                        {
+                            result.InfoHash = hash.Substring(4).ToLowerInvariant();
+                        }
+                        else if (hash.Length == 32)
+                        {
+                            result.InfoHash = Base32ToHex(hash).ToLowerInvariant();
+                        }
+                        else
+                        {
+                            result.InfoHash = hash.ToLowerInvariant();
+                        }
+                    }
 
                     break;
 
@@ -85,7 +102,7 @@ public static class MagnetLinkParser
 
         if (string.IsNullOrEmpty(result.InfoHash))
         {
-            throw new FormatException("Magnet link missing valid info hash (xt=urn:btih:...)");
+            throw new FormatException("Magnet link missing valid info hash (xt=urn:btih:... or xt=urn:btmh:...)");
         }
 
         return result;

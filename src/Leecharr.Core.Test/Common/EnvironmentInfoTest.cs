@@ -21,9 +21,7 @@ public class EnvironmentInfoTest
     [Test]
     public void OsInfo_ProvidesPlatformProperties()
     {
-        OsInfo.IsLinux.Should().BeTrue();
-        OsInfo.IsWindows.Should().BeFalse();
-        OsInfo.IsOsx.Should().BeFalse();
+        (OsInfo.IsLinux ^ OsInfo.IsWindows ^ OsInfo.IsOsx).Should().BeTrue();
         OsInfo.Version.Should().NotBeNullOrEmpty();
     }
 

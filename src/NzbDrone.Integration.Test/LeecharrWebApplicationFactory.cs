@@ -22,6 +22,8 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
     public HttpClient Client { get; }
 
+    public IServiceProvider Services => _app.Services;
+
     public LeecharrWebApplicationFactory()
     {
         _tempDir = Path.Combine(

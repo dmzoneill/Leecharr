@@ -9,6 +9,7 @@ using NzbDrone.SignalR;
 namespace Leecharr.Api.V1.Categories;
 
 [V1ApiController("categories")]
+[Route("api/v1/category")]
 public class CategoryController : RestControllerWithSignalR<CategoryResource, Category>
 {
     private readonly ICategoryService _categoryService;

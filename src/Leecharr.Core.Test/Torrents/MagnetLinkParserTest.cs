@@ -47,4 +47,26 @@ public class MagnetLinkParserTest
         Action act = () => MagnetLinkParser.Parse("http://invalid-link");
         act.Should().Throw<FormatException>();
     }
+
+    [Test]
+    public void Parse_WhenBEP52Multihash_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:1220d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c&dn=V2Torrent";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.DisplayName.Should().Be("V2Torrent");
+    }
+
+    [Test]
+    public void Parse_WhenBEP52MultihashDirectSha256_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c&dn=DirectSha";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.DisplayName.Should().Be("DirectSha");
+    }
 }

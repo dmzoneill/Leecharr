@@ -42,4 +42,6 @@ public class Torrent : ModelBase
     public DateTime? DateCompleted { get; set; }
     public DateTime? LastActive { get; set; }
     public List<int> TagIds { get; set; } = new();
+
+    public int SeedTimeMinutes => DateCompleted.HasValue ? (int)Math.Max(0, (DateTime.UtcNow - DateCompleted.Value).TotalMinutes) : 0;
 }

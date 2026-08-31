@@ -97,4 +97,33 @@ public class BasicRepositoryTest
         var deleted = _repository.Get(inserted.Id);
         deleted.Should().BeNull();
     }
+
+    [Test]
+    public void Insert_And_Get_With_TagIds_Persists_List()
+    {
+        var torrent = new Torrent
+        {
+            Name = "Debian.iso",
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Category = "linux",
+            TotalSize = 2000000000,
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow,
+            TagIds = new System.Collections.Generic.List<int> { 1, 2, 42 }
+        };
+
+        var inserted = _repository.Insert(torrent);
+        inserted.Id.Should().BeGreaterThan(0);
+
+        var fetched = _repository.Get(inserted.Id);
+        fetched.Should().NotBeNull();
+        fetched.TagIds.Should().NotBeNull();
+        fetched.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 42 });
+
+        fetched.TagIds.Add(99);
+        _repository.Update(fetched);
+
+        var updatedFetched = _repository.Get(inserted.Id);
+        updatedFetched.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 42, 99 });
+    }
 }

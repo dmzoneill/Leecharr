@@ -269,6 +269,8 @@ public class SabnzbdApiController : ControllerBase
 
                 var freeSpaceGb = (GetDriveFreeSpace(_configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
                 var incFreeSpaceGb = (GetDriveFreeSpace(_configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var totalSpaceGb = (GetDriveTotalSpace(_configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incTotalSpaceGb = (GetDriveTotalSpace(_configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
 
                 return Ok(new
                 {
@@ -281,8 +283,8 @@ public class SabnzbdApiController : ControllerBase
                         noofslots_total = queueSlots.Count,
                         diskspace1 = freeSpaceGb,
                         diskspace2 = incFreeSpaceGb,
-                        diskspacetotal1 = "1000.00",
-                        diskspacetotal2 = "1000.00",
+                        diskspacetotal1 = totalSpaceGb,
+                        diskspacetotal2 = incTotalSpaceGb,
                         slots = queueSlots
                     }
                 });
@@ -305,30 +307,45 @@ public class SabnzbdApiController : ControllerBase
                     return Ok(new { status = true });
                 }
 
+                var nowUtc = DateTime.UtcNow;
                 var finishedTorrents = _torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
-                    .Select(t => new
+                    .Select(t =>
                     {
-                        nzo_id = t.InfoHash,
-                        name = t.Name ?? string.Empty,
-                        nzb_name = t.Name ?? string.Empty,
-                        size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        bytes = t.TotalSize,
-                        category = t.Category ?? "default",
-                        status = "Completed",
-                        storage = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                        path = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                        download_time = 60,
-                        completename = t.Name ?? string.Empty
+                        var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
+                            ? (int)Math.Max(1, (t.DateCompleted.Value - t.DateAdded).TotalSeconds)
+                            : (t.DateAdded != default ? (int)Math.Max(1, (nowUtc - t.DateAdded).TotalSeconds) : 60);
+
+                        return new
+                        {
+                            nzo_id = t.InfoHash,
+                            name = t.Name ?? string.Empty,
+                            nzb_name = t.Name ?? string.Empty,
+                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                            bytes = t.TotalSize,
+                            category = t.Category ?? "default",
+                            status = "Completed",
+                            storage = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            path = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            download_time = downloadSeconds,
+                            completename = t.Name ?? string.Empty,
+                            completed = t.DateCompleted ?? t.DateAdded
+                        };
                     }).ToList();
+
+                var totalHistoryBytes = finishedTorrents.Sum(f => f.bytes);
+                var monthCutoff = nowUtc.AddDays(-30);
+                var weekCutoff = nowUtc.AddDays(-7);
+                var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
+                var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
 
                 return Ok(new
                 {
                     history = new
                     {
-                        total_size = "0 MB",
-                        month_size = "0 MB",
-                        week_size = "0 MB",
+                        total_size = (totalHistoryBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                        month_size = (monthBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                        week_size = (weekBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
                         noofslots = finishedTorrents.Count,
                         slots = finishedTorrents
                     }
@@ -488,6 +505,27 @@ public class SabnzbdApiController : ControllerBase
 
             var driveInfo = new global::System.IO.DriveInfo(root);
             return driveInfo.AvailableFreeSpace;
+        }
+        catch
+        {
+            return 1099511627776L;
+        }
+    }
+
+    private static long GetDriveTotalSpace(string path)
+    {
+        try
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var fullPath = global::System.IO.Path.GetFullPath(target);
+            var root = global::System.IO.Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = "/";
+            }
+
+            var driveInfo = new global::System.IO.DriveInfo(root);
+            return driveInfo.TotalSize;
         }
         catch
         {

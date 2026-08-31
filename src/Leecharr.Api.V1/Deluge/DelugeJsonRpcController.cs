@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,12 @@ namespace Leecharr.Api.V1.Deluge;
 [Route("json")]
 public class DelugeJsonRpcController : ControllerBase
 {
+    private static readonly JsonSerializerOptions DelugeJsonOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
@@ -39,12 +46,17 @@ public class DelugeJsonRpcController : ControllerBase
         _configService = configService;
     }
 
+    private IActionResult DelugeResult(object value)
+    {
+        return new JsonResult(value, DelugeJsonOptions);
+    }
+
     [HttpPost]
     public async Task<IActionResult> HandleRpc([FromBody] JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("method", out var methodProp) || methodProp.ValueKind != JsonValueKind.String)
         {
-            return Ok(new { result = (object)null, error = "Invalid RPC request", id = (object)null });
+            return DelugeResult(new { result = (object)null, error = "Invalid RPC request", id = (object)null });
         }
 
         var method = methodProp.GetString() ?? string.Empty;
@@ -72,13 +84,13 @@ public class DelugeJsonRpcController : ControllerBase
                 case "auth.delete_session":
                 case "web.connected":
                 case "web.connect":
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "system.listmethods":
                 case "system.list_methods":
                 case "daemon.get_method_list":
                 case "system.get_methods":
-                    return Ok(new
+                    return DelugeResult(new
                     {
                         result = new[]
                         {
@@ -131,11 +143,11 @@ public class DelugeJsonRpcController : ControllerBase
                 case "daemon.info":
                 case "core.get_version":
                 case "web.get_version":
-                    return Ok(new { result = "2.1.1", error = (object)null, id });
+                    return DelugeResult(new { result = "2.1.1", error = (object)null, id });
 
                 case "label.get_labels":
                     var labels = _categoryService.GetAll().Select(c => c.Name).ToArray();
-                    return Ok(new { result = labels, error = (object)null, id });
+                    return DelugeResult(new { result = labels, error = (object)null, id });
 
                 case "label.add":
                 case "label.add_label":
@@ -153,7 +165,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "label.remove":
                     var labelToRemove = GetFirstStringParam(paramsElem);
@@ -166,7 +178,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "label.get_options":
                     {
@@ -184,7 +196,7 @@ public class DelugeJsonRpcController : ControllerBase
                             ["apply_move_completed"] = !string.IsNullOrWhiteSpace(targetCat?.SavePath),
                             ["move_completed_path"] = targetCat?.SavePath ?? string.Empty
                         };
-                        return Ok(new { result = labelOpts, error = (object)null, id });
+                        return DelugeResult(new { result = labelOpts, error = (object)null, id });
                     }
 
                 case "label.set_options":
@@ -217,7 +229,7 @@ public class DelugeJsonRpcController : ControllerBase
                             }
                         }
 
-                        return Ok(new { result = true, error = (object)null, id });
+                        return DelugeResult(new { result = true, error = (object)null, id });
                     }
 
                 case "label.set_torrent":
@@ -236,19 +248,19 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_enabled_plugins":
                 case "web.get_plugins":
                 case "web.get_installed_plugins":
                 case "core.get_available_plugins":
-                    return Ok(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+                    return DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
 
                 case "web.get_hosts":
-                    return Ok(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
+                    return DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
 
                 case "web.get_host_status":
-                    return Ok(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
+                    return DelugeResult(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
 
                 case "web.update_ui":
                     var allTorrentsForUi = _torrentService.GetAll().ToList();
@@ -276,7 +288,7 @@ public class DelugeJsonRpcController : ControllerBase
                         torrentDict[t.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(t);
                     }
 
-                    return Ok(new
+                    return DelugeResult(new
                     {
                         result = new
                         {
@@ -310,7 +322,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_config":
                 case "web.get_config":
-                    return Ok(new
+                    return DelugeResult(new
                     {
                         result = new Dictionary<string, object>
                         {
@@ -325,7 +337,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_session_status":
                     var allT = _torrentService.GetAll().ToList();
-                    return Ok(new
+                    return DelugeResult(new
                     {
                         result = new Dictionary<string, object>
                         {
@@ -344,7 +356,7 @@ public class DelugeJsonRpcController : ControllerBase
                 case "core.get_free_space":
                 case "core.get_path_free_space":
                     var targetPath = GetFirstStringParam(paramsElem) ?? _configService.DownloadDir ?? "/downloads";
-                    return Ok(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
+                    return DelugeResult(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
@@ -380,17 +392,17 @@ public class DelugeJsonRpcController : ControllerBase
                         resultDict[torrent.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(torrent);
                     }
 
-                    return Ok(new { result = resultDict, error = (object)null, id });
+                    return DelugeResult(new { result = resultDict, error = (object)null, id });
 
                 case "core.get_torrent_status":
                     var targetHash = GetFirstStringParam(paramsElem);
                     var found = _torrentService.GetByInfoHash(targetHash);
                     if (found == null)
                     {
-                        return Ok(new { result = (object)null, error = "Torrent not found", id });
+                        return DelugeResult(new { result = (object)null, error = "Torrent not found", id });
                     }
 
-                    return Ok(new { result = MapTorrentToDelugeStatus(found), error = (object)null, id });
+                    return DelugeResult(new { result = MapTorrentToDelugeStatus(found), error = (object)null, id });
 
                 case "core.add_torrent_file":
                     string addedHash = null;
@@ -445,7 +457,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = addedHash, error = (object)null, id });
+                    return DelugeResult(new { result = addedHash, error = (object)null, id });
 
                 case "core.add_torrent_magnet":
                     string magnetHash = null;
@@ -495,7 +507,7 @@ public class DelugeJsonRpcController : ControllerBase
                         magnetHash = added?.InfoHash;
                     }
 
-                    return Ok(new { result = magnetHash, error = (object)null, id });
+                    return DelugeResult(new { result = magnetHash, error = (object)null, id });
 
                 case "core.add_torrent_url":
                     string urlHash = null;
@@ -543,7 +555,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = urlHash, error = (object)null, id });
+                    return DelugeResult(new { result = urlHash, error = (object)null, id });
 
                 case "core.pause_torrent":
                 case "core.pause_torrents":
@@ -557,7 +569,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.resume_torrent":
                 case "core.resume_torrents":
@@ -571,7 +583,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.remove_torrent":
                 case "core.remove_torrents":
@@ -586,7 +598,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.force_recheck":
                     var recheckHashes = ExtractHashes(paramsElem);
@@ -599,7 +611,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.set_torrent_options":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
@@ -650,7 +662,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.set_torrent_file_priorities":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
@@ -677,10 +689,10 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "web.disconnect":
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_top":
                     var topHashes = ExtractHashes(paramsElem);
@@ -693,7 +705,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_up":
                     var upHashes = ExtractHashes(paramsElem);
@@ -706,7 +718,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_down":
                     var downHashes = ExtractHashes(paramsElem);
@@ -719,7 +731,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_bottom":
                     var bottomHashes = ExtractHashes(paramsElem);
@@ -732,7 +744,7 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_filter_tree":
                     var allTorrents = _torrentService.GetAll().ToList();
@@ -751,17 +763,17 @@ public class DelugeJsonRpcController : ControllerBase
                         { "label", _categoryService.GetAll().Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToList() }
                     };
 
-                    return Ok(new { result = filterTree, error = (object)null, id });
+                    return DelugeResult(new { result = filterTree, error = (object)null, id });
 
                 default:
                     _logger.Debug("Unhandled Deluge RPC method: {0}", method);
-                    return Ok(new { result = true, error = (object)null, id });
+                    return DelugeResult(new { result = true, error = (object)null, id });
             }
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
-            return Ok(new { result = (object)null, error = ex.Message, id });
+            return DelugeResult(new { result = (object)null, error = ex.Message, id });
         }
     }
 

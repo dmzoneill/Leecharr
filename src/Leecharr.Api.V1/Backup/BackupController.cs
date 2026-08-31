@@ -40,15 +40,14 @@ public class BackupController : Controller
         _diskProvider = diskProvider;
     }
 
-    [HttpGet]
-    public ActionResult<List<BackupResource>> GetAll()
+    private List<BackupResource> GetBackupsInternal()
     {
         var backupDir = Path.Combine(_appFolderInfo.AppDataFolder, "Backups");
         var list = new List<BackupResource>();
 
         if (!Directory.Exists(backupDir))
         {
-            return Ok(list);
+            return list;
         }
 
         var files = Directory.GetFiles(backupDir, "*.zip", SearchOption.AllDirectories);
@@ -68,7 +67,13 @@ public class BackupController : Controller
             });
         }
 
-        return Ok(list);
+        return list;
+    }
+
+    [HttpGet]
+    public ActionResult<List<BackupResource>> GetAll()
+    {
+        return Ok(GetBackupsInternal());
     }
 
     [HttpPost]
@@ -122,8 +127,8 @@ public class BackupController : Controller
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        var backups = GetAll().Value;
-        var match = backups?.FirstOrDefault(b => b.Id == id);
+        var backups = GetBackupsInternal();
+        var match = backups.FirstOrDefault(b => b.Id == id);
         if (match != null && global::System.IO.File.Exists(match.Path))
         {
             try
@@ -148,8 +153,8 @@ public class BackupController : Controller
             return BadRequest(new { success = false, message = "Invalid request." });
         }
 
-        var backups = GetAll().Value;
-        var backup = backups?.FirstOrDefault(b => b.Id == request.BackupId || (!string.IsNullOrWhiteSpace(request.Path) && string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase)));
+        var backups = GetBackupsInternal();
+        var backup = backups.FirstOrDefault(b => b.Id == request.BackupId || (!string.IsNullOrWhiteSpace(request.Path) && string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase)));
         if (backup == null || !global::System.IO.File.Exists(backup.Path))
         {
             return BadRequest(new { success = false, message = "Backup not found." });
