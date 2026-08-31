@@ -1,0 +1,3 @@
+[codespell]
+skip = .git,*.min.js,*.min.css,node_modules,_output,_tests,package-lock.json
+ignore-words-list = superseeding,superseed,superseeded,leecharr,seedarr,servarr,aar
