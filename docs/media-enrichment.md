@@ -34,17 +34,23 @@ sequenceDiagram
 
 ## Correlation & Matching Rules
 
-1. **Category Mapping:**
-   - `tv`, `tv-sonarr`, `sonarr` &rarr; Route query to Sonarr connection.
-   - `movies`, `radarr`, `radarr-4k` &rarr; Route query to Radarr connection.
-   - `music`, `lidarr` &rarr; Route query to Lidarr connection.
+1. **Multi-Instance Category Mapping:**
+   - Supports multiple concurrent Sonarr/Radarr/Lidarr instances connected to the same Leecharr host via unique category names:
+     - `tv`, `tv-sonarr`, `sonarr-anime`, `sonarr-4k` &rarr; Route queries to specific Sonarr instances.
+     - `movies`, `radarr`, `radarr-4k`, `radarr-anime` &rarr; Route queries to specific Radarr instances.
+     - `music`, `lidarr` &rarr; Route queries to Lidarr instances.
 
 2. **Download ID Correlation:**
    - When an `*arr` app pushes a download via Deluge/qBittorrent/Leecharr API, Leecharr tags the download with the caller's transaction ID for 100% exact correlation.
 
 3. **Release Title Scene Parser:**
    - Automatically parses release names (`Title.Year.Quality.Source.Codec-Group` or `Show.S01E02.Quality...`) into normalized title, release year, season number, episode number, quality resolution, and audio codec.
-   - Queries `*arr` instances for match even for manually uploaded `.torrent` files or magnet links.
+   - Queries connected `*arr` instances for match even for manually uploaded `.torrent` files or magnet links.
+
+4. **Unmatched / Non-Media Torrents & Manual Identification:**
+   - For generic downloads (e.g., Linux ISOs, software archives, or non-scene release names) that do not return a match from connected Servarr libraries:
+     - Renders a clean generic card with file-type badges (`ISO`, `ZIP`, `EXE`, `ROM`).
+     - Provides an interactive **"Match / Identify Media"** button opening a search dialog to manually search Sonarr/Radarr/Lidarr and link the torrent to a movie/show entity.
 
 ## Media Stream Specs Extraction
 
