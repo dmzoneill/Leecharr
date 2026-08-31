@@ -440,16 +440,10 @@ export function App() {
           )}
 
           {activeNav === "activity" && (
-            <div
-              className="content-area"
-              style={{ height: "100%", minHeight: 0 }}
-            >
+            <>
               {activeSubNav === "torrents" && (
                 <TorrentIndex
                   torrents={torrents}
-                  categories={categories}
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
                   onPause={handlePause}
                   onResume={handleResume}
                   onDelete={handleDelete}
@@ -462,16 +456,22 @@ export function App() {
                 />
               )}
               {activeSubNav === "add" && (
-                <AddTorrentPage
-                  onSuccess={() => {
-                    setActiveNav("activity");
-                    setActiveSubNav("torrents");
-                    loadData();
-                  }}
-                />
+                <div className="content-area">
+                  <AddTorrentPage
+                    onSuccess={() => {
+                      setActiveNav("activity");
+                      setActiveSubNav("torrents");
+                      loadData();
+                    }}
+                  />
+                </div>
               )}
-              {activeSubNav === "metrics" && <Activity />}
-            </div>
+              {activeSubNav === "metrics" && (
+                <div className="content-area">
+                  <Activity />
+                </div>
+              )}
+            </>
           )}
 
           {activeNav === "torrents" && (
