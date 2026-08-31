@@ -456,64 +456,38 @@ export function App() {
                 />
               )}
               {activeSubNav === "add" && (
-                <div className="content-area">
-                  <AddTorrentPage
-                    onSuccess={() => {
-                      setActiveNav("activity");
-                      setActiveSubNav("torrents");
-                      loadData();
-                    }}
-                  />
-                </div>
+                <AddTorrentPage
+                  onSuccess={() => {
+                    setActiveNav("activity");
+                    setActiveSubNav("torrents");
+                    loadData();
+                  }}
+                />
               )}
-              {activeSubNav === "metrics" && (
-                <div className="content-area">
-                  <Activity />
-                </div>
-              )}
+              {activeSubNav === "metrics" && <Activity />}
             </>
           )}
 
-          {activeNav === "torrents" && (
-            <div
-              className="content-area"
-              style={{ height: "100%", minHeight: 0 }}
-            >
-              <DownloadHistory />
-            </div>
-          )}
+          {activeNav === "torrents" && <DownloadHistory />}
 
           {activeNav === "indexers" && (
-            <div
-              className="content-area"
-              style={{ height: "100%", minHeight: 0 }}
-            >
-              <Indexers
-                selectedSubNav={activeSubNav}
-                onSelectIndexer={(id) => setActiveSubNav(id)}
-                onNavigateSettings={(tab) => {
-                  setActiveNav("settings");
-                  setActiveSubNav(tab);
-                }}
-              />
-            </div>
+            <Indexers
+              selectedSubNav={activeSubNav}
+              onSelectIndexer={(id) => setActiveSubNav(id)}
+              onNavigateSettings={(tab) => {
+                setActiveNav("settings");
+                setActiveSubNav(tab);
+              }}
+            />
           )}
 
-          {activeNav === "peermap" && (
-            <div className="content-area">
-              <PeerMap />
-            </div>
-          )}
+          {activeNav === "peermap" && <PeerMap />}
           {activeNav === "schedule" && (
             <div className="content-area">
               <SpeedSchedule />
             </div>
           )}
-          {activeNav === "statistics" && (
-            <div className="content-area">
-              <Statistics />
-            </div>
-          )}
+          {activeNav === "statistics" && <Statistics />}
           {activeNav === "settings" && <Settings section={activeSubNav} />}
           {activeNav === "system" && (
             <>
