@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -16,7 +18,7 @@ public class AllDownloadClientTests : IntegrationTestBase
     {
         var xml = "<?xml version=\"1.0\"?><methodCall><methodName>system.client_version</methodName></methodCall>";
         var content = new StringContent(xml, Encoding.UTF8, "text/xml");
-        var response = await Client.PostAsync("/RPC2", content);
+        var response = await this.Client.PostAsync("/RPC2", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var resXml = await response.Content.ReadAsStringAsync();
@@ -28,7 +30,7 @@ public class AllDownloadClientTests : IntegrationTestBase
     {
         var xml = "<?xml version=\"1.0\"?><methodCall><methodName>system.listMethods</methodName></methodCall>";
         var content = new StringContent(xml, Encoding.UTF8, "text/xml");
-        var response = await Client.PostAsync("/RPC2", content);
+        var response = await this.Client.PostAsync("/RPC2", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var resXml = await response.Content.ReadAsStringAsync();
@@ -42,10 +44,10 @@ public class AllDownloadClientTests : IntegrationTestBase
         {
             jsonrpc = "2.0",
             method = "aria2.getVersion",
-            id = 1
+            id = 1,
         };
 
-        var response = await PostJsonAsync("/jsonrpc", rpcBody);
+        var response = await this.PostJsonAsync("/jsonrpc", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -57,10 +59,10 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task Flood_Authenticate_And_GetTorrents_ReturnsSuccess()
     {
-        var authResponse = await PostJsonAsync("/api/auth/authenticate", new { });
+        var authResponse = await this.PostJsonAsync("/api/auth/authenticate", new { });
         authResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var torrentsResponse = await Client.GetAsync("/api/torrents");
+        var torrentsResponse = await this.Client.GetAsync("/api/torrents");
         torrentsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await torrentsResponse.Content.ReadAsStringAsync();
@@ -71,12 +73,12 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task UTorrent_GetToken_And_List_ReturnsSuccess()
     {
-        var tokenResponse = await Client.GetAsync("/gui/token.html");
+        var tokenResponse = await this.Client.GetAsync("/gui/token.html");
         tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var tokenHtml = await tokenResponse.Content.ReadAsStringAsync();
         tokenHtml.Should().Contain("LEECHARR_UTORRENT_AUTH_TOKEN");
 
-        var listResponse = await Client.GetAsync("/gui/?list=1");
+        var listResponse = await this.Client.GetAsync("/gui/?list=1");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var listJson = await listResponse.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(listJson);
@@ -89,10 +91,10 @@ public class AllDownloadClientTests : IntegrationTestBase
         var rpcBody = new
         {
             method = "core.getVersion",
-            id = 1
+            id = 1,
         };
 
-        var response = await PostJsonAsync("/api/hadouken", rpcBody);
+        var response = await this.PostJsonAsync("/api/hadouken", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -103,10 +105,10 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task Synology_Auth_And_Task_ReturnsSuccess()
     {
-        var authResponse = await Client.GetAsync("/webapi/auth.cgi?api=SYNO.API.Auth&method=login");
+        var authResponse = await this.Client.GetAsync("/webapi/auth.cgi?api=SYNO.API.Auth&method=login");
         authResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var taskResponse = await Client.GetAsync("/webapi/DownloadStation/task.cgi?api=SYNO.DownloadStation.Task&method=list");
+        var taskResponse = await this.Client.GetAsync("/webapi/DownloadStation/task.cgi?api=SYNO.DownloadStation.Task&method=list");
         taskResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await taskResponse.Content.ReadAsStringAsync();
@@ -117,10 +119,10 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task Freebox_Login_And_Downloads_ReturnsSuccess()
     {
-        var loginResponse = await Client.GetAsync("/api/v4/login/session");
+        var loginResponse = await this.Client.GetAsync("/api/v4/login/session");
         loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var dlResponse = await Client.GetAsync("/api/v4/downloads/");
+        var dlResponse = await this.Client.GetAsync("/api/v4/downloads/");
         dlResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await dlResponse.Content.ReadAsStringAsync();
@@ -131,14 +133,14 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task Sabnzbd_Version_And_Queue_ReturnsSuccess()
     {
-        var versionResponse = await Client.GetAsync("/api?mode=version");
+        var versionResponse = await this.Client.GetAsync("/api?mode=version");
         versionResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var vJson = await versionResponse.Content.ReadAsStringAsync();
         using var vDoc = JsonDocument.Parse(vJson);
         vDoc.RootElement.GetProperty("version").GetString().Should().Be("4.3.2");
 
-        var queueResponse = await Client.GetAsync("/api?mode=queue");
+        var queueResponse = await this.Client.GetAsync("/api?mode=queue");
         queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var qJson = await queueResponse.Content.ReadAsStringAsync();
@@ -150,7 +152,7 @@ public class AllDownloadClientTests : IntegrationTestBase
     public async Task Nzbget_Version_And_Status_ReturnsSuccess()
     {
         var versionBody = new { method = "version", id = 1 };
-        var versionResponse = await PostJsonAsync("/nzbget/jsonrpc", versionBody);
+        var versionResponse = await this.PostJsonAsync("/nzbget/jsonrpc", versionBody);
         versionResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var vJson = await versionResponse.Content.ReadAsStringAsync();
@@ -158,17 +160,17 @@ public class AllDownloadClientTests : IntegrationTestBase
         vDoc.RootElement.GetProperty("result").GetString().Should().Be("24.0");
 
         var statusBody = new { method = "status", id = 2 };
-        var statusResponse = await PostJsonAsync("/nzbget/jsonrpc", statusBody);
+        var statusResponse = await this.PostJsonAsync("/nzbget/jsonrpc", statusBody);
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Test]
     public async Task NzbVortex_Nonce_And_Queue_ReturnsSuccess()
     {
-        var nonceResponse = await Client.GetAsync("/nzbvortex/api/v1/auth/nonce");
+        var nonceResponse = await this.Client.GetAsync("/nzbvortex/api/v1/auth/nonce");
         nonceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var queueResponse = await Client.GetAsync("/nzbvortex/api/v1/queue");
+        var queueResponse = await this.Client.GetAsync("/nzbvortex/api/v1/queue");
         queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var qJson = await queueResponse.Content.ReadAsStringAsync();

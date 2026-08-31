@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -12,42 +14,54 @@ namespace Leecharr.Api.V1.Config;
 public class IdentityProviderResource : RestResource
 {
     public string ProviderId { get; set; } = string.Empty;
+
     public string Name { get; set; } = string.Empty;
+
     public IdentityProviderType ProviderType { get; set; } = IdentityProviderType.Oidc;
+
     public bool IsEnabled { get; set; } = true;
+
     public string ClientId { get; set; }
+
     public string ClientSecret { get; set; }
+
     public string IssuerUrl { get; set; }
+
     public string MetadataUrl { get; set; }
+
     public string Scopes { get; set; } = "openid profile email";
+
     public string Certificate { get; set; }
+
     public string RoleMappingRules { get; set; }
+
     public string IconUrl { get; set; }
+
     public string ButtonText { get; set; }
 }
 
 [V1ApiController("config/auth/providers")]
 public class IdentityProviderConfigController : RestController<IdentityProviderResource>
 {
-    private readonly IIdentityProviderService _providerService;
-    private readonly IDynamicAuthSchemeManager _dynamicAuthManager;
+    private readonly IIdentityProviderService providerService;
+    private readonly IDynamicAuthSchemeManager dynamicAuthManager;
 
     public IdentityProviderConfigController(
         IIdentityProviderService providerService,
         IDynamicAuthSchemeManager dynamicAuthManager)
     {
-        _providerService = providerService;
-        _dynamicAuthManager = dynamicAuthManager;
+        this.providerService = providerService;
+        this.dynamicAuthManager = dynamicAuthManager;
 
-        SharedValidator = new ResourceValidator<IdentityProviderResource>();
-        SharedValidator.RuleFor(c => c.ProviderId).NotEmpty();
-        SharedValidator.RuleFor(c => c.Name).NotEmpty();
+        this.SharedValidator = new ResourceValidator<IdentityProviderResource>();
+        this.SharedValidator.RuleFor(c => c.ProviderId).NotEmpty();
+        this.SharedValidator.RuleFor(c => c.Name).NotEmpty();
     }
 
     [HttpGet]
     public ActionResult<List<IdentityProviderResource>> GetAll()
     {
-        var providers = _providerService.GetAll();
+        var providers = this.providerService.GetAll();
         var resources = new List<IdentityProviderResource>();
 
         foreach (var p in providers)
@@ -55,19 +69,19 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             resources.Add(ToResource(p));
         }
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<IdentityProviderResource> GetById(int id)
     {
-        var provider = _providerService.GetById(id);
+        var provider = this.providerService.GetById(id);
         if (provider == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(provider));
+        return this.Ok(ToResource(provider));
     }
 
     [HttpPost]
@@ -75,18 +89,18 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _providerService.Add(model);
+        var created = this.providerService.Add(model);
 
         if (created.IsEnabled)
         {
-            _ = _dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(created);
+            _ = this.dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(created);
         }
 
-        return Created($"/api/v1/config/auth/providers/{created.Id}", ToResource(created));
+        return this.Created($"/api/v1/config/auth/providers/{created.Id}", ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -94,13 +108,13 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _providerService.GetById(id);
+        var existing = this.providerService.GetById(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
@@ -112,33 +126,33 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             model.ClientSecretEncrypted = existing.ClientSecretEncrypted;
         }
 
-        var updated = _providerService.Update(model);
+        var updated = this.providerService.Update(model);
 
         if (updated.IsEnabled)
         {
-            _ = _dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(updated);
+            _ = this.dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(updated);
         }
         else
         {
-            _ = _dynamicAuthManager.RemoveProviderSchemeAsync(updated.ProviderId);
+            _ = this.dynamicAuthManager.RemoveProviderSchemeAsync(updated.ProviderId);
         }
 
-        return Ok(ToResource(updated));
+        return this.Ok(ToResource(updated));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        var existing = _providerService.GetById(id);
+        var existing = this.providerService.GetById(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        _providerService.Delete(id);
-        _ = _dynamicAuthManager.RemoveProviderSchemeAsync(existing.ProviderId);
+        this.providerService.Delete(id);
+        _ = this.dynamicAuthManager.RemoveProviderSchemeAsync(existing.ProviderId);
 
-        return NoContent();
+        return this.NoContent();
     }
 
     [HttpPost("test")]
@@ -146,13 +160,13 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var success = await _providerService.TestConnectionAsync(model);
+        var success = await this.providerService.TestConnectionAsync(model);
 
-        return Ok(new { success, message = success ? "Connection successful" : "Failed to reach provider endpoint" });
+        return this.Ok(new { success, message = success ? "Connection successful" : "Failed to reach provider endpoint" });
     }
 
     private static IdentityProviderResource ToResource(IdentityProviderDefinition model)
@@ -172,7 +186,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             Certificate = model.Certificate,
             RoleMappingRules = model.RoleMappingRules,
             IconUrl = model.IconUrl,
-            ButtonText = model.ButtonText
+            ButtonText = model.ButtonText,
         };
     }
 
@@ -193,7 +207,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             Certificate = resource.Certificate,
             RoleMappingRules = resource.RoleMappingRules,
             IconUrl = resource.IconUrl,
-            ButtonText = resource.ButtonText
+            ButtonText = resource.ButtonText,
         };
     }
 }

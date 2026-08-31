@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Core.HealthCheck;
 
 public interface IHealthCheck
@@ -10,13 +12,15 @@ public enum HealthCheckResultType
     Ok,
     Notice,
     Warning,
-    Error
+    Error,
 }
 
 public class HealthCheckResult
 {
     public HealthCheckResultType Type { get; set; }
+
     public string Source { get; set; }
+
     public string Message { get; set; }
 
     public static HealthCheckResult Ok(string source)

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,47 +14,62 @@ namespace NzbDrone.Core.Torrents;
 public class ParsedTorrent
 {
     public string Name { get; set; }
+
     public string InfoHash { get; set; }
+
     public long TotalSize { get; set; }
+
     public int PieceCount { get; set; }
+
     public int PieceLength { get; set; }
+
     public byte[] PieceHashes { get; set; }
+
     public string Comment { get; set; }
+
     public string CreatedBy { get; set; }
+
     public DateTime? CreationDate { get; set; }
+
     public bool IsPrivate { get; set; }
+
     public string AnnounceUrl { get; set; }
+
     public List<List<string>> AnnounceList { get; set; }
+
     public List<ParsedTorrentFile> Files { get; set; }
 }
 
 public class ParsedTorrentFile
 {
     public string Path { get; set; }
+
     public long Size { get; set; }
 }
 
 public interface ITorrentFileParser
 {
     ParsedTorrent Parse(string filePath);
+
     ParsedTorrent Parse(Stream stream);
+
     ParsedTorrent Parse(byte[] bytes);
 }
 
 public class TorrentFileParser : ITorrentFileParser
 {
-    private readonly Logger _logger;
+    private readonly Logger logger;
 
     public TorrentFileParser()
     {
-        _logger = LogManager.GetCurrentClassLogger();
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public ParsedTorrent Parse(string filePath)
     {
-        _logger.Debug("Parsing torrent file: {0}", filePath);
+        this.logger.Debug("Parsing torrent file: {0}", filePath);
         using var stream = File.OpenRead(filePath);
-        return Parse(stream);
+        return this.Parse(stream);
     }
 
     public ParsedTorrent Parse(byte[] bytes)
@@ -63,7 +80,7 @@ public class TorrentFileParser : ITorrentFileParser
         }
 
         using var stream = new MemoryStream(bytes);
-        return Parse(stream);
+        return this.Parse(stream);
     }
 
     public ParsedTorrent Parse(Stream stream)
@@ -148,7 +165,7 @@ public class TorrentFileParser : ITorrentFileParser
                 IsPrivate = info.ContainsKey("private") && (info["private"] as BNumber)?.Value == 1,
                 AnnounceUrl = announceUrl,
                 AnnounceList = announceListParsed,
-                Files = new List<ParsedTorrentFile>()
+                Files = new List<ParsedTorrentFile>(),
             };
 
             if (torrent.ContainsKey("creation date") && torrent["creation date"] is BNumber creationDateNum)
@@ -180,7 +197,7 @@ public class TorrentFileParser : ITorrentFileParser
                     result.Files.Add(new ParsedTorrentFile
                     {
                         Path = string.Join("/", pathParts),
-                        Size = fileLengthNum.Value
+                        Size = fileLengthNum.Value,
                     });
                 }
             }
@@ -194,7 +211,7 @@ public class TorrentFileParser : ITorrentFileParser
                 result.Files.Add(new ParsedTorrentFile
                 {
                     Path = result.Name,
-                    Size = lengthNum.Value
+                    Size = lengthNum.Value,
                 });
             }
 

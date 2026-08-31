@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
@@ -12,34 +14,34 @@ namespace Leecharr.Api.V1.Categories;
 [Route("api/v1/category")]
 public class CategoryController : RestControllerWithSignalR<CategoryResource, Category>
 {
-    private readonly ICategoryService _categoryService;
+    private readonly ICategoryService categoryService;
 
     public CategoryController(
         ICategoryService categoryService,
         IBroadcastSignalRMessage signalRBroadcaster)
         : base(signalRBroadcaster)
     {
-        _categoryService = categoryService;
+        this.categoryService = categoryService;
     }
 
     [HttpGet]
     public ActionResult<List<CategoryResource>> GetAll()
     {
-        var categories = _categoryService.GetAll();
+        var categories = this.categoryService.GetAll();
         var resources = categories.Select(CategoryResourceMapper.ToResource).ToList();
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<CategoryResource> GetById(int id)
     {
-        var category = _categoryService.Get(id);
+        var category = this.categoryService.Get(id);
         if (category == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(CategoryResourceMapper.ToResource(category));
+        return this.Ok(CategoryResourceMapper.ToResource(category));
     }
 
     [HttpPost]
@@ -47,12 +49,12 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Name))
         {
-            return BadRequest("Category name is required.");
+            return this.BadRequest("Category name is required.");
         }
 
         var model = CategoryResourceMapper.ToModel(resource);
-        var inserted = _categoryService.Add(model);
-        return Ok(CategoryResourceMapper.ToResource(inserted));
+        var inserted = this.categoryService.Add(model);
+        return this.Ok(CategoryResourceMapper.ToResource(inserted));
     }
 
     [HttpPut("{id:int}")]
@@ -60,20 +62,20 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = CategoryResourceMapper.ToModel(resource);
         model.Id = id;
-        var updated = _categoryService.Update(model);
-        return Ok(CategoryResourceMapper.ToResource(updated));
+        var updated = this.categoryService.Update(model);
+        return this.Ok(CategoryResourceMapper.ToResource(updated));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _categoryService.Delete(id);
-        return NoContent();
+        this.categoryService.Delete(id);
+        return this.NoContent();
     }
 
     protected override CategoryResource GetResourceById(Category model)

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Core.Datastore;
@@ -18,6 +20,6 @@ public class RssRuleRepository : BasicRepository<RssRule>, IRssRuleRepository
 
     public IEnumerable<RssRule> GetEnabled()
     {
-        return All().Where(r => r.IsEnabled);
+        return this.All().Where(r => r.IsEnabled);
     }
 }

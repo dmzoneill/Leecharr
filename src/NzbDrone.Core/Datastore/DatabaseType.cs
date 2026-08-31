@@ -1,7 +1,9 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Core.Datastore;
 
 public enum DatabaseType
 {
     SQLite,
-    PostgreSQL
+    PostgreSQL,
 }

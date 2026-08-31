@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,8 +13,8 @@ public class ConfigFileProvider : IConfigFileProvider
     private const string ConfigFileName = "config.xml";
     private const string ConfigElementName = "Config";
 
-    private readonly string _configFile;
-    private readonly Dictionary<string, string> _config;
+    private readonly string configFile;
+    private readonly Dictionary<string, string> config;
     private static readonly object Mutex = new();
 
     public ConfigFileProvider(IAppFolderInfo appFolderInfo)
@@ -22,40 +24,51 @@ public class ConfigFileProvider : IConfigFileProvider
             throw new ArgumentNullException(nameof(appFolderInfo));
         }
 
-        _configFile = Path.Combine(appFolderInfo.AppDataFolder, ConfigFileName);
-        _config = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        this.configFile = Path.Combine(appFolderInfo.AppDataFolder, ConfigFileName);
+        this.config = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        LoadFromFile();
+        this.LoadFromFile();
 
-        if (string.IsNullOrEmpty(ApiKey))
+        if (string.IsNullOrEmpty(this.ApiKey))
         {
-            SetValue("ApiKey", GenerateApiKey());
+            this.SetValue("ApiKey", GenerateApiKey());
         }
     }
 
-    public string BindAddress => GetValue("BindAddress", "*");
-    public int Port => GetValueInt("Port", 7889);
-    public bool EnableSsl => GetValueBool("EnableSsl", false);
-    public string ApiKey => GetValue("ApiKey", string.Empty);
-    public bool AuthenticationEnabled => GetValueBool("AuthenticationEnabled", false);
-    public string LogLevel => GetValue("LogLevel", "info");
-    public string UrlBase => GetValue("UrlBase", string.Empty);
-    public string PostgresHost => GetValue("PostgresHost", string.Empty);
-    public int PostgresPort => GetValueInt("PostgresPort", 5432);
-    public string PostgresMainDb => GetValue("PostgresMainDb", string.Empty);
-    public string PostgresUser => GetValue("PostgresUser", string.Empty);
-    public string PostgresPassword => GetValue("PostgresPassword", string.Empty);
+    public string BindAddress => this.GetValue("BindAddress", "*");
+
+    public int Port => this.GetValueInt("Port", 7889);
+
+    public bool EnableSsl => this.GetValueBool("EnableSsl", false);
+
+    public string ApiKey => this.GetValue("ApiKey", string.Empty);
+
+    public bool AuthenticationEnabled => this.GetValueBool("AuthenticationEnabled", false);
+
+    public string LogLevel => this.GetValue("LogLevel", "info");
+
+    public string UrlBase => this.GetValue("UrlBase", string.Empty);
+
+    public string PostgresHost => this.GetValue("PostgresHost", string.Empty);
+
+    public int PostgresPort => this.GetValueInt("PostgresPort", 5432);
+
+    public string PostgresMainDb => this.GetValue("PostgresMainDb", string.Empty);
+
+    public string PostgresUser => this.GetValue("PostgresUser", string.Empty);
+
+    public string PostgresPassword => this.GetValue("PostgresPassword", string.Empty);
 
     private void LoadFromFile()
     {
         lock (Mutex)
         {
-            if (!File.Exists(_configFile))
+            if (!File.Exists(this.configFile))
             {
                 return;
             }
 
-            var xDoc = XDocument.Load(_configFile);
+            var xDoc = XDocument.Load(this.configFile);
             var config = xDoc.Element(ConfigElementName);
             if (config == null)
             {
@@ -64,15 +77,15 @@ public class ConfigFileProvider : IConfigFileProvider
 
             foreach (var element in config.Elements())
             {
-                _config[element.Name.LocalName] = element.Value.Trim();
+                this.config[element.Name.LocalName] = element.Value.Trim();
             }
         }
     }
 
     private void SetValue(string key, string value)
     {
-        _config[key] = value;
-        SaveToFile();
+        this.config[key] = value;
+        this.SaveToFile();
     }
 
     public void SaveConfigDictionary(Dictionary<string, object> values)
@@ -88,11 +101,11 @@ public class ConfigFileProvider : IConfigFileProvider
             {
                 if (value != null)
                 {
-                    _config[key] = value.ToString();
+                    this.config[key] = value.ToString();
                 }
             }
 
-            SaveToFile();
+            this.SaveToFile();
         }
     }
 
@@ -101,30 +114,30 @@ public class ConfigFileProvider : IConfigFileProvider
         lock (Mutex)
         {
             var configElement = new XElement(ConfigElementName);
-            foreach (var kvp in _config)
+            foreach (var kvp in this.config)
             {
                 configElement.Add(new XElement(kvp.Key, kvp.Value));
             }
 
             var xDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), configElement);
-            xDoc.Save(_configFile);
+            xDoc.Save(this.configFile);
         }
     }
 
     private string GetValue(string key, string defaultValue)
     {
-        return _config.TryGetValue(key, out var value) ? value : defaultValue;
+        return this.config.TryGetValue(key, out var value) ? value : defaultValue;
     }
 
     private int GetValueInt(string key, int defaultValue)
     {
-        var value = GetValue(key, null);
+        var value = this.GetValue(key, null);
         return value != null && int.TryParse(value, out var result) ? result : defaultValue;
     }
 
     private bool GetValueBool(string key, bool defaultValue)
     {
-        var value = GetValue(key, null);
+        var value = this.GetValue(key, null);
         return value != null && bool.TryParse(value, out var result) ? result : defaultValue;
     }
 

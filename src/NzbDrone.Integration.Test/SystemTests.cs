@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -10,7 +12,7 @@ public class SystemTests : IntegrationTestBase
     [Test]
     public async Task GetSystemStatus_ReturnsOkAndValidJson()
     {
-        var response = await GetAsync("/api/v1/system/status");
+        var response = await this.GetAsync("/api/v1/system/status");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var json = await response.Content.ReadAsStringAsync();

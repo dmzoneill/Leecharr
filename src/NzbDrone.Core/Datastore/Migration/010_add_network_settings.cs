@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddNetworkSettings : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("NetworkSettings")
+        this.Create.Table("NetworkSettings")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("BindInterface").AsString().Nullable()
             .WithColumn("EnableVpnKillSwitch").AsBoolean().NotNullable().WithDefaultValue(false)

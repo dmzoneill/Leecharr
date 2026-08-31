@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Tags;

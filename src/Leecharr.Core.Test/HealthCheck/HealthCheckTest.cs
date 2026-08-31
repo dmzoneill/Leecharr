@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using NSubstitute;
 using NUnit.Framework;
@@ -11,22 +13,22 @@ namespace Leecharr.Core.Test.HealthCheck;
 [TestFixture]
 public class HealthCheckTest
 {
-    private IArrConnectionRepository _arrRepo;
-    private IIndexerRepository _indexerRepo;
+    private IArrConnectionRepository arrRepo;
+    private IIndexerRepository indexerRepo;
 
     [SetUp]
     public void SetUp()
     {
-        _arrRepo = Substitute.For<IArrConnectionRepository>();
-        _indexerRepo = Substitute.For<IIndexerRepository>();
+        this.arrRepo = Substitute.For<IArrConnectionRepository>();
+        this.indexerRepo = Substitute.For<IIndexerRepository>();
     }
 
     [Test]
     public void NoArrConnectionsCheck_ReturnsWarning_WhenNoConnectionsConfigured()
     {
-        _arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>());
+        this.arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>());
 
-        var check = new NoArrConnectionsCheck(_arrRepo);
+        var check = new NoArrConnectionsCheck(this.arrRepo);
         var result = check.Check();
 
         Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Warning));
@@ -37,12 +39,12 @@ public class HealthCheckTest
     [Test]
     public void NoArrConnectionsCheck_ReturnsOk_WhenConnectionsExist()
     {
-        _arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>
+        this.arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>
         {
-            new ArrConnectionDefinition { Id = 1, Name = "Sonarr", Enable = true }
+            new ArrConnectionDefinition { Id = 1, Name = "Sonarr", Enable = true },
         });
 
-        var check = new NoArrConnectionsCheck(_arrRepo);
+        var check = new NoArrConnectionsCheck(this.arrRepo);
         var result = check.Check();
 
         Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Ok));
@@ -51,9 +53,9 @@ public class HealthCheckTest
     [Test]
     public void NoIndexersCheck_ReturnsNotice_WhenNoIndexersConfigured()
     {
-        _indexerRepo.GetEnabled().Returns(new List<IndexerDefinition>());
+        this.indexerRepo.GetEnabled().Returns(new List<IndexerDefinition>());
 
-        var check = new NoIndexersCheck(_indexerRepo);
+        var check = new NoIndexersCheck(this.indexerRepo);
         var result = check.Check();
 
         Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Notice));
@@ -64,12 +66,12 @@ public class HealthCheckTest
     [Test]
     public void NoIndexersCheck_ReturnsOk_WhenIndexersExist()
     {
-        _indexerRepo.GetEnabled().Returns(new List<IndexerDefinition>
+        this.indexerRepo.GetEnabled().Returns(new List<IndexerDefinition>
         {
-            new IndexerDefinition { Id = 1, Name = "Prowlarr", Enable = true }
+            new IndexerDefinition { Id = 1, Name = "Prowlarr", Enable = true },
         });
 
-        var check = new NoIndexersCheck(_indexerRepo);
+        var check = new NoIndexersCheck(this.indexerRepo);
         var result = check.Check();
 
         Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Ok));

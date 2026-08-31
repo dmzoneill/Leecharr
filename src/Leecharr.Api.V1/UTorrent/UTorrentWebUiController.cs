@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,12 +21,12 @@ namespace Leecharr.Api.V1.UTorrent;
 public class UTorrentWebUiController : ControllerBase
 {
     private const string UtorrentToken = "LEECHARR_UTORRENT_AUTH_TOKEN";
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public UTorrentWebUiController(
         ITorrentService torrentService,
@@ -33,20 +35,20 @@ public class UTorrentWebUiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     [HttpGet]
     [Route("gui/token.html")]
     public IActionResult GetToken()
     {
-        Response.Cookies.Append("GUID", "leecharr-guid-cookie", new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
+        this.Response.Cookies.Append("GUID", "leecharr-guid-cookie", new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
         var html = $"<html><div id=\"token\">{UtorrentToken}</div></html>";
-        return Content(html, "text/html", Encoding.UTF8);
+        return this.Content(html, "text/html", Encoding.UTF8);
     }
 
     [HttpGet]
@@ -65,8 +67,8 @@ public class UTorrentWebUiController : ControllerBase
     {
         if (!string.IsNullOrWhiteSpace(action))
         {
-            var targetCategory = label ?? (Request.HasFormContentType ? Request.Form["label"].ToString() : null);
-            var targetDir = download_dir ?? path ?? (Request.HasFormContentType ? (Request.Form["download_dir"].ToString() ?? Request.Form["path"].ToString()) : null);
+            var targetCategory = label ?? (this.Request.HasFormContentType ? this.Request.Form["label"].ToString() : null);
+            var targetDir = download_dir ?? path ?? (this.Request.HasFormContentType ? (this.Request.Form["download_dir"].ToString() ?? this.Request.Form["path"].ToString()) : null);
 
             switch (action.ToLowerInvariant())
             {
@@ -75,31 +77,31 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         if (s.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
-                            await _torrentService.AddFromMagnetAsync(s, targetCategory, targetDir, false);
+                            await this.torrentService.AddFromMagnetAsync(s, targetCategory, targetDir, false);
                         }
                         else
                         {
                             using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                             var bytes = await client.GetByteArrayAsync(s);
-                            var parsed = _torrentFileParser.Parse(bytes);
-                            await _torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
+                            var parsed = this.torrentFileParser.Parse(bytes);
+                            await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "add-file":
-                    if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+                    if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
                     {
-                        var file = Request.Form.Files[0];
+                        var file = this.Request.Form.Files[0];
                         using var ms = new MemoryStream();
                         await file.CopyToAsync(ms);
                         var bytes = ms.ToArray();
-                        var parsed = _torrentFileParser.Parse(bytes);
-                        await _torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "start":
                 case "unpause":
@@ -108,15 +110,15 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
-                                await _torrentService.ResumeAsync(t.Id);
+                                await this.torrentService.ResumeAsync(t.Id);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "stop":
                 case "pause":
@@ -124,30 +126,30 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
-                                await _torrentService.PauseAsync(t.Id);
+                                await this.torrentService.PauseAsync(t.Id);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "remove":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
                         foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
-                                await _torrentService.DeleteAsync(t.Id, false);
+                                await this.torrentService.DeleteAsync(t.Id, false);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "removedata":
                 case "removedatatorrent":
@@ -155,63 +157,63 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
-                                await _torrentService.DeleteAsync(t.Id, true);
+                                await this.torrentService.DeleteAsync(t.Id, true);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "recheck":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
                         foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var t = _torrentService.GetByInfoHash(h.Trim());
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
-                                await _torrentService.ForceRecheckAsync(t.Id);
+                                await this.torrentService.ForceRecheckAsync(t.Id);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "setprio":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var target = _torrentService.GetByInfoHash(hash.Trim());
-                        var pVal = Request.Query["p"].ToString();
-                        var fVal = Request.Query["f"].ToString();
-                        if (string.IsNullOrEmpty(pVal) && Request.HasFormContentType)
+                        var target = this.torrentService.GetByInfoHash(hash.Trim());
+                        var pVal = this.Request.Query["p"].ToString();
+                        var fVal = this.Request.Query["f"].ToString();
+                        if (string.IsNullOrEmpty(pVal) && this.Request.HasFormContentType)
                         {
-                            pVal = Request.Form["p"].ToString();
+                            pVal = this.Request.Form["p"].ToString();
                         }
 
-                        if (string.IsNullOrEmpty(fVal) && Request.HasFormContentType)
+                        if (string.IsNullOrEmpty(fVal) && this.Request.HasFormContentType)
                         {
-                            fVal = Request.Form["f"].ToString();
+                            fVal = this.Request.Form["f"].ToString();
                         }
 
                         if (target != null && int.TryParse(pVal, out var prio) && int.TryParse(fVal, out var fileIdx))
                         {
-                            var files = _torrentFileService.GetFiles(target.Id).ToList();
+                            var files = this.torrentFileService.GetFiles(target.Id).ToList();
                             if (fileIdx >= 0 && fileIdx < files.Count)
                             {
-                                await _torrentFileService.SetPriorityAsync(files[fileIdx].Id, prio);
+                                await this.torrentFileService.SetPriorityAsync(files[fileIdx].Id, prio);
                             }
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "setprops":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
                             if (string.Equals(s, "label", StringComparison.OrdinalIgnoreCase))
@@ -235,19 +237,19 @@ public class UTorrentWebUiController : ControllerBase
                                 t.UploadLimit = ulVal > 0 ? ulVal / 1024 : 0;
                             }
 
-                            await _torrentService.UpdateAsync(t);
+                            await this.torrentService.UpdateAsync(t);
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "getprops":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            return Ok(new
+                            return this.Ok(new
                             {
                                 build = 45000,
                                 props = new object[]
@@ -266,97 +268,97 @@ public class UTorrentWebUiController : ControllerBase
                                         { "seed_time", 0 },
                                         { "ul_slots", 0 }
                                     }
-                                }
+                                },
                             });
                         }
                     }
 
-                    return Ok(new { build = 45000, props = Array.Empty<object>() });
+                    return this.Ok(new { build = 45000, props = Array.Empty<object>() });
 
                 case "getfiles":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            var files = _torrentFileService.GetFiles(t.Id);
+                            var files = this.torrentFileService.GetFiles(t.Id);
                             var fileRows = files.Select(f => new object[]
                             {
                                 f.Path,
                                 f.Size,
                                 (long)(f.Size * f.Progress),
-                                f.Priority
+                                f.Priority,
                             }).ToList();
 
-                            return Ok(new
+                            return this.Ok(new
                             {
                                 build = 45000,
-                                files = new object[] { t.InfoHash.ToUpperInvariant(), fileRows }
+                                files = new object[] { t.InfoHash.ToUpperInvariant(), fileRows },
                             });
                         }
                     }
 
-                    return Ok(new { build = 45000, files = Array.Empty<object>() });
+                    return this.Ok(new { build = 45000, files = Array.Empty<object>() });
 
                 case "queueup":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "up");
+                            await this.torrentService.MoveQueueAsync(t.Id, "up");
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "queuedown":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "down");
+                            await this.torrentService.MoveQueueAsync(t.Id, "down");
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "queuetop":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "top");
+                            await this.torrentService.MoveQueueAsync(t.Id, "top");
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "queuebottom":
                     if (!string.IsNullOrWhiteSpace(hash))
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "bottom");
+                            await this.torrentService.MoveQueueAsync(t.Id, "bottom");
                         }
                     }
 
-                    return BuildTorrentListResponse();
+                    return this.BuildTorrentListResponse();
 
                 case "getsettings":
-                    return Ok(new
+                    return this.Ok(new
                     {
                         build = 45000,
                         settings = new object[]
                         {
-                            new object[] { "dir_active_download", 2, _configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
-                            new object[] { "dir_completed_download", 2, _configService.DownloadDir ?? "/downloads" },
-                            new object[] { "max_dl_rate", 0, _configService.MaxDownloadSpeedKbps },
-                            new object[] { "max_ul_rate", 0, _configService.MaxUploadSpeedKbps }
-                        }
+                            new object[] { "dir_active_download", 2, this.configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
+                            new object[] { "dir_completed_download", 2, this.configService.DownloadDir ?? "/downloads" },
+                            new object[] { "max_dl_rate", 0, this.configService.MaxDownloadSpeedKbps },
+                            new object[] { "max_ul_rate", 0, this.configService.MaxUploadSpeedKbps }
+                        },
                     });
 
                 case "setsetting":
@@ -382,20 +384,20 @@ public class UTorrentWebUiController : ControllerBase
 
                         if (dict.Count > 0)
                         {
-                            _configService.SaveConfigDictionary(dict);
+                            this.configService.SaveConfigDictionary(dict);
                         }
                     }
 
-                    return Ok(new { build = 45000 });
+                    return this.Ok(new { build = 45000 });
             }
         }
 
-        return BuildTorrentListResponse();
+        return this.BuildTorrentListResponse();
     }
 
     private IActionResult BuildTorrentListResponse()
     {
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         var rows = new List<object[]>();
 
         foreach (var t in torrents)
@@ -464,26 +466,26 @@ public class UTorrentWebUiController : ControllerBase
                 addedUnix,
                 completedUnix,
                 string.Empty,
-                t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                 string.Empty,
-                modifiedUnix
+                modifiedUnix,
             });
         }
 
-        var labels = _categoryService.GetAll().Select(c => new object[]
+        var labels = this.categoryService.GetAll().Select(c => new object[]
         {
             c.Name,
-            torrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase))
+            torrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)),
         }).ToList();
 
-        return Ok(new
+        return this.Ok(new
         {
             build = 45000,
             torrents = rows,
             label = labels,
             torrentc = "1",
             rssfeeds = new object[] { },
-            rssfilters = new object[] { }
+            rssfilters = new object[] { },
         });
     }
 }

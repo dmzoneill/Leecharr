@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.IO;
 using NUnit.Framework;
 using NzbDrone.Core.MediaInspection;
@@ -7,16 +9,16 @@ namespace Leecharr.Core.Test.MediaInspection;
 [TestFixture]
 public class MediaContainerInspectorTest
 {
-    private MediaContainerInspector _inspector;
+    private MediaContainerInspector inspector;
 
     [SetUp]
     public void SetUp()
     {
-        _inspector = new MediaContainerInspector();
+        this.inspector = new MediaContainerInspector();
     }
 
     [Test]
-    public void should_inspect_flac_header()
+    public void Should_inspect_flac_header()
     {
         // Construct a valid FLAC header: 'fLaC' + 4-byte block header + STREAMINFO (34 bytes)
         var flacData = new byte[42];
@@ -37,7 +39,7 @@ public class MediaContainerInspectorTest
         flacData[21] = 0x70;
 
         using var ms = new MemoryStream(flacData);
-        var info = _inspector.Inspect(ms, "track01.flac");
+        var info = this.inspector.Inspect(ms, "track01.flac");
 
         Assert.That(info, Is.Not.Null);
         Assert.That(info.ContainerFormat, Is.EqualTo("FLAC"));
@@ -48,7 +50,7 @@ public class MediaContainerInspectorTest
     }
 
     [Test]
-    public void should_extract_4k_hdr_atmos_from_scene_filename()
+    public void Should_extract_4k_hdr_atmos_from_scene_filename()
     {
         var dummyHeader = new byte[8];
         dummyHeader[4] = (byte)'f';
@@ -57,7 +59,7 @@ public class MediaContainerInspectorTest
         dummyHeader[7] = (byte)'p';
 
         using var ms = new MemoryStream(dummyHeader);
-        var info = _inspector.Inspect(ms, "Dune.Part.Two.2024.2160p.UHD.HDR.DV.TrueHD.Atmos.7.1.x265-FLUX.mp4");
+        var info = this.inspector.Inspect(ms, "Dune.Part.Two.2024.2160p.UHD.HDR.DV.TrueHD.Atmos.7.1.x265-FLUX.mp4");
 
         Assert.That(info, Is.Not.Null);
         Assert.That(info.ContainerFormat, Is.EqualTo("MP4"));

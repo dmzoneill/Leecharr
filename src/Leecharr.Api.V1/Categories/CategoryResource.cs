@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using Leecharr.Http.REST;
 using NzbDrone.Core.Categories;
 
@@ -6,12 +8,19 @@ namespace Leecharr.Api.V1.Categories;
 public class CategoryResource : RestResource
 {
     public string Name { get; set; }
+
     public string SavePath { get; set; }
+
     public int DefaultUploadLimit { get; set; }
+
     public int DefaultDownloadLimit { get; set; }
+
     public double TargetRatio { get; set; }
+
     public int TargetSeedTimeMinutes { get; set; }
+
     public bool AutoStop { get; set; }
+
     public bool IsDefault { get; set; }
 }
 
@@ -34,7 +43,7 @@ public static class CategoryResourceMapper
             TargetRatio = model.TargetRatio,
             TargetSeedTimeMinutes = model.TargetSeedTimeMinutes,
             AutoStop = model.AutoStop,
-            IsDefault = model.IsDefault
+            IsDefault = model.IsDefault,
         };
     }
 
@@ -55,7 +64,7 @@ public static class CategoryResourceMapper
             TargetRatio = resource.TargetRatio,
             TargetSeedTimeMinutes = resource.TargetSeedTimeMinutes,
             AutoStop = resource.AutoStop,
-            IsDefault = resource.IsDefault
+            IsDefault = resource.IsDefault,
         };
     }
 }

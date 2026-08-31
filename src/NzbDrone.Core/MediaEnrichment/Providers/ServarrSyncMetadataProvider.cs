@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,14 +13,18 @@ namespace NzbDrone.Core.MediaEnrichment.Providers;
 
 public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 {
-    private readonly IArrConnectionRepository _arrRepository;
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IArrConnectionRepository arrRepository;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "ServarrSync";
+
     public string DisplayName => "Servarr Library Sync (Sonarr / Radarr / Lidarr)";
+
     public string Version => "1.0.0";
+
     public string Description => "Correlates downloads and metadata directly from linked Sonarr, Radarr, and Lidarr instances via REST APIs.";
+
     public bool IsAvailable => true;
 
     public MediaMetadataCapabilities Capabilities => new()
@@ -30,21 +36,21 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         SupportsFanart = true,
         SupportsCast = true,
         SupportsSeasonBanners = true,
-        SupportsNfoParsing = false
+        SupportsNfoParsing = false,
     };
 
     public ServarrSyncMetadataProvider(IArrConnectionRepository arrRepository = null)
     {
-        _arrRepository = arrRepository;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.arrRepository = arrRepository;
+        this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
         var count = 0;
-        if (_arrRepository != null)
+        if (this.arrRepository != null)
         {
-            var all = _arrRepository.All();
+            var all = this.arrRepository.All();
             if (all != null)
             {
                 count = all.Count();
@@ -54,7 +60,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return Task.FromResult(new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = $"Servarr metadata provider ready ({count} Arr instances configured)."
+            StatusMessage = $"Servarr metadata provider ready ({count} Arr instances configured).",
         });
     }
 
@@ -70,7 +76,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var preferredType = cat.Contains("movie") || cat.Contains("radarr") ? "Radarr" :
                              cat.Contains("music") || cat.Contains("lidarr") ? "Lidarr" : "Sonarr";
 
-        var connections = _arrRepository?.GetEnabled().ToList() ?? new List<ArrConnectionDefinition>();
+        var connections = this.arrRepository?.GetEnabled().ToList() ?? new List<ArrConnectionDefinition>();
 
         // Sort to check preferred Arr type first
         var sortedConns = connections
@@ -81,7 +87,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         {
             try
             {
-                var result = await LookupFromArrAsync(conn, cleanTitle);
+                var result = await this.LookupFromArrAsync(conn, cleanTitle);
                 if (result != null)
                 {
                     return result;
@@ -89,7 +95,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Failed lookup on Arr instance {0}", conn.Name);
+                this.logger.Debug(ex, "Failed lookup on Arr instance {0}", conn.Name);
             }
         }
 
@@ -100,7 +106,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             Year = year ?? 0,
             MediaType = preferredType == "Radarr" ? "Movie" : preferredType == "Lidarr" ? "Music" : "TV",
             Overview = $"Metadata synchronized from Servarr instance for {cleanTitle}.",
-            Rating = 8.0
+            Rating = 8.0,
         };
     }
 
@@ -125,7 +131,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             req.Headers.Add("X-Api-Key", conn.ApiKey);
         }
 
-        var resp = await _httpClient.SendAsync(req);
+        var resp = await this.httpClient.SendAsync(req);
         if (!resp.IsSuccessStatusCode)
         {
             return null;
@@ -144,7 +150,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             Title = first.TryGetProperty("title", out var t) ? t.GetString() : title,
             Year = first.TryGetProperty("year", out var y) && y.TryGetInt32(out var yr) ? yr : 0,
             Overview = first.TryGetProperty("overview", out var ov) ? ov.GetString() : string.Empty,
-            MediaType = isMovie ? "Movie" : isMusic ? "Music" : "TV"
+            MediaType = isMovie ? "Movie" : isMusic ? "Music" : "TV",
         };
 
         if (first.TryGetProperty("ratings", out var ratings) && ratings.TryGetProperty("value", out var rVal) && rVal.TryGetDouble(out var r))
@@ -214,7 +220,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
 
         var clean = System.Text.RegularExpressions.Regex.Replace(raw, @"[._-]", " ");
-        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper)\b.*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper)\b.*$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return clean.Trim();
     }
 }

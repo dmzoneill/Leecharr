@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using FluentAssertions;
 using NUnit.Framework;
@@ -37,7 +39,7 @@ public class MagnetLinkParserTest
     [Test]
     public void Parse_WhenEmpty_ThrowsArgumentException()
     {
-        Action act = () => MagnetLinkParser.Parse("");
+        Action act = () => MagnetLinkParser.Parse(string.Empty);
         act.Should().Throw<ArgumentException>();
     }
 

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -16,10 +18,10 @@ public class QBittorrentApiTests : IntegrationTestBase
         var formData = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("username", "admin"),
-            new KeyValuePair<string, string>("password", "adminadmin")
+            new KeyValuePair<string, string>("password", "adminadmin"),
         });
 
-        var response = await Client.PostAsync("/api/v2/auth/login", formData);
+        var response = await this.Client.PostAsync("/api/v2/auth/login", formData);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
@@ -29,7 +31,7 @@ public class QBittorrentApiTests : IntegrationTestBase
     [Test]
     public async Task GetTorrentsInfo_ReturnsOkJson()
     {
-        var response = await GetAsync("/api/v2/torrents/info");
+        var response = await this.GetAsync("/api/v2/torrents/info");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -39,7 +41,7 @@ public class QBittorrentApiTests : IntegrationTestBase
     [Test]
     public async Task GetSyncMaindata_ReturnsOkJson()
     {
-        var response = await GetAsync("/api/v2/sync/maindata?rid=0");
+        var response = await this.GetAsync("/api/v2/sync/maindata?rid=0");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -57,14 +59,14 @@ public class QBittorrentApiTests : IntegrationTestBase
         {
             new KeyValuePair<string, string>("urls", magnet),
             new KeyValuePair<string, string>("category", "movies"),
-            new KeyValuePair<string, string>("paused", "true")
+            new KeyValuePair<string, string>("paused", "true"),
         });
 
-        var addResponse = await Client.PostAsync("/api/v2/torrents/add", addForm);
+        var addResponse = await this.Client.PostAsync("/api/v2/torrents/add", addForm);
         addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Verify torrent appears in info
-        var infoResponse = await GetAsync($"/api/v2/torrents/info?hashes={hash}");
+        var infoResponse = await this.GetAsync($"/api/v2/torrents/info?hashes={hash}");
         infoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var infoJson = await infoResponse.Content.ReadAsStringAsync();
         infoJson.Should().Contain(hash);
@@ -72,30 +74,30 @@ public class QBittorrentApiTests : IntegrationTestBase
         // 2. Resume Torrent
         var resumeForm = new FormUrlEncodedContent(new[]
         {
-            new KeyValuePair<string, string>("hashes", hash)
+            new KeyValuePair<string, string>("hashes", hash),
         });
-        var resumeResponse = await Client.PostAsync("/api/v2/torrents/resume", resumeForm);
+        var resumeResponse = await this.Client.PostAsync("/api/v2/torrents/resume", resumeForm);
         resumeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 3. Pause Torrent
         var pauseForm = new FormUrlEncodedContent(new[]
         {
-            new KeyValuePair<string, string>("hashes", hash)
+            new KeyValuePair<string, string>("hashes", hash),
         });
-        var pauseResponse = await Client.PostAsync("/api/v2/torrents/pause", pauseForm);
+        var pauseResponse = await this.Client.PostAsync("/api/v2/torrents/pause", pauseForm);
         pauseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 4. Delete Torrent with files
         var deleteForm = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("hashes", hash),
-            new KeyValuePair<string, string>("deleteFiles", "true")
+            new KeyValuePair<string, string>("deleteFiles", "true"),
         });
-        var deleteResponse = await Client.PostAsync("/api/v2/torrents/delete", deleteForm);
+        var deleteResponse = await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Verify torrent is gone
-        var verifyResponse = await GetAsync($"/api/v2/torrents/info?hashes={hash}");
+        var verifyResponse = await this.GetAsync($"/api/v2/torrents/info?hashes={hash}");
         verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var verifyJson = await verifyResponse.Content.ReadAsStringAsync();
         verifyJson.Should().Be("[]");

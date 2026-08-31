@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Linq;
@@ -15,14 +17,14 @@ namespace Leecharr.Core.Test.Bandwidth;
 [TestFixture]
 public class SpeedScheduleRepositoryTest
 {
-    private string _dbPath = null!;
-    private SpeedScheduleRepository _repository = null!;
+    private string dbPath = null!;
+    private SpeedScheduleRepository repository = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-speed-repo-test-{Guid.NewGuid():N}.db");
-        var connectionString = $"Data Source={_dbPath};";
+        this.dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-speed-repo-test-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={this.dbPath};";
 
         var serviceProvider = new ServiceCollection()
             .AddFluentMigratorCore()
@@ -41,18 +43,18 @@ public class SpeedScheduleRepositoryTest
 
         TableRegistration.RegisterTables();
         var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
-        _repository = new SpeedScheduleRepository(database);
+        this.repository = new SpeedScheduleRepository(database);
     }
 
     [TearDown]
     public void TearDown()
     {
         SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
+        if (File.Exists(this.dbPath))
         {
             try
             {
-                File.Delete(_dbPath);
+                File.Delete(this.dbPath);
             }
             catch
             {
@@ -73,7 +75,7 @@ public class SpeedScheduleRepositoryTest
             MaxDownloadSpeed = 1000,
             MaxUploadSpeed = 500,
             IsEnabled = true,
-            Priority = 2
+            Priority = 2,
         };
         var schedule2 = new SpeedSchedule
         {
@@ -84,7 +86,7 @@ public class SpeedScheduleRepositoryTest
             MaxDownloadSpeed = 500,
             MaxUploadSpeed = 250,
             IsEnabled = true,
-            Priority = 1
+            Priority = 1,
         };
         var disabledSchedule = new SpeedSchedule
         {
@@ -95,14 +97,14 @@ public class SpeedScheduleRepositoryTest
             MaxDownloadSpeed = 10000,
             MaxUploadSpeed = 5000,
             IsEnabled = false,
-            Priority = 0
+            Priority = 0,
         };
 
-        _repository.Insert(schedule1);
-        _repository.Insert(schedule2);
-        _repository.Insert(disabledSchedule);
+        this.repository.Insert(schedule1);
+        this.repository.Insert(schedule2);
+        this.repository.Insert(disabledSchedule);
 
-        var result = _repository.GetEnabled().ToList();
+        var result = this.repository.GetEnabled().ToList();
 
         result.Should().HaveCount(2);
         result[0].Name.Should().Be("Peak Hours");
@@ -118,11 +120,11 @@ public class SpeedScheduleRepositoryTest
         {
             Name = "Disabled",
             IsEnabled = false,
-            Priority = 1
+            Priority = 1,
         };
-        _repository.Insert(disabledSchedule);
+        this.repository.Insert(disabledSchedule);
 
-        var result = _repository.GetEnabled().ToList();
+        var result = this.repository.GetEnabled().ToList();
 
         result.Should().BeEmpty();
     }

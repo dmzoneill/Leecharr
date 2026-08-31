@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -15,24 +17,29 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 {
-    private readonly IConfigService _configService;
-    private readonly IStoragePathService _storagePathService;
-    private readonly ICategoryService _categoryService;
-    private readonly IDiskProvider _diskProvider;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly IConfigService configService;
+    private readonly IStoragePathService storagePathService;
+    private readonly ICategoryService categoryService;
+    private readonly IDiskProvider diskProvider;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
-    private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> _tasks = new();
-    private readonly ConcurrentDictionary<string, int> _infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
+    private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
 
-    private bool _isRunning;
-    private bool _disposed;
+    private bool isRunning;
+    private bool disposed;
 
     public string ProtocolName => "BitTorrent";
+
     public string EngineId => "LibTorrent";
+
     public string DisplayName => "libtorrent (Rasterbar C++)";
+
     public string Version => "2.0.10 (libtorrent-rasterbar)";
+
     public string Description => "High-performance C++20 BitTorrent engine with memory-mapped file I/O, BitTorrent v2 Merkle trees, and LEDBAT uTP.";
+
     public bool IsAvailable => CheckNativeAvailability();
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
@@ -48,7 +55,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
         SupportsDynamicRateLimits = true,
         SupportsSparseAllocation = true,
         SupportsMemoryMappedIo = true,
-        SupportsEncryptionToggle = true
+        SupportsEncryptionToggle = true,
     };
 
     public LibTorrentDownloadEngine(
@@ -58,12 +65,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator)
     {
-        _configService = configService;
-        _storagePathService = storagePathService;
-        _categoryService = categoryService;
-        _diskProvider = diskProvider;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.storagePathService = storagePathService;
+        this.categoryService = categoryService;
+        this.diskProvider = diskProvider;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
@@ -91,57 +98,57 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
                 ? "libtorrent engine is active with hardware-accelerated C++ backend."
                 : "libtorrent engine is ready in high-compatibility managed mode.",
             DependencyChecks = checks,
-            Warnings = warnings
+            Warnings = warnings,
         });
     }
 
     public async Task StartAsync()
     {
-        if (_isRunning)
+        if (this.isRunning)
         {
             return;
         }
 
-        _logger.Info("Starting libtorrent engine session...");
-        _isRunning = true;
+        this.logger.Info("Starting libtorrent engine session...");
+        this.isRunning = true;
         await Task.CompletedTask;
     }
 
     public async Task StopAsync()
     {
-        if (!_isRunning)
+        if (!this.isRunning)
         {
             return;
         }
 
-        _logger.Info("Stopping libtorrent engine session...");
-        _isRunning = false;
-        _tasks.Clear();
-        _infoHashToId.Clear();
+        this.logger.Info("Stopping libtorrent engine session...");
+        this.isRunning = false;
+        this.tasks.Clear();
+        this.infoHashToId.Clear();
         await Task.CompletedTask;
     }
 
     public async Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
     {
-        if (!_isRunning)
+        if (!this.isRunning)
         {
-            await StartAsync();
+            await this.StartAsync();
         }
 
         var task = new LibTorrentDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize);
-        _tasks[torrent.Id] = task;
-        _infoHashToId[torrent.InfoHash] = torrent.Id;
+        this.tasks[torrent.Id] = task;
+        this.infoHashToId[torrent.InfoHash] = torrent.Id;
 
-        _logger.Info("libtorrent: Ingested torrent {0} ({1})", torrent.Name, torrent.InfoHash);
+        this.logger.Info("libtorrent: Ingested torrent {0} ({1})", torrent.Name, torrent.InfoHash);
         return task;
     }
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
-        if (_tasks.TryRemove(torrentId, out var task))
+        if (this.tasks.TryRemove(torrentId, out var task))
         {
-            _infoHashToId.TryRemove(task.InfoHash, out _);
-            _logger.Info("libtorrent: Removed torrent {0} (deleteFiles: {1})", task.InfoHash, deleteFiles);
+            this.infoHashToId.TryRemove(task.InfoHash, out _);
+            this.logger.Info("libtorrent: Removed torrent {0} (deleteFiles: {1})", task.InfoHash, deleteFiles);
         }
 
         await Task.CompletedTask;
@@ -149,10 +156,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task PauseTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Paused;
-            _logger.Info("libtorrent: Paused torrent id {0}", torrentId);
+            this.logger.Info("libtorrent: Paused torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -160,10 +167,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Downloading;
-            _logger.Info("libtorrent: Resumed torrent id {0}", torrentId);
+            this.logger.Info("libtorrent: Resumed torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -171,10 +178,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task ForceRecheckAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Checking;
-            _logger.Info("libtorrent: Initiated recheck for torrent id {0}", torrentId);
+            this.logger.Info("libtorrent: Initiated recheck for torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -182,37 +189,37 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task ForceAnnounceAsync(int torrentId)
     {
-        _logger.Debug("libtorrent: Triggered force announce for torrent id {0}", torrentId);
+        this.logger.Debug("libtorrent: Triggered force announce for torrent id {0}", torrentId);
         await Task.CompletedTask;
     }
 
     public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
-        _logger.Debug("libtorrent: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
+        this.logger.Debug("libtorrent: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
         return Task.CompletedTask;
     }
 
     public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
     {
-        _logger.Debug("libtorrent: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
+        this.logger.Debug("libtorrent: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
         return Task.CompletedTask;
     }
 
     public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
     {
-        _logger.Debug("libtorrent: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
+        this.logger.Debug("libtorrent: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
         return Task.CompletedTask;
     }
 
     public IDownloadTask GetTask(int torrentId)
     {
-        _tasks.TryGetValue(torrentId, out var task);
+        this.tasks.TryGetValue(torrentId, out var task);
         return task;
     }
 
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
-        return _tasks.Values;
+        return this.tasks.Values;
     }
 
     private static bool CheckNativeAvailability()
@@ -231,7 +238,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
                 "/usr/lib/aarch64-linux-gnu",
                 "/usr/lib",
                 "/usr/lib64",
-                "/usr/local/lib"
+                "/usr/local/lib",
             };
 
             foreach (var dir in candidatePaths)
@@ -256,11 +263,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _tasks.Clear();
-            _infoHashToId.Clear();
+            this.disposed = true;
+            this.tasks.Clear();
+            this.infoHashToId.Clear();
         }
     }
 }
@@ -268,27 +275,39 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 public class LibTorrentDownloadTask : IDownloadTask
 {
     public int TorrentId { get; }
+
     public string InfoHash { get; }
+
     public string Name { get; }
+
     public long TotalSize { get; }
 
     public TorrentStatus Status { get; set; } = TorrentStatus.Downloading;
+
     public long DownloadedBytes { get; set; }
+
     public long UploadedBytes { get; set; }
+
     public double Progress { get; set; }
+
     public long DownloadSpeed { get; set; }
+
     public long UploadSpeed { get; set; }
+
     public int ConnectedSeeders { get; set; } = 5;
+
     public int ConnectedLeechers { get; set; } = 2;
+
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
+
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
 
     public LibTorrentDownloadTask(int torrentId, string infoHash, string name, long totalSize)
     {
-        TorrentId = torrentId;
-        InfoHash = infoHash;
-        Name = name;
-        TotalSize = totalSize;
+        this.TorrentId = torrentId;
+        this.InfoHash = infoHash;
+        this.Name = name;
+        this.TotalSize = totalSize;
     }
 
     public IReadOnlyList<PeerInfo> GetPeers()

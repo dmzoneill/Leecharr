@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using Dapper;
 using NzbDrone.Core.ArrIntegration;

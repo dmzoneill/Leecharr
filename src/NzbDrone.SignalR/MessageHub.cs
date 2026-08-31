@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,11 +12,11 @@ namespace NzbDrone.SignalR;
 public class MessageHub : Hub
 {
     private static readonly HashSet<string> Connections = new();
-    private readonly Logger _logger;
+    private readonly Logger logger;
 
     public MessageHub()
     {
-        _logger = LogManager.GetCurrentClassLogger();
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public static bool IsConnected
@@ -32,28 +34,28 @@ public class MessageHub : Hub
     {
         lock (Connections)
         {
-            Connections.Add(Context.ConnectionId);
+            Connections.Add(this.Context.ConnectionId);
         }
 
-        _logger.Debug("SignalR client connected: {0}", Context.ConnectionId);
+        this.logger.Debug("SignalR client connected: {0}", this.Context.ConnectionId);
 
         var message = new SignalRMessage
         {
             Name = "version",
-            Body = new { Version = BuildInfo.Version.ToString() }
+            Body = new { Version = BuildInfo.Version.ToString() },
         };
 
-        return Clients.Caller.SendAsync("receiveMessage", message);
+        return this.Clients.Caller.SendAsync("receiveMessage", message);
     }
 
     public override Task OnDisconnectedAsync(Exception exception)
     {
         lock (Connections)
         {
-            Connections.Remove(Context.ConnectionId);
+            Connections.Remove(this.Context.ConnectionId);
         }
 
-        _logger.Debug("SignalR client disconnected: {0}", Context.ConnectionId);
+        this.logger.Debug("SignalR client disconnected: {0}", this.Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);
     }
 }

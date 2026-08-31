@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 
@@ -60,7 +62,7 @@ public static class CliProcessDiscovery
             "/bin",
             "/opt/homebrew/bin",
             "/usr/pkg/bin",
-            AppContext.BaseDirectory
+            AppContext.BaseDirectory,
         };
 
         foreach (var dir in standardPaths)
@@ -93,7 +95,7 @@ public static class CliProcessDiscovery
                 Path.Combine(programFiles, "ffprobe", "bin"),
                 Path.Combine(localAppData, "Programs", "7-Zip"),
                 Path.Combine(localAppData, "Programs", "MediaInfo"),
-                Path.Combine(localAppData, "Programs", "ffmpeg", "bin")
+                Path.Combine(localAppData, "Programs", "ffmpeg", "bin"),
             };
 
             foreach (var dir in winDirs)

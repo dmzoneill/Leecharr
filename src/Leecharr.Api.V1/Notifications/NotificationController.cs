@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,36 +13,36 @@ namespace Leecharr.Api.V1.Notifications;
 [V1ApiController("notifications")]
 public class NotificationController : Controller
 {
-    private readonly INotificationRepository _notificationRepository;
-    private readonly IWebhookDispatcher _webhookDispatcher;
-    private readonly ICustomScriptService _customScriptService;
+    private readonly INotificationRepository notificationRepository;
+    private readonly IWebhookDispatcher webhookDispatcher;
+    private readonly ICustomScriptService customScriptService;
 
     public NotificationController(
         INotificationRepository notificationRepository,
         IWebhookDispatcher webhookDispatcher,
         ICustomScriptService customScriptService)
     {
-        _notificationRepository = notificationRepository;
-        _webhookDispatcher = webhookDispatcher;
-        _customScriptService = customScriptService;
+        this.notificationRepository = notificationRepository;
+        this.webhookDispatcher = webhookDispatcher;
+        this.customScriptService = customScriptService;
     }
 
     [HttpGet]
     public ActionResult<List<NotificationResource>> GetAll()
     {
-        return Ok(_notificationRepository.All().Select(ToResource).ToList());
+        return this.Ok(this.notificationRepository.All().Select(ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<NotificationResource> GetById(int id)
     {
-        var item = _notificationRepository.Get(id);
+        var item = this.notificationRepository.Get(id);
         if (item == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(item));
+        return this.Ok(ToResource(item));
     }
 
     [HttpPost]
@@ -48,12 +50,12 @@ public class NotificationController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _notificationRepository.Insert(model);
-        return Ok(ToResource(created));
+        var created = this.notificationRepository.Insert(model);
+        return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -61,38 +63,38 @@ public class NotificationController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _notificationRepository.Get(id);
+        var existing = this.notificationRepository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
         model.Id = id;
-        _notificationRepository.Update(model);
-        return Ok(ToResource(model));
+        this.notificationRepository.Update(model);
+        return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _notificationRepository.Delete(id);
-        return Ok();
+        this.notificationRepository.Delete(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/test")]
     public async Task<ActionResult<NotificationTestResult>> Test(int id)
     {
-        var item = _notificationRepository.Get(id);
+        var item = this.notificationRepository.Get(id);
         if (item == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return await TestInternal(item);
+        return await this.TestInternal(item);
     }
 
     [HttpPost("test")]
@@ -100,11 +102,11 @@ public class NotificationController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        return await TestInternal(model);
+        return await this.TestInternal(model);
     }
 
     private async Task<ActionResult<NotificationTestResult>> TestInternal(NotificationDefinition notif)
@@ -124,7 +126,7 @@ public class NotificationController : Controller
                         color = 16765286, // Gold
                         timestamp = DateTime.UtcNow.ToString("o")
                     }
-                }
+                },
             };
         }
         else if (string.Equals(notif.Implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
@@ -133,7 +135,7 @@ public class NotificationController : Controller
             var telegramPayload = new Dictionary<string, object>
             {
                 ["text"] = "*Leecharr Test Notification*\nYour Telegram notification connection is working properly.",
-                ["parse_mode"] = "Markdown"
+                ["parse_mode"] = "Markdown",
             };
 
             if (!string.IsNullOrEmpty(chatId))
@@ -149,7 +151,7 @@ public class NotificationController : Controller
             {
                 title = "Leecharr: Test",
                 message = "This is a test notification from Leecharr.",
-                priority = 5
+                priority = 5,
             };
         }
         else if (string.Equals(notif.Implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
@@ -159,7 +161,7 @@ public class NotificationController : Controller
             var pushoverPayload = new Dictionary<string, object>
             {
                 ["title"] = "Leecharr: Test",
-                ["message"] = "This is a test notification from Leecharr."
+                ["message"] = "This is a test notification from Leecharr.",
             };
 
             if (!string.IsNullOrEmpty(token))
@@ -180,26 +182,26 @@ public class NotificationController : Controller
             {
                 EventType = "Test",
                 Message = "Leecharr test notification",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
             };
         }
 
         if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
         {
-            var success = await _customScriptService.ExecuteScriptAsync(notif.Settings, null, "Test");
-            return Ok(new NotificationTestResult
+            var success = await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "Test");
+            return this.Ok(new NotificationTestResult
             {
                 Success = success,
-                Message = success ? "Script executed successfully." : "Script execution failed."
+                Message = success ? "Script executed successfully." : "Script execution failed.",
             });
         }
         else
         {
-            var success = await _webhookDispatcher.DispatchAsync(notif.Settings, payload);
-            return Ok(new NotificationTestResult
+            var success = await this.webhookDispatcher.DispatchAsync(notif.Settings, payload);
+            return this.Ok(new NotificationTestResult
             {
                 Success = success,
-                Message = success ? "Webhook dispatched successfully." : "Webhook dispatch failed."
+                Message = success ? "Webhook dispatched successfully." : "Webhook dispatch failed.",
             });
         }
     }
@@ -224,7 +226,7 @@ public class NotificationController : Controller
             OnHealthRestored = n.OnHealthRestored,
             OnManualInteractionRequired = n.OnManualInteractionRequired,
             OnApplicationUpdate = n.OnApplicationUpdate,
-            Tags = n.Tags ?? new List<int>()
+            Tags = n.Tags ?? new List<int>(),
         };
     }
 
@@ -248,7 +250,7 @@ public class NotificationController : Controller
             OnHealthRestored = r.OnHealthRestored,
             OnManualInteractionRequired = r.OnManualInteractionRequired,
             OnApplicationUpdate = r.OnApplicationUpdate,
-            Tags = r.Tags ?? new List<int>()
+            Tags = r.Tags ?? new List<int>(),
         };
     }
 

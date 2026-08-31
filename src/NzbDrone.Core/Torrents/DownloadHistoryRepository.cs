@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,34 +10,34 @@ namespace NzbDrone.Core.Torrents;
 
 public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDownloadHistoryRepository
 {
-    private readonly IDatabase _database;
+    private readonly IDatabase database;
 
     public DownloadHistoryRepository(IDatabase database)
         : base(database)
     {
-        _database = database;
+        this.database = database;
     }
 
     public DownloadHistory FindByInfoHash(string infoHash)
     {
-        using var connection = _database.OpenConnection();
+        using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{_table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
             new { InfoHash = infoHash });
     }
 
     public DownloadHistory FindByTorrentId(int torrentId)
     {
-        using var connection = _database.OpenConnection();
+        using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{_table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
+            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
             new { TorrentId = torrentId });
     }
 
     public List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500)
     {
-        using var connection = _database.OpenConnection();
-        var sql = new StringBuilder($"SELECT * FROM \"{_table}\" WHERE 1=1");
+        using var connection = this.database.OpenConnection();
+        var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
         var parameters = new DynamicParameters();
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -63,7 +65,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
     public void DeleteAll()
     {
-        using var connection = _database.OpenConnection();
-        connection.Execute($"DELETE FROM \"{_table}\"");
+        using var connection = this.database.OpenConnection();
+        connection.Execute($"DELETE FROM \"{this.table}\"");
     }
 }

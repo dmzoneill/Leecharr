@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Core.Datastore;
@@ -7,7 +9,9 @@ namespace NzbDrone.Core.Indexers;
 public interface IIndexerRepository : IBasicRepository<IndexerDefinition>
 {
     IEnumerable<IndexerDefinition> GetEnabled();
+
     IEnumerable<IndexerDefinition> GetSearchEnabled();
+
     IEnumerable<IndexerDefinition> GetRssEnabled();
 }
 
@@ -20,16 +24,16 @@ public class IndexerRepository : BasicRepository<IndexerDefinition>, IIndexerRep
 
     public IEnumerable<IndexerDefinition> GetEnabled()
     {
-        return All().Where(i => i.Enable).OrderBy(i => i.Priority);
+        return this.All().Where(i => i.Enable).OrderBy(i => i.Priority);
     }
 
     public IEnumerable<IndexerDefinition> GetSearchEnabled()
     {
-        return All().Where(i => i.Enable && i.EnableSearch).OrderBy(i => i.Priority);
+        return this.All().Where(i => i.Enable && i.EnableSearch).OrderBy(i => i.Priority);
     }
 
     public IEnumerable<IndexerDefinition> GetRssEnabled()
     {
-        return All().Where(i => i.Enable && i.EnableRss).OrderBy(i => i.Priority);
+        return this.All().Where(i => i.Enable && i.EnableRss).OrderBy(i => i.Priority);
     }
 }

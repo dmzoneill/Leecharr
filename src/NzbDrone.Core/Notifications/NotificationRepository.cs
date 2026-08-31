@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Core.Datastore;
@@ -18,6 +20,6 @@ public class NotificationRepository : BasicRepository<NotificationDefinition>, I
 
     public IEnumerable<NotificationDefinition> GetEnabled()
     {
-        return All().Where(c => c.Enable);
+        return this.All().Where(c => c.Enable);
     }
 }

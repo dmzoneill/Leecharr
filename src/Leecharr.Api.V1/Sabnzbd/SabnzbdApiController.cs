@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,11 +18,11 @@ namespace Leecharr.Api.V1.Sabnzbd;
 [ApiController]
 public class SabnzbdApiController : ControllerBase
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SabnzbdApiController(
         ITorrentService torrentService,
@@ -28,10 +30,10 @@ public class SabnzbdApiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -46,22 +48,22 @@ public class SabnzbdApiController : ControllerBase
         [FromQuery] string priority,
         [FromQuery] string output)
     {
-        var formMode = Request.HasFormContentType ? Request.Form["mode"].ToString() : string.Empty;
-        var formName = Request.HasFormContentType ? Request.Form["name"].ToString() : string.Empty;
-        var formValue = Request.HasFormContentType ? Request.Form["value"].ToString() : string.Empty;
-        var formValue2 = Request.HasFormContentType ? Request.Form["value2"].ToString() : string.Empty;
-        var formCat = Request.HasFormContentType ? Request.Form["cat"].ToString() : string.Empty;
+        var formMode = this.Request.HasFormContentType ? this.Request.Form["mode"].ToString() : string.Empty;
+        var formName = this.Request.HasFormContentType ? this.Request.Form["name"].ToString() : string.Empty;
+        var formValue = this.Request.HasFormContentType ? this.Request.Form["value"].ToString() : string.Empty;
+        var formValue2 = this.Request.HasFormContentType ? this.Request.Form["value2"].ToString() : string.Empty;
+        var formCat = this.Request.HasFormContentType ? this.Request.Form["cat"].ToString() : string.Empty;
 
         var effectiveMode = (!string.IsNullOrWhiteSpace(mode) ? mode : formMode).ToLowerInvariant();
 
         switch (effectiveMode)
         {
             case "version":
-                return Ok(new { version = "4.3.2" });
+                return this.Ok(new { version = "4.3.2" });
 
             case "fullstatus":
             case "status":
-                return Ok(new
+                return this.Ok(new
                 {
                     status = new
                     {
@@ -69,22 +71,22 @@ public class SabnzbdApiController : ControllerBase
                         paused = false,
                         restart_req = false,
                         power_options = true,
-                        speedlimit = _configService.MaxDownloadSpeedKbps.ToString(),
-                        color_scheme = "gold"
+                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(),
+                        color_scheme = "gold",
                     },
-                    version = "4.3.2"
+                    version = "4.3.2",
                 });
 
             case "auth":
             case "get_config":
             case "set_config":
             case "config":
-                var paramName = Request.Query["name"].ToString();
-                var paramVal = Request.Query["value"].ToString();
-                if (string.IsNullOrEmpty(paramName) && Request.HasFormContentType)
+                var paramName = this.Request.Query["name"].ToString();
+                var paramVal = this.Request.Query["value"].ToString();
+                if (string.IsNullOrEmpty(paramName) && this.Request.HasFormContentType)
                 {
-                    paramName = Request.Form["name"].ToString();
-                    paramVal = Request.Form["value"].ToString();
+                    paramName = this.Request.Form["name"].ToString();
+                    paramVal = this.Request.Form["value"].ToString();
                 }
 
                 if (!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramVal))
@@ -105,144 +107,144 @@ public class SabnzbdApiController : ControllerBase
 
                     if (cfgDict.Count > 0)
                     {
-                        _configService.SaveConfigDictionary(cfgDict);
+                        this.configService.SaveConfigDictionary(cfgDict);
                     }
                 }
 
-                var configuredCats = _categoryService.GetAll().ToList();
+                var configuredCats = this.categoryService.GetAll().ToList();
                 var catNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
                 foreach (var c in configuredCats)
                 {
                     catNames.Add(c.Name);
                 }
 
-                return Ok(new
+                return this.Ok(new
                 {
                     config = new
                     {
                         version = "4.3.2",
                         misc = new
                         {
-                            complete_dir = _configService.DownloadDir ?? "/downloads",
-                            download_dir = _configService.IncompleteDownloadDir ?? "/downloads/incomplete"
+                            complete_dir = this.configService.DownloadDir ?? "/downloads",
+                            download_dir = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete"
                         },
-                        categories = catNames.Select(name => new { name, dir = _configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
-                    }
+                        categories = catNames.Select(name => new { name, dir = this.configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
+                    },
                 });
 
             case "get_cats":
                 var allCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
-                foreach (var c in _categoryService.GetAll())
+                foreach (var c in this.categoryService.GetAll())
                 {
                     allCats.Add(c.Name);
                 }
 
-                return Ok(new { categories = allCats.ToList() });
+                return this.Ok(new { categories = allCats.ToList() });
 
             case "queue":
                 var queueSubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
                 var queueVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
-                var queueVal2 = !string.IsNullOrWhiteSpace(Request.Query["value2"].ToString())
-                    ? Request.Query["value2"].ToString()
+                var queueVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
+                    ? this.Request.Query["value2"].ToString()
                     : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
 
-                var delFiles = Request.Query["del_files"] == "1" ||
-                    (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                var delFiles = this.Request.Query["del_files"] == "1" ||
+                    (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
                     string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
 
                 if (queueSubAction == "delete")
                 {
-                    var target = _torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(queueVal);
                     if (target != null)
                     {
-                        await _torrentService.DeleteAsync(target.Id, delFiles);
+                        await this.torrentService.DeleteAsync(target.Id, delFiles);
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
                 else if (queueSubAction == "pause")
                 {
                     if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
                     {
-                        foreach (var t in _torrentService.GetAll())
+                        foreach (var t in this.torrentService.GetAll())
                         {
-                            await _torrentService.PauseAsync(t.Id);
+                            await this.torrentService.PauseAsync(t.Id);
                         }
                     }
                     else
                     {
-                        var target = _torrentService.GetByInfoHash(queueVal);
+                        var target = this.torrentService.GetByInfoHash(queueVal);
                         if (target != null)
                         {
-                            await _torrentService.PauseAsync(target.Id);
+                            await this.torrentService.PauseAsync(target.Id);
                         }
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
                 else if (queueSubAction == "resume")
                 {
                     if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
                     {
-                        foreach (var t in _torrentService.GetAll())
+                        foreach (var t in this.torrentService.GetAll())
                         {
-                            await _torrentService.ResumeAsync(t.Id);
+                            await this.torrentService.ResumeAsync(t.Id);
                         }
                     }
                     else
                     {
-                        var target = _torrentService.GetByInfoHash(queueVal);
+                        var target = this.torrentService.GetByInfoHash(queueVal);
                         if (target != null)
                         {
-                            await _torrentService.ResumeAsync(target.Id);
+                            await this.torrentService.ResumeAsync(target.Id);
                         }
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
                 else if (queueSubAction == "change_cat")
                 {
-                    var target = _torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(queueVal);
                     if (target != null && !string.IsNullOrWhiteSpace(queueVal2))
                     {
                         target.Category = queueVal2;
-                        await _torrentService.UpdateAsync(target);
+                        await this.torrentService.UpdateAsync(target);
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
                 else if (queueSubAction == "priority" || queueSubAction.StartsWith("move_"))
                 {
-                    var target = _torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(queueVal);
                     if (target != null)
                     {
                         if (queueSubAction == "priority" && int.TryParse(queueVal2, out var prio))
                         {
                             target.Priority = prio;
-                            await _torrentService.UpdateAsync(target);
+                            await this.torrentService.UpdateAsync(target);
                         }
                         else if (queueSubAction.Contains("top") || queueVal2 == "0")
                         {
-                            await _torrentService.MoveQueueAsync(target.Id, "top");
+                            await this.torrentService.MoveQueueAsync(target.Id, "top");
                         }
                         else if (queueSubAction.Contains("bottom") || queueSubAction.Contains("end"))
                         {
-                            await _torrentService.MoveQueueAsync(target.Id, "bottom");
+                            await this.torrentService.MoveQueueAsync(target.Id, "bottom");
                         }
                         else if (queueSubAction.Contains("up"))
                         {
-                            await _torrentService.MoveQueueAsync(target.Id, "up");
+                            await this.torrentService.MoveQueueAsync(target.Id, "up");
                         }
                         else if (queueSubAction.Contains("down"))
                         {
-                            await _torrentService.MoveQueueAsync(target.Id, "down");
+                            await this.torrentService.MoveQueueAsync(target.Id, "down");
                         }
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
 
-                var allTorrents = _torrentService.GetAll().ToList();
+                var allTorrents = this.torrentService.GetAll().ToList();
                 var queueSlots = allTorrents
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
                     .Select(t =>
@@ -263,22 +265,22 @@ public class SabnzbdApiController : ControllerBase
                             cat = t.Category ?? "default",
                             priority = "Normal",
                             timeleft = timeleftStr,
-                            percentage = ((int)(t.Progress * 100)).ToString()
+                            percentage = ((int)(t.Progress * 100)).ToString(),
                         };
                     }).ToList();
 
-                var freeSpaceGb = (GetDriveFreeSpace(_configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incFreeSpaceGb = (GetDriveFreeSpace(_configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var totalSpaceGb = (GetDriveTotalSpace(_configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incTotalSpaceGb = (GetDriveTotalSpace(_configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var freeSpaceGb = (GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incFreeSpaceGb = (GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var totalSpaceGb = (GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incTotalSpaceGb = (GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
 
-                return Ok(new
+                return this.Ok(new
                 {
                     queue = new
                     {
                         status = "Downloading",
                         speed = (allTorrents.Sum(t => t.DownloadSpeed) / 1024.0).ToString("F1") + " KB/s",
-                        speedlimit = _configService.MaxDownloadSpeedKbps.ToString(),
+                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(),
                         paused = false,
                         noofslots_total = queueSlots.Count,
                         diskspace1 = freeSpaceGb,
@@ -286,29 +288,29 @@ public class SabnzbdApiController : ControllerBase
                         diskspacetotal1 = totalSpaceGb,
                         diskspacetotal2 = incTotalSpaceGb,
                         slots = queueSlots
-                    }
+                    },
                 });
 
             case "history":
                 var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
                 var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
-                var histDelFiles = Request.Query["del_files"] == "1" ||
-                    (Request.HasFormContentType && Request.Form["del_files"] == "1") ||
+                var histDelFiles = this.Request.Query["del_files"] == "1" ||
+                    (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
                     string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
 
                 if (historySubAction == "delete")
                 {
-                    var target = _torrentService.GetByInfoHash(historyVal);
+                    var target = this.torrentService.GetByInfoHash(historyVal);
                     if (target != null)
                     {
-                        await _torrentService.DeleteAsync(target.Id, histDelFiles);
+                        await this.torrentService.DeleteAsync(target.Id, histDelFiles);
                     }
 
-                    return Ok(new { status = true });
+                    return this.Ok(new { status = true });
                 }
 
                 var nowUtc = DateTime.UtcNow;
-                var finishedTorrents = _torrentService.GetAll()
+                var finishedTorrents = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
                     .Select(t =>
                     {
@@ -325,11 +327,11 @@ public class SabnzbdApiController : ControllerBase
                             bytes = t.TotalSize,
                             category = t.Category ?? "default",
                             status = "Completed",
-                            storage = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-                            path = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            storage = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+                            path = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                             download_time = downloadSeconds,
                             completename = t.Name ?? string.Empty,
-                            completed = t.DateCompleted ?? t.DateAdded
+                            completed = t.DateCompleted ?? t.DateAdded,
                         };
                     }).ToList();
 
@@ -339,7 +341,7 @@ public class SabnzbdApiController : ControllerBase
                 var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
                 var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
 
-                return Ok(new
+                return this.Ok(new
                 {
                     history = new
                     {
@@ -348,7 +350,7 @@ public class SabnzbdApiController : ControllerBase
                         week_size = (weekBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
                         noofslots = finishedTorrents.Count,
                         slots = finishedTorrents
-                    }
+                    },
                 });
 
             case "addurl":
@@ -360,14 +362,14 @@ public class SabnzbdApiController : ControllerBase
                 {
                     if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        var added = await _torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
+                        var added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
                         if (added != null)
                         {
-                            var prioStr = Request.Query["priority"].ToString();
+                            var prioStr = this.Request.Query["priority"].ToString();
                             if (int.TryParse(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
 
                             addedId = added.InfoHash;
@@ -377,15 +379,15 @@ public class SabnzbdApiController : ControllerBase
                     {
                         using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                         var bytes = await client.GetByteArrayAsync(targetUrl);
-                        var parsed = _torrentFileParser.Parse(bytes);
-                        var added = await _torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
                         if (added != null)
                         {
-                            var prioStr = Request.Query["priority"].ToString();
+                            var prioStr = this.Request.Query["priority"].ToString();
                             if (int.TryParse(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
 
                             addedId = added.InfoHash;
@@ -393,101 +395,101 @@ public class SabnzbdApiController : ControllerBase
                     }
                 }
 
-                return Ok(new { status = true, nzo_ids = new[] { addedId } });
+                return this.Ok(new { status = true, nzo_ids = new[] { addedId } });
 
             case "addfile":
             case "addlocalfile":
-                if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+                if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
                 {
-                    var file = Request.Form.Files[0];
+                    var file = this.Request.Form.Files[0];
                     var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
                     using var ms = new MemoryStream();
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
                     if (added != null)
                     {
-                        var prioStr = Request.Query["priority"].ToString();
+                        var prioStr = this.Request.Query["priority"].ToString();
                         if (int.TryParse(prioStr, out var pVal))
                         {
                             added.Priority = pVal;
-                            await _torrentService.UpdateAsync(added);
+                            await this.torrentService.UpdateAsync(added);
                         }
                     }
 
-                    return Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
+                    return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
                 }
 
-                return Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
+                return this.Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
 
             case "pause":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var t = _torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
-                        await _torrentService.PauseAsync(t.Id);
+                        await this.torrentService.PauseAsync(t.Id);
                     }
                 }
                 else
                 {
-                    foreach (var t in _torrentService.GetAll())
+                    foreach (var t in this.torrentService.GetAll())
                     {
-                        await _torrentService.PauseAsync(t.Id);
+                        await this.torrentService.PauseAsync(t.Id);
                     }
                 }
 
-                return Ok(new { status = true });
+                return this.Ok(new { status = true });
 
             case "resume":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var t = _torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
-                        await _torrentService.ResumeAsync(t.Id);
+                        await this.torrentService.ResumeAsync(t.Id);
                     }
                 }
                 else
                 {
-                    foreach (var t in _torrentService.GetAll())
+                    foreach (var t in this.torrentService.GetAll())
                     {
-                        await _torrentService.ResumeAsync(t.Id);
+                        await this.torrentService.ResumeAsync(t.Id);
                     }
                 }
 
-                return Ok(new { status = true });
+                return this.Ok(new { status = true });
 
             case "delete":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var directDelFiles = Request.Query["del_files"] == "1" || (Request.HasFormContentType && Request.Form["del_files"] == "1");
-                    var t = _torrentService.GetByInfoHash(value);
+                    var directDelFiles = this.Request.Query["del_files"] == "1" || (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1");
+                    var t = this.torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
-                        await _torrentService.DeleteAsync(t.Id, directDelFiles);
+                        await this.torrentService.DeleteAsync(t.Id, directDelFiles);
                     }
                 }
 
-                return Ok(new { status = true });
+                return this.Ok(new { status = true });
 
             case "change_cat":
             case "set_category":
                 if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(cat))
                 {
-                    var t = _torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(value);
                     if (t != null)
                     {
                         t.Category = cat;
-                        await _torrentService.UpdateAsync(t);
+                        await this.torrentService.UpdateAsync(t);
                     }
                 }
 
-                return Ok(new { status = true });
+                return this.Ok(new { status = true });
 
             default:
-                return Ok(new { status = true, version = "4.3.2" });
+                return this.Ok(new { status = true, version = "4.3.2" });
         }
     }
 

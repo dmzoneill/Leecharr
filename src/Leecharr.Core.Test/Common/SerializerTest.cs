@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Common.Serializer;
@@ -7,7 +9,9 @@ namespace Leecharr.Core.Test.Common;
 public class SampleModel
 {
     public string Name { get; set; } = string.Empty;
+
     public int Value { get; set; }
+
     public string NullProperty { get; set; } = null!;
 }
 

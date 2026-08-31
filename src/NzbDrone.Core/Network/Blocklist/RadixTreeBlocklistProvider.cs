@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -8,23 +10,28 @@ namespace NzbDrone.Core.Network.Blocklist;
 
 public class RadixTreeBlocklistProvider : IBlocklistProvider
 {
-    private readonly Logger _logger;
-    private readonly object _lock = new();
+    private readonly Logger logger;
+    private readonly object @lock = new();
 
-    private RadixNode _ipv4Root = new();
-    private RadixNode _ipv6Root = new();
-    private int _ruleCount;
+    private RadixNode ipv4Root = new();
+    private RadixNode ipv6Root = new();
+    private int ruleCount;
 
     public string ProviderId => "RadixTree";
+
     public string DisplayName => "Managed Radix Trie (CIDR IPv4/IPv6)";
+
     public string Version => "1.0";
+
     public bool IsAvailable => true;
+
     public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr | BlocklistCapabilities.LiveAutoRefresh;
-    public int RuleCount => _ruleCount;
+
+    public int RuleCount => this.ruleCount;
 
     public RadixTreeBlocklistProvider()
     {
-        _logger = LogManager.GetCurrentClassLogger();
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public Task<BlocklistHealthResult> ProbeHealthAsync()
@@ -32,8 +39,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         return Task.FromResult(new BlocklistHealthResult
         {
             IsHealthy = true,
-            StatusMessage = $"Radix Trie filter operational with {_ruleCount} active CIDR/IP rules.",
-            LoadedRuleCount = _ruleCount
+            StatusMessage = $"Radix Trie filter operational with {this.ruleCount} active CIDR/IP rules.",
+            LoadedRuleCount = this.ruleCount,
         });
     }
 
@@ -51,12 +58,12 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
         if (parsedIp.AddressFamily == AddressFamily.InterNetwork)
         {
-            return IsIpv4Blocked(parsedIp);
+            return this.IsIpv4Blocked(parsedIp);
         }
 
         if (parsedIp.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            return IsIpv6Blocked(parsedIp);
+            return this.IsIpv6Blocked(parsedIp);
         }
 
         return false;
@@ -109,24 +116,24 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             }
         }
 
-        lock (_lock)
+        lock (this.@lock)
         {
-            _ipv4Root = newIpv4Root;
-            _ipv6Root = newIpv6Root;
-            _ruleCount = added;
+            this.ipv4Root = newIpv4Root;
+            this.ipv6Root = newIpv6Root;
+            this.ruleCount = added;
         }
 
-        _logger.Info("Loaded {0} IP blocklist rules into Radix Trie.", added);
+        this.logger.Info("Loaded {0} IP blocklist rules into Radix Trie.", added);
         return Task.FromResult(added);
     }
 
     public void ClearRules()
     {
-        lock (_lock)
+        lock (this.@lock)
         {
-            _ipv4Root = new RadixNode();
-            _ipv6Root = new RadixNode();
-            _ruleCount = 0;
+            this.ipv4Root = new RadixNode();
+            this.ipv6Root = new RadixNode();
+            this.ruleCount = 0;
         }
     }
 
@@ -135,7 +142,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         var bytes = ip.GetAddressBytes();
         var ipNum = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
 
-        var current = _ipv4Root;
+        var current = this.ipv4Root;
         for (var i = 31; i >= 0; i--)
         {
             if (current.IsBlocked)
@@ -159,7 +166,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
     {
         var bytes = ip.GetAddressBytes();
 
-        var current = _ipv6Root;
+        var current = this.ipv6Root;
         for (var bitIndex = 0; bitIndex < 128; bitIndex++)
         {
             if (current.IsBlocked)

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Core.Torrents;
 
 public enum TorrentStatus
@@ -8,5 +10,5 @@ public enum TorrentStatus
     Seeding = 3,
     Paused = 4,
     Stopped = 5,
-    Error = 6
+    Error = 6,
 }

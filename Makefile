@@ -1,5 +1,5 @@
 .PHONY: setup test-setup test integration build clean restore frontend \
-       test-unit test-integration test-all publish coverage-report
+       test-unit test-integration test-all publish coverage-report hooks lint format
 
 SOLUTION := src/Leecharr.sln
 UNIT_TEST := src/Leecharr.Core.Test/Leecharr.Core.Test.csproj
@@ -9,9 +9,25 @@ FRONTEND := src/Leecharr.Frontend
 
 # --- Build targets (called by upstream CI: make setup) ---
 
-setup:
+hooks:
+	@chmod +x .githooks/* 2>/dev/null || true
+	@git config --local core.hooksPath .githooks 2>/dev/null && echo "✅ Git hooks configured (.githooks)" || true
+
+setup: hooks
 	dotnet restore $(SOLUTION)
 	@if [ -f $(FRONTEND)/package.json ]; then cd $(FRONTEND) && npm ci; fi
+
+lint:
+	@echo "🔍 Checking Prettier style..."
+	@npx prettier --check "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
+	@echo "🔍 Checking C# format..."
+	@dotnet format $(SOLUTION) --verify-no-changes
+
+format:
+	@echo "✨ Formatting frontend with Prettier..."
+	@npx prettier --write "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
+	@echo "✨ Formatting C# with dotnet format..."
+	@dotnet format $(SOLUTION)
 
 test-setup:
 	dotnet build $(SOLUTION) --configuration Release

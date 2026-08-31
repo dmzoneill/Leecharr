@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Threading.Tasks;
 using Dapper;
@@ -11,12 +13,12 @@ namespace Leecharr.Api.V1.System;
 [V1ApiController("system/maintenance")]
 public class SystemMaintenanceController : ControllerBase
 {
-    private readonly IDatabase _database;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IDatabase database;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SystemMaintenanceController(IDatabase database)
     {
-        _database = database;
+        this.database = database;
     }
 
     [HttpPost("vacuum")]
@@ -24,16 +26,16 @@ public class SystemMaintenanceController : ControllerBase
     {
         try
         {
-            _logger.Info("Starting database compaction (VACUUM)...");
-            using var connection = _database.OpenConnection();
+            this.logger.Info("Starting database compaction (VACUUM)...");
+            using var connection = this.database.OpenConnection();
             await connection.ExecuteAsync("VACUUM;");
-            _logger.Info("Database compaction (VACUUM) completed successfully.");
-            return Ok(new { Success = true, Message = "Database VACUUM completed successfully." });
+            this.logger.Info("Database compaction (VACUUM) completed successfully.");
+            return this.Ok(new { Success = true, Message = "Database VACUUM completed successfully." });
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error running database VACUUM");
-            return StatusCode(500, new { Success = false, Message = ex.Message });
+            this.logger.Error(ex, "Error running database VACUUM");
+            return this.StatusCode(500, new { Success = false, Message = ex.Message });
         }
     }
 }

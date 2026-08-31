@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Torrents;
@@ -15,13 +17,16 @@ public class TorrentUpdatedEvent : IEvent
 public class TorrentDeletedEvent : IEvent
 {
     public Torrent Torrent { get; set; }
+
     public bool DeleteFiles { get; set; }
 }
 
 public class TorrentStatusChangedEvent : IEvent
 {
     public Torrent Torrent { get; set; }
+
     public TorrentStatus OldStatus { get; set; }
+
     public TorrentStatus NewStatus { get; set; }
 }
 
@@ -31,6 +36,6 @@ public class TorrentDownloadCompletedEvent : IEvent
 
     public TorrentDownloadCompletedEvent(Torrent torrent)
     {
-        Torrent = torrent;
+        this.Torrent = torrent;
     }
 }

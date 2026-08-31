@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,29 +20,38 @@ namespace Leecharr.Api.V1.Flood;
 public class FloodAuthRequest
 {
     public string Username { get; set; }
+
     public string Password { get; set; }
 }
 
 public class FloodAddUrlsRequest
 {
     public List<string> Urls { get; set; } = new();
+
     public string Destination { get; set; }
+
     public List<string> Tags { get; set; } = new();
+
     public bool Start { get; set; } = true;
 }
 
 public class FloodAddFilesRequest
 {
     public List<string> Files { get; set; } = new();
+
     public string Destination { get; set; }
+
     public List<string> Tags { get; set; } = new();
+
     public bool Start { get; set; } = true;
 }
 
 public class FloodActionRequest
 {
     public List<string> Hashes { get; set; } = new();
+
     public bool DeleteData { get; set; }
+
     public List<string> Tags { get; set; } = new();
 }
 
@@ -48,15 +59,15 @@ public class FloodActionRequest
 [ApiController]
 public class FloodApiController : ControllerBase
 {
-    private static readonly ConcurrentDictionary<string, DateTime> _authenticatedSessions = new();
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly IConfigFileProvider _configFileProvider;
-    private readonly IUserService _userService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private static readonly ConcurrentDictionary<string, DateTime> authenticatedSessions = new();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
+    private readonly IUserService userService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FloodApiController(
         ITorrentService torrentService,
@@ -67,44 +78,44 @@ public class FloodApiController : ControllerBase
         IConfigFileProvider configFileProvider = null,
         IUserService userService = null)
     {
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
-        _configFileProvider = configFileProvider;
-        _userService = userService;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
+        this.configFileProvider = configFileProvider;
+        this.userService = userService;
     }
 
     private bool IsFloodAuthenticated()
     {
-        if (_configFileProvider == null || !_configFileProvider.AuthenticationEnabled)
+        if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
         {
             return true;
         }
 
-        if (User?.Identity?.IsAuthenticated == true)
+        if (this.User?.Identity?.IsAuthenticated == true)
         {
             return true;
         }
 
-        if (Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
+        if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
         {
-            if (_authenticatedSessions.TryGetValue(token, out var expiry) && expiry > DateTime.UtcNow)
+            if (authenticatedSessions.TryGetValue(token, out var expiry) && expiry > DateTime.UtcNow)
             {
                 return true;
             }
         }
 
-        var apiKey = Request.Headers["X-Api-Key"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(apiKey) && Request.Query.TryGetValue("apikey", out var qKey))
+        var apiKey = this.Request.Headers["X-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("apikey", out var qKey))
         {
             apiKey = qKey.FirstOrDefault();
         }
 
-        if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(_configFileProvider.ApiKey))
+        if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey))
         {
-            if (string.Equals(apiKey, _configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (string.Equals(apiKey, this.configFileProvider.ApiKey, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -117,13 +128,13 @@ public class FloodApiController : ControllerBase
     [Route("api/auth/authenticate")]
     public IActionResult Authenticate([FromBody] FloodAuthRequest request = null)
     {
-        if (_configFileProvider != null && _configFileProvider.AuthenticationEnabled)
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
             var username = request?.Username;
             var password = request?.Password;
 
             var authenticated = false;
-            var masterKey = _configFileProvider.ApiKey;
+            var masterKey = this.configFileProvider.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(masterKey) &&
                 ((!string.IsNullOrWhiteSpace(password) && string.Equals(password, masterKey, StringComparison.Ordinal)) ||
@@ -131,9 +142,9 @@ public class FloodApiController : ControllerBase
             {
                 authenticated = true;
             }
-            else if (_userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+            else if (this.userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
             {
-                var user = _userService.Authenticate(username, password);
+                var user = this.userService.Authenticate(username, password);
                 if (user != null)
                 {
                     authenticated = true;
@@ -142,38 +153,38 @@ public class FloodApiController : ControllerBase
 
             if (!authenticated)
             {
-                return Unauthorized(new { success = false, message = "Invalid username or password" });
+                return this.Unauthorized(new { success = false, message = "Invalid username or password" });
             }
         }
 
         var token = Guid.NewGuid().ToString("N");
-        _authenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
+        authenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
 
-        Response.Cookies.Append("flood-auth", token, new CookieOptions
+        this.Response.Cookies.Append("flood-auth", token, new CookieOptions
         {
             Path = "/",
             HttpOnly = true,
-            SameSite = SameSiteMode.Lax
+            SameSite = SameSiteMode.Lax,
         });
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpGet]
     [Route("api/auth/verify")]
     public IActionResult Verify()
     {
-        var isAllowed = IsFloodAuthenticated();
-        return Ok(new { isInitialUser = false, isAllowed = isAllowed });
+        var isAllowed = this.IsFloodAuthenticated();
+        return this.Ok(new { isInitialUser = false, isAllowed = isAllowed });
     }
 
     [HttpGet]
     [Route("api/client/settings")]
     public IActionResult GetClientSettings()
     {
-        return Ok(new
+        return this.Ok(new
         {
-            directoryDefault = _configService.DownloadDir ?? "/downloads"
+            directoryDefault = this.configService.DownloadDir ?? "/downloads",
         });
     }
 
@@ -181,7 +192,7 @@ public class FloodApiController : ControllerBase
     [Route("api/torrents")]
     public IActionResult GetTorrents()
     {
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         var dict = new Dictionary<string, object>();
 
         foreach (var t in torrents)
@@ -198,7 +209,7 @@ public class FloodApiController : ControllerBase
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
                 eta = t.Eta,
-                status = new[] { MapToFloodStatus(t.Status) },
+                status = new[] { this.MapToFloodStatus(t.Status) },
                 tags = string.IsNullOrWhiteSpace(t.Category)
                     ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
                     : new[] { t.Category },
@@ -209,11 +220,11 @@ public class FloodApiController : ControllerBase
                 seedsConnected = t.Seeders,
                 seedsTotal = t.Seeders,
                 peersConnected = t.Leechers,
-                peersTotal = t.Leechers
+                peersTotal = t.Leechers,
             };
         }
 
-        return Ok(new { torrents = dict });
+        return this.Ok(new { torrents = dict });
     }
 
     private string MapToFloodStatus(TorrentStatus status)
@@ -224,7 +235,7 @@ public class FloodApiController : ControllerBase
             TorrentStatus.Seeding => "seeding",
             TorrentStatus.Paused => "stopped",
             TorrentStatus.Stopped => "complete",
-            _ => "inactive"
+            _ => "inactive",
         };
     }
 
@@ -239,39 +250,39 @@ public class FloodApiController : ControllerBase
             {
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    await _torrentService.AddFromMagnetAsync(url, category, request.Destination, !request.Start);
+                    await this.torrentService.AddFromMagnetAsync(url, category, request.Destination, !request.Start);
                 }
                 else
                 {
                     using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                     var bytes = await client.GetByteArrayAsync(url);
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    await _torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    await this.torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]
     [Route("api/torrents/add-files")]
     public async Task<IActionResult> AddFiles([FromBody] FloodAddFilesRequest jsonRequest = null)
     {
-        if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
-            var destination = Request.Form["destination"].ToString();
-            var tagsStr = Request.Form["tags"].ToString();
+            var destination = this.Request.Form["destination"].ToString();
+            var tagsStr = this.Request.Form["tags"].ToString();
             var category = tagsStr.Split(',', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
-            var start = !string.Equals(Request.Form["start"].ToString(), "false", StringComparison.OrdinalIgnoreCase);
+            var start = !string.Equals(this.Request.Form["start"].ToString(), "false", StringComparison.OrdinalIgnoreCase);
 
-            foreach (var file in Request.Form.Files)
+            foreach (var file in this.Request.Form.Files)
             {
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms);
                 var bytes = ms.ToArray();
-                var parsed = _torrentFileParser.Parse(bytes);
-                await _torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
             }
         }
         else if (jsonRequest?.Files != null && jsonRequest.Files.Count > 0)
@@ -282,13 +293,13 @@ public class FloodApiController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(b64))
                 {
                     var bytes = Convert.FromBase64String(b64);
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    await _torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]
@@ -299,15 +310,15 @@ public class FloodApiController : ControllerBase
         {
             foreach (var hash in request.Hashes)
             {
-                var t = _torrentService.GetByInfoHash(hash);
+                var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    await _torrentService.ResumeAsync(t.Id);
+                    await this.torrentService.ResumeAsync(t.Id);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]
@@ -318,15 +329,15 @@ public class FloodApiController : ControllerBase
         {
             foreach (var hash in request.Hashes)
             {
-                var t = _torrentService.GetByInfoHash(hash);
+                var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    await _torrentService.PauseAsync(t.Id);
+                    await this.torrentService.PauseAsync(t.Id);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]
@@ -337,23 +348,23 @@ public class FloodApiController : ControllerBase
         {
             foreach (var hash in request.Hashes)
             {
-                var t = _torrentService.GetByInfoHash(hash);
+                var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    await _torrentService.DeleteAsync(t.Id, request.DeleteData);
+                    await this.torrentService.DeleteAsync(t.Id, request.DeleteData);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpGet]
     [Route("api/torrents/tags")]
     public IActionResult GetTags()
     {
-        var cats = _categoryService.GetAll().Select(c => c.Name).ToList();
-        return Ok(cats);
+        var cats = this.categoryService.GetAll().Select(c => c.Name).ToList();
+        return this.Ok(cats);
     }
 
     [HttpPost]
@@ -367,17 +378,17 @@ public class FloodApiController : ControllerBase
             var newCategory = request.Tags?.FirstOrDefault() ?? string.Empty;
             foreach (var hash in request.Hashes)
             {
-                var t = _torrentService.GetByInfoHash(hash);
+                var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
                     t.Category = newCategory;
                     t.Label = string.Join(",", request.Tags ?? new List<string>());
-                    await _torrentService.UpdateAsync(t);
+                    await this.torrentService.UpdateAsync(t);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]
@@ -388,38 +399,38 @@ public class FloodApiController : ControllerBase
         {
             foreach (var hash in request.Hashes)
             {
-                var t = _torrentService.GetByInfoHash(hash);
+                var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    await _torrentService.ForceRecheckAsync(t.Id);
+                    await this.torrentService.ForceRecheckAsync(t.Id);
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 
     [HttpGet]
     [Route("api/torrents/{hash}/contents")]
     public IActionResult GetContents([FromRoute] string hash)
     {
-        var t = _torrentService.GetByInfoHash(hash);
+        var t = this.torrentService.GetByInfoHash(hash);
         if (t == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var files = _torrentFileService.GetFiles(t.Id).ToList();
+        var files = this.torrentFileService.GetFiles(t.Id).ToList();
         var result = files.Select((f, idx) => new
         {
             index = idx,
             path = f.Path,
             sizeBytes = f.Size,
             percentComplete = f.Progress * 100.0,
-            priority = f.Priority
+            priority = f.Priority,
         });
 
-        return Ok(result);
+        return this.Ok(result);
     }
 
     [HttpPatch]
@@ -443,28 +454,30 @@ public class FloodApiController : ControllerBase
         {
             foreach (var h in targetHashes)
             {
-                var t = _torrentService.GetByInfoHash(h);
+                var t = this.torrentService.GetByInfoHash(h);
                 if (t != null)
                 {
-                    var files = _torrentFileService.GetFiles(t.Id).ToList();
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
                     foreach (var idx in request.Indices)
                     {
                         if (idx >= 0 && idx < files.Count)
                         {
-                            await _torrentFileService.SetPriorityAsync(files[idx].Id, request.Priority);
+                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, request.Priority);
                         }
                     }
                 }
             }
         }
 
-        return Ok(new { success = true });
+        return this.Ok(new { success = true });
     }
 }
 
 public class FloodSetPriorityRequest
 {
     public List<string> Hashes { get; set; } = new();
+
     public List<int> Indices { get; set; } = new();
+
     public int Priority { get; set; } = 1;
 }

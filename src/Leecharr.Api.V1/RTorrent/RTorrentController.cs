@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,12 +20,12 @@ namespace Leecharr.Api.V1.RTorrent;
 [ApiController]
 public class RTorrentController : ControllerBase
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public RTorrentController(
         ITorrentService torrentService,
@@ -32,11 +34,11 @@ public class RTorrentController : ControllerBase
         IConfigService configService,
         ITorrentFileService torrentFileService = null)
     {
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
-        _torrentFileService = torrentFileService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
+        this.torrentFileService = torrentFileService;
     }
 
     [HttpPost]
@@ -47,14 +49,14 @@ public class RTorrentController : ControllerBase
     public async Task<IActionResult> HandleXmlRpc()
     {
         string requestBody;
-        using (var reader = new StreamReader(Request.Body, Encoding.UTF8))
+        using (var reader = new StreamReader(this.Request.Body, Encoding.UTF8))
         {
             requestBody = await reader.ReadToEndAsync();
         }
 
         if (string.IsNullOrWhiteSpace(requestBody))
         {
-            return BuildXmlRpcResponse(new XElement("string", "0.9.8"));
+            return this.BuildXmlRpcResponse(new XElement("string", "0.9.8"));
         }
 
         try
@@ -64,13 +66,13 @@ public class RTorrentController : ControllerBase
             var paramsElement = doc.Root?.Element("params");
             var paramValues = ExtractParamValues(paramsElement);
 
-            var result = await ExecuteXmlRpcMethodAsync(methodName, paramValues);
-            return BuildXmlRpcResponse(result);
+            var result = await this.ExecuteXmlRpcMethodAsync(methodName, paramValues);
+            return this.BuildXmlRpcResponse(result);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error processing rTorrent XML-RPC request");
-            return BuildXmlRpcFault(1, ex.Message);
+            this.logger.Error(ex, "Error processing rTorrent XML-RPC request");
+            return this.BuildXmlRpcFault(1, ex.Message);
         }
     }
 
@@ -87,7 +89,7 @@ public class RTorrentController : ControllerBase
                     {
                         var subMethod = callDict.TryGetValue("methodName", out var mn) ? mn?.ToString() : string.Empty;
                         var subParams = callDict.TryGetValue("params", out var p) && p is List<object> pl ? pl : new List<object>();
-                        var subResult = await ExecuteXmlRpcMethodAsync(subMethod ?? string.Empty, subParams);
+                        var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod ?? string.Empty, subParams);
                         resultsArray.Add(new XElement("value", new XElement("array", new XElement("data", new XElement("value", subResult)))));
                     }
                 }
@@ -97,7 +99,8 @@ public class RTorrentController : ControllerBase
             case "system.listmethods":
             case "system.list_methods":
             case "system.getcapabilities":
-                return new XElement("array", new XElement("data",
+                return new XElement("array", new XElement(
+                    "data",
                     new XElement("value", new XElement("string", "d.multicall2")),
                     new XElement("value", new XElement("string", "d.multicall")),
                     new XElement("value", new XElement("string", "system.multicall")),
@@ -125,26 +128,26 @@ public class RTorrentController : ControllerBase
                 return new XElement("string", "0.9.8");
 
             case "get_directory":
-                return new XElement("string", _configService.DownloadDir ?? "/downloads");
+                return new XElement("string", this.configService.DownloadDir ?? "/downloads");
 
             case "get_down_rate":
-                return new XElement("i8", _torrentService.GetAll().Sum(t => t.DownloadSpeed));
+                return new XElement("i8", this.torrentService.GetAll().Sum(t => t.DownloadSpeed));
 
             case "get_up_rate":
-                return new XElement("i8", _torrentService.GetAll().Sum(t => t.UploadSpeed));
+                return new XElement("i8", this.torrentService.GetAll().Sum(t => t.UploadSpeed));
 
             case "d.multicall2":
             case "d.multicall":
-                return HandleMulticall(paramValues);
+                return this.HandleMulticall(paramValues);
 
             case "f.multicall":
                 if (paramValues.Count > 0 && paramValues[0] is string fHash)
                 {
-                    var t = _torrentService.GetByInfoHash(fHash);
+                    var t = this.torrentService.GetByInfoHash(fHash);
                     var fArrayData = new XElement("data");
-                    if (t != null && _torrentFileService != null)
+                    if (t != null && this.torrentFileService != null)
                     {
-                        var files = _torrentFileService.GetFiles(t.Id).ToList();
+                        var files = this.torrentFileService.GetFiles(t.Id).ToList();
                         var fFields = paramValues.Skip(2).OfType<string>().ToList();
                         foreach (var file in files)
                         {
@@ -186,7 +189,7 @@ public class RTorrentController : ControllerBase
             case "t.multicall":
                 if (paramValues.Count > 0 && paramValues[0] is string tHash)
                 {
-                    var t = _torrentService.GetByInfoHash(tHash);
+                    var t = this.torrentService.GetByInfoHash(tHash);
                     var tArrayData = new XElement("data");
                     if (t != null && !string.IsNullOrWhiteSpace(t.TrackerUrl))
                     {
@@ -285,12 +288,12 @@ public class RTorrentController : ControllerBase
 
                         if (torrentBytes != null && torrentBytes.Length > 0)
                         {
-                            var parsed = _torrentFileParser.Parse(torrentBytes);
-                            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
+                            var parsed = this.torrentFileParser.Parse(torrentBytes);
+                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 added.Priority = customPriority.Value;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
                         }
                     }
@@ -298,23 +301,23 @@ public class RTorrentController : ControllerBase
                     {
                         if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
-                            var added = await _torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                            var added = await this.torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
                             if (added != null && customPriority.HasValue)
                             {
                                 added.Priority = customPriority.Value;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
                         }
                         else
                         {
                             using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                             var bytes = await client.GetByteArrayAsync(uriStr);
-                            var parsed = _torrentFileParser.Parse(bytes);
-                            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                            var parsed = this.torrentFileParser.Parse(bytes);
+                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 added.Priority = customPriority.Value;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
                         }
                     }
@@ -326,7 +329,7 @@ public class RTorrentController : ControllerBase
             case "d.get_name":
                 if (paramValues.Count > 0 && paramValues[0] is string hashForName)
                 {
-                    var t = _torrentService.GetByInfoHash(hashForName);
+                    var t = this.torrentService.GetByInfoHash(hashForName);
                     if (t != null)
                     {
                         return new XElement("string", t.Name ?? string.Empty);
@@ -339,7 +342,7 @@ public class RTorrentController : ControllerBase
             case "d.get_custom1":
                 if (paramValues.Count > 0 && paramValues[0] is string hashForCustom)
                 {
-                    var t = _torrentService.GetByInfoHash(hashForCustom);
+                    var t = this.torrentService.GetByInfoHash(hashForCustom);
                     if (t != null)
                     {
                         return new XElement("string", t.Category ?? string.Empty);
@@ -352,10 +355,10 @@ public class RTorrentController : ControllerBase
             case "d.delete":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToErase)
                 {
-                    var t = _torrentService.GetByInfoHash(hashToErase);
+                    var t = this.torrentService.GetByInfoHash(hashToErase);
                     if (t != null)
                     {
-                        await _torrentService.DeleteAsync(t.Id, false);
+                        await this.torrentService.DeleteAsync(t.Id, false);
                     }
                 }
 
@@ -366,10 +369,10 @@ public class RTorrentController : ControllerBase
             case "d.close":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToStop)
                 {
-                    var t = _torrentService.GetByInfoHash(hashToStop);
+                    var t = this.torrentService.GetByInfoHash(hashToStop);
                     if (t != null)
                     {
-                        await _torrentService.PauseAsync(t.Id);
+                        await this.torrentService.PauseAsync(t.Id);
                     }
                 }
 
@@ -380,10 +383,10 @@ public class RTorrentController : ControllerBase
             case "d.open":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToStart)
                 {
-                    var t = _torrentService.GetByInfoHash(hashToStart);
+                    var t = this.torrentService.GetByInfoHash(hashToStart);
                     if (t != null)
                     {
-                        await _torrentService.ResumeAsync(t.Id);
+                        await this.torrentService.ResumeAsync(t.Id);
                     }
                 }
 
@@ -392,10 +395,10 @@ public class RTorrentController : ControllerBase
             case "d.check_hash":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToCheck)
                 {
-                    var t = _torrentService.GetByInfoHash(hashToCheck);
+                    var t = this.torrentService.GetByInfoHash(hashToCheck);
                     if (t != null)
                     {
-                        await _torrentService.ForceRecheckAsync(t.Id);
+                        await this.torrentService.ForceRecheckAsync(t.Id);
                     }
                 }
 
@@ -405,11 +408,11 @@ public class RTorrentController : ControllerBase
                 var targetCat = string.Empty;
                 if (paramValues.Count >= 2 && paramValues[0] is string targetHash && paramValues[1] is string newCategory)
                 {
-                    var t = _torrentService.GetByInfoHash(targetHash);
+                    var t = this.torrentService.GetByInfoHash(targetHash);
                     if (t != null)
                     {
                         t.Category = newCategory;
-                        await _torrentService.UpdateAsync(t);
+                        await this.torrentService.UpdateAsync(t);
                         targetCat = newCategory;
                     }
                 }
@@ -419,18 +422,18 @@ public class RTorrentController : ControllerBase
             case "d.priority.set":
                 if (paramValues.Count >= 2 && paramValues[0] is string prioHash)
                 {
-                    var t = _torrentService.GetByInfoHash(prioHash);
+                    var t = this.torrentService.GetByInfoHash(prioHash);
                     if (t != null)
                     {
                         if (paramValues[1] is int prioInt)
                         {
                             t.Priority = prioInt;
-                            await _torrentService.UpdateAsync(t);
+                            await this.torrentService.UpdateAsync(t);
                         }
                         else if (paramValues[1] is string prioStr && int.TryParse(prioStr, out var parsedPrio))
                         {
                             t.Priority = parsedPrio;
-                            await _torrentService.UpdateAsync(t);
+                            await this.torrentService.UpdateAsync(t);
                         }
                     }
                 }
@@ -439,17 +442,17 @@ public class RTorrentController : ControllerBase
 
             case "f.priority.set":
             case "f.set_priority":
-                if (paramValues.Count >= 3 && paramValues[0] is string filePrioHash && _torrentFileService != null)
+                if (paramValues.Count >= 3 && paramValues[0] is string filePrioHash && this.torrentFileService != null)
                 {
-                    var t = _torrentService.GetByInfoHash(filePrioHash);
+                    var t = this.torrentService.GetByInfoHash(filePrioHash);
                     if (t != null)
                     {
                         var fIdx = paramValues[1] is int fi ? fi : (int.TryParse(paramValues[1]?.ToString(), out var pfi) ? pfi : -1);
                         var fPrio = paramValues[2] is int fp ? fp : (int.TryParse(paramValues[2]?.ToString(), out var pfp) ? pfp : 1);
-                        var files = _torrentFileService.GetFiles(t.Id).ToList();
+                        var files = this.torrentFileService.GetFiles(t.Id).ToList();
                         if (fIdx >= 0 && fIdx < files.Count)
                         {
-                            await _torrentFileService.SetPriorityAsync(files[fIdx].Id, fPrio);
+                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, fPrio);
                         }
                     }
                 }
@@ -462,21 +465,21 @@ public class RTorrentController : ControllerBase
             default:
                 if (methodName.StartsWith("d.", StringComparison.OrdinalIgnoreCase) && paramValues.Count > 0 && paramValues[0] is string dHash)
                 {
-                    var dt = _torrentService.GetByInfoHash(dHash);
+                    var dt = this.torrentService.GetByInfoHash(dHash);
                     if (dt != null)
                     {
-                        return GetTorrentXmlFieldValue(dt, methodName);
+                        return this.GetTorrentXmlFieldValue(dt, methodName);
                     }
                 }
 
-                _logger.Debug("Unhandled rTorrent XML-RPC method: {0}", methodName);
+                this.logger.Debug("Unhandled rTorrent XML-RPC method: {0}", methodName);
                 return new XElement("i4", 0);
         }
     }
 
     private XElement HandleMulticall(List<object> paramValues)
     {
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         var requestedFields = new List<string>();
 
         foreach (var item in paramValues)
@@ -502,7 +505,7 @@ public class RTorrentController : ControllerBase
             foreach (var field in requestedFields)
             {
                 var cleanField = field.Trim().TrimEnd('=', '(', ')');
-                rowData.Add(new XElement("value", GetTorrentXmlFieldValue(torrent, cleanField)));
+                rowData.Add(new XElement("value", this.GetTorrentXmlFieldValue(torrent, cleanField)));
             }
 
             arrayData.Add(new XElement("value", new XElement("array", rowData)));
@@ -527,7 +530,7 @@ public class RTorrentController : ControllerBase
             case "d.get_base_path":
             case "d.directory":
             case "d.get_directory":
-                return new XElement("string", torrent.SavePath ?? (_configService.DownloadDir ?? "/downloads"));
+                return new XElement("string", torrent.SavePath ?? (this.configService.DownloadDir ?? "/downloads"));
 
             case "d.bytes_done":
             case "d.get_bytes_done":
@@ -697,28 +700,37 @@ public class RTorrentController : ControllerBase
     private IActionResult BuildXmlRpcResponse(XElement valueContent)
     {
         var doc = new XDocument(
-            new XElement("methodResponse",
-                new XElement("params",
-                    new XElement("param",
+            new XElement(
+                "methodResponse",
+                new XElement(
+                    "params",
+                    new XElement(
+                        "param",
                         new XElement("value", valueContent)))));
 
-        return Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
+        return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
     }
 
     private IActionResult BuildXmlRpcFault(int faultCode, string faultString)
     {
         var doc = new XDocument(
-            new XElement("methodResponse",
-                new XElement("fault",
-                    new XElement("value",
-                        new XElement("struct",
-                            new XElement("member",
+            new XElement(
+                "methodResponse",
+                new XElement(
+                    "fault",
+                    new XElement(
+                        "value",
+                        new XElement(
+                            "struct",
+                            new XElement(
+                                "member",
                                 new XElement("name", "faultCode"),
                                 new XElement("value", new XElement("int", faultCode))),
-                            new XElement("member",
+                            new XElement(
+                                "member",
                                 new XElement("name", "faultString"),
                                 new XElement("value", new XElement("string", faultString))))))));
 
-        return Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
+        return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
     }
 }

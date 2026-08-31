@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using Leecharr.Http.REST;
 using NzbDrone.Core.Configuration;
 
@@ -6,13 +8,21 @@ namespace Leecharr.Api.V1.Config;
 public class AiConfigResource : RestResource
 {
     public string ActiveAiProvider { get; set; }
+
     public string OllamaHost { get; set; }
+
     public string OllamaModel { get; set; }
+
     public string GeminiApiKey { get; set; }
+
     public string GeminiModel { get; set; }
+
     public string OnnxModelPath { get; set; }
+
     public bool EnableCopilotButton { get; set; }
+
     public bool EnableNaturalSearch { get; set; }
+
     public bool EnableSwarmDiagnostics { get; set; }
 }
 
@@ -35,7 +45,7 @@ public static class AiConfigResourceMapper
             OnnxModelPath = config.OnnxModelPath,
             EnableCopilotButton = config.EnableCopilotButton,
             EnableNaturalSearch = config.EnableNaturalSearch,
-            EnableSwarmDiagnostics = config.EnableSwarmDiagnostics
+            EnableSwarmDiagnostics = config.EnableSwarmDiagnostics,
         };
     }
 }

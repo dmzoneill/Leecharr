@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,24 +20,24 @@ namespace Leecharr.Core.Test.Network;
 [TestFixture]
 public class DynamicGeoIpProxyTest
 {
-    private IGeoIpProvider _maxMindProvider = null!;
-    private IGeoIpProvider _ip2LocationProvider = null!;
-    private IGeoIpProvider _onlineApiProvider = null!;
-    private IConfigService _configService = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicGeoIpProxy _proxy = null!;
+    private IGeoIpProvider maxMindProvider = null!;
+    private IGeoIpProvider ip2LocationProvider = null!;
+    private IGeoIpProvider onlineApiProvider = null!;
+    private IConfigService configService = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicGeoIpProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _maxMindProvider = Substitute.For<IGeoIpProvider>();
-        _maxMindProvider.ProviderId.Returns("MaxMind");
-        _maxMindProvider.DisplayName.Returns("MaxMind GeoLite2 / GeoIP2 (.mmdb)");
-        _maxMindProvider.Version.Returns("2.0");
-        _maxMindProvider.IsAvailable.Returns(true);
-        _maxMindProvider.Capabilities.Returns(GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase);
-        _maxMindProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
-        _maxMindProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
+        this.maxMindProvider = Substitute.For<IGeoIpProvider>();
+        this.maxMindProvider.ProviderId.Returns("MaxMind");
+        this.maxMindProvider.DisplayName.Returns("MaxMind GeoLite2 / GeoIP2 (.mmdb)");
+        this.maxMindProvider.Version.Returns("2.0");
+        this.maxMindProvider.IsAvailable.Returns(true);
+        this.maxMindProvider.Capabilities.Returns(GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase);
+        this.maxMindProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.maxMindProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
         {
             var ip = callInfo.Arg<string>();
             return Task.FromResult(new GeoLocationInfo
@@ -45,18 +47,18 @@ public class DynamicGeoIpProxyTest
                 CountryName = "United States",
                 City = "Ashburn",
                 Latitude = 39.0438,
-                Longitude = -77.4874
+                Longitude = -77.4874,
             });
         });
 
-        _ip2LocationProvider = Substitute.For<IGeoIpProvider>();
-        _ip2LocationProvider.ProviderId.Returns("IP2Location");
-        _ip2LocationProvider.DisplayName.Returns("IP2Location Binary (.BIN)");
-        _ip2LocationProvider.Version.Returns("1.0");
-        _ip2LocationProvider.IsAvailable.Returns(true);
-        _ip2LocationProvider.Capabilities.Returns(GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase);
-        _ip2LocationProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
-        _ip2LocationProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
+        this.ip2LocationProvider = Substitute.For<IGeoIpProvider>();
+        this.ip2LocationProvider.ProviderId.Returns("IP2Location");
+        this.ip2LocationProvider.DisplayName.Returns("IP2Location Binary (.BIN)");
+        this.ip2LocationProvider.Version.Returns("1.0");
+        this.ip2LocationProvider.IsAvailable.Returns(true);
+        this.ip2LocationProvider.Capabilities.Returns(GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase);
+        this.ip2LocationProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.ip2LocationProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
         {
             var ip = callInfo.Arg<string>();
             return Task.FromResult(new GeoLocationInfo
@@ -64,44 +66,44 @@ public class DynamicGeoIpProxyTest
                 IpAddress = ip,
                 CountryCode = "GB",
                 CountryName = "United Kingdom",
-                City = "London"
+                City = "London",
             });
         });
 
-        _onlineApiProvider = Substitute.For<IGeoIpProvider>();
-        _onlineApiProvider.ProviderId.Returns("OnlineApi");
-        _onlineApiProvider.DisplayName.Returns("Zero-Disk Online HTTP Geolocation API");
-        _onlineApiProvider.Version.Returns("1.0");
-        _onlineApiProvider.IsAvailable.Returns(true);
-        _onlineApiProvider.Capabilities.Returns(GeoIpCapabilities.All);
-        _onlineApiProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.onlineApiProvider = Substitute.For<IGeoIpProvider>();
+        this.onlineApiProvider.ProviderId.Returns("OnlineApi");
+        this.onlineApiProvider.DisplayName.Returns("Zero-Disk Online HTTP Geolocation API");
+        this.onlineApiProvider.Version.Returns("1.0");
+        this.onlineApiProvider.IsAvailable.Returns(true);
+        this.onlineApiProvider.Capabilities.Returns(GeoIpCapabilities.All);
+        this.onlineApiProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.GetValue("ActiveGeoIpProvider", Arg.Any<string>()).Returns("MaxMind");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.GetValue("ActiveGeoIpProvider", Arg.Any<string>()).Returns("MaxMind");
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
-        var providers = new List<IGeoIpProvider> { _maxMindProvider, _ip2LocationProvider, _onlineApiProvider };
-        _proxy = new DynamicGeoIpProxy(providers, _configService, _eventAggregator);
+        var providers = new List<IGeoIpProvider> { this.maxMindProvider, this.ip2LocationProvider, this.onlineApiProvider };
+        this.proxy = new DynamicGeoIpProxy(providers, this.configService, this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredProvider()
     {
-        _proxy.ActiveProviderId.Should().Be("MaxMind");
-        _proxy.ActiveProvider.Should().BeSameAs(_maxMindProvider);
+        this.proxy.ActiveProviderId.Should().Be("MaxMind");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.maxMindProvider);
     }
 
     [Test]
     public void GetProviders_ReturnsAllRegisteredProviders()
     {
-        var providers = _proxy.GetProviders().ToList();
+        var providers = this.proxy.GetProviders().ToList();
         providers.Should().HaveCount(3);
         providers.Select(p => p.ProviderId).Should().Contain(new[] { "MaxMind", "IP2Location", "OnlineApi" });
     }
@@ -109,7 +111,7 @@ public class DynamicGeoIpProxyTest
     [Test]
     public void GetProvider_WithValidId_ReturnsMatchingProvider()
     {
-        var provider = _proxy.GetProvider("IP2Location");
+        var provider = this.proxy.GetProvider("IP2Location");
         provider.Should().NotBeNull();
         provider!.ProviderId.Should().Be("IP2Location");
     }
@@ -117,14 +119,14 @@ public class DynamicGeoIpProxyTest
     [Test]
     public void GetProvider_WithInvalidId_ReturnsNull()
     {
-        var provider = _proxy.GetProvider("NonExistent");
+        var provider = this.proxy.GetProvider("NonExistent");
         provider.Should().BeNull();
     }
 
     [Test]
     public async Task ProbeProviderAsync_WithValidProvider_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeProviderAsync("IP2Location");
+        var probe = await this.proxy.ProbeProviderAsync("IP2Location");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -133,7 +135,7 @@ public class DynamicGeoIpProxyTest
     [Test]
     public async Task ProbeProviderAsync_WithInvalidProvider_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeProviderAsync("InvalidProvider");
+        var probe = await this.proxy.ProbeProviderAsync("InvalidProvider");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -142,61 +144,61 @@ public class DynamicGeoIpProxyTest
     [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPublishesEvent()
     {
-        var result = await _proxy.SwitchProviderAsync("IP2Location");
+        var result = await this.proxy.SwitchProviderAsync("IP2Location");
         result.Should().BeTrue();
-        _proxy.ActiveProviderId.Should().Be("IP2Location");
-        _proxy.ActiveProvider.Should().BeSameAs(_ip2LocationProvider);
+        this.proxy.ActiveProviderId.Should().Be("IP2Location");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.ip2LocationProvider);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveGeoIpProvider"] == "IP2Location"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<GeoIpProviderSwitchedEvent>(e => e.PreviousProvider == "MaxMind" && e.NewProvider == "IP2Location"));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveGeoIpProvider"] == "IP2Location"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<GeoIpProviderSwitchedEvent>(e => e.PreviousProvider == "MaxMind" && e.NewProvider == "IP2Location"));
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetAlreadyActive_ReturnsTrueWithoutWork()
     {
-        var result = await _proxy.SwitchProviderAsync("MaxMind");
+        var result = await this.proxy.SwitchProviderAsync("MaxMind");
         result.Should().BeTrue();
-        _eventAggregator.DidNotReceive().PublishEvent(Arg.Any<GeoIpProviderSwitchedEvent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<GeoIpProviderSwitchedEvent>());
     }
 
     [Test]
     public async Task SwitchProviderAsync_WithUnknownProvider_ReturnsFalse()
     {
-        var result = await _proxy.SwitchProviderAsync("UnknownProvider");
+        var result = await this.proxy.SwitchProviderAsync("UnknownProvider");
         result.Should().BeFalse();
-        _proxy.ActiveProviderId.Should().Be("MaxMind");
+        this.proxy.ActiveProviderId.Should().Be("MaxMind");
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _ip2LocationProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult
+        this.ip2LocationProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult
         {
             IsHealthy = false,
-            StatusMessage = "Database file missing"
+            StatusMessage = "Database file missing",
         }));
 
-        var result = await _proxy.SwitchProviderAsync("IP2Location");
+        var result = await this.proxy.SwitchProviderAsync("IP2Location");
         result.Should().BeFalse();
-        _proxy.ActiveProviderId.Should().Be("MaxMind");
+        this.proxy.ActiveProviderId.Should().Be("MaxMind");
     }
 
     [Test]
     public async Task LookupAsync_DelegatesToActiveProvider()
     {
-        var result = await _proxy.LookupAsync("8.8.8.8");
+        var result = await this.proxy.LookupAsync("8.8.8.8");
         result.Should().NotBeNull();
         result.IpAddress.Should().Be("8.8.8.8");
         result.CountryCode.Should().Be("US");
         result.City.Should().Be("Ashburn");
 
-        await _maxMindProvider.Received(1).LookupAsync("8.8.8.8");
+        await this.maxMindProvider.Received(1).LookupAsync("8.8.8.8");
     }
 
     [Test]
     public void Lookup_SynchronousDelegation_Works()
     {
-        var result = _proxy.Lookup("1.1.1.1");
+        var result = this.proxy.Lookup("1.1.1.1");
         result.Should().NotBeNull();
         result.IpAddress.Should().Be("1.1.1.1");
         result.CountryCode.Should().Be("US");
@@ -306,20 +308,21 @@ public class DynamicGeoIpProxyTest
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly string _responseContent;
+        private readonly string responseContent;
+
         public int RequestCount { get; private set; }
 
         public MockHttpMessageHandler(string responseContent)
         {
-            _responseContent = responseContent;
+            this.responseContent = responseContent;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            RequestCount++;
+            this.RequestCount++;
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(_responseContent)
+                Content = new StringContent(this.responseContent),
             };
             return Task.FromResult(response);
         }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using FluentAssertions;
@@ -14,14 +16,14 @@ namespace Leecharr.Core.Test.Datastore;
 [TestFixture]
 public class BasicRepositoryTest
 {
-    private string _dbPath = null!;
-    private BasicRepository<Torrent> _repository = null!;
+    private string dbPath = null!;
+    private BasicRepository<Torrent> repository = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-repo-test-{Guid.NewGuid():N}.db");
-        var connectionString = $"Data Source={_dbPath};";
+        this.dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-repo-test-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={this.dbPath};";
 
         var serviceProvider = new ServiceCollection()
             .AddFluentMigratorCore()
@@ -40,18 +42,18 @@ public class BasicRepositoryTest
 
         TableRegistration.RegisterTables();
         var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
-        _repository = new BasicRepository<Torrent>(database);
+        this.repository = new BasicRepository<Torrent>(database);
     }
 
     [TearDown]
     public void TearDown()
     {
         SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
+        if (File.Exists(this.dbPath))
         {
             try
             {
-                File.Delete(_dbPath);
+                File.Delete(this.dbPath);
             }
             catch
             {
@@ -70,31 +72,31 @@ public class BasicRepositoryTest
             Category = "linux",
             TotalSize = 4000000000,
             Status = TorrentStatus.Downloading,
-            DateAdded = DateTime.UtcNow
+            DateAdded = DateTime.UtcNow,
         };
 
         // 1. Insert
-        var inserted = _repository.Insert(torrent);
+        var inserted = this.repository.Insert(torrent);
         inserted.Id.Should().BeGreaterThan(0);
 
         // 2. Get
-        var fetched = _repository.Get(inserted.Id);
+        var fetched = this.repository.Get(inserted.Id);
         fetched.Should().NotBeNull();
         fetched.Name.Should().Be("Ubuntu.24.04.iso");
 
         // 3. Update
         fetched.Progress = 0.5;
         fetched.Status = TorrentStatus.Seeding;
-        var updated = _repository.Update(fetched);
+        var updated = this.repository.Update(fetched);
         updated.Progress.Should().Be(0.5);
 
         // 4. All
-        var all = _repository.All();
+        var all = this.repository.All();
         all.Should().HaveCount(1);
 
         // 5. Delete
-        _repository.Delete(inserted.Id);
-        var deleted = _repository.Get(inserted.Id);
+        this.repository.Delete(inserted.Id);
+        var deleted = this.repository.Get(inserted.Id);
         deleted.Should().BeNull();
     }
 
@@ -109,21 +111,21 @@ public class BasicRepositoryTest
             TotalSize = 2000000000,
             Status = TorrentStatus.Downloading,
             DateAdded = DateTime.UtcNow,
-            TagIds = new System.Collections.Generic.List<int> { 1, 2, 42 }
+            TagIds = new System.Collections.Generic.List<int> { 1, 2, 42 },
         };
 
-        var inserted = _repository.Insert(torrent);
+        var inserted = this.repository.Insert(torrent);
         inserted.Id.Should().BeGreaterThan(0);
 
-        var fetched = _repository.Get(inserted.Id);
+        var fetched = this.repository.Get(inserted.Id);
         fetched.Should().NotBeNull();
         fetched.TagIds.Should().NotBeNull();
         fetched.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 42 });
 
         fetched.TagIds.Add(99);
-        _repository.Update(fetched);
+        this.repository.Update(fetched);
 
-        var updatedFetched = _repository.Get(inserted.Id);
+        var updatedFetched = this.repository.Get(inserted.Id);
         updatedFetched.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 42, 99 });
     }
 }

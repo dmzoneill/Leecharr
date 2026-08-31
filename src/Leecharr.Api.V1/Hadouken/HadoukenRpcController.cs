@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,11 +30,11 @@ public class HadoukenRpcRequest
 [ApiController]
 public class HadoukenRpcController : ControllerBase
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public HadoukenRpcController(
         ITorrentService torrentService,
@@ -40,10 +42,10 @@ public class HadoukenRpcController : ControllerBase
         IConfigService configService,
         ITorrentFileService torrentFileService = null)
     {
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
-        _configService = configService;
-        _torrentFileService = torrentFileService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
+        this.configService = configService;
+        this.torrentFileService = torrentFileService;
     }
 
     [HttpPost]
@@ -56,7 +58,7 @@ public class HadoukenRpcController : ControllerBase
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
         {
-            return Ok(new { result = (object)null, error = "Invalid request", id = (object)1 });
+            return this.Ok(new { result = (object)null, error = "Invalid request", id = (object)1 });
         }
 
         var id = request.Id ?? 1;
@@ -67,7 +69,7 @@ public class HadoukenRpcController : ControllerBase
             {
                 case "core.getsysteminfo":
                 case "core.get_system_info":
-                    return Ok(new
+                    return this.Ok(new
                     {
                         result = new
                         {
@@ -77,26 +79,26 @@ public class HadoukenRpcController : ControllerBase
                             {
                                 { "hadouken", "5.3.0" },
                                 { "libtorrent", "1.2.14" }
-                            }
+                            },
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "webui.getsettings":
                 case "webui.get_settings":
-                    return Ok(new
+                    return this.Ok(new
                     {
                         result = new Dictionary<string, object>
                         {
-                            { "bittorrent.default_save_path", _configService.DownloadDir ?? "/downloads" }
+                            { "bittorrent.default_save_path", this.configService.DownloadDir ?? "/downloads" },
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "webui.list":
-                    var allTorrents = _torrentService.GetAll().ToList();
+                    var allTorrents = this.torrentService.GetAll().ToList();
                     var torrentRows = new List<object[]>();
                     foreach (var t in allTorrents)
                     {
@@ -159,21 +161,21 @@ public class HadoukenRpcController : ControllerBase
                             addedUnix,
                             completedUnix,
                             string.Empty,
-                            t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                             string.Empty,
-                            modifiedUnix
+                            modifiedUnix,
                         });
                     }
 
-                    return Ok(new
+                    return this.Ok(new
                     {
                         result = new
                         {
                             torrents = torrentRows,
-                            torrentc = "1"
+                            torrentc = "1",
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "webui.addtorrent":
@@ -213,29 +215,29 @@ public class HadoukenRpcController : ControllerBase
                         if (string.Equals(type, "file", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
                             var bytes = Convert.FromBase64String(data);
-                            var parsed = _torrentFileParser.Parse(bytes);
-                            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                            return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            var parsed = this.torrentFileParser.Parse(bytes);
+                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                            return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
                         }
                         else if (string.Equals(type, "url", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
                             if (data.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                var added = await _torrentService.AddFromMagnetAsync(data, category, savePath, isPaused);
-                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                var added = await this.torrentService.AddFromMagnetAsync(data, category, savePath, isPaused);
+                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
                             }
                             else
                             {
                                 using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                 var bytes = await client.GetByteArrayAsync(data);
-                                var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                var parsed = this.torrentFileParser.Parse(bytes);
+                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
                             }
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "webui.perform":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
@@ -260,64 +262,64 @@ public class HadoukenRpcController : ControllerBase
 
                         foreach (var targetHash in targetHashes)
                         {
-                            var t = _torrentService.GetByInfoHash(targetHash);
+                            var t = this.torrentService.GetByInfoHash(targetHash);
                             if (t != null)
                             {
                                 switch (action)
                                 {
                                     case "pause":
-                                        await _torrentService.PauseAsync(t.Id);
+                                        await this.torrentService.PauseAsync(t.Id);
                                         break;
                                     case "resume":
                                     case "start":
-                                        await _torrentService.ResumeAsync(t.Id);
+                                        await this.torrentService.ResumeAsync(t.Id);
                                         break;
                                     case "recheck":
-                                        await _torrentService.ForceRecheckAsync(t.Id);
+                                        await this.torrentService.ForceRecheckAsync(t.Id);
                                         break;
                                     case "remove":
-                                        await _torrentService.DeleteAsync(t.Id, false);
+                                        await this.torrentService.DeleteAsync(t.Id, false);
                                         break;
                                     case "removedata":
-                                        await _torrentService.DeleteAsync(t.Id, true);
+                                        await this.torrentService.DeleteAsync(t.Id, true);
                                         break;
                                 }
                             }
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "torrents.get_files":
                 case "webui.getfiles":
-                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0 && _torrentFileService != null)
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0 && this.torrentFileService != null)
                     {
                         var reqHash = request.Params[0].GetString();
                         if (!string.IsNullOrWhiteSpace(reqHash))
                         {
-                            var t = _torrentService.GetByInfoHash(reqHash);
+                            var t = this.torrentService.GetByInfoHash(reqHash);
                             if (t != null)
                             {
-                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
                                 var fileRes = files.Select((f, idx) => new
                                 {
                                     index = idx,
                                     path = f.Path,
                                     size = f.Size,
                                     progress = f.Progress,
-                                    priority = f.Priority
+                                    priority = f.Priority,
                                 });
 
-                                return Ok(new { result = fileRes, error = (object)null, id });
+                                return this.Ok(new { result = fileRes, error = (object)null, id });
                             }
                         }
                     }
 
-                    return Ok(new { result = new object[] { }, error = (object)null, id });
+                    return this.Ok(new { result = new object[] { }, error = (object)null, id });
 
                 case "core.getversion":
                 case "hadouken.getversion":
-                    return Ok(new { result = "5.3.0", error = (object)null, id });
+                    return this.Ok(new { result = "5.3.0", error = (object)null, id });
 
                 case "torrents.adduri":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
@@ -350,45 +352,45 @@ public class HadoukenRpcController : ControllerBase
                         {
                             if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                var added = await _torrentService.AddFromMagnetAsync(uri, category, savePath, isPaused);
-                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                var added = await this.torrentService.AddFromMagnetAsync(uri, category, savePath, isPaused);
+                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
                             }
                             else
                             {
                                 using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                 var bytes = await client.GetByteArrayAsync(uri);
-                                var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                var parsed = this.torrentFileParser.Parse(bytes);
+                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
                             }
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "torrents.pause":
                     var hashToPause = GetFirstStringParam(request.Params);
-                    var tPause = _torrentService.GetByInfoHash(hashToPause);
+                    var tPause = this.torrentService.GetByInfoHash(hashToPause);
                     if (tPause != null)
                     {
-                        await _torrentService.PauseAsync(tPause.Id);
+                        await this.torrentService.PauseAsync(tPause.Id);
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "torrents.resume":
                     var hashToResume = GetFirstStringParam(request.Params);
-                    var tResume = _torrentService.GetByInfoHash(hashToResume);
+                    var tResume = this.torrentService.GetByInfoHash(hashToResume);
                     if (tResume != null)
                     {
-                        await _torrentService.ResumeAsync(tResume.Id);
+                        await this.torrentService.ResumeAsync(tResume.Id);
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "torrents.delete":
                     var hashToDelete = GetFirstStringParam(request.Params);
-                    var tDelete = _torrentService.GetByInfoHash(hashToDelete);
+                    var tDelete = this.torrentService.GetByInfoHash(hashToDelete);
                     if (tDelete != null)
                     {
                         var deleteData = false;
@@ -405,17 +407,17 @@ public class HadoukenRpcController : ControllerBase
                             }
                         }
 
-                        await _torrentService.DeleteAsync(tDelete.Id, deleteData);
+                        await this.torrentService.DeleteAsync(tDelete.Id, deleteData);
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 case "torrents.set_props":
                 case "torrents.setprops":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
                     {
                         var targetHash = request.Params[0].GetString();
-                        var tProps = _torrentService.GetByInfoHash(targetHash);
+                        var tProps = this.torrentService.GetByInfoHash(targetHash);
                         if (tProps != null && request.Params[1].ValueKind == JsonValueKind.Object)
                         {
                             var propsObj = request.Params[1];
@@ -434,21 +436,21 @@ public class HadoukenRpcController : ControllerBase
                                 tProps.UploadLimit = ulProp.GetInt32();
                             }
 
-                            await _torrentService.UpdateAsync(tProps);
+                            await this.torrentService.UpdateAsync(tProps);
                         }
                     }
 
-                    return Ok(new { result = true, error = (object)null, id });
+                    return this.Ok(new { result = true, error = (object)null, id });
 
                 default:
-                    _logger.Debug("Unhandled Hadouken RPC method: {0}", request.Method);
-                    return Ok(new { result = true, error = (object)null, id });
+                    this.logger.Debug("Unhandled Hadouken RPC method: {0}", request.Method);
+                    return this.Ok(new { result = true, error = (object)null, id });
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error in Hadouken RPC: {0}", request.Method);
-            return Ok(new { result = (object)null, error = ex.Message, id });
+            this.logger.Error(ex, "Error in Hadouken RPC: {0}", request.Method);
+            return this.Ok(new { result = (object)null, error = ex.Message, id });
         }
     }
 

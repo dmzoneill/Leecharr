@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
@@ -10,34 +12,37 @@ namespace Leecharr.Api.V1.DiskSpace;
 public class DiskSpaceResource : RestResource
 {
     public string Path { get; set; }
+
     public string Label { get; set; }
+
     public long FreeSpace { get; set; }
+
     public long TotalSpace { get; set; }
 }
 
 [V1ApiController("diskspace")]
 public class DiskSpaceController : Controller
 {
-    private readonly IDiskSpaceService _diskSpaceService;
+    private readonly IDiskSpaceService diskSpaceService;
 
     public DiskSpaceController(IDiskSpaceService diskSpaceService)
     {
-        _diskSpaceService = diskSpaceService;
+        this.diskSpaceService = diskSpaceService;
     }
 
     [HttpGet]
     public ActionResult<List<DiskSpaceResource>> GetDiskSpace()
     {
-        var diskSpace = _diskSpaceService.GetDiskSpace();
+        var diskSpace = this.diskSpaceService.GetDiskSpace();
         var resources = diskSpace.Select((d, idx) => new DiskSpaceResource
         {
             Id = idx + 1,
             Path = d.Path,
             Label = d.Label,
             FreeSpace = d.FreeSpace,
-            TotalSpace = d.TotalSpace
+            TotalSpace = d.TotalSpace,
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using DryIoc;
 using DryIoc.Microsoft.DependencyInjection;
@@ -32,7 +34,7 @@ public static class Bootstrap
         "Leecharr.Common",
         "Leecharr.SignalR",
         "Leecharr.Http",
-        "Leecharr.Api.V1"
+        "Leecharr.Api.V1",
     };
 
     public static WebApplication CreateApplication(StartupContext startupContext, string[] urls = null)

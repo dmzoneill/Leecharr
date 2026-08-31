@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 
 namespace NzbDrone.Core.Messaging.Commands;
@@ -10,6 +12,8 @@ public interface IManageCommandQueue
     CommandModel PushRaw(string name, string body, CommandTrigger trigger = CommandTrigger.Manual);
 
     IEnumerable<CommandModel> GetAll();
+
     IEnumerable<CommandModel> GetStarted();
+
     IEnumerable<CommandModel> GetQueued();
 }

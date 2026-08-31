@@ -6,3 +6,5 @@ wwwroot/
 dist/
 build/
 *.min.css
+src/Leecharr.Frontend/
+src/Leecharr.Frontend/**

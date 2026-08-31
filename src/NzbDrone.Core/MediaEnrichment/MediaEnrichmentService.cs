@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Net.Http;
@@ -15,25 +17,28 @@ namespace NzbDrone.Core.MediaEnrichment;
 public class MediaEnrichedEvent : IEvent
 {
     public int TorrentId { get; set; }
+
     public TorrentMediaMetadata Metadata { get; set; }
 }
 
 public interface IMediaEnrichmentService
 {
     Task<TorrentMediaMetadata> EnrichTorrentAsync(Torrent torrent, string filePath = null);
+
     TorrentMediaMetadata GetMetadata(int torrentId);
+
     void DeleteMetadata(int torrentId);
 }
 
 public class MediaEnrichmentService : IMediaEnrichmentService
 {
-    private readonly ITorrentMediaMetadataRepository _repository;
-    private readonly IMediaContainerInspector _inspector;
-    private readonly IConfigService _configService;
-    private readonly IAppFolderInfo _appFolderInfo;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger;
+    private readonly ITorrentMediaMetadataRepository repository;
+    private readonly IMediaContainerInspector inspector;
+    private readonly IConfigService configService;
+    private readonly IAppFolderInfo appFolderInfo;
+    private readonly IEventAggregator eventAggregator;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger;
 
     public MediaEnrichmentService(
         ITorrentMediaMetadataRepository repository,
@@ -42,13 +47,13 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         IAppFolderInfo appFolderInfo,
         IEventAggregator eventAggregator)
     {
-        _repository = repository;
-        _inspector = inspector;
-        _configService = configService;
-        _appFolderInfo = appFolderInfo;
-        _eventAggregator = eventAggregator;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _logger = LogManager.GetCurrentClassLogger();
+        this.repository = repository;
+        this.inspector = inspector;
+        this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
+        this.eventAggregator = eventAggregator;
+        this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task<TorrentMediaMetadata> EnrichTorrentAsync(Torrent torrent, string filePath = null)
@@ -58,9 +63,9 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             return null;
         }
 
-        _logger.Debug("Enriching metadata for torrent: {0}", torrent.Name);
+        this.logger.Debug("Enriching metadata for torrent: {0}", torrent.Name);
 
-        var existing = _repository.GetByTorrentId(torrent.Id);
+        var existing = this.repository.GetByTorrentId(torrent.Id);
         var metadata = existing ?? new TorrentMediaMetadata { TorrentId = torrent.Id };
 
         // 1. Inspect container metadata if local file is available
@@ -68,7 +73,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         {
             try
             {
-                var containerInfo = _inspector.InspectFile(filePath);
+                var containerInfo = this.inspector.InspectFile(filePath);
                 if (containerInfo != null)
                 {
                     metadata.MediaInfoJson = JsonSerializer.Serialize(containerInfo);
@@ -76,14 +81,14 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to inspect media file: {0}", filePath);
+                this.logger.Warn(ex, "Failed to inspect media file: {0}", filePath);
             }
         }
 
         // 2. Parse title and heuristics from Torrent Name if empty
         if (string.IsNullOrEmpty(metadata.Title))
         {
-            var guessed = _inspector.Inspect(new MemoryStream(new byte[8]), torrent.Name);
+            var guessed = this.inspector.Inspect(new MemoryStream(new byte[8]), torrent.Name);
             metadata.Title = torrent.Name;
             metadata.ArrType = GuessArrType(torrent.Category, torrent.Name);
         }
@@ -91,45 +96,45 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         // 3. Cache remote poster if URL present and local path not yet downloaded
         if (!string.IsNullOrEmpty(metadata.PosterUrl) && string.IsNullOrEmpty(metadata.PosterLocalPath))
         {
-            metadata.PosterLocalPath = await CacheArtworkAsync(metadata.PosterUrl, torrent.Id, "poster");
+            metadata.PosterLocalPath = await this.CacheArtworkAsync(metadata.PosterUrl, torrent.Id, "poster");
         }
 
         if (!string.IsNullOrEmpty(metadata.BackdropUrl) && string.IsNullOrEmpty(metadata.BackdropLocalPath))
         {
-            metadata.BackdropLocalPath = await CacheArtworkAsync(metadata.BackdropUrl, torrent.Id, "backdrop");
+            metadata.BackdropLocalPath = await this.CacheArtworkAsync(metadata.BackdropUrl, torrent.Id, "backdrop");
         }
 
         if (existing == null)
         {
-            _repository.Insert(metadata);
+            this.repository.Insert(metadata);
         }
         else
         {
-            _repository.Update(metadata);
+            this.repository.Update(metadata);
         }
 
-        _eventAggregator.PublishEvent(new MediaEnrichedEvent { TorrentId = torrent.Id, Metadata = metadata });
+        this.eventAggregator.PublishEvent(new MediaEnrichedEvent { TorrentId = torrent.Id, Metadata = metadata });
         return metadata;
     }
 
     public TorrentMediaMetadata GetMetadata(int torrentId)
     {
-        return _repository.GetByTorrentId(torrentId);
+        return this.repository.GetByTorrentId(torrentId);
     }
 
     public void DeleteMetadata(int torrentId)
     {
-        var metadata = _repository.GetByTorrentId(torrentId);
+        var metadata = this.repository.GetByTorrentId(torrentId);
         if (metadata != null)
         {
             // Prune artwork if configured
-            if (_configService.AutoPruneRemovedArtwork)
+            if (this.configService.AutoPruneRemovedArtwork)
             {
                 DeleteLocalFile(metadata.PosterLocalPath);
                 DeleteLocalFile(metadata.BackdropLocalPath);
             }
 
-            _repository.DeleteByTorrentId(torrentId);
+            this.repository.DeleteByTorrentId(torrentId);
         }
     }
 
@@ -163,7 +168,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     {
         try
         {
-            var cacheDir = Path.Combine(_appFolderInfo.AppDataFolder, "MediaCache", torrentId.ToString());
+            var cacheDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", torrentId.ToString());
             Directory.CreateDirectory(cacheDir);
 
             var ext = Path.GetExtension(new Uri(url).AbsolutePath);
@@ -173,15 +178,15 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             }
 
             var localFile = Path.Combine(cacheDir, $"{type}{ext}");
-            var bytes = await _httpClient.GetByteArrayAsync(url);
+            var bytes = await this.httpClient.GetByteArrayAsync(url);
             await File.WriteAllBytesAsync(localFile, bytes);
 
-            _logger.Debug("Cached {0} artwork to {1}", type, localFile);
+            this.logger.Debug("Cached {0} artwork to {1}", type, localFile);
             return localFile;
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to cache artwork from URL: {0}", url);
+            this.logger.Warn(ex, "Failed to cache artwork from URL: {0}", url);
             return null;
         }
     }

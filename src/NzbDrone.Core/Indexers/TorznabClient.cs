@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -24,6 +26,7 @@ public interface ITorznabClient
         string searchType = null);
 
     Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50);
+
     List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer);
 }
 
@@ -31,13 +34,13 @@ public class TorznabClient : ITorznabClient
 {
     private static readonly XNamespace TorznabNs = "http://torznab.com/schemas/2015/feed";
     private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger;
 
     public TorznabClient(HttpClient httpClient = null)
     {
-        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-        _logger = LogManager.GetCurrentClassLogger();
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task<List<TorznabSearchResult>> SearchAsync(
@@ -108,14 +111,14 @@ public class TorznabClient : ITorznabClient
                 ? queryParams
                 : uriBuilder.Query.TrimStart('?') + "&" + queryParams;
 
-            _logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
+            this.logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
 
-            var xml = await _httpClient.GetStringAsync(uriBuilder.Uri);
-            return ParseTorznabFeedXml(xml, indexer);
+            var xml = await this.httpClient.GetStringAsync(uriBuilder.Uri);
+            return this.ParseTorznabFeedXml(xml, indexer);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to search Torznab indexer: {0}", indexer.Name);
+            this.logger.Error(ex, "Failed to search Torznab indexer: {0}", indexer.Name);
             return new List<TorznabSearchResult>();
         }
     }
@@ -146,12 +149,12 @@ public class TorznabClient : ITorznabClient
                 ? queryParams
                 : uriBuilder.Query.TrimStart('?') + "&" + queryParams;
 
-            var xml = await _httpClient.GetStringAsync(uriBuilder.Uri);
-            return ParseTorznabFeedXml(xml, indexer);
+            var xml = await this.httpClient.GetStringAsync(uriBuilder.Uri);
+            return this.ParseTorznabFeedXml(xml, indexer);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to fetch RSS from Torznab indexer: {0}", indexer.Name);
+            this.logger.Error(ex, "Failed to fetch RSS from Torznab indexer: {0}", indexer.Name);
             return new List<TorznabSearchResult>();
         }
     }
@@ -269,7 +272,7 @@ public class TorznabClient : ITorznabClient
                     Category = category,
                     PublishDate = publishDate,
                     IndexerName = indexer?.Name ?? "Indexer",
-                    IndexerId = indexer?.Id ?? 0
+                    IndexerId = indexer?.Id ?? 0,
                 };
 
                 if (indexer != null && indexer.FreeleechOnly && !result.IsFreeleech)
@@ -287,7 +290,7 @@ public class TorznabClient : ITorznabClient
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to parse Torznab XML feed.");
+            this.logger.Error(ex, "Failed to parse Torznab XML feed.");
         }
 
         return results;

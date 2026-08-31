@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -12,19 +14,20 @@ namespace NzbDrone.Core.Indexers;
 public interface IRssSyncService
 {
     Task<int> SyncRssFeedsAsync();
+
     bool MatchesRule(TorznabSearchResult release, RssRule rule);
 }
 
 public class RssSyncService : IRssSyncService
 {
-    private readonly IIndexerRepository _indexerRepository;
-    private readonly IRssRuleRepository _rssRuleRepository;
-    private readonly ITorznabClient _torznabClient;
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly HttpClient _httpClient;
-    private readonly ConcurrentDictionary<string, byte> _grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Logger _logger;
+    private readonly IIndexerRepository indexerRepository;
+    private readonly IRssRuleRepository rssRuleRepository;
+    private readonly ITorznabClient torznabClient;
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly HttpClient httpClient;
+    private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Logger logger;
 
     public RssSyncService(
         IIndexerRepository indexerRepository,
@@ -34,19 +37,19 @@ public class RssSyncService : IRssSyncService
         ITorrentFileParser torrentFileParser = null,
         HttpClient httpClient = null)
     {
-        _indexerRepository = indexerRepository;
-        _rssRuleRepository = rssRuleRepository;
-        _torznabClient = torznabClient;
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser ?? new TorrentFileParser();
-        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        _logger = LogManager.GetCurrentClassLogger();
+        this.indexerRepository = indexerRepository;
+        this.rssRuleRepository = rssRuleRepository;
+        this.torznabClient = torznabClient;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task<int> SyncRssFeedsAsync()
     {
-        var activeIndexers = _indexerRepository.GetRssEnabled().ToList();
-        var activeRules = _rssRuleRepository.GetEnabled().ToList();
+        var activeIndexers = this.indexerRepository.GetRssEnabled().ToList();
+        var activeRules = this.rssRuleRepository.GetEnabled().ToList();
 
         if (activeIndexers.Count == 0 || activeRules.Count == 0)
         {
@@ -59,11 +62,11 @@ public class RssSyncService : IRssSyncService
         {
             try
             {
-                var releases = await _torznabClient.FetchRssAsync(indexer);
+                var releases = await this.torznabClient.FetchRssAsync(indexer);
                 foreach (var release in releases)
                 {
                     var releaseId = GetReleaseId(release);
-                    if (!string.IsNullOrEmpty(releaseId) && _grabbedReleaseIds.ContainsKey(releaseId))
+                    if (!string.IsNullOrEmpty(releaseId) && this.grabbedReleaseIds.ContainsKey(releaseId))
                     {
                         continue;
                     }
@@ -75,28 +78,28 @@ public class RssSyncService : IRssSyncService
                             continue;
                         }
 
-                        if (MatchesRule(release, rule))
+                        if (this.MatchesRule(release, rule))
                         {
-                            _logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
+                            this.logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
 
                             var grabbed = false;
                             if (!string.IsNullOrEmpty(release.MagnetUrl))
                             {
-                                await _torrentService.AddFromMagnetAsync(release.MagnetUrl);
+                                await this.torrentService.AddFromMagnetAsync(release.MagnetUrl);
                                 grabbed = true;
                             }
                             else if (!string.IsNullOrEmpty(release.DownloadUrl))
                             {
                                 try
                                 {
-                                    var torrentBytes = await _httpClient.GetByteArrayAsync(release.DownloadUrl);
-                                    var parsed = _torrentFileParser.Parse(torrentBytes);
-                                    await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
+                                    var torrentBytes = await this.httpClient.GetByteArrayAsync(release.DownloadUrl);
+                                    var parsed = this.torrentFileParser.Parse(torrentBytes);
+                                    await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
                                     grabbed = true;
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
+                                    this.logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
                                 }
                             }
 
@@ -104,7 +107,7 @@ public class RssSyncService : IRssSyncService
                             {
                                 if (!string.IsNullOrEmpty(releaseId))
                                 {
-                                    _grabbedReleaseIds.TryAdd(releaseId, 0);
+                                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                 }
 
                                 grabbedCount++;
@@ -116,7 +119,7 @@ public class RssSyncService : IRssSyncService
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error syncing RSS for indexer: {0}", indexer.Name);
+                this.logger.Error(ex, "Error syncing RSS for indexer: {0}", indexer.Name);
             }
         }
 

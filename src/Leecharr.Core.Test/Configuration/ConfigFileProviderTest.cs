@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,26 +15,26 @@ namespace Leecharr.Core.Test.Configuration;
 [TestFixture]
 public class ConfigFileProviderTest
 {
-    private string _tempDir = null!;
-    private IAppFolderInfo _appFolderInfo = null!;
+    private string tempDir = null!;
+    private IAppFolderInfo appFolderInfo = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"leecharr-config-test-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-        _appFolderInfo = Substitute.For<IAppFolderInfo>();
-        _appFolderInfo.AppDataFolder.Returns(_tempDir);
+        this.tempDir = Path.Combine(Path.GetTempPath(), $"leecharr-config-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(this.tempDir);
+        this.appFolderInfo = Substitute.For<IAppFolderInfo>();
+        this.appFolderInfo.AppDataFolder.Returns(this.tempDir);
     }
 
     [TearDown]
     public void TearDown()
     {
-        if (Directory.Exists(_tempDir))
+        if (Directory.Exists(this.tempDir))
         {
             try
             {
-                Directory.Delete(_tempDir, true);
+                Directory.Delete(this.tempDir, true);
             }
             catch
             {
@@ -51,7 +53,7 @@ public class ConfigFileProviderTest
     [Test]
     public void Constructor_WhenConfigFileDoesNotExist_GeneratesApiKeyAndDefaults()
     {
-        var provider = new ConfigFileProvider(_appFolderInfo);
+        var provider = new ConfigFileProvider(this.appFolderInfo);
 
         provider.ApiKey.Should().NotBeNullOrWhiteSpace();
         provider.Port.Should().Be(7889);
@@ -61,16 +63,17 @@ public class ConfigFileProviderTest
         provider.UrlBase.Should().BeEmpty();
         provider.PostgresPort.Should().Be(5432);
 
-        var configFile = Path.Combine(_tempDir, "config.xml");
+        var configFile = Path.Combine(this.tempDir, "config.xml");
         File.Exists(configFile).Should().BeTrue();
     }
 
     [Test]
     public void Constructor_WhenConfigFileExists_LoadsValuesFromXml()
     {
-        var configFile = Path.Combine(_tempDir, "config.xml");
+        var configFile = Path.Combine(this.tempDir, "config.xml");
         var xDoc = new XDocument(
-            new XElement("Config",
+            new XElement(
+                "Config",
                 new XElement("Port", "8989"),
                 new XElement("BindAddress", "127.0.0.1"),
                 new XElement("ApiKey", "test-api-key-12345"),
@@ -84,7 +87,7 @@ public class ConfigFileProviderTest
                 new XElement("PostgresPassword", "dbpass")));
         xDoc.Save(configFile);
 
-        var provider = new ConfigFileProvider(_appFolderInfo);
+        var provider = new ConfigFileProvider(this.appFolderInfo);
 
         provider.Port.Should().Be(8989);
         provider.BindAddress.Should().Be("127.0.0.1");
@@ -102,13 +105,13 @@ public class ConfigFileProviderTest
     [Test]
     public void SaveConfigDictionary_UpdatesValuesAndSavesToFile()
     {
-        var provider = new ConfigFileProvider(_appFolderInfo);
+        var provider = new ConfigFileProvider(this.appFolderInfo);
 
         provider.SaveConfigDictionary(new Dictionary<string, object>
         {
             { "Port", 9090 },
             { "LogLevel", "trace" },
-            { "UrlBase", "/custom" }
+            { "UrlBase", "/custom" },
         });
 
         provider.Port.Should().Be(9090);
@@ -116,7 +119,7 @@ public class ConfigFileProviderTest
         provider.UrlBase.Should().Be("/custom");
 
         // Verify reloaded from new instance
-        var reloaded = new ConfigFileProvider(_appFolderInfo);
+        var reloaded = new ConfigFileProvider(this.appFolderInfo);
         reloaded.Port.Should().Be(9090);
         reloaded.LogLevel.Should().Be("trace");
         reloaded.UrlBase.Should().Be("/custom");
@@ -125,7 +128,7 @@ public class ConfigFileProviderTest
     [Test]
     public void SaveConfigDictionary_WhenNull_DoesNotThrow()
     {
-        var provider = new ConfigFileProvider(_appFolderInfo);
+        var provider = new ConfigFileProvider(this.appFolderInfo);
         Action act = () => provider.SaveConfigDictionary(null!);
         act.Should().NotThrow();
     }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -16,13 +18,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
 {
     private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".exe", ".scr", ".bat", ".cmd", ".vbs", ".js", ".pif", ".ps1", ".msi", ".com", ".hta", ".lnk", ".dll", ".wsf", ".jar", ".cpl", ".iso"
+        ".exe", ".scr", ".bat", ".cmd", ".vbs", ".js", ".pif", ".ps1", ".msi", ".com", ".hta", ".lnk", ".dll", ".wsf", ".jar", ".cpl", ".iso",
     };
 
     private static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".m2ts",
-        ".flac", ".mp3", ".aac", ".wav", ".alac", ".ogg", ".m4a"
+        ".flac", ".mp3", ".aac", ".wav", ".alac", ".ogg", ".m4a",
     };
 
     private static readonly Regex SeasonEpisodeRegex = new(@"(?i)\bS(?<season>\d{1,2})E(?<episode>\d{1,3})(?:-?E?(?<endEpisode>\d{1,3}))?\b", RegexOptions.Compiled);
@@ -41,9 +43,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex ReleaseGroupRegex = new(@"(?:-(?<group>[A-Za-z0-9]+)|\[(?<group>[A-Za-z0-9]+)\])$", RegexOptions.Compiled);
 
     public string ProviderId => "RuleHeuristic";
+
     public string DisplayName => "Rule-Based Deterministic NLP & Heuristic AI Engine";
+
     public string Version => "1.0";
+
     public string Description => "Deterministic rule-based NLP tokenizer, scene release parser, swarm health diagnostician, and malware anomaly classifier (100% offline).";
+
     public bool IsAvailable => true;
 
     public AiCapabilities Capabilities =>
@@ -62,7 +68,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             StatusMessage = "Rule & Heuristic AI Engine is operational (100% offline, zero-dependency).",
             LatencyMs = 0,
             ModelName = "Deterministic-Rule-Engine",
-            Version = Version
+            Version = this.Version,
         });
     }
 
@@ -74,13 +80,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             {
                 RawTitle = releaseName ?? string.Empty,
                 CleanTitle = string.Empty,
-                ConfidenceScore = 0.0
+                ConfidenceScore = 0.0,
             });
         }
 
         var result = new AiParsedRelease
         {
-            RawTitle = releaseName
+            RawTitle = releaseName,
         };
 
         var working = releaseName.Trim();
@@ -268,7 +274,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 OverallHealth = "Unknown",
                 Severity = "High",
                 Summary = "No torrent data provided for diagnostics.",
-                HealthScore = 0.0
+                HealthScore = 0.0,
             });
         }
 
@@ -412,7 +418,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             SwarmAnalysis = swarmSummary,
             TrackerAnalysis = trackerSummary,
             HealthScore = healthScore,
-            AnalyzedAt = DateTime.UtcNow
+            AnalyzedAt = DateTime.UtcNow,
         });
     }
 
@@ -425,13 +431,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 RawQuery = naturalQuery ?? string.Empty,
                 CleanQuery = string.Empty,
                 CleanTitle = string.Empty,
-                ConfidenceScore = 0.0
+                ConfidenceScore = 0.0,
             });
         }
 
         var result = new AiSearchParameters
         {
-            RawQuery = naturalQuery
+            RawQuery = naturalQuery,
         };
 
         var working = naturalQuery.Trim();
@@ -678,7 +684,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             SuspiciousFileNames = suspiciousFiles.Distinct().ToList(),
             ThreatReasons = threatReasons.Distinct().ToList(),
             Recommendations = recommendations,
-            AssessedAt = DateTime.UtcNow
+            AssessedAt = DateTime.UtcNow,
         });
     }
 

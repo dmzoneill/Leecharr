@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,16 +10,16 @@ namespace Leecharr.Api.V1.Health;
 [V1ApiController("health")]
 public class HealthController : Controller
 {
-    private readonly IHealthCheckService _healthCheckService;
+    private readonly IHealthCheckService healthCheckService;
 
     public HealthController(IHealthCheckService healthCheckService)
     {
-        _healthCheckService = healthCheckService;
+        this.healthCheckService = healthCheckService;
     }
 
     [HttpGet]
     public ActionResult<List<HealthCheckResult>> GetHealth()
     {
-        return _healthCheckService.PerformChecks();
+        return this.healthCheckService.PerformChecks();
     }
 }

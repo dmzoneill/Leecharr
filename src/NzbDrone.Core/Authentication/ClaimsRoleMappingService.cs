@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,11 +11,11 @@ namespace NzbDrone.Core.Authentication;
 
 public class ClaimsRoleMappingService : IClaimsRoleMappingService
 {
-    private readonly Logger _logger;
+    private readonly Logger logger;
 
     public ClaimsRoleMappingService(Logger logger)
     {
-        _logger = logger;
+        this.logger = logger;
     }
 
     public List<string> ResolveRoles(IdentityProviderDefinition provider, IReadOnlyList<string> rawGroups, bool isFirstUser)
@@ -59,7 +61,7 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to parse RoleMappingRules for provider {0}", provider.Name);
+            this.logger.Warn(ex, "Failed to parse RoleMappingRules for provider {0}", provider.Name);
         }
 
         // Direct matching fallback

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,28 +14,41 @@ namespace Leecharr.Api.V1.Seeding;
 public class SeedingStatsResource
 {
     public int ActiveTorrents { get; set; }
+
     public int DownloadingTorrents { get; set; }
+
     public int SeedingTorrents { get; set; }
+
     public int PausedTorrents { get; set; }
+
     public long DownloadSpeed { get; set; }
+
     public long UploadSpeed { get; set; }
+
     public long TotalDownloaded { get; set; }
+
     public long TotalUploaded { get; set; }
+
     public double GlobalRatio { get; set; }
 }
 
 public class SpeedSnapshotResource
 {
     public DateTime Timestamp { get; set; }
+
     public long DownloadSpeed { get; set; }
+
     public long UploadSpeed { get; set; }
 }
 
 public class TorrentSpeedSnapshotResource
 {
     public DateTime Timestamp { get; set; }
+
     public int TorrentId { get; set; }
+
     public long DownloadSpeed { get; set; }
+
     public long UploadSpeed { get; set; }
 }
 
@@ -43,25 +58,25 @@ public class SeedingController : Controller
     private static readonly ConcurrentQueue<SpeedSnapshotResource> GlobalHistory = new();
     private static readonly ConcurrentDictionary<int, ConcurrentQueue<TorrentSpeedSnapshotResource>> TorrentHistories = new();
     private static readonly object SyncLock = new();
-    private static DateTime _lastSampleTime = DateTime.MinValue;
+    private static DateTime lastSampleTime = DateTime.MinValue;
 
-    private readonly ITorrentService _torrentService;
+    private readonly ITorrentService torrentService;
 
     public SeedingController(ITorrentService torrentService)
     {
-        _torrentService = torrentService;
+        this.torrentService = torrentService;
     }
 
     [HttpGet("stats")]
     public ActionResult<SeedingStatsResource> GetStats()
     {
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         var totalDown = torrents.Sum(t => t.Downloaded);
         var totalUp = torrents.Sum(t => t.Uploaded);
 
         RecordSample(torrents);
 
-        return Ok(new SeedingStatsResource
+        return this.Ok(new SeedingStatsResource
         {
             ActiveTorrents = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding),
             DownloadingTorrents = torrents.Count(t => t.Status == TorrentStatus.Downloading),
@@ -71,79 +86,79 @@ public class SeedingController : Controller
             UploadSpeed = torrents.Sum(t => t.UploadSpeed),
             TotalDownloaded = totalDown,
             TotalUploaded = totalUp,
-            GlobalRatio = totalDown > 0 ? (double)totalUp / totalDown : 0.0
+            GlobalRatio = totalDown > 0 ? (double)totalUp / totalDown : 0.0,
         });
     }
 
     [HttpGet("history")]
     public ActionResult<List<SpeedSnapshotResource>> GetHistory()
     {
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         RecordSample(torrents);
 
         var list = GlobalHistory.ToList();
-        return Ok(list);
+        return this.Ok(list);
     }
 
     [HttpGet("history/{torrentId:int}")]
     public ActionResult<List<TorrentSpeedSnapshotResource>> GetTorrentHistory(int torrentId)
     {
-        var torrent = _torrentService.Get(torrentId);
+        var torrent = this.torrentService.Get(torrentId);
         if (torrent == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var torrents = _torrentService.GetAll().ToList();
+        var torrents = this.torrentService.GetAll().ToList();
         RecordSample(torrents);
 
         if (TorrentHistories.TryGetValue(torrentId, out var queue))
         {
-            return Ok(queue.ToList());
+            return this.Ok(queue.ToList());
         }
 
-        return Ok(new List<TorrentSpeedSnapshotResource>
+        return this.Ok(new List<TorrentSpeedSnapshotResource>
         {
-            new() { Timestamp = DateTime.UtcNow, TorrentId = torrentId, DownloadSpeed = torrent.DownloadSpeed, UploadSpeed = torrent.UploadSpeed }
+            new() { Timestamp = DateTime.UtcNow, TorrentId = torrentId, DownloadSpeed = torrent.DownloadSpeed, UploadSpeed = torrent.UploadSpeed },
         });
     }
 
     [HttpPost("start/{id:int}")]
     public async Task<ActionResult> Start(int id)
     {
-        await _torrentService.ResumeAsync(id);
-        return Ok();
+        await this.torrentService.ResumeAsync(id);
+        return this.Ok();
     }
 
     [HttpPost("stop/{id:int}")]
     public async Task<ActionResult> Stop(int id)
     {
-        await _torrentService.PauseAsync(id);
-        return Ok();
+        await this.torrentService.PauseAsync(id);
+        return this.Ok();
     }
 
     [HttpPost("start-all")]
     public async Task<ActionResult> StartAll()
     {
-        var torrents = _torrentService.GetAll();
+        var torrents = this.torrentService.GetAll();
         foreach (var t in torrents)
         {
-            await _torrentService.ResumeAsync(t.Id);
+            await this.torrentService.ResumeAsync(t.Id);
         }
 
-        return Ok();
+        return this.Ok();
     }
 
     [HttpPost("stop-all")]
     public async Task<ActionResult> StopAll()
     {
-        var torrents = _torrentService.GetAll();
+        var torrents = this.torrentService.GetAll();
         foreach (var t in torrents)
         {
-            await _torrentService.PauseAsync(t.Id);
+            await this.torrentService.PauseAsync(t.Id);
         }
 
-        return Ok();
+        return this.Ok();
     }
 
     private static void RecordSample(List<Torrent> torrents)
@@ -151,12 +166,12 @@ public class SeedingController : Controller
         var now = DateTime.UtcNow;
         lock (SyncLock)
         {
-            if ((now - _lastSampleTime).TotalSeconds < 2.0)
+            if ((now - lastSampleTime).TotalSeconds < 2.0)
             {
                 return;
             }
 
-            _lastSampleTime = now;
+            lastSampleTime = now;
 
             var totalDown = torrents.Sum(t => t.DownloadSpeed);
             var totalUp = torrents.Sum(t => t.UploadSpeed);
@@ -165,7 +180,7 @@ public class SeedingController : Controller
             {
                 Timestamp = now,
                 DownloadSpeed = totalDown,
-                UploadSpeed = totalUp
+                UploadSpeed = totalUp,
             });
 
             while (GlobalHistory.Count > 120)
@@ -181,7 +196,7 @@ public class SeedingController : Controller
                     Timestamp = now,
                     TorrentId = t.Id,
                     DownloadSpeed = t.DownloadSpeed,
-                    UploadSpeed = t.UploadSpeed
+                    UploadSpeed = t.UploadSpeed,
                 });
 
                 while (q.Count > 120)

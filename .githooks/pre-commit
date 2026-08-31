@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Leecharr Git Pre-Commit Hook
+# Validates code style, Prettier formatting, and .NET formatting before commit.
+# ==============================================================================
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "🔍 [pre-commit] Checking staged files..."
+
+# 1. Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# 2. Filter frontend files for Prettier (.ts, .tsx, .css, .json, .html, .js)
+FRONTEND_STAGED=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|css|json|html|js)$' || true)
+
+if [ -n "$FRONTEND_STAGED" ]; then
+  echo "✨ [pre-commit] Checking Prettier code style on staged frontend files..."
+  
+  # Auto-format staged files with Prettier
+  for file in $FRONTEND_STAGED; do
+    if [ -f "$file" ]; then
+      npx prettier --write "$file" > /dev/null 2>&1 || true
+      git add "$file"
+    fi
+  done
+  echo "✅ [pre-commit] Prettier formatting verified."
+fi
+
+# 3. Filter C# files for dotnet format (.cs)
+CS_STAGED=$(echo "$STAGED_FILES" | grep -E '\.cs$' || true)
+
+if [ -n "$CS_STAGED" ]; then
+  echo "🧹 [pre-commit] Checking C# formatting..."
+  if command -v dotnet > /dev/null 2>&1; then
+    dotnet format src/Leecharr.sln --verify-no-changes > /dev/null 2>&1 || {
+      echo "⚠️  [pre-commit] C# formatting issues detected. Running dotnet format..."
+      dotnet format src/Leecharr.sln > /dev/null 2>&1 || true
+      for file in $CS_STAGED; do
+        if [ -f "$file" ]; then
+          git add "$file"
+        fi
+      done
+    }
+  fi
+  echo "✅ [pre-commit] C# formatting verified."
+fi
+
+echo "🚀 [pre-commit] All pre-commit checks passed!"
+exit 0

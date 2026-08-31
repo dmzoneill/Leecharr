@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Net;
 using System.Text.Json;
@@ -16,10 +18,10 @@ public class TransmissionRpcTests : IntegrationTestBase
         var rpcBody = new
         {
             method = "session-get",
-            tag = 1
+            tag = 1,
         };
 
-        var response = await PostJsonAsync("/transmission/rpc", rpcBody);
+        var response = await this.PostJsonAsync("/transmission/rpc", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         response.Headers.Should().ContainKey("X-Transmission-Session-Id");
     }
@@ -28,7 +30,7 @@ public class TransmissionRpcTests : IntegrationTestBase
     public async Task SessionGet_WithSessionHeader_ReturnsSuccess()
     {
         // 1. Initial request to get session id
-        var initial = await PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
         initial.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
@@ -36,11 +38,11 @@ public class TransmissionRpcTests : IntegrationTestBase
         // 2. Subsequent request with session header
         var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
         {
-            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "session-get", tag = 10 }), System.Text.Encoding.UTF8, "application/json")
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "session-get", tag = 10 }), System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Add("X-Transmission-Session-Id", sessionId);
 
-        var response = await Client.SendAsync(request);
+        var response = await this.Client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -54,16 +56,16 @@ public class TransmissionRpcTests : IntegrationTestBase
     [Test]
     public async Task TorrentGet_WithSessionHeader_ReturnsTorrentsList()
     {
-        var initial = await PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
         var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
 
         var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
         {
-            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "torrent-get", tag = 11 }), System.Text.Encoding.UTF8, "application/json")
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "torrent-get", tag = 11 }), System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Add("X-Transmission-Session-Id", sessionId);
 
-        var response = await Client.SendAsync(request);
+        var response = await this.Client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -78,18 +80,18 @@ public class TransmissionRpcTests : IntegrationTestBase
     public async Task TorrentLifecycle_AddPauseResumeDelete_Succeeds()
     {
         // 1. Get session ID
-        var initial = await PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
         var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
 
         async Task<JsonElement> SendRpcAsync(object body)
         {
             var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
             {
-                Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json")
+                Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
             };
             request.Headers.Add("X-Transmission-Session-Id", sessionId);
 
-            var resp = await Client.SendAsync(request);
+            var resp = await this.Client.SendAsync(request);
             resp.StatusCode.Should().Be(HttpStatusCode.OK);
             var json = await resp.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
@@ -106,9 +108,9 @@ public class TransmissionRpcTests : IntegrationTestBase
             arguments = new Dictionary<string, object>
             {
                 { "filename", magnet },
-                { "paused", true }
+                { "paused", true },
             },
-            tag = 20
+            tag = 20,
         });
 
         addResult.GetProperty("result").GetString().Should().Be("success");
@@ -122,9 +124,9 @@ public class TransmissionRpcTests : IntegrationTestBase
             method = "torrent-start",
             arguments = new Dictionary<string, object>
             {
-                { "ids", new[] { torrentId } }
+                { "ids", new[] { torrentId } },
             },
-            tag = 21
+            tag = 21,
         });
         startResult.GetProperty("result").GetString().Should().Be("success");
 
@@ -134,9 +136,9 @@ public class TransmissionRpcTests : IntegrationTestBase
             method = "torrent-stop",
             arguments = new Dictionary<string, object>
             {
-                { "ids", new[] { torrentId } }
+                { "ids", new[] { torrentId } },
             },
-            tag = 22
+            tag = 22,
         });
         stopResult.GetProperty("result").GetString().Should().Be("success");
 
@@ -147,9 +149,9 @@ public class TransmissionRpcTests : IntegrationTestBase
             arguments = new Dictionary<string, object>
             {
                 { "ids", new[] { torrentId } },
-                { "delete-local-data", true }
+                { "delete-local-data", true },
             },
-            tag = 23
+            tag = 23,
         });
         removeResult.GetProperty("result").GetString().Should().Be("success");
 
@@ -159,9 +161,9 @@ public class TransmissionRpcTests : IntegrationTestBase
             method = "torrent-get",
             arguments = new Dictionary<string, object>
             {
-                { "ids", new[] { torrentId } }
+                { "ids", new[] { torrentId } },
             },
-            tag = 24
+            tag = 24,
         });
         getResult.GetProperty("result").GetString().Should().Be("success");
         getResult.GetProperty("arguments").GetProperty("torrents").GetArrayLength().Should().Be(0);

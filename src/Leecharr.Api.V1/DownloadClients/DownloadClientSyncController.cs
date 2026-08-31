@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Net.Sockets;
@@ -14,20 +16,20 @@ namespace Leecharr.Api.V1.DownloadClients;
 [V1ApiController("downloadclientsync")]
 public class DownloadClientSyncController : Controller
 {
-    private readonly IDownloadClientRepository _clientRepository;
-    private readonly ITorrentService _torrentService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IDownloadClientRepository clientRepository;
+    private readonly ITorrentService torrentService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DownloadClientSyncController(IDownloadClientRepository clientRepository, ITorrentService torrentService)
     {
-        _clientRepository = clientRepository;
-        _torrentService = torrentService;
+        this.clientRepository = clientRepository;
+        this.torrentService = torrentService;
     }
 
     [HttpPost("sync")]
     public async Task<ActionResult<SyncResultResource>> Sync()
     {
-        var clients = _clientRepository.GetEnabled().ToList();
+        var clients = this.clientRepository.GetEnabled().ToList();
         var syncedCount = 0;
 
         foreach (var client in clients)
@@ -44,15 +46,15 @@ public class DownloadClientSyncController : Controller
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to sync download client {0} ({1}:{2})", client.Name, client.Host, client.Port);
+                this.logger.Warn(ex, "Failed to sync download client {0} ({1}:{2})", client.Name, client.Host, client.Port);
             }
         }
 
-        return Ok(new SyncResultResource
+        return this.Ok(new SyncResultResource
         {
             Success = true,
             SyncedCount = syncedCount,
-            Message = $"Download client sync completed successfully ({syncedCount}/{clients.Count} connected)."
+            Message = $"Download client sync completed successfully ({syncedCount}/{clients.Count} connected).",
         });
     }
 }

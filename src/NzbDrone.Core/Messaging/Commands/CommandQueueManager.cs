@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,24 +11,24 @@ namespace NzbDrone.Core.Messaging.Commands;
 
 public class CommandQueueManager : IManageCommandQueue, IDisposable
 {
-    private readonly ICommandRepository _repository;
-    private readonly Logger _logger;
-    private readonly Timer _cleanupTimer;
+    private readonly ICommandRepository repository;
+    private readonly Logger logger;
+    private readonly Timer cleanupTimer;
 
     public CommandQueueManager(ICommandRepository repository)
     {
-        _repository = repository;
-        _logger = LogManager.GetCurrentClassLogger();
-        _cleanupTimer = new Timer(
+        this.repository = repository;
+        this.logger = LogManager.GetCurrentClassLogger();
+        this.cleanupTimer = new Timer(
             _ =>
             {
                 try
                 {
-                    CleanupOldCommands();
+                    this.CleanupOldCommands();
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Error during command history cleanup");
+                    this.logger.Error(ex, "Error during command history cleanup");
                 }
             },
             null,
@@ -45,7 +47,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
         command.QueuedAt = DateTime.UtcNow;
         command.Trigger = trigger;
 
-        _logger.Trace("Publishing {0}", command.Name);
+        this.logger.Trace("Publishing {0}", command.Name);
 
         var model = new CommandModel
         {
@@ -53,17 +55,17 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             Body = command.ToJson(),
             Status = CommandStatus.Queued,
             QueuedAt = command.QueuedAt,
-            Trigger = (int)trigger
+            Trigger = (int)trigger,
         };
 
-        _repository.Insert(model);
+        this.repository.Insert(model);
 
         return model;
     }
 
     public CommandModel PushRaw(string name, string body, CommandTrigger trigger = CommandTrigger.Manual)
     {
-        _logger.Trace("Publishing raw command {0}", name);
+        this.logger.Trace("Publishing raw command {0}", name);
 
         var model = new CommandModel
         {
@@ -71,39 +73,39 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             Body = body,
             Status = CommandStatus.Queued,
             QueuedAt = DateTime.UtcNow,
-            Trigger = (int)trigger
+            Trigger = (int)trigger,
         };
 
-        _repository.Insert(model);
+        this.repository.Insert(model);
         return model;
     }
 
     public IEnumerable<CommandModel> GetAll()
     {
-        return _repository.All()
+        return this.repository.All()
             .OrderByDescending(c => c.QueuedAt)
             .Take(50);
     }
 
     public IEnumerable<CommandModel> GetStarted()
     {
-        return _repository.GetByStatus(CommandStatus.Running);
+        return this.repository.GetByStatus(CommandStatus.Running);
     }
 
     public IEnumerable<CommandModel> GetQueued()
     {
-        return _repository.GetByStatus(CommandStatus.Queued);
+        return this.repository.GetByStatus(CommandStatus.Queued);
     }
 
     private void CleanupOldCommands()
     {
         var cutoff = DateTime.UtcNow.AddDays(-7);
-        _repository.DeleteOldTerminalCommands(cutoff);
-        _logger.Debug("Cleaned up terminal command records older than {0:yyyy-MM-dd}", cutoff);
+        this.repository.DeleteOldTerminalCommands(cutoff);
+        this.logger.Debug("Cleaned up terminal command records older than {0:yyyy-MM-dd}", cutoff);
     }
 
     public void Dispose()
     {
-        _cleanupTimer?.Dispose();
+        this.cleanupTimer?.Dispose();
     }
 }

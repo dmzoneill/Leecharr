@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -90,7 +92,7 @@ public class TrustedNetworkService : ITrustedNetworkService
 
         if (string.IsNullOrWhiteSpace(configuredCidrs))
         {
-            return IsLocalOrPrivateNetwork(remoteIp);
+            return this.IsLocalOrPrivateNetwork(remoteIp);
         }
 
         var cidrList = configuredCidrs.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);

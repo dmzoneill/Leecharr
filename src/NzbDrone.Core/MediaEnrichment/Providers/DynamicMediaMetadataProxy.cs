@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,43 +13,44 @@ namespace NzbDrone.Core.MediaEnrichment.Providers;
 
 public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataManager, IDisposable
 {
-    private readonly IEnumerable<IMediaMetadataProvider> _availableProviders;
-    private readonly IConfigService _configService;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
-    private readonly SemaphoreSlim _switchLock = new(1, 1);
-    private IMediaMetadataProvider _activeProvider;
-    private bool _disposed;
+    private readonly IEnumerable<IMediaMetadataProvider> availableProviders;
+    private readonly IConfigService configService;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
+    private readonly SemaphoreSlim switchLock = new(1, 1);
+    private IMediaMetadataProvider activeProvider;
+    private bool disposed;
 
-    public IMediaMetadataProvider ActiveProvider => Volatile.Read(ref _activeProvider);
-    public string ActiveProviderId => Volatile.Read(ref _activeProvider)?.ProviderId ?? "ServarrSync";
+    public IMediaMetadataProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
+
+    public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "ServarrSync";
 
     public DynamicMediaMetadataProxy(
         IEnumerable<IMediaMetadataProvider> availableProviders,
         IConfigService configService,
         IEventAggregator eventAggregator)
     {
-        _availableProviders = availableProviders ?? Enumerable.Empty<IMediaMetadataProvider>();
-        _configService = configService;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.availableProviders = availableProviders ?? Enumerable.Empty<IMediaMetadataProvider>();
+        this.configService = configService;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
 
-        var desiredProviderId = _configService?.ActiveMediaMetadataProvider;
-        _activeProvider = _availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? _availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ServarrSync", StringComparison.OrdinalIgnoreCase))
-                          ?? _availableProviders.FirstOrDefault();
+        var desiredProviderId = this.configService?.ActiveMediaMetadataProvider;
+        this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
+                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ServarrSync", StringComparison.OrdinalIgnoreCase))
+                          ?? this.availableProviders.FirstOrDefault();
 
-        if (_activeProvider == null)
+        if (this.activeProvider == null)
         {
             throw new InvalidOperationException("No media metadata providers are registered in the system container.");
         }
 
-        _logger.Info("DynamicMediaMetadataProxy initialized with active provider: {0} ({1})", _activeProvider.DisplayName, _activeProvider.ProviderId);
+        this.logger.Info("DynamicMediaMetadataProxy initialized with active provider: {0} ({1})", this.activeProvider.DisplayName, this.activeProvider.ProviderId);
     }
 
     public IEnumerable<IMediaMetadataProvider> GetProviders()
     {
-        return _availableProviders;
+        return this.availableProviders;
     }
 
     public IMediaMetadataProvider GetProvider(string providerId)
@@ -57,19 +60,19 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             return null;
         }
 
-        return _availableProviders.FirstOrDefault(p => p.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+        return this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task<MediaMetadataHealthCheckResult> ProbeProviderAsync(string providerId)
     {
-        var provider = GetProvider(providerId);
+        var provider = this.GetProvider(providerId);
         if (provider == null)
         {
             return new MediaMetadataHealthCheckResult
             {
                 IsHealthy = false,
                 StatusMessage = $"Media metadata provider '{providerId}' is not recognized or registered.",
-                Warnings = { "Provider identifier not found in active provider registry." }
+                Warnings = { "Provider identifier not found in active provider registry." },
             };
         }
 
@@ -83,32 +86,32 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             return new MediaMetadataSwitchResult
             {
                 Success = false,
-                Error = "Target provider ID must not be empty."
+                Error = "Target provider ID must not be empty.",
             };
         }
 
-        var targetProvider = GetProvider(targetProviderId);
+        var targetProvider = this.GetProvider(targetProviderId);
         if (targetProvider == null)
         {
             return new MediaMetadataSwitchResult
             {
                 Success = false,
-                Error = $"Target provider '{targetProviderId}' is not registered."
+                Error = $"Target provider '{targetProviderId}' is not registered.",
             };
         }
 
-        if (string.Equals(Volatile.Read(ref _activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
         {
             return new MediaMetadataSwitchResult
             {
                 Success = true,
-                PreviousProvider = Volatile.Read(ref _activeProvider).ProviderId,
+                PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
                 ActiveProvider = targetProvider.ProviderId,
-                Message = $"Media metadata provider '{targetProvider.DisplayName}' is already active."
+                Message = $"Media metadata provider '{targetProvider.DisplayName}' is already active.",
             };
         }
 
-        await _switchLock.WaitAsync();
+        await this.switchLock.WaitAsync();
         try
         {
             var health = await targetProvider.ProbeHealthAsync();
@@ -117,59 +120,59 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
                 return new MediaMetadataSwitchResult
                 {
                     Success = false,
-                    PreviousProvider = Volatile.Read(ref _activeProvider).ProviderId,
-                    ActiveProvider = Volatile.Read(ref _activeProvider).ProviderId,
-                    Error = $"Cannot switch to provider '{targetProvider.DisplayName}': health check failed ({health.StatusMessage})."
+                    PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    ActiveProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    Error = $"Cannot switch to provider '{targetProvider.DisplayName}': health check failed ({health.StatusMessage}).",
                 };
             }
 
-            var previousProvider = Volatile.Read(ref _activeProvider);
-            Volatile.Write(ref _activeProvider, targetProvider);
+            var previousProvider = Volatile.Read(ref this.activeProvider);
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
-            _configService?.SaveConfigDictionary(new Dictionary<string, object>
+            this.configService?.SaveConfigDictionary(new Dictionary<string, object>
             {
-                { "ActiveMediaMetadataProvider", targetProvider.ProviderId }
+                { "ActiveMediaMetadataProvider", targetProvider.ProviderId },
             });
 
-            _logger.Info("Media metadata provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            _eventAggregator?.PublishEvent(new MediaMetadataProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            this.logger.Info("Media metadata provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
+            this.eventAggregator?.PublishEvent(new MediaMetadataProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
 
             return new MediaMetadataSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
                 ActiveProvider = targetProvider.ProviderId,
-                Message = $"Successfully switched media metadata provider to {targetProvider.DisplayName}."
+                Message = $"Successfully switched media metadata provider to {targetProvider.DisplayName}.",
             };
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error switching media metadata provider to {0}", targetProviderId);
+            this.logger.Error(ex, "Error switching media metadata provider to {0}", targetProviderId);
             return new MediaMetadataSwitchResult
             {
                 Success = false,
-                PreviousProvider = Volatile.Read(ref _activeProvider)?.ProviderId,
-                ActiveProvider = Volatile.Read(ref _activeProvider)?.ProviderId,
-                Error = $"Hot-swap failed: {ex.Message}"
+                PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                Error = $"Hot-swap failed: {ex.Message}",
             };
         }
         finally
         {
-            _switchLock.Release();
+            this.switchLock.Release();
         }
     }
 
     public Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
     {
-        return Volatile.Read(ref _activeProvider).FetchMetadataAsync(title, category, year);
+        return Volatile.Read(ref this.activeProvider).FetchMetadataAsync(title, category, year);
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _switchLock.Dispose();
+            this.disposed = true;
+            this.switchLock.Dispose();
         }
     }
 }

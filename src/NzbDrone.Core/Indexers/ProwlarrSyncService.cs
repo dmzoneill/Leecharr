@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,17 +13,24 @@ namespace NzbDrone.Core.Indexers;
 public class ProwlarrIndexerDto
 {
     public int Id { get; set; }
+
     public string Name { get; set; }
+
     public string Implementation { get; set; }
+
     public bool Enable { get; set; }
+
     public int Priority { get; set; }
+
     public string Protocol { get; set; }
+
     public List<ProwlarrFieldDto> Fields { get; set; } = new();
 }
 
 public class ProwlarrFieldDto
 {
     public string Name { get; set; }
+
     public object Value { get; set; }
 }
 
@@ -32,15 +41,15 @@ public interface IProwlarrSyncService
 
 public class ProwlarrSyncService : IProwlarrSyncService
 {
-    private readonly IIndexerRepository _repository;
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger;
+    private readonly IIndexerRepository repository;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger;
 
     public ProwlarrSyncService(IIndexerRepository repository, HttpClient httpClient = null)
     {
-        _repository = repository;
-        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _logger = LogManager.GetCurrentClassLogger();
+        this.repository = repository;
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey)
@@ -58,10 +67,10 @@ public class ProwlarrSyncService : IProwlarrSyncService
             var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await this.httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.Warn("Failed to query Prowlarr indexers: HTTP {0}", response.StatusCode);
+                this.logger.Warn("Failed to query Prowlarr indexers: HTTP {0}", response.StatusCode);
                 return 0;
             }
 
@@ -74,7 +83,7 @@ public class ProwlarrSyncService : IProwlarrSyncService
             }
 
             var syncedCount = 0;
-            var existingIndexers = _repository.All().ToList();
+            var existingIndexers = this.repository.All().ToList();
 
             foreach (var pIndexer in indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)))
             {
@@ -83,14 +92,14 @@ public class ProwlarrSyncService : IProwlarrSyncService
 
                 if (existing == null)
                 {
-                    _repository.Insert(new IndexerDefinition
+                    this.repository.Insert(new IndexerDefinition
                     {
                         Name = pIndexer.Name,
                         Implementation = "Torznab",
                         Url = feedUrl,
                         ApiKey = apiKey,
                         Enable = pIndexer.Enable,
-                        Priority = pIndexer.Priority
+                        Priority = pIndexer.Priority,
                     });
                 }
                 else
@@ -99,18 +108,18 @@ public class ProwlarrSyncService : IProwlarrSyncService
                     existing.ApiKey = apiKey;
                     existing.Enable = pIndexer.Enable;
                     existing.Priority = pIndexer.Priority;
-                    _repository.Update(existing);
+                    this.repository.Update(existing);
                 }
 
                 syncedCount++;
             }
 
-            _logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
+            this.logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
             return syncedCount;
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to sync indexers from Prowlarr.");
+            this.logger.Error(ex, "Failed to sync indexers from Prowlarr.");
             return 0;
         }
     }

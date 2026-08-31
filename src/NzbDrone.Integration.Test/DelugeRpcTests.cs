@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -16,10 +18,10 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "auth.login",
             @params = new object[] { "deluge" },
-            id = 1
+            id = 1,
         };
 
-        var response = await PostJsonAsync("/json", rpcBody);
+        var response = await this.PostJsonAsync("/json", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -40,10 +42,10 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.get_torrents_status",
             @params = new object[] { new { }, new string[] { "name", "state", "progress" } },
-            id = 2
+            id = 2,
         };
 
-        var response = await PostJsonAsync("/json", rpcBody);
+        var response = await this.PostJsonAsync("/json", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -64,10 +66,10 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.get_filter_tree",
             @params = new object[] { },
-            id = 3
+            id = 3,
         };
 
-        var response = await PostJsonAsync("/json", rpcBody);
+        var response = await this.PostJsonAsync("/json", rpcBody);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -90,9 +92,9 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.add_torrent_magnet",
             @params = new object[] { magnet, new { add_paused = true, label = "tv" } },
-            id = 10
+            id = 10,
         };
-        var addResp = await PostJsonAsync("/json", addRpc);
+        var addResp = await this.PostJsonAsync("/json", addRpc);
         addResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var addJson = await addResp.Content.ReadAsStringAsync();
@@ -104,9 +106,9 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.get_torrent_status",
             @params = new object[] { hash, new[] { "name", "state" } },
-            id = 11
+            id = 11,
         };
-        var statusResp = await PostJsonAsync("/json", statusRpc);
+        var statusResp = await this.PostJsonAsync("/json", statusRpc);
         statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusJson = await statusResp.Content.ReadAsStringAsync();
         using var statusDoc = JsonDocument.Parse(statusJson);
@@ -117,9 +119,9 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.resume_torrent",
             @params = new object[] { hash },
-            id = 12
+            id = 12,
         };
-        var resumeResp = await PostJsonAsync("/json", resumeRpc);
+        var resumeResp = await this.PostJsonAsync("/json", resumeRpc);
         resumeResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 3. Pause Torrent
@@ -127,9 +129,9 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.pause_torrent",
             @params = new object[] { hash },
-            id = 13
+            id = 13,
         };
-        var pauseResp = await PostJsonAsync("/json", pauseRpc);
+        var pauseResp = await this.PostJsonAsync("/json", pauseRpc);
         pauseResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 4. Remove Torrent with files
@@ -137,13 +139,13 @@ public class DelugeRpcTests : IntegrationTestBase
         {
             method = "core.remove_torrent",
             @params = new object[] { hash, true },
-            id = 14
+            id = 14,
         };
-        var removeResp = await PostJsonAsync("/json", removeRpc);
+        var removeResp = await this.PostJsonAsync("/json", removeRpc);
         removeResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Verify torrent is gone
-        var verifyResp = await PostJsonAsync("/json", statusRpc);
+        var verifyResp = await this.PostJsonAsync("/json", statusRpc);
         verifyResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var verifyJson = await verifyResp.Content.ReadAsStringAsync();
         using var verifyDoc = JsonDocument.Parse(verifyJson);

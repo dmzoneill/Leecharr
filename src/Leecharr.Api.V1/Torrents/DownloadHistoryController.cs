@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,18 +15,18 @@ namespace Leecharr.Api.V1.Torrents;
 [V1ApiController("downloadhistory")]
 public class DownloadHistoryController : Controller
 {
-    private readonly IDownloadHistoryService _historyService;
-    private readonly ITorrentMediaMetadataRepository _mediaMetadataRepository;
-    private readonly IMediaEnrichmentService _mediaEnrichmentService;
+    private readonly IDownloadHistoryService historyService;
+    private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
 
     public DownloadHistoryController(
         IDownloadHistoryService historyService,
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
         IMediaEnrichmentService mediaEnrichmentService = null)
     {
-        _historyService = historyService;
-        _mediaMetadataRepository = mediaMetadataRepository;
-        _mediaEnrichmentService = mediaEnrichmentService;
+        this.historyService = historyService;
+        this.mediaMetadataRepository = mediaMetadataRepository;
+        this.mediaEnrichmentService = mediaEnrichmentService;
     }
 
     [HttpGet]
@@ -33,20 +35,20 @@ public class DownloadHistoryController : Controller
         [FromQuery] string status = null,
         [FromQuery] int limit = 500)
     {
-        var records = _historyService.GetAll(query, status, limit);
-        return Ok(records.Select(ToResource).ToList());
+        var records = this.historyService.GetAll(query, status, limit);
+        return this.Ok(records.Select(this.ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<DownloadHistoryResource> Get(int id)
     {
-        var record = _historyService.Get(id);
+        var record = this.historyService.Get(id);
         if (record == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(record));
+        return this.Ok(this.ToResource(record));
     }
 
     [HttpPost("{id:int}/readd")]
@@ -54,52 +56,52 @@ public class DownloadHistoryController : Controller
     {
         try
         {
-            var added = await _historyService.ReAddAsync(id);
-            return Ok(TorrentResourceMapper.ToResource(added));
+            var added = await this.historyService.ReAddAsync(id);
+            return this.Ok(TorrentResourceMapper.ToResource(added));
         }
         catch (ArgumentException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return this.NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new { message = ex.Message });
+            return this.Conflict(new { message = ex.Message });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return this.BadRequest(new { message = ex.Message });
         }
     }
 
     [HttpPost("{id:int}/enrich")]
     public async Task<ActionResult<DownloadHistoryResource>> Enrich(int id)
     {
-        var record = _historyService.Get(id);
+        var record = this.historyService.Get(id);
         if (record == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        if (_mediaEnrichmentService != null)
+        if (this.mediaEnrichmentService != null)
         {
             var torrent = new Torrent
             {
                 Id = record.TorrentId ?? record.Id,
                 Name = record.Title,
-                InfoHash = record.InfoHash ?? string.Empty
+                InfoHash = record.InfoHash ?? string.Empty,
             };
-            await _mediaEnrichmentService.EnrichTorrentAsync(torrent);
+            await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
         }
 
-        var resource = ToResource(record);
-        return Ok(resource);
+        var resource = this.ToResource(record);
+        return this.Ok(resource);
     }
 
     [HttpPost("enrich-all")]
     public async Task<ActionResult> EnrichAll()
     {
-        var records = _historyService.GetAll(null, null, 1000);
-        if (_mediaEnrichmentService != null)
+        var records = this.historyService.GetAll(null, null, 1000);
+        if (this.mediaEnrichmentService != null)
         {
             foreach (var record in records)
             {
@@ -109,9 +111,9 @@ public class DownloadHistoryController : Controller
                     {
                         Id = record.TorrentId ?? record.Id,
                         Name = record.Title,
-                        InfoHash = record.InfoHash ?? string.Empty
+                        InfoHash = record.InfoHash ?? string.Empty,
                     };
-                    await _mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                    await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
                 }
                 catch
                 {
@@ -119,36 +121,36 @@ public class DownloadHistoryController : Controller
             }
         }
 
-        return Ok(new { message = "Enrichment completed", processedCount = records.Count });
+        return this.Ok(new { message = "Enrichment completed", processedCount = records.Count });
     }
 
     [HttpPost("reconcile")]
     public ActionResult Reconcile()
     {
-        var count = _historyService.ReconcileAllTorrents();
-        return Ok(new { success = true, processedCount = count });
+        var count = this.historyService.ReconcileAllTorrents();
+        return this.Ok(new { success = true, processedCount = count });
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _historyService.Delete(id);
-        return Ok();
+        this.historyService.Delete(id);
+        return this.Ok();
     }
 
     [HttpDelete]
     public ActionResult ClearAll()
     {
-        _historyService.ClearAll();
-        return Ok();
+        this.historyService.ClearAll();
+        return this.Ok();
     }
 
     private DownloadHistoryResource ToResource(DownloadHistory model)
     {
         TorrentMediaMetadata metadata = null;
-        if (model.TorrentId.HasValue && _mediaMetadataRepository != null)
+        if (model.TorrentId.HasValue && this.mediaMetadataRepository != null)
         {
-            metadata = _mediaMetadataRepository.GetByTorrentId(model.TorrentId.Value);
+            metadata = this.mediaMetadataRepository.GetByTorrentId(model.TorrentId.Value);
         }
 
         if (metadata == null && !string.IsNullOrEmpty(model.DataJson))
@@ -186,7 +188,7 @@ public class DownloadHistoryController : Controller
             DownloadUrl = model.DownloadUrl,
             Status = model.Status,
             RemovalReason = model.RemovalReason,
-            Metadata = metadata
+            Metadata = metadata,
         };
     }
 }

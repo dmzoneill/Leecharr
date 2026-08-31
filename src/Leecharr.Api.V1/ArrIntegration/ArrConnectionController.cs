@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,30 +15,30 @@ namespace Leecharr.Api.V1.ArrIntegration;
 public class ArrConnectionController : Controller
 {
     private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
-    private readonly IArrConnectionRepository _repository;
+    private readonly IArrConnectionRepository repository;
 
     public ArrConnectionController(IArrConnectionRepository repository)
     {
-        _repository = repository;
+        this.repository = repository;
     }
 
     [HttpGet]
     public ActionResult<List<ArrConnectionResource>> GetAll()
     {
-        var definitions = _repository.All();
-        return Ok(definitions.Select(ToResource).ToList());
+        var definitions = this.repository.All();
+        return this.Ok(definitions.Select(ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<ArrConnectionResource> Get(int id)
     {
-        var definition = _repository.Get(id);
+        var definition = this.repository.Get(id);
         if (definition == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(definition));
+        return this.Ok(ToResource(definition));
     }
 
     [HttpPost]
@@ -44,12 +46,12 @@ public class ArrConnectionController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _repository.Insert(model);
-        return Ok(ToResource(created));
+        var created = this.repository.Insert(model);
+        return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -57,38 +59,38 @@ public class ArrConnectionController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _repository.Get(id);
+        var existing = this.repository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
         model.Id = id;
-        _repository.Update(model);
-        return Ok(ToResource(model));
+        this.repository.Update(model);
+        return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _repository.Delete(id);
-        return Ok();
+        this.repository.Delete(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/test")]
     public async Task<ActionResult<ArrTestResult>> Test(int id)
     {
-        var definition = _repository.Get(id);
+        var definition = this.repository.Get(id);
         if (definition == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return await TestDirectInternal(ToResource(definition));
+        return await this.TestDirectInternal(ToResource(definition));
     }
 
     [HttpPost("test")]
@@ -96,10 +98,10 @@ public class ArrConnectionController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        return await TestDirectInternal(resource);
+        return await this.TestDirectInternal(resource);
     }
 
     private static ArrConnectionResource ToResource(ArrConnectionDefinition model)
@@ -113,7 +115,7 @@ public class ArrConnectionController : Controller
             ApiKey = model.ApiKey,
             Enabled = model.Enable,
             SyncCategories = model.SyncCategories,
-            RefreshIntervalMinutes = model.SyncIntervalMinutes
+            RefreshIntervalMinutes = model.SyncIntervalMinutes,
         };
     }
 
@@ -130,7 +132,7 @@ public class ArrConnectionController : Controller
             Enable = resource.Enabled,
             SyncCategories = resource.SyncCategories,
             SyncIntervalMinutes = resource.RefreshIntervalMinutes > 0 ? resource.RefreshIntervalMinutes : 15,
-            SyncEnabled = resource.Enabled
+            SyncEnabled = resource.Enabled,
         };
     }
 
@@ -138,7 +140,7 @@ public class ArrConnectionController : Controller
     {
         if (string.IsNullOrWhiteSpace(resource.Url))
         {
-            return Ok(new ArrTestResult { Success = false, Message = "URL is required." });
+            return this.Ok(new ArrTestResult { Success = false, Message = "URL is required." });
         }
 
         try
@@ -152,14 +154,14 @@ public class ArrConnectionController : Controller
             var resp = await HttpClient.SendAsync(req);
             if (resp.IsSuccessStatusCode)
             {
-                return Ok(new ArrTestResult { Success = true, Message = $"Connected to {resource.ArrType ?? "Arr"} successfully.", Version = "v3" });
+                return this.Ok(new ArrTestResult { Success = true, Message = $"Connected to {resource.ArrType ?? "Arr"} successfully.", Version = "v3" });
             }
 
-            return Ok(new ArrTestResult { Success = false, Message = $"Server returned {resp.StatusCode}" });
+            return this.Ok(new ArrTestResult { Success = false, Message = $"Server returned {resp.StatusCode}" });
         }
         catch (Exception ex)
         {
-            return Ok(new ArrTestResult { Success = false, Message = ex.Message });
+            return this.Ok(new ArrTestResult { Success = false, Message = ex.Message });
         }
     }
 }

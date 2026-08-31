@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using NzbDrone.Common.EnvironmentInfo;
@@ -8,12 +10,13 @@ namespace NzbDrone.Core.Datastore;
 public interface IConnectionStringFactory
 {
     string MainDbConnectionString { get; }
+
     DatabaseType DatabaseType { get; }
 }
 
 public class ConnectionStringFactory : IConnectionStringFactory
 {
-    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IConfigFileProvider configFileProvider;
 
     public ConnectionStringFactory(IAppFolderInfo appFolderInfo, IConfigFileProvider configFileProvider)
     {
@@ -22,21 +25,22 @@ public class ConnectionStringFactory : IConnectionStringFactory
             throw new ArgumentNullException(nameof(appFolderInfo));
         }
 
-        _configFileProvider = configFileProvider ?? throw new ArgumentNullException(nameof(configFileProvider));
+        this.configFileProvider = configFileProvider ?? throw new ArgumentNullException(nameof(configFileProvider));
 
-        if (!string.IsNullOrEmpty(_configFileProvider.PostgresHost))
+        if (!string.IsNullOrEmpty(this.configFileProvider.PostgresHost))
         {
-            DatabaseType = DatabaseType.PostgreSQL;
-            MainDbConnectionString = BuildPostgresConnectionString();
+            this.DatabaseType = DatabaseType.PostgreSQL;
+            this.MainDbConnectionString = this.BuildPostgresConnectionString();
         }
         else
         {
-            DatabaseType = DatabaseType.SQLite;
-            MainDbConnectionString = BuildSqliteConnectionString(appFolderInfo.AppDataFolder);
+            this.DatabaseType = DatabaseType.SQLite;
+            this.MainDbConnectionString = this.BuildSqliteConnectionString(appFolderInfo.AppDataFolder);
         }
     }
 
     public string MainDbConnectionString { get; }
+
     public DatabaseType DatabaseType { get; }
 
     private string BuildSqliteConnectionString(string dataFolder)
@@ -47,10 +51,10 @@ public class ConnectionStringFactory : IConnectionStringFactory
 
     private string BuildPostgresConnectionString()
     {
-        return $"Host={_configFileProvider.PostgresHost};" +
-            $"Port={_configFileProvider.PostgresPort};" +
-            $"Database={_configFileProvider.PostgresMainDb};" +
-            $"Username={_configFileProvider.PostgresUser};" +
-            $"Password={_configFileProvider.PostgresPassword}";
+        return $"Host={this.configFileProvider.PostgresHost};" +
+            $"Port={this.configFileProvider.PostgresPort};" +
+            $"Database={this.configFileProvider.PostgresMainDb};" +
+            $"Username={this.configFileProvider.PostgresUser};" +
+            $"Password={this.configFileProvider.PostgresPassword}";
     }
 }

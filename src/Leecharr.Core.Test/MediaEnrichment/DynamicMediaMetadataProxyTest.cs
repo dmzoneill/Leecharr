@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,96 +17,96 @@ namespace Leecharr.Core.Test.MediaEnrichment;
 [TestFixture]
 public class DynamicMediaMetadataProxyTest
 {
-    private IMediaMetadataProvider _servarrProvider = null!;
-    private IMediaMetadataProvider _tmdbProvider = null!;
-    private IMediaMetadataProvider _tvdbProvider = null!;
-    private IMediaMetadataProvider _localNfoProvider = null!;
-    private IConfigService _configService = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicMediaMetadataProxy _proxy = null!;
+    private IMediaMetadataProvider servarrProvider = null!;
+    private IMediaMetadataProvider tmdbProvider = null!;
+    private IMediaMetadataProvider tvdbProvider = null!;
+    private IMediaMetadataProvider localNfoProvider = null!;
+    private IConfigService configService = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicMediaMetadataProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _servarrProvider = Substitute.For<IMediaMetadataProvider>();
-        _servarrProvider.ProviderId.Returns("ServarrSync");
-        _servarrProvider.DisplayName.Returns("Servarr Library Sync (Sonarr / Radarr / Lidarr)");
-        _servarrProvider.IsAvailable.Returns(true);
-        _servarrProvider.Capabilities.Returns(new MediaMetadataCapabilities
+        this.servarrProvider = Substitute.For<IMediaMetadataProvider>();
+        this.servarrProvider.ProviderId.Returns("ServarrSync");
+        this.servarrProvider.DisplayName.Returns("Servarr Library Sync (Sonarr / Radarr / Lidarr)");
+        this.servarrProvider.IsAvailable.Returns(true);
+        this.servarrProvider.Capabilities.Returns(new MediaMetadataCapabilities
         {
             SupportsMovies = true,
             SupportsTvSeries = true,
             SupportsMusic = true,
             SupportsPosters = true,
-            SupportsFanart = true
+            SupportsFanart = true,
         });
-        _servarrProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _servarrProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>())
+        this.servarrProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.servarrProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>())
             .Returns(Task.FromResult(new MediaMetadata { Title = "Breaking Bad", Year = 2008, MediaType = "TV" }));
 
-        _tmdbProvider = Substitute.For<IMediaMetadataProvider>();
-        _tmdbProvider.ProviderId.Returns("TMDB");
-        _tmdbProvider.DisplayName.Returns("The Movie Database (TMDB v3/v4)");
-        _tmdbProvider.IsAvailable.Returns(true);
-        _tmdbProvider.Capabilities.Returns(new MediaMetadataCapabilities
+        this.tmdbProvider = Substitute.For<IMediaMetadataProvider>();
+        this.tmdbProvider.ProviderId.Returns("TMDB");
+        this.tmdbProvider.DisplayName.Returns("The Movie Database (TMDB v3/v4)");
+        this.tmdbProvider.IsAvailable.Returns(true);
+        this.tmdbProvider.Capabilities.Returns(new MediaMetadataCapabilities
         {
             SupportsMovies = true,
             SupportsTvSeries = true,
             SupportsPosters = true,
             SupportsFanart = true,
-            SupportsCast = true
+            SupportsCast = true,
         });
-        _tmdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _tmdbProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>())
+        this.tmdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.tmdbProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>())
             .Returns(Task.FromResult(new MediaMetadata { Title = "Inception", Year = 2010, MediaType = "Movie" }));
 
-        _tvdbProvider = Substitute.For<IMediaMetadataProvider>();
-        _tvdbProvider.ProviderId.Returns("TheTVDB");
-        _tvdbProvider.DisplayName.Returns("TheTVDB API v4");
-        _tvdbProvider.IsAvailable.Returns(true);
-        _tvdbProvider.Capabilities.Returns(new MediaMetadataCapabilities
+        this.tvdbProvider = Substitute.For<IMediaMetadataProvider>();
+        this.tvdbProvider.ProviderId.Returns("TheTVDB");
+        this.tvdbProvider.DisplayName.Returns("TheTVDB API v4");
+        this.tvdbProvider.IsAvailable.Returns(true);
+        this.tvdbProvider.Capabilities.Returns(new MediaMetadataCapabilities
         {
             SupportsTvSeries = true,
             SupportsPosters = true,
-            SupportsSeasonBanners = true
+            SupportsSeasonBanners = true,
         });
-        _tvdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.tvdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _localNfoProvider = Substitute.For<IMediaMetadataProvider>();
-        _localNfoProvider.ProviderId.Returns("LocalNFO");
-        _localNfoProvider.DisplayName.Returns("Local Filesystem NFO & Artwork Inspector");
-        _localNfoProvider.IsAvailable.Returns(true);
-        _localNfoProvider.Capabilities.Returns(new MediaMetadataCapabilities
+        this.localNfoProvider = Substitute.For<IMediaMetadataProvider>();
+        this.localNfoProvider.ProviderId.Returns("LocalNFO");
+        this.localNfoProvider.DisplayName.Returns("Local Filesystem NFO & Artwork Inspector");
+        this.localNfoProvider.IsAvailable.Returns(true);
+        this.localNfoProvider.Capabilities.Returns(new MediaMetadataCapabilities
         {
             SupportsNfoParsing = true,
-            SupportsPosters = true
+            SupportsPosters = true,
         });
-        _localNfoProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.localNfoProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.ActiveMediaMetadataProvider.Returns("ServarrSync");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.ActiveMediaMetadataProvider.Returns("ServarrSync");
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
-        var providers = new List<IMediaMetadataProvider> { _servarrProvider, _tmdbProvider, _tvdbProvider, _localNfoProvider };
+        var providers = new List<IMediaMetadataProvider> { this.servarrProvider, this.tmdbProvider, this.tvdbProvider, this.localNfoProvider };
 
-        _proxy = new DynamicMediaMetadataProxy(
+        this.proxy = new DynamicMediaMetadataProxy(
             providers,
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredProvider()
     {
-        _proxy.ActiveProviderId.Should().Be("ServarrSync");
-        _proxy.ActiveProvider.Should().BeSameAs(_servarrProvider);
+        this.proxy.ActiveProviderId.Should().Be("ServarrSync");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.servarrProvider);
     }
 
     [Test]
@@ -114,9 +116,9 @@ public class DynamicMediaMetadataProxyTest
         config.ActiveMediaMetadataProvider.Returns(string.Empty);
 
         using var proxy = new DynamicMediaMetadataProxy(
-            new[] { _servarrProvider, _tmdbProvider },
+            new[] { this.servarrProvider, this.tmdbProvider },
             config,
-            _eventAggregator);
+            this.eventAggregator);
 
         proxy.ActiveProviderId.Should().Be("ServarrSync");
     }
@@ -126,8 +128,8 @@ public class DynamicMediaMetadataProxyTest
     {
         var act = () => new DynamicMediaMetadataProxy(
             Enumerable.Empty<IMediaMetadataProvider>(),
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
 
         act.Should().Throw<InvalidOperationException>();
     }
@@ -135,7 +137,7 @@ public class DynamicMediaMetadataProxyTest
     [Test]
     public void GetProviders_ReturnsAllRegisteredProviders()
     {
-        var providers = _proxy.GetProviders().ToList();
+        var providers = this.proxy.GetProviders().ToList();
         providers.Should().HaveCount(4);
         providers.Select(p => p.ProviderId).Should().Contain(new[] { "ServarrSync", "TMDB", "TheTVDB", "LocalNFO" });
     }
@@ -143,7 +145,7 @@ public class DynamicMediaMetadataProxyTest
     [Test]
     public void GetProvider_WithValidId_ReturnsMatchingProvider()
     {
-        var provider = _proxy.GetProvider("tmdb");
+        var provider = this.proxy.GetProvider("tmdb");
         provider.Should().NotBeNull();
         provider!.ProviderId.Should().Be("TMDB");
     }
@@ -151,15 +153,15 @@ public class DynamicMediaMetadataProxyTest
     [Test]
     public void GetProvider_WithInvalidOrEmptyId_ReturnsNull()
     {
-        _proxy.GetProvider("NonExistent").Should().BeNull();
-        _proxy.GetProvider(string.Empty).Should().BeNull();
-        _proxy.GetProvider(null).Should().BeNull();
+        this.proxy.GetProvider("NonExistent").Should().BeNull();
+        this.proxy.GetProvider(string.Empty).Should().BeNull();
+        this.proxy.GetProvider(null).Should().BeNull();
     }
 
     [Test]
     public async Task ProbeProviderAsync_WithValidProvider_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeProviderAsync("TMDB");
+        var probe = await this.proxy.ProbeProviderAsync("TMDB");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -168,7 +170,7 @@ public class DynamicMediaMetadataProxyTest
     [Test]
     public async Task ProbeProviderAsync_WithInvalidProvider_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeProviderAsync("InvalidProvider");
+        var probe = await this.proxy.ProbeProviderAsync("InvalidProvider");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -177,68 +179,68 @@ public class DynamicMediaMetadataProxyTest
     [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPersistsConfig()
     {
-        var result = await _proxy.SwitchProviderAsync("TMDB");
+        var result = await this.proxy.SwitchProviderAsync("TMDB");
 
         result.Success.Should().BeTrue();
         result.PreviousProvider.Should().Be("ServarrSync");
         result.ActiveProvider.Should().Be("TMDB");
 
-        _proxy.ActiveProviderId.Should().Be("TMDB");
-        _proxy.ActiveProvider.Should().BeSameAs(_tmdbProvider);
+        this.proxy.ActiveProviderId.Should().Be("TMDB");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.tmdbProvider);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveMediaMetadataProvider"] == "TMDB"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<MediaMetadataProviderSwitchedEvent>(e => e.PreviousProvider == "ServarrSync" && e.NewProvider == "TMDB"));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveMediaMetadataProvider"] == "TMDB"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaMetadataProviderSwitchedEvent>(e => e.PreviousProvider == "ServarrSync" && e.NewProvider == "TMDB"));
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
-        var result = await _proxy.SwitchProviderAsync("ServarrSync");
+        var result = await this.proxy.SwitchProviderAsync("ServarrSync");
 
         result.Success.Should().BeTrue();
         result.ActiveProvider.Should().Be("ServarrSync");
 
-        _configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
     }
 
     [Test]
     public async Task SwitchProviderAsync_WithUnknownOrEmptyProvider_ReturnsFailure()
     {
-        var result1 = await _proxy.SwitchProviderAsync("UnknownProvider");
+        var result1 = await this.proxy.SwitchProviderAsync("UnknownProvider");
         result1.Success.Should().BeFalse();
         result1.Error.Should().Contain("not registered");
 
-        var result2 = await _proxy.SwitchProviderAsync(string.Empty);
+        var result2 = await this.proxy.SwitchProviderAsync(string.Empty);
         result2.Success.Should().BeFalse();
         result2.Error.Should().Contain("empty");
 
-        _proxy.ActiveProviderId.Should().Be("ServarrSync");
+        this.proxy.ActiveProviderId.Should().Be("ServarrSync");
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _tmdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult
+        this.tmdbProvider.ProbeHealthAsync().Returns(Task.FromResult(new MediaMetadataHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "API Key Invalid"
+            StatusMessage = "API Key Invalid",
         }));
 
-        var result = await _proxy.SwitchProviderAsync("TMDB");
+        var result = await this.proxy.SwitchProviderAsync("TMDB");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
-        _proxy.ActiveProviderId.Should().Be("ServarrSync");
+        this.proxy.ActiveProviderId.Should().Be("ServarrSync");
     }
 
     [Test]
     public async Task Delegation_ForwardsFetchMetadataToActiveProvider()
     {
-        var meta = await _proxy.FetchMetadataAsync("Breaking Bad", "tv", 2008);
+        var meta = await this.proxy.FetchMetadataAsync("Breaking Bad", "tv", 2008);
 
         meta.Should().NotBeNull();
         meta.Title.Should().Be("Breaking Bad");
-        await _servarrProvider.Received(1).FetchMetadataAsync("Breaking Bad", "tv", 2008);
+        await this.servarrProvider.Received(1).FetchMetadataAsync("Breaking Bad", "tv", 2008);
     }
 
     [Test]
@@ -247,7 +249,7 @@ public class DynamicMediaMetadataProxyTest
         var arrRepo = Substitute.For<IArrConnectionRepository>();
         arrRepo.All().Returns(new List<ArrConnectionDefinition>
         {
-            new() { Id = 1, Name = "Sonarr 4K", ArrType = "Sonarr" }
+            new() { Id = 1, Name = "Sonarr 4K", ArrType = "Sonarr" },
         });
 
         var provider = new ServarrSyncMetadataProvider(arrRepo);

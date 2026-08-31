@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -14,12 +16,13 @@ namespace Leecharr.Http.Authentication;
 public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
 {
     public const string DefaultScheme = "ApiKey";
+
     public string HeaderName { get; set; } = "X-Api-Key";
 }
 
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
 {
-    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IConfigFileProvider configFileProvider;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<ApiKeyAuthenticationOptions> options,
@@ -28,12 +31,12 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         IConfigFileProvider configFileProvider)
         : base(options, logger, encoder)
     {
-        _configFileProvider = configFileProvider;
+        this.configFileProvider = configFileProvider;
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!_configFileProvider.AuthenticationEnabled)
+        if (!this.configFileProvider.AuthenticationEnabled)
         {
             var claims = new[]
             {
@@ -41,15 +44,15 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
                 new Claim(ClaimTypes.Name, "Admin"),
                 new Claim(ClaimTypes.Role, "Admin"),
                 new Claim(ClaimTypes.Role, "Operator"),
-                new Claim(ClaimTypes.Role, "User")
+                new Claim(ClaimTypes.Role, "User"),
             };
             var identity = new ClaimsIdentity(claims, ApiKeyAuthenticationOptions.DefaultScheme);
             return Task.FromResult(AuthenticateResult.Success(
                 new AuthenticationTicket(new ClaimsPrincipal(identity), ApiKeyAuthenticationOptions.DefaultScheme)));
         }
 
-        var apiKey = Request.Headers[Options.HeaderName].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(apiKey) && Request.Query.TryGetValue("apikey", out var queryKey))
+        var apiKey = this.Request.Headers[this.Options.HeaderName].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("apikey", out var queryKey))
         {
             apiKey = queryKey.FirstOrDefault();
         }
@@ -59,7 +62,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var masterApiKey = _configFileProvider.ApiKey;
+        var masterApiKey = this.configFileProvider.ApiKey;
         if (!string.IsNullOrEmpty(masterApiKey) &&
             CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(apiKey),
@@ -69,7 +72,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             {
                 new Claim(ClaimTypes.NameIdentifier, "0"),
                 new Claim(ClaimTypes.Name, "MasterApiKey"),
-                new Claim(ClaimTypes.Role, "Admin")
+                new Claim(ClaimTypes.Role, "Admin"),
             };
             var identity = new ClaimsIdentity(claims, ApiKeyAuthenticationOptions.DefaultScheme);
             var principal = new ClaimsPrincipal(identity);

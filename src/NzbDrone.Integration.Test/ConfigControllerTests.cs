@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
@@ -21,7 +23,7 @@ public class ConfigControllerTests : IntegrationTestBase
     [TestCase("advanced")]
     public async Task GetConfig_returns_200_with_id1(string section)
     {
-        var response = await Client.GetAsync($"/api/v1/config/{section}");
+        var response = await this.Client.GetAsync($"/api/v1/config/{section}");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -35,7 +37,7 @@ public class ConfigControllerTests : IntegrationTestBase
     public async Task PutAdvancedConfig_returns_202()
     {
         var body = new { id = 1, uiRefreshRateSec = 99 };
-        var response = await PutJsonAsync("/api/v1/config/advanced/1", body);
+        var response = await this.PutJsonAsync("/api/v1/config/advanced/1", body);
         var content = await response.Content.ReadAsStringAsync();
         TestContext.WriteLine($"RESPONSE: {response.StatusCode} -> {content}");
 
@@ -46,10 +48,10 @@ public class ConfigControllerTests : IntegrationTestBase
     public async Task PutAdvancedConfig_persists_uiRefreshRateSec()
     {
         var body = new { id = 1, uiRefreshRateSec = 42 };
-        var putResponse = await PutJsonAsync("/api/v1/config/advanced/1", body);
+        var putResponse = await this.PutJsonAsync("/api/v1/config/advanced/1", body);
         putResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var getResponse = await Client.GetAsync("/api/v1/config/advanced");
+        var getResponse = await this.Client.GetAsync("/api/v1/config/advanced");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await getResponse.Content.ReadAsStringAsync();
@@ -68,10 +70,10 @@ public class ConfigControllerTests : IntegrationTestBase
             maxGlobalConnections = 200,
             maxPerTorrentConnections = 50,
             maxUploadSlots = 4,
-            proxyPort = 8080
+            proxyPort = 8080,
         };
 
-        var response = await PutJsonAsync("/api/v1/config/network/1", body);
+        var response = await this.PutJsonAsync("/api/v1/config/network/1", body);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

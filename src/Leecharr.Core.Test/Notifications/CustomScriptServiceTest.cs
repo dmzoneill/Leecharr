@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
@@ -9,18 +11,18 @@ namespace Leecharr.Core.Test.Notifications;
 [TestFixture]
 public class CustomScriptServiceTest
 {
-    private CustomScriptService _service = null!;
+    private CustomScriptService service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _service = new CustomScriptService();
+        this.service = new CustomScriptService();
     }
 
     [Test]
     public async Task ExecuteScriptAsync_WhenScriptDoesNotExist_ReturnsFalse()
     {
-        var result = await _service.ExecuteScriptAsync("/path/to/nonexistent/script.sh", new Torrent(), "OnDownloadComplete");
+        var result = await this.service.ExecuteScriptAsync("/path/to/nonexistent/script.sh", new Torrent(), "OnDownloadComplete");
         result.Should().BeFalse();
     }
 }

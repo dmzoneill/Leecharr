@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,31 +15,31 @@ namespace Leecharr.Core.Test.Ai;
 [TestFixture]
 public class RuleHeuristicAiProviderTest
 {
-    private RuleHeuristicAiProvider _provider = null!;
+    private RuleHeuristicAiProvider provider = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _provider = new RuleHeuristicAiProvider();
+        this.provider = new RuleHeuristicAiProvider();
     }
 
     [Test]
     public void Properties_ReturnExpectedValues()
     {
-        _provider.ProviderId.Should().Be("RuleHeuristic");
-        _provider.DisplayName.Should().Contain("Rule-Based");
-        _provider.Version.Should().Be("1.0");
-        _provider.IsAvailable.Should().BeTrue();
-        _provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsReleaseNameParsing);
-        _provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsDiagnosticCopilot);
-        _provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsNaturalLanguageSearch);
-        _provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsMalwareAnomalyDetection);
+        this.provider.ProviderId.Should().Be("RuleHeuristic");
+        this.provider.DisplayName.Should().Contain("Rule-Based");
+        this.provider.Version.Should().Be("1.0");
+        this.provider.IsAvailable.Should().BeTrue();
+        this.provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsReleaseNameParsing);
+        this.provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsDiagnosticCopilot);
+        this.provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsNaturalLanguageSearch);
+        this.provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsMalwareAnomalyDetection);
     }
 
     [Test]
     public async Task ProbeHealthAsync_ReturnsHealthy()
     {
-        var health = await _provider.ProbeHealthAsync();
+        var health = await this.provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         health.StatusMessage.Should().Contain("operational");
         health.ModelName.Should().Be("Deterministic-Rule-Engine");
@@ -47,7 +49,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ParseReleaseAsync_MovieStandard_ParsesCorrectly()
     {
         var release = "Oppenheimer.2023.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-FLUX";
-        var result = await _provider.ParseReleaseAsync(release);
+        var result = await this.provider.ParseReleaseAsync(release);
 
         result.CleanTitle.Should().Be("Oppenheimer");
         result.Year.Should().Be(2023);
@@ -65,7 +67,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ParseReleaseAsync_TvEpisode_ParsesCorrectly()
     {
         var release = "Breaking.Bad.S05E16.Felina.1080p.WEB-DL.DD5.1.H.264-NTb";
-        var result = await _provider.ParseReleaseAsync(release);
+        var result = await this.provider.ParseReleaseAsync(release);
 
         result.CleanTitle.Should().Be("Breaking Bad");
         result.Season.Should().Be(5);
@@ -80,7 +82,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ParseReleaseAsync_MultiEpisode_ParsesEpisodeList()
     {
         var release = "Game.of.Thrones.S01E01-E03.720p.HDTV.x264-Scene";
-        var result = await _provider.ParseReleaseAsync(release);
+        var result = await this.provider.ParseReleaseAsync(release);
 
         result.Season.Should().Be(1);
         result.Episode.Should().Be(1);
@@ -93,7 +95,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ParseReleaseAsync_ProperRepackRemux_ParsesFlags()
     {
         var release = "The.Matrix.1999.2160p.REMUX.PROPER.DV.TrueHD.Atmos.7.1-SPARKS";
-        var result = await _provider.ParseReleaseAsync(release);
+        var result = await this.provider.ParseReleaseAsync(release);
 
         result.Year.Should().Be(1999);
         result.IsRemux.Should().BeTrue();
@@ -107,7 +109,7 @@ public class RuleHeuristicAiProviderTest
     [Test]
     public async Task ParseReleaseAsync_NullOrEmpty_ReturnsZeroConfidence()
     {
-        var result = await _provider.ParseReleaseAsync(string.Empty);
+        var result = await this.provider.ParseReleaseAsync(string.Empty);
         result.ConfidenceScore.Should().Be(0.0);
         result.CleanTitle.Should().BeEmpty();
     }
@@ -123,10 +125,10 @@ public class RuleHeuristicAiProviderTest
             Status = TorrentStatus.Downloading,
             Seeders = 0,
             Leechers = 0,
-            DownloadSpeed = 0
+            DownloadSpeed = 0,
         };
 
-        var report = await _provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
+        var report = await this.provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
 
         report.OverallHealth.Should().BeOneOf("Stalled", "Dead");
         report.Issues.Should().NotBeEmpty();
@@ -147,15 +149,15 @@ public class RuleHeuristicAiProviderTest
             TargetRatio = 2.0,
             Seeders = 15,
             Leechers = 30,
-            UploadSpeed = 1048576
+            UploadSpeed = 1048576,
         };
 
         var trackers = new List<TrackerEntry>
         {
-            new() { Url = "http://tracker.ubuntu.com/announce", Status = 1 }
+            new() { Url = "http://tracker.ubuntu.com/announce", Status = 1 },
         };
 
-        var report = await _provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), trackers);
+        var report = await this.provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), trackers);
 
         report.OverallHealth.Should().Be("Completed");
         report.HealthScore.Should().BeGreaterThanOrEqualTo(80);
@@ -171,15 +173,15 @@ public class RuleHeuristicAiProviderTest
             Progress = 0.1,
             Status = TorrentStatus.Downloading,
             Seeders = 1,
-            Leechers = 1
+            Leechers = 1,
         };
 
         var trackers = new List<TrackerEntry>
         {
-            new() { Url = "http://bad.tracker/announce", ErrorMessage = "Connection timeout", ConsecutiveFailures = 5 }
+            new() { Url = "http://bad.tracker/announce", ErrorMessage = "Connection timeout", ConsecutiveFailures = 5 },
         };
 
-        var report = await _provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), trackers);
+        var report = await this.provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), trackers);
 
         report.Issues.Should().Contain(i => i.Contains("trackers failed"));
         report.TrackerAnalysis.Should().Contain("1 failing");
@@ -189,7 +191,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ProcessNaturalLanguageSearchAsync_ParsesTvIntent()
     {
         var query = "download breaking bad season 2 in 1080p with at least 5 seeders freeleech";
-        var result = await _provider.ProcessNaturalLanguageSearchAsync(query);
+        var result = await this.provider.ProcessNaturalLanguageSearchAsync(query);
 
         result.Category.Should().Be("tv");
         result.Season.Should().Be(2);
@@ -203,7 +205,7 @@ public class RuleHeuristicAiProviderTest
     public async Task ProcessNaturalLanguageSearchAsync_ParsesMovieIntent()
     {
         var query = "find oppenheimer 4k hdr remux";
-        var result = await _provider.ProcessNaturalLanguageSearchAsync(query);
+        var result = await this.provider.ProcessNaturalLanguageSearchAsync(query);
 
         result.Category.Should().Be("movies");
         result.Resolution.Should().Be("2160p");
@@ -217,10 +219,10 @@ public class RuleHeuristicAiProviderTest
         var files = new List<TorrentFile>
         {
             new() { Path = "Movie.2024.1080p/Movie.2024.1080p.mkv", Size = 4294967296 },
-            new() { Path = "Movie.2024.1080p/Movie.2024.1080p.srt", Size = 45000 }
+            new() { Path = "Movie.2024.1080p/Movie.2024.1080p.srt", Size = 45000 },
         };
 
-        var assessment = await _provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p", files);
+        var assessment = await this.provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p", files);
 
         assessment.RiskLevel.Should().Be("Safe");
         assessment.IsSuspicious.Should().BeFalse();
@@ -233,10 +235,10 @@ public class RuleHeuristicAiProviderTest
         var files = new List<TorrentFile>
         {
             new() { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
-            new() { Path = "Movie.2024.1080p/password_unlocker.bat", Size = 500 }
+            new() { Path = "Movie.2024.1080p/password_unlocker.bat", Size = 500 },
         };
 
-        var assessment = await _provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        var assessment = await this.provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
 
         assessment.IsSuspicious.Should().BeTrue();
         assessment.RiskLevel.Should().BeOneOf("High", "Critical");
@@ -247,13 +249,13 @@ public class RuleHeuristicAiProviderTest
     [Test]
     public async Task GenerateChatResponseAsync_ProvidesRelevantGuidance()
     {
-        var vpnResponse = await _provider.GenerateChatResponseAsync("Tell me about the VPN kill switch");
+        var vpnResponse = await this.provider.GenerateChatResponseAsync("Tell me about the VPN kill switch");
         vpnResponse.Should().Contain("Kill Switch");
 
-        var ratioResponse = await _provider.GenerateChatResponseAsync("How does ratio work?");
+        var ratioResponse = await this.provider.GenerateChatResponseAsync("How does ratio work?");
         ratioResponse.Should().Contain("Ratio");
 
-        var servarrResponse = await _provider.GenerateChatResponseAsync("How do I connect Sonarr?");
+        var servarrResponse = await this.provider.GenerateChatResponseAsync("How do I connect Sonarr?");
         servarrResponse.Should().Contain("qBittorrent");
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,12 +13,12 @@ namespace NzbDrone.Core.Torrents;
 
 public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>
 {
-    private readonly IDownloadHistoryRepository _historyRepository;
-    private readonly ITorrentRepository _torrentRepository;
-    private readonly ITrackerEntryRepository _trackerEntryRepository;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly IDownloadHistoryRepository historyRepository;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
     public DownloadHistoryService(
         IDownloadHistoryRepository historyRepository,
@@ -25,39 +27,39 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator)
     {
-        _historyRepository = historyRepository;
-        _torrentRepository = torrentRepository;
-        _trackerEntryRepository = trackerEntryRepository;
-        _downloadEngine = downloadEngine;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.historyRepository = historyRepository;
+        this.torrentRepository = torrentRepository;
+        this.trackerEntryRepository = trackerEntryRepository;
+        this.downloadEngine = downloadEngine;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500)
     {
-        return _historyRepository.GetHistory(query, status, limit);
+        return this.historyRepository.GetHistory(query, status, limit);
     }
 
     public DownloadHistory Get(int id)
     {
-        return _historyRepository.Get(id);
+        return this.historyRepository.Get(id);
     }
 
     public DownloadHistory GetByInfoHash(string infoHash)
     {
-        return _historyRepository.FindByInfoHash(infoHash);
+        return this.historyRepository.FindByInfoHash(infoHash);
     }
 
     public void Delete(int id)
     {
-        _logger.Info("Deleting download history entry {0}", id);
-        _historyRepository.Delete(id);
+        this.logger.Info("Deleting download history entry {0}", id);
+        this.historyRepository.Delete(id);
     }
 
     public void ClearAll()
     {
-        _logger.Info("Clearing all download history entries");
-        _historyRepository.DeleteAll();
+        this.logger.Info("Clearing all download history entries");
+        this.historyRepository.DeleteAll();
     }
 
     public DownloadHistory RecordTorrentAdded(
@@ -73,7 +75,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         }
 
         var existing = !string.IsNullOrEmpty(torrent.InfoHash)
-            ? _historyRepository.FindByInfoHash(torrent.InfoHash)
+            ? this.historyRepository.FindByInfoHash(torrent.InfoHash)
             : null;
 
         if (existing != null)
@@ -104,11 +106,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 existing.IndexerName = indexerName;
             }
 
-            _historyRepository.Update(existing);
+            this.historyRepository.Update(existing);
             return existing;
         }
 
-        var tracker = _trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
+        var tracker = this.trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
 
         var entry = new DownloadHistory
         {
@@ -128,10 +130,10 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             Source = source ?? (torrent.Category ?? "Manual"),
             MagnetUrl = magnetUrl,
             DownloadUrl = downloadUrl,
-            Status = "Active"
+            Status = "Active",
         };
 
-        return _historyRepository.Insert(entry);
+        return this.historyRepository.Insert(entry);
     }
 
     public void RecordTorrentUpdated(Torrent torrent)
@@ -141,8 +143,8 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
-        var entry = _historyRepository.FindByTorrentId(torrent.Id)
-            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? _historyRepository.FindByInfoHash(torrent.InfoHash) : null);
+        var entry = this.historyRepository.FindByTorrentId(torrent.Id)
+            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? this.historyRepository.FindByInfoHash(torrent.InfoHash) : null);
 
         if (entry == null)
         {
@@ -158,7 +160,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             entry.Status = "Completed";
         }
 
-        _historyRepository.Update(entry);
+        this.historyRepository.Update(entry);
     }
 
     public void RecordTorrentRemoved(Torrent torrent, string reason = "Deleted from library")
@@ -168,12 +170,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
-        var entry = _historyRepository.FindByTorrentId(torrent.Id)
-            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? _historyRepository.FindByInfoHash(torrent.InfoHash) : null);
+        var entry = this.historyRepository.FindByTorrentId(torrent.Id)
+            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? this.historyRepository.FindByInfoHash(torrent.InfoHash) : null);
 
         if (entry == null)
         {
-            var tracker = _trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
+            var tracker = this.trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
 
             entry = new DownloadHistory
             {
@@ -190,9 +192,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 PrimaryTracker = tracker,
                 Source = "Library",
                 Status = "Removed",
-                RemovalReason = reason
+                RemovalReason = reason,
             };
-            _historyRepository.Insert(entry);
+            this.historyRepository.Insert(entry);
             return;
         }
 
@@ -204,23 +206,23 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         entry.Status = "Removed";
         entry.RemovalReason = reason;
 
-        _historyRepository.Update(entry);
+        this.historyRepository.Update(entry);
     }
 
     public Torrent ReAdd(int historyId)
     {
-        return ReAddAsync(historyId).GetAwaiter().GetResult();
+        return this.ReAddAsync(historyId).GetAwaiter().GetResult();
     }
 
     public async Task<Torrent> ReAddAsync(int historyId)
     {
-        var entry = _historyRepository.Get(historyId);
+        var entry = this.historyRepository.Get(historyId);
         if (entry == null)
         {
             throw new ArgumentException($"History entry {historyId} not found");
         }
 
-        if (_torrentRepository.ExistsByInfoHash(entry.InfoHash))
+        if (this.torrentRepository.ExistsByInfoHash(entry.InfoHash))
         {
             throw new InvalidOperationException($"Torrent with info hash {entry.InfoHash} is already in the active library");
         }
@@ -235,42 +237,42 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             Uploaded = entry.Uploaded,
             Downloaded = entry.Downloaded,
             Ratio = entry.Ratio,
-            Category = entry.Source
+            Category = entry.Source,
         };
 
-        var all = _torrentRepository.All().ToList();
+        var all = this.torrentRepository.All().ToList();
         torrent.Priority = all.Count > 0 ? all.Max(t => t.Priority) + 1 : 0;
 
-        var added = _torrentRepository.Insert(torrent);
+        var added = this.torrentRepository.Insert(torrent);
 
         if (!string.IsNullOrWhiteSpace(entry.PrimaryTracker))
         {
-            _trackerEntryRepository.Insert(new TrackerEntry
+            this.trackerEntryRepository.Insert(new TrackerEntry
             {
                 TorrentId = added.Id,
                 Url = entry.PrimaryTracker,
                 Tier = 0,
-                Enabled = true
+                Enabled = true,
             });
         }
 
         entry.TorrentId = added.Id;
         entry.Status = "Active";
         entry.DateRemoved = null;
-        _historyRepository.Update(entry);
+        this.historyRepository.Update(entry);
 
         try
         {
-            await _downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl);
+            await this.downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl);
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to start engine for re-added historical torrent {0}", added.Id);
+            this.logger.Warn(ex, "Failed to start engine for re-added historical torrent {0}", added.Id);
         }
 
-        _eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = added });
+        this.eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = added });
 
-        _logger.Info("Re-added historical torrent '{0}' (InfoHash: {1}) with ID {2}", entry.Title, entry.InfoHash, added.Id);
+        this.logger.Info("Re-added historical torrent '{0}' (InfoHash: {1}) with ID {2}", entry.Title, entry.InfoHash, added.Id);
         return added;
     }
 
@@ -278,13 +280,13 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     {
         if (history != null)
         {
-            _historyRepository.Update(history);
+            this.historyRepository.Update(history);
         }
     }
 
     public int ReconcileAllTorrents()
     {
-        var allTorrents = _torrentRepository.All().ToList();
+        var allTorrents = this.torrentRepository.All().ToList();
         var backfilled = 0;
 
         foreach (var torrent in allTorrents)
@@ -294,10 +296,10 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 continue;
             }
 
-            var existing = _historyRepository.FindByInfoHash(torrent.InfoHash);
+            var existing = this.historyRepository.FindByInfoHash(torrent.InfoHash);
             if (existing == null)
             {
-                var tracker = _trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
+                var tracker = this.trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
 
                 var entry = new DownloadHistory
                 {
@@ -312,23 +314,23 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     PrimaryTracker = tracker,
                     Status = "Active",
                     SeedingTime = 0,
-                    Source = torrent.IsPrivate ? "Private Tracker" : "Public Tracker"
+                    Source = torrent.IsPrivate ? "Private Tracker" : "Public Tracker",
                 };
 
-                _historyRepository.Insert(entry);
+                this.historyRepository.Insert(entry);
                 backfilled++;
             }
             else if (existing.TorrentId == null || existing.TorrentId == 0)
             {
                 existing.TorrentId = torrent.Id;
                 existing.Status = "Active";
-                _historyRepository.Update(existing);
+                this.historyRepository.Update(existing);
             }
         }
 
         if (backfilled > 0)
         {
-            _logger.Info("Reconciled and backfilled {0} missing torrents into Download History", backfilled);
+            this.logger.Info("Reconciled and backfilled {0} missing torrents into Download History", backfilled);
         }
 
         return backfilled;
@@ -341,14 +343,14 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
-        RecordTorrentAdded(message.Torrent);
+        this.RecordTorrentAdded(message.Torrent);
     }
 
     public void Handle(TorrentDeletedEvent message)
     {
         if (message?.Torrent != null)
         {
-            RecordTorrentRemoved(message.Torrent, "Deleted from active library");
+            this.RecordTorrentRemoved(message.Torrent, "Deleted from active library");
             return;
         }
     }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 
 namespace NzbDrone.Core.Network.GeoIp;
@@ -12,5 +14,5 @@ public enum GeoIpCapabilities
     Isp = 1 << 3,
     OfflineDatabase = 1 << 4,
     InMemoryCache = 1 << 5,
-    All = Country | City | Asn | Isp | OfflineDatabase | InMemoryCache
+    All = Country | City | Asn | Isp | OfflineDatabase | InMemoryCache,
 }

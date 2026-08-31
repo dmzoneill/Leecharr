@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,14 +14,14 @@ namespace Leecharr.Api.V1.Config;
 [V1ApiController("config/general")]
 public class GeneralConfigController : ConfigController<GeneralConfigResource>
 {
-    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IConfigFileProvider configFileProvider;
 
     public GeneralConfigController(IConfigService configService, IConfigFileProvider configFileProvider)
         : base(configService)
     {
-        _configFileProvider = configFileProvider;
+        this.configFileProvider = configFileProvider;
 
-        SharedValidator.RuleFor(c => c.WatchFolderScanIntervalSeconds)
+        this.SharedValidator.RuleFor(c => c.WatchFolderScanIntervalSeconds)
             .GreaterThanOrEqualTo(1);
     }
 
@@ -27,12 +29,12 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
         {
-            resource.ApiKey = _configFileProvider.ApiKey;
+            resource.ApiKey = this.configFileProvider.ApiKey;
         }
 
         var fileUpdates = new Dictionary<string, object>
@@ -41,17 +43,17 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["BindAddress"] = resource.BindAddress,
             ["UrlBase"] = resource.UrlBase,
             ["AuthenticationEnabled"] = resource.AuthenticationEnabled,
-            ["ApiKey"] = resource.ApiKey
+            ["ApiKey"] = resource.ApiKey,
         };
 
-        _configFileProvider.SaveConfigDictionary(fileUpdates);
+        this.configFileProvider.SaveConfigDictionary(fileUpdates);
 
         return base.SaveConfig(resource);
     }
 
     protected override GeneralConfigResource ToResource(IConfigService model)
     {
-        return GeneralConfigResourceMapper.ToResource(model, _configFileProvider);
+        return GeneralConfigResourceMapper.ToResource(model, this.configFileProvider);
     }
 }
 
@@ -61,25 +63,25 @@ public class SeedingConfigController : ConfigController<SeedingConfigResource>
     public SeedingConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.MaxUploadSpeedKbps)
+        this.SharedValidator.RuleFor(c => c.MaxUploadSpeedKbps)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.MaxDownloadSpeedKbps)
+        this.SharedValidator.RuleFor(c => c.MaxDownloadSpeedKbps)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.AltUploadSpeedKbps)
+        this.SharedValidator.RuleFor(c => c.AltUploadSpeedKbps)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.AltDownloadSpeedKbps)
+        this.SharedValidator.RuleFor(c => c.AltDownloadSpeedKbps)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.GlobalSeedRatioLimit)
+        this.SharedValidator.RuleFor(c => c.GlobalSeedRatioLimit)
             .GreaterThanOrEqualTo(0);
 
-        SharedValidator.RuleFor(c => c.UploadDistributionSpreadPercentage)
+        this.SharedValidator.RuleFor(c => c.UploadDistributionSpreadPercentage)
             .InclusiveBetween(0, 100);
 
-        SharedValidator.RuleFor(c => c.DownloadDistributionSpreadPercentage)
+        this.SharedValidator.RuleFor(c => c.DownloadDistributionSpreadPercentage)
             .InclusiveBetween(0, 100);
     }
 
@@ -95,19 +97,19 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
     public NetworkConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.ListeningPort)
+        this.SharedValidator.RuleFor(c => c.ListeningPort)
             .InclusiveBetween(1, 65535);
 
-        SharedValidator.RuleFor(c => c.MaxGlobalConnections)
+        this.SharedValidator.RuleFor(c => c.MaxGlobalConnections)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.MaxPerTorrentConnections)
+        this.SharedValidator.RuleFor(c => c.MaxPerTorrentConnections)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.MaxUploadSlots)
+        this.SharedValidator.RuleFor(c => c.MaxUploadSlots)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.ProxyPort)
+        this.SharedValidator.RuleFor(c => c.ProxyPort)
             .InclusiveBetween(1, 65535);
     }
 
@@ -115,7 +117,7 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
     {
         if (resource.ProxyPassword == "********")
         {
-            resource.ProxyPassword = _configService.ProxyPassword;
+            resource.ProxyPassword = this.configService.ProxyPassword;
         }
 
         return base.SaveConfig(resource);
@@ -133,13 +135,13 @@ public class BitTorrentConfigController : ConfigController<BitTorrentConfigResou
     public BitTorrentConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.AnnounceIntervalSeconds)
+        this.SharedValidator.RuleFor(c => c.AnnounceIntervalSeconds)
             .GreaterThanOrEqualTo(60);
 
-        SharedValidator.RuleFor(c => c.MinAnnounceIntervalSeconds)
+        this.SharedValidator.RuleFor(c => c.MinAnnounceIntervalSeconds)
             .GreaterThanOrEqualTo(30);
 
-        SharedValidator.RuleFor(c => c.ScrapeIntervalSeconds)
+        this.SharedValidator.RuleFor(c => c.ScrapeIntervalSeconds)
             .GreaterThanOrEqualTo(60);
     }
 
@@ -155,28 +157,28 @@ public class PeerProtocolConfigController : ConfigController<PeerProtocolConfigR
     public PeerProtocolConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.HandshakeTimeoutSeconds)
+        this.SharedValidator.RuleFor(c => c.HandshakeTimeoutSeconds)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.MessageReadTimeoutSeconds)
+        this.SharedValidator.RuleFor(c => c.MessageReadTimeoutSeconds)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.KeepAliveIntervalSeconds)
+        this.SharedValidator.RuleFor(c => c.KeepAliveIntervalSeconds)
             .GreaterThanOrEqualTo(30);
 
-        SharedValidator.RuleFor(c => c.PeerRequestCount)
+        this.SharedValidator.RuleFor(c => c.PeerRequestCount)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.SeederUploadActivityProbability)
+        this.SharedValidator.RuleFor(c => c.SeederUploadActivityProbability)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.PeerIdleChance)
+        this.SharedValidator.RuleFor(c => c.PeerIdleChance)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.PeerDropoutProbability)
+        this.SharedValidator.RuleFor(c => c.PeerDropoutProbability)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.ConnectionRotationPercentage)
+        this.SharedValidator.RuleFor(c => c.ConnectionRotationPercentage)
             .InclusiveBetween(0.0, 1.0);
     }
 
@@ -192,22 +194,22 @@ public class ProtocolsConfigController : ConfigController<ProtocolsConfigResourc
     public ProtocolsConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.TransportConnectionTimeoutSeconds)
+        this.SharedValidator.RuleFor(c => c.TransportConnectionTimeoutSeconds)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.PexInterval)
+        this.SharedValidator.RuleFor(c => c.PexInterval)
             .GreaterThanOrEqualTo(10);
 
-        SharedValidator.RuleFor(c => c.PexMaxPeersPerMessage)
+        this.SharedValidator.RuleFor(c => c.PexMaxPeersPerMessage)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.FailoverMaxConsecutiveFailures)
+        this.SharedValidator.RuleFor(c => c.FailoverMaxConsecutiveFailures)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.DhtBucketSize)
+        this.SharedValidator.RuleFor(c => c.DhtBucketSize)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.DhtMaxQueriesPerSecond)
+        this.SharedValidator.RuleFor(c => c.DhtMaxQueriesPerSecond)
             .GreaterThanOrEqualTo(1);
     }
 
@@ -223,16 +225,16 @@ public class SimulationConfigController : ConfigController<SimulationConfigResou
     public SimulationConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.BehaviorVariation)
+        this.SharedValidator.RuleFor(c => c.BehaviorVariation)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.SwitchClientProbability)
+        this.SharedValidator.RuleFor(c => c.SwitchClientProbability)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.SwarmAdaptationRate)
+        this.SharedValidator.RuleFor(c => c.SwarmAdaptationRate)
             .InclusiveBetween(0.0, 1.0);
 
-        SharedValidator.RuleFor(c => c.SwarmPeerAnalysisDepth)
+        this.SharedValidator.RuleFor(c => c.SwarmPeerAnalysisDepth)
             .GreaterThanOrEqualTo(1);
     }
 
@@ -248,19 +250,19 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
     public TrackerServerConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.TrackerHttpPort)
+        this.SharedValidator.RuleFor(c => c.TrackerHttpPort)
             .InclusiveBetween(1, 65535);
 
-        SharedValidator.RuleFor(c => c.TrackerUdpPort)
+        this.SharedValidator.RuleFor(c => c.TrackerUdpPort)
             .InclusiveBetween(1, 65535);
 
-        SharedValidator.RuleFor(c => c.TrackerAnnounceInterval)
+        this.SharedValidator.RuleFor(c => c.TrackerAnnounceInterval)
             .GreaterThanOrEqualTo(60);
 
-        SharedValidator.RuleFor(c => c.TrackerMaxPeersPerAnnounce)
+        this.SharedValidator.RuleFor(c => c.TrackerMaxPeersPerAnnounce)
             .GreaterThanOrEqualTo(1);
 
-        SharedValidator.RuleFor(c => c.TrackerRateLimitPerMinute)
+        this.SharedValidator.RuleFor(c => c.TrackerRateLimitPerMinute)
             .GreaterThanOrEqualTo(1);
     }
 
@@ -276,16 +278,16 @@ public class SchedulerConfigController : ConfigController<SchedulerConfigResourc
     public SchedulerConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.SchedulerStartHour)
+        this.SharedValidator.RuleFor(c => c.SchedulerStartHour)
             .InclusiveBetween(0, 23);
 
-        SharedValidator.RuleFor(c => c.SchedulerStartMinute)
+        this.SharedValidator.RuleFor(c => c.SchedulerStartMinute)
             .InclusiveBetween(0, 59);
 
-        SharedValidator.RuleFor(c => c.SchedulerEndHour)
+        this.SharedValidator.RuleFor(c => c.SchedulerEndHour)
             .InclusiveBetween(0, 23);
 
-        SharedValidator.RuleFor(c => c.SchedulerEndMinute)
+        this.SharedValidator.RuleFor(c => c.SchedulerEndMinute)
             .InclusiveBetween(0, 59);
     }
 
@@ -301,7 +303,7 @@ public class AdvancedConfigController : ConfigController<AdvancedConfigResource>
     public AdvancedConfigController(IConfigService configService)
         : base(configService)
     {
-        SharedValidator.RuleFor(c => c.UiRefreshRateSec)
+        this.SharedValidator.RuleFor(c => c.UiRefreshRateSec)
             .GreaterThanOrEqualTo(1);
     }
 
@@ -314,30 +316,30 @@ public class AdvancedConfigController : ConfigController<AdvancedConfigResource>
 [V1ApiController("config/ai")]
 public class AiConfigController : ConfigController<AiConfigResource>
 {
-    private readonly IAiManager _aiManager;
+    private readonly IAiManager aiManager;
 
     public AiConfigController(IConfigService configService, IAiManager aiManager = null)
         : base(configService)
     {
-        _aiManager = aiManager;
+        this.aiManager = aiManager;
     }
 
     public override ActionResult<AiConfigResource> SaveConfig([FromBody] AiConfigResource resource)
     {
         if (!string.IsNullOrEmpty(resource.GeminiApiKey) && resource.GeminiApiKey.Contains('*'))
         {
-            resource.GeminiApiKey = _configService.GeminiApiKey;
+            resource.GeminiApiKey = this.configService.GeminiApiKey;
         }
 
         var result = base.SaveConfig(resource);
 
-        if (_aiManager != null && !string.IsNullOrWhiteSpace(resource.ActiveAiProvider) && !string.Equals(_aiManager.ActiveProviderId, resource.ActiveAiProvider, StringComparison.OrdinalIgnoreCase))
+        if (this.aiManager != null && !string.IsNullOrWhiteSpace(resource.ActiveAiProvider) && !string.Equals(this.aiManager.ActiveProviderId, resource.ActiveAiProvider, StringComparison.OrdinalIgnoreCase))
         {
             Task.Run(async () =>
             {
                 try
                 {
-                    await _aiManager.SwitchProviderAsync(resource.ActiveAiProvider);
+                    await this.aiManager.SwitchProviderAsync(resource.ActiveAiProvider);
                 }
                 catch
                 {

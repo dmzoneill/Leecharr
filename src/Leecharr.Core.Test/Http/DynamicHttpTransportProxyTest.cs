@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,78 +19,78 @@ namespace Leecharr.Core.Test.Http;
 [TestFixture]
 public class DynamicHttpTransportProxyTest
 {
-    private IHttpTransportProvider _socketsProvider = null!;
-    private IHttpTransportProvider _curlProvider = null!;
-    private IHttpTransportProvider _flareSolverrProvider = null!;
-    private IConfigService _configService = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicHttpTransportProxy _proxy = null!;
+    private IHttpTransportProvider socketsProvider = null!;
+    private IHttpTransportProvider curlProvider = null!;
+    private IHttpTransportProvider flareSolverrProvider = null!;
+    private IConfigService configService = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicHttpTransportProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _socketsProvider = Substitute.For<IHttpTransportProvider>();
-        _socketsProvider.ProviderId.Returns("SocketsHttpHandler");
-        _socketsProvider.DisplayName.Returns("Standard SocketsHttpHandler (.NET 10 HTTP/3 QUIC)");
-        _socketsProvider.IsAvailable.Returns(true);
-        _socketsProvider.Capabilities.Returns(new HttpTransportCapabilities
+        this.socketsProvider = Substitute.For<IHttpTransportProvider>();
+        this.socketsProvider.ProviderId.Returns("SocketsHttpHandler");
+        this.socketsProvider.DisplayName.Returns("Standard SocketsHttpHandler (.NET 10 HTTP/3 QUIC)");
+        this.socketsProvider.IsAvailable.Returns(true);
+        this.socketsProvider.Capabilities.Returns(new HttpTransportCapabilities
         {
             SupportsHttp3Quic = true,
-            SupportsCustomProxy = true
+            SupportsCustomProxy = true,
         });
-        _socketsProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _socketsProvider.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
+        this.socketsProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.socketsProvider.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
-        _curlProvider = Substitute.For<IHttpTransportProvider>();
-        _curlProvider.ProviderId.Returns("CurlImpersonate");
-        _curlProvider.DisplayName.Returns("curl-impersonate (Chrome / Firefox TLS JA3/JA4 Fingerprint)");
-        _curlProvider.IsAvailable.Returns(true);
-        _curlProvider.Capabilities.Returns(new HttpTransportCapabilities
+        this.curlProvider = Substitute.For<IHttpTransportProvider>();
+        this.curlProvider.ProviderId.Returns("CurlImpersonate");
+        this.curlProvider.DisplayName.Returns("curl-impersonate (Chrome / Firefox TLS JA3/JA4 Fingerprint)");
+        this.curlProvider.IsAvailable.Returns(true);
+        this.curlProvider.Capabilities.Returns(new HttpTransportCapabilities
         {
             SupportsHttp3Quic = true,
             SupportsBrowserFingerprintEmulation = true,
-            SupportsTlsJa3Ja4Fingerprinting = true
+            SupportsTlsJa3Ja4Fingerprinting = true,
         });
-        _curlProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _curlProvider.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
+        this.curlProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.curlProvider.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
-        _flareSolverrProvider = Substitute.For<IHttpTransportProvider>();
-        _flareSolverrProvider.ProviderId.Returns("FlareSolverr");
-        _flareSolverrProvider.DisplayName.Returns("FlareSolverr (Cloudflare / DDoS-GUARD Challenge Solver)");
-        _flareSolverrProvider.IsAvailable.Returns(true);
-        _flareSolverrProvider.Capabilities.Returns(new HttpTransportCapabilities
+        this.flareSolverrProvider = Substitute.For<IHttpTransportProvider>();
+        this.flareSolverrProvider.ProviderId.Returns("FlareSolverr");
+        this.flareSolverrProvider.DisplayName.Returns("FlareSolverr (Cloudflare / DDoS-GUARD Challenge Solver)");
+        this.flareSolverrProvider.IsAvailable.Returns(true);
+        this.flareSolverrProvider.Capabilities.Returns(new HttpTransportCapabilities
         {
             SupportsFlareSolverr = true,
-            SupportsBrowserFingerprintEmulation = true
+            SupportsBrowserFingerprintEmulation = true,
         });
-        _flareSolverrProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.flareSolverrProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.ActiveHttpTransportProvider.Returns("SocketsHttpHandler");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.ActiveHttpTransportProvider.Returns("SocketsHttpHandler");
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
-        var providers = new List<IHttpTransportProvider> { _socketsProvider, _curlProvider, _flareSolverrProvider };
+        var providers = new List<IHttpTransportProvider> { this.socketsProvider, this.curlProvider, this.flareSolverrProvider };
 
-        _proxy = new DynamicHttpTransportProxy(
+        this.proxy = new DynamicHttpTransportProxy(
             providers,
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredProvider()
     {
-        _proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
-        _proxy.ActiveProvider.Should().BeSameAs(_socketsProvider);
+        this.proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.socketsProvider);
     }
 
     [Test]
@@ -98,9 +100,9 @@ public class DynamicHttpTransportProxyTest
         config.ActiveHttpTransportProvider.Returns(string.Empty);
 
         using var proxy = new DynamicHttpTransportProxy(
-            new[] { _socketsProvider, _curlProvider },
+            new[] { this.socketsProvider, this.curlProvider },
             config,
-            _eventAggregator);
+            this.eventAggregator);
 
         proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
     }
@@ -110,8 +112,8 @@ public class DynamicHttpTransportProxyTest
     {
         var act = () => new DynamicHttpTransportProxy(
             Enumerable.Empty<IHttpTransportProvider>(),
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
 
         act.Should().Throw<InvalidOperationException>();
     }
@@ -119,7 +121,7 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public void GetProviders_ReturnsAllRegisteredProviders()
     {
-        var providers = _proxy.GetProviders().ToList();
+        var providers = this.proxy.GetProviders().ToList();
         providers.Should().HaveCount(3);
         providers.Select(p => p.ProviderId).Should().Contain(new[] { "SocketsHttpHandler", "CurlImpersonate", "FlareSolverr" });
     }
@@ -127,7 +129,7 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public void GetProvider_WithValidId_ReturnsMatchingProvider()
     {
-        var provider = _proxy.GetProvider("curlimpersonate");
+        var provider = this.proxy.GetProvider("curlimpersonate");
         provider.Should().NotBeNull();
         provider!.ProviderId.Should().Be("CurlImpersonate");
     }
@@ -135,15 +137,15 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public void GetProvider_WithInvalidOrEmptyId_ReturnsNull()
     {
-        _proxy.GetProvider("NonExistent").Should().BeNull();
-        _proxy.GetProvider(string.Empty).Should().BeNull();
-        _proxy.GetProvider(null).Should().BeNull();
+        this.proxy.GetProvider("NonExistent").Should().BeNull();
+        this.proxy.GetProvider(string.Empty).Should().BeNull();
+        this.proxy.GetProvider(null).Should().BeNull();
     }
 
     [Test]
     public async Task ProbeProviderAsync_WithValidProvider_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeProviderAsync("CurlImpersonate");
+        var probe = await this.proxy.ProbeProviderAsync("CurlImpersonate");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -152,7 +154,7 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public async Task ProbeProviderAsync_WithInvalidProvider_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeProviderAsync("InvalidProvider");
+        var probe = await this.proxy.ProbeProviderAsync("InvalidProvider");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -161,69 +163,69 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPersistsConfig()
     {
-        var result = await _proxy.SwitchProviderAsync("CurlImpersonate");
+        var result = await this.proxy.SwitchProviderAsync("CurlImpersonate");
 
         result.Success.Should().BeTrue();
         result.PreviousProvider.Should().Be("SocketsHttpHandler");
         result.ActiveProvider.Should().Be("CurlImpersonate");
 
-        _proxy.ActiveProviderId.Should().Be("CurlImpersonate");
-        _proxy.ActiveProvider.Should().BeSameAs(_curlProvider);
+        this.proxy.ActiveProviderId.Should().Be("CurlImpersonate");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.curlProvider);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveHttpTransportProvider"] == "CurlImpersonate"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<HttpTransportProviderSwitchedEvent>(e => e.PreviousProvider == "SocketsHttpHandler" && e.NewProvider == "CurlImpersonate"));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveHttpTransportProvider"] == "CurlImpersonate"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HttpTransportProviderSwitchedEvent>(e => e.PreviousProvider == "SocketsHttpHandler" && e.NewProvider == "CurlImpersonate"));
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
-        var result = await _proxy.SwitchProviderAsync("SocketsHttpHandler");
+        var result = await this.proxy.SwitchProviderAsync("SocketsHttpHandler");
 
         result.Success.Should().BeTrue();
         result.ActiveProvider.Should().Be("SocketsHttpHandler");
 
-        _configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
     }
 
     [Test]
     public async Task SwitchProviderAsync_WithUnknownOrEmptyProvider_ReturnsFailure()
     {
-        var result1 = await _proxy.SwitchProviderAsync("UnknownProvider");
+        var result1 = await this.proxy.SwitchProviderAsync("UnknownProvider");
         result1.Success.Should().BeFalse();
         result1.Error.Should().Contain("not registered");
 
-        var result2 = await _proxy.SwitchProviderAsync(string.Empty);
+        var result2 = await this.proxy.SwitchProviderAsync(string.Empty);
         result2.Success.Should().BeFalse();
         result2.Error.Should().Contain("empty");
 
-        _proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
+        this.proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _curlProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult
+        this.curlProvider.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "curl binary missing"
+            StatusMessage = "curl binary missing",
         }));
 
-        var result = await _proxy.SwitchProviderAsync("CurlImpersonate");
+        var result = await this.proxy.SwitchProviderAsync("CurlImpersonate");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
-        _proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
+        this.proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
     }
 
     [Test]
     public async Task Delegation_ForwardsSendAsyncToActiveProvider()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");
-        var response = await _proxy.SendAsync(request);
+        var response = await this.proxy.SendAsync(request);
 
         response.Should().NotBeNull();
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        await _socketsProvider.Received(1).SendAsync(request, Arg.Any<CancellationToken>());
+        await this.socketsProvider.Received(1).SendAsync(request, Arg.Any<CancellationToken>());
     }
 
     [Test]

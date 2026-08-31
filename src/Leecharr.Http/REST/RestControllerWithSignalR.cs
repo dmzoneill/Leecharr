@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;
@@ -10,32 +12,32 @@ public abstract class RestControllerWithSignalR<TResource, TModel> : RestControl
     where TResource : RestResource, new()
     where TModel : ModelBase, new()
 {
-    private readonly IBroadcastSignalRMessage _signalRBroadcaster;
+    private readonly IBroadcastSignalRMessage signalRBroadcaster;
 
     protected RestControllerWithSignalR(IBroadcastSignalRMessage signalRBroadcaster)
     {
-        _signalRBroadcaster = signalRBroadcaster;
+        this.signalRBroadcaster = signalRBroadcaster;
     }
 
     public void Handle(ModelEvent<TModel> message)
     {
-        if (message == null || !_signalRBroadcaster.IsConnected)
+        if (message == null || !this.signalRBroadcaster.IsConnected)
         {
             return;
         }
 
-        var resource = GetResourceById(message.Model);
+        var resource = this.GetResourceById(message.Model);
         if (resource == null)
         {
             return;
         }
 
-        BroadcastResourceChange(message.Action, resource);
+        this.BroadcastResourceChange(message.Action, resource);
     }
 
     protected virtual TResource GetResourceById(TModel model)
     {
-        throw new NotImplementedException($"{GetType().Name} must override GetResourceById");
+        throw new NotImplementedException($"{this.GetType().Name} must override GetResourceById");
     }
 
     protected void BroadcastResourceChange(ModelAction action, TResource resource)
@@ -49,9 +51,9 @@ public abstract class RestControllerWithSignalR<TResource, TModel> : RestControl
         {
             Name = resource.ResourceName,
             Body = resource,
-            Action = action
+            Action = action,
         };
 
-        _signalRBroadcaster.BroadcastMessage(signalRMessage);
+        this.signalRBroadcaster.BroadcastMessage(signalRMessage);
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net.Http;
 using System.Text.Json;
@@ -10,14 +12,18 @@ namespace NzbDrone.Core.MediaEnrichment.Providers;
 
 public class TmdbMetadataProvider : IMediaMetadataProvider
 {
-    private readonly IConfigService _configService;
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IConfigService configService;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "TMDB";
+
     public string DisplayName => "The Movie Database (TMDB v3/v4)";
+
     public string Version => "3.0.0";
+
     public string Description => "Fetches rich movie and TV show metadata, cast lists, high-res posters, and fanart backdrops from TMDB.";
+
     public bool IsAvailable => true;
 
     public MediaMetadataCapabilities Capabilities => new()
@@ -29,18 +35,18 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         SupportsFanart = true,
         SupportsCast = true,
         SupportsSeasonBanners = true,
-        SupportsNfoParsing = false
+        SupportsNfoParsing = false,
     };
 
     public TmdbMetadataProvider(IConfigService configService = null, HttpClient httpClient = null)
     {
-        _configService = configService;
-        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.configService = configService;
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
-        var apiKey = GetApiKey();
+        var apiKey = this.GetApiKey();
         var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
 
         return Task.FromResult(new MediaMetadataHealthCheckResult
@@ -48,7 +54,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             IsHealthy = true,
             StatusMessage = hasApiKey
                 ? "TMDB API provider is reachable and active (API key configured)."
-                : "TMDB provider operational (heuristic parsing mode without API key)."
+                : "TMDB provider operational (heuristic parsing mode without API key).",
         });
     }
 
@@ -64,12 +70,12 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         var isMovie = (category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase) ||
                       (!string.IsNullOrEmpty(title) && !Regex.IsMatch(title, @"\b(S\d\d|Season\b|Episode\b)", RegexOptions.IgnoreCase));
 
-        var apiKey = GetApiKey();
+        var apiKey = this.GetApiKey();
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             try
             {
-                var metaFromApi = await QueryTmdbApiAsync(apiKey, cleanTitle, parsedYear, isMovie);
+                var metaFromApi = await this.QueryTmdbApiAsync(apiKey, cleanTitle, parsedYear, isMovie);
                 if (metaFromApi != null)
                 {
                     return metaFromApi;
@@ -77,7 +83,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to fetch metadata from TMDB API for '{0}'", cleanTitle);
+                this.logger.Warn(ex, "Failed to fetch metadata from TMDB API for '{0}'", cleanTitle);
             }
         }
 
@@ -87,13 +93,13 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             Year = parsedYear,
             MediaType = isMovie ? "Movie" : "TV",
             Overview = $"Metadata extracted for {cleanTitle}.",
-            Rating = 0.0
+            Rating = 0.0,
         };
     }
 
     private string GetApiKey()
     {
-        var configured = _configService?.TmdbApiKey;
+        var configured = this.configService?.TmdbApiKey;
         if (!string.IsNullOrWhiteSpace(configured))
         {
             return configured;
@@ -109,11 +115,11 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             : $"https://api.themoviedb.org/3/search/tv?api_key={Uri.EscapeDataString(apiKey)}&query={Uri.EscapeDataString(title)}" + (year > 0 ? $"&first_air_date_year={year}" : string.Empty);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, searchEndpoint);
-        using var response = await _httpClient.SendAsync(request);
+        using var response = await this.httpClient.SendAsync(request);
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.Debug("TMDB API returned HTTP {0} for search query '{1}'", response.StatusCode, title);
+            this.logger.Debug("TMDB API returned HTTP {0} for search query '{1}'", response.StatusCode, title);
             return null;
         }
 
@@ -150,7 +156,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             MediaType = isMovie ? "Movie" : "TV",
             Overview = overview,
             Rating = rating,
-            TmdbId = id
+            TmdbId = id,
         };
 
         if (first.TryGetProperty("poster_path", out var poster) && !string.IsNullOrWhiteSpace(poster.GetString()))

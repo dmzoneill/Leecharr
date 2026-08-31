@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Common.Extensions;
 
 public static class StringExtensions

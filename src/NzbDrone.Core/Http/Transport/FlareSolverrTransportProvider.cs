@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net;
 using System.Net.Http;
@@ -12,15 +14,19 @@ namespace NzbDrone.Core.Http.Transport;
 
 public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 {
-    private readonly IConfigService _configService;
-    private readonly HttpClient _httpClient;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
-    private bool _disposed;
+    private readonly IConfigService configService;
+    private readonly HttpClient httpClient;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private bool disposed;
 
     public string ProviderId => "FlareSolverr";
+
     public string DisplayName => "FlareSolverr (Cloudflare / DDoS-GUARD Challenge Solver)";
+
     public string Version => "3.3.0";
+
     public string Description => "Routes HTTP requests through a FlareSolverr headless browser instance to bypass Cloudflare Turnstile and DDoS-GUARD.";
+
     public bool IsAvailable => true;
 
     public HttpTransportCapabilities Capabilities => new()
@@ -30,33 +36,33 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         SupportsFlareSolverr = true,
         SupportsCustomProxy = true,
         SupportsTlsJa3Ja4Fingerprinting = true,
-        SupportsCookieExtraction = true
+        SupportsCookieExtraction = true,
     };
 
     public string FlareSolverrUrl { get; set; } = "http://localhost:8191/v1";
 
     public FlareSolverrTransportProvider(IConfigService configService = null)
     {
-        _configService = configService;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        this.configService = configService;
+        this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
     }
 
     public async Task<HttpTransportHealthCheckResult> ProbeHealthAsync()
     {
         try
         {
-            var url = !string.IsNullOrWhiteSpace(_configService?.GetValue("FlareSolverrUrl", string.Empty))
-                ? _configService.GetValue("FlareSolverrUrl", FlareSolverrUrl)
-                : FlareSolverrUrl;
+            var url = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
+                ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
+                : this.FlareSolverrUrl;
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var resp = await _httpClient.GetAsync(url, cts.Token);
+            var resp = await this.httpClient.GetAsync(url, cts.Token);
             if (resp.IsSuccessStatusCode)
             {
                 return new HttpTransportHealthCheckResult
                 {
                     IsHealthy = true,
-                    StatusMessage = $"FlareSolverr service is responding at {url}."
+                    StatusMessage = $"FlareSolverr service is responding at {url}.",
                 };
             }
         }
@@ -69,7 +75,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         {
             IsHealthy = true,
             StatusMessage = "FlareSolverr provider registered (service probe deferred or offline).",
-            Warnings = { $"FlareSolverr endpoint at {FlareSolverrUrl} is not currently responding." }
+            Warnings = { $"FlareSolverr endpoint at {this.FlareSolverrUrl} is not currently responding." },
         };
     }
 
@@ -80,9 +86,9 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             throw new ArgumentNullException(nameof(request));
         }
 
-        var endpoint = !string.IsNullOrWhiteSpace(_configService?.GetValue("FlareSolverrUrl", string.Empty))
-            ? _configService.GetValue("FlareSolverrUrl", FlareSolverrUrl)
-            : FlareSolverrUrl;
+        var endpoint = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
+            ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
+            : this.FlareSolverrUrl;
 
         try
         {
@@ -91,11 +97,11 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             {
                 cmd = method,
                 url = request.RequestUri?.ToString(),
-                maxTimeout = 60000
+                maxTimeout = 60000,
             };
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+            var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -112,7 +118,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
                     var httpResponse = new HttpResponseMessage((HttpStatusCode)status)
                     {
                         Content = new StringContent(responseBody, Encoding.UTF8, "text/html"),
-                        RequestMessage = request
+                        RequestMessage = request,
                     };
 
                     return httpResponse;
@@ -121,18 +127,18 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "FlareSolverr execution failed, returning fallback gateway error");
+            this.logger.Warn(ex, "FlareSolverr execution failed, returning fallback gateway error");
         }
 
-        return await _httpClient.SendAsync(request, cancellationToken);
+        return await this.httpClient.SendAsync(request, cancellationToken);
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _httpClient.Dispose();
+            this.disposed = true;
+            this.httpClient.Dispose();
         }
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using FluentAssertions;
@@ -14,14 +16,14 @@ namespace Leecharr.Core.Test.Categories;
 [TestFixture]
 public class CategoryRepositoryTest
 {
-    private string _dbPath = null!;
-    private CategoryRepository _repository = null!;
+    private string dbPath = null!;
+    private CategoryRepository repository = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-cat-repo-test-{Guid.NewGuid():N}.db");
-        var connectionString = $"Data Source={_dbPath};";
+        this.dbPath = Path.Combine(Path.GetTempPath(), $"leecharr-cat-repo-test-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={this.dbPath};";
 
         var serviceProvider = new ServiceCollection()
             .AddFluentMigratorCore()
@@ -40,18 +42,18 @@ public class CategoryRepositoryTest
 
         TableRegistration.RegisterTables();
         var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
-        _repository = new CategoryRepository(database);
+        this.repository = new CategoryRepository(database);
     }
 
     [TearDown]
     public void TearDown()
     {
         SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
+        if (File.Exists(this.dbPath))
         {
             try
             {
-                File.Delete(_dbPath);
+                File.Delete(this.dbPath);
             }
             catch
             {
@@ -68,11 +70,11 @@ public class CategoryRepositoryTest
             Name = "movies",
             SavePath = "/downloads/movies",
             IsDefault = false,
-            TargetRatio = 1.5
+            TargetRatio = 1.5,
         };
-        _repository.Insert(category);
+        this.repository.Insert(category);
 
-        var result = _repository.GetByName("movies");
+        var result = this.repository.GetByName("movies");
 
         result.Should().NotBeNull();
         result.Name.Should().Be("movies");
@@ -83,7 +85,7 @@ public class CategoryRepositoryTest
     [Test]
     public void GetByName_WhenNotFound_ReturnsNull()
     {
-        var result = _repository.GetByName("nonexistent");
+        var result = this.repository.GetByName("nonexistent");
         result.Should().BeNull();
     }
 
@@ -94,19 +96,19 @@ public class CategoryRepositoryTest
         {
             Name = "tv",
             SavePath = "/downloads/tv",
-            IsDefault = false
+            IsDefault = false,
         };
         var defaultCat = new Category
         {
             Name = "general",
             SavePath = "/downloads/general",
-            IsDefault = true
+            IsDefault = true,
         };
 
-        _repository.Insert(regularCat);
-        _repository.Insert(defaultCat);
+        this.repository.Insert(regularCat);
+        this.repository.Insert(defaultCat);
 
-        var result = _repository.GetDefault();
+        var result = this.repository.GetDefault();
 
         result.Should().NotBeNull();
         result.Name.Should().Be("general");
@@ -120,11 +122,11 @@ public class CategoryRepositoryTest
         {
             Name = "music",
             SavePath = "/downloads/music",
-            IsDefault = false
+            IsDefault = false,
         };
-        _repository.Insert(regularCat);
+        this.repository.Insert(regularCat);
 
-        var result = _repository.GetDefault();
+        var result = this.repository.GetDefault();
 
         result.Should().BeNull();
     }

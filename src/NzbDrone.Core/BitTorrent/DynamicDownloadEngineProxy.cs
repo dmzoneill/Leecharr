@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,20 +14,22 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager, IDisposable
 {
-    private readonly IEnumerable<ITorrentEngine> _availableEngines;
-    private readonly IConfigService _configService;
-    private readonly ITorrentRepository _torrentRepository;
-    private readonly ITorrentFileRepository _torrentFileRepository;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly IEnumerable<ITorrentEngine> availableEngines;
+    private readonly IConfigService configService;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
-    private readonly SemaphoreSlim _switchLock = new(1, 1);
-    private ITorrentEngine _activeEngine;
-    private bool _disposed;
+    private readonly SemaphoreSlim switchLock = new(1, 1);
+    private ITorrentEngine activeEngine;
+    private bool disposed;
 
-    public string ProtocolName => Volatile.Read(ref _activeEngine)?.ProtocolName ?? "BitTorrent";
-    public ITorrentEngine ActiveEngine => Volatile.Read(ref _activeEngine);
-    public string ActiveEngineId => Volatile.Read(ref _activeEngine)?.EngineId ?? "MonoTorrent";
+    public string ProtocolName => Volatile.Read(ref this.activeEngine)?.ProtocolName ?? "BitTorrent";
+
+    public ITorrentEngine ActiveEngine => Volatile.Read(ref this.activeEngine);
+
+    public string ActiveEngineId => Volatile.Read(ref this.activeEngine)?.EngineId ?? "MonoTorrent";
 
     public DynamicDownloadEngineProxy(
         IEnumerable<ITorrentEngine> availableEngines,
@@ -34,29 +38,29 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         IEventAggregator eventAggregator,
         ITorrentFileRepository torrentFileRepository = null)
     {
-        _availableEngines = availableEngines;
-        _configService = configService;
-        _torrentRepository = torrentRepository;
-        _torrentFileRepository = torrentFileRepository;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.availableEngines = availableEngines;
+        this.configService = configService;
+        this.torrentRepository = torrentRepository;
+        this.torrentFileRepository = torrentFileRepository;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
 
-        var desiredEngineId = _configService.ActiveTorrentEngine;
-        _activeEngine = _availableEngines.FirstOrDefault(e => e.EngineId.Equals(desiredEngineId, StringComparison.OrdinalIgnoreCase))
-                        ?? _availableEngines.FirstOrDefault(e => e.EngineId.Equals("MonoTorrent", StringComparison.OrdinalIgnoreCase))
-                        ?? _availableEngines.FirstOrDefault();
+        var desiredEngineId = this.configService.ActiveTorrentEngine;
+        this.activeEngine = this.availableEngines.FirstOrDefault(e => e.EngineId.Equals(desiredEngineId, StringComparison.OrdinalIgnoreCase))
+                        ?? this.availableEngines.FirstOrDefault(e => e.EngineId.Equals("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+                        ?? this.availableEngines.FirstOrDefault();
 
-        if (_activeEngine == null)
+        if (this.activeEngine == null)
         {
             throw new InvalidOperationException("No BitTorrent download engines are registered in the system container.");
         }
 
-        _logger.Info("DynamicDownloadEngineProxy initialized with active engine: {0} ({1})", _activeEngine.DisplayName, _activeEngine.EngineId);
+        this.logger.Info("DynamicDownloadEngineProxy initialized with active engine: {0} ({1})", this.activeEngine.DisplayName, this.activeEngine.EngineId);
     }
 
     public IEnumerable<ITorrentEngine> GetEngines()
     {
-        return _availableEngines;
+        return this.availableEngines;
     }
 
     public ITorrentEngine GetEngine(string engineId)
@@ -66,19 +70,19 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             return null;
         }
 
-        return _availableEngines.FirstOrDefault(e => e.EngineId.Equals(engineId, StringComparison.OrdinalIgnoreCase));
+        return this.availableEngines.FirstOrDefault(e => e.EngineId.Equals(engineId, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task<EngineHealthCheckResult> ProbeEngineAsync(string engineId)
     {
-        var engine = GetEngine(engineId);
+        var engine = this.GetEngine(engineId);
         if (engine == null)
         {
             return new EngineHealthCheckResult
             {
                 IsHealthy = false,
                 StatusMessage = $"Engine '{engineId}' is not recognized or registered.",
-                Warnings = new List<string> { "Engine identifier not found in active engine registry." }
+                Warnings = new List<string> { "Engine identifier not found in active engine registry." },
             };
         }
 
@@ -92,33 +96,33 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             return new EngineSwitchResult
             {
                 Success = false,
-                Error = "Target engine ID must not be empty."
+                Error = "Target engine ID must not be empty.",
             };
         }
 
-        var targetEngine = GetEngine(targetEngineId);
+        var targetEngine = this.GetEngine(targetEngineId);
         if (targetEngine == null)
         {
             return new EngineSwitchResult
             {
                 Success = false,
-                Error = $"Target engine '{targetEngineId}' is not registered."
+                Error = $"Target engine '{targetEngineId}' is not registered.",
             };
         }
 
-        if (string.Equals(Volatile.Read(ref _activeEngine).EngineId, targetEngine.EngineId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Volatile.Read(ref this.activeEngine).EngineId, targetEngine.EngineId, StringComparison.OrdinalIgnoreCase))
         {
             return new EngineSwitchResult
             {
                 Success = true,
-                PreviousEngine = Volatile.Read(ref _activeEngine).EngineId,
+                PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
                 ActiveEngine = targetEngine.EngineId,
                 TorrentsMigrated = 0,
-                Message = $"Engine '{targetEngine.DisplayName}' is already active."
+                Message = $"Engine '{targetEngine.DisplayName}' is already active.",
             };
         }
 
-        await _switchLock.WaitAsync();
+        await this.switchLock.WaitAsync();
         try
         {
             var health = await targetEngine.ProbeHealthAsync();
@@ -127,35 +131,35 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 return new EngineSwitchResult
                 {
                     Success = false,
-                    PreviousEngine = Volatile.Read(ref _activeEngine).EngineId,
-                    ActiveEngine = Volatile.Read(ref _activeEngine).EngineId,
-                    Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check failed ({health.StatusMessage})."
+                    PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                    ActiveEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                    Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check failed ({health.StatusMessage}).",
                 };
             }
 
-            _logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", Volatile.Read(ref _activeEngine).EngineId, targetEngine.EngineId, preserveTransfers);
-            var previousEngine = Volatile.Read(ref _activeEngine);
+            this.logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", Volatile.Read(ref this.activeEngine).EngineId, targetEngine.EngineId, preserveTransfers);
+            var previousEngine = Volatile.Read(ref this.activeEngine);
             var rehydrated = 0;
 
             // 1. Drain and stop previous engine
-            _logger.Info("Stopping active engine: {0}...", previousEngine.EngineId);
+            this.logger.Info("Stopping active engine: {0}...", previousEngine.EngineId);
             try
             {
                 await previousEngine.StopAsync();
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Error while stopping previous engine {0}", previousEngine.EngineId);
+                this.logger.Warn(ex, "Error while stopping previous engine {0}", previousEngine.EngineId);
             }
 
             // 2. Start target engine
-            _logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
+            this.logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
             await targetEngine.StartAsync();
 
             // 3. Migrate active torrents if requested
             if (preserveTransfers)
             {
-                var allTorrents = _torrentRepository.All();
+                var allTorrents = this.torrentRepository.All();
                 foreach (var torrent in allTorrents)
                 {
                     try
@@ -166,9 +170,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
                         await targetEngine.AddTorrentAsync(torrent, null, magnetUri);
 
-                        if (_torrentFileRepository != null)
+                        if (this.torrentFileRepository != null)
                         {
-                            var files = _torrentFileRepository.GetByTorrentId(torrent.Id);
+                            var files = this.torrentFileRepository.GetByTorrentId(torrent.Id);
                             foreach (var file in files)
                             {
                                 if (file.Priority != 1)
@@ -187,24 +191,24 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, "Failed to rehydrate torrent {0} ({1}) into new engine", torrent.Name, torrent.InfoHash);
+                        this.logger.Warn(ex, "Failed to rehydrate torrent {0} ({1}) into new engine", torrent.Name, torrent.InfoHash);
                     }
                 }
             }
 
             // 4. Swap active pointer atomically
-            Volatile.Write(ref _activeEngine, targetEngine);
+            Volatile.Write(ref this.activeEngine, targetEngine);
 
             // 5. Persist setting to configuration
-            _configService.SaveConfigDictionary(new Dictionary<string, object>
+            this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
-                { "ActiveTorrentEngine", targetEngine.EngineId }
+                { "ActiveTorrentEngine", targetEngine.EngineId },
             });
 
-            _logger.Info("Engine hot-swap completed: {0} -> {1} ({2} torrents migrated)", previousEngine.EngineId, targetEngine.EngineId, rehydrated);
+            this.logger.Info("Engine hot-swap completed: {0} -> {1} ({2} torrents migrated)", previousEngine.EngineId, targetEngine.EngineId, rehydrated);
 
             // 6. Broadcast event
-            _eventAggregator.PublishEvent(new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated));
+            this.eventAggregator.PublishEvent(new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated));
 
             return new EngineSwitchResult
             {
@@ -212,68 +216,69 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 PreviousEngine = previousEngine.EngineId,
                 ActiveEngine = targetEngine.EngineId,
                 TorrentsMigrated = rehydrated,
-                Message = $"Successfully switched download engine to {targetEngine.DisplayName}."
+                Message = $"Successfully switched download engine to {targetEngine.DisplayName}.",
             };
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Fatal error during engine hot-swap to {0}", targetEngineId);
+            this.logger.Error(ex, "Fatal error during engine hot-swap to {0}", targetEngineId);
             return new EngineSwitchResult
             {
                 Success = false,
-                PreviousEngine = Volatile.Read(ref _activeEngine)?.EngineId,
-                ActiveEngine = Volatile.Read(ref _activeEngine)?.EngineId,
-                Error = $"Hot-swap failed: {ex.Message}"
+                PreviousEngine = Volatile.Read(ref this.activeEngine)?.EngineId,
+                ActiveEngine = Volatile.Read(ref this.activeEngine)?.EngineId,
+                Error = $"Hot-swap failed: {ex.Message}",
             };
         }
         finally
         {
-            _switchLock.Release();
+            this.switchLock.Release();
         }
     }
 
-    public Task StartAsync() => Volatile.Read(ref _activeEngine).StartAsync();
-    public Task StopAsync() => Volatile.Read(ref _activeEngine).StopAsync();
+    public Task StartAsync() => Volatile.Read(ref this.activeEngine).StartAsync();
+
+    public Task StopAsync() => Volatile.Read(ref this.activeEngine).StopAsync();
 
     public Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
-        => Volatile.Read(ref _activeEngine).AddTorrentAsync(torrent, torrentFileBytes, magnetUri);
+        => Volatile.Read(ref this.activeEngine).AddTorrentAsync(torrent, torrentFileBytes, magnetUri);
 
     public Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
-        => Volatile.Read(ref _activeEngine).RemoveTorrentAsync(torrentId, deleteFiles);
+        => Volatile.Read(ref this.activeEngine).RemoveTorrentAsync(torrentId, deleteFiles);
 
     public Task PauseTorrentAsync(int torrentId)
-        => Volatile.Read(ref _activeEngine).PauseTorrentAsync(torrentId);
+        => Volatile.Read(ref this.activeEngine).PauseTorrentAsync(torrentId);
 
     public Task ResumeTorrentAsync(int torrentId)
-        => Volatile.Read(ref _activeEngine).ResumeTorrentAsync(torrentId);
+        => Volatile.Read(ref this.activeEngine).ResumeTorrentAsync(torrentId);
 
     public Task ForceRecheckAsync(int torrentId)
-        => Volatile.Read(ref _activeEngine).ForceRecheckAsync(torrentId);
+        => Volatile.Read(ref this.activeEngine).ForceRecheckAsync(torrentId);
 
     public Task ForceAnnounceAsync(int torrentId)
-        => Volatile.Read(ref _activeEngine).ForceAnnounceAsync(torrentId);
+        => Volatile.Read(ref this.activeEngine).ForceAnnounceAsync(torrentId);
 
     public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
-        => Volatile.Read(ref _activeEngine).SetFilePriorityAsync(torrentId, filePath, priority);
+        => Volatile.Read(ref this.activeEngine).SetFilePriorityAsync(torrentId, filePath, priority);
 
     public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
-        => Volatile.Read(ref _activeEngine).SetRateLimitsAsync(maxDownloadKbps, maxUploadKbps);
+        => Volatile.Read(ref this.activeEngine).SetRateLimitsAsync(maxDownloadKbps, maxUploadKbps);
 
     public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
-        => Volatile.Read(ref _activeEngine).SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
+        => Volatile.Read(ref this.activeEngine).SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
 
     public IDownloadTask GetTask(int torrentId)
-        => Volatile.Read(ref _activeEngine).GetTask(torrentId);
+        => Volatile.Read(ref this.activeEngine).GetTask(torrentId);
 
     public IEnumerable<IDownloadTask> GetAllTasks()
-        => Volatile.Read(ref _activeEngine).GetAllTasks();
+        => Volatile.Read(ref this.activeEngine).GetAllTasks();
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _switchLock.Dispose();
+            this.disposed = true;
+            this.switchLock.Dispose();
         }
     }
 }

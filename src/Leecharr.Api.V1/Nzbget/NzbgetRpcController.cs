@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,11 +31,11 @@ public class NzbgetRequest
 [ApiController]
 public class NzbgetRpcController : ControllerBase
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
         ITorrentService torrentService,
@@ -41,10 +43,10 @@ public class NzbgetRpcController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -58,7 +60,7 @@ public class NzbgetRpcController : ControllerBase
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
         {
-            return Ok(new { version = "1.1", result = "24.0", id = (object)1 });
+            return this.Ok(new { version = "1.1", result = "24.0", id = (object)1 });
         }
 
         var id = request.Id ?? 1;
@@ -68,22 +70,22 @@ public class NzbgetRpcController : ControllerBase
             switch (request.Method.ToLowerInvariant())
             {
                 case "version":
-                    return Ok(new { version = "1.1", result = "24.0", id });
+                    return this.Ok(new { version = "1.1", result = "24.0", id });
 
                 case "config":
                 case "loadconfig":
                     var configItems = new List<object>
                     {
-                        new { Name = "MainDir", Value = _configService.DownloadDir ?? "/downloads" },
-                        new { Name = "DestDir", Value = _configService.DownloadDir ?? "/downloads" },
-                        new { Name = "InterDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
-                        new { Name = "NzbDir", Value = _configService.DownloadDir ?? "/downloads" },
-                        new { Name = "QueueDir", Value = _configService.DownloadDir ?? "/downloads" },
-                        new { Name = "TempDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" }
+                        new { Name = "MainDir", Value = this.configService.DownloadDir ?? "/downloads" },
+                        new { Name = "DestDir", Value = this.configService.DownloadDir ?? "/downloads" },
+                        new { Name = "InterDir", Value = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
+                        new { Name = "NzbDir", Value = this.configService.DownloadDir ?? "/downloads" },
+                        new { Name = "QueueDir", Value = this.configService.DownloadDir ?? "/downloads" },
+                        new { Name = "TempDir", Value = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
                     };
 
                     var nzbgetCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tv", "tv-sonarr", "movies", "music", "anime", "default" };
-                    foreach (var c in _categoryService.GetAll())
+                    foreach (var c in this.categoryService.GetAll())
                     {
                         nzbgetCats.Add(c.Name);
                     }
@@ -92,29 +94,29 @@ public class NzbgetRpcController : ControllerBase
                     foreach (var cat in nzbgetCats)
                     {
                         configItems.Add(new { Name = $"Category{catIndex}.Name", Value = cat });
-                        configItems.Add(new { Name = $"Category{catIndex}.DestDir", Value = global::System.IO.Path.Combine(_configService.DownloadDir ?? "/downloads", cat) });
+                        configItems.Add(new { Name = $"Category{catIndex}.DestDir", Value = global::System.IO.Path.Combine(this.configService.DownloadDir ?? "/downloads", cat) });
                         catIndex++;
                     }
 
-                    return Ok(new
+                    return this.Ok(new
                     {
                         version = "1.1",
                         result = configItems,
-                        id
+                        id,
                     });
 
                 case "status":
-                    var all = _torrentService.GetAll().ToList();
-                    var freeMb = (int)(GetDriveFreeSpace(_configService.DownloadDir) / (1024 * 1024));
-                    return Ok(new
+                    var all = this.torrentService.GetAll().ToList();
+                    var freeMb = (int)(GetDriveFreeSpace(this.configService.DownloadDir) / (1024 * 1024));
+                    return this.Ok(new
                     {
                         version = "1.1",
                         result = new
                         {
                             RemainingSizeMB = (int)(all.Sum(t => t.TotalSize - t.Downloaded) / (1024 * 1024)),
                             DownloadRate = (int)all.Sum(t => t.DownloadSpeed),
-                            DownloadLimit = _configService.MaxDownloadSpeedKbps * 1024,
-                            SpeedLimit = _configService.MaxDownloadSpeedKbps * 1024,
+                            DownloadLimit = this.configService.MaxDownloadSpeedKbps * 1024,
+                            SpeedLimit = this.configService.MaxDownloadSpeedKbps * 1024,
                             FreeDiskSpaceMB = freeMb,
                             DownloadPaused = false,
                             ServerPaused = false,
@@ -125,13 +127,13 @@ public class NzbgetRpcController : ControllerBase
                             ServerTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds,
                             ResumeTime = 0,
                             FeedActive = false,
-                            QueueScriptCount = 0
+                            QueueScriptCount = 0,
                         },
-                        id
+                        id,
                     });
 
                 case "listgroups":
-                    var queueTorrents = _torrentService.GetAll()
+                    var queueTorrents = this.torrentService.GetAll()
                         .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
                         .Select((t, index) =>
                         {
@@ -150,7 +152,7 @@ public class NzbgetRpcController : ControllerBase
                                 NZBNicename = t.Name ?? string.Empty,
                                 Kind = "NZB",
                                 URL = string.Empty,
-                                DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                                DestDir = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                                 Category = t.Category ?? string.Empty,
                                 FileSizeMB = totalMb,
                                 RemainingSizeMB = remMb,
@@ -166,14 +168,14 @@ public class NzbgetRpcController : ControllerBase
                                 PausedFileCount = 0,
                                 Status = t.Status == TorrentStatus.Paused ? "PAUSED" : "DOWNLOADING",
                                 ActiveDownloads = 1,
-                                Parameters = Array.Empty<object>()
+                                Parameters = Array.Empty<object>(),
                             };
                         }).ToList();
 
-                    return Ok(new { version = "1.1", result = queueTorrents, id });
+                    return this.Ok(new { version = "1.1", result = queueTorrents, id });
 
                 case "history":
-                    var finished = _torrentService.GetAll()
+                    var finished = this.torrentService.GetAll()
                         .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
                         .Select(t =>
                         {
@@ -187,7 +189,7 @@ public class NzbgetRpcController : ControllerBase
                                 Name = t.Name ?? string.Empty,
                                 NZBName = t.Name ?? string.Empty,
                                 NZBNicename = t.Name ?? string.Empty,
-                                DestDir = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                                DestDir = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                                 Category = t.Category ?? string.Empty,
                                 FileSizeMB = totalMb,
                                 FileSizeLo = totalLo,
@@ -200,11 +202,11 @@ public class NzbgetRpcController : ControllerBase
                                 DeleteStatus = "NONE",
                                 MarkStatus = "NONE",
                                 UrlStatus = "NONE",
-                                Parameters = Array.Empty<object>()
+                                Parameters = Array.Empty<object>(),
                             };
                         }).ToList();
 
-                    return Ok(new { version = "1.1", result = finished, id });
+                    return this.Ok(new { version = "1.1", result = finished, id });
 
                 case "append":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
@@ -231,57 +233,57 @@ public class NzbgetRpcController : ControllerBase
                             try
                             {
                                 var bytes = Convert.FromBase64String(nzbContent);
-                                var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
-                                return Ok(new { version = "1.1", result = added?.Id ?? 1, id });
+                                var parsed = this.torrentFileParser.Parse(bytes);
+                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
+                                return this.Ok(new { version = "1.1", result = added?.Id ?? 1, id });
                             }
                             catch
                             {
-                                return Ok(new { version = "1.1", result = 1, id });
+                                return this.Ok(new { version = "1.1", result = 1, id });
                             }
                         }
                         else if (!string.IsNullOrWhiteSpace(nzbName) && (nzbName.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
                         {
                             try
                             {
-                                var added = await _torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
-                                return Ok(new { version = "1.1", result = added?.Id ?? 1, id });
+                                var added = await this.torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
+                                return this.Ok(new { version = "1.1", result = added?.Id ?? 1, id });
                             }
                             catch
                             {
-                                return Ok(new { version = "1.1", result = 1, id });
+                                return this.Ok(new { version = "1.1", result = 1, id });
                             }
                         }
                     }
 
-                    return Ok(new { version = "1.1", result = 1, id });
+                    return this.Ok(new { version = "1.1", result = 1, id });
 
                 case "pause":
                 case "pauseall":
-                    foreach (var t in _torrentService.GetAll())
+                    foreach (var t in this.torrentService.GetAll())
                     {
-                        await _torrentService.PauseAsync(t.Id);
+                        await this.torrentService.PauseAsync(t.Id);
                     }
 
-                    return Ok(new { version = "1.1", result = true, id });
+                    return this.Ok(new { version = "1.1", result = true, id });
 
                 case "resume":
                 case "resumeall":
-                    foreach (var t in _torrentService.GetAll())
+                    foreach (var t in this.torrentService.GetAll())
                     {
-                        await _torrentService.ResumeAsync(t.Id);
+                        await this.torrentService.ResumeAsync(t.Id);
                     }
 
-                    return Ok(new { version = "1.1", result = true, id });
+                    return this.Ok(new { version = "1.1", result = true, id });
 
                 case "rate":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
                     {
                         var rate = request.Params[0].GetInt32();
-                        _configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxDownloadSpeedKbps"] = rate });
+                        this.configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxDownloadSpeedKbps"] = rate });
                     }
 
-                    return Ok(new { version = "1.1", result = true, id });
+                    return this.Ok(new { version = "1.1", result = true, id });
 
                 case "editqueue":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
@@ -342,63 +344,63 @@ public class NzbgetRpcController : ControllerBase
                         {
                             if (command == "grouppause")
                             {
-                                await _torrentService.PauseAsync(targetId);
+                                await this.torrentService.PauseAsync(targetId);
                             }
                             else if (command == "groupresume")
                             {
-                                await _torrentService.ResumeAsync(targetId);
+                                await this.torrentService.ResumeAsync(targetId);
                             }
                             else if (command == "groupdelete" || command == "historydelete")
                             {
-                                await _torrentService.DeleteAsync(targetId, false);
+                                await this.torrentService.DeleteAsync(targetId, false);
                             }
                             else if (command == "groupfinaldelete")
                             {
-                                await _torrentService.DeleteAsync(targetId, true);
+                                await this.torrentService.DeleteAsync(targetId, true);
                             }
                             else if (command == "groupmovetop")
                             {
-                                await _torrentService.MoveQueueAsync(targetId, "top");
+                                await this.torrentService.MoveQueueAsync(targetId, "top");
                             }
                             else if (command == "groupmoveup")
                             {
-                                await _torrentService.MoveQueueAsync(targetId, "up");
+                                await this.torrentService.MoveQueueAsync(targetId, "up");
                             }
                             else if (command == "groupmovedown")
                             {
-                                await _torrentService.MoveQueueAsync(targetId, "down");
+                                await this.torrentService.MoveQueueAsync(targetId, "down");
                             }
                             else if (command == "groupmovebottom")
                             {
-                                await _torrentService.MoveQueueAsync(targetId, "bottom");
+                                await this.torrentService.MoveQueueAsync(targetId, "bottom");
                             }
                             else if (command == "groupmoveoffset")
                             {
-                                await _torrentService.MoveQueueAsync(targetId, offset > 0 ? "down" : "up");
+                                await this.torrentService.MoveQueueAsync(targetId, offset > 0 ? "down" : "up");
                             }
                             else if (command == "groupsetcategory")
                             {
-                                var t = _torrentService.Get(targetId);
+                                var t = this.torrentService.Get(targetId);
                                 if (t != null && !string.IsNullOrWhiteSpace(editText))
                                 {
                                     t.Category = editText;
-                                    await _torrentService.UpdateAsync(t);
+                                    await this.torrentService.UpdateAsync(t);
                                 }
                             }
                         }
                     }
 
-                    return Ok(new { version = "1.1", result = true, id });
+                    return this.Ok(new { version = "1.1", result = true, id });
 
                 default:
-                    _logger.Debug("Unhandled NZBGet method: {0}", request.Method);
-                    return Ok(new { version = "1.1", result = true, id });
+                    this.logger.Debug("Unhandled NZBGet method: {0}", request.Method);
+                    return this.Ok(new { version = "1.1", result = true, id });
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error in NZBGet RPC: {0}", request.Method);
-            return Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
+            this.logger.Error(ex, "Error in NZBGet RPC: {0}", request.Method);
+            return this.Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
         }
     }
 

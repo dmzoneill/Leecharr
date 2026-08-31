@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,12 +15,12 @@ public interface IDiskSpaceService
 
 public class DiskSpaceService : IDiskSpaceService
 {
-    private readonly IAppFolderInfo _appFolderInfo;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IAppFolderInfo appFolderInfo;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DiskSpaceService(IAppFolderInfo appFolderInfo)
     {
-        _appFolderInfo = appFolderInfo;
+        this.appFolderInfo = appFolderInfo;
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
@@ -26,8 +28,8 @@ public class DiskSpaceService : IDiskSpaceService
         var result = new List<DiskSpaceInfo>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        AddDriveInfo(result, seen, _appFolderInfo.AppDataFolder, "AppData");
-        AddDriveInfo(result, seen, _appFolderInfo.StartUpFolder, "Startup");
+        this.AddDriveInfo(result, seen, this.appFolderInfo.AppDataFolder, "AppData");
+        this.AddDriveInfo(result, seen, this.appFolderInfo.StartUpFolder, "Startup");
 
         try
         {
@@ -59,7 +61,7 @@ public class DiskSpaceService : IDiskSpaceService
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to enumerate fixed drives");
+            this.logger.Warn(ex, "Failed to enumerate fixed drives");
         }
 
         return result;
@@ -98,7 +100,7 @@ public class DiskSpaceService : IDiskSpaceService
         }
         catch (Exception ex)
         {
-            _logger.Debug(ex, "Could not get drive info for path {0}", path);
+            this.logger.Debug(ex, "Could not get drive info for path {0}", path);
         }
     }
 }

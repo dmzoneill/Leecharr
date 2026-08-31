@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 
 namespace NzbDrone.Core.Ai;
@@ -19,5 +21,5 @@ public enum AiCapabilities
           SupportsMalwareAnomalyDetection |
           SupportsSwarmOptimization |
           SupportsLocalOfflineInference |
-          SupportsCloudLlm
+          SupportsCloudLlm,
 }

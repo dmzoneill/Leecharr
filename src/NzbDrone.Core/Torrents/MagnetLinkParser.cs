@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Web;
@@ -7,9 +9,13 @@ namespace NzbDrone.Core.Torrents;
 public class ParsedMagnetLink
 {
     public string InfoHash { get; set; }
+
     public string DisplayName { get; set; }
+
     public List<string> Trackers { get; set; } = new();
+
     public List<string> ExactPeers { get; set; } = new();
+
     public List<string> WebSeeds { get; set; } = new();
 }
 

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using Leecharr.Http.REST;
 using NzbDrone.Core.Configuration;
 
@@ -6,8 +8,11 @@ namespace Leecharr.Api.V1.Config;
 public class AdvancedConfigResource : RestResource
 {
     public bool LogToFile { get; set; }
+
     public string FileLogLevel { get; set; }
+
     public bool DebugMode { get; set; }
+
     public int UiRefreshRateSec { get; set; }
 }
 

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,23 +12,23 @@ namespace Leecharr.Core.Test.Authentication;
 [TestFixture]
 public class UserServiceTest
 {
-    private InMemoryUserRepository _userRepository;
-    private Logger _logger;
-    private UserService _userService;
+    private InMemoryUserRepository userRepository;
+    private Logger logger;
+    private UserService userService;
 
     [SetUp]
     public void SetUp()
     {
-        _userRepository = new InMemoryUserRepository();
-        _logger = LogManager.GetCurrentClassLogger();
-        _userService = new UserService(_userRepository, _logger);
+        this.userRepository = new InMemoryUserRepository();
+        this.logger = LogManager.GetCurrentClassLogger();
+        this.userService = new UserService(this.userRepository, this.logger);
     }
 
     [Test]
     public void HashPassword_ShouldGenerateSaltAndHash()
     {
         var password = "SecurePassword123!";
-        var hash = _userService.HashPassword(password, out var salt);
+        var hash = this.userService.HashPassword(password, out var salt);
 
         Assert.That(hash, Is.Not.Null.And.Not.Empty);
         Assert.That(salt, Is.Not.Null.And.Not.Empty);
@@ -36,9 +38,9 @@ public class UserServiceTest
     public void VerifyPassword_WithCorrectPassword_ShouldReturnTrue()
     {
         var password = "CorrectHorseBatteryStaple";
-        var hash = _userService.HashPassword(password, out var salt);
+        var hash = this.userService.HashPassword(password, out var salt);
 
-        var result = _userService.VerifyPassword(password, hash, salt, 100000);
+        var result = this.userService.VerifyPassword(password, hash, salt, 100000);
 
         Assert.That(result, Is.True);
     }
@@ -47,9 +49,9 @@ public class UserServiceTest
     public void VerifyPassword_WithIncorrectPassword_ShouldReturnFalse()
     {
         var password = "CorrectPassword";
-        var hash = _userService.HashPassword(password, out var salt);
+        var hash = this.userService.HashPassword(password, out var salt);
 
-        var result = _userService.VerifyPassword("WrongPassword", hash, salt, 100000);
+        var result = this.userService.VerifyPassword("WrongPassword", hash, salt, 100000);
 
         Assert.That(result, Is.False);
     }
@@ -57,7 +59,7 @@ public class UserServiceTest
     [Test]
     public void CreateUser_FirstUser_ShouldBeAdmin()
     {
-        var user = _userService.CreateUser("admin", "AdminPassword123!", "admin@example.com", "Admin User");
+        var user = this.userService.CreateUser("admin", "AdminPassword123!", "admin@example.com", "Admin User");
 
         Assert.That(user.Username, Is.EqualTo("admin"));
         Assert.That(user.Roles, Does.Contain("Admin"));
@@ -66,9 +68,9 @@ public class UserServiceTest
     [Test]
     public void Authenticate_WithValidCredentials_ShouldReturnUser()
     {
-        var user = _userService.CreateUser("jdoe", "MySecretPassword", "jdoe@example.com", "John Doe");
+        var user = this.userService.CreateUser("jdoe", "MySecretPassword", "jdoe@example.com", "John Doe");
 
-        var authenticated = _userService.Authenticate("jdoe", "MySecretPassword");
+        var authenticated = this.userService.Authenticate("jdoe", "MySecretPassword");
 
         Assert.That(authenticated, Is.Not.Null);
         Assert.That(authenticated.Username, Is.EqualTo("jdoe"));
@@ -78,41 +80,41 @@ public class UserServiceTest
     [Test]
     public void Authenticate_WithInvalidPassword_ShouldReturnNull()
     {
-        _userService.CreateUser("jdoe", "RealPassword", "jdoe@example.com", "John Doe");
+        this.userService.CreateUser("jdoe", "RealPassword", "jdoe@example.com", "John Doe");
 
-        var authenticated = _userService.Authenticate("jdoe", "WrongPassword");
+        var authenticated = this.userService.Authenticate("jdoe", "WrongPassword");
 
         Assert.That(authenticated, Is.Null);
     }
 
     private class InMemoryUserRepository : IUserRepository
     {
-        private readonly List<User> _users = new List<User>();
-        private int _nextId = 1;
+        private readonly List<User> users = new List<User>();
+        private int nextId = 1;
 
         public User Get(int id)
         {
-            return _users.FirstOrDefault(u => u.Id == id);
+            return this.users.FirstOrDefault(u => u.Id == id);
         }
 
         public IEnumerable<User> All()
         {
-            return _users.ToList();
+            return this.users.ToList();
         }
 
         public User Insert(User model)
         {
-            model.Id = _nextId++;
-            _users.Add(model);
+            model.Id = this.nextId++;
+            this.users.Add(model);
             return model;
         }
 
         public User Update(User model)
         {
-            var idx = _users.FindIndex(u => u.Id == model.Id);
+            var idx = this.users.FindIndex(u => u.Id == model.Id);
             if (idx >= 0)
             {
-                _users[idx] = model;
+                this.users[idx] = model;
             }
 
             return model;
@@ -120,24 +122,24 @@ public class UserServiceTest
 
         public void Delete(int id)
         {
-            _users.RemoveAll(u => u.Id == id);
+            this.users.RemoveAll(u => u.Id == id);
         }
 
         public void Delete(User model)
         {
-            Delete(model.Id);
+            this.Delete(model.Id);
         }
 
         public void DeleteMany(IEnumerable<int> ids)
         {
-            _users.RemoveAll(u => ids.Contains(u.Id));
+            this.users.RemoveAll(u => ids.Contains(u.Id));
         }
 
         public void InsertMany(IList<User> models)
         {
             foreach (var m in models)
             {
-                Insert(m);
+                this.Insert(m);
             }
         }
 
@@ -145,43 +147,43 @@ public class UserServiceTest
         {
             foreach (var m in models)
             {
-                Update(m);
+                this.Update(m);
             }
         }
 
         public void Purge()
         {
-            _users.Clear();
+            this.users.Clear();
         }
 
         public int Count()
         {
-            return _users.Count;
+            return this.users.Count;
         }
 
         public User FindByUsername(string username)
         {
-            return _users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            return this.users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
         }
 
         public User FindByEmail(string email)
         {
-            return _users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            return this.users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
         }
 
         public User FindByIdentifier(Guid identifier)
         {
-            return _users.FirstOrDefault(u => u.Identifier == identifier);
+            return this.users.FirstOrDefault(u => u.Identifier == identifier);
         }
 
         public User FindByExternalId(string providerId, string externalSubjectId)
         {
-            return _users.FirstOrDefault(u => u.ExternalProviderId == providerId && u.ExternalSubjectId == externalSubjectId);
+            return this.users.FirstOrDefault(u => u.ExternalProviderId == providerId && u.ExternalSubjectId == externalSubjectId);
         }
 
         public int GetUserCount()
         {
-            return _users.Count;
+            return this.users.Count;
         }
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,13 +15,17 @@ namespace NzbDrone.Core.MediaInspection;
 
 public class MediaInfoInspectorProvider : IMediaInspectorProvider
 {
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
-    private readonly TagLibInspectorProvider _fallbackProvider = new();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private readonly TagLibInspectorProvider fallbackProvider = new();
 
     public string ProviderId => "MediaInfo";
+
     public string DisplayName => "MediaInfo (CLI / Shared Library)";
+
     public string Version => "24.06 (MediaInfo CLI)";
+
     public string Description => "Industry standard MediaInfo binary inspector providing deep container and stream analysis.";
+
     public bool IsAvailable => FindBinary() != null;
 
     public MediaInspectorCapabilities Capabilities { get; } = new()
@@ -34,7 +40,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         SupportsVideoStreamTracks = true,
         SupportsChapters = true,
         SupportsVideoThumbnails = false,
-        SupportsPureManagedStreams = false
+        SupportsPureManagedStreams = false,
     };
 
     public Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
@@ -46,7 +52,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             {
                 IsHealthy = true,
                 StatusMessage = $"MediaInfo CLI executable found at {binary}.",
-                DependencyChecks = new List<string> { $"MediaInfo binary: {binary}" }
+                DependencyChecks = new List<string> { $"MediaInfo binary: {binary}" },
             });
         }
 
@@ -54,7 +60,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         {
             IsHealthy = false,
             StatusMessage = "MediaInfo executable not found on PATH or standard locations.",
-            Warnings = new List<string> { "Install mediainfo or set MEDIAINFO_PATH environment variable." }
+            Warnings = new List<string> { "Install mediainfo or set MEDIAINFO_PATH environment variable." },
         });
     }
 
@@ -68,7 +74,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         var binary = FindBinary();
         if (binary == null)
         {
-            return _fallbackProvider.InspectFile(mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
 
         try
@@ -80,7 +86,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             using var process = new Process { StartInfo = startInfo };
@@ -98,23 +104,23 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                 }
             }
 
-            return _fallbackProvider.InspectFile(mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "MediaInfo failed to inspect media: {0}", mediaPath);
-            return _fallbackProvider.InspectFile(mediaPath);
+            this.logger.Error(ex, "MediaInfo failed to inspect media: {0}", mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
     }
 
     public MediaContainerInfo InspectFile(string filePath)
     {
-        return InspectMediaAsync(filePath).GetAwaiter().GetResult();
+        return this.InspectMediaAsync(filePath).GetAwaiter().GetResult();
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
     {
-        return _fallbackProvider.Inspect(stream, fileName);
+        return this.fallbackProvider.Inspect(stream, fileName);
     }
 
     public static MediaContainerInfo ParseMediaInfoJson(string json, string fileName = "")
@@ -239,7 +245,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                             2 => "2.0",
                             6 => "5.1",
                             8 => "7.1",
-                            _ => $"{channels}.0"
+                            _ => $"{channels}.0",
                         };
                     }
 

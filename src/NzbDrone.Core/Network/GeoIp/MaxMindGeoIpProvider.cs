@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,26 +15,30 @@ namespace NzbDrone.Core.Network.GeoIp;
 
 public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 {
-    private readonly IDiskProvider _diskProvider;
-    private readonly IAppFolderInfo _appFolderInfo;
-    private readonly Logger _logger;
-    private readonly object _lock = new();
+    private readonly IDiskProvider diskProvider;
+    private readonly IAppFolderInfo appFolderInfo;
+    private readonly Logger logger;
+    private readonly object @lock = new();
 
-    private DatabaseReader _reader;
-    private string _resolvedDatabasePath;
-    private bool _disposed;
+    private DatabaseReader reader;
+    private string resolvedDatabasePath;
+    private bool disposed;
 
     public string ProviderId => "MaxMind";
+
     public string DisplayName => "MaxMind GeoLite2 / GeoIP2 (.mmdb)";
+
     public string Version => "2.0";
-    public bool IsAvailable => !string.IsNullOrEmpty(GetDatabasePath());
+
+    public bool IsAvailable => !string.IsNullOrEmpty(this.GetDatabasePath());
+
     public GeoIpCapabilities Capabilities => GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.Asn | GeoIpCapabilities.OfflineDatabase;
 
     public MaxMindGeoIpProvider(IDiskProvider diskProvider, IAppFolderInfo appFolderInfo)
     {
-        _diskProvider = diskProvider;
-        _appFolderInfo = appFolderInfo;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.diskProvider = diskProvider;
+        this.appFolderInfo = appFolderInfo;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public string GetDatabasePath()
@@ -41,15 +47,15 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         {
             "/config/GeoIP/GeoLite2-City.mmdb",
             "/config/GeoLite2-City.mmdb",
-            Path.Combine(_appFolderInfo.AppDataFolder, "GeoIP", "GeoLite2-City.mmdb"),
-            Path.Combine(_appFolderInfo.AppDataFolder, "GeoLite2-City.mmdb"),
-            Path.Combine(_appFolderInfo.StartUpFolder, "GeoIP", "GeoLite2-City.mmdb"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GeoLite2-City.mmdb")
+            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "GeoLite2-City.mmdb"),
+            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoLite2-City.mmdb"),
+            Path.Combine(this.appFolderInfo.StartUpFolder, "GeoIP", "GeoLite2-City.mmdb"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GeoLite2-City.mmdb"),
         };
 
         foreach (var path in candidates)
         {
-            if (!string.IsNullOrWhiteSpace(path) && _diskProvider.FileExists(path))
+            if (!string.IsNullOrWhiteSpace(path) && this.diskProvider.FileExists(path))
             {
                 return path;
             }
@@ -60,24 +66,24 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     public Task<GeoIpHealthResult> ProbeHealthAsync()
     {
-        var dbPath = GetDatabasePath();
+        var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = false,
                 StatusMessage = "MaxMind GeoLite2-City.mmdb database not found. Place the file in /config/GeoIP/GeoLite2-City.mmdb or AppData.",
-                Warnings = new List<string> { "Database file missing." }
+                Warnings = new List<string> { "Database file missing." },
             });
         }
 
         try
         {
-            EnsureReader(dbPath);
+            this.EnsureReader(dbPath);
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = true,
-                StatusMessage = $"MaxMind database loaded successfully from {dbPath}."
+                StatusMessage = $"MaxMind database loaded successfully from {dbPath}.",
             });
         }
         catch (Exception ex)
@@ -86,7 +92,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 IsHealthy = false,
                 StatusMessage = $"Failed to read MaxMind database: {ex.Message}",
-                Warnings = new List<string> { ex.Message }
+                Warnings = new List<string> { ex.Message },
             });
         }
     }
@@ -103,7 +109,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
         }
 
-        var dbPath = GetDatabasePath();
+        var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
@@ -111,7 +117,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
         try
         {
-            var reader = EnsureReader(dbPath);
+            var reader = this.EnsureReader(dbPath);
             if (reader == null)
             {
                 return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
@@ -128,7 +134,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                     Region = city.MostSpecificSubdivision?.Name ?? string.Empty,
                     Latitude = city.Location?.Latitude,
                     Longitude = city.Location?.Longitude,
-                    TimeZone = city.Location?.TimeZone ?? string.Empty
+                    TimeZone = city.Location?.TimeZone ?? string.Empty,
                 });
             }
         }
@@ -138,11 +144,11 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         }
         catch (GeoIP2Exception ex)
         {
-            _logger.Debug(ex, "MaxMind GeoIP lookup exception for IP: {0}", ipAddress);
+            this.logger.Debug(ex, "MaxMind GeoIP lookup exception for IP: {0}", ipAddress);
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Unexpected error during MaxMind GeoIP lookup for IP: {0}", ipAddress);
+            this.logger.Warn(ex, "Unexpected error during MaxMind GeoIP lookup for IP: {0}", ipAddress);
         }
 
         return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
@@ -150,34 +156,34 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     private DatabaseReader EnsureReader(string dbPath)
     {
-        if (_reader != null && _resolvedDatabasePath == dbPath)
+        if (this.reader != null && this.resolvedDatabasePath == dbPath)
         {
-            return _reader;
+            return this.reader;
         }
 
-        lock (_lock)
+        lock (this.@lock)
         {
-            if (_reader != null && _resolvedDatabasePath == dbPath)
+            if (this.reader != null && this.resolvedDatabasePath == dbPath)
             {
-                return _reader;
+                return this.reader;
             }
 
-            _reader?.Dispose();
-            _reader = new DatabaseReader(dbPath);
-            _resolvedDatabasePath = dbPath;
-            return _reader;
+            this.reader?.Dispose();
+            this.reader = new DatabaseReader(dbPath);
+            this.resolvedDatabasePath = dbPath;
+            return this.reader;
         }
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            lock (_lock)
+            this.disposed = true;
+            lock (this.@lock)
             {
-                _reader?.Dispose();
-                _reader = null;
+                this.reader?.Dispose();
+                this.reader = null;
             }
         }
     }

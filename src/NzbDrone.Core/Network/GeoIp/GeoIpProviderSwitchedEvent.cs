@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network.GeoIp;
@@ -5,11 +7,12 @@ namespace NzbDrone.Core.Network.GeoIp;
 public class GeoIpProviderSwitchedEvent : IEvent
 {
     public string PreviousProvider { get; }
+
     public string NewProvider { get; }
 
     public GeoIpProviderSwitchedEvent(string previousProvider, string newProvider)
     {
-        PreviousProvider = previousProvider;
-        NewProvider = newProvider;
+        this.PreviousProvider = previousProvider;
+        this.NewProvider = newProvider;
     }
 }

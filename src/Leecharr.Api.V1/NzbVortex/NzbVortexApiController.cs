@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Linq;
@@ -16,12 +18,12 @@ namespace Leecharr.Api.V1.NzbVortex;
 [ApiController]
 public class NzbVortexApiController : ControllerBase
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbVortexApiController(
         ITorrentService torrentService,
@@ -30,11 +32,11 @@ public class NzbVortexApiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -42,12 +44,12 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/auth/nonce")]
     public IActionResult GetNonce()
     {
-        return Ok(new
+        return this.Ok(new
         {
             authNonce = "leecharr-vortex-nonce",
             nonce = "leecharr-vortex-nonce",
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -56,13 +58,13 @@ public class NzbVortexApiController : ControllerBase
     [Route("nzbvortex/api/v1/auth/login")]
     public IActionResult Login()
     {
-        return Ok(new
+        return this.Ok(new
         {
             loginResult = 0,
             auth = true,
             session = "leecharr-session-token",
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -71,11 +73,11 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/app/appversion")]
     public IActionResult GetAppVersion()
     {
-        return Ok(new
+        return this.Ok(new
         {
             appVersion = "3.4.2",
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -84,11 +86,11 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/app/apilevel")]
     public IActionResult GetApiLevel()
     {
-        return Ok(new
+        return this.Ok(new
         {
             apiLevel = 7,
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -97,19 +99,19 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/group")]
     public IActionResult GetGroups()
     {
-        var cats = _categoryService.GetAll().ToList();
+        var cats = this.categoryService.GetAll().ToList();
         var groups = cats.Select(c => new
         {
             groupName = c.Name,
-            destinationPath = c.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
-            isDefault = false
+            destinationPath = c.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+            isDefault = false,
         }).ToList();
 
-        return Ok(new
+        return this.Ok(new
         {
             groups,
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -120,7 +122,7 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/queue")]
     public IActionResult GetNzbs()
     {
-        var all = _torrentService.GetAll().ToList();
+        var all = this.torrentService.GetAll().ToList();
         var nzbs = all.Select(t => new
         {
             id = t.Id,
@@ -142,20 +144,20 @@ public class NzbVortexApiController : ControllerBase
                 TorrentStatus.Stopped => 20,
                 TorrentStatus.Paused => 0,
                 TorrentStatus.Error => 21,
-                _ => 0
+                _ => 0,
             },
             statusText = t.Status.ToString(),
-            destinationPath = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+            destinationPath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
             downloadRatio = t.Ratio,
-            progress = t.Progress
+            progress = t.Progress,
         }).ToList();
 
-        return Ok(new
+        return this.Ok(new
         {
             nzbs,
             queue = nzbs,
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -172,29 +174,29 @@ public class NzbVortexApiController : ControllerBase
     {
         var category = !string.IsNullOrWhiteSpace(queryGroup) ? queryGroup : groupName;
         var addedId = 1;
-        if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
-            var file = Request.Form.Files[0];
+            var file = this.Request.Form.Files[0];
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
             var bytes = ms.ToArray();
-            var parsed = _torrentFileParser.Parse(bytes);
-            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
             addedId = added?.Id ?? addedId;
         }
         else
         {
-            var url = Request.Query["url"].ToString();
-            if (string.IsNullOrEmpty(url) && Request.HasFormContentType)
+            var url = this.Request.Query["url"].ToString();
+            if (string.IsNullOrEmpty(url) && this.Request.HasFormContentType)
             {
-                url = Request.Form["url"].ToString();
+                url = this.Request.Form["url"].ToString();
             }
 
             if (!string.IsNullOrWhiteSpace(url))
             {
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    var added = await _torrentService.AddFromMagnetAsync(url, category, null, false);
+                    var added = await this.torrentService.AddFromMagnetAsync(url, category, null, false);
                     addedId = added?.Id ?? addedId;
                 }
                 else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
@@ -202,19 +204,19 @@ public class NzbVortexApiController : ControllerBase
                 {
                     using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                     var bytes = await httpClient.GetByteArrayAsync(url);
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
                     addedId = added?.Id ?? addedId;
                 }
             }
         }
 
-        return Ok(new
+        return this.Ok(new
         {
             id = addedId.ToString(),
             nzb = new { id = addedId.ToString() },
             error = 0,
-            result = 0
+            result = 0,
         });
     }
 
@@ -225,8 +227,8 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/queue/{id}/pause")]
     public async Task<IActionResult> PauseNzb(int id)
     {
-        await _torrentService.PauseAsync(id);
-        return Ok(new { error = 0, result = 0 });
+        await this.torrentService.PauseAsync(id);
+        return this.Ok(new { error = 0, result = 0 });
     }
 
     [HttpPost]
@@ -236,8 +238,8 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/queue/{id}/resume")]
     public async Task<IActionResult> ResumeNzb(int id)
     {
-        await _torrentService.ResumeAsync(id);
-        return Ok(new { error = 0, result = 0 });
+        await this.torrentService.ResumeAsync(id);
+        return this.Ok(new { error = 0, result = 0 });
     }
 
     [HttpGet]
@@ -253,9 +255,9 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/queue/{id}")]
     public async Task<IActionResult> CancelNzb(int id, [FromQuery] bool deleteFiles = false)
     {
-        var isDelete = deleteFiles || (Request.Path.Value?.Contains("cancelDelete", StringComparison.OrdinalIgnoreCase) == true);
-        await _torrentService.DeleteAsync(id, isDelete);
-        return Ok(new { error = 0, result = 0 });
+        var isDelete = deleteFiles || (this.Request.Path.Value?.Contains("cancelDelete", StringComparison.OrdinalIgnoreCase) == true);
+        await this.torrentService.DeleteAsync(id, isDelete);
+        return this.Ok(new { error = 0, result = 0 });
     }
 
     [HttpGet]
@@ -263,20 +265,20 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/file/{id}")]
     public IActionResult GetFiles(int id)
     {
-        var files = _torrentFileService.GetFiles(id).ToList();
+        var files = this.torrentFileService.GetFiles(id).ToList();
         var result = files.Select(f => new
         {
             id = f.Id,
             fileName = f.Path,
             fileSize = f.Size,
             downloaded = (long)(f.Size * f.Progress),
-            isIgnored = f.Priority == 0
+            isIgnored = f.Priority == 0,
         }).ToList();
 
-        return Ok(new
+        return this.Ok(new
         {
             files = result,
-            result = 0
+            result = 0,
         });
     }
 
@@ -285,8 +287,8 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/file/{fileId}/ignore")]
     public async Task<IActionResult> IgnoreFile(int fileId)
     {
-        await _torrentFileService.SetPriorityAsync(fileId, 0);
-        return Ok(new { error = 0, result = 0 });
+        await this.torrentFileService.SetPriorityAsync(fileId, 0);
+        return this.Ok(new { error = 0, result = 0 });
     }
 
     [HttpPost]
@@ -294,7 +296,7 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/file/{fileId}/unignore")]
     public async Task<IActionResult> UnignoreFile(int fileId)
     {
-        await _torrentFileService.SetPriorityAsync(fileId, 1);
-        return Ok(new { error = 0, result = 0 });
+        await this.torrentFileService.SetPriorityAsync(fileId, 1);
+        return this.Ok(new { error = 0, result = 0 });
     }
 }

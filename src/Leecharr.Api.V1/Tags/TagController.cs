@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
@@ -15,38 +17,38 @@ public class TagResource : RestResource
 [V1ApiController("tag")]
 public class TagController : Controller
 {
-    private readonly ITagRepository _tagRepository;
+    private readonly ITagRepository tagRepository;
 
     public TagController(ITagRepository tagRepository)
     {
-        _tagRepository = tagRepository;
+        this.tagRepository = tagRepository;
     }
 
     [HttpGet]
     public ActionResult<List<TagResource>> GetAll()
     {
-        var tags = _tagRepository.All().Select(t => new TagResource
+        var tags = this.tagRepository.All().Select(t => new TagResource
         {
             Id = t.Id,
-            Label = t.Label
+            Label = t.Label,
         }).ToList();
 
-        return Ok(tags);
+        return this.Ok(tags);
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<TagResource> Get(int id)
     {
-        var tag = _tagRepository.Get(id);
+        var tag = this.tagRepository.Get(id);
         if (tag == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(new TagResource
+        return this.Ok(new TagResource
         {
             Id = tag.Id,
-            Label = tag.Label
+            Label = tag.Label,
         });
     }
 
@@ -55,29 +57,29 @@ public class TagController : Controller
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Label))
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _tagRepository.GetByLabel(resource.Label.Trim());
+        var existing = this.tagRepository.GetByLabel(resource.Label.Trim());
         if (existing != null)
         {
-            return Ok(new TagResource
+            return this.Ok(new TagResource
             {
                 Id = existing.Id,
-                Label = existing.Label
+                Label = existing.Label,
             });
         }
 
         var model = new Tag
         {
-            Label = resource.Label.Trim()
+            Label = resource.Label.Trim(),
         };
 
-        var inserted = _tagRepository.Insert(model);
-        return Ok(new TagResource
+        var inserted = this.tagRepository.Insert(model);
+        return this.Ok(new TagResource
         {
             Id = inserted.Id,
-            Label = inserted.Label
+            Label = inserted.Label,
         });
     }
 
@@ -86,29 +88,29 @@ public class TagController : Controller
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Label))
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _tagRepository.Get(id);
+        var existing = this.tagRepository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         existing.Label = resource.Label.Trim();
-        _tagRepository.Update(existing);
+        this.tagRepository.Update(existing);
 
-        return Ok(new TagResource
+        return this.Ok(new TagResource
         {
             Id = existing.Id,
-            Label = existing.Label
+            Label = existing.Label,
         });
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _tagRepository.Delete(id);
-        return Ok();
+        this.tagRepository.Delete(id);
+        return this.Ok();
     }
 }

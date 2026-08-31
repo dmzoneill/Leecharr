@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,15 +15,16 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.Indexers;
 
 [V1ApiController("indexers")]
+[Route("api/v1/indexer")]
 public class IndexerController : Controller
 {
     private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
-    private readonly IIndexerRepository _indexerRepository;
-    private readonly ITorznabClient _torznabClient;
-    private readonly IProwlarrSyncService _prowlarrSyncService;
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IIndexerRepository indexerRepository;
+    private readonly ITorznabClient torznabClient;
+    private readonly IProwlarrSyncService prowlarrSyncService;
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
         IIndexerRepository indexerRepository,
@@ -30,30 +33,30 @@ public class IndexerController : Controller
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser)
     {
-        _indexerRepository = indexerRepository;
-        _torznabClient = torznabClient;
-        _prowlarrSyncService = prowlarrSyncService;
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
+        this.indexerRepository = indexerRepository;
+        this.torznabClient = torznabClient;
+        this.prowlarrSyncService = prowlarrSyncService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
     }
 
     [HttpGet]
     public ActionResult<List<IndexerResource>> GetAll()
     {
-        var definitions = _indexerRepository.All();
-        return Ok(definitions.Select(ToResource).ToList());
+        var definitions = this.indexerRepository.All();
+        return this.Ok(definitions.Select(ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<IndexerResource> Get(int id)
     {
-        var definition = _indexerRepository.Get(id);
+        var definition = this.indexerRepository.Get(id);
         if (definition == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(definition));
+        return this.Ok(ToResource(definition));
     }
 
     [HttpPost]
@@ -61,12 +64,12 @@ public class IndexerController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _indexerRepository.Insert(model);
-        return Ok(ToResource(created));
+        var created = this.indexerRepository.Insert(model);
+        return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -74,38 +77,38 @@ public class IndexerController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _indexerRepository.Get(id);
+        var existing = this.indexerRepository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
         model.Id = id;
-        _indexerRepository.Update(model);
-        return Ok(ToResource(model));
+        this.indexerRepository.Update(model);
+        return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _indexerRepository.Delete(id);
-        return Ok();
+        this.indexerRepository.Delete(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/test")]
     public async Task<ActionResult<IndexerTestResult>> Test(int id)
     {
-        var indexer = _indexerRepository.Get(id);
+        var indexer = this.indexerRepository.Get(id);
         if (indexer == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return await TestDirectInternal(indexer);
+        return await this.TestDirectInternal(indexer);
     }
 
     [HttpPost("test")]
@@ -113,11 +116,11 @@ public class IndexerController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        return await TestDirectInternal(model);
+        return await this.TestDirectInternal(model);
     }
 
     [HttpPost("sync-prowlarr")]
@@ -125,17 +128,18 @@ public class IndexerController : Controller
     {
         try
         {
-            var count = await _prowlarrSyncService.SyncFromProwlarrAsync(url, apiKey);
-            return Ok(new { success = true, syncedCount = count });
+            var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(url, apiKey);
+            return this.Ok(new { success = true, syncedCount = count });
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to sync with Prowlarr");
-            return BadRequest(new { success = false, message = ex.Message });
+            this.logger.Error(ex, "Failed to sync with Prowlarr");
+            return this.BadRequest(new { success = false, message = ex.Message });
         }
     }
 
     [HttpGet("search")]
+    [HttpPost("search")]
     public async Task<ActionResult<List<ReleaseInfoResource>>> Search(
         [FromQuery] string query = null,
         [FromQuery] string category = null,
@@ -147,20 +151,33 @@ public class IndexerController : Controller
         [FromQuery] string tmdbId = null,
         [FromQuery] int offset = 0,
         [FromQuery] int limit = 50,
-        [FromQuery] string type = null)
+        [FromQuery] string type = null,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] IndexerSearchRequest request = null)
     {
-        var indexers = indexerId.HasValue
-            ? new List<IndexerDefinition> { _indexerRepository.Get(indexerId.Value) }.Where(i => i != null).ToList()
-            : _indexerRepository.GetSearchEnabled().ToList();
+        var effectiveQuery = !string.IsNullOrEmpty(request?.Query) ? request.Query : query;
+        var effectiveCategory = !string.IsNullOrEmpty(request?.Category) ? request.Category : category;
+        var effectiveIndexerId = request?.IndexerId ?? indexerId;
+        var effectiveFreeleech = request?.FreeleechOnly ?? freeleechOnly;
+        var effectiveSeason = request?.Season ?? season;
+        var effectiveEp = request?.Ep ?? ep;
+        var effectiveImdb = !string.IsNullOrEmpty(request?.ImdbId) ? request.ImdbId : imdbId;
+        var effectiveTmdb = !string.IsNullOrEmpty(request?.TmdbId) ? request.TmdbId : tmdbId;
+        var effectiveOffset = request != null && request.Offset > 0 ? request.Offset : offset;
+        var effectiveLimit = request != null && request.Limit > 0 ? request.Limit : limit;
+        var effectiveType = !string.IsNullOrEmpty(request?.Type) ? request.Type : type;
 
-        var catId = int.TryParse(category, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
+        var indexers = effectiveIndexerId.HasValue
+            ? new List<IndexerDefinition> { this.indexerRepository.Get(effectiveIndexerId.Value) }.Where(i => i != null).ToList()
+            : this.indexerRepository.GetSearchEnabled().ToList();
+
+        var catId = int.TryParse(effectiveCategory, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
 
         var allResults = new List<ReleaseInfoResource>();
         var searchTasks = indexers.Select(async idx =>
         {
             try
             {
-                var results = await _torznabClient.SearchAsync(idx, query ?? string.Empty, catId, limit, offset, season, ep, imdbId, tmdbId, type);
+                var results = await this.torznabClient.SearchAsync(idx, effectiveQuery ?? string.Empty, catId, effectiveLimit, effectiveOffset, effectiveSeason, effectiveEp, effectiveImdb, effectiveTmdb, effectiveType);
                 return results.Select(r => new ReleaseInfoResource
                 {
                     Title = r.Title,
@@ -178,12 +195,12 @@ public class IndexerController : Controller
                     IndexerId = idx.Id,
                     IndexerName = idx.Name,
                     DownloadVolumeFactor = r.DownloadVolumeFactor,
-                    UploadVolumeFactor = r.UploadVolumeFactor
+                    UploadVolumeFactor = r.UploadVolumeFactor,
                 }).ToList();
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
+                this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
                 return new List<ReleaseInfoResource>();
             }
         });
@@ -199,7 +216,7 @@ public class IndexerController : Controller
             allResults = allResults.Where(r => r.IsFreeleech).ToList();
         }
 
-        return Ok(allResults.OrderByDescending(r => r.Seeders).ToList());
+        return this.Ok(allResults.OrderByDescending(r => r.Seeders).ToList());
     }
 
     [HttpPost("download")]
@@ -207,53 +224,53 @@ public class IndexerController : Controller
     {
         if (request == null)
         {
-            return BadRequest("Request is null.");
+            return this.BadRequest("Request is null.");
         }
 
         Torrent torrent = null;
         if (!string.IsNullOrWhiteSpace(request.MagnetUrl))
         {
-            torrent = await _torrentService.AddFromMagnetAsync(request.MagnetUrl, request.Category, request.SavePath, request.StartPaused);
+            torrent = await this.torrentService.AddFromMagnetAsync(request.MagnetUrl, request.Category, request.SavePath, request.StartPaused);
         }
         else if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
         {
             if (request.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
-                torrent = await _torrentService.AddFromMagnetAsync(request.DownloadUrl, request.Category, request.SavePath, request.StartPaused);
+                torrent = await this.torrentService.AddFromMagnetAsync(request.DownloadUrl, request.Category, request.SavePath, request.StartPaused);
             }
             else
             {
                 var bytes = await HttpClient.GetByteArrayAsync(request.DownloadUrl);
-                var parsed = _torrentFileParser.Parse(bytes);
-                torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
             }
         }
 
         if (torrent == null)
         {
-            return BadRequest("Failed to grab release.");
+            return this.BadRequest("Failed to grab release.");
         }
 
-        return Ok(TorrentResourceMapper.ToResource(torrent));
+        return this.Ok(TorrentResourceMapper.ToResource(torrent));
     }
 
     private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer)
     {
         try
         {
-            var results = await _torznabClient.SearchAsync(indexer, string.Empty, limit: 1);
-            return Ok(new IndexerTestResult
+            var results = await this.torznabClient.SearchAsync(indexer, string.Empty, limit: 1);
+            return this.Ok(new IndexerTestResult
             {
                 Success = true,
-                Message = $"Connected successfully to {indexer.Name}."
+                Message = $"Connected successfully to {indexer.Name}.",
             });
         }
         catch (Exception ex)
         {
-            return Ok(new IndexerTestResult
+            return this.Ok(new IndexerTestResult
             {
                 Success = false,
-                Message = $"Connection failed: {ex.Message}"
+                Message = $"Connection failed: {ex.Message}",
             });
         }
     }
@@ -277,7 +294,7 @@ public class IndexerController : Controller
             FreeleechOnly = model.FreeleechOnly,
             MinSeeders = model.MinSeeders,
             DownloadClientId = model.DownloadClientId,
-            Tags = model.Tags ?? new List<int>()
+            Tags = model.Tags ?? new List<int>(),
         };
     }
 
@@ -300,7 +317,7 @@ public class IndexerController : Controller
             FreeleechOnly = resource.FreeleechOnly,
             MinSeeders = resource.MinSeeders,
             DownloadClientId = resource.DownloadClientId,
-            Tags = resource.Tags ?? new List<int>()
+            Tags = resource.Tags ?? new List<int>(),
         };
     }
 }
