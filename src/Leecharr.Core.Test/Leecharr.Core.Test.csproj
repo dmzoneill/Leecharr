@@ -7,4 +7,9 @@
     <ProjectReference Include="..\NzbDrone.Common\Leecharr.Common.csproj" />
     <ProjectReference Include="..\NzbDrone.Core\Leecharr.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
+    <PackageReference Include="FluentAssertions" Version="8.1.1" />
+  </ItemGroup>
 </Project>
