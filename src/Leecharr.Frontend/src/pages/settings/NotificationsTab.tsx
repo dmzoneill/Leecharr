@@ -8,7 +8,7 @@ import {
   SectionCard,
 } from "./shared";
 
-const NOTIFICATION_SETTINGS_KEY = "seedarr-notification-settings";
+const NOTIFICATION_SETTINGS_KEY = "leecharr-notification-settings";
 
 const defaultNotificationSettings: NotificationSettings = {
   enabled: true,

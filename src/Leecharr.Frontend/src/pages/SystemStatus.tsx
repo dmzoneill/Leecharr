@@ -682,7 +682,7 @@ function SystemStatus() {
               <span className="status-label">Official Website</span>
               <span className="status-value">
                 <a
-                  href="https://www.seedarr.net"
+                  href="https://www.leecharr.net"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -690,7 +690,7 @@ function SystemStatus() {
                     textDecoration: "none",
                   }}
                 >
-                  🌐 www.seedarr.net ↗
+                  🌐 www.leecharr.net ↗
                 </a>
               </span>
             </div>
@@ -698,7 +698,7 @@ function SystemStatus() {
               <span className="status-label">Source Code</span>
               <span className="status-value">
                 <a
-                  href="https://github.com/dmzoneill/Seedarr"
+                  href="https://github.com/dmzoneill/Leecharr"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -714,7 +714,7 @@ function SystemStatus() {
               <span className="status-label">Issue Tracker</span>
               <span className="status-value">
                 <a
-                  href="https://github.com/dmzoneill/Seedarr/issues"
+                  href="https://github.com/dmzoneill/Leecharr/issues"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

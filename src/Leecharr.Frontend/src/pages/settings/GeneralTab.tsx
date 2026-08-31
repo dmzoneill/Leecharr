@@ -104,7 +104,7 @@ export function GeneralTab() {
           onChange={(v) => set("port", v)}
           min={1}
           max={65535}
-          hint="HTTP port for Seedarr Web UI and REST API"
+          hint="HTTP port for Leecharr Web UI and REST API"
         />
         <TextInput
           label="Bind Address"
@@ -117,8 +117,8 @@ export function GeneralTab() {
           label="URL Base"
           value={form.urlBase}
           onChange={(v) => set("urlBase", v)}
-          placeholder="/seedarr"
-          hint="Subdirectory prefix for reverse proxy setups (e.g. /seedarr)"
+          placeholder="/leecharr"
+          hint="Subdirectory prefix for reverse proxy setups (e.g. /leecharr)"
         />
         <Toggle
           label="Authentication"

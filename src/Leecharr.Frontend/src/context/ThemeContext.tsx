@@ -14,7 +14,7 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const STORAGE_KEY = "seedarr-theme";
+const STORAGE_KEY = "leecharr-theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 

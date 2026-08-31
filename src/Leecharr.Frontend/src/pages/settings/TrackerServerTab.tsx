@@ -245,7 +245,7 @@ export function TrackerServerTab() {
           label="Tracker Daemon Enabled"
           checked={form.trackerServerEnabled}
           onChange={(v) => set("trackerServerEnabled", v)}
-          hint="Enable Seedarr inbuilt HTTP/UDP BitTorrent tracker"
+          hint="Enable Leecharr inbuilt HTTP/UDP BitTorrent tracker"
         />
         <TextInput
           label="Bind Address"
