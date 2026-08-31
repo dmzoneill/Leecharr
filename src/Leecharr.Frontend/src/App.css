@@ -177,10 +177,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.25rem 1rem 0.75rem 1rem;
+  padding: 1.25rem 1rem 0.5rem 1rem;
   gap: 0.5rem;
-  min-height: 160px;
-  height: 160px;
+  min-height: 190px;
+  height: 190px;
   flex-shrink: 0;
   text-decoration: none;
   color: inherit;
