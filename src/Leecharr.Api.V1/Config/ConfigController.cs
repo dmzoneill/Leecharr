@@ -1,6 +1,6 @@
 using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;

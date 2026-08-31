@@ -57,19 +57,26 @@ function sourceBadgeStyle(source: string): React.CSSProperties {
   }
 }
 
-export function LogTab({ torrent }: { torrent: Torrent }) {
+export function LogTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
   const [isLive, setIsLive] = useState(true);
   const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [sourceFilter, setSourceFilter] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
+  const effectiveId = torrentId ?? torrent?.id ?? 0;
   const {
     data: rawLogs,
     isLoading,
     isError,
     refetch,
-  } = useTorrentLogs(torrent.id, {
+  } = useTorrentLogs(effectiveId, {
     polling: isLive,
   });
 

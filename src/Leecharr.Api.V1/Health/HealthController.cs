@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.HealthCheck;
-using Leecharr.Http;
 
 namespace Leecharr.Api.V1.Health;
 

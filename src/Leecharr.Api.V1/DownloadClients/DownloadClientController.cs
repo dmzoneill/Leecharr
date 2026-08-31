@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Mvc;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.DownloadClients;

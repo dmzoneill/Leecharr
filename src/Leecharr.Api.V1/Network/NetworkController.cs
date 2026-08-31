@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Network;
-using Leecharr.Http;
 
 namespace Leecharr.Api.V1.Network;
 
