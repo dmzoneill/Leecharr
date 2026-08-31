@@ -587,7 +587,7 @@ function SystemStatus() {
                 marginBottom: "0.85rem",
               }}
             >
-              About Seedarr
+              About Leecharr
             </h2>
             <div
               style={{
