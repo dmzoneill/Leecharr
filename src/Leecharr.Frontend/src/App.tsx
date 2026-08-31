@@ -482,11 +482,7 @@ export function App() {
           )}
 
           {activeNav === "peermap" && <PeerMap />}
-          {activeNav === "schedule" && (
-            <div className="content-area">
-              <SpeedSchedule />
-            </div>
-          )}
+          {activeNav === "schedule" && <SpeedSchedule />}
           {activeNav === "statistics" && <Statistics />}
           {activeNav === "settings" && <Settings section={activeSubNav} />}
           {activeNav === "system" && (
