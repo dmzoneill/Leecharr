@@ -10,16 +10,16 @@ Leecharr supports custom **Webhook Connections** and notification integrations a
 
 As shown in the Servarr Connection settings UI, each Webhook connection is configured with:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| **Name** | `string` | User-defined label for the connection (default: `Webhook`). |
-| **Notification Triggers** | `flags` / `bools` | Configurable event trigger toggles (detailed below). |
-| **Tags** | `int[]` / `string[]` | Tag filter: only send notifications for torrents with at least one matching tag (empty = all). |
-| **Webhook URL** | `string` | The destination HTTP/HTTPS endpoint to invoke. |
-| **Method** | `enum` | HTTP Method: `POST` (default) or `PUT`. |
-| **Username** | `string` | Optional HTTP Basic Authentication username. |
-| **Password** | `string` | Optional HTTP Basic Authentication password. |
-| **Custom Headers** | `dictionary` | Optional HTTP headers (e.g. `Authorization: Bearer <token>`, `X-Custom-Header: value`). |
+| Field                     | Type                 | Description                                                                                    |
+| :------------------------ | :------------------- | :--------------------------------------------------------------------------------------------- |
+| **Name**                  | `string`             | User-defined label for the connection (default: `Webhook`).                                    |
+| **Notification Triggers** | `flags` / `bools`    | Configurable event trigger toggles (detailed below).                                           |
+| **Tags**                  | `int[]` / `string[]` | Tag filter: only send notifications for torrents with at least one matching tag (empty = all). |
+| **Webhook URL**           | `string`             | The destination HTTP/HTTPS endpoint to invoke.                                                 |
+| **Method**                | `enum`               | HTTP Method: `POST` (default) or `PUT`.                                                        |
+| **Username**              | `string`             | Optional HTTP Basic Authentication username.                                                   |
+| **Password**              | `string`             | Optional HTTP Basic Authentication password.                                                   |
+| **Custom Headers**        | `dictionary`         | Optional HTTP headers (e.g. `Authorization: Bearer <token>`, `X-Custom-Header: value`).        |
 
 ---
 
@@ -104,7 +104,7 @@ Leecharr dispatches a standardized, rich JSON payload containing instance info, 
     "totalSize": 8589934592,
     "downloaded": 8589934592,
     "uploaded": 4294967296,
-    "ratio": 0.50,
+    "ratio": 0.5,
     "progress": 1.0,
     "dateAdded": "2026-08-31T10:00:00Z",
     "dateCompleted": "2026-08-31T10:54:21Z",
