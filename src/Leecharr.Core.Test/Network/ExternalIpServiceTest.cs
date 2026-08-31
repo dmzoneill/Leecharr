@@ -75,6 +75,7 @@ public class ExternalIpServiceTest
         Assert.That(subject.CachedIp, Is.EqualTo("198.51.100.42"));
     }
 
+    [TestCase("{\"status\":\"success\",\"action\":\"inserted\",\"message\":\"Client entry inserted successfully.\",\"data\":{\"uuid\":\"f4acf080-fc83-4fc0-916c-603638964ed9\",\"ip\":\"161.230.102.224\",\"last_used\":1788187356}}", "161.230.102.224")]
     [TestCase("{\"ip\": \"146.70.231.15\"}", "146.70.231.15")]
     [TestCase("{\"ip_address\": \"146.70.231.15\"}", "146.70.231.15")]
     [TestCase("146.70.231.15", "146.70.231.15")]
