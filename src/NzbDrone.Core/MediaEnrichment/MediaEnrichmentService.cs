@@ -141,22 +141,22 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     private static string GuessArrType(string category, string name)
     {
         var cat = (category ?? string.Empty).ToLowerInvariant();
-        if (cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("season"))
+        if (cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("season") || cat.Contains("series") || cat.Contains("episode") || cat.Contains("anime"))
         {
             return "Sonarr";
         }
 
-        if (cat.Contains("movie") || cat.Contains("radarr") || cat.Contains("film"))
+        if (cat.Contains("movie") || cat.Contains("radarr") || cat.Contains("film") || cat.Contains("cinema"))
         {
             return "Radarr";
         }
 
-        if (cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album"))
+        if (cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac"))
         {
             return "Lidarr";
         }
 
-        if (cat.Contains("book") || cat.Contains("readarr"))
+        if (cat.Contains("book") || cat.Contains("readarr") || cat.Contains("ebook") || cat.Contains("audiobook"))
         {
             return "Readarr";
         }

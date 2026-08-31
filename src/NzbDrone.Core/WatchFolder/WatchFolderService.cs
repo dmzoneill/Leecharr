@@ -111,14 +111,14 @@ public class WatchFolderService : IWatchFolderService
             return this.configService.DefaultCategory;
         }
 
-        if (TvPattern.IsMatch(releaseName))
-        {
-            return "tv";
-        }
-
         if (AnimePattern.IsMatch(releaseName))
         {
             return "anime";
+        }
+
+        if (TvPattern.IsMatch(releaseName))
+        {
+            return "tv";
         }
 
         if (MoviePattern.IsMatch(releaseName))

@@ -25,11 +25,11 @@
 
   <PropertyGroup>
     <Configuration Condition="'$(Configuration)'==''">Release</Configuration>
-    <BaseIntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
-    <OutputPath>$(LeecharrRootDir)_temp\bin\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
-    <OutputPath Condition="'$(LeecharrProject)'=='true'">$(LeecharrRootDir)_output\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
-    <OutputPath Condition="'$(TestProject)'=='true'">$(LeecharrRootDir)_tests\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
+    <BaseIntermediateOutputPath>$(LeecharrRootDir)_temp/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(LeecharrRootDir)_temp/obj/$(MSBuildProjectName)/$(Configuration)/</IntermediateOutputPath>
+    <OutputPath>$(LeecharrRootDir)_temp/bin/$(Configuration)/$(MSBuildProjectName)/</OutputPath>
+    <OutputPath Condition="'$(LeecharrProject)'=='true' and '$(TestProject)'!='true'">$(LeecharrRootDir)_output/$(Configuration)/$(MSBuildProjectName)/</OutputPath>
+    <OutputPath Condition="'$(TestProject)'=='true'">$(LeecharrRootDir)_tests/$(Configuration)/$(MSBuildProjectName)/</OutputPath>
     <EnableBaseIntermediateOutputPathMismatchWarning>false</EnableBaseIntermediateOutputPathMismatchWarning>
     <BaseIntermediateOutputPath>$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)'))</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))</IntermediateOutputPath>
@@ -42,13 +42,12 @@
     <Company>Servarr</Company>
     <PackageProjectUrl>https://github.com/dmzoneill/Leecher</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dmzoneill/Leecher</RepositoryUrl>
-    <AssemblyVersion>1.0.0.*</AssemblyVersion>
-    <AssemblyConfiguration>$(Configuration)-dev</AssemblyConfiguration>
+    <Version>1.0.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0.0</InformationalVersion>
     <NeutralLanguage>en</NeutralLanguage>
-    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
-    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
-    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
-    <Deterministic Condition="$(AssemblyVersion.EndsWith('*'))">False</Deterministic>
+    <Deterministic>true</Deterministic>
   </PropertyGroup>
 
   <PropertyGroup>

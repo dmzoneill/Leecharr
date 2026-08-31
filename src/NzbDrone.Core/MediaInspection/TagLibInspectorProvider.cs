@@ -433,6 +433,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         var upper = fileName.ToUpperInvariant();
+        var normalized = upper.Replace('.', ' ').Replace('-', ' ').Replace('_', ' ');
 
         // Resolution
         if (upper.Contains("2160P") || upper.Contains("4K") || upper.Contains("UHD"))
@@ -461,11 +462,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         // HDR
-        if (upper.Contains("DV") || upper.Contains("DOLBY VISION") || upper.Contains("DOVI"))
+        if (upper.Contains("DV") || normalized.Contains("DOLBY VISION") || upper.Contains("DOVI"))
         {
             info.HdrFormat = "Dolby Vision";
         }
-        else if (upper.Contains("HDR10+") || upper.Contains("HDR10PLUS"))
+        else if (upper.Contains("HDR10+") || normalized.Contains("HDR10 PLUS") || upper.Contains("HDR10PLUS"))
         {
             info.HdrFormat = "HDR10+";
         }

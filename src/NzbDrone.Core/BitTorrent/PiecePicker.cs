@@ -198,11 +198,15 @@ public class PiecePicker
         if (sequentialMode)
         {
             // Sequential with Head / Tail priority
-            var headPieces = validPieces.Take(4).ToList();
-            var tailPieces = validPieces.TakeLast(2).ToList();
-            var rest = validPieces.Skip(4).Take(Math.Max(0, validPieces.Count - 6)).ToList();
+            var headThreshold = Math.Min(4, this.pieceCount);
+            var tailThreshold = Math.Max(0, this.pieceCount - 2);
 
-            var prioritized = new List<int>(headPieces);
+            var headPieces = validPieces.Where(i => i < headThreshold).OrderBy(i => i);
+            var tailPieces = validPieces.Where(i => i >= tailThreshold).OrderBy(i => i);
+            var rest = validPieces.Where(i => i >= headThreshold && i < tailThreshold).OrderBy(i => i);
+
+            var prioritized = new List<int>();
+            prioritized.AddRange(headPieces);
             prioritized.AddRange(tailPieces);
             prioritized.AddRange(rest);
             return prioritized.Distinct().ToList();

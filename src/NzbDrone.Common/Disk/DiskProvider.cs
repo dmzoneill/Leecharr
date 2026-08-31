@@ -10,6 +10,11 @@ public class DiskProvider : IDiskProvider
 {
     public long? GetAvailableSpace(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
         try
         {
             var drive = GetBestMatchingDrive(path);
@@ -23,6 +28,11 @@ public class DiskProvider : IDiskProvider
 
     public long? GetTotalSize(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
         try
         {
             var drive = GetBestMatchingDrive(path);

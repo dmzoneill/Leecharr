@@ -23,8 +23,8 @@ fi
 
 # 2. Verify .NET build and unit tests
 if command -v dotnet > /dev/null 2>&1; then
-  echo "🧪 [pre-push] Running .NET unit tests..."
-  dotnet test src/Leecharr.sln -c Release --no-restore > /dev/null 2>&1 || {
+  echo "🧪 [pre-push] Running .NET unit and integration tests..."
+  make test-all > /dev/null 2>&1 || {
     echo "❌ [pre-push] Unit or Integration tests failed! Fix test failures before pushing."
     exit 1
   }
