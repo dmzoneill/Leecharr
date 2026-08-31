@@ -1,83 +1,146 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
+  useSeedingStats,
+  useNetworkStatus,
+  useTorrents,
+  useSystemStatus,
+  useHealthChecks,
+} from '../api/hooks';
+import {
+  formatBytes,
+  formatSpeed,
+  formatRatio,
+  formatUptime,
+} from '../utils/formatters';
+import {
+  SeedingIcon,
   UploadIcon,
   DownloadIcon,
   UsersIcon,
   WifiIcon,
   ActivityIcon,
   InfoIcon,
-  SeedingIcon,
+  ErrorIcon,
 } from './icons/UIIcons';
 
-interface StatusBarProps {
-  totalTorrents: number;
-  activeTorrents: number;
-  totalDlSpeed: number;
-  totalUlSpeed: number;
-  connected: boolean;
-}
+export function StatusBar() {
+  const { data: stats } = useSeedingStats();
+  const { data: network } = useNetworkStatus();
+  const { data: torrents } = useTorrents();
+  const { data: systemStatus } = useSystemStatus();
+  const { data: healthChecks } = useHealthChecks();
 
-export const StatusBar: React.FC<StatusBarProps> = ({
-  totalTorrents,
-  activeTorrents,
-  totalDlSpeed,
-  totalUlSpeed,
-  connected
-}) => {
-  const [uptimeSeconds, setUptimeSeconds] = useState(3600 * 11 + 60 * 14);
+  // Instantaneous speed from live polling deltas
+  const prevRef = useRef<{
+    totalUploaded: number;
+    totalDownloaded: number;
+    timestamp: number;
+  } | null>(null);
+  const speedRef = useRef({ uploadSpeed: 0, downloadSpeed: 0 });
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setUptimeSeconds(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!stats) return;
 
-  const formatUptime = (sec: number) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    return `${h}h ${m}m`;
-  };
+    const now = Date.now();
+    const prev = prevRef.current;
 
-  const formatSpeed = (bytesPerSec: number) => {
-    if (!bytesPerSec) return '0 B/s';
-    const mb = bytesPerSec / (1024 * 1024);
-    if (mb >= 1) return `${mb.toFixed(1)} MB/s`;
-    return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
-  };
+    if (prev) {
+      const timeDelta = (now - prev.timestamp) / 1000;
+      if (timeDelta >= 1) {
+        speedRef.current = {
+          uploadSpeed: Math.max(
+            0,
+            (stats.totalUploaded - prev.totalUploaded) / timeDelta,
+          ),
+          downloadSpeed: Math.max(
+            0,
+            (stats.totalDownloaded - prev.totalDownloaded) / timeDelta,
+          ),
+        };
+      }
+    }
+
+    prevRef.current = {
+      totalUploaded: stats.totalUploaded,
+      totalDownloaded: stats.totalDownloaded,
+      timestamp: now,
+    };
+  }, [stats]);
+
+  const { uploadSpeed, downloadSpeed } = speedRef.current;
+
+  // Aggregate real peer counts across all torrents
+  const totalSeeders = (torrents ?? []).reduce(
+    (sum, t) => sum + (t.seeders ?? 0),
+    0,
+  );
+  const totalLeechers = (torrents ?? []).reduce(
+    (sum, t) => sum + (t.leechers ?? 0),
+    0,
+  );
+  const totalPeers = totalSeeders + totalLeechers;
+
+  const hasIssues =
+    healthChecks &&
+    healthChecks.some((c) => c.type === 'Warning' || c.type === 'Error');
+  const issuesCount = hasIssues
+    ? healthChecks.filter((c) => c.type === 'Warning' || c.type === 'Error')
+        .length
+    : 0;
 
   return (
     <footer className="status-bar">
-      <div className="status-bar-content" style={{ display: 'flex', alignItems: 'center', width: '100%', fontSize: '0.75rem' }}>
+      <div className="status-bar-content">
         <span className="status-bar-item">
-          <InfoIcon size={14} /> v0.1.0
+          <InfoIcon size={14} />{' '}
+          {systemStatus?.version ? `v${systemStatus.version}` : 'Loading...'}
         </span>
         <span className="status-bar-item">
-          <ActivityIcon size={14} /> Uptime: {formatUptime(uptimeSeconds)}
+          <ActivityIcon size={14} /> Uptime:{' '}
+          {systemStatus ? formatUptime(systemStatus.uptimeSeconds) : '...'}
         </span>
-        <span className="status-bar-item" style={{ color: connected ? 'var(--success)' : 'var(--danger)' }}>
-          <InfoIcon size={14} /> Health: {connected ? 'OK' : 'Connecting'}
+        <span
+          className="status-bar-item"
+          style={{ color: hasIssues ? 'var(--danger)' : 'var(--success)' }}
+        >
+          {hasIssues ? <ErrorIcon size={14} /> : <InfoIcon size={14} />}
+          Health:{' '}
+          {hasIssues
+            ? `${issuesCount} Issue${issuesCount !== 1 ? 's' : ''}`
+            : 'OK'}
         </span>
 
-        <div style={{ flexGrow: 1 }} />
+        <div className="status-bar-separator" style={{ flexGrow: 1 }} />
 
         <span className="status-bar-item">
-          <SeedingIcon size={14} /> Active: {activeTorrents}
+          <SeedingIcon size={14} /> Active: {stats?.activeTorrents ?? (torrents?.filter(t => t.status === 'downloading' || t.status === 'seeding').length ?? 0)}
         </span>
         <span className="status-bar-item status-bar-upload">
-          <UploadIcon size={14} /> {formatSpeed(totalUlSpeed)}
+          <UploadIcon size={14} /> {formatSpeed(uploadSpeed > 0 ? uploadSpeed : (torrents ?? []).reduce((acc, t) => acc + (t.uploadSpeed || 0), 0))}
         </span>
         <span className="status-bar-item status-bar-download">
-          <DownloadIcon size={14} /> {formatSpeed(totalDlSpeed)}
+          <DownloadIcon size={14} /> {formatSpeed(downloadSpeed > 0 ? downloadSpeed : (torrents ?? []).reduce((acc, t) => acc + (t.downloadSpeed || 0), 0))}
         </span>
         <span className="status-bar-item">
-          <UsersIcon size={14} /> Torrents: {totalTorrents}
+          <UsersIcon size={14} /> Peers: {totalSeeders} / {totalPeers}
         </span>
         <span className="status-bar-item">
-          <WifiIcon size={14} /> Port: 7889
+          <UploadIcon size={14} /> Total Up:{' '}
+          {formatBytes(stats?.totalUploaded ?? 0)}
+        </span>
+        <span className="status-bar-item">
+          <DownloadIcon size={14} /> Total Down:{' '}
+          {formatBytes(stats?.totalDownloaded ?? 0)}
+        </span>
+        <span className="status-bar-item">
+          Ratio: {formatRatio(stats?.averageRatio ?? 0)}
+        </span>
+        <span className="status-bar-item">
+          <WifiIcon size={14} /> IP: {network?.externalIp || '...'}
         </span>
       </div>
     </footer>
   );
-};
+}
+
 export default StatusBar;
