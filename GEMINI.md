@@ -75,6 +75,7 @@ Leecher/
 │   ├── media-enrichment.md          # Sonarr/Radarr/Lidarr matching & asset cache
 │   ├── protocols.md                 # BitTorrent BEPs, MSE/PE, uTP, DHT
 │   ├── deluge-requirements.md       # Deluge architecture, status keys, plugins & RPC
+│   ├── webhooks.md                  # Servarr webhook triggers, payload schemas & delivery
 │   ├── api.md                       # REST API v1 & RPC compatibility specs
 │   └── development.md               # Local development setup
 └── src/
@@ -168,13 +169,19 @@ Leecharr provides direct parity with the core capabilities of major Deluge plugi
 - **Scheduler:** 24x7 hourly speed throttling schedule.
 - **Stats:** Circular buffer metrics for bandwidth, cache efficiency, and swarm health.
 
-### 6. UI Scope (MVP vs Extended)
+### 6. Webhook & Notification Connection System
+Full Servarr-standard notification and webhook connection support (See [docs/webhooks.md](file:///home/daoneill/src/usr/seedarr/Leecher/docs/webhooks.md)):
+- **Configurable Event Triggers:** `OnGrab` (download added), `OnDownloadComplete` (finished downloading), `OnMediaInspected` (specs parsed), `OnExtractComplete` (archive unpacked), `OnSeedGoalReached` (ratio/time met), `OnTorrentDeleted`, `OnHealthIssue` (tracker error, disk full), `OnHealthRestored`, `OnManualInteractionRequired` (stalled), `OnApplicationUpdate`, `OnTest`.
+- **Rich JSON Payloads:** Dispatches complete torrent metadata, enriched Sonarr/Radarr/Lidarr titles, season/episode details, 4K/HDR/Atmos stream specifications, file trees, and artwork URLs.
+- **Reliable Dispatch Pipeline:** Polly resilience with exponential backoff (2s, 4s, 8s), 10s timeouts, SSRF safe URL validation, and HTTP Basic Authentication / custom headers.
+
+### 7. UI Scope (MVP vs Extended)
 - **MVP UI Scope:**
   - Media Poster Grid View with status overlays & badges.
   - Media Banner / Season hierarchy view.
   - High-density data table with column customizer.
   - Interactive Piece Map visualizer & Peer Swarm Inspector.
   - Torrent File Tree with selective download checkboxes and file priorities (*Skip, Low, Normal, High*).
-  - Category, Speed Schedule, and Connection Settings tabs.
+  - Category, Speed Schedule, Webhook Connections, and Network Settings tabs.
 - **Extended Features (Post-MVP):**
   - In-browser HTML5 video/audio streaming player.
