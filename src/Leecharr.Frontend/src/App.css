@@ -1,16 +1,17 @@
 :root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: #1e293b;
-  --bg-card-hover: #334155;
-  --border-color: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-cyan: #06b6d4;
-  --accent-blue: #0284c7;
+  --bg-primary: #10111a;
+  --bg-secondary: #171b35;
+  --bg-card: #171b35;
+  --bg-card-hover: #23284b;
+  --border-color: #2c325b;
+  --text-primary: #f8f4ed;
+  --text-secondary: #c7c5d3;
+  --text-muted: #8a879e;
+  --accent-gold: #ffd166;
+  --accent-primary: #ffd166;
+  --accent-cyan: #38bdf8;
   --accent-green: #10b981;
-  --accent-amber: #f59e0b;
+  --accent-amber: #ffd166;
   --accent-red: #ef4444;
   --badge-4k: #8b5cf6;
   --badge-hdr: #f43f5e;
@@ -43,7 +44,7 @@ body {
 /* Header */
 .app-header {
   height: 64px;
-  background-color: rgba(30, 41, 59, 0.95);
+  background-color: rgba(23, 27, 53, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -65,7 +66,7 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  background: linear-gradient(135deg, #ffd166 0%, #f59e0b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -74,7 +75,7 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: rgba(16, 17, 26, 0.6);
   padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
@@ -89,7 +90,7 @@ body {
 }
 
 .meter-item.dl {
-  color: var(--accent-cyan);
+  color: var(--accent-gold);
 }
 
 .meter-item.ul {
@@ -116,12 +117,14 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #ffd166 0%, #f59e0b 100%);
+  color: #10111a;
+  font-weight: 700;
 }
 
 .btn-primary:hover {
   filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -169,10 +172,16 @@ body {
   transition: all 0.15s;
 }
 
+.category-tab:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
 .category-tab.active {
-  background: var(--accent-blue);
-  color: #fff;
-  border-color: var(--accent-blue);
+  background: var(--accent-gold);
+  color: #10111a;
+  font-weight: 700;
+  border-color: var(--accent-gold);
 }
 
 /* Poster Grid */
@@ -195,14 +204,14 @@ body {
 
 .torrent-card:hover {
   transform: translateY(-4px);
-  border-color: var(--accent-blue);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  border-color: var(--accent-gold);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
 .card-poster {
   width: 100%;
   aspect-ratio: 2/3;
-  background-color: #0f172a;
+  background-color: #10111a;
   position: relative;
   overflow: hidden;
 }
@@ -257,6 +266,7 @@ body {
 .card-title {
   font-size: 0.95rem;
   font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -272,7 +282,7 @@ body {
 .progress-bar-container {
   width: 100%;
   height: 6px;
-  background-color: #0f172a;
+  background-color: #10111a;
   border-radius: 3px;
   overflow: hidden;
   margin-top: 4px;
@@ -280,7 +290,7 @@ body {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #06b6d4 0%, #0284c7 100%);
+  background: linear-gradient(90deg, #ffd166 0%, #f59e0b 100%);
   border-radius: 3px;
 }
 
@@ -300,16 +310,17 @@ body {
   flex: 1;
   padding: 6px;
   background: rgba(255, 255, 255, 0.05);
-  border: none;
+  border: 1px solid transparent;
   border-radius: 4px;
   color: var(--text-secondary);
   font-size: 0.75rem;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .card-actions button:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg-card-hover);
+  border-color: var(--border-color);
   color: var(--text-primary);
 }
 
@@ -317,7 +328,7 @@ body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -335,6 +346,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.modal-card h2 {
+  color: var(--text-primary);
 }
 
 .form-group {
@@ -356,4 +371,10 @@ body {
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent-gold);
 }
