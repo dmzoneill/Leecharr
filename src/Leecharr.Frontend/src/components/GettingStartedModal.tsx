@@ -549,10 +549,10 @@ export function GettingStartedModal({
                       Import Indexers from Prowlarr
                     </div>
                     <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <li>In Prowlarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Indexers</strong>).</li>
+                      <li>In Prowlarr, go to <strong>Settings → General → Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings → Indexers</strong>).</li>
                       <li>Enter your Prowlarr Server URL (e.g. <code>http://localhost:9696</code> or <code>http://prowlarr:9696</code>) and paste your API Key.</li>
-                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> &mdash; Leecharr will automatically import and sync all indexers!</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> — Leecharr will automatically import and sync all indexers!</li>
                     </ol>
                   </div>
                 </div>
@@ -711,11 +711,11 @@ export function GettingStartedModal({
                       Connect Sonarr Library
                     </div>
                     <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <li>In Sonarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>In Sonarr, go to <strong>Settings → General → Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings → Connections</strong>).</li>
                       <li>Enter Sonarr URL (e.g. <code>http://localhost:8989</code> or <code>http://sonarr:8989</code>) and paste your API Key.</li>
                       <li>Keep <strong>Sync Enabled</strong> and <strong>Webhook</strong> active.</li>
-                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> &mdash; media cards will enrich instantly!</li>
+                      <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong> — media cards will enrich instantly!</li>
                     </ol>
                   </div>
                 </div>
@@ -876,8 +876,8 @@ export function GettingStartedModal({
                       Connect Radarr Library
                     </div>
                     <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <li>In Radarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>In Radarr, go to <strong>Settings → General → Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings → Connections</strong>).</li>
                       <li>Enter Radarr URL (e.g. <code>http://localhost:7878</code> or <code>http://radarr:7878</code>) and paste your API Key.</li>
                       <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.</li>
                     </ol>
@@ -1040,8 +1040,8 @@ export function GettingStartedModal({
                       Connect Lidarr Library
                     </div>
                     <ol style={{ paddingLeft: "1.25rem", margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <li>In Lidarr, go to <strong>Settings &rarr; General &rarr; Security</strong> and copy your <strong>API Key</strong>.</li>
-                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings &rarr; Connections</strong>).</li>
+                      <li>In Lidarr, go to <strong>Settings → General → Security</strong> and copy your <strong>API Key</strong>.</li>
+                      <li>Switch to <strong>⚡ Live Setup</strong> above (or go to <strong>Settings → Connections</strong>).</li>
                       <li>Enter Lidarr URL (e.g. <code>http://localhost:8686</code> or <code>http://lidarr:8686</code>) and paste your API Key.</li>
                       <li>Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.</li>
                     </ol>
@@ -1282,11 +1282,11 @@ export function GettingStartedModal({
           <div style={{ display: "flex", gap: "0.75rem" }}>
             {currentStep > 0 && (
               <button className="btn btn-secondary btn-small" onClick={handlePrev}>
-                &larr; Previous
+                ← Previous
               </button>
             )}
             <button className="btn btn-primary btn-small" onClick={handleNext}>
-              {currentStep === STEPS.length - 1 ? "Finish & Close" : "Next &rarr;"}
+              {currentStep === STEPS.length - 1 ? "Finish & Close" : "Next →"}
             </button>
           </div>
         </div>
