@@ -24,12 +24,26 @@ public static class ContainerExtensions
 
         foreach (var type in types)
         {
-            if (type.IsInterface || type.IsAbstract || type.IsEnum || type.IsSubclassOf(typeof(Attribute)))
+            if (type.IsInterface || type.IsAbstract || type.IsEnum || type.IsSubclassOf(typeof(Attribute)) ||
+                type.Name.EndsWith("Event") || type.Name.EndsWith("Command") || type.Name.EndsWith("Resource") ||
+                type.GetInterfaces().Any(i => i.Name == "IEvent" || i.Name == "IDownloadTask") ||
+                (type.BaseType != null && (type.BaseType.Name == "ModelBase" || type.BaseType.Name == "Command" || type.BaseType.Name == "RestResource")))
             {
                 continue;
             }
 
             var interfaces = type.GetInterfaces();
+            if (type.Name.EndsWith("Controller") || (type.BaseType != null && (type.BaseType.Name == "ControllerBase" || type.BaseType.Name == "Controller")))
+            {
+                var handleInterfaces = interfaces.Where(i => i.IsGenericType && i.Name.StartsWith("IHandle`1")).ToArray();
+                foreach (var hi in handleInterfaces)
+                {
+                    container.Register(hi, type, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
+                }
+
+                continue;
+            }
+
             if (interfaces.Length > 0)
             {
                 container.RegisterMany(new[] { type }, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);

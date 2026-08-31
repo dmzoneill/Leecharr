@@ -228,11 +228,11 @@ public class UTorrentWebUiController : ControllerBase
                             }
                             else if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dlVal))
                             {
-                                t.DownloadLimit = dlVal * 1024;
+                                t.DownloadLimit = dlVal > 0 ? dlVal / 1024 : 0;
                             }
                             else if (string.Equals(s, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var ulVal))
                             {
-                                t.UploadLimit = ulVal * 1024;
+                                t.UploadLimit = ulVal > 0 ? ulVal / 1024 : 0;
                             }
 
                             await _torrentService.UpdateAsync(t);
@@ -256,9 +256,9 @@ public class UTorrentWebUiController : ControllerBase
                                     {
                                         { "hash", t.InfoHash.ToUpperInvariant() },
                                         { "trackers", string.Empty },
-                                        { "ulrate", t.UploadLimit / 1024 },
-                                        { "dlrate", t.DownloadLimit / 1024 },
-                                        { "superseed", 0 },
+                                        { "ulrate", t.UploadLimit * 1024 },
+                                        { "dlrate", t.DownloadLimit * 1024 },
+                                        { "super_seed", 0 },
                                         { "dht", 1 },
                                         { "pex", 1 },
                                         { "seed_override", t.TargetRatio > 0 ? 1 : 0 },

@@ -8,7 +8,7 @@ interface TorrentGridProps {
   onSelect: (torrent: Torrent) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
 }
 
 export const TorrentGrid: React.FC<TorrentGridProps> = ({
@@ -326,7 +326,11 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 )}
                 <button
                   className="btn btn-small btn-danger"
-                  onClick={() => onDelete(t.id)}
+                  onClick={() => {
+                    if (confirm(`Remove "${t.name}"?`)) {
+                      onDelete({ id: t.id, deleteFiles: false });
+                    }
+                  }}
                 >
                   Delete
                 </button>

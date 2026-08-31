@@ -6,7 +6,10 @@ import {
   StopIcon,
   TableIcon,
   GridIcon,
+  SlidersIcon,
 } from "../../components/icons/UIIcons";
+import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
+import { DiskStorageBadge } from "../../components/quicksettings/DiskStorageBadge";
 import { ViewMode } from "./types";
 
 interface TorrentToolbarProps {
@@ -27,6 +30,8 @@ interface TorrentToolbarProps {
   onBulkStop: () => void;
   onBulkDelete: () => void;
   onBulkClear: () => void;
+  showQuickSettings?: boolean;
+  onToggleQuickSettings?: () => void;
 }
 
 export function TorrentToolbar({
@@ -47,7 +52,21 @@ export function TorrentToolbar({
   onBulkStop,
   onBulkDelete,
   onBulkClear,
+  showQuickSettings = false,
+  onToggleQuickSettings,
 }: TorrentToolbarProps) {
+  const { data: seedConfig } = useSeedingConfig();
+  const saveSeedMutation = useSaveSeedingConfig();
+
+  const isAltActive = seedConfig?.alternativeSpeedEnabled ?? false;
+
+  const toggleTurtleMode = () => {
+    if (!seedConfig) return;
+    saveSeedMutation.mutate({
+      ...seedConfig,
+      alternativeSpeedEnabled: !isAltActive,
+    });
+  };
   return (
     <div className="page-header" style={{ marginBottom: 0 }}>
       <div className="page-header-group">
@@ -67,6 +86,22 @@ export function TorrentToolbar({
             style={{ fontSize: "0.82rem" }}
           >
             🔍 Search Indexers
+          </button>
+        )}
+        {onToggleQuickSettings && (
+          <button
+            type="button"
+            className={`btn ${showQuickSettings ? "btn-primary" : "btn-outline"}`}
+            onClick={onToggleQuickSettings}
+            style={{
+              fontSize: "0.82rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+            title="Toggle Quick Settings Drawer (Q)"
+          >
+            <SlidersIcon size={13} /> Quick Settings
           </button>
         )}
         {selectedCount > 0 && (
@@ -108,6 +143,28 @@ export function TorrentToolbar({
         )}
       </div>
       <div className="page-header-actions">
+        <button
+          type="button"
+          className={`quick-pill-btn ${isAltActive ? "active-turtle" : ""}`}
+          onClick={toggleTurtleMode}
+          title={
+            isAltActive
+              ? "Turtle Mode ON (Alternative speed limits active)"
+              : "Toggle Turtle Mode (Alternative speed limits)"
+          }
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "0.8rem",
+            fontWeight: 600,
+          }}
+        >
+          🐢 {isAltActive ? "Turtle: ON" : "Turtle: OFF"}
+        </button>
+        <DiskStorageBadge compact />
         <button
           type="button"
           className="btn btn-success"

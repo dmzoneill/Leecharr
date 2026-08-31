@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -22,6 +23,7 @@ public class RssSyncService : IRssSyncService
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly HttpClient _httpClient;
+    private readonly ConcurrentDictionary<string, byte> _grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger _logger;
 
     public RssSyncService(
@@ -60,6 +62,12 @@ public class RssSyncService : IRssSyncService
                 var releases = await _torznabClient.FetchRssAsync(indexer);
                 foreach (var release in releases)
                 {
+                    var releaseId = GetReleaseId(release);
+                    if (!string.IsNullOrEmpty(releaseId) && _grabbedReleaseIds.ContainsKey(releaseId))
+                    {
+                        continue;
+                    }
+
                     foreach (var rule in activeRules)
                     {
                         if (rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
@@ -71,11 +79,11 @@ public class RssSyncService : IRssSyncService
                         {
                             _logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
 
+                            var grabbed = false;
                             if (!string.IsNullOrEmpty(release.MagnetUrl))
                             {
                                 await _torrentService.AddFromMagnetAsync(release.MagnetUrl);
-                                grabbedCount++;
-                                break;
+                                grabbed = true;
                             }
                             else if (!string.IsNullOrEmpty(release.DownloadUrl))
                             {
@@ -84,13 +92,23 @@ public class RssSyncService : IRssSyncService
                                     var torrentBytes = await _httpClient.GetByteArrayAsync(release.DownloadUrl);
                                     var parsed = _torrentFileParser.Parse(torrentBytes);
                                     await _torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
-                                    grabbedCount++;
-                                    break;
+                                    grabbed = true;
                                 }
                                 catch (Exception ex)
                                 {
                                     _logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
                                 }
+                            }
+
+                            if (grabbed)
+                            {
+                                if (!string.IsNullOrEmpty(releaseId))
+                                {
+                                    _grabbedReleaseIds.TryAdd(releaseId, 0);
+                                }
+
+                                grabbedCount++;
+                                break;
                             }
                         }
                     }
@@ -103,6 +121,36 @@ public class RssSyncService : IRssSyncService
         }
 
         return grabbedCount;
+    }
+
+    private static string GetReleaseId(TorznabSearchResult release)
+    {
+        if (release == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.Guid))
+        {
+            return release.Guid;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.InfoHash))
+        {
+            return release.InfoHash;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.DownloadUrl))
+        {
+            return release.DownloadUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
+        {
+            return release.MagnetUrl;
+        }
+
+        return release.Title;
     }
 
     public bool MatchesRule(TorznabSearchResult release, RssRule rule)

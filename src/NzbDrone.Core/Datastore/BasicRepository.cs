@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using Dapper;
+using NzbDrone.Core.Datastore.Events;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Datastore;
 
@@ -18,11 +20,13 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     where TModel : ModelBase, new()
 {
     private readonly IDatabase _database;
+    private readonly IEventAggregator _eventAggregator;
     protected readonly string _table;
 
-    public BasicRepository(IDatabase database)
+    public BasicRepository(IDatabase database, IEventAggregator eventAggregator = null)
     {
         _database = database;
+        _eventAggregator = eventAggregator;
         _table = TableMapping.GetTableName(typeof(TModel));
     }
 
@@ -59,6 +63,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             model.Id = id;
         }
 
+        _eventAggregator?.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Created));
         return model;
     }
 
@@ -68,15 +73,18 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         connection.Execute(
             TableMapping.GetUpdateSql(_table, model),
             model);
+        _eventAggregator?.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Updated));
         return model;
     }
 
     public void Delete(int id)
     {
+        var existing = Get(id);
         using var connection = _database.OpenConnection();
         connection.Execute(
             $"DELETE FROM \"{_table}\" WHERE \"Id\" = @Id",
             new { Id = id });
+        _eventAggregator?.PublishEvent(new ModelEvent<TModel>(existing ?? new TModel { Id = id }, ModelAction.Deleted));
     }
 
     public void Delete(TModel model)

@@ -137,6 +137,51 @@ export function useTorrentFiles(torrentId: number) {
   });
 }
 
+export function useSetFilePriority() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { torrentId: number; fileId: number; priority: number }
+  >({
+    mutationFn: ({ torrentId, fileId, priority }) =>
+      apiClient.put(`/torrent/${torrentId}/files/${fileId}/priority`, {
+        priority,
+      }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["torrents", vars.torrentId, "files"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    },
+  });
+}
+
+export function useSetFilesPriority() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { torrentId: number; files: Array<{ fileId: number; priority: number }> }
+  >({
+    mutationFn: async ({ torrentId, files }) => {
+      await Promise.all(
+        files.map((f) =>
+          apiClient.put(`/torrent/${torrentId}/files/${f.fileId}/priority`, {
+            priority: f.priority,
+          }),
+        ),
+      );
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["torrents", vars.torrentId, "files"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    },
+  });
+}
+
 export function useTorrentTrackers(torrentId: number) {
   const interval = useRefetchInterval();
   return useQuery<TrackerEntry[]>({

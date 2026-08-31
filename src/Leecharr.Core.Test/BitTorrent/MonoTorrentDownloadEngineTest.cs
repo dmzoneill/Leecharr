@@ -103,4 +103,11 @@ public class MonoTorrentDownloadEngineTest
         var removeAct = async () => await _engine.RemoveTorrentAsync(9999, deleteFiles: false);
         await removeAct.Should().NotThrowAsync();
     }
+
+    [Test]
+    public async Task RemoveTorrent_WithDeleteFiles_NonExistent_DoesNotThrow()
+    {
+        var removeAct = async () => await _engine.RemoveTorrentAsync(9999, deleteFiles: true);
+        await removeAct.Should().NotThrowAsync();
+    }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 
@@ -32,21 +31,29 @@ public class DiskSpaceService : IDiskSpaceService
 
         try
         {
-            var drives = DriveInfo.GetDrives()
-                .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Network))
-                .ToList();
-
+            var drives = DriveInfo.GetDrives();
             foreach (var drive in drives)
             {
-                if (seen.Add(drive.RootDirectory.FullName))
+                try
                 {
-                    result.Add(new DiskSpaceInfo
+                    if (drive.IsReady && (drive.DriveType == DriveType.Fixed || drive.DriveType == DriveType.Network))
                     {
-                        Path = drive.RootDirectory.FullName,
-                        Label = !string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.VolumeLabel : drive.RootDirectory.FullName,
-                        FreeSpace = drive.AvailableFreeSpace,
-                        TotalSpace = drive.TotalSize,
-                    });
+                        var total = drive.TotalSize;
+                        if (total > 0 && seen.Add(drive.RootDirectory.FullName))
+                        {
+                            result.Add(new DiskSpaceInfo
+                            {
+                                Path = drive.RootDirectory.FullName,
+                                Label = !string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.VolumeLabel : drive.RootDirectory.FullName,
+                                FreeSpace = drive.AvailableFreeSpace,
+                                TotalSpace = total,
+                            });
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore inaccessible virtual filesystem mounts
                 }
             }
         }
@@ -78,7 +85,7 @@ public class DiskSpaceService : IDiskSpaceService
             }
 
             var drive = new DriveInfo(root);
-            if (drive.IsReady)
+            if (drive.IsReady && drive.TotalSize > 0)
             {
                 result.Add(new DiskSpaceInfo
                 {
