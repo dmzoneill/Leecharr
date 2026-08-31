@@ -1,0 +1,4 @@
+{
+  "threshold": 5,
+  "ignore": ["src/Seedarr.Frontend/src/components/icons/**"]
+}

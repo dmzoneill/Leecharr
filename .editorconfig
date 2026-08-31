@@ -3,7 +3,7 @@
 root = true
 
 # Stylecop.ruleset
-# Description: Rules for Leecharr
+# Description: Rules for Seedarr
 
 # Code files
 [*.cs]
@@ -55,12 +55,9 @@ dotnet_diagnostic.SA1101.severity = none
 dotnet_diagnostic.SA1116.severity = none
 dotnet_diagnostic.SA1118.severity = none
 dotnet_diagnostic.SA1122.severity = none
-dotnet_diagnostic.SA1200.severity = none
 dotnet_diagnostic.SA1201.severity = suggestion
 dotnet_diagnostic.SA1202.severity = suggestion
 dotnet_diagnostic.SA1204.severity = suggestion
-dotnet_diagnostic.SA1208.severity = none
-dotnet_diagnostic.SA1210.severity = none
 dotnet_diagnostic.SA1300.severity = none
 dotnet_diagnostic.SA1303.severity = none
 dotnet_diagnostic.SA1304.severity = none
@@ -76,7 +73,6 @@ dotnet_diagnostic.SA1410.severity = suggestion
 dotnet_diagnostic.SA1411.severity = suggestion
 dotnet_diagnostic.SA1413.severity = none
 dotnet_diagnostic.SA1512.severity = none
-dotnet_diagnostic.SA1515.severity = none
 dotnet_diagnostic.SA1516.severity = none
 dotnet_diagnostic.SA1600.severity = none
 dotnet_diagnostic.SA1601.severity = none
@@ -239,7 +235,6 @@ dotnet_diagnostic.CA2245.severity = suggestion
 dotnet_diagnostic.CA2246.severity = suggestion
 dotnet_diagnostic.CA2249.severity = suggestion
 dotnet_diagnostic.CA2251.severity = suggestion
-dotnet_diagnostic.CA3003.severity = suggestion
 dotnet_diagnostic.CA3061.severity = suggestion
 dotnet_diagnostic.CA3075.severity = suggestion
 dotnet_diagnostic.CA3076.severity = suggestion
@@ -282,3 +277,8 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 indent_style = space
 indent_size = 2
+
+# Suppress false-positive IDE0005 in this file: 'using System' is needed for DateTime.UtcNow
+# but the analyzer incorrectly flags it after the LidarrConnection refactor.
+[src/NzbDrone.Core.Test/ArrIntegration/LidarrConnectionTest.cs]
+dotnet_diagnostic.IDE0005.severity = none
