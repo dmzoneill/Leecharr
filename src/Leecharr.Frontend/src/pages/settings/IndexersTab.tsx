@@ -140,10 +140,19 @@ export function IndexersTab() {
                   title="Delete Indexer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm(`Are you sure you want to delete the indexer "${idx.name}"?`)) {
+                    if (
+                      window.confirm(
+                        `Are you sure you want to delete the indexer "${idx.name}"?`,
+                      )
+                    ) {
                       deleteMutation.mutate(idx.id, {
-                        onSuccess: () => showToast(`Indexer "${idx.name}" deleted`, "info"),
-                        onError: (err: any) => showToast(err?.message || "Failed to delete indexer", "error"),
+                        onSuccess: () =>
+                          showToast(`Indexer "${idx.name}" deleted`, "info"),
+                        onError: (err: any) =>
+                          showToast(
+                            err?.message || "Failed to delete indexer",
+                            "error",
+                          ),
                       });
                     }
                   }}

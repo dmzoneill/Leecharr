@@ -493,10 +493,13 @@ export function SpeedSchedule() {
   }
 
   function handleDelete(id: number, name: string) {
-    if (window.confirm(`Are you sure you want to delete the schedule "${name}"?`)) {
+    if (
+      window.confirm(`Are you sure you want to delete the schedule "${name}"?`)
+    ) {
       deleteSchedule.mutate(id, {
         onSuccess: () => showToast("Speed schedule deleted", "info"),
-        onError: (err: any) => showToast(err?.message || "Failed to delete schedule", "error"),
+        onError: (err: any) =>
+          showToast(err?.message || "Failed to delete schedule", "error"),
       });
     }
   }

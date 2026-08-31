@@ -28,7 +28,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   isOpen,
 }) => {
   const [query, setQuery] = useState<string>(initialQuery || "");
-  const [activeSearchTerm, setActiveSearchTerm] = useState<string>(initialQuery || "");
+  const [activeSearchTerm, setActiveSearchTerm] = useState<string>(
+    initialQuery || "",
+  );
   const [freeleechOnly, setFreeleechOnly] = useState<boolean>(false);
   const [minSeedersFilter, setMinSeedersFilter] = useState<number>(0);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
@@ -143,7 +145,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
 
   const rawResults = searchResultsQuery.data || [];
   const filteredResults = rawResults.filter((r) => {
-    if (minSeedersFilter > 0 && (r.seeders ?? 0) < minSeedersFilter) return false;
+    if (minSeedersFilter > 0 && (r.seeders ?? 0) < minSeedersFilter)
+      return false;
     if (freeleechOnly) {
       const isFl =
         (r.categories || []).some((c) =>

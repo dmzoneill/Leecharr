@@ -25,7 +25,8 @@ export const QuickSettingsDrawer: React.FC<QuickSettingsDrawerProps> = ({
           <SlidersIcon size={14} className="quick-settings-icon" />
           <span className="quick-settings-heading">Quick Controls</span>
           <span className="quick-settings-hint">
-            Directly modify global limits & concurrency without leaving transfers view (Hotkey: <kbd>Q</kbd>)
+            Directly modify global limits & concurrency without leaving
+            transfers view (Hotkey: <kbd>Q</kbd>)
           </span>
         </div>
 

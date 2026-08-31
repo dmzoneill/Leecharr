@@ -199,10 +199,12 @@ export function App() {
               : typeof (msg.body as any).id === "number"
                 ? [msg.body]
                 : typeof msg.body === "object"
-                  ? Object.entries(msg.body).map(([id, data]: [string, any]) => ({
-                      id: Number(id) || data?.id,
-                      ...(typeof data === "object" ? data : {}),
-                    }))
+                  ? Object.entries(msg.body).map(
+                      ([id, data]: [string, any]) => ({
+                        id: Number(id) || data?.id,
+                        ...(typeof data === "object" ? data : {}),
+                      }),
+                    )
                   : [];
 
           if (updates.length > 0) {
@@ -480,7 +482,12 @@ export function App() {
                           <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>
                             {page.icon}
                           </span>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
                             {page.shortLabel}
                           </span>
                         </span>

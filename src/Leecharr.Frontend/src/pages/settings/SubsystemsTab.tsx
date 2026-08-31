@@ -72,7 +72,10 @@ export function SubsystemsTab() {
         );
       }
     } catch (err: any) {
-      showToast(`Failed to switch provider: ${err.message || "Unknown error"}`, "error");
+      showToast(
+        `Failed to switch provider: ${err.message || "Unknown error"}`,
+        "error",
+      );
     }
   };
 

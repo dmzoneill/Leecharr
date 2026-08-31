@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  SelectInput,
-} from "./shared";
+import { SaveBar, SectionCard, SelectInput } from "./shared";
 
 export function WebUiSettingsTab() {
   const { data: config, isLoading } = useGeneralConfig();
