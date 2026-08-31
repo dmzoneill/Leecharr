@@ -170,3 +170,16 @@ When querying across multiple indexers, Leecharr aggregates, deduplicates, and r
    - Click "Download" on any result.
    - Pre-fills category based on indexer category mapping.
    - Allows selecting specific files before beginning transfer (via magnet metadata prefetch).
+
+---
+
+## 7. Automated RSS Feeds & Grab Rules
+
+In addition to manual search, Leecharr supports automated background RSS polling:
+- **Interval:** Periodic background RSS sync (default: every 15 minutes).
+- **Quality & Filter Rules:**
+  - `Must Contain` / `Must Not Contain` regex patterns.
+  - `Minimum Seeders` threshold (e.g. minimum 5 seeders).
+  - `Freeleech Only` toggle (`downloadvolumefactor == 0`).
+  - `Size Limits`: Minimum and maximum size bounds per category (e.g. Movies: 4 GB to 50 GB).
+- **Automated Ingestion:** Releases matching all active RSS rules are automatically grabbed and enqueued under their assigned category without manual intervention.
