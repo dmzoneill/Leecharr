@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 
 namespace NzbDrone.Core.Network.Blocklist;
@@ -12,5 +14,5 @@ public enum BlocklistCapabilities
     P2PDat = 1 << 3,
     LinuxIpSet = 1 << 4,
     LiveAutoRefresh = 1 << 5,
-    All = IPv4 | IPv6 | Cidr | P2PDat | LinuxIpSet | LiveAutoRefresh
+    All = IPv4 | IPv6 | Cidr | P2PDat | LinuxIpSet | LiveAutoRefresh,
 }

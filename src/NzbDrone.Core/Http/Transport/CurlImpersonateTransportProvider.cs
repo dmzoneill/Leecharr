@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Net;
@@ -10,14 +12,18 @@ namespace NzbDrone.Core.Http.Transport;
 
 public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposable
 {
-    private readonly HttpClient _fallbackClient;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
-    private bool _disposed;
+    private readonly HttpClient fallbackClient;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private bool disposed;
 
     public string ProviderId => "CurlImpersonate";
+
     public string DisplayName => "curl-impersonate (Chrome / Firefox TLS JA3/JA4 Fingerprint)";
+
     public string Version => "0.6.1";
+
     public string Description => "Emulates Chrome/Firefox TLS handshakes, JA3/JA4 fingerprints, and HTTP/2 settings to bypass anti-bot protections.";
+
     public bool IsAvailable => CheckCurlBinaryAvailable();
 
     public HttpTransportCapabilities Capabilities => new()
@@ -27,7 +33,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
         SupportsFlareSolverr = false,
         SupportsCustomProxy = true,
         SupportsTlsJa3Ja4Fingerprinting = true,
-        SupportsCookieExtraction = true
+        SupportsCookieExtraction = true,
     };
 
     public CurlImpersonateTransportProvider()
@@ -35,12 +41,12 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
         var handler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
-            EnableMultipleHttp2Connections = true
+            EnableMultipleHttp2Connections = true,
         };
 
-        _fallbackClient = new HttpClient(handler, disposeHandler: true)
+        this.fallbackClient = new HttpClient(handler, disposeHandler: true)
         {
-            Timeout = TimeSpan.FromSeconds(30)
+            Timeout = TimeSpan.FromSeconds(30),
         };
     }
 
@@ -52,7 +58,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
             return Task.FromResult(new HttpTransportHealthCheckResult
             {
                 IsHealthy = true,
-                StatusMessage = "curl-impersonate binary found in PATH. TLS JA3/JA4 browser emulation ready."
+                StatusMessage = "curl-impersonate binary found in PATH. TLS JA3/JA4 browser emulation ready.",
             });
         }
 
@@ -60,7 +66,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
         {
             IsHealthy = true,
             StatusMessage = "curl-impersonate operating in managed TLS/HTTP emulation fallback mode.",
-            Warnings = { "curl-impersonate binary (e.g. curl_chrome116) not detected in system PATH." }
+            Warnings = { "curl-impersonate binary (e.g. curl_chrome116) not detected in system PATH." },
         });
     }
 
@@ -83,7 +89,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
             request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
         }
 
-        return await _fallbackClient.SendAsync(request, cancellationToken);
+        return await this.fallbackClient.SendAsync(request, cancellationToken);
     }
 
     private static bool CheckCurlBinaryAvailable()
@@ -109,10 +115,10 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _fallbackClient.Dispose();
+            this.disposed = true;
+            this.fallbackClient.Dispose();
         }
     }
 }

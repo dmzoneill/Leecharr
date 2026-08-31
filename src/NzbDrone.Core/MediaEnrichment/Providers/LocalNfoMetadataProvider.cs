@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Globalization;
 using System.IO;
@@ -12,13 +14,17 @@ namespace NzbDrone.Core.MediaEnrichment.Providers;
 
 public class LocalNfoMetadataProvider : IMediaMetadataProvider
 {
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "LocalNFO";
+
     public string DisplayName => "Local Filesystem NFO & Artwork Inspector";
+
     public string Version => "1.0.0";
+
     public string Description => "Parses zero-network local .nfo metadata, poster.jpg, and fanart.jpg directly from download folders.";
+
     public bool IsAvailable => true;
 
     public MediaMetadataCapabilities Capabilities => new()
@@ -30,12 +36,12 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         SupportsFanart = true,
         SupportsCast = true,
         SupportsSeasonBanners = true,
-        SupportsNfoParsing = true
+        SupportsNfoParsing = true,
     };
 
     public LocalNfoMetadataProvider(IConfigService configService = null)
     {
-        _configService = configService;
+        this.configService = configService;
     }
 
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
@@ -43,7 +49,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         return Task.FromResult(new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = "Local NFO and artwork parser operational (offline mode)."
+            StatusMessage = "Local NFO and artwork parser operational (offline mode).",
         });
     }
 
@@ -64,17 +70,17 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             Title = cleanTitle,
             Year = parsedYear,
             MediaType = isMovie ? "Movie" : "TV",
-            Overview = $"Parsed from local media directory files for {cleanTitle}."
+            Overview = $"Parsed from local media directory files for {cleanTitle}.",
         };
 
-        var nfoFilePath = LocateNfoFile(title);
+        var nfoFilePath = this.LocateNfoFile(title);
         if (!string.IsNullOrWhiteSpace(nfoFilePath) && File.Exists(nfoFilePath))
         {
             try
             {
                 var nfoContent = await File.ReadAllTextAsync(nfoFilePath);
                 ParseNfoContent(nfoContent, meta);
-                _logger.Debug("Successfully parsed NFO file: {0}", nfoFilePath);
+                this.logger.Debug("Successfully parsed NFO file: {0}", nfoFilePath);
 
                 var dir = Path.GetDirectoryName(nfoFilePath);
                 if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
@@ -84,7 +90,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to read or parse NFO file at '{0}'", nfoFilePath);
+                this.logger.Warn(ex, "Failed to read or parse NFO file at '{0}'", nfoFilePath);
             }
         }
 
@@ -112,9 +118,9 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             return FindNfoInDirectory(inputPath);
         }
 
-        if (_configService != null)
+        if (this.configService != null)
         {
-            var searchDirs = new[] { _configService.DownloadDir, _configService.IncompleteDownloadDir }
+            var searchDirs = new[] { this.configService.DownloadDir, this.configService.IncompleteDownloadDir }
                 .Where(d => !string.IsNullOrWhiteSpace(d) && Directory.Exists(d));
 
             foreach (var dir in searchDirs)

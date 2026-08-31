@@ -1,8 +1,10 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Core.Authentication;
 
 public enum AuthenticationRequiredType
 {
     Enabled = 0,
     DisabledForLocalAddresses = 1,
-    DisabledForLocalhost = 2
+    DisabledForLocalhost = 2,
 }

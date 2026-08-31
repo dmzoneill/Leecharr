@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,33 +14,37 @@ namespace NzbDrone.Core.Network.GeoIp;
 
 public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 {
-    private readonly IDiskProvider _diskProvider;
-    private readonly IAppFolderInfo _appFolderInfo;
-    private readonly Logger _logger;
-    private readonly object _lock = new();
+    private readonly IDiskProvider diskProvider;
+    private readonly IAppFolderInfo appFolderInfo;
+    private readonly Logger logger;
+    private readonly object @lock = new();
 
-    private FileStream _fileStream;
-    private BinaryReader _binaryReader;
-    private string _resolvedDatabasePath;
-    private byte _dbType;
-    private byte _dbColumn;
-    private uint _ipv4Count;
-    private uint _baseAddress;
-    private uint _ipv6Count;
-    private uint _baseAddressIPv6;
-    private bool _disposed;
+    private FileStream fileStream;
+    private BinaryReader binaryReader;
+    private string resolvedDatabasePath;
+    private byte dbType;
+    private byte dbColumn;
+    private uint ipv4Count;
+    private uint baseAddress;
+    private uint ipv6Count;
+    private uint baseAddressIPv6;
+    private bool disposed;
 
     public string ProviderId => "IP2Location";
+
     public string DisplayName => "IP2Location Binary (.BIN)";
+
     public string Version => "1.0";
-    public bool IsAvailable => !string.IsNullOrEmpty(GetDatabasePath());
+
+    public bool IsAvailable => !string.IsNullOrEmpty(this.GetDatabasePath());
+
     public GeoIpCapabilities Capabilities => GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase;
 
     public IP2LocationGeoIpProvider(IDiskProvider diskProvider, IAppFolderInfo appFolderInfo)
     {
-        _diskProvider = diskProvider;
-        _appFolderInfo = appFolderInfo;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.diskProvider = diskProvider;
+        this.appFolderInfo = appFolderInfo;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public string GetDatabasePath()
@@ -50,15 +56,15 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             "/config/GeoIP/IP2LOCATION-LITE-DB3.BIN",
             "/config/GeoIP/IP2Location.BIN",
             "/config/IP2Location.BIN",
-            Path.Combine(_appFolderInfo.AppDataFolder, "GeoIP", "IP2LOCATION-LITE-DB1.BIN"),
-            Path.Combine(_appFolderInfo.AppDataFolder, "GeoIP", "IP2Location.BIN"),
-            Path.Combine(_appFolderInfo.AppDataFolder, "IP2Location.BIN"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IP2Location.BIN")
+            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "IP2LOCATION-LITE-DB1.BIN"),
+            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "IP2Location.BIN"),
+            Path.Combine(this.appFolderInfo.AppDataFolder, "IP2Location.BIN"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IP2Location.BIN"),
         };
 
         foreach (var path in candidates)
         {
-            if (!string.IsNullOrWhiteSpace(path) && _diskProvider.FileExists(path))
+            if (!string.IsNullOrWhiteSpace(path) && this.diskProvider.FileExists(path))
             {
                 return path;
             }
@@ -69,24 +75,24 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
     public Task<GeoIpHealthResult> ProbeHealthAsync()
     {
-        var dbPath = GetDatabasePath();
+        var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = false,
                 StatusMessage = "IP2Location .BIN database not found. Place the file in /config/GeoIP/ or AppData.",
-                Warnings = new List<string> { "Database file missing." }
+                Warnings = new List<string> { "Database file missing." },
             });
         }
 
         try
         {
-            EnsureReader(dbPath);
+            this.EnsureReader(dbPath);
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = true,
-                StatusMessage = $"IP2Location database loaded successfully from {dbPath} (DB Type: {_dbType}, IPv4 Records: {_ipv4Count})."
+                StatusMessage = $"IP2Location database loaded successfully from {dbPath} (DB Type: {this.dbType}, IPv4 Records: {this.ipv4Count}).",
             });
         }
         catch (Exception ex)
@@ -95,7 +101,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 IsHealthy = false,
                 StatusMessage = $"Failed to read IP2Location database: {ex.Message}",
-                Warnings = new List<string> { ex.Message }
+                Warnings = new List<string> { ex.Message },
             });
         }
     }
@@ -112,7 +118,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
         }
 
-        var dbPath = GetDatabasePath();
+        var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
@@ -120,10 +126,10 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
         try
         {
-            lock (_lock)
+            lock (this.@lock)
             {
-                EnsureReader(dbPath);
-                if (_binaryReader == null)
+                this.EnsureReader(dbPath);
+                if (this.binaryReader == null)
                 {
                     return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
                 }
@@ -135,24 +141,24 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                     var ipNum = BitConverter.ToUInt32(ipBytes, 0);
 
                     var low = 0L;
-                    var high = (long)_ipv4Count;
-                    var rowSize = (long)_dbColumn * 4;
+                    var high = (long)this.ipv4Count;
+                    var rowSize = (long)this.dbColumn * 4;
 
                     while (low <= high)
                     {
                         var mid = low + ((high - low) / 2);
-                        var rowOffset = (_baseAddress - 1) + (mid * rowSize);
+                        var rowOffset = (this.baseAddress - 1) + (mid * rowSize);
 
-                        _fileStream.Seek(rowOffset, SeekOrigin.Begin);
-                        var ipFrom = _binaryReader.ReadUInt32();
+                        this.fileStream.Seek(rowOffset, SeekOrigin.Begin);
+                        var ipFrom = this.binaryReader.ReadUInt32();
 
-                        var ipToOffset = (_baseAddress - 1) + ((mid + 1) * rowSize);
-                        _fileStream.Seek(ipToOffset, SeekOrigin.Begin);
-                        var ipTo = _binaryReader.ReadUInt32();
+                        var ipToOffset = (this.baseAddress - 1) + ((mid + 1) * rowSize);
+                        this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
+                        var ipTo = this.binaryReader.ReadUInt32();
 
                         if (ipNum >= ipFrom && ipNum < ipTo)
                         {
-                            var result = ReadRecordData(rowOffset);
+                            var result = this.ReadRecordData(rowOffset);
                             result.IpAddress = ipAddress;
                             return Task.FromResult(result);
                         }
@@ -171,7 +177,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Error performing IP2Location lookup for IP: {0}", ipAddress);
+            this.logger.Warn(ex, "Error performing IP2Location lookup for IP: {0}", ipAddress);
         }
 
         return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
@@ -180,18 +186,18 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
     private GeoLocationInfo ReadRecordData(long rowOffset)
     {
         var info = new GeoLocationInfo();
-        _fileStream.Seek(rowOffset + 4, SeekOrigin.Begin);
+        this.fileStream.Seek(rowOffset + 4, SeekOrigin.Begin);
 
-        var countryOffset = _binaryReader.ReadUInt32();
+        var countryOffset = this.binaryReader.ReadUInt32();
         if (countryOffset > 0)
         {
-            _fileStream.Seek(countryOffset, SeekOrigin.Begin);
-            var len = _binaryReader.ReadByte();
-            var countryCodeBytes = _binaryReader.ReadBytes(len);
+            this.fileStream.Seek(countryOffset, SeekOrigin.Begin);
+            var len = this.binaryReader.ReadByte();
+            var countryCodeBytes = this.binaryReader.ReadBytes(len);
             info.CountryCode = Encoding.ASCII.GetString(countryCodeBytes).Trim();
 
-            var nameLen = _binaryReader.ReadByte();
-            var countryNameBytes = _binaryReader.ReadBytes(nameLen);
+            var nameLen = this.binaryReader.ReadByte();
+            var countryNameBytes = this.binaryReader.ReadBytes(nameLen);
             info.CountryName = Encoding.ASCII.GetString(countryNameBytes).Trim();
         }
 
@@ -200,44 +206,44 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
     private void EnsureReader(string dbPath)
     {
-        if (_binaryReader != null && _resolvedDatabasePath == dbPath)
+        if (this.binaryReader != null && this.resolvedDatabasePath == dbPath)
         {
             return;
         }
 
-        CloseReader();
+        this.CloseReader();
 
-        _fileStream = new FileStream(dbPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        _binaryReader = new BinaryReader(_fileStream);
-        _resolvedDatabasePath = dbPath;
+        this.fileStream = new FileStream(dbPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        this.binaryReader = new BinaryReader(this.fileStream);
+        this.resolvedDatabasePath = dbPath;
 
-        _dbType = _binaryReader.ReadByte();
-        _dbColumn = _binaryReader.ReadByte();
-        var year = _binaryReader.ReadByte();
-        var month = _binaryReader.ReadByte();
-        var day = _binaryReader.ReadByte();
-        _ipv4Count = _binaryReader.ReadUInt32();
-        _baseAddress = _binaryReader.ReadUInt32();
-        _ipv6Count = _binaryReader.ReadUInt32();
-        _baseAddressIPv6 = _binaryReader.ReadUInt32();
+        this.dbType = this.binaryReader.ReadByte();
+        this.dbColumn = this.binaryReader.ReadByte();
+        var year = this.binaryReader.ReadByte();
+        var month = this.binaryReader.ReadByte();
+        var day = this.binaryReader.ReadByte();
+        this.ipv4Count = this.binaryReader.ReadUInt32();
+        this.baseAddress = this.binaryReader.ReadUInt32();
+        this.ipv6Count = this.binaryReader.ReadUInt32();
+        this.baseAddressIPv6 = this.binaryReader.ReadUInt32();
     }
 
     private void CloseReader()
     {
-        _binaryReader?.Dispose();
-        _binaryReader = null;
-        _fileStream?.Dispose();
-        _fileStream = null;
+        this.binaryReader?.Dispose();
+        this.binaryReader = null;
+        this.fileStream?.Dispose();
+        this.fileStream = null;
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            lock (_lock)
+            this.disposed = true;
+            lock (this.@lock)
             {
-                CloseReader();
+                this.CloseReader();
             }
         }
     }

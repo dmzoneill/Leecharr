@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Security.Claims;
@@ -15,10 +17,10 @@ namespace Leecharr.Http.Authentication;
 
 public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IIdentityProviderRepository _identityProviderRepository;
-    private readonly IJitUserProvisioningService _jitUserProvisioning;
-    private readonly Logger _logger;
+    private readonly IServiceProvider serviceProvider;
+    private readonly IIdentityProviderRepository identityProviderRepository;
+    private readonly IJitUserProvisioningService jitUserProvisioning;
+    private readonly Logger logger;
 
     public DynamicAuthSchemeManager(
         IServiceProvider serviceProvider,
@@ -26,38 +28,38 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
         IJitUserProvisioningService jitUserProvisioning,
         Logger logger)
     {
-        _serviceProvider = serviceProvider;
-        _identityProviderRepository = identityProviderRepository;
-        _jitUserProvisioning = jitUserProvisioning;
-        _logger = logger;
+        this.serviceProvider = serviceProvider;
+        this.identityProviderRepository = identityProviderRepository;
+        this.jitUserProvisioning = jitUserProvisioning;
+        this.logger = logger;
     }
 
     public async Task InitializeConfiguredProvidersAsync()
     {
         try
         {
-            var enabledProviders = _identityProviderRepository.GetEnabled();
+            var enabledProviders = this.identityProviderRepository.GetEnabled();
             foreach (var provider in enabledProviders)
             {
                 if (provider.ProviderType == IdentityProviderType.Oidc || provider.ProviderType == IdentityProviderType.Social)
                 {
-                    await RegisterOrUpdateOidcProviderAsync(provider);
+                    await this.RegisterOrUpdateOidcProviderAsync(provider);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to initialize configured dynamic authentication schemes");
+            this.logger.Error(ex, "Failed to initialize configured dynamic authentication schemes");
         }
     }
 
     public async Task RegisterOrUpdateOidcProviderAsync(IdentityProviderDefinition provider)
     {
         var schemeName = $"Oidc_{provider.ProviderId}";
-        var oidcOptionsCache = _serviceProvider.GetService<IOptionsMonitorCache<OpenIdConnectOptions>>();
-        var oidcPostConfigure = _serviceProvider.GetService<IPostConfigureOptions<OpenIdConnectOptions>>();
-        var schemeProvider = _serviceProvider.GetService<IAuthenticationSchemeProvider>();
-        var dataProtection = _serviceProvider.GetService<IDataProtectionProvider>();
+        var oidcOptionsCache = this.serviceProvider.GetService<IOptionsMonitorCache<OpenIdConnectOptions>>();
+        var oidcPostConfigure = this.serviceProvider.GetService<IPostConfigureOptions<OpenIdConnectOptions>>();
+        var schemeProvider = this.serviceProvider.GetService<IAuthenticationSchemeProvider>();
+        var dataProtection = this.serviceProvider.GetService<IDataProtectionProvider>();
 
         if (oidcOptionsCache == null || schemeProvider == null)
         {
@@ -107,11 +109,11 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                         groups,
                         avatarUrl);
 
-                    _jitUserProvisioning.ProvisionOrUpdateUser(profile);
+                    this.jitUserProvisioning.ProvisionOrUpdateUser(profile);
 
                     return Task.CompletedTask;
                 }
-            }
+            },
         };
 
         options.Scope.Clear();
@@ -137,14 +139,14 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
         var newScheme = new AuthenticationScheme(schemeName, provider.Name, typeof(OpenIdConnectHandler));
         schemeProvider.AddScheme(newScheme);
 
-        _logger.Info("Registered dynamic OIDC authentication scheme: {0} ({1})", schemeName, provider.Name);
+        this.logger.Info("Registered dynamic OIDC authentication scheme: {0} ({1})", schemeName, provider.Name);
     }
 
     public async Task RemoveProviderSchemeAsync(string providerId)
     {
         var schemeName = $"Oidc_{providerId}";
-        var schemeProvider = _serviceProvider.GetService<IAuthenticationSchemeProvider>();
-        var oidcOptionsCache = _serviceProvider.GetService<IOptionsMonitorCache<OpenIdConnectOptions>>();
+        var schemeProvider = this.serviceProvider.GetService<IAuthenticationSchemeProvider>();
+        var oidcOptionsCache = this.serviceProvider.GetService<IOptionsMonitorCache<OpenIdConnectOptions>>();
 
         if (schemeProvider != null)
         {
@@ -156,7 +158,7 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
             oidcOptionsCache.TryRemove(schemeName);
         }
 
-        _logger.Info("Removed dynamic authentication scheme: {0}", schemeName);
+        this.logger.Info("Removed dynamic authentication scheme: {0}", schemeName);
         await Task.CompletedTask;
     }
 }

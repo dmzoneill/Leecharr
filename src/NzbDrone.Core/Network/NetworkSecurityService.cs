@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,35 +16,39 @@ public class VpnKillSwitchTriggeredEvent : IEvent
 
     public VpnKillSwitchTriggeredEvent(string interfaceName)
     {
-        InterfaceName = interfaceName;
+        this.InterfaceName = interfaceName;
     }
 }
 
 public interface INetworkSecurityService
 {
     IEnumerable<string> GetAvailableNetworkInterfaces();
+
     bool IsInterfaceActive(string interfaceName);
+
     bool CheckVpnKillSwitch();
+
     NetworkSettings GetCurrentSettings();
+
     void SaveSettings(NetworkSettings settings);
 }
 
 public class NetworkSecurityService : INetworkSecurityService
 {
-    private readonly INetworkSettingsRepository _repository;
-    private readonly IConfigService _configService;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly INetworkSettingsRepository repository;
+    private readonly IConfigService configService;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
     public NetworkSecurityService(
         INetworkSettingsRepository repository,
         IEventAggregator eventAggregator,
         Configuration.IConfigService configService = null)
     {
-        _repository = repository;
-        _eventAggregator = eventAggregator;
-        _configService = configService;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.repository = repository;
+        this.eventAggregator = eventAggregator;
+        this.configService = configService;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public IEnumerable<string> GetAvailableNetworkInterfaces()
@@ -56,7 +62,7 @@ public class NetworkSecurityService : INetworkSecurityService
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to query network interfaces.");
+            this.logger.Warn(ex, "Failed to query network interfaces.");
             return Enumerable.Empty<string>();
         }
     }
@@ -83,17 +89,17 @@ public class NetworkSecurityService : INetworkSecurityService
 
     public bool CheckVpnKillSwitch()
     {
-        var settings = GetCurrentSettings();
+        var settings = this.GetCurrentSettings();
         if (!settings.EnableVpnKillSwitch || string.IsNullOrWhiteSpace(settings.BindInterface))
         {
             return false; // Kill switch not engaged
         }
 
-        var isUp = IsInterfaceActive(settings.BindInterface);
+        var isUp = this.IsInterfaceActive(settings.BindInterface);
         if (!isUp)
         {
-            _logger.Error("VPN Kill Switch Triggered! Interface '{0}' dropped. BitTorrent traffic suspended.", settings.BindInterface);
-            _eventAggregator.PublishEvent(new VpnKillSwitchTriggeredEvent(settings.BindInterface));
+            this.logger.Error("VPN Kill Switch Triggered! Interface '{0}' dropped. BitTorrent traffic suspended.", settings.BindInterface);
+            this.eventAggregator.PublishEvent(new VpnKillSwitchTriggeredEvent(settings.BindInterface));
             return true;
         }
 
@@ -102,17 +108,17 @@ public class NetworkSecurityService : INetworkSecurityService
 
     public NetworkSettings GetCurrentSettings()
     {
-        var settings = _repository.GetSettings() ?? new NetworkSettings();
-        if (_configService != null)
+        var settings = this.repository.GetSettings() ?? new NetworkSettings();
+        if (this.configService != null)
         {
-            if (!string.IsNullOrWhiteSpace(_configService.BindInterface))
+            if (!string.IsNullOrWhiteSpace(this.configService.BindInterface))
             {
-                settings.BindInterface = _configService.BindInterface;
+                settings.BindInterface = this.configService.BindInterface;
             }
 
-            if (_configService.EnableVpnKillSwitch)
+            if (this.configService.EnableVpnKillSwitch)
             {
-                settings.EnableVpnKillSwitch = _configService.EnableVpnKillSwitch;
+                settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
             }
         }
 
@@ -128,11 +134,11 @@ public class NetworkSecurityService : INetworkSecurityService
 
         if (settings.Id == 0)
         {
-            _repository.Insert(settings);
+            this.repository.Insert(settings);
         }
         else
         {
-            _repository.Update(settings);
+            this.repository.Update(settings);
         }
     }
 }

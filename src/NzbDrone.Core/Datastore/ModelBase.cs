@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 namespace NzbDrone.Core.Datastore;
 
 public abstract class ModelBase
@@ -11,5 +13,5 @@ public enum ModelAction
     Created = 1,
     Updated = 2,
     Deleted = 3,
-    Sync = 4
+    Sync = 4,
 }

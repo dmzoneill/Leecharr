@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net;
 using System.Net.Http;
@@ -14,33 +16,33 @@ namespace Leecharr.Core.Test.Ai;
 [TestFixture]
 public class OllamaAiProviderTest
 {
-    private IConfigService _configService = null!;
-    private string _originalEnvHost;
+    private IConfigService configService = null!;
+    private string originalEnvHost;
 
     [SetUp]
     public void SetUp()
     {
-        _originalEnvHost = Environment.GetEnvironmentVariable("OLLAMA_HOST");
+        this.originalEnvHost = Environment.GetEnvironmentVariable("OLLAMA_HOST");
         Environment.SetEnvironmentVariable("OLLAMA_HOST", null);
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.OllamaHost.Returns("http://127.0.0.1:11434");
-        _configService.OllamaModel.Returns("llama3.2");
-        _configService.GetValue("OllamaUrl", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
-        _configService.GetValue("OllamaHost", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
-        _configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("llama3.2");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.OllamaHost.Returns("http://127.0.0.1:11434");
+        this.configService.OllamaModel.Returns("llama3.2");
+        this.configService.GetValue("OllamaUrl", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
+        this.configService.GetValue("OllamaHost", Arg.Any<string>()).Returns("http://127.0.0.1:11434");
+        this.configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("llama3.2");
     }
 
     [TearDown]
     public void TearDown()
     {
-        Environment.SetEnvironmentVariable("OLLAMA_HOST", _originalEnvHost);
+        Environment.SetEnvironmentVariable("OLLAMA_HOST", this.originalEnvHost);
     }
 
     [Test]
     public void Properties_ReturnExpectedValues()
     {
-        using var provider = new OllamaAiProvider(_configService);
+        using var provider = new OllamaAiProvider(this.configService);
         provider.ProviderId.Should().Be("Ollama");
         provider.DisplayName.Should().Contain("Ollama");
         provider.Version.Should().Be("1.0");
@@ -55,12 +57,12 @@ public class OllamaAiProviderTest
         {
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"version\": \"0.3.12\"}")
+                Content = new StringContent("{\"version\": \"0.3.12\"}"),
             });
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new OllamaAiProvider(_configService, client);
+        using var provider = new OllamaAiProvider(this.configService, client);
 
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
@@ -76,7 +78,7 @@ public class OllamaAiProviderTest
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new OllamaAiProvider(_configService, client);
+        using var provider = new OllamaAiProvider(this.configService, client);
 
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeFalse();
@@ -90,12 +92,12 @@ public class OllamaAiProviderTest
         {
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"model\":\"llama3.2\",\"response\":\"To fix a stalled torrent, check seeders.\",\"done\":true}")
+                Content = new StringContent("{\"model\":\"llama3.2\",\"response\":\"To fix a stalled torrent, check seeders.\",\"done\":true}"),
             });
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new OllamaAiProvider(_configService, client);
+        using var provider = new OllamaAiProvider(this.configService, client);
 
         var response = await provider.GenerateChatResponseAsync("How do I fix stalled torrents?");
         response.Should().Be("To fix a stalled torrent, check seeders.");
@@ -110,7 +112,7 @@ public class OllamaAiProviderTest
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new OllamaAiProvider(_configService, client);
+        using var provider = new OllamaAiProvider(this.configService, client);
 
         var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
         response.Should().Contain("Ratio");
@@ -118,16 +120,16 @@ public class OllamaAiProviderTest
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
+        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
 
         public MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
         {
-            _handler = handler;
+            this.handler = handler;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            return _handler(request, cancellationToken);
+            return this.handler(request, cancellationToken);
         }
     }
 }

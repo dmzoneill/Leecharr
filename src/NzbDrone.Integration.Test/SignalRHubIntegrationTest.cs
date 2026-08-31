@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -13,17 +15,17 @@ namespace NzbDrone.Integration.Test;
 [TestFixture]
 public class SignalRHubIntegrationTest : IntegrationTestBase
 {
-    private HubConnection _connection = null!;
+    private HubConnection connection = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _connection = new HubConnectionBuilder()
+        this.connection = new HubConnectionBuilder()
             .WithUrl($"{GlobalSetup.Factory.BaseUrl}/signalr/messages", options =>
             {
-                if (!string.IsNullOrEmpty(ApiKey))
+                if (!string.IsNullOrEmpty(this.ApiKey))
                 {
-                    options.Headers.Add("X-Api-Key", ApiKey);
+                    options.Headers.Add("X-Api-Key", this.ApiKey);
                 }
             })
             .WithAutomaticReconnect()
@@ -33,12 +35,12 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
     [TearDown]
     public async Task TearDown()
     {
-        if (_connection != null)
+        if (this.connection != null)
         {
             try
             {
-                await _connection.StopAsync();
-                await _connection.DisposeAsync();
+                await this.connection.StopAsync();
+                await this.connection.DisposeAsync();
             }
             catch
             {
@@ -52,7 +54,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
     {
         var tcs = new TaskCompletionSource<SignalRMessage>();
 
-        _connection.On<SignalRMessage>("receiveMessage", msg =>
+        this.connection.On<SignalRMessage>("receiveMessage", msg =>
         {
             if (msg.Name == "version")
             {
@@ -60,8 +62,8 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
             }
         });
 
-        await _connection.StartAsync();
-        _connection.State.Should().Be(HubConnectionState.Connected);
+        await this.connection.StartAsync();
+        this.connection.State.Should().Be(HubConnectionState.Connected);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         cts.Token.Register(() => tcs.TrySetCanceled());
@@ -77,7 +79,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
     {
         var tcs = new TaskCompletionSource<SignalRMessage>();
 
-        _connection.On<SignalRMessage>("receiveMessage", msg =>
+        this.connection.On<SignalRMessage>("receiveMessage", msg =>
         {
             if (string.Equals(msg.Name, "testBroadcast", StringComparison.OrdinalIgnoreCase))
             {
@@ -85,8 +87,8 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
             }
         });
 
-        await _connection.StartAsync();
-        _connection.State.Should().Be(HubConnectionState.Connected);
+        await this.connection.StartAsync();
+        this.connection.State.Should().Be(HubConnectionState.Connected);
 
         var broadcaster = GlobalSetup.Factory.Services.GetService(typeof(IBroadcastSignalRMessage)) as IBroadcastSignalRMessage;
         broadcaster.Should().NotBeNull();
@@ -94,7 +96,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
         broadcaster!.BroadcastMessage(new SignalRMessage
         {
             Name = "testBroadcast",
-            Body = new { message = "hello signalr" }
+            Body = new { message = "hello signalr" },
         });
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

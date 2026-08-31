@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -12,21 +14,21 @@ namespace Leecharr.Api.V1.System;
 [V1ApiController("logfile")]
 public class LogFileController : ControllerBase
 {
-    private readonly IAppFolderInfo _appFolderInfo;
+    private readonly IAppFolderInfo appFolderInfo;
 
     public LogFileController(IAppFolderInfo appFolderInfo)
     {
-        _appFolderInfo = appFolderInfo;
+        this.appFolderInfo = appFolderInfo;
     }
 
     [HttpGet]
     public ActionResult<List<LogFileResource>> GetLogFiles()
     {
-        var logDir = Path.Combine(_appFolderInfo.AppDataFolder, "logs");
+        var logDir = Path.Combine(this.appFolderInfo.AppDataFolder, "logs");
 
         if (!Directory.Exists(logDir))
         {
-            return Ok(new List<LogFileResource>());
+            return this.Ok(new List<LogFileResource>());
         }
 
         var files = Directory.GetFiles(logDir, "*.*", SearchOption.TopDirectoryOnly)
@@ -36,11 +38,11 @@ public class LogFileController : ControllerBase
             {
                 Filename = f.Name,
                 LastWriteTime = f.LastWriteTimeUtc,
-                Size = f.Length
+                Size = f.Length,
             })
             .ToList();
 
-        return Ok(files);
+        return this.Ok(files);
     }
 
     [HttpGet("{filename}")]
@@ -51,30 +53,30 @@ public class LogFileController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(sanitized) || sanitized != filename)
         {
-            return BadRequest("Invalid filename");
+            return this.BadRequest("Invalid filename");
         }
 
-        var logDir = Path.GetFullPath(Path.Combine(_appFolderInfo.AppDataFolder, "logs"));
+        var logDir = Path.GetFullPath(Path.Combine(this.appFolderInfo.AppDataFolder, "logs"));
         var fullPath = Path.GetFullPath(Path.Combine(logDir, sanitized));
 
         if (!fullPath.StartsWith(logDir, StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest("Access denied");
+            return this.BadRequest("Access denied");
         }
 
         if (!global::System.IO.File.Exists(fullPath))
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var stream = global::System.IO.File.OpenRead(fullPath);
-        return File(stream, "text/plain", sanitized);
+        return this.File(stream, "text/plain", sanitized);
     }
 
     [HttpDelete]
     public ActionResult ClearLogs()
     {
-        var logDir = Path.Combine(_appFolderInfo.AppDataFolder, "logs");
+        var logDir = Path.Combine(this.appFolderInfo.AppDataFolder, "logs");
         if (Directory.Exists(logDir))
         {
             var files = Directory.GetFiles(logDir, "*.*", SearchOption.TopDirectoryOnly);
@@ -91,6 +93,6 @@ public class LogFileController : ControllerBase
             }
         }
 
-        return Ok();
+        return this.Ok();
     }
 }

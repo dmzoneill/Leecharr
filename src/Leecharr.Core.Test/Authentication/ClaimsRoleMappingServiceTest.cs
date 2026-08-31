@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using NLog;
 using NUnit.Framework;
@@ -8,20 +10,20 @@ namespace Leecharr.Core.Test.Authentication;
 [TestFixture]
 public class ClaimsRoleMappingServiceTest
 {
-    private Logger _logger;
-    private ClaimsRoleMappingService _service;
+    private Logger logger;
+    private ClaimsRoleMappingService service;
 
     [SetUp]
     public void SetUp()
     {
-        _logger = LogManager.GetCurrentClassLogger();
-        _service = new ClaimsRoleMappingService(_logger);
+        this.logger = LogManager.GetCurrentClassLogger();
+        this.service = new ClaimsRoleMappingService(this.logger);
     }
 
     [Test]
     public void ResolveRoles_WhenFirstUser_ShouldReturnAdmin()
     {
-        var roles = _service.ResolveRoles(null, new List<string>(), true);
+        var roles = this.service.ResolveRoles(null, new List<string>(), true);
 
         Assert.That(roles, Does.Contain("Admin"));
     }
@@ -32,16 +34,16 @@ public class ClaimsRoleMappingServiceTest
         var provider = new IdentityProviderDefinition
         {
             Name = "Authentik",
-            RoleMappingRules = "{\"Admin\":\"^(admin|infrastructure|devops)$\",\"Operator\":\"^(media-manager|operators)$\"}"
+            RoleMappingRules = "{\"Admin\":\"^(admin|infrastructure|devops)$\",\"Operator\":\"^(media-manager|operators)$\"}",
         };
 
-        var adminRoles = _service.ResolveRoles(provider, new List<string> { "devops", "other-group" }, false);
+        var adminRoles = this.service.ResolveRoles(provider, new List<string> { "devops", "other-group" }, false);
         Assert.That(adminRoles, Does.Contain("Admin"));
 
-        var operatorRoles = _service.ResolveRoles(provider, new List<string> { "media-manager" }, false);
+        var operatorRoles = this.service.ResolveRoles(provider, new List<string> { "media-manager" }, false);
         Assert.That(operatorRoles, Does.Contain("Operator"));
 
-        var fallbackRoles = _service.ResolveRoles(provider, new List<string> { "random-group" }, false);
+        var fallbackRoles = this.service.ResolveRoles(provider, new List<string> { "random-group" }, false);
         Assert.That(fallbackRoles, Does.Contain("User"));
     }
 }

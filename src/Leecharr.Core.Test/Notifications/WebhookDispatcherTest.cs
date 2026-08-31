@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,57 +22,59 @@ public class WebhookDispatcherTest
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         public List<HttpRequestMessage> SentRequests { get; } = new();
+
         public Func<HttpRequestMessage, HttpResponseMessage> ResponseFactory { get; set; } = _ => new HttpResponseMessage(HttpStatusCode.OK);
+
         public Func<HttpRequestMessage, Exception> ExceptionFactory { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            SentRequests.Add(request);
+            this.SentRequests.Add(request);
 
-            if (ExceptionFactory != null)
+            if (this.ExceptionFactory != null)
             {
-                var ex = ExceptionFactory(request);
+                var ex = this.ExceptionFactory(request);
                 if (ex != null)
                 {
                     throw ex;
                 }
             }
 
-            return Task.FromResult(ResponseFactory(request));
+            return Task.FromResult(this.ResponseFactory(request));
         }
     }
 
-    private TestHttpMessageHandler _handler = null!;
-    private HttpClient _httpClient = null!;
-    private AsyncRetryPolicy<HttpResponseMessage> _fastRetryPolicy = null!;
-    private WebhookDispatcher _dispatcher = null!;
+    private TestHttpMessageHandler handler = null!;
+    private HttpClient httpClient = null!;
+    private AsyncRetryPolicy<HttpResponseMessage> fastRetryPolicy = null!;
+    private WebhookDispatcher dispatcher = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _handler = new TestHttpMessageHandler();
-        _httpClient = new HttpClient(_handler);
-        _fastRetryPolicy = Policy<HttpResponseMessage>
+        this.handler = new TestHttpMessageHandler();
+        this.httpClient = new HttpClient(this.handler);
+        this.fastRetryPolicy = Policy<HttpResponseMessage>
             .Handle<HttpRequestException>()
             .OrResult(r => (int)r.StatusCode >= 500)
             .WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(1));
 
-        _dispatcher = new WebhookDispatcher(_httpClient, _fastRetryPolicy);
+        this.dispatcher = new WebhookDispatcher(this.httpClient, this.fastRetryPolicy);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _httpClient.Dispose();
-        _handler.Dispose();
+        this.httpClient.Dispose();
+        this.handler.Dispose();
     }
 
     [Test]
     public async Task DispatchAsync_WhenUrlEmpty_ReturnsFalse()
     {
-        var result = await _dispatcher.DispatchAsync(string.Empty, new { eventType = "Test" });
+        var result = await this.dispatcher.DispatchAsync(string.Empty, new { eventType = "Test" });
         result.Should().BeFalse();
-        _handler.SentRequests.Should().BeEmpty();
+        this.handler.SentRequests.Should().BeEmpty();
     }
 
     [Test]
@@ -78,12 +82,12 @@ public class WebhookDispatcherTest
     {
         var payload = new { EventType = "OnGrab", TorrentName = "Ubuntu.iso" };
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", payload);
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", payload);
 
         result.Should().BeTrue();
-        _handler.SentRequests.Should().HaveCount(1);
+        this.handler.SentRequests.Should().HaveCount(1);
 
-        var request = _handler.SentRequests.Single();
+        var request = this.handler.SentRequests.Single();
         request.Method.Should().Be(HttpMethod.Post);
         request.RequestUri.Should().Be(new Uri("https://example.com/webhook"));
         request.Content.Should().NotBeNull();
@@ -100,12 +104,12 @@ public class WebhookDispatcherTest
     {
         var customHeaders = "{\"X-Auth-Token\":\"secret123\",\"X-Custom-Header\":\"val456\"}";
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
 
         result.Should().BeTrue();
-        _handler.SentRequests.Should().HaveCount(1);
+        this.handler.SentRequests.Should().HaveCount(1);
 
-        var request = _handler.SentRequests.Single();
+        var request = this.handler.SentRequests.Single();
         request.Headers.GetValues("X-Auth-Token").Should().ContainSingle().Which.Should().Be("secret123");
         request.Headers.GetValues("X-Custom-Header").Should().ContainSingle().Which.Should().Be("val456");
     }
@@ -114,7 +118,7 @@ public class WebhookDispatcherTest
     public async Task DispatchAsync_WhenServerError500_RetriesAndSucceeds()
     {
         var attempts = 0;
-        _handler.ResponseFactory = req =>
+        this.handler.ResponseFactory = req =>
         {
             attempts++;
             return attempts < 3
@@ -122,49 +126,49 @@ public class WebhookDispatcherTest
                 : new HttpResponseMessage(HttpStatusCode.OK);
         };
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
 
         result.Should().BeTrue();
-        _handler.SentRequests.Should().HaveCount(3);
+        this.handler.SentRequests.Should().HaveCount(3);
     }
 
     [Test]
     public async Task DispatchAsync_WhenAllRetriesFail500_ReturnsFalse()
     {
-        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
 
         result.Should().BeFalse();
-        _handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
+        this.handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
     }
 
     [Test]
     public async Task DispatchAsync_WhenHttpRequestException_RetriesAndSucceeds()
     {
         var attempts = 0;
-        _handler.ExceptionFactory = req =>
+        this.handler.ExceptionFactory = req =>
         {
             attempts++;
             return attempts < 2 ? new HttpRequestException("Connection reset") : null;
         };
-        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.OK);
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.OK);
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
 
         result.Should().BeTrue();
-        _handler.SentRequests.Should().HaveCount(2);
+        this.handler.SentRequests.Should().HaveCount(2);
     }
 
     [Test]
     public async Task DispatchAsync_WhenClientError400_DoesNotRetryAndReturnsFalse()
     {
-        _handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.BadRequest);
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.BadRequest);
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
 
         result.Should().BeFalse();
-        _handler.SentRequests.Should().HaveCount(1); // 4xx does not retry
+        this.handler.SentRequests.Should().HaveCount(1); // 4xx does not retry
     }
 
     [Test]
@@ -172,9 +176,9 @@ public class WebhookDispatcherTest
     {
         var invalidHeadersJson = "{ not-a-valid-json }";
 
-        var result = await _dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, invalidHeadersJson);
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, invalidHeadersJson);
 
         result.Should().BeTrue();
-        _handler.SentRequests.Should().HaveCount(1);
+        this.handler.SentRequests.Should().HaveCount(1);
     }
 }

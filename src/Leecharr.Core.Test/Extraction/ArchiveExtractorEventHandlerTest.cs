@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -16,28 +18,28 @@ namespace Leecharr.Core.Test.Extraction;
 [TestFixture]
 public class ArchiveExtractorEventHandlerTest
 {
-    private IArchiveExtractorService _extractorService = null!;
-    private ITorrentFileService _torrentFileService = null!;
-    private IDiskProvider _diskProvider = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private IConfigService _configService = null!;
-    private ArchiveExtractorEventHandler _handler = null!;
+    private IArchiveExtractorService extractorService = null!;
+    private ITorrentFileService torrentFileService = null!;
+    private IDiskProvider diskProvider = null!;
+    private IEventAggregator eventAggregator = null!;
+    private IConfigService configService = null!;
+    private ArchiveExtractorEventHandler handler = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _extractorService = Substitute.For<IArchiveExtractorService>();
-        _torrentFileService = Substitute.For<ITorrentFileService>();
-        _diskProvider = Substitute.For<IDiskProvider>();
-        _eventAggregator = Substitute.For<IEventAggregator>();
-        _configService = Substitute.For<IConfigService>();
+        this.extractorService = Substitute.For<IArchiveExtractorService>();
+        this.torrentFileService = Substitute.For<ITorrentFileService>();
+        this.diskProvider = Substitute.For<IDiskProvider>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
+        this.configService = Substitute.For<IConfigService>();
 
-        _handler = new ArchiveExtractorEventHandler(
-            _extractorService,
-            _torrentFileService,
-            _diskProvider,
-            _eventAggregator,
-            _configService);
+        this.handler = new ArchiveExtractorEventHandler(
+            this.extractorService,
+            this.torrentFileService,
+            this.diskProvider,
+            this.eventAggregator,
+            this.configService);
     }
 
     [TestCase("movie.rar", false)]
@@ -66,32 +68,32 @@ public class ArchiveExtractorEventHandlerTest
     [Test]
     public void Handle_WhenAutoExtractDisabled_DoesNotExtract()
     {
-        _configService.AutoExtractArchives.Returns(false);
-        _configService.GetValueBoolean("AutoExtract", false).Returns(false);
-        _configService.GetValueBoolean("AutoExtractEnabled", false).Returns(false);
+        this.configService.AutoExtractArchives.Returns(false);
+        this.configService.GetValueBoolean("AutoExtract", false).Returns(false);
+        this.configService.GetValueBoolean("AutoExtractEnabled", false).Returns(false);
 
         var torrent = new Torrent { Id = 1, Name = "Test.Movie", SavePath = "/downloads/Test.Movie" };
         var message = new TorrentDownloadCompletedEvent(torrent);
 
-        _handler.Handle(message);
+        this.handler.Handle(message);
 
-        _torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
-        _extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>());
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Test]
     public void Handle_WhenMessageOrTorrentIsNull_DoesNotThrowOrExtract()
     {
-        _handler.Handle(null!);
-        _handler.Handle(new TorrentDownloadCompletedEvent(null!));
+        this.handler.Handle(null!);
+        this.handler.Handle(new TorrentDownloadCompletedEvent(null!));
 
-        _torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
     }
 
     [Test]
     public async Task Handle_WhenAutoExtractEnabled_ExtractsOnlyPrimaryVolumeAndPublishesEvent()
     {
-        _configService.AutoExtractArchives.Returns(true);
+        this.configService.AutoExtractArchives.Returns(true);
 
         var torrent = new Torrent { Id = 10, Name = "Movie.MultiPart", SavePath = "/downloads/Movie.MultiPart" };
         var files = new List<TorrentFile>
@@ -99,32 +101,32 @@ public class ArchiveExtractorEventHandlerTest
             new() { Id = 1, TorrentId = 10, Path = "movie.part01.rar", Size = 50000000 },
             new() { Id = 2, TorrentId = 10, Path = "movie.part02.rar", Size = 50000000 },
             new() { Id = 3, TorrentId = 10, Path = "movie.part03.rar", Size = 50000000 },
-            new() { Id = 4, TorrentId = 10, Path = "sample.nfo", Size = 1000 }
+            new() { Id = 4, TorrentId = 10, Path = "sample.nfo", Size = 1000 },
         };
 
-        _torrentFileService.GetFiles(10).Returns(files);
-        _extractorService.IsArchiveFile("movie.part01.rar").Returns(true);
-        _extractorService.IsArchiveFile("movie.part02.rar").Returns(true);
-        _extractorService.IsArchiveFile("movie.part03.rar").Returns(true);
-        _extractorService.IsArchiveFile("sample.nfo").Returns(false);
+        this.torrentFileService.GetFiles(10).Returns(files);
+        this.extractorService.IsArchiveFile("movie.part01.rar").Returns(true);
+        this.extractorService.IsArchiveFile("movie.part02.rar").Returns(true);
+        this.extractorService.IsArchiveFile("movie.part03.rar").Returns(true);
+        this.extractorService.IsArchiveFile("sample.nfo").Returns(false);
 
-        _diskProvider.FileExists(Arg.Any<string>()).Returns(true);
-        _extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
 
         var signal = new ManualResetEventSlim(false);
-        _eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
 
-        _handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
         var received = signal.Wait(TimeSpan.FromSeconds(3));
         received.Should().BeTrue();
 
         // Exactly one extraction call for the primary volume part01
-        await _extractorService.Received(1).ExtractArchiveAsync(
+        await this.extractorService.Received(1).ExtractArchiveAsync(
             Arg.Is<string>(p => p.EndsWith("movie.part01.rar")),
             Arg.Any<string>());
 
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e =>
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e =>
             e.Torrent.Id == 10 &&
             e.ArchivePath.EndsWith("movie.part01.rar")));
     }
@@ -132,24 +134,24 @@ public class ArchiveExtractorEventHandlerTest
     [Test]
     public void Handle_WhenExtractionFails_DoesNotPublishEvent()
     {
-        _configService.AutoExtractArchives.Returns(true);
+        this.configService.AutoExtractArchives.Returns(true);
 
         var torrent = new Torrent { Id = 20, Name = "Corrupt.Archive", SavePath = "/downloads/Corrupt.Archive" };
         var files = new List<TorrentFile>
         {
-            new() { Id = 1, TorrentId = 20, Path = "corrupt.zip", Size = 50000 }
+            new() { Id = 1, TorrentId = 20, Path = "corrupt.zip", Size = 50000 },
         };
 
-        _torrentFileService.GetFiles(20).Returns(files);
-        _extractorService.IsArchiveFile("corrupt.zip").Returns(true);
-        _diskProvider.FileExists(Arg.Any<string>()).Returns(true);
-        _extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(false));
+        this.torrentFileService.GetFiles(20).Returns(files);
+        this.extractorService.IsArchiveFile("corrupt.zip").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(false));
 
-        _handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
         // Wait a short duration for the async task to execute
         Thread.Sleep(200);
 
-        _eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
     }
 }

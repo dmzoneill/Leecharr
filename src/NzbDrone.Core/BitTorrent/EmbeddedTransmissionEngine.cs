@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -15,24 +17,29 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 {
-    private readonly IConfigService _configService;
-    private readonly IStoragePathService _storagePathService;
-    private readonly ICategoryService _categoryService;
-    private readonly IDiskProvider _diskProvider;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly IConfigService configService;
+    private readonly IStoragePathService storagePathService;
+    private readonly ICategoryService categoryService;
+    private readonly IDiskProvider diskProvider;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
-    private readonly ConcurrentDictionary<int, TransmissionDownloadTask> _tasks = new();
-    private readonly ConcurrentDictionary<string, int> _infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, TransmissionDownloadTask> tasks = new();
+    private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
 
-    private bool _isRunning;
-    private bool _disposed;
+    private bool isRunning;
+    private bool disposed;
 
     public string ProtocolName => "BitTorrent";
+
     public string EngineId => "Transmission";
+
     public string DisplayName => "Transmission Daemon (Sidecar)";
+
     public string Version => "4.0.5 (transmission-daemon)";
+
     public string Description => "Isolated, lightweight Transmission daemon running on a local loopback socket. Maximum process isolation and low memory footprint.";
+
     public bool IsAvailable => CheckDaemonAvailability();
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
@@ -48,7 +55,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
         SupportsDynamicRateLimits = true,
         SupportsSparseAllocation = true,
         SupportsMemoryMappedIo = false,
-        SupportsEncryptionToggle = true
+        SupportsEncryptionToggle = true,
     };
 
     public EmbeddedTransmissionEngine(
@@ -58,12 +65,12 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator)
     {
-        _configService = configService;
-        _storagePathService = storagePathService;
-        _categoryService = categoryService;
-        _diskProvider = diskProvider;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.storagePathService = storagePathService;
+        this.categoryService = categoryService;
+        this.diskProvider = diskProvider;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
@@ -90,57 +97,57 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
                 ? "Transmission sidecar process is ready for low-overhead downloads."
                 : "Transmission engine ready in protocol compatibility mode.",
             DependencyChecks = checks,
-            Warnings = warnings
+            Warnings = warnings,
         });
     }
 
     public async Task StartAsync()
     {
-        if (_isRunning)
+        if (this.isRunning)
         {
             return;
         }
 
-        _logger.Info("Starting Transmission daemon engine provider...");
-        _isRunning = true;
+        this.logger.Info("Starting Transmission daemon engine provider...");
+        this.isRunning = true;
         await Task.CompletedTask;
     }
 
     public async Task StopAsync()
     {
-        if (!_isRunning)
+        if (!this.isRunning)
         {
             return;
         }
 
-        _logger.Info("Stopping Transmission daemon engine provider...");
-        _isRunning = false;
-        _tasks.Clear();
-        _infoHashToId.Clear();
+        this.logger.Info("Stopping Transmission daemon engine provider...");
+        this.isRunning = false;
+        this.tasks.Clear();
+        this.infoHashToId.Clear();
         await Task.CompletedTask;
     }
 
     public async Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
     {
-        if (!_isRunning)
+        if (!this.isRunning)
         {
-            await StartAsync();
+            await this.StartAsync();
         }
 
         var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize);
-        _tasks[torrent.Id] = task;
-        _infoHashToId[torrent.InfoHash] = torrent.Id;
+        this.tasks[torrent.Id] = task;
+        this.infoHashToId[torrent.InfoHash] = torrent.Id;
 
-        _logger.Info("Transmission: Ingested torrent {0} ({1})", torrent.Name, torrent.InfoHash);
+        this.logger.Info("Transmission: Ingested torrent {0} ({1})", torrent.Name, torrent.InfoHash);
         return task;
     }
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
-        if (_tasks.TryRemove(torrentId, out var task))
+        if (this.tasks.TryRemove(torrentId, out var task))
         {
-            _infoHashToId.TryRemove(task.InfoHash, out _);
-            _logger.Info("Transmission: Removed torrent {0} (deleteFiles: {1})", task.InfoHash, deleteFiles);
+            this.infoHashToId.TryRemove(task.InfoHash, out _);
+            this.logger.Info("Transmission: Removed torrent {0} (deleteFiles: {1})", task.InfoHash, deleteFiles);
         }
 
         await Task.CompletedTask;
@@ -148,10 +155,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public async Task PauseTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Paused;
-            _logger.Info("Transmission: Paused torrent id {0}", torrentId);
+            this.logger.Info("Transmission: Paused torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -159,10 +166,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Downloading;
-            _logger.Info("Transmission: Resumed torrent id {0}", torrentId);
+            this.logger.Info("Transmission: Resumed torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -170,10 +177,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public async Task ForceRecheckAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task))
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Checking;
-            _logger.Info("Transmission: Triggered verify for torrent id {0}", torrentId);
+            this.logger.Info("Transmission: Triggered verify for torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
@@ -181,37 +188,37 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public async Task ForceAnnounceAsync(int torrentId)
     {
-        _logger.Debug("Transmission: Reannounce triggered for torrent id {0}", torrentId);
+        this.logger.Debug("Transmission: Reannounce triggered for torrent id {0}", torrentId);
         await Task.CompletedTask;
     }
 
     public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
-        _logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
+        this.logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
         return Task.CompletedTask;
     }
 
     public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
     {
-        _logger.Debug("Transmission: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
+        this.logger.Debug("Transmission: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
         return Task.CompletedTask;
     }
 
     public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
     {
-        _logger.Debug("Transmission: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
+        this.logger.Debug("Transmission: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
         return Task.CompletedTask;
     }
 
     public IDownloadTask GetTask(int torrentId)
     {
-        _tasks.TryGetValue(torrentId, out var task);
+        this.tasks.TryGetValue(torrentId, out var task);
         return task;
     }
 
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
-        return _tasks.Values;
+        return this.tasks.Values;
     }
 
     private static bool CheckDaemonAvailability()
@@ -244,11 +251,11 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            _tasks.Clear();
-            _infoHashToId.Clear();
+            this.disposed = true;
+            this.tasks.Clear();
+            this.infoHashToId.Clear();
         }
     }
 }
@@ -256,27 +263,39 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 public class TransmissionDownloadTask : IDownloadTask
 {
     public int TorrentId { get; }
+
     public string InfoHash { get; }
+
     public string Name { get; }
+
     public long TotalSize { get; }
 
     public TorrentStatus Status { get; set; } = TorrentStatus.Downloading;
+
     public long DownloadedBytes { get; set; }
+
     public long UploadedBytes { get; set; }
+
     public double Progress { get; set; }
+
     public long DownloadSpeed { get; set; }
+
     public long UploadSpeed { get; set; }
+
     public int ConnectedSeeders { get; set; } = 8;
+
     public int ConnectedLeechers { get; set; } = 3;
+
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
+
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
 
     public TransmissionDownloadTask(int torrentId, string infoHash, string name, long totalSize)
     {
-        TorrentId = torrentId;
-        InfoHash = infoHash;
-        Name = name;
-        TotalSize = totalSize;
+        this.TorrentId = torrentId;
+        this.InfoHash = infoHash;
+        this.Name = name;
+        this.TotalSize = totalSize;
     }
 
     public IReadOnlyList<PeerInfo> GetPeers()

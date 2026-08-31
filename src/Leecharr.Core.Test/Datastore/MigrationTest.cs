@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using FluentAssertions;
@@ -12,12 +14,12 @@ namespace Leecharr.Core.Test.Datastore;
 [TestFixture]
 public class MigrationTest
 {
-    private string _tempDbPath = null!;
+    private string tempDbPath = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _tempDbPath = Path.Combine(Path.GetTempPath(), $"leecharr-mig-test-{Guid.NewGuid():N}.db");
+        this.tempDbPath = Path.Combine(Path.GetTempPath(), $"leecharr-mig-test-{Guid.NewGuid():N}.db");
     }
 
     [TearDown]
@@ -25,9 +27,9 @@ public class MigrationTest
     {
         try
         {
-            if (File.Exists(_tempDbPath))
+            if (File.Exists(this.tempDbPath))
             {
-                File.Delete(_tempDbPath);
+                File.Delete(this.tempDbPath);
             }
         }
         catch
@@ -39,7 +41,7 @@ public class MigrationTest
     [Test]
     public void RunAllMigrations_CompletesSuccessfully()
     {
-        var connectionString = $"Data Source={_tempDbPath};";
+        var connectionString = $"Data Source={this.tempDbPath};";
 
         var serviceProvider = new ServiceCollection()
             .AddFluentMigratorCore()

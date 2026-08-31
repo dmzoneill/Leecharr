@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using Leecharr.Http.REST;
 using NzbDrone.Core.Configuration;
 
@@ -6,16 +8,27 @@ namespace Leecharr.Api.V1.Config;
 public class SchedulerConfigResource : RestResource
 {
     public bool SchedulerEnabled { get; set; }
+
     public int SchedulerStartHour { get; set; }
+
     public int SchedulerStartMinute { get; set; }
+
     public int SchedulerEndHour { get; set; }
+
     public int SchedulerEndMinute { get; set; }
+
     public bool SchedulerMonday { get; set; }
+
     public bool SchedulerTuesday { get; set; }
+
     public bool SchedulerWednesday { get; set; }
+
     public bool SchedulerThursday { get; set; }
+
     public bool SchedulerFriday { get; set; }
+
     public bool SchedulerSaturday { get; set; }
+
     public bool SchedulerSunday { get; set; }
 }
 

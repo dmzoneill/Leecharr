@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddIndexers : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("IndexerDefinitions")
+        this.Create.Table("IndexerDefinitions")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("Implementation").AsString().NotNullable()
@@ -25,7 +27,7 @@ public class AddIndexers : NzbDroneMigrationBase
             .WithColumn("DownloadClientId").AsInt32().NotNullable().WithDefaultValue(0)
             .WithColumn("Tags").AsString().NotNullable().WithDefaultValue("[]");
 
-        Create.Table("RssRules")
+        this.Create.Table("RssRules")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("IsEnabled").AsBoolean().NotNullable().WithDefaultValue(true)

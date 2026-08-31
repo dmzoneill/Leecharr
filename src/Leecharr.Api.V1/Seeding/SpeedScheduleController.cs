@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
@@ -9,45 +11,45 @@ namespace Leecharr.Api.V1.Seeding;
 [V1ApiController("speedschedule")]
 public class SpeedScheduleController : Controller
 {
-    private readonly ISpeedScheduleRepository _speedScheduleRepository;
-    private readonly ISpeedSchedulerService _speedSchedulerService;
+    private readonly ISpeedScheduleRepository speedScheduleRepository;
+    private readonly ISpeedSchedulerService speedSchedulerService;
 
     public SpeedScheduleController(
         ISpeedScheduleRepository speedScheduleRepository,
         ISpeedSchedulerService speedSchedulerService)
     {
-        _speedScheduleRepository = speedScheduleRepository;
-        _speedSchedulerService = speedSchedulerService;
+        this.speedScheduleRepository = speedScheduleRepository;
+        this.speedSchedulerService = speedSchedulerService;
     }
 
     [HttpGet]
     public ActionResult<List<SpeedScheduleResource>> GetAll()
     {
-        return Ok(_speedScheduleRepository.All().Select(ToResource).ToList());
+        return this.Ok(this.speedScheduleRepository.All().Select(ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<SpeedScheduleResource> GetById(int id)
     {
-        var schedule = _speedScheduleRepository.Get(id);
+        var schedule = this.speedScheduleRepository.Get(id);
         if (schedule == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(schedule));
+        return this.Ok(ToResource(schedule));
     }
 
     [HttpGet("active")]
     public ActionResult<SpeedLimitsResource> GetActiveLimits()
     {
-        var limits = _speedSchedulerService.GetCurrentLimits();
-        return Ok(new SpeedLimitsResource
+        var limits = this.speedSchedulerService.GetCurrentLimits();
+        return this.Ok(new SpeedLimitsResource
         {
             MaxDownloadSpeedKbps = limits.MaxDownloadSpeedKbps,
             MaxUploadSpeedKbps = limits.MaxUploadSpeedKbps,
             IsThrottled = limits.IsThrottled,
-            IsPaused = limits.IsPaused
+            IsPaused = limits.IsPaused,
         });
     }
 
@@ -56,12 +58,12 @@ public class SpeedScheduleController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _speedScheduleRepository.Insert(model);
-        return Ok(ToResource(created));
+        var created = this.speedScheduleRepository.Insert(model);
+        return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -69,26 +71,26 @@ public class SpeedScheduleController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _speedScheduleRepository.Get(id);
+        var existing = this.speedScheduleRepository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
         model.Id = id;
-        _speedScheduleRepository.Update(model);
-        return Ok(ToResource(model));
+        this.speedScheduleRepository.Update(model);
+        return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _speedScheduleRepository.Delete(id);
-        return Ok();
+        this.speedScheduleRepository.Delete(id);
+        return this.Ok();
     }
 
     private static SpeedScheduleResource ToResource(SpeedSchedule s)
@@ -103,7 +105,7 @@ public class SpeedScheduleController : Controller
             MaxDownloadSpeed = s.MaxDownloadSpeed,
             MaxUploadSpeed = s.MaxUploadSpeed,
             IsEnabled = s.IsEnabled,
-            Priority = s.Priority
+            Priority = s.Priority,
         };
     }
 
@@ -119,7 +121,7 @@ public class SpeedScheduleController : Controller
             MaxDownloadSpeed = r.MaxDownloadSpeed,
             MaxUploadSpeed = r.MaxUploadSpeed,
             IsEnabled = r.IsEnabled,
-            Priority = r.Priority
+            Priority = r.Priority,
         };
     }
 }

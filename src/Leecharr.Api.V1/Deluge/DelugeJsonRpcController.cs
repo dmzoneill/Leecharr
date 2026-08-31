@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,15 +24,15 @@ public class DelugeJsonRpcController : ControllerBase
     private static readonly JsonSerializerOptions DelugeJsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
         ITorrentService torrentService,
@@ -39,11 +41,11 @@ public class DelugeJsonRpcController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     private IActionResult DelugeResult(object value)
@@ -56,7 +58,7 @@ public class DelugeJsonRpcController : ControllerBase
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("method", out var methodProp) || methodProp.ValueKind != JsonValueKind.String)
         {
-            return DelugeResult(new { result = (object)null, error = "Invalid RPC request", id = (object)null });
+            return this.DelugeResult(new { result = (object)null, error = "Invalid RPC request", id = (object)null });
         }
 
         var method = methodProp.GetString() ?? string.Empty;
@@ -84,13 +86,13 @@ public class DelugeJsonRpcController : ControllerBase
                 case "auth.delete_session":
                 case "web.connected":
                 case "web.connect":
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "system.listmethods":
                 case "system.list_methods":
                 case "daemon.get_method_list":
                 case "system.get_methods":
-                    return DelugeResult(new
+                    return this.DelugeResult(new
                     {
                         result = new[]
                         {
@@ -133,57 +135,57 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.get_enabled_plugins",
                             "core.get_available_plugins",
                             "label.get_labels",
-                            "label.set_torrent"
+                            "label.set_torrent",
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "daemon.get_version":
                 case "daemon.info":
                 case "core.get_version":
                 case "web.get_version":
-                    return DelugeResult(new { result = "2.1.1", error = (object)null, id });
+                    return this.DelugeResult(new { result = "2.1.1", error = (object)null, id });
 
                 case "label.get_labels":
-                    var labels = _categoryService.GetAll().Select(c => c.Name).ToArray();
-                    return DelugeResult(new { result = labels, error = (object)null, id });
+                    var labels = this.categoryService.GetAll().Select(c => c.Name).ToArray();
+                    return this.DelugeResult(new { result = labels, error = (object)null, id });
 
                 case "label.add":
                 case "label.add_label":
                     var newLabel = GetFirstStringParam(paramsElem);
                     if (!string.IsNullOrWhiteSpace(newLabel))
                     {
-                        var existing = _categoryService.GetByName(newLabel);
+                        var existing = this.categoryService.GetByName(newLabel);
                         if (existing == null)
                         {
-                            _categoryService.Add(new Category
+                            this.categoryService.Add(new Category
                             {
                                 Name = newLabel,
-                                SavePath = global::System.IO.Path.Combine(_configService.DownloadDir ?? "/downloads", newLabel)
+                                SavePath = global::System.IO.Path.Combine(this.configService.DownloadDir ?? "/downloads", newLabel),
                             });
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "label.remove":
                     var labelToRemove = GetFirstStringParam(paramsElem);
                     if (!string.IsNullOrEmpty(labelToRemove))
                     {
-                        var cat = _categoryService.GetByName(labelToRemove);
+                        var cat = this.categoryService.GetByName(labelToRemove);
                         if (cat != null)
                         {
-                            _categoryService.Delete(cat.Id);
+                            this.categoryService.Delete(cat.Id);
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "label.get_options":
                     {
                         var labelOptName = GetFirstStringParam(paramsElem);
-                        var targetCat = !string.IsNullOrWhiteSpace(labelOptName) ? _categoryService.GetByName(labelOptName) : null;
+                        var targetCat = !string.IsNullOrWhiteSpace(labelOptName) ? this.categoryService.GetByName(labelOptName) : null;
                         var labelOpts = new Dictionary<string, object>
                         {
                             ["apply_max"] = false,
@@ -194,9 +196,9 @@ public class DelugeJsonRpcController : ControllerBase
                             ["stop_ratio"] = targetCat?.TargetRatio ?? 2.0,
                             ["remove_at_ratio"] = false,
                             ["apply_move_completed"] = !string.IsNullOrWhiteSpace(targetCat?.SavePath),
-                            ["move_completed_path"] = targetCat?.SavePath ?? string.Empty
+                            ["move_completed_path"] = targetCat?.SavePath ?? string.Empty,
                         };
-                        return DelugeResult(new { result = labelOpts, error = (object)null, id });
+                        return this.DelugeResult(new { result = labelOpts, error = (object)null, id });
                     }
 
                 case "label.set_options":
@@ -207,7 +209,7 @@ public class DelugeJsonRpcController : ControllerBase
                             var lOptions = paramsElem[1];
                             if (!string.IsNullOrWhiteSpace(lName) && lOptions.ValueKind == JsonValueKind.Object)
                             {
-                                var cat = _categoryService.GetByName(lName) ?? new Category { Name = lName };
+                                var cat = this.categoryService.GetByName(lName) ?? new Category { Name = lName };
                                 if (lOptions.TryGetProperty("move_completed_path", out var mcpProp) && mcpProp.ValueKind == JsonValueKind.String)
                                 {
                                     cat.SavePath = mcpProp.GetString();
@@ -220,16 +222,16 @@ public class DelugeJsonRpcController : ControllerBase
 
                                 if (cat.Id > 0)
                                 {
-                                    _categoryService.Update(cat);
+                                    this.categoryService.Update(cat);
                                 }
                                 else
                                 {
-                                    _categoryService.Add(cat);
+                                    this.categoryService.Add(cat);
                                 }
                             }
                         }
 
-                        return DelugeResult(new { result = true, error = (object)null, id });
+                        return this.DelugeResult(new { result = true, error = (object)null, id });
                     }
 
                 case "label.set_torrent":
@@ -239,31 +241,31 @@ public class DelugeJsonRpcController : ControllerBase
                         var labelName = paramsElem[1].GetString();
                         if (!string.IsNullOrEmpty(torrentHash))
                         {
-                            var torrent = _torrentService.GetByInfoHash(torrentHash);
+                            var torrent = this.torrentService.GetByInfoHash(torrentHash);
                             if (torrent != null)
                             {
                                 torrent.Category = labelName;
-                                await _torrentService.UpdateAsync(torrent);
+                                await this.torrentService.UpdateAsync(torrent);
                             }
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_enabled_plugins":
                 case "web.get_plugins":
                 case "web.get_installed_plugins":
                 case "core.get_available_plugins":
-                    return DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+                    return this.DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
 
                 case "web.get_hosts":
-                    return DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
+                    return this.DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
 
                 case "web.get_host_status":
-                    return DelugeResult(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
+                    return this.DelugeResult(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
 
                 case "web.update_ui":
-                    var allTorrentsForUi = _torrentService.GetAll().ToList();
+                    var allTorrentsForUi = this.torrentService.GetAll().ToList();
                     var filteredTorrents = allTorrentsForUi;
 
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1)
@@ -285,10 +287,10 @@ public class DelugeJsonRpcController : ControllerBase
                     var torrentDict = new Dictionary<string, Dictionary<string, object>>();
                     foreach (var t in filteredTorrents)
                     {
-                        torrentDict[t.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(t);
+                        torrentDict[t.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(t);
                     }
 
-                    return DelugeResult(new
+                    return this.DelugeResult(new
                     {
                         result = new
                         {
@@ -302,42 +304,42 @@ public class DelugeJsonRpcController : ControllerBase
                                     new object[] { "Downloading", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading) },
                                     new object[] { "Seeding", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Seeding) },
                                     new object[] { "Active", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
-                                    new object[] { "Paused", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Paused) }
+                                    new object[] { "Paused", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Paused) },
                                 },
-                                label = _categoryService.GetAll().Select(c => new object[] { c.Name, allTorrentsForUi.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToArray()
+                                label = this.categoryService.GetAll().Select(c => new object[] { c.Name, allTorrentsForUi.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToArray(),
                             },
                             stats = new
                             {
-                                max_download = _configService.MaxDownloadSpeedKbps,
-                                max_upload = _configService.MaxUploadSpeedKbps,
+                                max_download = this.configService.MaxDownloadSpeedKbps,
+                                max_upload = this.configService.MaxUploadSpeedKbps,
                                 num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
                                 upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
                                 download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
-                                free_space = GetDriveFreeSpace(_configService.DownloadDir)
-                            }
+                                free_space = GetDriveFreeSpace(this.configService.DownloadDir)
+                            },
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "core.get_config":
                 case "web.get_config":
-                    return DelugeResult(new
+                    return this.DelugeResult(new
                     {
                         result = new Dictionary<string, object>
                         {
-                            { "download_location", _configService.DownloadDir ?? "/downloads" },
-                            { "max_connections_global", _configService.MaxGlobalConnections },
-                            { "max_download_speed", _configService.MaxDownloadSpeedKbps },
-                            { "max_upload_speed", _configService.MaxUploadSpeedKbps }
+                            { "download_location", this.configService.DownloadDir ?? "/downloads" },
+                            { "max_connections_global", this.configService.MaxGlobalConnections },
+                            { "max_download_speed", this.configService.MaxDownloadSpeedKbps },
+                            { "max_upload_speed", this.configService.MaxUploadSpeedKbps },
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "core.get_session_status":
-                    var allT = _torrentService.GetAll().ToList();
-                    return DelugeResult(new
+                    var allT = this.torrentService.GetAll().ToList();
+                    return this.DelugeResult(new
                     {
                         result = new Dictionary<string, object>
                         {
@@ -347,20 +349,20 @@ public class DelugeJsonRpcController : ControllerBase
                             { "payload_download_rate", allT.Sum(t => t.DownloadSpeed) },
                             { "payload_upload_rate", allT.Sum(t => t.UploadSpeed) },
                             { "total_download", allT.Sum(t => t.Downloaded) },
-                            { "total_upload", allT.Sum(t => t.Uploaded) }
+                            { "total_upload", allT.Sum(t => t.Uploaded) },
                         },
                         error = (object)null,
-                        id
+                        id,
                     });
 
                 case "core.get_free_space":
                 case "core.get_path_free_space":
-                    var targetPath = GetFirstStringParam(paramsElem) ?? _configService.DownloadDir ?? "/downloads";
-                    return DelugeResult(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
+                    var targetPath = GetFirstStringParam(paramsElem) ?? this.configService.DownloadDir ?? "/downloads";
+                    return this.DelugeResult(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
-                    var torrents = _torrentService.GetAll().ToList();
+                    var torrents = this.torrentService.GetAll().ToList();
 
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Object)
                     {
@@ -389,20 +391,20 @@ public class DelugeJsonRpcController : ControllerBase
 
                     foreach (var torrent in torrents)
                     {
-                        resultDict[torrent.InfoHash.ToLowerInvariant()] = MapTorrentToDelugeStatus(torrent);
+                        resultDict[torrent.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(torrent);
                     }
 
-                    return DelugeResult(new { result = resultDict, error = (object)null, id });
+                    return this.DelugeResult(new { result = resultDict, error = (object)null, id });
 
                 case "core.get_torrent_status":
                     var targetHash = GetFirstStringParam(paramsElem);
-                    var found = _torrentService.GetByInfoHash(targetHash);
+                    var found = this.torrentService.GetByInfoHash(targetHash);
                     if (found == null)
                     {
-                        return DelugeResult(new { result = (object)null, error = "Torrent not found", id });
+                        return this.DelugeResult(new { result = (object)null, error = "Torrent not found", id });
                     }
 
-                    return DelugeResult(new { result = MapTorrentToDelugeStatus(found), error = (object)null, id });
+                    return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found), error = (object)null, id });
 
                 case "core.add_torrent_file":
                     string addedHash = null;
@@ -412,7 +414,7 @@ public class DelugeJsonRpcController : ControllerBase
                         if (!string.IsNullOrWhiteSpace(b64))
                         {
                             var bytes = Convert.FromBase64String(b64);
-                            var parsed = _torrentFileParser.Parse(bytes);
+                            var parsed = this.torrentFileParser.Parse(bytes);
                             var isPaused = false;
                             string savePath = null;
                             string category = null;
@@ -446,18 +448,18 @@ public class DelugeJsonRpcController : ControllerBase
                                 }
                             }
 
-                            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                             if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
                             {
                                 added.TargetRatio = targetRatio.Value;
-                                await _torrentService.UpdateAsync(added);
+                                await this.torrentService.UpdateAsync(added);
                             }
 
                             addedHash = added?.InfoHash;
                         }
                     }
 
-                    return DelugeResult(new { result = addedHash, error = (object)null, id });
+                    return this.DelugeResult(new { result = addedHash, error = (object)null, id });
 
                 case "core.add_torrent_magnet":
                     string magnetHash = null;
@@ -497,17 +499,17 @@ public class DelugeJsonRpcController : ControllerBase
                             }
                         }
 
-                        var added = await _torrentService.AddFromMagnetAsync(magnetUri, category, savePath, isPaused);
+                        var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, isPaused);
                         if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
                         {
                             added.TargetRatio = targetRatio.Value;
-                            await _torrentService.UpdateAsync(added);
+                            await this.torrentService.UpdateAsync(added);
                         }
 
                         magnetHash = added?.InfoHash;
                     }
 
-                    return DelugeResult(new { result = magnetHash, error = (object)null, id });
+                    return this.DelugeResult(new { result = magnetHash, error = (object)null, id });
 
                 case "core.add_torrent_url":
                     string urlHash = null;
@@ -541,49 +543,49 @@ public class DelugeJsonRpcController : ControllerBase
                         {
                             if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                var added = await _torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
+                                var added = await this.torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
                                 urlHash = added?.InfoHash;
                             }
                             else
                             {
                                 using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                 var bytes = await httpClient.GetByteArrayAsync(url);
-                                var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                var parsed = this.torrentFileParser.Parse(bytes);
+                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 urlHash = added?.InfoHash;
                             }
                         }
                     }
 
-                    return DelugeResult(new { result = urlHash, error = (object)null, id });
+                    return this.DelugeResult(new { result = urlHash, error = (object)null, id });
 
                 case "core.pause_torrent":
                 case "core.pause_torrents":
                     var pauseHashes = ExtractHashes(paramsElem);
                     foreach (var hash in pauseHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.PauseAsync(t.Id);
+                            await this.torrentService.PauseAsync(t.Id);
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.resume_torrent":
                 case "core.resume_torrents":
                     var resumeHashes = ExtractHashes(paramsElem);
                     foreach (var hash in resumeHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.ResumeAsync(t.Id);
+                            await this.torrentService.ResumeAsync(t.Id);
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.remove_torrent":
                 case "core.remove_torrents":
@@ -591,27 +593,27 @@ public class DelugeJsonRpcController : ControllerBase
                     var deleteData = GetSecondBoolParam(paramsElem);
                     foreach (var hash in removeHashes)
                     {
-                        var toRemove = _torrentService.GetByInfoHash(hash);
+                        var toRemove = this.torrentService.GetByInfoHash(hash);
                         if (toRemove != null)
                         {
-                            await _torrentService.DeleteAsync(toRemove.Id, deleteData);
+                            await this.torrentService.DeleteAsync(toRemove.Id, deleteData);
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.force_recheck":
                     var recheckHashes = ExtractHashes(paramsElem);
                     foreach (var hash in recheckHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.ForceRecheckAsync(t.Id);
+                            await this.torrentService.ForceRecheckAsync(t.Id);
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.set_torrent_options":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
@@ -620,7 +622,7 @@ public class DelugeJsonRpcController : ControllerBase
                         var opts = paramsElem[1];
                         foreach (var hash in optHashes)
                         {
-                            var t = _torrentService.GetByInfoHash(hash);
+                            var t = this.torrentService.GetByInfoHash(hash);
                             if (t != null)
                             {
                                 if (opts.TryGetProperty("download_location", out var dl))
@@ -644,25 +646,25 @@ public class DelugeJsonRpcController : ControllerBase
 
                                 if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array)
                                 {
-                                    var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
                                     var fIdx = 0;
                                     foreach (var prioElem in fp.EnumerateArray())
                                     {
                                         if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                         {
-                                            await _torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
                                         }
 
                                         fIdx++;
                                     }
                                 }
 
-                                await _torrentService.UpdateAsync(t);
+                                await this.torrentService.UpdateAsync(t);
                             }
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.set_torrent_file_priorities":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
@@ -671,16 +673,16 @@ public class DelugeJsonRpcController : ControllerBase
                         var priosElem = paramsElem[1];
                         if (!string.IsNullOrWhiteSpace(hash) && priosElem.ValueKind == JsonValueKind.Array)
                         {
-                            var t = _torrentService.GetByInfoHash(hash);
+                            var t = this.torrentService.GetByInfoHash(hash);
                             if (t != null)
                             {
-                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
                                 var fIdx = 0;
                                 foreach (var prioElem in priosElem.EnumerateArray())
                                 {
                                     if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                     {
-                                        await _torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
                                     }
 
                                     fIdx++;
@@ -689,91 +691,91 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "web.disconnect":
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_top":
                     var topHashes = ExtractHashes(paramsElem);
                     foreach (var hash in topHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "top");
+                            await this.torrentService.MoveQueueAsync(t.Id, "top");
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_up":
                     var upHashes = ExtractHashes(paramsElem);
                     foreach (var hash in upHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "up");
+                            await this.torrentService.MoveQueueAsync(t.Id, "up");
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_down":
                     var downHashes = ExtractHashes(paramsElem);
                     foreach (var hash in downHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "down");
+                            await this.torrentService.MoveQueueAsync(t.Id, "down");
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_bottom":
                     var bottomHashes = ExtractHashes(paramsElem);
                     foreach (var hash in bottomHashes)
                     {
-                        var t = _torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            await _torrentService.MoveQueueAsync(t.Id, "bottom");
+                            await this.torrentService.MoveQueueAsync(t.Id, "bottom");
                         }
                     }
 
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_filter_tree":
-                    var allTorrents = _torrentService.GetAll().ToList();
+                    var allTorrents = this.torrentService.GetAll().ToList();
                     var stateCounts = new Dictionary<string, int>
                     {
                         { "All", allTorrents.Count },
                         { "Active", allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
                         { "Downloading", allTorrents.Count(t => t.Status == TorrentStatus.Downloading) },
                         { "Seeding", allTorrents.Count(t => t.Status == TorrentStatus.Seeding) },
-                        { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) }
+                        { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) },
                     };
 
                     var filterTree = new Dictionary<string, object>
                     {
                         { "state", stateCounts.Select(kvp => new object[] { kvp.Key, kvp.Value }).ToList() },
-                        { "label", _categoryService.GetAll().Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToList() }
+                        { "label", this.categoryService.GetAll().Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToList() },
                     };
 
-                    return DelugeResult(new { result = filterTree, error = (object)null, id });
+                    return this.DelugeResult(new { result = filterTree, error = (object)null, id });
 
                 default:
-                    _logger.Debug("Unhandled Deluge RPC method: {0}", method);
-                    return DelugeResult(new { result = true, error = (object)null, id });
+                    this.logger.Debug("Unhandled Deluge RPC method: {0}", method);
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
-            return DelugeResult(new { result = (object)null, error = ex.Message, id });
+            this.logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
+            return this.DelugeResult(new { result = (object)null, error = ex.Message, id });
         }
     }
 
@@ -850,16 +852,16 @@ public class DelugeJsonRpcController : ControllerBase
             TorrentStatus.Queued => "Queued",
             TorrentStatus.Checking => "Checking",
             TorrentStatus.Error => "Error",
-            _ => "Paused"
+            _ => "Paused",
         };
 
-        var files = _torrentFileService.GetFiles(t.Id);
+        var files = this.torrentFileService.GetFiles(t.Id);
         var filesList = files.Select((f, idx) => new Dictionary<string, object>
         {
             { "index", idx },
             { "path", f.Path },
             { "size", f.Size },
-            { "offset", f.PieceOffset }
+            { "offset", f.PieceOffset },
         }).ToList();
 
         var filePriorities = files.Select(f => f.Priority).ToList();
@@ -901,7 +903,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "is_auto_managed", true },
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", false },
-            { "stop_ratio", t.TargetRatio }
+            { "stop_ratio", t.TargetRatio },
         };
     }
 

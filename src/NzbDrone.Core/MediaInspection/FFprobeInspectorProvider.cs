@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,13 +15,17 @@ namespace NzbDrone.Core.MediaInspection;
 
 public class FFprobeInspectorProvider : IMediaInspectorProvider
 {
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
-    private readonly TagLibInspectorProvider _fallbackProvider = new();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private readonly TagLibInspectorProvider fallbackProvider = new();
 
     public string ProviderId => "FFprobe";
+
     public string DisplayName => "FFprobe / FFmpeg (CLI / Multi-Stream)";
+
     public string Version => "7.0.2 (FFmpeg/FFprobe CLI)";
+
     public string Description => "FFmpeg multimedia analyzer extracting precise frame dimensions, HDR color metadata, multi-channel layouts, and stream indexes.";
+
     public bool IsAvailable => FindBinary() != null;
 
     public MediaInspectorCapabilities Capabilities { get; } = new()
@@ -34,7 +40,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         SupportsVideoStreamTracks = true,
         SupportsChapters = true,
         SupportsVideoThumbnails = true,
-        SupportsPureManagedStreams = false
+        SupportsPureManagedStreams = false,
     };
 
     public Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
@@ -46,7 +52,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             {
                 IsHealthy = true,
                 StatusMessage = $"FFprobe CLI executable found at {binary}.",
-                DependencyChecks = new List<string> { $"FFprobe binary: {binary}" }
+                DependencyChecks = new List<string> { $"FFprobe binary: {binary}" },
             });
         }
 
@@ -54,7 +60,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         {
             IsHealthy = false,
             StatusMessage = "FFprobe executable not found on PATH or standard locations.",
-            Warnings = new List<string> { "Install ffmpeg/ffprobe or set FFPROBE_PATH environment variable." }
+            Warnings = new List<string> { "Install ffmpeg/ffprobe or set FFPROBE_PATH environment variable." },
         });
     }
 
@@ -68,7 +74,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         var binary = FindBinary();
         if (binary == null)
         {
-            return _fallbackProvider.InspectFile(mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
 
         try
@@ -80,7 +86,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             using var process = new Process { StartInfo = startInfo };
@@ -98,23 +104,23 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 }
             }
 
-            return _fallbackProvider.InspectFile(mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "FFprobe failed to inspect media: {0}", mediaPath);
-            return _fallbackProvider.InspectFile(mediaPath);
+            this.logger.Error(ex, "FFprobe failed to inspect media: {0}", mediaPath);
+            return this.fallbackProvider.InspectFile(mediaPath);
         }
     }
 
     public MediaContainerInfo InspectFile(string filePath)
     {
-        return InspectMediaAsync(filePath).GetAwaiter().GetResult();
+        return this.InspectMediaAsync(filePath).GetAwaiter().GetResult();
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
     {
-        return _fallbackProvider.Inspect(stream, fileName);
+        return this.fallbackProvider.Inspect(stream, fileName);
     }
 
     public static MediaContainerInfo ParseFFprobeJson(string json, string fileName = "")
@@ -188,7 +194,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                                 "AV1" => "AV1",
                                 "VP9" => "VP9",
                                 "MPEG4" => "MPEG-4",
-                                _ => vc
+                                _ => vc,
                             };
                         }
 
@@ -253,7 +259,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                                 "AAC" => "AAC",
                                 "MP3" => "MP3",
                                 "OPUS" => "Opus",
-                                _ => ac
+                                _ => ac,
                             };
                         }
 
@@ -266,7 +272,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                                 2 => "2.0",
                                 6 => "5.1",
                                 8 => "7.1",
-                                _ => $"{channels}.0"
+                                _ => $"{channels}.0",
                             };
                         }
 

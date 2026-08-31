@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Leecharr Git Pre-Push Hook
+# Runs TypeScript typecheck/build and .NET unit tests before pushing to remote.
+# ==============================================================================
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "🛡️  [pre-push] Running pre-push verification tests..."
+
+# 1. Verify frontend build
+if [ -d "src/Leecharr.Frontend" ]; then
+  echo "📦 [pre-push] Verifying frontend build..."
+  (cd src/Leecharr.Frontend && npm run build > /dev/null 2>&1) || {
+    echo "❌ [pre-push] Frontend build failed! Fix compilation errors before pushing."
+    exit 1
+  }
+  echo "✅ [pre-push] Frontend build passed."
+fi
+
+# 2. Verify .NET build and unit tests
+if command -v dotnet > /dev/null 2>&1; then
+  echo "🧪 [pre-push] Running .NET unit tests..."
+  dotnet test src/Leecharr.sln -c Release --no-restore > /dev/null 2>&1 || {
+    echo "❌ [pre-push] Unit or Integration tests failed! Fix test failures before pushing."
+    exit 1
+  }
+  echo "✅ [pre-push] All unit and integration tests passed."
+fi
+
+echo "🚀 [pre-push] Ready to push!"
+exit 0

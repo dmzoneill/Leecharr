@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -8,22 +10,27 @@ namespace NzbDrone.Core.Network.Blocklist;
 
 public class P2PDatBlocklistProvider : IBlocklistProvider
 {
-    private readonly Logger _logger;
-    private readonly object _lock = new();
+    private readonly Logger logger;
+    private readonly object @lock = new();
 
-    private List<IpRange> _ranges = new();
-    private int _ruleCount;
+    private List<IpRange> ranges = new();
+    private int ruleCount;
 
     public string ProviderId => "P2PDat";
+
     public string DisplayName => "PeerGuardian / eMule (.p2p / .dat Range Filter)";
+
     public string Version => "1.0";
+
     public bool IsAvailable => true;
+
     public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.P2PDat | BlocklistCapabilities.LiveAutoRefresh;
-    public int RuleCount => _ruleCount;
+
+    public int RuleCount => this.ruleCount;
 
     public P2PDatBlocklistProvider()
     {
-        _logger = LogManager.GetCurrentClassLogger();
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public Task<BlocklistHealthResult> ProbeHealthAsync()
@@ -31,8 +38,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return Task.FromResult(new BlocklistHealthResult
         {
             IsHealthy = true,
-            StatusMessage = $"P2P Range Filter operational with {_ruleCount} IP ranges loaded.",
-            LoadedRuleCount = _ruleCount
+            StatusMessage = $"P2P Range Filter operational with {this.ruleCount} IP ranges loaded.",
+            LoadedRuleCount = this.ruleCount,
         });
     }
 
@@ -52,9 +59,9 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         var ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
 
         List<IpRange> snapshot;
-        lock (_lock)
+        lock (this.@lock)
         {
-            snapshot = _ranges;
+            snapshot = this.ranges;
         }
 
         if (snapshot.Count == 0)
@@ -119,22 +126,22 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         parsedRanges.Sort((a, b) => a.Start.CompareTo(b.Start));
         var merged = MergeRanges(parsedRanges);
 
-        lock (_lock)
+        lock (this.@lock)
         {
-            _ranges = merged;
-            _ruleCount = merged.Count;
+            this.ranges = merged;
+            this.ruleCount = merged.Count;
         }
 
-        _logger.Info("Loaded and merged {0} IP ranges into P2P blocklist.", merged.Count);
+        this.logger.Info("Loaded and merged {0} IP ranges into P2P blocklist.", merged.Count);
         return Task.FromResult(merged.Count);
     }
 
     public void ClearRules()
     {
-        lock (_lock)
+        lock (this.@lock)
         {
-            _ranges = new List<IpRange>();
-            _ruleCount = 0;
+            this.ranges = new List<IpRange>();
+            this.ruleCount = 0;
         }
     }
 
@@ -219,14 +226,16 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
     private readonly struct IpRange
     {
         public uint Start { get; }
+
         public uint End { get; }
+
         public string Name { get; }
 
         public IpRange(uint start, uint end, string name)
         {
-            Start = start;
-            End = end;
-            Name = name;
+            this.Start = start;
+            this.End = end;
+            this.Name = name;
         }
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,16 +14,16 @@ namespace Leecharr.Core.Test.Categories;
 [TestFixture]
 public class CategoryServiceTest
 {
-    private ICategoryRepository _repository = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private CategoryService _service = null!;
+    private ICategoryRepository repository = null!;
+    private IEventAggregator eventAggregator = null!;
+    private CategoryService service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _repository = Substitute.For<ICategoryRepository>();
-        _eventAggregator = Substitute.For<IEventAggregator>();
-        _service = new CategoryService(_repository, _eventAggregator);
+        this.repository = Substitute.For<ICategoryRepository>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
+        this.service = new CategoryService(this.repository, this.eventAggregator);
     }
 
     [Test]
@@ -31,12 +33,12 @@ public class CategoryServiceTest
         {
             new() { Id = 1, Name = "tv", SavePath = "/downloads/tv" },
             new() { Id = 2, Name = "anime", SavePath = "/downloads/anime" },
-            new() { Id = 3, Name = "movies", SavePath = "/downloads/movies" }
+            new() { Id = 3, Name = "movies", SavePath = "/downloads/movies" },
         };
 
-        _repository.All().Returns(list);
+        this.repository.All().Returns(list);
 
-        var result = _service.GetAll().ToList();
+        var result = this.service.GetAll().ToList();
 
         result.Should().HaveCount(3);
         result[0].Name.Should().Be("anime");
@@ -48,9 +50,9 @@ public class CategoryServiceTest
     public void GetByName_WhenNameIsEmpty_ReturnsDefaultCategory()
     {
         var defaultCategory = new Category { Id = 1, Name = "default", SavePath = "/downloads/default", IsDefault = true };
-        _repository.GetDefault().Returns(defaultCategory);
+        this.repository.GetDefault().Returns(defaultCategory);
 
-        var result = _service.GetByName("");
+        var result = this.service.GetByName(string.Empty);
 
         result.Should().NotBeNull();
         result.Name.Should().Be("default");
@@ -60,9 +62,9 @@ public class CategoryServiceTest
     public void GetByName_WhenNameSpecified_ReturnsMatchingCategory()
     {
         var category = new Category { Id = 2, Name = "tv", SavePath = "/downloads/tv" };
-        _repository.GetByName("tv").Returns(category);
+        this.repository.GetByName("tv").Returns(category);
 
-        var result = _service.GetByName("tv");
+        var result = this.service.GetByName("tv");
 
         result.Should().NotBeNull();
         result.Name.Should().Be("tv");
@@ -73,19 +75,19 @@ public class CategoryServiceTest
     public void Add_InsertsCategoryAndPublishesEvent()
     {
         var category = new Category { Name = "music", SavePath = "/downloads/music" };
-        _repository.Insert(category).Returns(new Category { Id = 10, Name = "music", SavePath = "/downloads/music" });
+        this.repository.Insert(category).Returns(new Category { Id = 10, Name = "music", SavePath = "/downloads/music" });
 
-        var inserted = _service.Add(category);
+        var inserted = this.service.Add(category);
 
         inserted.Id.Should().Be(10);
-        _repository.Received(1).Insert(category);
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Id == 10));
+        this.repository.Received(1).Insert(category);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Id == 10));
     }
 
     [Test]
     public void Add_WhenCategoryNull_ThrowsArgumentNullException()
     {
-        Action act = () => _service.Add(null!);
+        Action act = () => this.service.Add(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
@@ -93,28 +95,28 @@ public class CategoryServiceTest
     public void Update_UpdatesCategoryAndPublishesEvent()
     {
         var category = new Category { Id = 5, Name = "movies", SavePath = "/downloads/movies-new" };
-        _repository.Update(category).Returns(category);
+        this.repository.Update(category).Returns(category);
 
-        var updated = _service.Update(category);
+        var updated = this.service.Update(category);
 
         updated.SavePath.Should().Be("/downloads/movies-new");
-        _repository.Received(1).Update(category);
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Id == 5));
+        this.repository.Received(1).Update(category);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Id == 5));
     }
 
     [Test]
     public void Delete_CallsRepositoryDelete()
     {
-        _service.Delete(5);
-        _repository.Received(1).Delete(5);
+        this.service.Delete(5);
+        this.repository.Received(1).Delete(5);
     }
 
     [Test]
     public void GetSavePathForCategory_WhenCategoryExists_ReturnsCategorySavePath()
     {
-        _repository.GetByName("tv").Returns(new Category { Name = "tv", SavePath = "/custom/tv/path" });
+        this.repository.GetByName("tv").Returns(new Category { Name = "tv", SavePath = "/custom/tv/path" });
 
-        var path = _service.GetSavePathForCategory("tv");
+        var path = this.service.GetSavePathForCategory("tv");
 
         path.Should().Be("/custom/tv/path");
     }
@@ -122,10 +124,10 @@ public class CategoryServiceTest
     [Test]
     public void GetSavePathForCategory_WhenCategoryNotFound_ReturnsDefaultCategoryPath()
     {
-        _repository.GetByName("unknown").Returns((Category)null!);
-        _repository.GetDefault().Returns(new Category { Name = "default", SavePath = "/default/path", IsDefault = true });
+        this.repository.GetByName("unknown").Returns((Category)null!);
+        this.repository.GetDefault().Returns(new Category { Name = "default", SavePath = "/default/path", IsDefault = true });
 
-        var path = _service.GetSavePathForCategory("unknown", "/fallback/path");
+        var path = this.service.GetSavePathForCategory("unknown", "/fallback/path");
 
         path.Should().Be("/default/path");
     }
@@ -133,10 +135,10 @@ public class CategoryServiceTest
     [Test]
     public void GetSavePathForCategory_WhenNoDefaultFound_ReturnsFallbackDefaultPath()
     {
-        _repository.GetByName("unknown").Returns((Category)null!);
-        _repository.GetDefault().Returns((Category)null!);
+        this.repository.GetByName("unknown").Returns((Category)null!);
+        this.repository.GetDefault().Returns((Category)null!);
 
-        var path = _service.GetSavePathForCategory("unknown", "/fallback/path");
+        var path = this.service.GetSavePathForCategory("unknown", "/fallback/path");
 
         path.Should().Be("/fallback/path");
     }

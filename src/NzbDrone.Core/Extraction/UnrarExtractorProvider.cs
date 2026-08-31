@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,18 +14,22 @@ namespace NzbDrone.Core.Extraction;
 
 public class UnrarExtractorProvider : IArchiveExtractorProvider
 {
-    private readonly IDiskProvider _diskProvider;
-    private readonly Logger _logger;
+    private readonly IDiskProvider diskProvider;
+    private readonly Logger logger;
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".rar", ".cbr", ".r00", ".r01", ".r02", ".r03", ".part01.rar", ".part1.rar"
+        ".rar", ".cbr", ".r00", ".r01", ".r02", ".r03", ".part01.rar", ".part1.rar",
     };
 
     public string ProviderId => "Unrar";
+
     public string DisplayName => "RARLAB UnRAR (Official Native)";
+
     public string Version => "7.01 (RARLAB)";
+
     public string Description => "Official RARLAB UnRAR native extractor with full RAR5 and recovery volume reconstruction support.";
+
     public bool IsAvailable => FindBinary() != null;
 
     public ArchiveExtractorCapabilities Capabilities { get; } = new()
@@ -35,13 +41,13 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         SupportsMultiPart = true,
         SupportsPasswordProtected = true,
         SupportsSolidArchives = true,
-        SupportsRecoveryVolumes = true
+        SupportsRecoveryVolumes = true,
     };
 
     public UnrarExtractorProvider(IDiskProvider diskProvider)
     {
-        _diskProvider = diskProvider;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.diskProvider = diskProvider;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public Task<ExtractorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
@@ -53,7 +59,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             {
                 IsHealthy = true,
                 StatusMessage = $"RARLAB UnRAR executable found at {binary}.",
-                DependencyChecks = new List<string> { $"UnRAR binary: {binary}" }
+                DependencyChecks = new List<string> { $"UnRAR binary: {binary}" },
             });
         }
 
@@ -61,7 +67,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         {
             IsHealthy = false,
             StatusMessage = "UnRAR executable not found on PATH or standard locations.",
-            Warnings = new List<string> { "Install unrar or set UNRAR_PATH environment variable." }
+            Warnings = new List<string> { "Install unrar or set UNRAR_PATH environment variable." },
         });
     }
 
@@ -86,16 +92,16 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(archivePath) || !_diskProvider.FileExists(archivePath))
+        if (string.IsNullOrWhiteSpace(archivePath) || !this.diskProvider.FileExists(archivePath))
         {
-            _logger.Warn("Archive file does not exist: {0}", archivePath);
+            this.logger.Warn("Archive file does not exist: {0}", archivePath);
             return false;
         }
 
         var binary = FindBinary();
         if (binary == null)
         {
-            _logger.Error("UnRAR binary not found on host. Cannot perform native extraction of '{0}'.", archivePath);
+            this.logger.Error("UnRAR binary not found on host. Cannot perform native extraction of '{0}'.", archivePath);
             return false;
         }
 
@@ -105,7 +111,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             targetDir = Path.GetDirectoryName(archivePath) ?? "/tmp";
         }
 
-        _diskProvider.EnsureFolder(targetDir);
+        this.diskProvider.EnsureFolder(targetDir);
 
         try
         {
@@ -113,7 +119,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                 ? targetDir
                 : targetDir + Path.DirectorySeparatorChar;
 
-            _logger.Info("UnRAR extracting '{0}' to '{1}' using '{2}'...", archivePath, normalizedDest, binary);
+            this.logger.Info("UnRAR extracting '{0}' to '{1}' using '{2}'...", archivePath, normalizedDest, binary);
 
             var startInfo = new ProcessStartInfo
             {
@@ -122,7 +128,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             using var process = new Process { StartInfo = startInfo };
@@ -133,22 +139,22 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
             if (process.ExitCode == 0 || process.ExitCode == 1)
             {
-                _logger.Info("UnRAR successfully extracted archive '{0}' (Exit code {1}).", archivePath, process.ExitCode);
+                this.logger.Info("UnRAR successfully extracted archive '{0}' (Exit code {1}).", archivePath, process.ExitCode);
                 return true;
             }
 
             var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
-            _logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
+            this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
             return false;
         }
         catch (OperationCanceledException)
         {
-            _logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
+            this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
+            this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
             return false;
         }
     }

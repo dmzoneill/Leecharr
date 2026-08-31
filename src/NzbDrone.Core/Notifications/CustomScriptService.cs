@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -15,19 +17,19 @@ public interface ICustomScriptService
 
 public class CustomScriptService : ICustomScriptService
 {
-    private readonly IMediaEnrichmentService _mediaEnrichmentService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public CustomScriptService(IMediaEnrichmentService mediaEnrichmentService = null)
     {
-        _mediaEnrichmentService = mediaEnrichmentService;
+        this.mediaEnrichmentService = mediaEnrichmentService;
     }
 
     public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
     {
         if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
         {
-            _logger.Warn("Custom script path does not exist: {0}", scriptPath);
+            this.logger.Warn("Custom script path does not exist: {0}", scriptPath);
             return false;
         }
 
@@ -45,7 +47,7 @@ public class CustomScriptService : ICustomScriptService
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             // Inject Servarr / Leecharr standard environment variables
@@ -70,7 +72,7 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
 
-                var meta = _mediaEnrichmentService?.GetMetadata(torrent.Id);
+                var meta = this.mediaEnrichmentService?.GetMetadata(torrent.Id);
                 if (meta != null)
                 {
                     startInfo.EnvironmentVariables["LEECHARR_MEDIA_TITLE"] = meta.Title ?? string.Empty;
@@ -82,7 +84,7 @@ public class CustomScriptService : ICustomScriptService
                 }
             }
 
-            _logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", scriptPath, eventType, workingDir);
+            this.logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", scriptPath, eventType, workingDir);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
@@ -95,7 +97,7 @@ public class CustomScriptService : ICustomScriptService
 
             if (await Task.WhenAny(processTask, timeoutTask) == timeoutTask)
             {
-                _logger.Error("Custom script timed out after 60s: {0}", scriptPath);
+                this.logger.Error("Custom script timed out after 60s: {0}", scriptPath);
                 try
                 {
                     process.Kill(true);
@@ -113,20 +115,20 @@ public class CustomScriptService : ICustomScriptService
 
             if (!string.IsNullOrWhiteSpace(stdout))
             {
-                _logger.Debug("Custom script stdout: {0}", stdout.Trim());
+                this.logger.Debug("Custom script stdout: {0}", stdout.Trim());
             }
 
             if (!string.IsNullOrWhiteSpace(stderr))
             {
-                _logger.Warn("Custom script stderr: {0}", stderr.Trim());
+                this.logger.Warn("Custom script stderr: {0}", stderr.Trim());
             }
 
-            _logger.Info("Custom script '{0}' completed with exit code: {1}", scriptPath, process.ExitCode);
+            this.logger.Info("Custom script '{0}' completed with exit code: {1}", scriptPath, process.ExitCode);
             return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to execute custom script: {0}", scriptPath);
+            this.logger.Error(ex, "Failed to execute custom script: {0}", scriptPath);
             return false;
         }
     }

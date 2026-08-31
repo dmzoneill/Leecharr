@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,12 +15,12 @@ namespace Leecharr.Api.V1.Ai;
 [V1ApiController("ai")]
 public class AiController : Controller
 {
-    private readonly IAiService _aiService;
-    private readonly IAiManager _aiManager;
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly ITrackerEntryRepository _trackerRepo;
+    private readonly IAiService aiService;
+    private readonly IAiManager aiManager;
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly ITrackerEntryRepository trackerRepo;
 
     public AiController(
         IAiService aiService,
@@ -28,23 +30,23 @@ public class AiController : Controller
         IDownloadEngine downloadEngine,
         ITrackerEntryRepository trackerRepo)
     {
-        _aiService = aiService;
-        _aiManager = aiManager;
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _downloadEngine = downloadEngine;
-        _trackerRepo = trackerRepo;
+        this.aiService = aiService;
+        this.aiManager = aiManager;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.downloadEngine = downloadEngine;
+        this.trackerRepo = trackerRepo;
     }
 
     [HttpGet("status")]
     public async Task<ActionResult<object>> GetStatus()
     {
-        var active = _aiManager.ActiveProvider;
-        var health = await _aiManager.ProbeProviderAsync(_aiManager.ActiveProviderId);
+        var active = this.aiManager.ActiveProvider;
+        var health = await this.aiManager.ProbeProviderAsync(this.aiManager.ActiveProviderId);
 
-        return Ok(new
+        return this.Ok(new
         {
-            activeProviderId = _aiManager.ActiveProviderId,
+            activeProviderId = this.aiManager.ActiveProviderId,
             displayName = active?.DisplayName ?? "None",
             version = active?.Version ?? "1.0",
             description = active?.Description ?? string.Empty,
@@ -56,9 +58,9 @@ public class AiController : Controller
                 supportsMalwareAnomalyDetection = active?.Capabilities.HasFlag(AiCapabilities.SupportsMalwareAnomalyDetection) ?? false,
                 supportsSwarmOptimization = active?.Capabilities.HasFlag(AiCapabilities.SupportsSwarmOptimization) ?? false,
                 supportsLocalOfflineInference = active?.Capabilities.HasFlag(AiCapabilities.SupportsLocalOfflineInference) ?? false,
-                supportsCloudLlm = active?.Capabilities.HasFlag(AiCapabilities.SupportsCloudLlm) ?? false
+                supportsCloudLlm = active?.Capabilities.HasFlag(AiCapabilities.SupportsCloudLlm) ?? false,
             },
-            health
+            health,
         });
     }
 
@@ -67,11 +69,11 @@ public class AiController : Controller
     {
         if (request == null || string.IsNullOrWhiteSpace(request.ReleaseName))
         {
-            return BadRequest(new { error = "ReleaseName is required." });
+            return this.BadRequest(new { error = "ReleaseName is required." });
         }
 
-        var result = await _aiService.ParseReleaseAsync(request.ReleaseName);
-        return Ok(result);
+        var result = await this.aiService.ParseReleaseAsync(request.ReleaseName);
+        return this.Ok(result);
     }
 
     [HttpPost("natural-search")]
@@ -79,33 +81,33 @@ public class AiController : Controller
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Query))
         {
-            return BadRequest(new { error = "Query is required." });
+            return this.BadRequest(new { error = "Query is required." });
         }
 
-        var result = await _aiService.ProcessNaturalLanguageSearchAsync(request.Query);
-        return Ok(result);
+        var result = await this.aiService.ProcessNaturalLanguageSearchAsync(request.Query);
+        return this.Ok(result);
     }
 
     [HttpPost("diagnose/{torrentId:int}")]
     public async Task<ActionResult<AiDiagnosticReport>> DiagnoseTorrent(int torrentId)
     {
-        var torrent = _torrentService.Get(torrentId);
+        var torrent = this.torrentService.Get(torrentId);
         if (torrent == null)
         {
-            return NotFound(new { error = $"Torrent with ID {torrentId} not found." });
+            return this.NotFound(new { error = $"Torrent with ID {torrentId} not found." });
         }
 
         var peers = new List<PeerInfo>();
-        var task = _downloadEngine.GetTask(torrentId);
+        var task = this.downloadEngine.GetTask(torrentId);
         if (task != null)
         {
             peers = task.GetPeers()?.ToList() ?? new List<PeerInfo>();
         }
 
-        var trackers = _trackerRepo.GetByTorrentId(torrentId)?.ToList() ?? new List<TrackerEntry>();
-        var report = await _aiService.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
+        var trackers = this.trackerRepo.GetByTorrentId(torrentId)?.ToList() ?? new List<TrackerEntry>();
+        var report = await this.aiService.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
 
-        return Ok(report);
+        return this.Ok(report);
     }
 
     [HttpPost("malware-check")]
@@ -113,7 +115,7 @@ public class AiController : Controller
     {
         if (request == null)
         {
-            return BadRequest(new { error = "Request payload is required." });
+            return this.BadRequest(new { error = "Request payload is required." });
         }
 
         var torrentName = request.TorrentName;
@@ -121,11 +123,11 @@ public class AiController : Controller
 
         if (request.TorrentId.HasValue)
         {
-            var torrent = _torrentService.Get(request.TorrentId.Value);
+            var torrent = this.torrentService.Get(request.TorrentId.Value);
             if (torrent != null)
             {
                 torrentName ??= torrent.Name;
-                var dbFiles = _torrentFileService.GetFiles(request.TorrentId.Value);
+                var dbFiles = this.torrentFileService.GetFiles(request.TorrentId.Value);
                 if (dbFiles != null)
                 {
                     files.AddRange(dbFiles);
@@ -141,13 +143,13 @@ public class AiController : Controller
                 {
                     TorrentId = request.TorrentId ?? 0,
                     Path = request.FileNames[i],
-                    Size = 1024 * 1024
+                    Size = 1024 * 1024,
                 });
             }
         }
 
-        var assessment = await _aiService.AnalyzeMalwareRiskAsync(torrentName ?? "Unknown", files);
-        return Ok(assessment);
+        var assessment = await this.aiService.AnalyzeMalwareRiskAsync(torrentName ?? "Unknown", files);
+        return this.Ok(assessment);
     }
 
     [HttpPost("chat")]
@@ -155,21 +157,21 @@ public class AiController : Controller
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Message))
         {
-            return BadRequest(new AiChatResponse
+            return this.BadRequest(new AiChatResponse
             {
                 Success = false,
-                Error = "Message is required."
+                Error = "Message is required.",
             });
         }
 
-        var active = _aiManager.ActiveProvider;
-        var reply = await _aiService.GenerateChatResponseAsync(request.Message, request.Context);
+        var active = this.aiManager.ActiveProvider;
+        var reply = await this.aiService.GenerateChatResponseAsync(request.Message, request.Context);
 
-        return Ok(new AiChatResponse
+        return this.Ok(new AiChatResponse
         {
             Success = true,
             Reply = reply,
-            Provider = active?.DisplayName ?? _aiManager.ActiveProviderId
+            Provider = active?.DisplayName ?? this.aiManager.ActiveProviderId,
         });
     }
 }

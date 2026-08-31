@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,7 +16,7 @@ public class CategoryControllerTests : IntegrationTestBase
     public async Task CategoryCrud_EndToEndFlow_Succeeds()
     {
         // 1. Get initial categories
-        var listResponse = await GetJsonAsync<List<CategoryResource>>("/api/v1/categories");
+        var listResponse = await this.GetJsonAsync<List<CategoryResource>>("/api/v1/categories");
         listResponse.Should().NotBeNull();
 
         // 2. Create new category
@@ -25,10 +27,10 @@ public class CategoryControllerTests : IntegrationTestBase
             DefaultDownloadLimit = 5000,
             DefaultUploadLimit = 2000,
             TargetRatio = 2.5,
-            AutoStop = true
+            AutoStop = true,
         };
 
-        var postResponse = await PostJsonAsync("/api/v1/categories", newCategory);
+        var postResponse = await this.PostJsonAsync("/api/v1/categories", newCategory);
         postResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var created = Deserialize<CategoryResource>(await postResponse.Content.ReadAsStringAsync());
@@ -37,24 +39,24 @@ public class CategoryControllerTests : IntegrationTestBase
         created.SavePath.Should().Be("/downloads/anime");
 
         // 3. Get category by ID
-        var getResponse = await GetJsonAsync<CategoryResource>($"/api/v1/categories/{created.Id}");
+        var getResponse = await this.GetJsonAsync<CategoryResource>($"/api/v1/categories/{created.Id}");
         getResponse.Should().NotBeNull();
         getResponse.Name.Should().Be("anime-integration-test");
 
         // 4. Update category
         created.SavePath = "/downloads/anime-updated";
-        var putResponse = await PutJsonAsync($"/api/v1/categories/{created.Id}", created);
+        var putResponse = await this.PutJsonAsync($"/api/v1/categories/{created.Id}", created);
         putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = Deserialize<CategoryResource>(await putResponse.Content.ReadAsStringAsync());
         updated.SavePath.Should().Be("/downloads/anime-updated");
 
         // 5. Delete category
-        var deleteResponse = await DeleteAsync($"/api/v1/categories/{created.Id}");
+        var deleteResponse = await this.DeleteAsync($"/api/v1/categories/{created.Id}");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // 6. Verify deleted returns 404
-        var getDeletedResponse = await GetAsync($"/api/v1/categories/{created.Id}");
+        var getDeletedResponse = await this.GetAsync($"/api/v1/categories/{created.Id}");
         getDeletedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

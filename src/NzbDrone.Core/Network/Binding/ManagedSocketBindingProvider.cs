@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Net;
@@ -10,12 +12,16 @@ namespace NzbDrone.Core.Network.Binding;
 
 public class ManagedSocketBindingProvider : INetworkBindingProvider
 {
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "ManagedSocket";
+
     public string DisplayName => "Managed Socket Binding (.NET Standard)";
+
     public string Version => "1.0.0";
+
     public string Description => "Cross-platform managed socket binding using .NET Socket.Bind() with IP endpoint resolution.";
+
     public bool IsAvailable => true;
 
     public NetworkBindingCapabilities Capabilities => new()
@@ -25,7 +31,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         SupportsSocks5Proxy = false,
         SupportsTorOnion = false,
         SupportsVpnKillSwitch = true,
-        SupportsAnonymousRouting = false
+        SupportsAnonymousRouting = false,
     };
 
     public Task<NetworkBindingHealthCheckResult> ProbeHealthAsync()
@@ -37,7 +43,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             return Task.FromResult(new NetworkBindingHealthCheckResult
             {
                 IsHealthy = true,
-                StatusMessage = $"Managed socket provider operational ({upCount}/{interfaces.Length} interfaces active)."
+                StatusMessage = $"Managed socket provider operational ({upCount}/{interfaces.Length} interfaces active).",
             });
         }
         catch (Exception ex)
@@ -46,7 +52,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             {
                 IsHealthy = false,
                 StatusMessage = $"Interface probe failed: {ex.Message}",
-                Warnings = { ex.ToString() }
+                Warnings = { ex.ToString() },
             });
         }
     }
@@ -67,11 +73,11 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         if (ip != null)
         {
             socket.Bind(new IPEndPoint(ip, 0));
-            _logger.Debug("Bound socket to interface '{0}' ({1})", interfaceName, ip);
+            this.logger.Debug("Bound socket to interface '{0}' ({1})", interfaceName, ip);
         }
         else
         {
-            _logger.Warn("Could not find matching IP address for interface '{0}' and family {1}", interfaceName, socket.AddressFamily);
+            this.logger.Warn("Could not find matching IP address for interface '{0}' and family {1}", interfaceName, socket.AddressFamily);
         }
     }
 
@@ -91,7 +97,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to check interface status for {0}", interfaceName);
+            this.logger.Warn(ex, "Failed to check interface status for {0}", interfaceName);
             return false;
         }
     }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Text.Json;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaInspection;
@@ -52,7 +54,7 @@ public static class TorrentResourceMapper
             DateAdded = model.DateAdded,
             DateCompleted = model.DateCompleted,
             LastActive = model.LastActive,
-            TagIds = model.TagIds
+            TagIds = model.TagIds,
         };
 
         if (metadata != null)

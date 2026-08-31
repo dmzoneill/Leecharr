@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Runtime.InteropServices;
 using Leecharr.Http;
@@ -9,15 +11,25 @@ namespace Leecharr.Api.V1.System;
 public class SystemStatusResource
 {
     public string AppName => "Leecharr";
+
     public string Version => BuildInfo.Version.ToString();
+
     public string OsName { get; set; }
+
     public string OsVersion { get; set; }
+
     public string RuntimeVersion { get; set; }
+
     public bool IsDocker { get; set; }
+
     public bool IsLinux { get; set; }
+
     public bool IsWindows { get; set; }
+
     public bool IsOsx { get; set; }
+
     public string AppDataFolder { get; set; }
+
     public DateTime StartTime { get; set; }
 }
 
@@ -25,17 +37,17 @@ public class SystemStatusResource
 public class SystemController : ControllerBase
 {
     private static readonly DateTime AppStartTime = DateTime.UtcNow;
-    private readonly IAppFolderInfo _appFolderInfo;
+    private readonly IAppFolderInfo appFolderInfo;
 
     public SystemController(IAppFolderInfo appFolderInfo)
     {
-        _appFolderInfo = appFolderInfo;
+        this.appFolderInfo = appFolderInfo;
     }
 
     [HttpGet]
     public ActionResult<SystemStatusResource> GetStatus()
     {
-        return Ok(new SystemStatusResource
+        return this.Ok(new SystemStatusResource
         {
             OsName = RuntimeInformation.OSDescription,
             OsVersion = Environment.OSVersion.VersionString,
@@ -44,8 +56,8 @@ public class SystemController : ControllerBase
             IsLinux = OsInfo.IsLinux,
             IsWindows = OsInfo.IsWindows,
             IsOsx = OsInfo.IsOsx,
-            AppDataFolder = _appFolderInfo.AppDataFolder,
-            StartTime = AppStartTime
+            AppDataFolder = this.appFolderInfo.AppDataFolder,
+            StartTime = AppStartTime,
         });
     }
 }

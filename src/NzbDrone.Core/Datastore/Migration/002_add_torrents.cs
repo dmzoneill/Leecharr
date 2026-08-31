@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddTorrents : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("Torrents")
+        this.Create.Table("Torrents")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("InfoHash").AsString().NotNullable().Unique()
@@ -41,7 +43,7 @@ public class AddTorrents : NzbDroneMigrationBase
             .WithColumn("LastActive").AsDateTime().Nullable()
             .WithColumn("TagIds").AsString().NotNullable().WithDefaultValue("[]");
 
-        Create.Table("TorrentFiles")
+        this.Create.Table("TorrentFiles")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("TorrentId").AsInt32().NotNullable().ForeignKey("Torrents", "Id")
             .WithColumn("Path").AsString().NotNullable()

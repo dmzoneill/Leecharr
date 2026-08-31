@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -14,15 +16,15 @@ public class CommandExecutor : ICommandExecutor
 {
     private static readonly ConcurrentDictionary<string, Type> CommandTypeCache = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly IServiceFactory _serviceFactory;
-    private readonly IBasicRepository<CommandModel> _repository;
-    private readonly Logger _logger;
+    private readonly IServiceFactory serviceFactory;
+    private readonly IBasicRepository<CommandModel> repository;
+    private readonly Logger logger;
 
     public CommandExecutor(IServiceFactory serviceFactory, IBasicRepository<CommandModel> repository)
     {
-        _serviceFactory = serviceFactory;
-        _repository = repository;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.serviceFactory = serviceFactory;
+        this.repository = repository;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public void Execute(CommandModel command)
@@ -32,7 +34,7 @@ public class CommandExecutor : ICommandExecutor
             return;
         }
 
-        _logger.Trace("Executing {0}", command.Name);
+        this.logger.Trace("Executing {0}", command.Name);
 
         try
         {
@@ -42,7 +44,7 @@ public class CommandExecutor : ICommandExecutor
             var commandType = FindCommandType(command.Name);
             if (commandType == null)
             {
-                _logger.Warn("No command type found for '{0}'", command.Name);
+                this.logger.Warn("No command type found for '{0}'", command.Name);
                 command.Status = CommandStatus.Failed;
                 command.Message = $"Unknown command: {command.Name}";
                 return;
@@ -54,11 +56,11 @@ public class CommandExecutor : ICommandExecutor
             object handler;
             try
             {
-                handler = _serviceFactory.Build(handlerType);
+                handler = this.serviceFactory.Build(handlerType);
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "No handler registered for '{0}'", command.Name);
+                this.logger.Warn(ex, "No handler registered for '{0}'", command.Name);
                 command.Status = CommandStatus.Failed;
                 command.Message = $"No handler for command: {command.Name}";
                 return;
@@ -68,19 +70,19 @@ public class CommandExecutor : ICommandExecutor
             executeMethod!.Invoke(handler, new[] { typedCommand });
 
             command.Status = CommandStatus.Completed;
-            _logger.Debug("Completed {0}", command.Name);
+            this.logger.Debug("Completed {0}", command.Name);
         }
         catch (Exception ex)
         {
             var inner = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
             command.Status = CommandStatus.Failed;
             command.Message = inner.Message;
-            _logger.Error(inner, "Error executing {0}", command.Name);
+            this.logger.Error(inner, "Error executing {0}", command.Name);
         }
         finally
         {
             command.EndedAt = DateTime.UtcNow;
-            _repository.Update(command);
+            this.repository.Update(command);
         }
     }
 

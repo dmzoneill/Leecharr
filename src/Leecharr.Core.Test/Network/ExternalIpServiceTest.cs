@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net;
 using System.Net.Http;
@@ -11,16 +13,16 @@ namespace Leecharr.Core.Test.Network;
 
 public class MockHttpMessageHandler : HttpMessageHandler
 {
-    private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFunc;
+    private readonly Func<HttpRequestMessage, HttpResponseMessage> responseFunc;
 
     public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFunc)
     {
-        _responseFunc = responseFunc;
+        this.responseFunc = responseFunc;
     }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        return Task.FromResult(_responseFunc(request));
+        return Task.FromResult(this.responseFunc(request));
     }
 }
 
@@ -39,7 +41,7 @@ public class ExternalIpServiceTest
     public void CachedIp_should_be_empty_by_default()
     {
         var subject = new ExternalIpService();
-        Assert.That(subject.CachedIp, Is.EqualTo(""));
+        Assert.That(subject.CachedIp, Is.EqualTo(string.Empty));
     }
 
     [Test]
@@ -61,7 +63,7 @@ public class ExternalIpServiceTest
             {
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent("{\"ip\": \"198.51.100.42\"}")
+                    Content = new StringContent("{\"ip\": \"198.51.100.42\"}"),
                 };
             }
 

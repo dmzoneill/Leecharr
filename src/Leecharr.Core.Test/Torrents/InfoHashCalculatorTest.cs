@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using BencodeNET.Objects;
 using FluentAssertions;
@@ -15,7 +17,7 @@ public class InfoHashCalculatorTest
         var dict = new BDictionary
         {
             ["name"] = new BString("Ubuntu.iso"),
-            ["length"] = new BNumber(1000000)
+            ["length"] = new BNumber(1000000),
         };
 
         var hash = InfoHashCalculator.Calculate(dict);

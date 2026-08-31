@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,45 +16,51 @@ public class CategoryUpdatedEvent : IEvent
 public interface ICategoryService
 {
     IEnumerable<Category> GetAll();
+
     Category Get(int id);
+
     Category GetByName(string name);
+
     Category Add(Category category);
+
     Category Update(Category category);
+
     void Delete(int id);
+
     string GetSavePathForCategory(string categoryName, string defaultPath = "");
 }
 
 public class CategoryService : ICategoryService
 {
-    private readonly ICategoryRepository _repository;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly ICategoryRepository repository;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
     public CategoryService(ICategoryRepository repository, IEventAggregator eventAggregator)
     {
-        _repository = repository;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.repository = repository;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public IEnumerable<Category> GetAll()
     {
-        return _repository.All().OrderBy(c => c.Name);
+        return this.repository.All().OrderBy(c => c.Name);
     }
 
     public Category Get(int id)
     {
-        return _repository.Get(id);
+        return this.repository.Get(id);
     }
 
     public Category GetByName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return _repository.GetDefault();
+            return this.repository.GetDefault();
         }
 
-        return _repository.GetByName(name);
+        return this.repository.GetByName(name);
     }
 
     public Category Add(Category category)
@@ -62,9 +70,9 @@ public class CategoryService : ICategoryService
             throw new ArgumentNullException(nameof(category));
         }
 
-        _logger.Info("Adding category: {0}", category.Name);
-        var inserted = _repository.Insert(category);
-        _eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = inserted });
+        this.logger.Info("Adding category: {0}", category.Name);
+        var inserted = this.repository.Insert(category);
+        this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = inserted });
         return inserted;
     }
 
@@ -75,30 +83,30 @@ public class CategoryService : ICategoryService
             throw new ArgumentNullException(nameof(category));
         }
 
-        _logger.Info("Updating category: {0}", category.Name);
-        var updated = _repository.Update(category);
-        _eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = updated });
+        this.logger.Info("Updating category: {0}", category.Name);
+        var updated = this.repository.Update(category);
+        this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = updated });
         return updated;
     }
 
     public void Delete(int id)
     {
-        _logger.Info("Deleting category id: {0}", id);
-        _repository.Delete(id);
+        this.logger.Info("Deleting category id: {0}", id);
+        this.repository.Delete(id);
     }
 
     public string GetSavePathForCategory(string categoryName, string defaultPath = "")
     {
         if (!string.IsNullOrWhiteSpace(categoryName))
         {
-            var cat = _repository.GetByName(categoryName);
+            var cat = this.repository.GetByName(categoryName);
             if (cat != null && !string.IsNullOrWhiteSpace(cat.SavePath))
             {
                 return cat.SavePath;
             }
         }
 
-        var defaultCat = _repository.GetDefault();
+        var defaultCat = this.repository.GetDefault();
         if (defaultCat != null && !string.IsNullOrWhiteSpace(defaultCat.SavePath))
         {
             return defaultCat.SavePath;

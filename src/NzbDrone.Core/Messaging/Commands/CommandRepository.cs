@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using Dapper;
@@ -7,19 +9,19 @@ namespace NzbDrone.Core.Messaging.Commands;
 
 public class CommandRepository : BasicRepository<CommandModel>, ICommandRepository
 {
-    private readonly IDatabase _database;
+    private readonly IDatabase database;
 
     public CommandRepository(IDatabase database)
         : base(database)
     {
-        _database = database;
+        this.database = database;
     }
 
     public IEnumerable<CommandModel> GetByStatus(CommandStatus status)
     {
-        using var connection = _database.OpenConnection();
+        using var connection = this.database.OpenConnection();
         return connection.Query<CommandModel>(
-            $"SELECT * FROM \"{_table}\" WHERE \"Status\" = @Status",
+            $"SELECT * FROM \"{this.table}\" WHERE \"Status\" = @Status",
             new { Status = (int)status });
     }
 
@@ -29,9 +31,9 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
         var failed = (int)CommandStatus.Failed;
         var cancelled = (int)CommandStatus.Cancelled;
 
-        using var connection = _database.OpenConnection();
+        using var connection = this.database.OpenConnection();
         connection.Execute(
-            $"DELETE FROM \"{_table}\" WHERE \"Status\" IN ({completed}, {failed}, {cancelled}) AND \"EndedAt\" IS NOT NULL AND \"EndedAt\" < @Cutoff",
+            $"DELETE FROM \"{this.table}\" WHERE \"Status\" IN ({completed}, {failed}, {cancelled}) AND \"EndedAt\" IS NOT NULL AND \"EndedAt\" < @Cutoff",
             new { Cutoff = cutoff });
     }
 }

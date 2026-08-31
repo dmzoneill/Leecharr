@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,17 +18,21 @@ namespace Leecharr.Http.Authentication;
 public class ForwardAuthOptions : AuthenticationSchemeOptions
 {
     public const string DefaultScheme = "ForwardAuth";
+
     public string UsernameHeaders { get; set; } = "X-authentik-username;Remote-User;X-Forwarded-User";
+
     public string EmailHeaders { get; set; } = "X-authentik-email;Remote-Email;X-Forwarded-Email";
+
     public string DisplayNameHeaders { get; set; } = "X-authentik-name;Remote-Name;X-Forwarded-Preferred-Username";
+
     public string GroupsHeaders { get; set; } = "X-authentik-groups;Remote-Groups;X-Forwarded-Groups";
 }
 
 public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
 {
-    private readonly ITrustedNetworkService _trustedNetworkService;
-    private readonly IJitUserProvisioningService _jitProvisioningService;
-    private readonly IConfigService _configService;
+    private readonly ITrustedNetworkService trustedNetworkService;
+    private readonly IJitUserProvisioningService jitProvisioningService;
+    private readonly IConfigService configService;
 
     public ForwardAuthHandler(
         IOptionsMonitor<ForwardAuthOptions> options,
@@ -37,30 +43,30 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         IConfigService configService)
         : base(options, logger, encoder)
     {
-        _trustedNetworkService = trustedNetworkService;
-        _jitProvisioningService = jitProvisioningService;
-        _configService = configService;
+        this.trustedNetworkService = trustedNetworkService;
+        this.jitProvisioningService = jitProvisioningService;
+        this.configService = configService;
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var trustedCidrs = _configService.GetValue("ForwardAuthTrustedProxies", string.Empty);
-        var remoteIp = Request.HttpContext.Connection.RemoteIpAddress;
+        var trustedCidrs = this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        var remoteIp = this.Request.HttpContext.Connection.RemoteIpAddress;
 
-        if (!_trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs))
+        if (!this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var username = GetHeaderValue(Options.UsernameHeaders);
+        var username = this.GetHeaderValue(this.Options.UsernameHeaders);
         if (string.IsNullOrWhiteSpace(username))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var email = GetHeaderValue(Options.EmailHeaders);
-        var displayName = GetHeaderValue(Options.DisplayNameHeaders) ?? username;
-        var rawGroupsStr = GetHeaderValue(Options.GroupsHeaders);
+        var email = this.GetHeaderValue(this.Options.EmailHeaders);
+        var displayName = this.GetHeaderValue(this.Options.DisplayNameHeaders) ?? username;
+        var rawGroupsStr = this.GetHeaderValue(this.Options.GroupsHeaders);
         var groups = !string.IsNullOrWhiteSpace(rawGroupsStr)
             ? rawGroupsStr.Split(new[] { ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Array.Empty<string>();
@@ -73,7 +79,7 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
             displayName,
             groups);
 
-        var user = _jitProvisioningService.ProvisionOrUpdateUser(profile);
+        var user = this.jitProvisioningService.ProvisionOrUpdateUser(profile);
 
         var rolesList = new List<string>();
         try
@@ -92,7 +98,7 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
-            new("DisplayName", user.DisplayName ?? user.Username)
+            new("DisplayName", user.DisplayName ?? user.Username),
         };
 
         if (!string.IsNullOrEmpty(user.Email))
@@ -117,7 +123,7 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         var candidates = headerNames.Split(';', StringSplitOptions.RemoveEmptyEntries);
         foreach (var name in candidates)
         {
-            if (Request.Headers.TryGetValue(name.Trim(), out var val) && !string.IsNullOrWhiteSpace(val.FirstOrDefault()))
+            if (this.Request.Headers.TryGetValue(name.Trim(), out var val) && !string.IsNullOrWhiteSpace(val.FirstOrDefault()))
             {
                 return val.FirstOrDefault().Trim();
             }

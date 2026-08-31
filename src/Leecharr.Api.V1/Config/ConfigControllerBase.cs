@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Reflection;
@@ -10,20 +12,21 @@ namespace Leecharr.Api.V1.Config;
 public abstract class ConfigController<TResource> : Controller
     where TResource : RestResource, new()
 {
-    protected readonly IConfigService _configService;
+    protected readonly IConfigService configService;
+
     protected ResourceValidator<TResource> SharedValidator { get; set; }
 
     protected ConfigController(IConfigService configService)
     {
-        _configService = configService;
-        SharedValidator = new ResourceValidator<TResource>();
+        this.configService = configService;
+        this.SharedValidator = new ResourceValidator<TResource>();
     }
 
     [HttpGet]
     [Produces("application/json")]
     public TResource GetConfig()
     {
-        var resource = ToResource(_configService);
+        var resource = this.ToResource(this.configService);
         resource.Id = 1;
 
         return resource;
@@ -33,7 +36,7 @@ public abstract class ConfigController<TResource> : Controller
     [Produces("application/json")]
     public TResource GetConfigById(int id)
     {
-        return GetConfig();
+        return this.GetConfig();
     }
 
     [HttpPut]
@@ -44,12 +47,12 @@ public abstract class ConfigController<TResource> : Controller
     {
         try
         {
-            if (SharedValidator != null)
+            if (this.SharedValidator != null)
             {
-                var result = SharedValidator.Validate(resource);
+                var result = this.SharedValidator.Validate(resource);
                 if (!result.IsValid)
                 {
-                    return BadRequest(result.Errors);
+                    return this.BadRequest(result.Errors);
                 }
             }
 
@@ -58,9 +61,9 @@ public abstract class ConfigController<TResource> : Controller
                 .Where(prop => prop.Name != "Id" && prop.Name != "ResourceName")
                 .ToDictionary(prop => prop.Name, prop => prop.GetValue(resource, null));
 
-            _configService.SaveConfigDictionary(dictionary);
+            this.configService.SaveConfigDictionary(dictionary);
 
-            return Accepted(resource);
+            return this.Accepted(resource);
         }
         catch (Exception ex)
         {

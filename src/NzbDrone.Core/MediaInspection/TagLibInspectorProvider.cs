@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,12 +11,16 @@ namespace NzbDrone.Core.MediaInspection;
 
 public class TagLibInspectorProvider : IMediaInspectorProvider
 {
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "TagLib";
+
     public string DisplayName => "TagLib# & Pure EBML (Pure .NET)";
+
     public string Version => typeof(TagLib.File).Assembly.GetName().Version?.ToString() ?? "2.3.0";
+
     public string Description => "Pure managed C# metadata inspector combining TagLibSharp with custom high-speed EBML header parsers. Zero native CLI dependencies.";
+
     public bool IsAvailable => true;
 
     public MediaInspectorCapabilities Capabilities { get; } = new()
@@ -29,7 +35,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         SupportsVideoStreamTracks = true,
         SupportsChapters = false,
         SupportsVideoThumbnails = false,
-        SupportsPureManagedStreams = true
+        SupportsPureManagedStreams = true,
     };
 
     public Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
@@ -42,13 +48,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 "TagLibSharp .NET assembly: Loaded & Ready",
                 "Pure EBML & container stream parsers: Operational"
-            }
+            },
         });
     }
 
     public Task<MediaContainerInfo> InspectMediaAsync(string mediaPath, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(InspectFile(mediaPath));
+        return Task.FromResult(this.InspectFile(mediaPath));
     }
 
     public MediaContainerInfo InspectFile(string filePath)
@@ -61,7 +67,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         try
         {
             using var stream = File.OpenRead(filePath);
-            var info = Inspect(stream, Path.GetFileName(filePath));
+            var info = this.Inspect(stream, Path.GetFileName(filePath));
 
             if (info == null)
             {
@@ -97,7 +103,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                             2 => "2.0",
                             6 => "5.1",
                             8 => "7.1",
-                            _ => $"{tagFile.Properties.AudioChannels}.0"
+                            _ => $"{tagFile.Properties.AudioChannels}.0",
                         };
                     }
 
@@ -114,14 +120,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "TagLib file inspection fallback skipped for {0}", filePath);
+                this.logger.Debug(ex, "TagLib file inspection fallback skipped for {0}", filePath);
             }
 
             return info;
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "TagLib inspector failed on file {0}", filePath);
+            this.logger.Error(ex, "TagLib inspector failed on file {0}", filePath);
             return InspectByFileName(Path.GetFileName(filePath));
         }
     }
@@ -183,7 +189,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "Matroska (MKV)"
+            ContainerFormat = "Matroska (MKV)",
         };
 
         var text = System.Text.Encoding.ASCII.GetString(header);
@@ -255,7 +261,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "MP4"
+            ContainerFormat = "MP4",
         };
 
         var text = System.Text.Encoding.ASCII.GetString(header);
@@ -312,7 +318,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             AudioCodec = "FLAC",
             AudioChannels = "2.0",
             AudioBitDepth = 16,
-            AudioSampleRate = 44100
+            AudioSampleRate = 44100,
         };
 
         if (header.Length >= 22)
@@ -335,7 +341,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 1 => "1.0",
                 6 => "5.1",
                 8 => "7.1",
-                _ => $"{channels}.0"
+                _ => $"{channels}.0",
             };
 
             info.AudioBitDepth = bitsPerSample;
@@ -348,7 +354,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var info = new MediaContainerInfo
         {
-            ContainerFormat = "AVI"
+            ContainerFormat = "AVI",
         };
 
         var text = System.Text.Encoding.ASCII.GetString(header);
@@ -377,7 +383,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             AudioCodec = "MP3",
             AudioChannels = "2.0",
             AudioSampleRate = 44100,
-            AudioBitDepth = 16
+            AudioBitDepth = 16,
         };
     }
 

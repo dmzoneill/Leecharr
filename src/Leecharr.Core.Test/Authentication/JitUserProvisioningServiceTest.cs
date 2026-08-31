@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,25 +12,25 @@ namespace Leecharr.Core.Test.Authentication;
 [TestFixture]
 public class JitUserProvisioningServiceTest
 {
-    private InMemoryUserRepository _userRepository;
-    private InMemoryIdentityProviderRepository _idpRepository;
-    private StubClaimsRoleMappingService _roleMapper;
-    private Logger _logger;
-    private JitUserProvisioningService _jitService;
+    private InMemoryUserRepository userRepository;
+    private InMemoryIdentityProviderRepository idpRepository;
+    private StubClaimsRoleMappingService roleMapper;
+    private Logger logger;
+    private JitUserProvisioningService jitService;
 
     [SetUp]
     public void SetUp()
     {
-        _userRepository = new InMemoryUserRepository();
-        _idpRepository = new InMemoryIdentityProviderRepository();
-        _roleMapper = new StubClaimsRoleMappingService();
-        _logger = LogManager.GetCurrentClassLogger();
+        this.userRepository = new InMemoryUserRepository();
+        this.idpRepository = new InMemoryIdentityProviderRepository();
+        this.roleMapper = new StubClaimsRoleMappingService();
+        this.logger = LogManager.GetCurrentClassLogger();
 
-        _jitService = new JitUserProvisioningService(
-            _userRepository,
-            _idpRepository,
-            _roleMapper,
-            _logger);
+        this.jitService = new JitUserProvisioningService(
+            this.userRepository,
+            this.idpRepository,
+            this.roleMapper,
+            this.logger);
     }
 
     [Test]
@@ -43,7 +45,7 @@ public class JitUserProvisioningServiceTest
             new List<string> { "leecharr-admins" },
             "https://example.com/avatar.jpg");
 
-        var result = _jitService.ProvisionOrUpdateUser(profile);
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Username, Is.EqualTo("amercer"));
@@ -62,9 +64,9 @@ public class JitUserProvisioningServiceTest
             Username = "jsmith",
             ExternalProviderId = "keycloak",
             ExternalSubjectId = "kc-sub-999",
-            Roles = "[\"User\"]"
+            Roles = "[\"User\"]",
         };
-        _userRepository.Insert(existingUser);
+        this.userRepository.Insert(existingUser);
 
         var profile = new ExternalUserProfile(
             "keycloak",
@@ -74,7 +76,7 @@ public class JitUserProvisioningServiceTest
             "John Smith",
             new List<string> { "users" });
 
-        var result = _jitService.ProvisionOrUpdateUser(profile);
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
 
         Assert.That(result.Id, Is.EqualTo(42));
         Assert.That(result.LastLogin, Is.Not.Null);
@@ -95,21 +97,21 @@ public class JitUserProvisioningServiceTest
 
     private class InMemoryIdentityProviderRepository : IIdentityProviderRepository
     {
-        private readonly List<IdentityProviderDefinition> _providers = new List<IdentityProviderDefinition>();
+        private readonly List<IdentityProviderDefinition> providers = new List<IdentityProviderDefinition>();
 
         public IdentityProviderDefinition Get(int id)
         {
-            return _providers.FirstOrDefault(p => p.Id == id);
+            return this.providers.FirstOrDefault(p => p.Id == id);
         }
 
         public IEnumerable<IdentityProviderDefinition> All()
         {
-            return _providers.ToList();
+            return this.providers.ToList();
         }
 
         public IdentityProviderDefinition Insert(IdentityProviderDefinition model)
         {
-            _providers.Add(model);
+            this.providers.Add(model);
             return model;
         }
 
@@ -120,22 +122,22 @@ public class JitUserProvisioningServiceTest
 
         public void Delete(int id)
         {
-            _providers.RemoveAll(p => p.Id == id);
+            this.providers.RemoveAll(p => p.Id == id);
         }
 
         public void Delete(IdentityProviderDefinition model)
         {
-            Delete(model.Id);
+            this.Delete(model.Id);
         }
 
         public void DeleteMany(IEnumerable<int> ids)
         {
-            _providers.RemoveAll(p => ids.Contains(p.Id));
+            this.providers.RemoveAll(p => ids.Contains(p.Id));
         }
 
         public void InsertMany(IList<IdentityProviderDefinition> models)
         {
-            _providers.AddRange(models);
+            this.providers.AddRange(models);
         }
 
         public void UpdateMany(IList<IdentityProviderDefinition> models)
@@ -144,57 +146,57 @@ public class JitUserProvisioningServiceTest
 
         public void Purge()
         {
-            _providers.Clear();
+            this.providers.Clear();
         }
 
         public int Count()
         {
-            return _providers.Count;
+            return this.providers.Count;
         }
 
         public IEnumerable<IdentityProviderDefinition> GetEnabled()
         {
-            return _providers.Where(p => p.IsEnabled);
+            return this.providers.Where(p => p.IsEnabled);
         }
 
         public IdentityProviderDefinition FindByProviderId(string providerId)
         {
-            return _providers.FirstOrDefault(p => p.ProviderId == providerId);
+            return this.providers.FirstOrDefault(p => p.ProviderId == providerId);
         }
     }
 
     private class InMemoryUserRepository : IUserRepository
     {
-        private readonly List<User> _users = new List<User>();
-        private int _nextId = 1;
+        private readonly List<User> users = new List<User>();
+        private int nextId = 1;
 
         public User Get(int id)
         {
-            return _users.FirstOrDefault(u => u.Id == id);
+            return this.users.FirstOrDefault(u => u.Id == id);
         }
 
         public IEnumerable<User> All()
         {
-            return _users.ToList();
+            return this.users.ToList();
         }
 
         public User Insert(User model)
         {
             if (model.Id == 0)
             {
-                model.Id = _nextId++;
+                model.Id = this.nextId++;
             }
 
-            _users.Add(model);
+            this.users.Add(model);
             return model;
         }
 
         public User Update(User model)
         {
-            var idx = _users.FindIndex(u => u.Id == model.Id);
+            var idx = this.users.FindIndex(u => u.Id == model.Id);
             if (idx >= 0)
             {
-                _users[idx] = model;
+                this.users[idx] = model;
             }
 
             return model;
@@ -202,24 +204,24 @@ public class JitUserProvisioningServiceTest
 
         public void Delete(int id)
         {
-            _users.RemoveAll(u => u.Id == id);
+            this.users.RemoveAll(u => u.Id == id);
         }
 
         public void Delete(User model)
         {
-            Delete(model.Id);
+            this.Delete(model.Id);
         }
 
         public void DeleteMany(IEnumerable<int> ids)
         {
-            _users.RemoveAll(u => ids.Contains(u.Id));
+            this.users.RemoveAll(u => ids.Contains(u.Id));
         }
 
         public void InsertMany(IList<User> models)
         {
             foreach (var m in models)
             {
-                Insert(m);
+                this.Insert(m);
             }
         }
 
@@ -227,43 +229,43 @@ public class JitUserProvisioningServiceTest
         {
             foreach (var m in models)
             {
-                Update(m);
+                this.Update(m);
             }
         }
 
         public void Purge()
         {
-            _users.Clear();
+            this.users.Clear();
         }
 
         public int Count()
         {
-            return _users.Count;
+            return this.users.Count;
         }
 
         public User FindByUsername(string username)
         {
-            return _users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            return this.users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
         }
 
         public User FindByEmail(string email)
         {
-            return _users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            return this.users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
         }
 
         public User FindByIdentifier(Guid identifier)
         {
-            return _users.FirstOrDefault(u => u.Identifier == identifier);
+            return this.users.FirstOrDefault(u => u.Identifier == identifier);
         }
 
         public User FindByExternalId(string providerId, string externalSubjectId)
         {
-            return _users.FirstOrDefault(u => u.ExternalProviderId == providerId && u.ExternalSubjectId == externalSubjectId);
+            return this.users.FirstOrDefault(u => u.ExternalProviderId == providerId && u.ExternalSubjectId == externalSubjectId);
         }
 
         public int GetUserCount()
         {
-            return _users.Count;
+            return this.users.Count;
         }
     }
 }

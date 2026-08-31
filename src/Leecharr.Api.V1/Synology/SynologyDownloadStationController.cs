@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,11 +19,11 @@ namespace Leecharr.Api.V1.Synology;
 public class SynologyDownloadStationController : ControllerBase
 {
     private const string SynologySid = "leecharr-synology-session-id";
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly ICategoryService _categoryService;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SynologyDownloadStationController(
         ITorrentService torrentService,
@@ -29,10 +31,10 @@ public class SynologyDownloadStationController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService)
     {
-        _torrentService = torrentService;
-        _torrentFileParser = torrentFileParser;
-        _categoryService = categoryService;
-        _configService = configService;
+        this.torrentService = torrentService;
+        this.torrentFileParser = torrentFileParser;
+        this.categoryService = categoryService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -48,13 +50,13 @@ public class SynologyDownloadStationController : ControllerBase
             ["SYNO.DownloadStation.Info"] = new { maxVersion = 2, minVersion = 1, path = "DownloadStation/info.cgi" },
             ["SYNO.DownloadStation.Statistic"] = new { maxVersion = 1, minVersion = 1, path = "DownloadStation/statistic.cgi" },
             ["SYNO.DownloadStation.Task"] = new { maxVersion = 2, minVersion = 1, path = "DownloadStation/task.cgi" },
-            ["SYNO.DownloadStation2.Task"] = new { maxVersion = 2, minVersion = 1, path = "entry.cgi" }
+            ["SYNO.DownloadStation2.Task"] = new { maxVersion = 2, minVersion = 1, path = "entry.cgi" },
         };
 
-        return Ok(new
+        return this.Ok(new
         {
             data = apis,
-            success = true
+            success = true,
         });
     }
 
@@ -64,13 +66,13 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/auth")]
     public IActionResult Auth([FromQuery] string api, [FromQuery] string method)
     {
-        return Ok(new
+        return this.Ok(new
         {
             success = true,
             data = new
             {
                 sid = SynologySid
-            }
+            },
         });
     }
 
@@ -79,7 +81,7 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/DownloadStation/info.cgi")]
     public IActionResult Info([FromQuery] string method)
     {
-        return Ok(new
+        return this.Ok(new
         {
             success = true,
             data = new
@@ -87,7 +89,7 @@ public class SynologyDownloadStationController : ControllerBase
                 version = 3890,
                 version_string = "3.8-3890",
                 is_manager = true
-            }
+            },
         });
     }
 
@@ -96,8 +98,8 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/DownloadStation/statistic.cgi")]
     public IActionResult Statistic([FromQuery] string method)
     {
-        var all = _torrentService.GetAll().ToList();
-        return Ok(new
+        var all = this.torrentService.GetAll().ToList();
+        return this.Ok(new
         {
             success = true,
             data = new
@@ -106,7 +108,7 @@ public class SynologyDownloadStationController : ControllerBase
                 speed_upload = all.Sum(t => t.UploadSpeed),
                 emule_speed_download = 0,
                 emule_speed_upload = 0
-            }
+            },
         });
     }
 
@@ -124,40 +126,40 @@ public class SynologyDownloadStationController : ControllerBase
     {
         if (string.Equals(api, "SYNO.DSM.Info", StringComparison.OrdinalIgnoreCase))
         {
-            return Ok(new
+            return this.Ok(new
             {
                 data = new
                 {
                     serial = "123456789",
                     version = "7.2-64570",
-                    version_details = new { major = 7, minor = 2, buildnumber = 64570 }
+                    version_details = new { major = 7, minor = 2, buildnumber = 64570 },
                 },
-                success = true
+                success = true,
             });
         }
 
         if (string.Equals(api, "SYNO.FileStation.List", StringComparison.OrdinalIgnoreCase))
         {
-            return Ok(new
+            return this.Ok(new
             {
                 data = new
                 {
                     shares = new[]
                     {
                         new { name = "downloads", path = "/downloads" }
-                    }
+                    },
                 },
-                success = true
+                success = true,
             });
         }
 
-        var formMethod = Request.HasFormContentType ? Request.Form["method"].ToString() : string.Empty;
+        var formMethod = this.Request.HasFormContentType ? this.Request.Form["method"].ToString() : string.Empty;
         var effectiveMethod = (!string.IsNullOrWhiteSpace(method) ? method : formMethod).ToLowerInvariant();
 
         switch (effectiveMethod)
         {
             case "list":
-                var all = _torrentService.GetAll().ToList();
+                var all = this.torrentService.GetAll().ToList();
                 var tasks = all.Select(t => new
                 {
                     id = t.InfoHash.ToLowerInvariant(),
@@ -170,7 +172,7 @@ public class SynologyDownloadStationController : ControllerBase
                         TorrentStatus.Stopped => 5,
                         TorrentStatus.Seeding => 7,
                         TorrentStatus.Error => 9,
-                        _ => 1
+                        _ => 1,
                     },
                     status_text = t.Status switch
                     {
@@ -179,7 +181,7 @@ public class SynologyDownloadStationController : ControllerBase
                         TorrentStatus.Paused => "paused",
                         TorrentStatus.Stopped => "finished",
                         TorrentStatus.Error => "error",
-                        _ => "waiting"
+                        _ => "waiting",
                     },
                     type = "bt",
                     username = "admin",
@@ -187,7 +189,7 @@ public class SynologyDownloadStationController : ControllerBase
                     {
                         detail = new
                         {
-                            destination = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                             uri = string.Empty,
                             create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                             priority = "auto"
@@ -199,10 +201,10 @@ public class SynologyDownloadStationController : ControllerBase
                             speed_download = t.DownloadSpeed,
                             speed_upload = t.UploadSpeed
                         }
-                    }
+                    },
                 }).ToList();
 
-                return Ok(new
+                return this.Ok(new
                 {
                     success = true,
                     data = new
@@ -211,49 +213,49 @@ public class SynologyDownloadStationController : ControllerBase
                         offset = 0,
                         task = tasks,
                         tasks
-                    }
+                    },
                 });
 
             case "create":
-                var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : (Request.HasFormContentType ? (Request.Form["uri"].ToString() ?? Request.Form["url"].ToString()) : string.Empty));
-                var targetDest = (destination ?? (Request.HasFormContentType ? Request.Form["destination"].ToString() : null))?.Trim('\"', '\'');
+                var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : (this.Request.HasFormContentType ? (this.Request.Form["uri"].ToString() ?? this.Request.Form["url"].ToString()) : string.Empty));
+                var targetDest = (destination ?? (this.Request.HasFormContentType ? this.Request.Form["destination"].ToString() : null))?.Trim('\"', '\'');
 
                 if (!string.IsNullOrWhiteSpace(targetUri))
                 {
                     if (targetUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        await _torrentService.AddFromMagnetAsync(targetUri, null, targetDest, false);
+                        await this.torrentService.AddFromMagnetAsync(targetUri, null, targetDest, false);
                     }
                     else
                     {
                         using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                         var bytes = await client.GetByteArrayAsync(targetUri);
-                        var parsed = _torrentFileParser.Parse(bytes);
-                        await _torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                     }
                 }
-                else if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+                else if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
                 {
-                    var file = Request.Form.Files[0];
+                    var file = this.Request.Form.Files[0];
                     using var ms = new MemoryStream();
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
-                    var parsed = _torrentFileParser.Parse(bytes);
-                    await _torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                 }
 
-                return Ok(new { success = true });
+                return this.Ok(new { success = true });
 
             case "getinfo":
             case "getst":
-                var formId = Request.HasFormContentType ? Request.Form["id"].ToString() : string.Empty;
+                var formId = this.Request.HasFormContentType ? this.Request.Form["id"].ToString() : string.Empty;
                 var effectiveId = !string.IsNullOrWhiteSpace(id) ? id : formId;
                 var queryIds = effectiveId
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                var infoTorrents = _torrentService.GetAll().ToList();
+                var infoTorrents = this.torrentService.GetAll().ToList();
                 if (queryIds.Count > 0)
                 {
                     infoTorrents = infoTorrents.Where(t => queryIds.Contains(t.InfoHash) || queryIds.Contains(t.Id.ToString())).ToList();
@@ -271,7 +273,7 @@ public class SynologyDownloadStationController : ControllerBase
                         TorrentStatus.Paused => "paused",
                         TorrentStatus.Stopped => "finished",
                         TorrentStatus.Error => "error",
-                        _ => "waiting"
+                        _ => "waiting",
                     },
                     type = "bt",
                     username = "admin",
@@ -279,7 +281,7 @@ public class SynologyDownloadStationController : ControllerBase
                     {
                         detail = new
                         {
-                            destination = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
+                            destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
                             uri = string.Empty,
                             create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                             priority = "auto"
@@ -291,10 +293,10 @@ public class SynologyDownloadStationController : ControllerBase
                             speed_download = t.DownloadSpeed,
                             speed_upload = t.UploadSpeed
                         }
-                    }
+                    },
                 }).ToList();
 
-                return Ok(new
+                return this.Ok(new
                 {
                     success = true,
                     data = new
@@ -303,61 +305,61 @@ public class SynologyDownloadStationController : ControllerBase
                         offset = 0,
                         task = infoTasks,
                         tasks = infoTasks
-                    }
+                    },
                 });
 
             case "delete":
-                var formDeleteId = Request.HasFormContentType ? Request.Form["id"].ToString() : string.Empty;
+                var formDeleteId = this.Request.HasFormContentType ? this.Request.Form["id"].ToString() : string.Empty;
                 var idsToDelete = (!string.IsNullOrWhiteSpace(id) ? id : formDeleteId).Split(',', StringSplitOptions.RemoveEmptyEntries);
-                var formForceComplete = Request.HasFormContentType ? Request.Form["force_complete"].ToString() : string.Empty;
-                var formDeleteData = Request.HasFormContentType ? Request.Form["delete_data"].ToString() : string.Empty;
+                var formForceComplete = this.Request.HasFormContentType ? this.Request.Form["force_complete"].ToString() : string.Empty;
+                var formDeleteData = this.Request.HasFormContentType ? this.Request.Form["delete_data"].ToString() : string.Empty;
 
-                var deleteFiles = string.Equals(Request.Query["force_complete"], "true", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
+                var deleteFiles = string.Equals(this.Request.Query["force_complete"], "true", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(this.Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(formForceComplete, "true", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(formDeleteData, "true", StringComparison.OrdinalIgnoreCase);
 
                 foreach (var taskId in idsToDelete)
                 {
-                    var t = _torrentService.GetByInfoHash(taskId.Trim());
+                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
                     if (t != null)
                     {
-                        await _torrentService.DeleteAsync(t.Id, deleteFiles);
+                        await this.torrentService.DeleteAsync(t.Id, deleteFiles);
                     }
                 }
 
-                return Ok(new { success = true });
+                return this.Ok(new { success = true });
 
             case "pause":
-                var formPauseId = Request.HasFormContentType ? Request.Form["id"].ToString() : string.Empty;
+                var formPauseId = this.Request.HasFormContentType ? this.Request.Form["id"].ToString() : string.Empty;
                 var idsToPause = (!string.IsNullOrWhiteSpace(id) ? id : formPauseId).Split(',', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var taskId in idsToPause)
                 {
-                    var t = _torrentService.GetByInfoHash(taskId.Trim());
+                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
                     if (t != null)
                     {
-                        await _torrentService.PauseAsync(t.Id);
+                        await this.torrentService.PauseAsync(t.Id);
                     }
                 }
 
-                return Ok(new { success = true });
+                return this.Ok(new { success = true });
 
             case "resume":
-                var formResumeId = Request.HasFormContentType ? Request.Form["id"].ToString() : string.Empty;
+                var formResumeId = this.Request.HasFormContentType ? this.Request.Form["id"].ToString() : string.Empty;
                 var idsToResume = (!string.IsNullOrWhiteSpace(id) ? id : formResumeId).Split(',', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var taskId in idsToResume)
                 {
-                    var t = _torrentService.GetByInfoHash(taskId.Trim());
+                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
                     if (t != null)
                     {
-                        await _torrentService.ResumeAsync(t.Id);
+                        await this.torrentService.ResumeAsync(t.Id);
                     }
                 }
 
-                return Ok(new { success = true });
+                return this.Ok(new { success = true });
 
             default:
-                return Ok(new { success = true });
+                return this.Ok(new { success = true });
         }
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Data;
 using System.Text.Json;
 using Dapper;
@@ -8,7 +10,7 @@ public class EmbeddedDocumentConverter<T> : SqlMapper.TypeHandler<T>
 {
     private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
     };
 
     public override void SetValue(IDbDataParameter parameter, T value)
