@@ -160,3 +160,15 @@ sequenceDiagram
 ### 3.5 GeoIP Peer Resolution & MaxMind Integration
 - **Automated Database Maintenance:** Automatically downloads and updates the `GeoLite2-Country.mmdb` database into `/config/GeoIP/` on first initialization and runs a monthly background refresh.
 - **Swarm Country Badges:** Resolves peer IPv4/IPv6 addresses to ISO 3166-1 alpha-2 country codes to render country flags in the Swarm Inspector.
+
+### 3.6 Network Interface Binding & VPN Kill Switch
+- **Interface Binding:** Ability to explicitly bind BitTorrent sockets, UDP trackers, and DHT traffic to a specific network interface (e.g. `tun0`, `wg0`, `eth0`, `en0`) or specific IP address.
+- **VPN Kill Switch:** If the bound interface becomes disconnected or unassigned, the engine automatically and immediately halts all active connections and pauses tracker announces to prevent unencrypted public IP leaks.
+
+### 3.7 SOCKS5 / HTTP Proxy & Anonymous Mode
+- **Proxy Protocols:** SOCKS5 (with/without authentication) and HTTP CONNECT proxies.
+- **Granular Proxy Toggles:**
+  - `Proxy Peer Connections`: Routes peer data transfers through proxy.
+  - `Proxy Tracker Connections`: Routes tracker announce requests through proxy.
+  - `Proxy Indexer Requests`: Routes Torznab/Newznab searches through proxy.
+- **Anonymous Mode:** Hides user-agent strings, omits local IP from peer handshakes, and disables peer identification leaks.
