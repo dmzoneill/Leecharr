@@ -53,6 +53,22 @@ public class SabnzbdApiController : ControllerBase
             case "version":
                 return Ok(new { version = "4.3.2" });
 
+            case "fullstatus":
+            case "status":
+                return Ok(new
+                {
+                    status = new
+                    {
+                        version = "4.3.2",
+                        paused = false,
+                        restart_req = false,
+                        power_options = true,
+                        speedlimit = _configService.MaxDownloadSpeedKbps.ToString(),
+                        color_scheme = "gold"
+                    },
+                    version = "4.3.2"
+                });
+
             case "auth":
             case "get_config":
             case "config":

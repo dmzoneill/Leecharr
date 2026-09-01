@@ -31,6 +31,9 @@ public class Aria2RpcRequest
 [AllowAnonymous]
 [ApiController]
 [Route("jsonrpc")]
+[Route("rpc")]
+[Route("aria2/jsonrpc")]
+[Route("aria2/rpc")]
 public class Aria2RpcController : ControllerBase
 {
     private readonly ITorrentService _torrentService;
