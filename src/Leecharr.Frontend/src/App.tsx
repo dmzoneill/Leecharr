@@ -9,7 +9,7 @@ import {
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
-import { useIndexers } from "./api/hooks";
+import { useIndexers, useGeneralConfig } from "./api/hooks";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
 import {
@@ -43,6 +43,8 @@ import SystemUpdates from "./pages/SystemUpdates";
 import SystemEvents from "./pages/SystemEvents";
 import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
+import { ApiDocsPage } from "./pages/ApiDocsPage";
+import TrackerBoost from "./pages/TrackerBoost";
 import { LoginPage } from "./pages/LoginPage";
 import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
@@ -68,6 +70,7 @@ const systemSubItems = [
   { id: "events", label: "Events" },
   { id: "logs", label: "Log Files" },
   { id: "network", label: "Network" },
+  { id: "api", label: "API Reference" },
 ];
 
 export function App() {
@@ -82,6 +85,30 @@ export function App() {
   >(null);
 
   const { data: indexersList } = useIndexers();
+  const { data: generalConfig } = useGeneralConfig();
+
+  useEffect(() => {
+    const applyTheme = () => {
+      let theme = generalConfig?.themeStyle || "dark";
+      if (theme === "system") {
+        theme = window.matchMedia("(prefers-color-scheme: light)").matches
+          ? "light"
+          : "dark";
+      }
+      const accent = generalConfig?.colorScheme || "auto";
+      document.documentElement.setAttribute("data-theme", theme);
+      document.documentElement.setAttribute("data-accent", accent);
+    };
+
+    applyTheme();
+
+    if (generalConfig?.themeStyle === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
+      const handler = () => applyTheme();
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
+    }
+  }, [generalConfig?.themeStyle, generalConfig?.colorScheme]);
 
   const loadUser = async () => {
     try {
@@ -113,6 +140,9 @@ export function App() {
     useState<boolean>(() => {
       return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
     });
+  const [openSettingsGroups, setOpenSettingsGroups] = useState<
+    Record<string, boolean>
+  >({});
 
   const pathname = location.pathname;
 
@@ -142,6 +172,12 @@ export function App() {
     pathname.startsWith("/search")
   ) {
     activeNav = "indexers";
+  } else if (
+    pathname.startsWith("/trackerboost") ||
+    pathname.startsWith("/boost") ||
+    pathname.startsWith("/downloadplusplus")
+  ) {
+    activeNav = "trackerboost";
   } else if (pathname.startsWith("/settings")) {
     activeNav = "settings";
     const section = (pathname.split("/")[2] || "host").toLowerCase();
@@ -433,6 +469,27 @@ export function App() {
             <span>Statistics</span>
           </div>
 
+          {/* Tracker Boost */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "trackerboost" ? "active" : ""}`}
+            onClick={() => navigate("/trackerboost")}
+            style={{ cursor: "pointer" }}
+            title="Tracker Boost Swarm Optimization & Discovery"
+          >
+            <span
+              style={{
+                fontSize: "1.05rem",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "16px",
+              }}
+            >
+              ⚡
+            </span>
+            <span>Tracker Boost</span>
+          </div>
+
           {/* Settings */}
           <div
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
@@ -443,74 +500,99 @@ export function App() {
             <span>Settings</span>
           </div>
           {activeNav === "settings" && (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {SETTINGS_GROUPS.map((group) => (
-                <div key={group.id} style={{ marginTop: "0.4rem" }}>
-                  <div className="sidebar-group-header">
-                    <span>{group.icon}</span>
-                    <span>{group.shortLabel}</span>
-                  </div>
-                  {group.pages.map((page) => {
-                    const isPageActive = activeSubNav === page.id;
-                    return (
-                      <div
-                        key={page.id}
-                        className={`sidebar-nav-item sidebar-nav-sub ${isPageActive ? "active" : ""}`}
-                        onClick={() => navigate(`/settings/${page.id}`)}
+            <div className="sidebar-settings-tree">
+              {SETTINGS_GROUPS.map((group) => {
+                const isGroupActive = group.pages.some(
+                  (p) => p.id === activeSubNav,
+                );
+                const isOpen = openSettingsGroups[group.id] ?? isGroupActive;
+                return (
+                  <div key={group.id} className="sidebar-group-container">
+                    <div
+                      className="sidebar-group-header"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenSettingsGroups((prev) => ({
+                          ...prev,
+                          [group.id]: !isOpen,
+                        }));
+                      }}
+                      title={`Toggle ${group.title}`}
+                    >
+                      <span
                         style={{
-                          cursor: "pointer",
-                          paddingLeft: "2.2rem",
-                          paddingTop: "0.35rem",
-                          paddingBottom: "0.35rem",
-                          fontSize: "0.82rem",
                           display: "flex",
-                          justifyContent: "space-between",
                           alignItems: "center",
+                          gap: "0.4rem",
                         }}
-                        title={page.description}
                       >
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.4rem",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>
-                            {page.icon}
-                          </span>
-                          <span
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
+                        <span>{group.icon}</span>
+                        <span>{group.shortLabel}</span>
+                      </span>
+                      <span
+                        className={`sidebar-group-chevron ${isOpen ? "open" : ""}`}
+                      >
+                        ▶
+                      </span>
+                    </div>
+                    {isOpen &&
+                      group.pages.map((page) => {
+                        const isPageActive = activeSubNav === page.id;
+                        return (
+                          <div
+                            key={page.id}
+                            className={`sidebar-settings-subitem ${isPageActive ? "active" : ""}`}
+                            onClick={() => navigate(`/settings/${page.id}`)}
+                            title={page.description}
                           >
-                            {page.shortLabel}
-                          </span>
-                        </span>
-                        {page.badge && (
-                          <span
-                            className="sidebar-badge"
-                            style={{
-                              backgroundColor: isPageActive
-                                ? "var(--accent)"
-                                : "rgba(255,255,255,0.06)",
-                              color: isPageActive
-                                ? "#10111a"
-                                : "var(--text-muted)",
-                            }}
-                          >
-                            {page.badge}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.45rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.85rem",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {page.icon}
+                              </span>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {page.shortLabel}
+                              </span>
+                            </span>
+                            {page.badge && (
+                              <span
+                                className="sidebar-badge"
+                                style={{
+                                  backgroundColor: isPageActive
+                                    ? "var(--accent)"
+                                    : "rgba(255,255,255,0.06)",
+                                  color: isPageActive
+                                    ? "#10111a"
+                                    : "var(--text-muted)",
+                                }}
+                              >
+                                {page.badge}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -733,6 +815,17 @@ export function App() {
             <Route path="/schedule" element={<SpeedSchedule />} />
             <Route path="/statistics" element={<Statistics />} />
 
+            {/* Tracker Boost */}
+            <Route path="/trackerboost" element={<TrackerBoost />} />
+            <Route
+              path="/boost"
+              element={<Navigate to="/trackerboost" replace />}
+            />
+            <Route
+              path="/downloadplusplus"
+              element={<Navigate to="/trackerboost" replace />}
+            />
+
             {/* Settings */}
             <Route
               path="/settings"
@@ -752,6 +845,19 @@ export function App() {
             <Route path="/system/events" element={<SystemEvents />} />
             <Route path="/system/logs" element={<SystemLogs />} />
             <Route path="/system/network" element={<SystemNetwork />} />
+            <Route path="/system/api" element={<ApiDocsPage />} />
+            <Route
+              path="/system/api-docs"
+              element={<Navigate to="/system/api" replace />}
+            />
+            <Route
+              path="/system/swagger"
+              element={<Navigate to="/system/api" replace />}
+            />
+            <Route
+              path="/api-docs"
+              element={<Navigate to="/system/api" replace />}
+            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

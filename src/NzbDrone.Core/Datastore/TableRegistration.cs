@@ -47,5 +47,6 @@ public static class TableRegistration
         TableMapping.Register<Authentication.IdentityProviderDefinition>("IdentityProviders");
         TableMapping.Register<Authentication.UserSession>("UserSessions");
         TableMapping.Register<Authentication.UserExternalLogin>("UserExternalLogins");
+        TableMapping.Register<TrackerBoost.TrackerBoostTracker>("TrackerBoostTrackers");
     }
 }

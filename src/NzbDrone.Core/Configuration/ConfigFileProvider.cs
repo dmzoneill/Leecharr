@@ -41,6 +41,16 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public bool EnableSsl => this.GetValueBool("EnableSsl", false);
 
+    public int SslPort => this.GetValueInt("SslPort", 7890);
+
+    public string SslCertPath => this.GetValue("SslCertPath", string.Empty);
+
+    public string SslKeyPath => this.GetValue("SslKeyPath", string.Empty);
+
+    public string SslCertPassword => this.GetValue("SslCertPassword", string.Empty);
+
+    public bool RedirectHttpToHttps => this.GetValueBool("RedirectHttpToHttps", false);
+
     public string ApiKey => this.GetValue("ApiKey", string.Empty);
 
     public bool AuthenticationEnabled => this.GetValueBool("AuthenticationEnabled", false);

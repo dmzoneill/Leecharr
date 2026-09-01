@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Net;
 using DryIoc;
 using DryIoc.Microsoft.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
@@ -20,6 +22,7 @@ using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Security;
 
 namespace NzbDrone.Host;
 
@@ -64,9 +67,65 @@ public static class Bootstrap
         container.Register<IAiManager, DynamicAiProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
 
         var builder = WebApplication.CreateBuilder();
+        var configProvider = container.Resolve<IConfigFileProvider>();
+        var certManager = container.Resolve<ICertificateManager>();
+
         builder.WebHost.ConfigureKestrel(serverOptions =>
         {
             serverOptions.AddServerHeader = false;
+
+            if (urls == null)
+            {
+                var bindAddress = configProvider.BindAddress?.Trim() ?? "*";
+                if (bindAddress is "*" or "0.0.0.0" or "")
+                {
+                    serverOptions.ListenAnyIP(configProvider.Port);
+                    if (configProvider.EnableSsl)
+                    {
+                        try
+                        {
+                            var certificate = certManager.GetOrCreateCertificate(configProvider);
+                            serverOptions.ListenAnyIP(configProvider.SslPort, listenOptions =>
+                            {
+                                listenOptions.UseHttps(certificate);
+                            });
+                            Logger.Info("Configured SSL dual-stack listener on port {0}", configProvider.SslPort);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex, "Failed to initialize SSL listener on port {0}. HTTPS will not be active.", configProvider.SslPort);
+                        }
+                    }
+                }
+                else
+                {
+                    var ip = bindAddress switch
+                    {
+                        "localhost" or "127.0.0.1" => IPAddress.Loopback,
+                        _ when IPAddress.TryParse(bindAddress, out var parsed) => parsed,
+                        _ => IPAddress.Any,
+                    };
+
+                    serverOptions.Listen(ip, configProvider.Port);
+
+                    if (configProvider.EnableSsl)
+                    {
+                        try
+                        {
+                            var certificate = certManager.GetOrCreateCertificate(configProvider);
+                            serverOptions.Listen(ip, configProvider.SslPort, listenOptions =>
+                            {
+                                listenOptions.UseHttps(certificate);
+                            });
+                            Logger.Info("Configured SSL on {0}:{1}", ip, configProvider.SslPort);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex, "Failed to initialize SSL listener on port {0}. HTTPS will not be active.", configProvider.SslPort);
+                        }
+                    }
+                }
+            }
         });
 
         builder.Host.UseServiceProviderFactory(
@@ -92,10 +151,14 @@ public static class Bootstrap
         }
         else
         {
-            var configProvider = app.Services.GetRequiredService<IConfigFileProvider>();
-            var url = $"http://{configProvider.BindAddress}:{configProvider.Port}";
-            Logger.Info("Listening on {0}", url);
-            app.Urls.Add(url);
+            var httpUrl = $"http://{configProvider.BindAddress}:{configProvider.Port}";
+            Logger.Info("Listening on {0}", httpUrl);
+
+            if (configProvider.EnableSsl)
+            {
+                var httpsUrl = $"https://{configProvider.BindAddress}:{configProvider.SslPort}";
+                Logger.Info("Listening with SSL on {0}", httpsUrl);
+            }
         }
 
         return app;
