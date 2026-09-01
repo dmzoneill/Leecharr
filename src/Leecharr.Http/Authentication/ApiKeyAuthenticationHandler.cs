@@ -42,24 +42,35 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         }
 
         var apiKey = Request.Headers[Options.HeaderName].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && Request.Query.TryGetValue("apikey", out var queryKey))
+        {
+            apiKey = queryKey.FirstOrDefault();
+        }
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        if (!CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(apiKey),
-            Encoding.UTF8.GetBytes(_configFileProvider.ApiKey)))
+        var masterApiKey = _configFileProvider.ApiKey;
+        if (!string.IsNullOrEmpty(masterApiKey) &&
+            CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(apiKey),
+                Encoding.UTF8.GetBytes(masterApiKey)))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "0"),
+                new Claim(ClaimTypes.Name, "MasterApiKey"),
+                new Claim(ClaimTypes.Role, "Admin")
+            };
+            var identity = new ClaimsIdentity(claims, ApiKeyAuthenticationOptions.DefaultScheme);
+            var principal = new ClaimsPrincipal(identity);
+            var ticket = new AuthenticationTicket(principal, ApiKeyAuthenticationOptions.DefaultScheme);
+
+            return Task.FromResult(AuthenticateResult.Success(ticket));
         }
 
-        var claims = new[] { new Claim(ClaimTypes.Name, "API") };
-        var identity = new ClaimsIdentity(claims, ApiKeyAuthenticationOptions.DefaultScheme);
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, ApiKeyAuthenticationOptions.DefaultScheme);
-
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
     }
 }

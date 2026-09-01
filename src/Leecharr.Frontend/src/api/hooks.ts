@@ -57,6 +57,23 @@ import type {
   TrackerMetric,
   TrackerMetricsSummary,
   TrackerMetricSnapshot,
+  TorrentEngine,
+  ActiveEngineStatus,
+  SwitchEngineRequest,
+  SwitchEngineResult,
+  EngineProbeResult,
+  SubsystemOverview,
+  SwitchSubsystemRequest,
+  SwitchSubsystemResult,
+  SubsystemProbeResult,
+  AiStatus,
+  AiParsedRelease,
+  AiDiagnosticReport,
+  AiSearchParameters,
+  AiMalwareRiskAssessment,
+  AiChatRequest,
+  AiChatResponse,
+  AiConfig,
 } from "./types";
 
 const DEFAULT_REFETCH_MS = 5000;
@@ -1306,3 +1323,142 @@ export function useDeleteTrackerMetric() {
     },
   });
 }
+
+export function useTorrentEngines() {
+  return useQuery<TorrentEngine[]>({
+    queryKey: ["torrentengine", "list"],
+    queryFn: () => apiClient.get("/torrentengine"),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useActiveTorrentEngine() {
+  return useQuery<ActiveEngineStatus>({
+    queryKey: ["torrentengine", "active"],
+    queryFn: () => apiClient.get("/torrentengine/active"),
+    refetchInterval: 3_000,
+  });
+}
+
+export function useSwitchTorrentEngine() {
+  const queryClient = useQueryClient();
+  return useMutation<SwitchEngineResult, Error, SwitchEngineRequest>({
+    mutationFn: (req: SwitchEngineRequest) =>
+      apiClient.post("/torrentengine/switch", req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+}
+
+export function useProbeTorrentEngine() {
+  return useMutation<EngineProbeResult, Error, string>({
+    mutationFn: (engineId: string) =>
+      apiClient.post(`/torrentengine/${engineId}/probe`, {}),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Pluggable Subsystems Hooks
+// ---------------------------------------------------------------------------
+
+export function useSubsystems() {
+  return useQuery<SubsystemOverview[]>({
+    queryKey: ["subsystems"],
+    queryFn: () => apiClient.get("/subsystems"),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useSubsystemDetails(subsystemId: string) {
+  return useQuery<SubsystemOverview>({
+    queryKey: ["subsystems", subsystemId],
+    queryFn: () => apiClient.get(`/subsystems/${subsystemId}`),
+    enabled: !!subsystemId,
+  });
+}
+
+export function useSwitchSubsystem() {
+  const queryClient = useQueryClient();
+  return useMutation<SwitchSubsystemResult, Error, SwitchSubsystemRequest>({
+    mutationFn: (req: SwitchSubsystemRequest) =>
+      apiClient.post(`/subsystems/${req.subsystemId}/switch`, { providerId: req.providerId }),
+    onSuccess: (_, req) => {
+      queryClient.invalidateQueries({ queryKey: ["subsystems"] });
+      queryClient.invalidateQueries({ queryKey: ["subsystems", req.subsystemId] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+      if (req.subsystemId === "bittorrent") {
+        queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      }
+    },
+  });
+}
+
+export function useProbeSubsystemProvider() {
+  return useMutation<SubsystemProbeResult, Error, { subsystemId: string; providerId: string }>({
+    mutationFn: (vars) =>
+      apiClient.post(`/subsystems/${vars.subsystemId}/probe/${vars.providerId}`, {}),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Artificial Intelligence & Copilot Hooks
+// ---------------------------------------------------------------------------
+
+export function useAiStatus() {
+  return useQuery<AiStatus>({
+    queryKey: ["ai", "status"],
+    queryFn: () => apiClient.get("/ai/status"),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAiParseRelease() {
+  return useMutation<AiParsedRelease, Error, { releaseName: string }>({
+    mutationFn: (vars) => apiClient.post("/ai/parse-release", vars),
+  });
+}
+
+export function useAiNaturalSearch() {
+  return useMutation<AiSearchParameters, Error, { query: string }>({
+    mutationFn: (vars) => apiClient.post("/ai/natural-search", vars),
+  });
+}
+
+export function useAiDiagnoseTorrent() {
+  return useMutation<AiDiagnosticReport, Error, number>({
+    mutationFn: (torrentId: number) => apiClient.post(`/ai/diagnose/${torrentId}`, {}),
+  });
+}
+
+export function useAiMalwareCheck() {
+  return useMutation<
+    AiMalwareRiskAssessment,
+    Error,
+    { torrentId?: number; torrentName?: string; fileNames?: string[] }
+  >({
+    mutationFn: (vars) => apiClient.post("/ai/malware-check", vars),
+  });
+}
+
+export function useAiChat() {
+  return useMutation<AiChatResponse, Error, AiChatRequest>({
+    mutationFn: (vars) => apiClient.post("/ai/chat", vars),
+  });
+}
+
+export function useAiConfig() {
+  return useConfigQuery<AiConfig>("ai");
+}
+
+export function useSaveAiConfig() {
+  return useConfigMutation<AiConfig>("ai");
+}
+
+
+
+
+

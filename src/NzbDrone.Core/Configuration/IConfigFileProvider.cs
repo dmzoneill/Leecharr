@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace NzbDrone.Core.Configuration;
 
 public interface IConfigFileProvider
@@ -14,4 +16,5 @@ public interface IConfigFileProvider
     string PostgresMainDb { get; }
     string PostgresUser { get; }
     string PostgresPassword { get; }
+    void SaveConfigDictionary(Dictionary<string, object> values);
 }

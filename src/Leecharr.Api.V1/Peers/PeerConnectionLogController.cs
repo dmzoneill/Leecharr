@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Peers;
@@ -12,13 +13,16 @@ public class PeerConnectionLogController : Controller
 {
     private readonly ITorrentService _torrentService;
     private readonly IDownloadEngine _downloadEngine;
+    private readonly IGeoIpService _geoIpService;
 
     public PeerConnectionLogController(
         ITorrentService torrentService,
-        IDownloadEngine downloadEngine)
+        IDownloadEngine downloadEngine,
+        IGeoIpService geoIpService)
     {
         _torrentService = torrentService;
         _downloadEngine = downloadEngine;
+        _geoIpService = geoIpService;
     }
 
     [HttpGet]
@@ -43,6 +47,8 @@ public class PeerConnectionLogController : Controller
             {
                 foreach (var peer in task.GetPeers())
                 {
+                    var geo = _geoIpService?.Lookup(peer.Ip);
+
                     logs.Add(new PeerConnectionLogResource
                     {
                         Id = idCounter++,
@@ -52,6 +58,9 @@ public class PeerConnectionLogController : Controller
                         RemotePort = peer.Port,
                         PeerId = peer.Client,
                         IsEncrypted = peer.IsEncrypted,
+                        CountryCode = geo?.CountryCode ?? string.Empty,
+                        CountryName = geo?.CountryName ?? string.Empty,
+                        City = geo?.City ?? string.Empty,
                         EventType = "Connected",
                         Timestamp = DateTime.UtcNow
                     });

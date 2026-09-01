@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Leecharr.Http.Authentication;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.BitTorrent;
@@ -21,6 +22,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IWatchFolderService _watchFolderService;
     private readonly INetworkSecurityService _networkSecurityService;
     private readonly IRssSyncService _rssSyncService;
+    private readonly IDynamicAuthSchemeManager _dynamicAuthManager;
     private readonly Logger _logger;
     private CancellationTokenSource _cts;
     private Task _backgroundLoopTask;
@@ -31,7 +33,8 @@ public class AppLifetime : IHostedService, IDisposable
         ITorrentRepository torrentRepository,
         IWatchFolderService watchFolderService,
         INetworkSecurityService networkSecurityService,
-        IRssSyncService rssSyncService)
+        IRssSyncService rssSyncService,
+        IDynamicAuthSchemeManager dynamicAuthManager)
     {
         _eventAggregator = eventAggregator;
         _downloadEngine = downloadEngine;
@@ -39,12 +42,22 @@ public class AppLifetime : IHostedService, IDisposable
         _watchFolderService = watchFolderService;
         _networkSecurityService = networkSecurityService;
         _rssSyncService = rssSyncService;
+        _dynamicAuthManager = dynamicAuthManager;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.Info("Leecharr application starting up...");
+
+        try
+        {
+            await _dynamicAuthManager.InitializeConfiguredProvidersAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Error initializing dynamic authentication providers on startup");
+        }
 
         try
         {

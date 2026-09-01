@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
+import SystemLogFiles from "./SystemLogFiles";
 
 type LogLevel = "Trace" | "Debug" | "Info" | "Warn" | "Error";
 
@@ -58,33 +59,34 @@ function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => n.toString().padStart(2, "0");
   const ms = d.getMilliseconds().toString().padStart(3, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${ms}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${ms}`;
 }
 
-function SystemLogs() {
+export function SystemLogs() {
+  const [activeTab, setActiveTab] = useState<"live" | "files">("live");
   const [levelFilter, setLevelFilter] = useState<LogLevel | "All">("All");
-  const {
-    data: entries,
-    isLoading,
-    isError,
-  } = useLogEntries(levelFilter === "All" ? null : levelFilter);
   const [searchText, setSearchText] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [cleared, setCleared] = useState(false);
   const logContentRef = useRef<HTMLDivElement>(null);
 
+  const queryLevel = levelFilter === "All" ? null : levelFilter;
+  const { data: rawEntries = [], isLoading } = useLogEntries(queryLevel);
+
   const filteredEntries = useMemo(() => {
     if (cleared) return [];
-    if (!entries) return [];
-    if (!searchText) return entries;
-    const q = searchText.toLowerCase();
-    return entries.filter(
-      (entry) =>
-        entry.message.toLowerCase().includes(q) ||
-        entry.source.toLowerCase().includes(q) ||
-        entry.level.toLowerCase().includes(q),
-    );
-  }, [entries, searchText, cleared]);
+    let list = rawEntries;
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.message.toLowerCase().includes(q) ||
+          e.source.toLowerCase().includes(q) ||
+          e.level.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [rawEntries, searchText, cleared]);
 
   const handleClear = useCallback(() => {
     setCleared(true);
@@ -116,7 +118,9 @@ function SystemLogs() {
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Logs
             </h1>
-            <span className="badge badge-primary">Console</span>
+            <span className="badge badge-primary">
+              {activeTab === "live" ? "Live Stream" : "Log Files"}
+            </span>
           </div>
           <div
             style={{
@@ -125,84 +129,136 @@ function SystemLogs() {
               marginTop: "0.2rem",
             }}
           >
-            Real-time server log stream and diagnostic output
+            Real-time server log stream, rolling disk log files, and diagnostic output
           </div>
+        </div>
+
+        {/* View Switcher Tabs */}
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className={`btn btn-small ${activeTab === "live" ? "btn-primary" : "btn-outline"}`}
+            onClick={() => setActiveTab("live")}
+            style={{ fontSize: "0.8rem" }}
+          >
+            📺 Live Stream
+          </button>
+          <button
+            type="button"
+            className={`btn btn-small ${activeTab === "files" ? "btn-primary" : "btn-outline"}`}
+            onClick={() => setActiveTab("files")}
+            style={{ fontSize: "0.8rem" }}
+          >
+            📁 Disk Log Files
+          </button>
         </div>
       </div>
 
-      <div className="log-viewer">
-        <div className="log-toolbar">
-          <div className="log-toolbar-filters">
-            {(["All", ...ALL_LEVELS] as const).map((level) => (
-              <button
-                key={level}
-                title={
-                  level === "All"
-                    ? "Shows entries at or above the log level configured in Settings > Advanced"
-                    : `Show ${level} entries and above`
-                }
-                className={`btn btn-small ${levelFilter === level ? "log-filter-active" : ""} ${level !== "All" ? `log-filter-${level.toLowerCase()}` : ""}`}
-                onClick={() => {
-                  setLevelFilter(level);
+      {activeTab === "files" ? (
+        <SystemLogFiles />
+      ) : (
+        <div className="log-viewer">
+          <div className="log-toolbar">
+            <div className="log-toolbar-filters">
+              {(["All", ...ALL_LEVELS] as const).map((level) => (
+                <button
+                  key={level}
+                  title={
+                    level === "All"
+                      ? "Shows entries at or above the log level configured in Settings > Advanced"
+                      : `Show ${level} entries and above`
+                  }
+                  className={`btn btn-small ${levelFilter === level ? "log-filter-active" : ""} ${level !== "All" ? `log-filter-${level.toLowerCase()}` : ""}`}
+                  onClick={() => {
+                    setLevelFilter(level);
+                    setCleared(false);
+                  }}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+
+            <div className="log-toolbar-actions">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Filter logs..."
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
                   setCleared(false);
                 }}
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-
-          <div className="log-toolbar-actions">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Filter logs..."
-              value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value);
-                setCleared(false);
-              }}
-            />
-            <label className="log-auto-scroll">
-              <input
-                type="checkbox"
-                checked={autoScroll}
-                onChange={(e) => setAutoScroll(e.target.checked)}
               />
-              <span>Auto-scroll</span>
-            </label>
-            <button className="btn btn-small btn-outline" onClick={handleClear}>
-              Clear
-            </button>
+
+              <label className="log-autoscroll-toggle">
+                <input
+                  type="checkbox"
+                  checked={autoScroll}
+                  onChange={(e) => setAutoScroll(e.target.checked)}
+                />
+                Auto-scroll
+              </label>
+
+              <button
+                className="btn btn-small btn-secondary"
+                onClick={handleClear}
+                title="Clear current log display (does not delete logs from server)"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div className="log-content" ref={logContentRef}>
+            {isLoading ? (
+              <div className="log-empty-state">Loading log entries...</div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="log-empty-state">
+                {cleared
+                  ? "Log display cleared. New entries will appear above."
+                  : searchText
+                    ? "No log entries match the search filter."
+                    : "No log entries available."}
+              </div>
+            ) : (
+              <table className="log-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "180px" }}>Timestamp</th>
+                    <th style={{ width: "80px" }}>Level</th>
+                    <th style={{ width: "160px" }}>Logger</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEntries.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className={`log-row log-row-${entry.level.toLowerCase()}`}
+                    >
+                      <td className="log-cell-time">
+                        {formatTimestamp(entry.timestamp)}
+                      </td>
+                      <td className="log-cell-level">
+                        <span
+                          className={`log-badge log-badge-${entry.level.toLowerCase()}`}
+                        >
+                          {entry.level}
+                        </span>
+                      </td>
+                      <td className="log-cell-source" title={entry.source}>
+                        {entry.source}
+                      </td>
+                      <td className="log-cell-message">{entry.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
-
-        <div className="log-content" ref={logContentRef}>
-          {isLoading && <p className="loading">Loading logs...</p>}
-          {!isLoading && isError && (
-            <p className="log-empty">Failed to load log entries.</p>
-          )}
-          {!isLoading && !isError && filteredEntries.length === 0 && (
-            <p className="log-empty">No log entries</p>
-          )}
-          {filteredEntries.map((entry) => (
-            <div key={entry.id} className="log-entry">
-              <span className="log-timestamp">
-                {formatTimestamp(entry.timestamp)}
-              </span>
-              <span
-                className={`log-level log-level-${entry.level.toLowerCase()}`}
-              >
-                {entry.level.toUpperCase().padEnd(5)}
-              </span>
-              <span className="log-source">{entry.source}</span>
-              <span className="log-message" style={{ whiteSpace: "pre-wrap" }}>
-                {entry.message}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
