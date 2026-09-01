@@ -127,6 +127,56 @@ public class TransmissionRpcController : ControllerBase
                     });
 
                 case "session-set":
+                    if (request.Arguments != null)
+                    {
+                        var updates = new Dictionary<string, object>();
+
+                        if (request.Arguments.TryGetValue("download-dir", out var dlDir) && dlDir.ValueKind == JsonValueKind.String)
+                        {
+                            updates["DownloadDir"] = dlDir.GetString();
+                        }
+
+                        if (request.Arguments.TryGetValue("incomplete-dir", out var incDir) && incDir.ValueKind == JsonValueKind.String)
+                        {
+                            updates["IncompleteDownloadDir"] = incDir.GetString();
+                        }
+
+                        if (request.Arguments.TryGetValue("speed-limit-down", out var dlLimit) && dlLimit.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["MaxDownloadSpeedKbps"] = dlLimit.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("speed-limit-up", out var upLimit) && upLimit.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["MaxUploadSpeedKbps"] = upLimit.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("alt-speed-down", out var altDl) && altDl.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["AltDownloadSpeedKbps"] = altDl.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("alt-speed-up", out var altUp) && altUp.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["AltUploadSpeedKbps"] = altUp.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("alt-speed-enabled", out var altEn) && (altEn.ValueKind == JsonValueKind.True || altEn.ValueKind == JsonValueKind.False))
+                        {
+                            updates["SchedulerEnabled"] = altEn.GetBoolean();
+                        }
+
+                        if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["ListeningPort"] = peerPort.GetInt32();
+                        }
+
+                        if (updates.Count > 0)
+                        {
+                            _configService.SaveConfigDictionary(updates);
+                        }
+                    }
+
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "session-stats":
@@ -175,6 +225,7 @@ public class TransmissionRpcController : ControllerBase
                     Torrent addedTorrent = null;
                     var isPaused = false;
                     string downloadDir = null;
+                    string category = null;
                     if (request.Arguments != null)
                     {
                         if (request.Arguments.TryGetValue("paused", out var pVal))
@@ -187,6 +238,11 @@ public class TransmissionRpcController : ControllerBase
                             downloadDir = ddVal.GetString();
                         }
 
+                        if (request.Arguments.TryGetValue("labels", out var lblsVal) && lblsVal.ValueKind == JsonValueKind.Array && lblsVal.GetArrayLength() > 0)
+                        {
+                            category = lblsVal[0].GetString();
+                        }
+
                         if (request.Arguments.TryGetValue("metainfo", out var metaVal) && metaVal.ValueKind == JsonValueKind.String)
                         {
                             var b64 = metaVal.GetString();
@@ -194,7 +250,7 @@ public class TransmissionRpcController : ControllerBase
                             {
                                 var bytes = Convert.FromBase64String(b64);
                                 var parsed = _torrentFileParser.Parse(bytes);
-                                addedTorrent = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, isPaused, bytes);
+                                addedTorrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
                             }
                         }
                         else if (request.Arguments.TryGetValue("filename", out var fnVal) && fnVal.ValueKind == JsonValueKind.String)
@@ -204,14 +260,14 @@ public class TransmissionRpcController : ControllerBase
                             {
                                 if (fn.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    addedTorrent = await _torrentService.AddFromMagnetAsync(fn, null, downloadDir, isPaused);
+                                    addedTorrent = await _torrentService.AddFromMagnetAsync(fn, category, downloadDir, isPaused);
                                 }
                                 else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                                 {
                                     using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                                     var bytes = await httpClient.GetByteArrayAsync(fn);
                                     var parsed = _torrentFileParser.Parse(bytes);
-                                    addedTorrent = await _torrentService.AddFromParsedTorrentAsync(parsed, null, downloadDir, isPaused, bytes);
+                                    addedTorrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
                                 }
                             }
                         }
@@ -231,6 +287,80 @@ public class TransmissionRpcController : ControllerBase
                     }
 
                     return Ok(new TransmissionRpcResponse { Result = "failed to add torrent", Tag = tag });
+
+                case "torrent-set":
+                    var setIds = ExtractIds(request.Arguments);
+                    foreach (var id in setIds)
+                    {
+                        var t = _torrentService.Get(id);
+                        if (t != null)
+                        {
+                            if (request.Arguments.TryGetValue("labels", out var lblVal) && lblVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var lbls = lblVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                                if (lbls.Count > 0)
+                                {
+                                    t.Category = lbls[0];
+                                    t.Label = string.Join(",", lbls);
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("seedRatioLimit", out var ratioVal))
+                            {
+                                t.TargetRatio = ratioVal.GetDouble();
+                            }
+
+                            if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal))
+                            {
+                                t.DownloadLimit = dlLimitVal.GetInt32();
+                            }
+
+                            if (request.Arguments.TryGetValue("uploadLimit", out var ulLimitVal))
+                            {
+                                t.UploadLimit = ulLimitVal.GetInt32();
+                            }
+
+                            await _torrentService.UpdateAsync(t);
+                        }
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "queue-move-top":
+                    var qTopIds = ExtractIds(request.Arguments);
+                    foreach (var id in qTopIds)
+                    {
+                        await _torrentService.MoveQueueAsync(id, "top");
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "queue-move-up":
+                    var qUpIds = ExtractIds(request.Arguments);
+                    foreach (var id in qUpIds)
+                    {
+                        await _torrentService.MoveQueueAsync(id, "up");
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "queue-move-down":
+                    var qDownIds = ExtractIds(request.Arguments);
+                    foreach (var id in qDownIds)
+                    {
+                        await _torrentService.MoveQueueAsync(id, "down");
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "queue-move-bottom":
+                    var qBottomIds = ExtractIds(request.Arguments);
+                    foreach (var id in qBottomIds)
+                    {
+                        await _torrentService.MoveQueueAsync(id, "bottom");
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "torrent-start":
                 case "torrent-start-now":
@@ -308,9 +438,9 @@ public class TransmissionRpcController : ControllerBase
             {
                 foreach (var item in idsElem.EnumerateArray())
                 {
-                    if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var id))
+                    if (item.ValueKind == JsonValueKind.Number)
                     {
-                        ids.Add(id);
+                        ids.Add(item.GetInt32());
                     }
                     else if (item.ValueKind == JsonValueKind.String)
                     {
@@ -323,9 +453,9 @@ public class TransmissionRpcController : ControllerBase
                     }
                 }
             }
-            else if (idsElem.ValueKind == JsonValueKind.Number && idsElem.TryGetInt32(out var singleId))
+            else if (idsElem.ValueKind == JsonValueKind.Number)
             {
-                ids.Add(singleId);
+                ids.Add(idsElem.GetInt32());
             }
             else if (idsElem.ValueKind == JsonValueKind.String)
             {
@@ -368,6 +498,14 @@ public class TransmissionRpcController : ControllerBase
             { "priority", f.Priority }
         }).ToList();
 
+        var labels = string.IsNullOrWhiteSpace(t.Category)
+            ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
+            : new[] { t.Category };
+
+        var secondsDownloading = (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds;
+        var secondsSeeding = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0;
+        var isError = t.Status == TorrentStatus.Error;
+
         return new Dictionary<string, object>
         {
             { "id", t.Id },
@@ -376,6 +514,7 @@ public class TransmissionRpcController : ControllerBase
             { "status", statusNum },
             { "percentDone", t.Progress },
             { "totalSize", t.TotalSize },
+            { "leftUntilDone", Math.Max(0, t.TotalSize - t.Downloaded) },
             { "downloadedEver", t.Downloaded },
             { "uploadedEver", t.Uploaded },
             { "rateDownload", t.DownloadSpeed },
@@ -386,6 +525,16 @@ public class TransmissionRpcController : ControllerBase
             { "peersSendingToUs", t.Seeders },
             { "isFinished", t.Progress >= 1.0 },
             { "downloadDir", t.SavePath ?? string.Empty },
+            { "labels", labels },
+            { "errorString", isError ? "Error" : string.Empty },
+            { "error", isError ? 3 : 0 },
+            { "secondsDownloading", secondsDownloading },
+            { "secondsSeeding", secondsSeeding },
+            { "seedRatioLimit", t.TargetRatio },
+            { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
+            { "seedIdleLimit", 0 },
+            { "seedIdleMode", 0 },
+            { "fileCount", filesList.Count },
             { "files", filesList },
             { "fileStats", fileStats }
         };

@@ -15,6 +15,9 @@ public interface IDownloadEngine
     Task ResumeTorrentAsync(int torrentId);
     Task ForceRecheckAsync(int torrentId);
     Task ForceAnnounceAsync(int torrentId);
+    Task SetFilePriorityAsync(int torrentId, string filePath, int priority);
+    Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps);
+    Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps);
     IDownloadTask GetTask(int torrentId);
     IEnumerable<IDownloadTask> GetAllTasks();
 }

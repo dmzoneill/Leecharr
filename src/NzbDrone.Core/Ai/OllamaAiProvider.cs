@@ -63,7 +63,9 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
             return env.TrimEnd('/');
         }
 
-        var url = _configService?.GetValue("OllamaUrl", "http://127.0.0.1:11434") ?? "http://127.0.0.1:11434";
+        var url = !string.IsNullOrWhiteSpace(_configService?.OllamaHost)
+            ? _configService.OllamaHost
+            : _configService?.GetValue("OllamaUrl", "http://127.0.0.1:11434") ?? "http://127.0.0.1:11434";
         return url.TrimEnd('/');
     }
 
@@ -129,19 +131,35 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
         return result;
     }
 
-    public Task<AiDiagnosticReport> DiagnoseTorrentHealthAsync(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
+    public async Task<AiDiagnosticReport> DiagnoseTorrentHealthAsync(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
     {
-        return _fallbackProvider.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
+        var report = await _fallbackProvider.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
+        try
+        {
+            var prompt = $"Analyze BitTorrent swarm: Name '{torrent?.Name}', Status '{torrent?.Status}', Progress {torrent?.Progress * 100:F1}%, Seeders {torrent?.Seeders}, Leechers {torrent?.Leechers}, DL Speed {torrent?.DownloadSpeed} B/s. Provide concise 1-sentence diagnostic.";
+            var aiText = await GenerateChatResponseAsync(prompt, "You are a BitTorrent network diagnostics expert. Provide a single sentence diagnostic.");
+            if (!string.IsNullOrWhiteSpace(aiText))
+            {
+                report.Recommendations.Insert(0, $"[Ollama AI] {aiText.Trim()}");
+            }
+        }
+        catch
+        {
+        }
+
+        return report;
     }
 
-    public Task<AiSearchParameters> ProcessNaturalLanguageSearchAsync(string naturalQuery)
+    public async Task<AiSearchParameters> ProcessNaturalLanguageSearchAsync(string naturalQuery)
     {
-        return _fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
+        var result = await _fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
+        return result;
     }
 
-    public Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
+    public async Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
     {
-        return _fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
+        var assessment = await _fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
+        return assessment;
     }
 
     public async Task<string> GenerateChatResponseAsync(string userMessage, string systemContext = null)

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Notifications;
@@ -14,7 +15,13 @@ public interface ICustomScriptService
 
 public class CustomScriptService : ICustomScriptService
 {
+    private readonly IMediaEnrichmentService _mediaEnrichmentService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+
+    public CustomScriptService(IMediaEnrichmentService mediaEnrichmentService = null)
+    {
+        _mediaEnrichmentService = mediaEnrichmentService;
+    }
 
     public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType)
     {
@@ -26,9 +33,14 @@ public class CustomScriptService : ICustomScriptService
 
         try
         {
+            var workingDir = !string.IsNullOrWhiteSpace(torrent?.SavePath) && Directory.Exists(torrent.SavePath)
+                ? torrent.SavePath
+                : (Path.GetDirectoryName(scriptPath) ?? Environment.CurrentDirectory);
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = scriptPath,
+                WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -45,12 +57,37 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables["TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
                 startInfo.EnvironmentVariables["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
                 startInfo.EnvironmentVariables["TORRENT_SIZE"] = torrent.TotalSize.ToString();
+                startInfo.EnvironmentVariables["TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
+                startInfo.EnvironmentVariables["TORRENT_STATUS"] = torrent.Status.ToString();
+
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_ID"] = torrent.Id.ToString();
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString();
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
+
+                var meta = _mediaEnrichmentService?.GetMetadata(torrent.Id);
+                if (meta != null)
+                {
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_TITLE"] = meta.Title ?? string.Empty;
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_YEAR"] = meta.Year > 0 ? meta.Year.ToString() : string.Empty;
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_OVERVIEW"] = meta.Overview ?? string.Empty;
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_GENRES"] = meta.Genres ?? string.Empty;
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_RATING"] = meta.Rating > 0 ? meta.Rating.ToString("F1") : string.Empty;
+                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_IMDB_ID"] = meta.ImdbId ?? string.Empty;
+                }
             }
 
-            _logger.Info("Executing custom script '{0}' for event '{1}'...", scriptPath, eventType);
+            _logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", scriptPath, eventType, workingDir);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
 
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(60));
             var processTask = process.WaitForExitAsync();
@@ -68,6 +105,19 @@ public class CustomScriptService : ICustomScriptService
                 }
 
                 return false;
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (!string.IsNullOrWhiteSpace(stdout))
+            {
+                _logger.Debug("Custom script stdout: {0}", stdout.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(stderr))
+            {
+                _logger.Warn("Custom script stderr: {0}", stderr.Trim());
             }
 
             _logger.Info("Custom script '{0}' completed with exit code: {1}", scriptPath, process.ExitCode);

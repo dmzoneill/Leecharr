@@ -165,10 +165,10 @@ public class AllDownloadClientTests : IntegrationTestBase
     [Test]
     public async Task NzbVortex_Nonce_And_Queue_ReturnsSuccess()
     {
-        var nonceResponse = await Client.GetAsync("/api/v1/auth/nonce");
+        var nonceResponse = await Client.GetAsync("/nzbvortex/api/v1/auth/nonce");
         nonceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var queueResponse = await Client.GetAsync("/api/v1/queue");
+        var queueResponse = await Client.GetAsync("/nzbvortex/api/v1/queue");
         queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var qJson = await queueResponse.Content.ReadAsStringAsync();

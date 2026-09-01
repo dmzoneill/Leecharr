@@ -66,8 +66,8 @@ export function LoggingTab() {
     try {
       await apiClient.post("/system/maintenance/vacuum", {});
       setVacuumMsg("✓ Database VACUUM completed successfully");
-    } catch {
-      setVacuumMsg("✓ Database maintenance routine completed");
+    } catch (err: any) {
+      setVacuumMsg(`✗ Database VACUUM failed: ${err?.message || "Internal server error"}`);
     } finally {
       setVacuuming(false);
     }

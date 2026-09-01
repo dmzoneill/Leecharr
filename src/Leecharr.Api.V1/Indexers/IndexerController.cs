@@ -146,12 +146,14 @@ public class IndexerController : Controller
             ? new List<IndexerDefinition> { _indexerRepository.Get(indexerId.Value) }.Where(i => i != null).ToList()
             : _indexerRepository.GetSearchEnabled().ToList();
 
+        var catId = int.TryParse(category, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
+
         var allResults = new List<ReleaseInfoResource>();
         var searchTasks = indexers.Select(async idx =>
         {
             try
             {
-                var results = await _torznabClient.SearchAsync(idx, query ?? string.Empty);
+                var results = await _torznabClient.SearchAsync(idx, query ?? string.Empty, catId);
                 return results.Select(r => new ReleaseInfoResource
                 {
                     Title = r.Title,

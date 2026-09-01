@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Trackers;
 
@@ -12,16 +13,22 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly IDownloadHistoryRepository _historyRepository;
     private readonly ITorrentRepository _torrentRepository;
     private readonly ITrackerEntryRepository _trackerEntryRepository;
+    private readonly IDownloadEngine _downloadEngine;
+    private readonly IEventAggregator _eventAggregator;
     private readonly Logger _logger;
 
     public DownloadHistoryService(
         IDownloadHistoryRepository historyRepository,
         ITorrentRepository torrentRepository,
-        ITrackerEntryRepository trackerEntryRepository)
+        ITrackerEntryRepository trackerEntryRepository,
+        IDownloadEngine downloadEngine,
+        IEventAggregator eventAggregator)
     {
         _historyRepository = historyRepository;
         _torrentRepository = torrentRepository;
         _trackerEntryRepository = trackerEntryRepository;
+        _downloadEngine = downloadEngine;
+        _eventAggregator = eventAggregator;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -245,6 +252,17 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         entry.Status = "Active";
         entry.DateRemoved = null;
         _historyRepository.Update(entry);
+
+        try
+        {
+            _downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Failed to start engine for re-added historical torrent {0}", added.Id);
+        }
+
+        _eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = added });
 
         _logger.Info("Re-added historical torrent '{0}' (InfoHash: {1}) with ID {2}", entry.Title, entry.InfoHash, added.Id);
         return added;

@@ -5,6 +5,7 @@ using Leecharr.Http.Authentication;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
@@ -16,6 +17,7 @@ namespace NzbDrone.Host;
 
 public class AppLifetime : IHostedService, IDisposable
 {
+    private readonly IConfigService _configService;
     private readonly IEventAggregator _eventAggregator;
     private readonly IDownloadEngine _downloadEngine;
     private readonly ITorrentRepository _torrentRepository;
@@ -28,6 +30,7 @@ public class AppLifetime : IHostedService, IDisposable
     private Task _backgroundLoopTask;
 
     public AppLifetime(
+        IConfigService configService,
         IEventAggregator eventAggregator,
         IDownloadEngine downloadEngine,
         ITorrentRepository torrentRepository,
@@ -36,6 +39,7 @@ public class AppLifetime : IHostedService, IDisposable
         IRssSyncService rssSyncService,
         IDynamicAuthSchemeManager dynamicAuthManager)
     {
+        _configService = configService;
         _eventAggregator = eventAggregator;
         _downloadEngine = downloadEngine;
         _torrentRepository = torrentRepository;
@@ -63,16 +67,19 @@ public class AppLifetime : IHostedService, IDisposable
         {
             await _downloadEngine.StartAsync();
 
-            var torrents = _torrentRepository.All();
-            foreach (var torrent in torrents)
+            if (_configService.AutoStart)
             {
-                try
+                var torrents = _torrentRepository.All();
+                foreach (var torrent in torrents)
                 {
-                    await _downloadEngine.AddTorrentAsync(torrent, null);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
+                    try
+                    {
+                        await _downloadEngine.AddTorrentAsync(torrent, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
+                    }
                 }
             }
         }
@@ -90,19 +97,26 @@ public class AppLifetime : IHostedService, IDisposable
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.Info("Leecharr application stopping");
-        if (_cts != null)
+        _logger.Info("Leecharr application shutting down...");
+
+        try
         {
-            await _cts.CancelAsync();
+            if (_cts != null)
+            {
+                await _cts.CancelAsync();
+            }
+
+            if (_backgroundLoopTask != null)
+            {
+                await Task.WhenAny(_backgroundLoopTask, Task.Delay(5000, cancellationToken));
+            }
+        }
+        catch
+        {
         }
 
         try
         {
-            if (_backgroundLoopTask != null)
-            {
-                await Task.WhenAny(_backgroundLoopTask, Task.Delay(3000, cancellationToken));
-            }
-
             await _downloadEngine.StopAsync();
         }
         catch (Exception ex)
@@ -115,23 +129,36 @@ public class AppLifetime : IHostedService, IDisposable
 
     private async Task RunBackgroundLoopAsync(CancellationToken token)
     {
+        var watchFolderTickCounter = 0;
         var rssTickCounter = 0;
 
         while (!token.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(10000, token);
+                await Task.Delay(1000, token);
 
-                // 1. Scan watch folder
-                await _watchFolderService.ScanWatchFolderAsync();
+                // 1. Scan watch folder according to configured interval
+                watchFolderTickCounter++;
+                var watchInterval = _configService.WatchFolderScanIntervalSeconds > 0
+                    ? _configService.WatchFolderScanIntervalSeconds
+                    : 10;
 
-                // 2. Check VPN Kill Switch
-                _networkSecurityService.CheckVpnKillSwitch();
+                if (watchFolderTickCounter >= watchInterval)
+                {
+                    watchFolderTickCounter = 0;
+                    await _watchFolderService.ScanWatchFolderAsync();
+                }
 
-                // 3. RSS Sync every ~15 minutes (90 ticks of 10s)
+                // 2. Check VPN Kill Switch every 5 seconds
+                if (watchFolderTickCounter % 5 == 0)
+                {
+                    _networkSecurityService.CheckVpnKillSwitch();
+                }
+
+                // 3. RSS Sync every ~15 minutes (900 seconds)
                 rssTickCounter++;
-                if (rssTickCounter >= 90)
+                if (rssTickCounter >= 900)
                 {
                     rssTickCounter = 0;
                     await _rssSyncService.SyncRssFeedsAsync();

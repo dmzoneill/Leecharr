@@ -105,6 +105,7 @@ public class NzbgetRpcController : ControllerBase
 
                 case "status":
                     var all = _torrentService.GetAll().ToList();
+                    var freeMb = (int)(GetDriveFreeSpace(_configService.DownloadDir) / (1024 * 1024));
                     return Ok(new
                     {
                         version = "1.1",
@@ -113,6 +114,8 @@ public class NzbgetRpcController : ControllerBase
                             RemainingSizeMB = (int)(all.Sum(t => t.TotalSize - t.Downloaded) / (1024 * 1024)),
                             DownloadRate = (int)all.Sum(t => t.DownloadSpeed),
                             DownloadLimit = _configService.MaxDownloadSpeedKbps * 1024,
+                            SpeedLimit = _configService.MaxDownloadSpeedKbps * 1024,
+                            FreeDiskSpaceMB = freeMb,
                             DownloadPaused = false,
                             ServerPaused = false,
                             ServerStandBy = false,
@@ -174,11 +177,24 @@ public class NzbgetRpcController : ControllerBase
                     return Ok(new { version = "1.1", result = finished, id });
 
                 case "append":
-                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 3)
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
                     {
                         var nzbName = request.Params[0].GetString();
                         var nzbContent = request.Params[1].GetString();
-                        var category = request.Params[2].GetString();
+                        var category = request.Params.GetArrayLength() > 2 ? request.Params[2].GetString() : null;
+                        var isPaused = false;
+                        if (request.Params.GetArrayLength() > 5)
+                        {
+                            var pausedElem = request.Params[5];
+                            if (pausedElem.ValueKind == JsonValueKind.True)
+                            {
+                                isPaused = true;
+                            }
+                            else if (pausedElem.ValueKind == JsonValueKind.Number)
+                            {
+                                isPaused = pausedElem.GetInt32() != 0;
+                            }
+                        }
 
                         if (!string.IsNullOrWhiteSpace(nzbContent))
                         {
@@ -186,7 +202,7 @@ public class NzbgetRpcController : ControllerBase
                             {
                                 var bytes = Convert.FromBase64String(nzbContent);
                                 var parsed = _torrentFileParser.Parse(bytes);
-                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
                                 return Ok(new { version = "1.1", result = added?.Id ?? 1, id });
                             }
                             catch
@@ -198,23 +214,131 @@ public class NzbgetRpcController : ControllerBase
 
                     return Ok(new { version = "1.1", result = 1, id });
 
+                case "pause":
+                case "pauseall":
+                    foreach (var t in _torrentService.GetAll())
+                    {
+                        await _torrentService.PauseAsync(t.Id);
+                    }
+
+                    return Ok(new { version = "1.1", result = true, id });
+
+                case "resume":
+                case "resumeall":
+                    foreach (var t in _torrentService.GetAll())
+                    {
+                        await _torrentService.ResumeAsync(t.Id);
+                    }
+
+                    return Ok(new { version = "1.1", result = true, id });
+
+                case "rate":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
+                    {
+                        var rate = request.Params[0].GetInt32();
+                        _configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxDownloadSpeedKbps"] = rate });
+                    }
+
+                    return Ok(new { version = "1.1", result = true, id });
+
                 case "editqueue":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
                     {
                         var command = request.Params[0].GetString()?.ToLowerInvariant();
-                        var paramId = request.Params[1].GetInt32();
+                        var offset = 0;
+                        var editText = string.Empty;
+                        var targetIds = new List<int>();
 
-                        if (command == "grouppause")
+                        if (request.Params.GetArrayLength() >= 4)
                         {
-                            await _torrentService.PauseAsync(paramId);
+                            if (request.Params[1].ValueKind == JsonValueKind.Number)
+                            {
+                                offset = request.Params[1].GetInt32();
+                            }
+
+                            if (request.Params[2].ValueKind == JsonValueKind.String)
+                            {
+                                editText = request.Params[2].GetString() ?? string.Empty;
+                            }
+
+                            var idElem = request.Params[3];
+                            if (idElem.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var elem in idElem.EnumerateArray())
+                                {
+                                    if (elem.TryGetInt32(out var parsedId))
+                                    {
+                                        targetIds.Add(parsedId);
+                                    }
+                                }
+                            }
+                            else if (idElem.ValueKind == JsonValueKind.Number && idElem.TryGetInt32(out var parsedId))
+                            {
+                                targetIds.Add(parsedId);
+                            }
                         }
-                        else if (command == "groupresume")
+                        else
                         {
-                            await _torrentService.ResumeAsync(paramId);
+                            var idElem = request.Params[1];
+                            if (idElem.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var elem in idElem.EnumerateArray())
+                                {
+                                    if (elem.TryGetInt32(out var parsedId))
+                                    {
+                                        targetIds.Add(parsedId);
+                                    }
+                                }
+                            }
+                            else if (idElem.ValueKind == JsonValueKind.Number && idElem.TryGetInt32(out var parsedId))
+                            {
+                                targetIds.Add(parsedId);
+                            }
                         }
-                        else if (command == "groupdelete")
+
+                        foreach (var targetId in targetIds)
                         {
-                            await _torrentService.DeleteAsync(paramId, false);
+                            if (command == "grouppause")
+                            {
+                                await _torrentService.PauseAsync(targetId);
+                            }
+                            else if (command == "groupresume")
+                            {
+                                await _torrentService.ResumeAsync(targetId);
+                            }
+                            else if (command == "groupdelete" || command == "historydelete")
+                            {
+                                await _torrentService.DeleteAsync(targetId, false);
+                            }
+                            else if (command == "groupmovetop")
+                            {
+                                await _torrentService.MoveQueueAsync(targetId, "top");
+                            }
+                            else if (command == "groupmoveup")
+                            {
+                                await _torrentService.MoveQueueAsync(targetId, "up");
+                            }
+                            else if (command == "groupmovedown")
+                            {
+                                await _torrentService.MoveQueueAsync(targetId, "down");
+                            }
+                            else if (command == "groupmovebottom")
+                            {
+                                await _torrentService.MoveQueueAsync(targetId, "bottom");
+                            }
+                            else if (command == "groupmoveoffset")
+                            {
+                                await _torrentService.MoveQueueAsync(targetId, offset > 0 ? "down" : "up");
+                            }
+                            else if (command == "groupsetcategory")
+                            {
+                                var t = _torrentService.Get(targetId);
+                                if (t != null && !string.IsNullOrWhiteSpace(editText))
+                                {
+                                    t.Category = editText;
+                                    await _torrentService.UpdateAsync(t);
+                                }
+                            }
                         }
                     }
 
@@ -229,6 +353,27 @@ public class NzbgetRpcController : ControllerBase
         {
             _logger.Error(ex, "Error in NZBGet RPC: {0}", request.Method);
             return Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
+        }
+    }
+
+    private static long GetDriveFreeSpace(string path)
+    {
+        try
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var fullPath = global::System.IO.Path.GetFullPath(target);
+            var root = global::System.IO.Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = "/";
+            }
+
+            var driveInfo = new global::System.IO.DriveInfo(root);
+            return driveInfo.AvailableFreeSpace;
+        }
+        catch
+        {
+            return 1099511627776L;
         }
     }
 }

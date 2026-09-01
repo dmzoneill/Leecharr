@@ -185,6 +185,24 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
         await Task.CompletedTask;
     }
 
+    public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
+    {
+        _logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
+        return Task.CompletedTask;
+    }
+
+    public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
+    {
+        _logger.Debug("Transmission: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
+        return Task.CompletedTask;
+    }
+
+    public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
+    {
+        _logger.Debug("Transmission: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
+        return Task.CompletedTask;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         _tasks.TryGetValue(torrentId, out var task);

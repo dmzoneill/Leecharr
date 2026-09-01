@@ -183,7 +183,49 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
 
     private static bool IsPrivateOrLoopback(string ip)
     {
-        return ip == "127.0.0.1" || ip == "::1" || ip.StartsWith("192.168.") || ip.StartsWith("10.") || ip.StartsWith("172.16.") || ip.StartsWith("172.17.") || ip.StartsWith("172.18.") || ip.StartsWith("172.19.") || ip.StartsWith("172.2") || ip.StartsWith("172.30.") || ip.StartsWith("172.31.") || ip.StartsWith("fe80:");
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return true;
+        }
+
+        if (ip == "127.0.0.1" || ip == "::1" || ip.StartsWith("fe80:", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (System.Net.IPAddress.TryParse(ip, out var addr))
+        {
+            if (System.Net.IPAddress.IsLoopback(addr))
+            {
+                return true;
+            }
+
+            var bytes = addr.GetAddressBytes();
+            if (bytes.Length == 4)
+            {
+                if (bytes[0] == 10)
+                {
+                    return true;
+                }
+
+                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                {
+                    return true;
+                }
+
+                if (bytes[0] == 192 && bytes[1] == 168)
+                {
+                    return true;
+                }
+
+                if (bytes[0] == 169 && bytes[1] == 254)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public void Dispose()

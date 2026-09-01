@@ -79,6 +79,9 @@ public class HadoukenRpcController : ControllerBase
                             progress = t.Progress,
                             downloadRate = t.DownloadSpeed,
                             uploadRate = t.UploadSpeed,
+                            eta = t.Eta,
+                            ratio = t.Ratio,
+                            tags = string.IsNullOrWhiteSpace(t.Category) ? Array.Empty<string>() : new[] { t.Category },
                             savePath = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
                             isPaused = t.Status == TorrentStatus.Paused,
                             isFinished = t.Progress >= 1.0 || t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding
@@ -87,14 +90,87 @@ public class HadoukenRpcController : ControllerBase
 
                     return Ok(new { result = dict, error = (object)null, id });
 
+                case "torrents.add":
+                case "torrents.addfile":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
+                    {
+                        var b64 = request.Params[0].GetString();
+                        string savePath = null;
+                        string category = null;
+                        var isPaused = false;
+
+                        if (request.Params.GetArrayLength() > 1 && request.Params[1].ValueKind == JsonValueKind.Object)
+                        {
+                            var opts = request.Params[1];
+                            if (opts.TryGetProperty("save_path", out var spProp))
+                            {
+                                savePath = spProp.GetString();
+                            }
+
+                            if (opts.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array && tagsProp.GetArrayLength() > 0)
+                            {
+                                category = tagsProp[0].GetString();
+                            }
+
+                            if (opts.TryGetProperty("paused", out var pProp))
+                            {
+                                isPaused = pProp.GetBoolean();
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(b64))
+                        {
+                            var bytes = Convert.FromBase64String(b64);
+                            var parsed = _torrentFileParser.Parse(bytes);
+                            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                            return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
                 case "torrents.adduri":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
                     {
                         var uri = request.Params[0].GetString();
+                        string savePath = null;
+                        string category = null;
+                        var isPaused = false;
+
+                        if (request.Params.GetArrayLength() > 1 && request.Params[1].ValueKind == JsonValueKind.Object)
+                        {
+                            var opts = request.Params[1];
+                            if (opts.TryGetProperty("save_path", out var spProp))
+                            {
+                                savePath = spProp.GetString();
+                            }
+
+                            if (opts.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array && tagsProp.GetArrayLength() > 0)
+                            {
+                                category = tagsProp[0].GetString();
+                            }
+
+                            if (opts.TryGetProperty("paused", out var pProp))
+                            {
+                                isPaused = pProp.GetBoolean();
+                            }
+                        }
+
                         if (!string.IsNullOrWhiteSpace(uri))
                         {
-                            var added = await _torrentService.AddFromMagnetAsync(uri, null, null, false);
-                            return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var added = await _torrentService.AddFromMagnetAsync(uri, category, savePath, isPaused);
+                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            }
+                            else
+                            {
+                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                                var bytes = await client.GetByteArrayAsync(uri);
+                                var parsed = _torrentFileParser.Parse(bytes);
+                                var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                return Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            }
                         }
                     }
 
@@ -125,7 +201,51 @@ public class HadoukenRpcController : ControllerBase
                     var tDelete = _torrentService.GetByInfoHash(hashToDelete);
                     if (tDelete != null)
                     {
-                        await _torrentService.DeleteAsync(tDelete.Id, false);
+                        var deleteData = false;
+                        if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 1)
+                        {
+                            var p1 = request.Params[1];
+                            if (p1.ValueKind == JsonValueKind.True)
+                            {
+                                deleteData = true;
+                            }
+                            else if (p1.ValueKind == JsonValueKind.Object && p1.TryGetProperty("delete_data", out var ddProp) && ddProp.ValueKind == JsonValueKind.True)
+                            {
+                                deleteData = true;
+                            }
+                        }
+
+                        await _torrentService.DeleteAsync(tDelete.Id, deleteData);
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "torrents.set_props":
+                case "torrents.setprops":
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
+                    {
+                        var targetHash = request.Params[0].GetString();
+                        var tProps = _torrentService.GetByInfoHash(targetHash);
+                        if (tProps != null && request.Params[1].ValueKind == JsonValueKind.Object)
+                        {
+                            var propsObj = request.Params[1];
+                            if (propsObj.TryGetProperty("tags", out var tProp) && tProp.ValueKind == JsonValueKind.Array && tProp.GetArrayLength() > 0)
+                            {
+                                tProps.Category = tProp[0].GetString();
+                            }
+
+                            if (propsObj.TryGetProperty("download_limit", out var dlProp))
+                            {
+                                tProps.DownloadLimit = dlProp.GetInt32();
+                            }
+
+                            if (propsObj.TryGetProperty("upload_limit", out var ulProp))
+                            {
+                                tProps.UploadLimit = ulProp.GetInt32();
+                            }
+
+                            await _torrentService.UpdateAsync(tProps);
+                        }
                     }
 
                     return Ok(new { result = true, error = (object)null, id });
