@@ -250,6 +250,7 @@ export interface HealthCheckResult {
 export interface NetworkStatus {
   localIp: string;
   externalIp: string;
+  networkInterface?: string;
   upnpAvailable: boolean;
   proxyEnabled: boolean;
   portMappings: PortMapping[];
@@ -301,6 +302,34 @@ export interface GeneralConfig {
   urlBase: string;
   authenticationEnabled: boolean;
   apiKey: string;
+  enableSsl: boolean;
+  sslPort: number;
+  sslCertPath: string;
+  sslKeyPath: string;
+  sslCertPassword?: string;
+  redirectHttpToHttps: boolean;
+}
+
+export interface SslTestRequest {
+  enableSsl?: boolean;
+  sslPort: number;
+  sslCertPath?: string;
+  sslKeyPath?: string;
+  sslCertPassword?: string;
+  bindAddress?: string;
+}
+
+export interface SslCertificateValidationResult {
+  isValid: boolean;
+  subject: string;
+  issuer: string;
+  validFrom: string;
+  validTo: string;
+  thumbprint: string;
+  hasPrivateKey: boolean;
+  subjectAlternativeNames: string[];
+  handshakeSucceeded: boolean;
+  message: string;
 }
 
 export interface SeedingConfig {

@@ -26,6 +26,8 @@ public interface IDownloadEngine
 
     Task ForceAnnounceAsync(int torrentId);
 
+    Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers);
+
     Task SetFilePriorityAsync(int torrentId, string filePath, int priority);
 
     Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps);

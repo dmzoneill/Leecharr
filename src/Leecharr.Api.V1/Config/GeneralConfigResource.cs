@@ -34,6 +34,18 @@ public class GeneralConfigResource : RestResource
     public bool AuthenticationEnabled { get; set; }
 
     public string ApiKey { get; set; }
+
+    public bool EnableSsl { get; set; }
+
+    public int SslPort { get; set; }
+
+    public string SslCertPath { get; set; }
+
+    public string SslKeyPath { get; set; }
+
+    public string SslCertPassword { get; set; }
+
+    public bool RedirectHttpToHttps { get; set; }
 }
 
 public static class GeneralConfigResourceMapper
@@ -58,6 +70,12 @@ public static class GeneralConfigResourceMapper
             ApiKey = fileProvider.ApiKey.Length > 4
                 ? new string('*', fileProvider.ApiKey.Length - 4) + fileProvider.ApiKey[^4..]
                 : new string('*', fileProvider.ApiKey.Length),
+            EnableSsl = fileProvider.EnableSsl,
+            SslPort = fileProvider.SslPort,
+            SslCertPath = fileProvider.SslCertPath,
+            SslKeyPath = fileProvider.SslKeyPath,
+            SslCertPassword = string.IsNullOrEmpty(fileProvider.SslCertPassword) ? string.Empty : "********",
+            RedirectHttpToHttps = fileProvider.RedirectHttpToHttps,
         };
     }
 }

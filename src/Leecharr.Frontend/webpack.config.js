@@ -63,7 +63,10 @@ module.exports = (env, argv) => {
         template: "./src/index.html",
       }),
       new CopyWebpackPlugin({
-        patterns: [{ from: "./src/assets/favicon.svg", to: "favicon.svg" }],
+        patterns: [
+          { from: "./src/assets/favicon.svg", to: "favicon.svg" },
+          { from: "./src/assets/swagger-custom.css", to: "swagger-custom.css" },
+        ],
       }),
       ...(!isDev
         ? [

@@ -59,6 +59,11 @@ public class ConfigFileProviderTest
         provider.Port.Should().Be(7889);
         provider.BindAddress.Should().Be("*");
         provider.EnableSsl.Should().BeFalse();
+        provider.SslPort.Should().Be(7890);
+        provider.SslCertPath.Should().BeEmpty();
+        provider.SslKeyPath.Should().BeEmpty();
+        provider.SslCertPassword.Should().BeEmpty();
+        provider.RedirectHttpToHttps.Should().BeFalse();
         provider.LogLevel.Should().Be("info");
         provider.UrlBase.Should().BeEmpty();
         provider.PostgresPort.Should().Be(5432);
@@ -78,6 +83,11 @@ public class ConfigFileProviderTest
                 new XElement("BindAddress", "127.0.0.1"),
                 new XElement("ApiKey", "test-api-key-12345"),
                 new XElement("EnableSsl", "true"),
+                new XElement("SslPort", "9890"),
+                new XElement("SslCertPath", "/etc/ssl/cert.pfx"),
+                new XElement("SslKeyPath", "/etc/ssl/key.pem"),
+                new XElement("SslCertPassword", "secret123"),
+                new XElement("RedirectHttpToHttps", "true"),
                 new XElement("LogLevel", "debug"),
                 new XElement("UrlBase", "/leecharr"),
                 new XElement("PostgresHost", "db.example.com"),
@@ -93,6 +103,11 @@ public class ConfigFileProviderTest
         provider.BindAddress.Should().Be("127.0.0.1");
         provider.ApiKey.Should().Be("test-api-key-12345");
         provider.EnableSsl.Should().BeTrue();
+        provider.SslPort.Should().Be(9890);
+        provider.SslCertPath.Should().Be("/etc/ssl/cert.pfx");
+        provider.SslKeyPath.Should().Be("/etc/ssl/key.pem");
+        provider.SslCertPassword.Should().Be("secret123");
+        provider.RedirectHttpToHttps.Should().BeTrue();
         provider.LogLevel.Should().Be("debug");
         provider.UrlBase.Should().Be("/leecharr");
         provider.PostgresHost.Should().Be("db.example.com");
@@ -112,7 +127,20 @@ public class ConfigFileProviderTest
             { "Port", 9090 },
             { "LogLevel", "trace" },
             { "UrlBase", "/custom" },
+            { "EnableSsl", true },
+            { "SslPort", 9443 },
+            { "SslCertPath", "/custom/cert.pfx" },
+            { "SslKeyPath", "/custom/key.pem" },
+            { "SslCertPassword", "pass456" },
+            { "RedirectHttpToHttps", true },
         });
+
+        provider.EnableSsl.Should().BeTrue();
+        provider.SslPort.Should().Be(9443);
+        provider.SslCertPath.Should().Be("/custom/cert.pfx");
+        provider.SslKeyPath.Should().Be("/custom/key.pem");
+        provider.SslCertPassword.Should().Be("pass456");
+        provider.RedirectHttpToHttps.Should().BeTrue();
 
         provider.Port.Should().Be(9090);
         provider.LogLevel.Should().Be("trace");

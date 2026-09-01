@@ -8,6 +8,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Ai;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Security;
 
 namespace Leecharr.Api.V1.Config;
 
@@ -15,14 +16,30 @@ namespace Leecharr.Api.V1.Config;
 public class GeneralConfigController : ConfigController<GeneralConfigResource>
 {
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ICertificateManager certificateManager;
 
-    public GeneralConfigController(IConfigService configService, IConfigFileProvider configFileProvider)
+    public GeneralConfigController(
+        IConfigService configService,
+        IConfigFileProvider configFileProvider,
+        ICertificateManager certificateManager)
         : base(configService)
     {
         this.configFileProvider = configFileProvider;
+        this.certificateManager = certificateManager;
 
         this.SharedValidator.RuleFor(c => c.WatchFolderScanIntervalSeconds)
             .GreaterThanOrEqualTo(1);
+
+        this.SharedValidator.RuleFor(c => c.Port)
+            .InclusiveBetween(1, 65535);
+
+        this.SharedValidator.RuleFor(c => c.SslPort)
+            .InclusiveBetween(1, 65535);
+
+        this.SharedValidator.RuleFor(c => c.SslPort)
+            .NotEqual(c => c.Port)
+            .When(c => c.EnableSsl)
+            .WithMessage("SSL Port cannot be the same as HTTP Port.");
     }
 
     public override ActionResult<GeneralConfigResource> SaveConfig([FromBody] GeneralConfigResource resource)
@@ -37,6 +54,11 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             resource.ApiKey = this.configFileProvider.ApiKey;
         }
 
+        if (resource.SslCertPassword != null && resource.SslCertPassword.Contains('*'))
+        {
+            resource.SslCertPassword = this.configFileProvider.SslCertPassword;
+        }
+
         var fileUpdates = new Dictionary<string, object>
         {
             ["Port"] = resource.Port,
@@ -44,11 +66,42 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["UrlBase"] = resource.UrlBase,
             ["AuthenticationEnabled"] = resource.AuthenticationEnabled,
             ["ApiKey"] = resource.ApiKey,
+            ["EnableSsl"] = resource.EnableSsl,
+            ["SslPort"] = resource.SslPort,
+            ["SslCertPath"] = resource.SslCertPath ?? string.Empty,
+            ["SslKeyPath"] = resource.SslKeyPath ?? string.Empty,
+            ["SslCertPassword"] = resource.SslCertPassword ?? string.Empty,
+            ["RedirectHttpToHttps"] = resource.RedirectHttpToHttps,
         };
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
 
         return base.SaveConfig(resource);
+    }
+
+    [HttpPost("test-ssl")]
+    public async Task<ActionResult<SslCertificateValidationResult>> TestSsl([FromBody] SslTestRequest request)
+    {
+        if (request == null)
+        {
+            return this.BadRequest();
+        }
+
+        var password = request.SslCertPassword;
+        if (password != null && password.Contains('*'))
+        {
+            password = this.configFileProvider.SslCertPassword;
+        }
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            request.SslCertPath,
+            request.SslKeyPath,
+            password,
+            request.BindAddress,
+            request.SslPort,
+            testTlsHandshake: true);
+
+        return this.Ok(result);
     }
 
     protected override GeneralConfigResource ToResource(IConfigService model)
@@ -64,16 +117,16 @@ public class SeedingConfigController : ConfigController<SeedingConfigResource>
         : base(configService)
     {
         this.SharedValidator.RuleFor(c => c.MaxUploadSpeedKbps)
-            .GreaterThanOrEqualTo(1);
+            .GreaterThanOrEqualTo(0);
 
         this.SharedValidator.RuleFor(c => c.MaxDownloadSpeedKbps)
-            .GreaterThanOrEqualTo(1);
+            .GreaterThanOrEqualTo(0);
 
         this.SharedValidator.RuleFor(c => c.AltUploadSpeedKbps)
-            .GreaterThanOrEqualTo(1);
+            .GreaterThanOrEqualTo(0);
 
         this.SharedValidator.RuleFor(c => c.AltDownloadSpeedKbps)
-            .GreaterThanOrEqualTo(1);
+            .GreaterThanOrEqualTo(0);
 
         this.SharedValidator.RuleFor(c => c.GlobalSeedRatioLimit)
             .GreaterThanOrEqualTo(0);

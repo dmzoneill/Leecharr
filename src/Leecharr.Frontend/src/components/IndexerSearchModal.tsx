@@ -4,6 +4,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CheckCircleIcon,
+  CloseIcon,
 } from "./icons/AiIcons";
 import { ReleaseInfo, AiSearchParameters } from "../api/types";
 import {
@@ -164,7 +165,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       <div
         className="modal-content indexer-search-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "780px" }}
+        style={{ maxWidth: "800px", width: "100%" }}
       >
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -174,8 +175,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             />
             <h3>Indexer Discovery & Search</h3>
           </div>
-          <button className="btn-close" onClick={onClose}>
-            &times;
+          <button
+            type="button"
+            className="btn-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <CloseIcon size={18} />
           </button>
         </div>
 

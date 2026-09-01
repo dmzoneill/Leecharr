@@ -500,8 +500,20 @@ function useConfigMutation<T>(section: string) {
   const queryClient = useQueryClient();
   return useMutation<T, Error, T>({
     mutationFn: (config) => apiClient.put(`/config/${section}/1`, config),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["config", section] }),
+    onMutate: async (newConfig) => {
+      await queryClient.cancelQueries({ queryKey: ["config", section] });
+      const previous = queryClient.getQueryData<T>(["config", section]);
+      queryClient.setQueryData<T>(["config", section], newConfig);
+      return { previous };
+    },
+    onError: (_err, _newConfig, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData<T>(["config", section], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["config", section] });
+    },
   });
 }
 

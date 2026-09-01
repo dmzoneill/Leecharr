@@ -266,4 +266,13 @@ export const api = {
         body: JSON.stringify(provider),
       },
     ),
+  testSsl: (request: import("./types").SslTestRequest) =>
+    fetchJson<import("./types").SslCertificateValidationResult>(
+      `${BASE_URL}/config/general/test-ssl`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    ),
 };

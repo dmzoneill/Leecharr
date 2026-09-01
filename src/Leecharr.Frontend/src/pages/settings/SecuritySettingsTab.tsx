@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
@@ -83,6 +84,7 @@ const PROVIDER_TEMPLATES: Record<
 };
 
 export function SecuritySettingsTab() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
@@ -519,6 +521,14 @@ export function SecuritySettingsTab() {
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
               🔄 Regenerate
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/system/api")}
+              style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
+            >
+              📖 API Docs (OpenAPI)
             </button>
           </div>
         </div>

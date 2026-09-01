@@ -1,35 +1,44 @@
 import React from "react";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DownloadIcon, UploadIcon } from "../icons/UIIcons";
+import { useToast } from "../../context/ToastContext";
 
 const DL_PRESETS = [
-  { label: "∞", value: 0 },
-  { label: "5 MB/s", value: 5000 },
-  { label: "10 MB/s", value: 10000 },
-  { label: "25 MB/s", value: 25000 },
-  { label: "50 MB/s", value: 50000 },
+  { label: "∞", value: 0, title: "Unlimited" },
+  { label: "5M", value: 5000, title: "5 MB/s" },
+  { label: "10M", value: 10000, title: "10 MB/s" },
+  { label: "25M", value: 25000, title: "25 MB/s" },
+  { label: "50M", value: 50000, title: "50 MB/s" },
 ];
 
 const UL_PRESETS = [
-  { label: "∞", value: 0 },
-  { label: "1 MB/s", value: 1000 },
-  { label: "2.5 MB/s", value: 2500 },
-  { label: "5 MB/s", value: 5000 },
-  { label: "10 MB/s", value: 10000 },
+  { label: "∞", value: 0, title: "Unlimited" },
+  { label: "1M", value: 1000, title: "1 MB/s" },
+  { label: "2.5M", value: 2500, title: "2.5 MB/s" },
+  { label: "5M", value: 5000, title: "5 MB/s" },
+  { label: "10M", value: 10000, title: "10 MB/s" },
 ];
 
 export const BandwidthCard: React.FC = () => {
   const { data: config, isLoading } = useSeedingConfig();
   const saveMutation = useSaveSeedingConfig();
+  const { showToast } = useToast();
 
   const handleUpdate = (
     updates: Partial<import("../../api/types").SeedingConfig>,
   ) => {
     if (!config) return;
-    saveMutation.mutate({
-      ...config,
-      ...updates,
-    });
+    saveMutation.mutate(
+      {
+        ...config,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(`Failed to update speed limit: ${err.message}`, "error");
+        },
+      },
+    );
   };
 
   if (isLoading || !config) {
@@ -71,8 +80,8 @@ export const BandwidthCard: React.FC = () => {
             <span>Max DL:</span>
             <span className="quick-control-current">
               {currentDl === 0
-                ? "∞ Unlimited"
-                : `${currentDl >= 1000 ? (currentDl / 1000).toFixed(1) + " MB/s" : currentDl + " KB/s"}`}
+                ? "∞"
+                : `${currentDl >= 1000 ? (currentDl / 1000).toFixed(currentDl % 1000 === 0 ? 0 : 1) + " MB/s" : currentDl + " KB/s"}`}
             </span>
           </div>
           <div className="quick-presets-group">
@@ -86,6 +95,7 @@ export const BandwidthCard: React.FC = () => {
                   onClick={() =>
                     handleUpdate({ maxDownloadSpeedKbps: p.value })
                   }
+                  title={p.title}
                 >
                   {p.label}
                 </button>
@@ -101,8 +111,8 @@ export const BandwidthCard: React.FC = () => {
             <span>Max UL:</span>
             <span className="quick-control-current">
               {currentUl === 0
-                ? "∞ Unlimited"
-                : `${currentUl >= 1000 ? (currentUl / 1000).toFixed(1) + " MB/s" : currentUl + " KB/s"}`}
+                ? "∞"
+                : `${currentUl >= 1000 ? (currentUl / 1000).toFixed(currentUl % 1000 === 0 ? 0 : 1) + " MB/s" : currentUl + " KB/s"}`}
             </span>
           </div>
           <div className="quick-presets-group">
@@ -114,6 +124,7 @@ export const BandwidthCard: React.FC = () => {
                   type="button"
                   className={`preset-chip ${active ? "active" : ""}`}
                   onClick={() => handleUpdate({ maxUploadSpeedKbps: p.value })}
+                  title={p.title}
                 >
                   {p.label}
                 </button>

@@ -193,6 +193,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
         await Task.CompletedTask;
     }
 
+    public Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        this.logger.Debug("libtorrent: Add trackers triggered for torrent id {0}", torrentId);
+        return Task.CompletedTask;
+    }
+
     public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         this.logger.Debug("libtorrent: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Events;
@@ -19,6 +20,7 @@ public abstract class RestControllerWithSignalR<TResource, TModel> : RestControl
         this.signalRBroadcaster = signalRBroadcaster;
     }
 
+    [NonAction]
     public void Handle(ModelEvent<TModel> message)
     {
         if (message == null || !this.signalRBroadcaster.IsConnected)
