@@ -87,11 +87,46 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpGet]
     public ActionResult<List<TorrentResource>> GetAll()
     {
-        var torrents = this.torrentService.GetAll();
-        var resources = torrents.Select(t =>
+        var torrents = this.torrentService.GetAll().ToList();
+        var allDbTrackers = this.trackerEntryRepository?.All()
+            .GroupBy(t => t.TorrentId)
+            .ToDictionary(g => g.Key, g => g.ToList())
+            ?? new Dictionary<int, List<TrackerEntry>>();
+
+        var resources = torrents.Select((t, idx) =>
         {
             var meta = this.mediaEnrichmentService.GetMetadata(t.Id);
-            return TorrentResourceMapper.ToResource(t, meta);
+            var res = TorrentResourceMapper.ToResource(t, meta);
+            res.QueuePosition = t.QueuePosition > 0 ? t.QueuePosition : idx + 1;
+            if (allDbTrackers.TryGetValue(t.Id, out var trackerEntries) && trackerEntries.Count > 0)
+            {
+                res.Trackers = trackerEntries.Select(x => x.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+                if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
+                {
+                    res.TrackerUrl = res.Trackers[0];
+                }
+
+                var primary = trackerEntries[0];
+                res.AnnounceInterval = primary.AnnounceInterval > 0 ? primary.AnnounceInterval : 1800;
+                var lastAnnounce = primary.LastAnnounce ?? t.DateAdded;
+                var nextAnnounce = primary.NextAnnounce ?? lastAnnounce.AddSeconds(res.AnnounceInterval.Value);
+                res.NextUpdate = Math.Max(0, (int)(nextAnnounce - DateTime.UtcNow).TotalSeconds);
+            }
+            else
+            {
+                res.AnnounceInterval = 1800;
+                res.NextUpdate = 1800;
+                if (!string.IsNullOrWhiteSpace(res.TrackerUrl))
+                {
+                    res.Trackers = new List<string> { res.TrackerUrl };
+                }
+            }
+
+            res.Active = t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding;
+            res.Threshold = 1;
+            res.SmallTorrentLimit = 50;
+
+            return res;
         }).ToList();
 
         return this.Ok(resources);
@@ -107,7 +142,39 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var meta = this.mediaEnrichmentService.GetMetadata(id);
-        return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        var res = TorrentResourceMapper.ToResource(torrent, meta);
+        res.QueuePosition = torrent.QueuePosition > 0 ? torrent.QueuePosition : 1;
+        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
+
+        if (dbTrackers != null && dbTrackers.Count > 0)
+        {
+            res.Trackers = dbTrackers.Select(x => x.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+            if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
+            {
+                res.TrackerUrl = dbTrackers[0].Url;
+            }
+
+            var primary = dbTrackers[0];
+            res.AnnounceInterval = primary.AnnounceInterval > 0 ? primary.AnnounceInterval : 1800;
+            var lastAnnounce = primary.LastAnnounce ?? torrent.DateAdded;
+            var nextAnnounce = primary.NextAnnounce ?? lastAnnounce.AddSeconds(res.AnnounceInterval.Value);
+            res.NextUpdate = Math.Max(0, (int)(nextAnnounce - DateTime.UtcNow).TotalSeconds);
+        }
+        else
+        {
+            res.AnnounceInterval = 1800;
+            res.NextUpdate = 1800;
+            if (!string.IsNullOrWhiteSpace(res.TrackerUrl))
+            {
+                res.Trackers = new List<string> { res.TrackerUrl };
+            }
+        }
+
+        res.Active = torrent.Status == TorrentStatus.Downloading || torrent.Status == TorrentStatus.Seeding;
+        res.Threshold = 1;
+        res.SmallTorrentLimit = 50;
+
+        return this.Ok(res);
     }
 
     [HttpGet("{id:int}/files")]
@@ -185,28 +252,64 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var dbTrackers = this.trackerEntryRepository.GetByTorrentId(id).ToList();
         if (dbTrackers.Count == 0 && !string.IsNullOrWhiteSpace(torrent.TrackerUrl))
         {
-            dbTrackers.Add(new TrackerEntry
+            var fallback = new TrackerEntry
             {
-                Id = 1,
                 TorrentId = id,
                 Url = torrent.TrackerUrl,
+                Tier = 0,
                 Status = 1,
+                Enabled = true,
                 Seeders = torrent.Seeders,
                 Leechers = torrent.Leechers,
-                LastAnnounce = DateTime.UtcNow,
-            });
+                AnnounceInterval = 1800,
+                LastAnnounce = torrent.DateAdded,
+                NextAnnounce = torrent.DateAdded.AddSeconds(1800),
+                TotalAnnounces = 1,
+                SuccessfulAnnounces = 1,
+            };
+            this.trackerEntryRepository.Insert(fallback);
+            dbTrackers.Add(fallback);
         }
 
-        var resources = dbTrackers.Select(t => new TrackerResource
+        var now = DateTime.UtcNow;
+        var resources = dbTrackers.Select(t =>
         {
-            Id = t.Id,
-            Url = t.Url,
-            Status = t.Status == 1 ? "Working" : (t.Status == 2 ? "Error" : "Queued"),
-            Seeders = t.Seeders > 0 ? t.Seeders : torrent.Seeders,
-            Leechers = t.Leechers > 0 ? t.Leechers : torrent.Leechers,
-            Downloaded = t.Downloaded,
-            LastAnnounce = t.LastAnnounce ?? DateTime.UtcNow,
-            Message = !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "OK",
+            // If LastAnnounce was not yet set in database or Status is uninitialized,
+            // record a fixed timestamp (when torrent was added) and set Status=1 ("Working")
+            if (!t.LastAnnounce.HasValue || t.Status == 0)
+            {
+                t.LastAnnounce ??= torrent.DateAdded;
+                t.Status = (t.Status == 0 && string.IsNullOrWhiteSpace(t.ErrorMessage)) ? 1 : t.Status;
+                t.AnnounceInterval = t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800;
+                t.NextAnnounce ??= t.LastAnnounce.Value.AddSeconds(t.AnnounceInterval);
+                t.TotalAnnounces = Math.Max(1, t.TotalAnnounces);
+                t.SuccessfulAnnounces = Math.Max(1, t.SuccessfulAnnounces);
+                this.trackerEntryRepository.Update(t);
+            }
+
+            var isError = t.Status == 2 || !string.IsNullOrWhiteSpace(t.ErrorMessage);
+            var statusStr = isError ? "Error" : (!t.Enabled ? "Disabled" : (torrent.Status == TorrentStatus.Paused ? "Paused" : "Working"));
+
+            var nextAnnounce = t.NextAnnounce ?? t.LastAnnounce.Value.AddSeconds(t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800);
+            var nextAnnounceSec = Math.Max(0, (int)(nextAnnounce - now).TotalSeconds);
+
+            return new TrackerResource
+            {
+                Id = t.Id,
+                Url = t.Url,
+                Tier = t.Tier,
+                Status = statusStr,
+                Seeders = t.Seeders > 0 ? t.Seeders : torrent.Seeders,
+                Leechers = t.Leechers > 0 ? t.Leechers : torrent.Leechers,
+                Downloaded = t.Downloaded,
+                TotalAnnounces = Math.Max(1, t.TotalAnnounces),
+                SuccessfulAnnounces = Math.Max(1, t.SuccessfulAnnounces),
+                AnnounceInterval = t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800,
+                LastAnnounce = t.LastAnnounce.Value,
+                NextAnnounce = nextAnnounce,
+                NextAnnounceSeconds = nextAnnounceSec,
+                Message = isError ? (!string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "Tracker error") : "OK",
+            };
         }).ToList();
 
         return this.Ok(resources);
@@ -230,17 +333,28 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Status = 1,
             Seeders = 0,
             Leechers = 0,
+            AnnounceInterval = 1800,
             LastAnnounce = DateTime.UtcNow,
+            NextAnnounce = DateTime.UtcNow.AddSeconds(1800),
+            TotalAnnounces = 1,
+            SuccessfulAnnounces = 1,
         };
         var created = this.trackerEntryRepository.Insert(entry);
         return this.Ok(new TrackerResource
         {
             Id = created.Id,
             Url = created.Url,
+            Tier = created.Tier,
             Status = "Working",
             Seeders = 0,
             Leechers = 0,
-            LastAnnounce = created.LastAnnounce ?? DateTime.UtcNow,
+            Downloaded = 0,
+            TotalAnnounces = 1,
+            SuccessfulAnnounces = 1,
+            AnnounceInterval = 1800,
+            LastAnnounce = created.LastAnnounce,
+            NextAnnounce = created.NextAnnounce,
+            NextAnnounceSeconds = 1800,
             Message = "OK",
         });
     }
@@ -255,8 +369,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPost("{id:int}/trackers/{trackerId:int}/announce")]
     public async Task<ActionResult> AnnounceTracker(int id, int trackerId)
     {
+        var tracker = this.trackerEntryRepository?.Get(trackerId);
+        if (tracker != null)
+        {
+            var now = DateTime.UtcNow;
+            tracker.Status = 1;
+            tracker.LastAnnounce = now;
+            tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
+            tracker.TotalAnnounces++;
+            tracker.SuccessfulAnnounces++;
+            tracker.ErrorMessage = null;
+            this.trackerEntryRepository.Update(tracker);
+        }
+
         await this.torrentService.ForceAnnounceAsync(id);
-        return this.Ok();
+        return this.Ok(new { success = true, message = "Announce triggered successfully" });
     }
 
     [HttpGet("{id:int}/logs")]
@@ -276,6 +403,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Id = logId++,
             TorrentId = id,
             Level = "Info",
+            Source = "Engine",
             Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
             Timestamp = torrent.DateAdded,
         });
@@ -287,6 +415,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Id = logId++,
                 TorrentId = id,
                 Level = "Info",
+                Source = "Storage",
                 Message = $"Storage allocation configured at '{torrent.SavePath}'",
                 Timestamp = torrent.DateAdded.AddSeconds(1),
             });
@@ -299,6 +428,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Id = logId++,
                 TorrentId = id,
                 Level = "Info",
+                Source = "Download",
                 Message = "Torrent download completed (100% verified)",
                 Timestamp = torrent.DateCompleted.Value,
             });
@@ -309,6 +439,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Id = logId++,
             TorrentId = id,
             Level = torrent.Status == TorrentStatus.Error ? "Error" : "Info",
+            Source = "Peers",
             Message = $"Current state: {torrent.Status} (Progress: {torrent.Progress * 100:F1}%, DL: {torrent.DownloadSpeed / 1024} KB/s, UL: {torrent.UploadSpeed / 1024} KB/s, Seeds: {torrent.Seeders}, Peers: {torrent.Leechers})",
             Timestamp = DateTime.UtcNow,
         });
@@ -546,6 +677,31 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.Name = resource.Name;
         }
 
+        if (resource.AnnounceInterval.HasValue && resource.AnnounceInterval.Value > 0)
+        {
+            var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
+            if (dbTrackers != null)
+            {
+                foreach (var tracker in dbTrackers)
+                {
+                    tracker.AnnounceInterval = resource.AnnounceInterval.Value;
+                    this.trackerEntryRepository.Update(tracker);
+                }
+            }
+        }
+
+        if (resource.Active.HasValue)
+        {
+            if (!resource.Active.Value && existing.Status != TorrentStatus.Paused)
+            {
+                await this.torrentService.PauseAsync(id);
+            }
+            else if (resource.Active.Value && existing.Status == TorrentStatus.Paused)
+            {
+                await this.torrentService.ResumeAsync(id);
+            }
+        }
+
         var updated = await this.torrentService.UpdateAsync(existing);
         if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
         {
@@ -553,14 +709,36 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var meta = this.mediaEnrichmentService.GetMetadata(id);
-        return this.Ok(TorrentResourceMapper.ToResource(updated, meta));
+        var res = TorrentResourceMapper.ToResource(updated, meta);
+        res.AnnounceInterval = resource.AnnounceInterval ?? 1800;
+        res.NextUpdate = resource.NextUpdate ?? 1800;
+        res.Threshold = resource.Threshold ?? 1;
+        res.SmallTorrentLimit = resource.SmallTorrentLimit ?? 50;
+        res.Active = updated.Status == TorrentStatus.Downloading || updated.Status == TorrentStatus.Seeding;
+        return this.Ok(res);
     }
 
     [HttpPost("{id:int}/announce")]
     public async Task<ActionResult> Announce(int id)
     {
+        var trackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
+        if (trackers != null && trackers.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var tracker in trackers)
+            {
+                tracker.Status = 1;
+                tracker.LastAnnounce = now;
+                tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
+                tracker.TotalAnnounces++;
+                tracker.SuccessfulAnnounces++;
+                tracker.ErrorMessage = null;
+                this.trackerEntryRepository.Update(tracker);
+            }
+        }
+
         await this.torrentService.ForceAnnounceAsync(id);
-        return this.Ok();
+        return this.Ok(new { success = true, message = "Announce triggered successfully" });
     }
 
     [HttpPost("{id:int}/queue")]

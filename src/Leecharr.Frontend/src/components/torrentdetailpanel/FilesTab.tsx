@@ -85,6 +85,129 @@ function getFileIcon(name: string, isFolder: boolean, isOpen: boolean): string {
   }
 }
 
+function extractFileMediaBadges(
+  filename: string,
+  torrent?: Torrent,
+): { label: string; bg: string; fg: string }[] {
+  const badges: { label: string; bg: string; fg: string }[] = [];
+  const lower = filename.toLowerCase();
+  const ext = lower.split(".").pop() || "";
+
+  if (["mkv", "mp4", "avi", "mov", "m4v"].includes(ext)) {
+    if (
+      lower.includes("2160p") ||
+      lower.includes("4k") ||
+      torrent?.resolution === "2160p"
+    ) {
+      badges.push({
+        label: "4K UHD",
+        bg: "rgba(37, 99, 235, 0.25)",
+        fg: "#60a5fa",
+      });
+    } else if (lower.includes("1080p") || torrent?.resolution === "1080p") {
+      badges.push({
+        label: "1080p",
+        bg: "rgba(37, 99, 235, 0.2)",
+        fg: "#93c5fd",
+      });
+    } else if (lower.includes("720p")) {
+      badges.push({
+        label: "720p",
+        bg: "rgba(37, 99, 235, 0.15)",
+        fg: "#bfdbfe",
+      });
+    }
+
+    if (
+      lower.includes("dv") ||
+      lower.includes("dovi") ||
+      lower.includes("dolby") ||
+      torrent?.hdrFormat?.includes("DV")
+    ) {
+      badges.push({
+        label: "DV",
+        bg: "rgba(217, 119, 6, 0.25)",
+        fg: "#fcd34d",
+      });
+    }
+    if (
+      lower.includes("hdr") ||
+      (torrent?.hdrFormat &&
+        torrent.hdrFormat !== "SDR" &&
+        !torrent.hdrFormat.includes("DV"))
+    ) {
+      badges.push({
+        label: "HDR",
+        bg: "rgba(217, 119, 6, 0.2)",
+        fg: "#fde68a",
+      });
+    }
+
+    if (
+      lower.includes("hevc") ||
+      lower.includes("x265") ||
+      lower.includes("h.265") ||
+      torrent?.videoCodec?.toLowerCase().includes("hevc")
+    ) {
+      badges.push({
+        label: "HEVC",
+        bg: "rgba(79, 70, 229, 0.25)",
+        fg: "#a5b4fc",
+      });
+    } else if (
+      lower.includes("avc") ||
+      lower.includes("x264") ||
+      lower.includes("h.264")
+    ) {
+      badges.push({
+        label: "AVC",
+        bg: "rgba(79, 70, 229, 0.2)",
+        fg: "#c7d2fe",
+      });
+    }
+
+    if (lower.includes("atmos") || lower.includes("truehd")) {
+      badges.push({
+        label: "Atmos",
+        bg: "rgba(5, 150, 105, 0.25)",
+        fg: "#6ee7b7",
+      });
+    } else if (lower.includes("dts-hd") || lower.includes("dts")) {
+      badges.push({
+        label: "DTS-HD",
+        bg: "rgba(5, 150, 105, 0.2)",
+        fg: "#a7f3d0",
+      });
+    }
+  } else if (["flac", "wav", "alac"].includes(ext)) {
+    badges.push({
+      label: "Lossless",
+      bg: "rgba(16, 185, 129, 0.25)",
+      fg: "#34d399",
+    });
+  } else if (["srt", "sub", "vtt", "ass", "idx"].includes(ext)) {
+    const parts = lower.split(".");
+    if (parts.length >= 3) {
+      const lang = parts[parts.length - 2];
+      if (lang && lang.length <= 4) {
+        badges.push({
+          label: `Sub (${lang.toUpperCase()})`,
+          bg: "rgba(168, 85, 247, 0.2)",
+          fg: "#d8b4fe",
+        });
+      }
+    } else {
+      badges.push({
+        label: "Sub",
+        bg: "rgba(168, 85, 247, 0.2)",
+        fg: "#d8b4fe",
+      });
+    }
+  }
+
+  return badges;
+}
+
 function normalizePriority(val?: number): number {
   if (val === undefined || val === null) return 3; // Default Normal
   if (val === 0) return 0;
@@ -372,6 +495,104 @@ export function FilesTab({
         gap: "0.5rem",
       }}
     >
+      {/* Media Container Inspector Specifications Banner */}
+      {(torrent?.resolution ||
+        torrent?.videoCodec ||
+        torrent?.audioCodec ||
+        torrent?.hdrFormat) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            padding: "0.4rem 0.75rem",
+            backgroundColor: "rgba(23, 27, 53, 0.7)",
+            borderRadius: "6px",
+            border: "1px solid rgba(255, 209, 102, 0.25)",
+            fontSize: "0.78rem",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 700,
+                color: "var(--accent-gold, #FFD166)",
+                fontSize: "0.75rem",
+              }}
+            >
+              🎬 Pure C# Media Inspector:
+            </span>
+            {torrent.resolution && (
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: "#2563eb",
+                  color: "#fff",
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                }}
+              >
+                {torrent.resolution}
+              </span>
+            )}
+            {torrent.videoCodec && (
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: "#4f46e5",
+                  color: "#fff",
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                }}
+              >
+                {torrent.videoCodec}
+              </span>
+            )}
+            {torrent.hdrFormat && torrent.hdrFormat !== "SDR" && (
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: "#d97706",
+                  color: "#fff",
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                }}
+              >
+                {torrent.hdrFormat}
+              </span>
+            )}
+            {torrent.audioCodec && (
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: "#059669",
+                  color: "#fff",
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                }}
+              >
+                {torrent.audioCodec}{" "}
+                {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
+              </span>
+            )}
+          </div>
+          <span
+            style={{ fontSize: "0.7rem", color: "var(--text-muted, #8a879e)" }}
+          >
+            TagLib# & Pure EBML Stream Parser
+          </span>
+        </div>
+      )}
+
       {/* File Controls Toolbar */}
       <div
         style={{
@@ -640,6 +861,38 @@ export function FilesTab({
                           </span>
                         )}
                       </span>
+
+                      {!isFolder && (
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            gap: "4px",
+                            alignItems: "center",
+                            marginLeft: "6px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {extractFileMediaBadges(node.name, torrent).map(
+                            (b, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontSize: "0.62rem",
+                                  fontWeight: 700,
+                                  padding: "0.05rem 0.3rem",
+                                  borderRadius: "3px",
+                                  backgroundColor: b.bg,
+                                  color: b.fg,
+                                  border: `1px solid ${b.fg}40`,
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {b.label}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      )}
                     </div>
                   </td>
 

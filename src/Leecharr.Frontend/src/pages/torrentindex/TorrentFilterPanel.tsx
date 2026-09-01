@@ -38,6 +38,7 @@ interface TorrentFilterPanelProps {
   stateCounts: Record<string, number>;
   trackerGroups: [string, number][];
   count: number;
+  onCollapse?: () => void;
 }
 
 export function TorrentFilterPanel({
@@ -48,10 +49,41 @@ export function TorrentFilterPanel({
   stateCounts,
   trackerGroups,
   count,
+  onCollapse,
 }: TorrentFilterPanelProps) {
   return (
     <div className="filter-panel">
-      <div className="filter-panel-section">State</div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0.6rem 0.75rem 0.25rem",
+        }}
+      >
+        <span className="filter-panel-section" style={{ padding: 0 }}>
+          State
+        </span>
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            title="Hide Filters Sidebar"
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid var(--border-light, rgba(255, 255, 255, 0.1))",
+              borderRadius: "3px",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              padding: "1px 5px",
+              fontSize: "0.75rem",
+              lineHeight: 1,
+            }}
+          >
+            «
+          </button>
+        )}
+      </div>
       <ul className="filter-panel-list">
         {STATE_FILTERS.map((state) => (
           <li key={state}>

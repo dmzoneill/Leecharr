@@ -4,8 +4,9 @@ import { useTorrentLogs } from "../../api/hooks";
 import { formatDate } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 
-function levelBadgeClass(level: string): string {
-  switch (level.toLowerCase()) {
+function levelBadgeClass(level?: string): string {
+  const l = (level || "info").toLowerCase();
+  switch (l) {
     case "debug":
     case "trace":
       return "torrent-log-level-debug";
@@ -20,8 +21,9 @@ function levelBadgeClass(level: string): string {
   }
 }
 
-function sourceBadgeStyle(source: string): React.CSSProperties {
-  switch (source.toLowerCase()) {
+function sourceBadgeStyle(source?: string): React.CSSProperties {
+  const s = (source || "engine").toLowerCase();
+  switch (s) {
     case "tracker":
       return {
         backgroundColor: "rgba(59, 130, 246, 0.2)",
@@ -94,20 +96,22 @@ export function LogTab({
 
   const filteredLogs = useMemo(() => {
     return logs.filter((entry) => {
-      if (levelFilter !== "ALL" && entry.level.toUpperCase() !== levelFilter) {
+      const entryLevel = (entry.level || "INFO").toUpperCase();
+      if (levelFilter !== "ALL" && entryLevel !== levelFilter) {
         return false;
       }
+      const entrySource = (entry.source || "Engine").toLowerCase();
       if (
         sourceFilter !== "ALL" &&
-        entry.source.toLowerCase() !== sourceFilter.toLowerCase()
+        entrySource !== sourceFilter.toLowerCase()
       ) {
         return false;
       }
       if (searchTerm) {
         const query = searchTerm.toLowerCase();
-        const matchMsg = entry.message.toLowerCase().includes(query);
-        const matchSrc = entry.source.toLowerCase().includes(query);
-        const matchLvl = entry.level.toLowerCase().includes(query);
+        const matchMsg = (entry.message || "").toLowerCase().includes(query);
+        const matchSrc = entrySource.includes(query);
+        const matchLvl = entryLevel.toLowerCase().includes(query);
         if (!matchMsg && !matchSrc && !matchLvl) return false;
       }
       return true;
@@ -118,7 +122,7 @@ export function LogTab({
     const text = filteredLogs
       .map(
         (l) =>
-          `[${formatDate(l.timeStamp)}] [${l.level.toUpperCase()}] [${l.source}] ${l.message}`,
+          `[${formatDate(l.timestamp || l.timeStamp)}] [${(l.level || "INFO").toUpperCase()}] [${l.source || "Engine"}] ${l.message || ""}`,
       )
       .join("\n");
     navigator.clipboard.writeText(text).then(() => {
@@ -309,67 +313,69 @@ export function LogTab({
                 </td>
               </tr>
             ) : (
-              filteredLogs.map((entry) => (
-                <tr
-                  key={entry.id}
-                  className="torrent-table-row"
-                  style={{
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    backgroundColor:
-                      entry.level.toUpperCase() === "ERROR"
-                        ? "rgba(239, 68, 68, 0.08)"
-                        : entry.level.toUpperCase() === "WARN"
-                          ? "rgba(245, 158, 11, 0.08)"
-                          : "transparent",
-                  }}
-                >
-                  <td
+              filteredLogs.map((entry) => {
+                const entryLevel = (entry.level || "INFO").toUpperCase();
+                const entrySource = entry.source || "Engine";
+                const entryTime = entry.timestamp || entry.timeStamp;
+                return (
+                  <tr
+                    key={entry.id}
+                    className="torrent-table-row"
                     style={{
-                      color: "#8b949e",
-                      whiteSpace: "nowrap",
-                      padding: "0.25rem 0.4rem",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      backgroundColor:
+                        entryLevel === "ERROR"
+                          ? "rgba(239, 68, 68, 0.08)"
+                          : entryLevel === "WARN"
+                            ? "rgba(245, 158, 11, 0.08)"
+                            : "transparent",
                     }}
                   >
-                    {formatDate(entry.timeStamp)}
-                  </td>
-                  <td style={{ padding: "0.25rem 0.4rem" }}>
-                    <span
-                      className={`torrent-log-level ${levelBadgeClass(entry.level)}`}
-                      style={{ fontSize: "0.65rem" }}
-                    >
-                      {entry.level.toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ padding: "0.25rem 0.4rem" }}>
-                    <span
+                    <td
                       style={{
-                        display: "inline-block",
-                        padding: "0.08rem 0.3rem",
-                        borderRadius: "2px",
-                        fontSize: "0.68rem",
-                        fontWeight: 600,
-                        border: "1px solid",
-                        ...sourceBadgeStyle(entry.source),
+                        color: "#8b949e",
+                        whiteSpace: "nowrap",
+                        padding: "0.25rem 0.4rem",
                       }}
                     >
-                      {entry.source}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      color:
-                        entry.level.toUpperCase() === "ERROR"
-                          ? "#fca5a5"
-                          : "#e6edf3",
-                      wordBreak: "break-word",
-                      lineHeight: "1.3",
-                      padding: "0.25rem 0.4rem",
-                    }}
-                  >
-                    {entry.message}
-                  </td>
-                </tr>
-              ))
+                      {formatDate(entryTime)}
+                    </td>
+                    <td style={{ padding: "0.25rem 0.4rem" }}>
+                      <span
+                        className={`torrent-log-level ${levelBadgeClass(entry.level)}`}
+                        style={{ fontSize: "0.65rem" }}
+                      >
+                        {entryLevel}
+                      </span>
+                    </td>
+                    <td style={{ padding: "0.25rem 0.4rem" }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "0.08rem 0.3rem",
+                          borderRadius: "2px",
+                          fontSize: "0.68rem",
+                          fontWeight: 600,
+                          border: "1px solid",
+                          ...sourceBadgeStyle(entrySource),
+                        }}
+                      >
+                        {entrySource}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        color: entryLevel === "ERROR" ? "#fca5a5" : "#e6edf3",
+                        wordBreak: "break-word",
+                        lineHeight: "1.3",
+                        padding: "0.25rem 0.4rem",
+                      }}
+                    >
+                      {entry.message}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

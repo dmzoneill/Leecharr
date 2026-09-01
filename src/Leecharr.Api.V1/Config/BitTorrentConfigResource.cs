@@ -30,6 +30,8 @@ public class BitTorrentConfigResource : RestResource
     public int ScrapeIntervalSeconds { get; set; }
 
     // Storage & Incomplete Staging & Preallocation
+    public string DownloadDir { get; set; }
+
     public string IncompleteDownloadDir { get; set; }
 
     public bool EnableIncompleteDir { get; set; }
@@ -156,6 +158,7 @@ public static class BitTorrentConfigResourceMapper
             MinAnnounceIntervalSeconds = model.MinAnnounceIntervalSeconds,
             ScrapeIntervalSeconds = model.ScrapeIntervalSeconds,
 
+            DownloadDir = string.IsNullOrWhiteSpace(model.DownloadDir) ? "/downloads" : model.DownloadDir,
             IncompleteDownloadDir = model.IncompleteDownloadDir,
             EnableIncompleteDir = model.EnableIncompleteDir,
             PreallocationMode = model.PreallocationMode,

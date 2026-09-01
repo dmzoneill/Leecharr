@@ -268,8 +268,9 @@ export function TrackersTab({
                 <th className="torrent-table-th">Status</th>
                 <th className="torrent-table-th">Seeders</th>
                 <th className="torrent-table-th">Leechers</th>
-                <th className="torrent-table-th">Announces</th>
+                <th className="torrent-table-th">Interval</th>
                 <th className="torrent-table-th">Last Announce</th>
+                <th className="torrent-table-th">Next Announce</th>
                 <th
                   className="torrent-table-th"
                   style={{ textAlign: "right", width: "90px" }}
@@ -315,9 +316,14 @@ export function TrackersTab({
                     <td>{t.seeders}</td>
                     <td>{t.leechers}</td>
                     <td>
-                      {t.successfulAnnounces}/{t.totalAnnounces}
+                      {t.announceInterval ? `${t.announceInterval}s` : "1800s"}
                     </td>
-                    <td>{formatDate(t.lastAnnounce)}</td>
+                    <td>
+                      {t.lastAnnounce ? formatDate(t.lastAnnounce) : "Never"}
+                    </td>
+                    <td>
+                      {t.nextAnnounce ? formatDate(t.nextAnnounce) : "Queued"}
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <div
                         style={{
@@ -333,15 +339,16 @@ export function TrackersTab({
                             fontSize: "0.72rem",
                           }}
                           onClick={() => {
-                            if (!torrentId) return;
+                            if (!effectiveId) return;
                             announceTracker.mutate(
-                              { torrentId, trackerId: t.id },
+                              { torrentId: effectiveId, trackerId: t.id },
                               {
                                 onSuccess: (data) => {
                                   showToast(
                                     data.message || "Announce queued",
                                     "success",
                                   );
+                                  refetch();
                                 },
                                 onError: (err) => {
                                   showToast(

@@ -1,15 +1,23 @@
-export function formatBytes(bytes: number): string {
-  if (bytes <= 0) return "0 B";
+export function formatBytes(bytes: number | null | undefined): string {
+  if (
+    bytes == null ||
+    isNaN(Number(bytes)) ||
+    !isFinite(Number(bytes)) ||
+    Number(bytes) <= 0
+  ) {
+    return "0 B";
+  }
+  const n = Number(bytes);
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   const i = Math.max(
     0,
-    Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024))),
+    Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024))),
   );
-  const val = bytes / Math.pow(1024, i);
+  const val = n / Math.pow(1024, i);
   return `${val.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-export function formatSpeed(bytesPerSecond: number): string {
+export function formatSpeed(bytesPerSecond: number | null | undefined): string {
   return `${formatBytes(bytesPerSecond)}/s`;
 }
 
@@ -34,11 +42,12 @@ export function formatDuration(startDate: string): string {
   return `${minutes}m`;
 }
 
-export function formatSeconds(seconds: number): string {
-  if (seconds <= 0) return "-";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
+export function formatSeconds(seconds: number | undefined | null): string {
+  if (!seconds || isNaN(Number(seconds)) || Number(seconds) <= 0) return "-";
+  const sec = Math.floor(Number(seconds));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
   if (h > 0) return `${h}h ${m}m ${s}s`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;

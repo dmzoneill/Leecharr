@@ -1,28 +1,66 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DownloadIcon, UploadIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
 
-const DL_PRESETS = [
-  { label: "∞", value: 0, title: "Unlimited" },
-  { label: "5M", value: 5000, title: "5 MB/s" },
-  { label: "10M", value: 10000, title: "10 MB/s" },
-  { label: "25M", value: 25000, title: "25 MB/s" },
-  { label: "50M", value: 50000, title: "50 MB/s" },
+const DL_STEPS: number[] = [
+  0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
+  1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000,
+  12000, 14000, 16000, 18000, 20000, 25000, 30000, 40000, 50000, 60000, 75000,
+  100000,
 ];
 
-const UL_PRESETS = [
-  { label: "∞", value: 0, title: "Unlimited" },
-  { label: "1M", value: 1000, title: "1 MB/s" },
-  { label: "2.5M", value: 2500, title: "2.5 MB/s" },
-  { label: "5M", value: 5000, title: "5 MB/s" },
-  { label: "10M", value: 10000, title: "10 MB/s" },
+const UL_STEPS: number[] = [
+  0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
+  1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000,
+  12000, 15000, 20000, 25000, 30000, 40000, 50000,
 ];
+
+function valueToStepIndex(val: number, steps: number[]): number {
+  if (val <= 0) return 0;
+  let closestIdx = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < steps.length; i++) {
+    const diff = Math.abs(steps[i] - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIdx = i;
+    }
+  }
+  return closestIdx;
+}
+
+function formatSpeedLimit(kbps: number): string {
+  if (kbps <= 0) return "∞";
+  if (kbps < 1000) return `${kbps} KB/s`;
+  const mb = kbps / 1000;
+  return `${Number(mb.toFixed(mb >= 10 || mb % 1 === 0 ? 0 : 1))} MB/s`;
+}
 
 export const BandwidthCard: React.FC = () => {
   const { data: config, isLoading } = useSeedingConfig();
   const saveMutation = useSaveSeedingConfig();
   const { showToast } = useToast();
+
+  const serverDl = config?.maxDownloadSpeedKbps ?? 0;
+  const serverUl = config?.maxUploadSpeedKbps ?? 0;
+
+  const [localDl, setLocalDl] = useState<number>(serverDl);
+  const [localUl, setLocalUl] = useState<number>(serverUl);
+  const [isDraggingDl, setIsDraggingDl] = useState(false);
+  const [isDraggingUl, setIsDraggingUl] = useState(false);
+
+  useEffect(() => {
+    if (!isDraggingDl) {
+      setLocalDl(serverDl);
+    }
+  }, [serverDl, isDraggingDl]);
+
+  useEffect(() => {
+    if (!isDraggingUl) {
+      setLocalUl(serverUl);
+    }
+  }, [serverUl, isDraggingUl]);
 
   const handleUpdate = (
     updates: Partial<import("../../api/types").SeedingConfig>,
@@ -53,8 +91,44 @@ export const BandwidthCard: React.FC = () => {
   }
 
   const isAltActive = config.alternativeSpeedEnabled ?? false;
-  const currentDl = config.maxDownloadSpeedKbps ?? 0;
-  const currentUl = config.maxUploadSpeedKbps ?? 0;
+
+  const dlIndex = valueToStepIndex(localDl, DL_STEPS);
+  const dlPercent = (dlIndex / (DL_STEPS.length - 1)) * 100;
+
+  const ulIndex = valueToStepIndex(localUl, UL_STEPS);
+  const ulPercent = (ulIndex / (UL_STEPS.length - 1)) * 100;
+
+  const handleDlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsDraggingDl(true);
+    const idx = Number(e.target.value);
+    setLocalDl(DL_STEPS[idx] ?? 0);
+  };
+
+  const commitDlChange = () => {
+    setIsDraggingDl(false);
+    handleUpdate({ maxDownloadSpeedKbps: localDl });
+  };
+
+  const setDlDirect = (val: number) => {
+    setLocalDl(val);
+    handleUpdate({ maxDownloadSpeedKbps: val });
+  };
+
+  const handleUlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsDraggingUl(true);
+    const idx = Number(e.target.value);
+    setLocalUl(UL_STEPS[idx] ?? 0);
+  };
+
+  const commitUlChange = () => {
+    setIsDraggingUl(false);
+    handleUpdate({ maxUploadSpeedKbps: localUl });
+  };
+
+  const setUlDirect = (val: number) => {
+    setLocalUl(val);
+    handleUpdate({ maxUploadSpeedKbps: val });
+  };
 
   return (
     <div className="quick-card">
@@ -73,63 +147,91 @@ export const BandwidthCard: React.FC = () => {
       </div>
 
       <div className="quick-card-body">
-        {/* Download Speed */}
+        {/* Download Speed Slider */}
         <div className="quick-control-row">
           <div className="quick-control-label">
             <DownloadIcon size={13} />
             <span>Max DL:</span>
             <span className="quick-control-current">
-              {currentDl === 0
-                ? "∞"
-                : `${currentDl >= 1000 ? (currentDl / 1000).toFixed(currentDl % 1000 === 0 ? 0 : 1) + " MB/s" : currentDl + " KB/s"}`}
+              {formatSpeedLimit(localDl)}
             </span>
           </div>
-          <div className="quick-presets-group">
-            {DL_PRESETS.map((p) => {
-              const active = currentDl === p.value;
-              return (
-                <button
-                  key={p.label}
-                  type="button"
-                  className={`preset-chip ${active ? "active" : ""}`}
-                  onClick={() =>
-                    handleUpdate({ maxDownloadSpeedKbps: p.value })
-                  }
-                  title={p.title}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
+          <div className="quick-slider-container">
+            <button
+              type="button"
+              className={`quick-slider-bound ${localDl === 0 ? "active" : ""}`}
+              onClick={() => setDlDirect(0)}
+              title="Set Download to Unlimited (∞)"
+            >
+              ∞
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={DL_STEPS.length - 1}
+              value={dlIndex}
+              onChange={handleDlChange}
+              onPointerUp={commitDlChange}
+              onKeyUp={commitDlChange}
+              className="quick-range-slider"
+              style={{
+                background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${dlPercent}%, rgba(255, 255, 255, 0.12) ${dlPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
+              }}
+              title={`Max Download: ${formatSpeedLimit(localDl)}`}
+              aria-label="Max Download Speed Limit"
+            />
+            <button
+              type="button"
+              className={`quick-slider-bound ${localDl === DL_STEPS[DL_STEPS.length - 1] ? "active" : ""}`}
+              onClick={() => setDlDirect(DL_STEPS[DL_STEPS.length - 1])}
+              title={`Set Download to Max (${formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1])})`}
+            >
+              100M
+            </button>
           </div>
         </div>
 
-        {/* Upload Speed */}
+        {/* Upload Speed Slider */}
         <div className="quick-control-row">
           <div className="quick-control-label">
             <UploadIcon size={13} />
             <span>Max UL:</span>
             <span className="quick-control-current">
-              {currentUl === 0
-                ? "∞"
-                : `${currentUl >= 1000 ? (currentUl / 1000).toFixed(currentUl % 1000 === 0 ? 0 : 1) + " MB/s" : currentUl + " KB/s"}`}
+              {formatSpeedLimit(localUl)}
             </span>
           </div>
-          <div className="quick-presets-group">
-            {UL_PRESETS.map((p) => {
-              const active = currentUl === p.value;
-              return (
-                <button
-                  key={p.label}
-                  type="button"
-                  className={`preset-chip ${active ? "active" : ""}`}
-                  onClick={() => handleUpdate({ maxUploadSpeedKbps: p.value })}
-                  title={p.title}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
+          <div className="quick-slider-container">
+            <button
+              type="button"
+              className={`quick-slider-bound ${localUl === 0 ? "active" : ""}`}
+              onClick={() => setUlDirect(0)}
+              title="Set Upload to Unlimited (∞)"
+            >
+              ∞
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={UL_STEPS.length - 1}
+              value={ulIndex}
+              onChange={handleUlChange}
+              onPointerUp={commitUlChange}
+              onKeyUp={commitUlChange}
+              className="quick-range-slider"
+              style={{
+                background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${ulPercent}%, rgba(255, 255, 255, 0.12) ${ulPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
+              }}
+              title={`Max Upload: ${formatSpeedLimit(localUl)}`}
+              aria-label="Max Upload Speed Limit"
+            />
+            <button
+              type="button"
+              className={`quick-slider-bound ${localUl === UL_STEPS[UL_STEPS.length - 1] ? "active" : ""}`}
+              onClick={() => setUlDirect(UL_STEPS[UL_STEPS.length - 1])}
+              title={`Set Upload to Max (${formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1])})`}
+            >
+              50M
+            </button>
           </div>
         </div>
 

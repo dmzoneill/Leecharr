@@ -17,6 +17,7 @@ export interface Torrent {
   seeders: number;
   leechers: number;
   trackerUrl: string | null;
+  trackers?: string[];
   sourcePath: string | null;
   dateAdded: string;
   lastActive: string | null;
@@ -394,6 +395,7 @@ export interface BitTorrentConfig {
   scrapeIntervalSeconds: number;
 
   // Storage & Incomplete Staging & Preallocation
+  downloadDir?: string;
   incompleteDownloadDir?: string;
   enableIncompleteDir?: boolean;
   preallocationMode?: string;
@@ -796,9 +798,10 @@ export interface PeerConnectionLogEntry {
 export interface TorrentEventLogEntry {
   id: number;
   torrentId: number;
-  timeStamp: string;
+  timeStamp?: string;
+  timestamp?: string;
   level: string;
-  source: string;
+  source?: string;
   message: string;
 }
 
