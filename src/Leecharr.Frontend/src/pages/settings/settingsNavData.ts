@@ -132,6 +132,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
           "Incomplete staging paths, sparse disk preallocation mode, POSIX umask, and partial file extensions",
         icon: "💽",
         keywords: [
+          "download dir",
+          "downloads folder",
+          "default download directory",
+          "completed downloads",
+          "save path",
           "incomplete dir",
           "staging",
           "preallocation",

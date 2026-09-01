@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
+import { extractTrackerDomain } from "../utils/formatters";
 
 interface TorrentGridProps {
   torrents: Torrent[];
+  filter?: string;
+  stateFilter?: string;
+  trackerFilter?: string;
   selectedId: number | null;
   onSelect: (torrent: Torrent) => void;
   onPause: (id: number) => void;
@@ -13,6 +17,9 @@ interface TorrentGridProps {
 
 export const TorrentGrid: React.FC<TorrentGridProps> = ({
   torrents,
+  filter,
+  stateFilter,
+  trackerFilter,
   selectedId,
   onSelect,
   onPause,
@@ -33,7 +40,38 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
     return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
   };
 
-  if (torrents.length === 0) {
+  const filteredTorrents = useMemo(() => {
+    return torrents.filter((t) => {
+      if (filter) {
+        const q = filter.toLowerCase();
+        const matchName = (t.name || "").toLowerCase().includes(q);
+        const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
+        if (!matchName && !matchMedia) return false;
+      }
+      if (stateFilter && stateFilter !== "All") {
+        const st = (t.status || "").toLowerCase();
+        const target = stateFilter.toLowerCase();
+        if (target === "stopped" || target === "paused") {
+          if (st !== "paused" && st !== "stopped" && st !== "idle")
+            return false;
+        } else if (st !== target) {
+          return false;
+        }
+      }
+      if (trackerFilter && trackerFilter !== "All") {
+        const matchesTracker =
+          (t.trackers &&
+            t.trackers.some(
+              (u) => extractTrackerDomain(u) === trackerFilter,
+            )) ||
+          extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
+        if (!matchesTracker) return false;
+      }
+      return true;
+    });
+  }, [torrents, filter, stateFilter, trackerFilter]);
+
+  if (filteredTorrents.length === 0) {
     return (
       <div
         style={{
@@ -64,7 +102,9 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
             marginBottom: "0.5rem",
           }}
         >
-          No torrent in the queue
+          {torrents.length === 0
+            ? "No torrent in the queue"
+            : "No torrents match the selected filter"}
         </h3>
         <p
           style={{
@@ -74,7 +114,9 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
             margin: 0,
           }}
         >
-          Add a magnet link or search indexers to begin downloading.
+          {torrents.length === 0
+            ? "Add a magnet link or search indexers to begin downloading."
+            : "Try selecting a different filter or clearing search."}
         </p>
       </div>
     );
@@ -82,7 +124,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
 
   return (
     <div className="torrent-grid">
-      {torrents.map((t) => {
+      {filteredTorrents.map((t) => {
         const isSelected = t.id === selectedId;
         const statusLower = (t.status || "").toLowerCase();
         const isDownloading = statusLower === "downloading";

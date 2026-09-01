@@ -31,6 +31,8 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     public string ActiveEngineId => Volatile.Read(ref this.activeEngine)?.EngineId ?? "MonoTorrent";
 
+    public int DhtNodeCount => Volatile.Read(ref this.activeEngine)?.DhtNodeCount ?? 0;
+
     public DynamicDownloadEngineProxy(
         IEnumerable<ITorrentEngine> availableEngines,
         IConfigService configService,

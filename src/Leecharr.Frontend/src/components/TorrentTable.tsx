@@ -241,8 +241,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       }
     }
     if (trackerFilter && trackerFilter !== "All") {
-      const trackerDomain = extractTrackerDomain(t.trackerUrl || "");
-      if (trackerDomain !== trackerFilter) return false;
+      const matchesTracker =
+        (t.trackers &&
+          t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
+        extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
+      if (!matchesTracker) return false;
     }
     return true;
   });
@@ -252,8 +255,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     let valB: any = (b as any)[sortKey];
 
     if (sortKey === "#") {
-      valA = a.queuePosition ?? a.id;
-      valB = b.queuePosition ?? b.id;
+      valA =
+        a.queuePosition && a.queuePosition > 0 ? a.queuePosition : (a.id ?? 0);
+      valB =
+        b.queuePosition && b.queuePosition > 0 ? b.queuePosition : (b.id ?? 0);
     } else if (sortKey === "category") {
       valA = a.category ?? a.label ?? "";
       valB = b.category ?? b.label ?? "";
@@ -348,7 +353,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           <span
             style={{ color: "var(--text-muted, #7e8092)", fontSize: "0.75rem" }}
           >
-            {t.queuePosition ?? idx + 1}
+            {t.queuePosition && t.queuePosition > 0 ? t.queuePosition : idx + 1}
           </span>
         );
 

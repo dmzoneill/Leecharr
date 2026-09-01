@@ -68,52 +68,23 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     const points: SpeedDataPoint[] = serverHistory
       .slice(-maxPoints)
       .map((s) => ({
-        uploadSpeed: s.uploadSpeed,
-        downloadSpeed: s.downloadSpeed,
+        uploadSpeed: Number(s.uploadSpeed) || 0,
+        downloadSpeed: Number(s.downloadSpeed) || 0,
       }));
     historyRef.current = points;
-
-    if (serverHistory.length > 0) {
-      const last = serverHistory[serverHistory.length - 1];
-      prevRef.current = {
-        totalUploaded: last.totalUploaded,
-        totalDownloaded: last.totalDownloaded,
-        timestamp: new Date(last.timestamp).getTime(),
-      };
-    }
   }, [serverHistory, maxPoints]);
 
   useEffect(() => {
     if (!stats) return;
 
-    const now = Date.now();
-    const prev = prevRef.current;
+    const uploadSpeed = Number(stats.uploadSpeed) || 0;
+    const downloadSpeed = Number(stats.downloadSpeed) || 0;
 
-    if (prev) {
-      const timeDelta = (now - prev.timestamp) / 1000;
-      if (timeDelta >= 0.5) {
-        const uploadSpeed = Math.max(
-          0,
-          (stats.totalUploaded - prev.totalUploaded) / timeDelta,
-        );
-        const downloadSpeed = Math.max(
-          0,
-          (stats.totalDownloaded - prev.totalDownloaded) / timeDelta,
-        );
-
-        const next = [...historyRef.current, { uploadSpeed, downloadSpeed }];
-        if (next.length > maxPoints) {
-          next.splice(0, next.length - maxPoints);
-        }
-        historyRef.current = next;
-      }
+    const next = [...historyRef.current, { uploadSpeed, downloadSpeed }];
+    if (next.length > maxPoints) {
+      next.splice(0, next.length - maxPoints);
     }
-
-    prevRef.current = {
-      totalUploaded: stats.totalUploaded,
-      totalDownloaded: stats.totalDownloaded,
-      timestamp: now,
-    };
+    historyRef.current = next;
   }, [stats, maxPoints]);
 
   const history = historyRef.current;
@@ -123,7 +94,9 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
 
   let maxSpeed = 0;
   for (const point of history) {
-    maxSpeed = Math.max(maxSpeed, point.uploadSpeed, point.downloadSpeed);
+    const up = Number(point.uploadSpeed) || 0;
+    const down = Number(point.downloadSpeed) || 0;
+    maxSpeed = Math.max(maxSpeed, up, down);
   }
   const niceMax = getNiceMax(maxSpeed > 0 ? maxSpeed * 1.15 : 1024);
 
@@ -142,8 +115,8 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     return data
       .map((point, i) => {
         const x = PADDING.left + (i / Math.max(1, maxPoints - 1)) * chartWidth;
-        const y =
-          PADDING.top + chartHeight - (point[key] / niceMax) * chartHeight;
+        const val = Number(point[key]) || 0;
+        const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
@@ -163,8 +136,8 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     const linePoints = data
       .map((point, i) => {
         const x = PADDING.left + (i / Math.max(1, maxPoints - 1)) * chartWidth;
-        const y =
-          PADDING.top + chartHeight - (point[key] / niceMax) * chartHeight;
+        const val = Number(point[key]) || 0;
+        const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
       })
       .join(" ");
@@ -178,9 +151,13 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
   const downloadArea = toAreaPath(history, "downloadSpeed");
 
   const currentUpload =
-    history.length > 0 ? history[history.length - 1].uploadSpeed : 0;
+    history.length > 0
+      ? Number(history[history.length - 1].uploadSpeed) || 0
+      : Number(stats?.uploadSpeed) || 0;
   const currentDownload =
-    history.length > 0 ? history[history.length - 1].downloadSpeed : 0;
+    history.length > 0
+      ? Number(history[history.length - 1].downloadSpeed) || 0
+      : Number(stats?.downloadSpeed) || 0;
 
   return (
     <div

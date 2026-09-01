@@ -7,6 +7,7 @@ export function StorageSettingsTab() {
   const saveMutation = useSaveBitTorrentConfig();
 
   const [form, setForm] = useState({
+    downloadDir: "/downloads",
     enableIncompleteDir: true,
     incompleteDownloadDir: "/downloads/incomplete",
     preallocationMode: "Sparse",
@@ -19,6 +20,7 @@ export function StorageSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
+        downloadDir: config.downloadDir || "/downloads",
         enableIncompleteDir: config.enableIncompleteDir ?? true,
         incompleteDownloadDir:
           config.incompleteDownloadDir || "/downloads/incomplete",
@@ -43,6 +45,7 @@ export function StorageSettingsTab() {
     saveMutation.mutate(
       {
         ...config,
+        downloadDir: form.downloadDir,
         enableIncompleteDir: form.enableIncompleteDir,
         incompleteDownloadDir: form.incompleteDownloadDir,
         preallocationMode: form.preallocationMode,
@@ -76,9 +79,16 @@ export function StorageSettingsTab() {
 
       <SectionCard
         title="Download Staging & File Storage"
-        description="Configure incomplete download staging paths and file preallocation strategies."
+        description="Configure completed download storage destinations, incomplete download staging paths, and file preallocation strategies."
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <TextInput
+            label="Default Completed Download Directory"
+            value={form.downloadDir}
+            onChange={(v) => update("downloadDir", v)}
+            hint="Root directory where completed downloads are placed upon 100% verification (e.g. /downloads)"
+          />
+
           <Toggle
             label="Stage Incomplete Downloads in Temporary Folder"
             checked={form.enableIncompleteDir}

@@ -10,6 +10,8 @@ public interface IDownloadEngine
 {
     string ProtocolName { get; }
 
+    int DhtNodeCount => 0;
+
     Task StartAsync();
 
     Task StopAsync();

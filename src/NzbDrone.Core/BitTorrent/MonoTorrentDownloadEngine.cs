@@ -49,6 +49,42 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public bool IsAvailable => true;
 
+    public int DhtNodeCount
+    {
+        get
+        {
+            try
+            {
+                if (this.engine == null)
+                {
+                    return 0;
+                }
+
+                var prop = this.engine.GetType().GetProperty("DhtEngine", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                           ?? this.engine.GetType().GetProperty("Dht", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (prop != null)
+                {
+                    var dht = prop.GetValue(this.engine);
+                    if (dht != null)
+                    {
+                        var nodeCountProp = dht.GetType().GetProperty("NodeCount") ?? dht.GetType().GetProperty("NodesCount");
+                        if (nodeCountProp != null)
+                        {
+                            return Convert.ToInt32(nodeCountProp.GetValue(dht));
+                        }
+                    }
+                }
+
+                return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+
     public TorrentEngineCapabilities Capabilities { get; } = new()
     {
         SupportsUtp = true,
@@ -667,8 +703,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 TorrentState.Paused => TorrentStatus.Paused,
                 TorrentState.Stopped => TorrentStatus.Stopped,
                 TorrentState.Hashing => TorrentStatus.Checking,
-                TorrentState.Metadata => TorrentStatus.Queued,
-                TorrentState.Starting => TorrentStatus.Queued,
+                TorrentState.Metadata => TorrentStatus.Downloading,
+                TorrentState.Starting => TorrentStatus.Downloading,
                 TorrentState.Stopping => TorrentStatus.Paused,
                 TorrentState.Error => TorrentStatus.Error,
                 _ => TorrentStatus.Stopped,

@@ -317,16 +317,15 @@ function PeerMap() {
         if (d.type === "torrent") return 28;
         return 22;
       })
-      .attr("fill", "var(--text-primary)")
-      .attr("stroke", "#0e0e0e")
-      .attr("stroke-width", "3.5px")
-      .attr("paint-order", "stroke fill")
+      .attr("fill", "var(--text-primary, #F8F4ED)")
+      .style("filter", "drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.95))")
       .attr("font-size", (d) => {
-        if (d.type === "center") return "12px";
-        if (d.type === "torrent") return "10px";
-        return "8px";
+        if (d.type === "center") return "13px";
+        if (d.type === "torrent") return "11px";
+        return "9.5px";
       })
       .attr("font-weight", (d) => (d.type === "center" ? 700 : 600))
+      .attr("letter-spacing", "0.02em")
       .attr("font-family", "inherit");
 
     node

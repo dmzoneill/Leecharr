@@ -50,10 +50,16 @@ public class TorrentService : ITorrentService
 
     public IEnumerable<Torrent> GetAll()
     {
-        var torrents = this.torrentRepository.All().OrderByDescending(t => t.DateAdded).ToList();
-        foreach (var torrent in torrents)
+        var torrents = this.torrentRepository.All().OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : t.Id).ToList();
+        for (var i = 0; i < torrents.Count; i++)
         {
+            var torrent = torrents[i];
             this.SyncWithEngine(torrent);
+            if (torrent.QueuePosition <= 0)
+            {
+                torrent.QueuePosition = i + 1;
+                this.torrentRepository.Update(torrent);
+            }
         }
 
         return torrents;
@@ -65,6 +71,12 @@ public class TorrentService : ITorrentService
         if (torrent != null)
         {
             this.SyncWithEngine(torrent);
+            if (torrent.QueuePosition <= 0)
+            {
+                var maxPos = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max();
+                torrent.QueuePosition = maxPos + 1;
+                this.torrentRepository.Update(torrent);
+            }
         }
 
         return torrent;
@@ -121,9 +133,11 @@ public class TorrentService : ITorrentService
             CreatedBy = parsed.CreatedBy,
             CreationDate = parsed.CreationDate,
             IsPrivate = parsed.IsPrivate,
+            TrackerUrl = parsed.AnnounceList?.SelectMany(tier => tier).FirstOrDefault(u => !string.IsNullOrWhiteSpace(u)) ?? parsed.AnnounceUrl,
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
+            QueuePosition = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };
@@ -174,6 +188,12 @@ public class TorrentService : ITorrentService
                                 Url = url,
                                 Tier = tier,
                                 Enabled = true,
+                                Status = 1,
+                                AnnounceInterval = 1800,
+                                LastAnnounce = inserted.DateAdded,
+                                NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                                TotalAnnounces = 1,
+                                SuccessfulAnnounces = 1,
                             });
                         }
                     }
@@ -187,6 +207,12 @@ public class TorrentService : ITorrentService
                     Url = parsed.AnnounceUrl,
                     Tier = 0,
                     Enabled = true,
+                    Status = 1,
+                    AnnounceInterval = 1800,
+                    LastAnnounce = inserted.DateAdded,
+                    NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                    TotalAnnounces = 1,
+                    SuccessfulAnnounces = 1,
                 });
             }
         }
@@ -274,6 +300,7 @@ public class TorrentService : ITorrentService
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
+            QueuePosition = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };
@@ -293,6 +320,12 @@ public class TorrentService : ITorrentService
                         Url = trackerUrl,
                         Tier = 0,
                         Enabled = true,
+                        Status = 1,
+                        AnnounceInterval = 1800,
+                        LastAnnounce = inserted.DateAdded,
+                        NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                        TotalAnnounces = 1,
+                        SuccessfulAnnounces = 1,
                     });
                 }
             }
@@ -550,6 +583,15 @@ public class TorrentService : ITorrentService
             torrent.UploadSpeed = task.UploadSpeed;
             torrent.Seeders = task.ConnectedSeeders;
             torrent.Leechers = task.ConnectedLeechers;
+        }
+
+        if (string.IsNullOrWhiteSpace(torrent.TrackerUrl) && this.trackerEntryRepository != null)
+        {
+            var firstTracker = this.trackerEntryRepository.GetByTorrentId(torrent.Id).FirstOrDefault();
+            if (firstTracker != null && !string.IsNullOrWhiteSpace(firstTracker.Url))
+            {
+                torrent.TrackerUrl = firstTracker.Url;
+            }
         }
     }
 

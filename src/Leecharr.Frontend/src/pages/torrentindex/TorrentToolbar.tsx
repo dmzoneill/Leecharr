@@ -32,6 +32,8 @@ interface TorrentToolbarProps {
   onBulkClear: () => void;
   showQuickSettings?: boolean;
   onToggleQuickSettings?: () => void;
+  isFilterCollapsed?: boolean;
+  onToggleFilter?: () => void;
 }
 
 export function TorrentToolbar({
@@ -54,6 +56,8 @@ export function TorrentToolbar({
   onBulkClear,
   showQuickSettings = false,
   onToggleQuickSettings,
+  isFilterCollapsed = false,
+  onToggleFilter,
 }: TorrentToolbarProps) {
   const { data: seedConfig } = useSeedingConfig();
   const saveSeedMutation = useSaveSeedingConfig();
@@ -70,6 +74,28 @@ export function TorrentToolbar({
   return (
     <div className="page-header" style={{ marginBottom: 0 }}>
       <div className="page-header-group">
+        {onToggleFilter && (
+          <button
+            type="button"
+            className={`btn btn-small ${isFilterCollapsed ? "btn-outline" : "btn-secondary"}`}
+            onClick={onToggleFilter}
+            title={
+              isFilterCollapsed
+                ? "Show Filters Sidebar (State / Tracker)"
+                : "Hide Filters Sidebar"
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              fontSize: "0.8rem",
+              padding: "0.3rem 0.6rem",
+            }}
+          >
+            <span>{isFilterCollapsed ? "▶" : "◀"}</span>
+            <span>Filters</span>
+          </button>
+        )}
         <h1 className="page-heading">Torrents ({count})</h1>
         <button
           type="button"

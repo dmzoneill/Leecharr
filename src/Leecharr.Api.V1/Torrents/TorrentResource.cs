@@ -54,6 +54,8 @@ public class TorrentResource : RestResource
 
     public string TrackerUrl { get; set; }
 
+    public List<string> Trackers { get; set; } = new List<string>();
+
     public int? Priority { get; set; }
 
     public int? QueuePosition { get; set; }
@@ -67,6 +69,16 @@ public class TorrentResource : RestResource
     public bool? InitialSeeding { get; set; }
 
     public bool? ForceStart { get; set; }
+
+    public int? AnnounceInterval { get; set; } = 1800;
+
+    public int? NextUpdate { get; set; } = 1800;
+
+    public int? Threshold { get; set; } = 1;
+
+    public int? SmallTorrentLimit { get; set; } = 50;
+
+    public bool? Active { get; set; } = true;
 
     public double TargetRatio { get; set; }
 

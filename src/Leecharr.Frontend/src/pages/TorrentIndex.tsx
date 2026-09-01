@@ -50,6 +50,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     });
   };
 
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("leecharr_filter_collapsed") === "true";
+  });
+
+  const toggleFilter = () => {
+    setIsFilterCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("leecharr_filter_collapsed", String(next));
+      return next;
+    });
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
@@ -88,9 +100,22 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const trackerGroups = useMemo(() => {
     const groups: Record<string, number> = {};
     for (const t of torrents) {
-      const domain = extractTrackerDomain(t.trackerUrl || "");
-      if (domain) {
-        groups[domain] = (groups[domain] || 0) + 1;
+      const domains = new Set<string>();
+      if (t.trackers && t.trackers.length > 0) {
+        for (const u of t.trackers) {
+          const d = extractTrackerDomain(u);
+          if (d && d !== "Unknown") domains.add(d);
+        }
+      }
+      if (t.trackerUrl) {
+        const d = extractTrackerDomain(t.trackerUrl);
+        if (d && d !== "Unknown") domains.add(d);
+      }
+      if (domains.size === 0) {
+        domains.add("Unknown");
+      }
+      for (const d of domains) {
+        groups[d] = (groups[d] || 0) + 1;
       }
     }
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
@@ -162,6 +187,11 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
   };
 
+  const currentSelectedTorrent = useMemo(() => {
+    if (!selectedTorrent) return null;
+    return torrents.find((t) => t.id === selectedTorrent.id) || selectedTorrent;
+  }, [torrents, selectedTorrent]);
+
   return (
     <div className="torrent-index-page">
       <TorrentToolbar
@@ -184,6 +214,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onBulkClear={() => setSelectedIds(new Set())}
         showQuickSettings={showQuickSettings}
         onToggleQuickSettings={handleToggleQuickSettings}
+        isFilterCollapsed={isFilterCollapsed}
+        onToggleFilter={toggleFilter}
       />
       <QuickSettingsDrawer
         isOpen={showQuickSettings}
@@ -196,15 +228,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         }
       />
       <div className="torrent-content-layout">
-        <TorrentFilterPanel
-          selectedState={selectedState}
-          onSelectState={setSelectedState}
-          selectedTracker={selectedTracker}
-          onSelectTracker={setSelectedTracker}
-          stateCounts={stateCounts}
-          trackerGroups={trackerGroups}
-          count={torrents.length}
-        />
+        {!isFilterCollapsed && (
+          <TorrentFilterPanel
+            selectedState={selectedState}
+            onSelectState={setSelectedState}
+            selectedTracker={selectedTracker}
+            onSelectTracker={setSelectedTracker}
+            stateCounts={stateCounts}
+            trackerGroups={trackerGroups}
+            count={torrents.length}
+            onCollapse={toggleFilter}
+          />
+        )}
         <div className="filter-content">
           <div className="torrent-split-pane">
             <div className="torrent-split-top">
@@ -214,7 +249,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   filter={filter}
                   stateFilter={selectedState}
                   trackerFilter={selectedTracker}
-                  selectedId={selectedTorrent?.id ?? null}
+                  selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={setSelectedTorrent}
                   onPause={onPause}
                   onResume={onResume}
@@ -228,7 +263,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
               ) : (
                 <TorrentGrid
                   torrents={torrents}
-                  selectedId={selectedTorrent?.id ?? null}
+                  filter={filter}
+                  stateFilter={selectedState}
+                  trackerFilter={selectedTracker}
+                  selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={setSelectedTorrent}
                   onPause={onPause}
                   onResume={onResume}
@@ -236,9 +274,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                 />
               )}
             </div>
-            {selectedTorrent && (
+            {currentSelectedTorrent && (
               <TorrentDetailPanel
-                torrent={selectedTorrent}
+                torrent={currentSelectedTorrent}
+                torrentId={currentSelectedTorrent.id}
                 onClose={() => setSelectedTorrent(null)}
               />
             )}

@@ -100,7 +100,7 @@ export function SystemLogs() {
   }, [filteredEntries, autoScroll]);
 
   return (
-    <div className="content-area">
+    <div className="content-area system-logs-page">
       {/* Page Header */}
       <div
         className="page-header"
@@ -108,7 +108,8 @@ export function SystemLogs() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1.25rem",
+          marginBottom: "0.85rem",
+          flexShrink: 0,
         }}
       >
         <div className="page-header-group">
@@ -156,7 +157,9 @@ export function SystemLogs() {
       </div>
 
       {activeTab === "files" ? (
-        <SystemLogFiles embedded />
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <SystemLogFiles embedded />
+        </div>
       ) : (
         <div className="log-viewer">
           <div className="log-toolbar">
