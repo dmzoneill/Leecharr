@@ -72,6 +72,13 @@ public class SabnzbdApiController : ControllerBase
             case "auth":
             case "get_config":
             case "config":
+                var configuredCats = _categoryService.GetAll().ToList();
+                var catNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
+                foreach (var c in configuredCats)
+                {
+                    catNames.Add(c.Name);
+                }
+
                 return Ok(new
                 {
                     config = new
@@ -82,14 +89,18 @@ public class SabnzbdApiController : ControllerBase
                             complete_dir = _configService.DownloadDir ?? "/downloads",
                             download_dir = _configService.IncompleteDownloadDir ?? "/downloads/incomplete"
                         },
-                        categories = _categoryService.GetAll().Select(c => new { name = c.Name, dir = c.SavePath, order = 0 }).ToList()
+                        categories = catNames.Select(name => new { name, dir = _configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
                     }
                 });
 
             case "get_cats":
-                var cats = new List<string> { "*" };
-                cats.AddRange(_categoryService.GetAll().Select(c => c.Name));
-                return Ok(new { categories = cats });
+                var allCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
+                foreach (var c in _categoryService.GetAll())
+                {
+                    allCats.Add(c.Name);
+                }
+
+                return Ok(new { categories = allCats.ToList() });
 
             case "queue":
                 var allTorrents = _torrentService.GetAll().ToList();

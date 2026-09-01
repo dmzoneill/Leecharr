@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
 
@@ -29,16 +31,19 @@ public class NzbgetRpcController : ControllerBase
 {
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileParser _torrentFileParser;
+    private readonly ICategoryService _categoryService;
     private readonly IConfigService _configService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
+        ICategoryService categoryService,
         IConfigService configService)
     {
         _torrentService = torrentService;
         _torrentFileParser = torrentFileParser;
+        _categoryService = categoryService;
         _configService = configService;
     }
 
@@ -67,18 +72,34 @@ public class NzbgetRpcController : ControllerBase
 
                 case "config":
                 case "loadconfig":
+                    var configItems = new List<object>
+                    {
+                        new { Name = "MainDir", Value = _configService.DownloadDir ?? "/downloads" },
+                        new { Name = "DestDir", Value = _configService.DownloadDir ?? "/downloads" },
+                        new { Name = "InterDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
+                        new { Name = "NzbDir", Value = _configService.DownloadDir ?? "/downloads" },
+                        new { Name = "QueueDir", Value = _configService.DownloadDir ?? "/downloads" },
+                        new { Name = "TempDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" }
+                    };
+
+                    var nzbgetCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tv", "tv-sonarr", "movies", "music", "anime", "default" };
+                    foreach (var c in _categoryService.GetAll())
+                    {
+                        nzbgetCats.Add(c.Name);
+                    }
+
+                    var catIndex = 1;
+                    foreach (var cat in nzbgetCats)
+                    {
+                        configItems.Add(new { Name = $"Category{catIndex}.Name", Value = cat });
+                        configItems.Add(new { Name = $"Category{catIndex}.DestDir", Value = global::System.IO.Path.Combine(_configService.DownloadDir ?? "/downloads", cat) });
+                        catIndex++;
+                    }
+
                     return Ok(new
                     {
                         version = "1.1",
-                        result = new object[]
-                        {
-                            new { Name = "MainDir", Value = _configService.DownloadDir ?? "/downloads" },
-                            new { Name = "DestDir", Value = _configService.DownloadDir ?? "/downloads" },
-                            new { Name = "InterDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
-                            new { Name = "NzbDir", Value = _configService.DownloadDir ?? "/downloads" },
-                            new { Name = "QueueDir", Value = _configService.DownloadDir ?? "/downloads" },
-                            new { Name = "TempDir", Value = _configService.IncompleteDownloadDir ?? "/downloads/incomplete" }
-                        },
+                        result = configItems,
                         id
                     });
 
