@@ -44,16 +44,21 @@ export function SpeedSettingsTab() {
         alternativeSpeedEnabled: config.alternativeSpeedEnabled ?? false,
         altDownloadSpeedKbps: config.altDownloadSpeedKbps ?? 2000,
         altUploadSpeedKbps: config.altUploadSpeedKbps ?? 500,
-        uploadDistributionAlgorithm: config.uploadDistributionAlgorithm || "Equal",
-        uploadDistributionSpreadPercentage: config.uploadDistributionSpreadPercentage ?? 50,
+        uploadDistributionAlgorithm:
+          config.uploadDistributionAlgorithm || "Equal",
+        uploadDistributionSpreadPercentage:
+          config.uploadDistributionSpreadPercentage ?? 50,
         uploadRedistributionMode: config.uploadRedistributionMode || "tick",
         uploadCustomIntervalMinutes: config.uploadCustomIntervalMinutes ?? 5,
         uploadStoppedMinPercentage: config.uploadStoppedMinPercentage ?? 20,
         uploadStoppedMaxPercentage: config.uploadStoppedMaxPercentage ?? 40,
-        downloadDistributionAlgorithm: config.downloadDistributionAlgorithm || "Equal",
-        downloadDistributionSpreadPercentage: config.downloadDistributionSpreadPercentage ?? 50,
+        downloadDistributionAlgorithm:
+          config.downloadDistributionAlgorithm || "Equal",
+        downloadDistributionSpreadPercentage:
+          config.downloadDistributionSpreadPercentage ?? 50,
         downloadRedistributionMode: config.downloadRedistributionMode || "tick",
-        downloadCustomIntervalMinutes: config.downloadCustomIntervalMinutes ?? 5,
+        downloadCustomIntervalMinutes:
+          config.downloadCustomIntervalMinutes ?? 5,
         downloadStoppedMinPercentage: config.downloadStoppedMinPercentage ?? 20,
         downloadStoppedMaxPercentage: config.downloadStoppedMaxPercentage ?? 40,
         speedVariationMin: config.speedVariationMin ?? 0.2,
@@ -63,7 +68,10 @@ export function SpeedSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -79,13 +87,15 @@ export function SpeedSettingsTab() {
         altDownloadSpeedKbps: form.altDownloadSpeedKbps,
         altUploadSpeedKbps: form.altUploadSpeedKbps,
         uploadDistributionAlgorithm: form.uploadDistributionAlgorithm,
-        uploadDistributionSpreadPercentage: form.uploadDistributionSpreadPercentage,
+        uploadDistributionSpreadPercentage:
+          form.uploadDistributionSpreadPercentage,
         uploadRedistributionMode: form.uploadRedistributionMode,
         uploadCustomIntervalMinutes: form.uploadCustomIntervalMinutes,
         uploadStoppedMinPercentage: form.uploadStoppedMinPercentage,
         uploadStoppedMaxPercentage: form.uploadStoppedMaxPercentage,
         downloadDistributionAlgorithm: form.downloadDistributionAlgorithm,
-        downloadDistributionSpreadPercentage: form.downloadDistributionSpreadPercentage,
+        downloadDistributionSpreadPercentage:
+          form.downloadDistributionSpreadPercentage,
         downloadRedistributionMode: form.downloadRedistributionMode,
         downloadCustomIntervalMinutes: form.downloadCustomIntervalMinutes,
         downloadStoppedMinPercentage: form.downloadStoppedMinPercentage,
@@ -95,12 +105,16 @@ export function SpeedSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading speed limit parameters...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading speed limit parameters...
+      </div>
+    );
   }
 
   return (
@@ -118,7 +132,13 @@ export function SpeedSettingsTab() {
         title="Global Bandwidth Rate Limits"
         description="Configure overall upload and download transfer speed caps (0 = unlimited)."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Global Maximum Download Speed (KB/s)"
             value={form.maxDownloadSpeedKbps}
@@ -155,7 +175,13 @@ export function SpeedSettingsTab() {
             hint="Manually override standard speeds with alternative throttled limits"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <NumberInput
               label="Alternative Download Cap (KB/s)"
               value={form.altDownloadSpeedKbps}
@@ -183,14 +209,26 @@ export function SpeedSettingsTab() {
         title="Swarm Bandwidth Distribution Curves"
         description="Mathematical algorithms to apportion bandwidth across competing active swarms."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <SelectInput
             label="Upload Distribution Curve"
             value={form.uploadDistributionAlgorithm}
             onChange={(v) => update("uploadDistributionAlgorithm", v)}
             options={[
-              { value: "Equal", label: "Equal Distribution (Uniform Allocation)" },
-              { value: "Pareto", label: "Pareto 80/20 (Prioritize Active Swarms)" },
+              {
+                value: "Equal",
+                label: "Equal Distribution (Uniform Allocation)",
+              },
+              {
+                value: "Pareto",
+                label: "Pareto 80/20 (Prioritize Active Swarms)",
+              },
               { value: "PowerLaw", label: "Power Law Curve" },
               { value: "LogNormal", label: "Log-Normal Distribution" },
             ]}
@@ -201,8 +239,14 @@ export function SpeedSettingsTab() {
             value={form.downloadDistributionAlgorithm}
             onChange={(v) => update("downloadDistributionAlgorithm", v)}
             options={[
-              { value: "Equal", label: "Equal Distribution (Uniform Allocation)" },
-              { value: "Pareto", label: "Pareto 80/20 (Prioritize Primary Downloads)" },
+              {
+                value: "Equal",
+                label: "Equal Distribution (Uniform Allocation)",
+              },
+              {
+                value: "Pareto",
+                label: "Pareto 80/20 (Prioritize Primary Downloads)",
+              },
               { value: "PowerLaw", label: "Power Law Curve" },
               { value: "LogNormal", label: "Log-Normal Distribution" },
             ]}

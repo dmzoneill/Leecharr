@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  TextInput,
-  SelectInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, TextInput, SelectInput, Toggle } from "./shared";
 
 export function StorageSettingsTab() {
   const { data: config, isLoading } = useBitTorrentConfig();
@@ -26,7 +20,8 @@ export function StorageSettingsTab() {
     if (config) {
       setForm({
         enableIncompleteDir: config.enableIncompleteDir ?? true,
-        incompleteDownloadDir: config.incompleteDownloadDir || "/downloads/incomplete",
+        incompleteDownloadDir:
+          config.incompleteDownloadDir || "/downloads/incomplete",
         preallocationMode: config.preallocationMode || "Sparse",
         renamePartialFiles: config.renamePartialFiles ?? true,
         umask: config.umask || "022",
@@ -35,7 +30,10 @@ export function StorageSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -53,12 +51,16 @@ export function StorageSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading storage parameters...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading storage parameters...
+      </div>
+    );
   }
 
   return (
@@ -92,14 +94,28 @@ export function StorageSettingsTab() {
             hint="Path where in-progress downloads are written (e.g. /downloads/incomplete)"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <SelectInput
               label="Disk Preallocation Mode"
               value={form.preallocationMode}
               onChange={(v) => update("preallocationMode", v)}
               options={[
-                { value: "Sparse", label: "Sparse Allocation (Instant Non-Blocking, Recommended)" },
-                { value: "Full", label: "Full Preallocation (Zero-fill, Prevents Fragmentation)" },
+                {
+                  value: "Sparse",
+                  label:
+                    "Sparse Allocation (Instant Non-Blocking, Recommended)",
+                },
+                {
+                  value: "Full",
+                  label:
+                    "Full Preallocation (Zero-fill, Prevents Fragmentation)",
+                },
                 { value: "Off", label: "Disabled / Compact (Grow On Write)" },
               ]}
               hint="Sparse creates files instantly without freezing I/O during torrent startup"
@@ -113,7 +129,12 @@ export function StorageSettingsTab() {
             />
           </div>
 
-          <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
             <Toggle
               label="Append .part Extension to Incomplete Files"
               checked={form.renamePartialFiles}

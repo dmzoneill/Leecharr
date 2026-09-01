@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  TextInput,
-} from "./shared";
+import { SaveBar, SectionCard, TextInput } from "./shared";
 
 export function CustomScriptsTab() {
   const { data: config, isLoading } = useBitTorrentConfig();
@@ -27,13 +23,17 @@ export function CustomScriptsTab() {
         onSeedGoalReachedScript: config.onSeedGoalReachedScript || "",
         scriptTorrentDoneFilename: config.scriptTorrentDoneFilename || "",
         scriptTorrentAddedFilename: config.scriptTorrentAddedFilename || "",
-        scriptTorrentDoneSeedingFilename: config.scriptTorrentDoneSeedingFilename || "",
+        scriptTorrentDoneSeedingFilename:
+          config.scriptTorrentDoneSeedingFilename || "",
       });
       setDirty(false);
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -51,12 +51,16 @@ export function CustomScriptsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading custom script settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading custom script settings...
+      </div>
+    );
   }
 
   return (
@@ -89,11 +93,34 @@ export function CustomScriptsTab() {
             hint="Absolute path to executable script triggered when target ratio or seed time is satisfied"
           />
 
-          <div style={{ backgroundColor: "var(--bg-primary)", padding: "1rem", borderRadius: "6px", border: "1px solid var(--border)" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.5rem" }}>
+          <div
+            style={{
+              backgroundColor: "var(--bg-primary)",
+              padding: "1rem",
+              borderRadius: "6px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.5rem",
+              }}
+            >
               Standard Environment Variables Passed to Scripts:
             </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontFamily: "monospace", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.35rem" }}>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-muted)",
+                fontFamily: "monospace",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "0.35rem",
+              }}
+            >
               <div>• TORRENT_ID</div>
               <div>• TORRENT_NAME</div>
               <div>• TORRENT_PATH</div>

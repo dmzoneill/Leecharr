@@ -36,7 +36,9 @@ export function AiTab() {
     enableSwarmDiagnostics: true,
   });
 
-  const [probeResult, setProbeResult] = useState<SubsystemProbeResult | null>(null);
+  const [probeResult, setProbeResult] = useState<SubsystemProbeResult | null>(
+    null,
+  );
   const [probeLoadingId, setProbeLoadingId] = useState<string | null>(null);
   const [switchSuccessMsg, setSwitchSuccessMsg] = useState<string | null>(null);
 
@@ -47,7 +49,10 @@ export function AiTab() {
   }, [config]);
 
   const aiSubsystem = subsystems?.find((s) => s.id === "ai");
-  const activeProviderId = aiSubsystem?.activeProviderId || formData.activeAiProvider || "RuleHeuristic";
+  const activeProviderId =
+    aiSubsystem?.activeProviderId ||
+    formData.activeAiProvider ||
+    "RuleHeuristic";
 
   const isDirty = config
     ? JSON.stringify(config) !== JSON.stringify(formData)
@@ -92,7 +97,9 @@ export function AiTab() {
 
   const handleResetButtonPosition = () => {
     localStorage.removeItem("leecharr_copilot_btn_pos");
-    alert("Floating AI Copilot button position reset to default (bottom-right above status bar).");
+    alert(
+      "Floating AI Copilot button position reset to default (bottom-right above status bar).",
+    );
   };
 
   if (configLoading) {
@@ -135,7 +142,9 @@ export function AiTab() {
         title="Active AI Engine & Pluggable Providers"
         description="Select and hot-swap the underlying AI model architecture. Changes apply immediately without restart."
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
           {aiSubsystem?.providers?.map((provider) => {
             const isActive = provider.providerId === activeProviderId;
             const isProbing = probeLoadingId === provider.providerId;
@@ -166,11 +175,31 @@ export function AiTab() {
                     gap: "0.5rem",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                    <BotIcon size={20} style={{ color: isActive ? "#FFD166" : "#C7C5D3" }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                    }}
+                  >
+                    <BotIcon
+                      size={20}
+                      style={{ color: isActive ? "#FFD166" : "#C7C5D3" }}
+                    />
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <strong style={{ fontSize: "0.95rem", color: "var(--text-primary, #F8F4ED)" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <strong
+                          style={{
+                            fontSize: "0.95rem",
+                            color: "var(--text-primary, #F8F4ED)",
+                          }}
+                        >
                           {provider.displayName}
                         </strong>
                         <span
@@ -188,7 +217,11 @@ export function AiTab() {
                         {isActive && (
                           <span
                             className="badge badge-success"
-                            style={{ fontSize: "0.65rem", padding: "0.1rem 0.4rem", fontWeight: 700 }}
+                            style={{
+                              fontSize: "0.65rem",
+                              padding: "0.1rem 0.4rem",
+                              fontWeight: 700,
+                            }}
                           >
                             ACTIVE
                           </span>
@@ -206,7 +239,13 @@ export function AiTab() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => handleProbe(provider.providerId)}
@@ -222,7 +261,11 @@ export function AiTab() {
                     >
                       <RefreshIcon
                         size={12}
-                        style={{ animation: isProbing ? "spin 1s linear infinite" : "none" }}
+                        style={{
+                          animation: isProbing
+                            ? "spin 1s linear infinite"
+                            : "none",
+                        }}
                       />
                       <span>{isProbing ? "Probing..." : "Test Health"}</span>
                     </button>
@@ -230,7 +273,9 @@ export function AiTab() {
                     {!isActive && (
                       <button
                         type="button"
-                        onClick={() => handleSwitchProvider(provider.providerId)}
+                        onClick={() =>
+                          handleSwitchProvider(provider.providerId)
+                        }
                         disabled={switchSubsystem.isPending}
                         className="btn btn-primary btn-small"
                         style={{ fontSize: "0.75rem", fontWeight: 700 }}
@@ -242,40 +287,59 @@ export function AiTab() {
                 </div>
 
                 {/* Probe result banner if applicable */}
-                {probeResult && probeResult.providerId === provider.providerId && (
-                  <div
-                    style={{
-                      padding: "0.6rem 0.8rem",
-                      borderRadius: "6px",
-                      backgroundColor: probeResult.isHealthy
-                        ? "rgba(16, 185, 129, 0.12)"
-                        : "rgba(225, 29, 72, 0.12)",
-                      border: probeResult.isHealthy
-                        ? "1px solid rgba(16, 185, 129, 0.3)"
-                        : "1px solid rgba(225, 29, 72, 0.3)",
-                      fontSize: "0.75rem",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "0.3rem",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      {probeResult.isHealthy ? (
-                        <CheckCircleIcon size={14} style={{ color: "#34d399" }} />
-                      ) : (
-                        <AlertIcon size={14} style={{ color: "#f87171" }} />
-                      )}
-                      <strong style={{ color: probeResult.isHealthy ? "#6ee7b7" : "#fca5a5" }}>
-                        {probeResult.statusMessage}
-                      </strong>
-                    </div>
-                    {probeResult.warnings?.map((w, i) => (
-                      <div key={i} style={{ color: "#fcd34d", paddingLeft: "1.2rem" }}>
-                        &bull; {w}
+                {probeResult &&
+                  probeResult.providerId === provider.providerId && (
+                    <div
+                      style={{
+                        padding: "0.6rem 0.8rem",
+                        borderRadius: "6px",
+                        backgroundColor: probeResult.isHealthy
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "rgba(225, 29, 72, 0.12)",
+                        border: probeResult.isHealthy
+                          ? "1px solid rgba(16, 185, 129, 0.3)"
+                          : "1px solid rgba(225, 29, 72, 0.3)",
+                        fontSize: "0.75rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.3rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                        }}
+                      >
+                        {probeResult.isHealthy ? (
+                          <CheckCircleIcon
+                            size={14}
+                            style={{ color: "#34d399" }}
+                          />
+                        ) : (
+                          <AlertIcon size={14} style={{ color: "#f87171" }} />
+                        )}
+                        <strong
+                          style={{
+                            color: probeResult.isHealthy
+                              ? "#6ee7b7"
+                              : "#fca5a5",
+                          }}
+                        >
+                          {probeResult.statusMessage}
+                        </strong>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {probeResult.warnings?.map((w, i) => (
+                        <div
+                          key={i}
+                          style={{ color: "#fcd34d", paddingLeft: "1.2rem" }}
+                        >
+                          &bull; {w}
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             );
           })}
@@ -297,26 +361,45 @@ export function AiTab() {
               border: "1px solid var(--border-color, #23284B)",
             }}
           >
-            <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--text-primary, #F8F4ED)" }}>
+            <h4
+              style={{
+                margin: "0 0 0.5rem",
+                fontSize: "0.85rem",
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               🦙 Ollama Local LLM Sidecar Settings
             </h4>
-            <div className="form-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0.75rem" }}>
+            <div
+              className="form-row"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr",
+                gap: "0.75rem",
+              }}
+            >
               <div className="form-group">
                 <label style={{ fontSize: "0.75rem" }}>Ollama Server URL</label>
                 <input
                   type="text"
                   value={formData.ollamaHost}
-                  onChange={(e) => setFormData({ ...formData, ollamaHost: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ollamaHost: e.target.value })
+                  }
                   placeholder="http://127.0.0.1:11434"
                   className="form-control"
                 />
               </div>
               <div className="form-group">
-                <label style={{ fontSize: "0.75rem" }}>Default Model Name</label>
+                <label style={{ fontSize: "0.75rem" }}>
+                  Default Model Name
+                </label>
                 <input
                   type="text"
                   value={formData.ollamaModel}
-                  onChange={(e) => setFormData({ ...formData, ollamaModel: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ollamaModel: e.target.value })
+                  }
                   placeholder="llama3, mistral, deepseek-r1"
                   className="form-control"
                 />
@@ -333,16 +416,31 @@ export function AiTab() {
               border: "1px solid var(--border-color, #23284B)",
             }}
           >
-            <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--text-primary, #F8F4ED)" }}>
+            <h4
+              style={{
+                margin: "0 0 0.5rem",
+                fontSize: "0.85rem",
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               ✨ Google Cloud Gemini LLM Settings
             </h4>
-            <div className="form-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0.75rem" }}>
+            <div
+              className="form-row"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr",
+                gap: "0.75rem",
+              }}
+            >
               <div className="form-group">
                 <label style={{ fontSize: "0.75rem" }}>Gemini API Key</label>
                 <input
                   type="password"
                   value={formData.geminiApiKey}
-                  onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, geminiApiKey: e.target.value })
+                  }
                   placeholder="Enter Google AI Studio API key"
                   className="form-control"
                 />
@@ -351,10 +449,14 @@ export function AiTab() {
                 <label style={{ fontSize: "0.75rem" }}>Gemini Model</label>
                 <select
                   value={formData.geminiModel}
-                  onChange={(e) => setFormData({ ...formData, geminiModel: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, geminiModel: e.target.value })
+                  }
                   className="form-control"
                 >
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
+                  <option value="gemini-2.0-flash">
+                    Gemini 2.0 Flash (Recommended)
+                  </option>
                   <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                   <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                 </select>
@@ -371,15 +473,25 @@ export function AiTab() {
               border: "1px solid var(--border-color, #23284B)",
             }}
           >
-            <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--text-primary, #F8F4ED)" }}>
+            <h4
+              style={{
+                margin: "0 0 0.5rem",
+                fontSize: "0.85rem",
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               🧠 Local ONNX ML Model Path
             </h4>
             <div className="form-group">
-              <label style={{ fontSize: "0.75rem" }}>ONNX Model File Path</label>
+              <label style={{ fontSize: "0.75rem" }}>
+                ONNX Model File Path
+              </label>
               <input
                 type="text"
                 value={formData.onnxModelPath}
-                onChange={(e) => setFormData({ ...formData, onnxModelPath: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, onnxModelPath: e.target.value })
+                }
                 placeholder="/config/models/leecharr-ai.onnx"
                 className="form-control"
               />
@@ -393,50 +505,138 @@ export function AiTab() {
         title="Discrete UI Features & Automation Toggles"
         description="Control the visibility and behavior of AI assistants, search accordions, and diagnostic cards."
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
+          <label
+            className="checkbox-label"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={formData.enableCopilotButton}
-              onChange={(e) => setFormData({ ...formData, enableCopilotButton: e.target.checked })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  enableCopilotButton: e.target.checked,
+                })
+              }
             />
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary, #F8F4ED)" }}>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               Enable Floating Draggable AI Copilot Button
             </span>
           </label>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)", paddingLeft: "1.5rem" }}>
-            Displays the subtle floating badge in the bottom-right corner. You can drag and drop it anywhere on your screen.
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted, #C7C5D3)",
+              paddingLeft: "1.5rem",
+            }}
+          >
+            Displays the subtle floating badge in the bottom-right corner. You
+            can drag and drop it anywhere on your screen.
           </span>
 
-          <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginTop: "0.5rem" }}>
+          <label
+            className="checkbox-label"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              cursor: "pointer",
+              marginTop: "0.5rem",
+            }}
+          >
             <input
               type="checkbox"
               checked={formData.enableNaturalSearch}
-              onChange={(e) => setFormData({ ...formData, enableNaturalSearch: e.target.checked })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  enableNaturalSearch: e.target.checked,
+                })
+              }
             />
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary, #F8F4ED)" }}>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               Enable AI Natural Language Smart Search in Indexer Modal
             </span>
           </label>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)", paddingLeft: "1.5rem" }}>
-            Adds the collapsible natural language filter accordion in the Torznab search modal.
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted, #C7C5D3)",
+              paddingLeft: "1.5rem",
+            }}
+          >
+            Adds the collapsible natural language filter accordion in the
+            Torznab search modal.
           </span>
 
-          <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginTop: "0.5rem" }}>
+          <label
+            className="checkbox-label"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              cursor: "pointer",
+              marginTop: "0.5rem",
+            }}
+          >
             <input
               type="checkbox"
               checked={formData.enableSwarmDiagnostics}
-              onChange={(e) => setFormData({ ...formData, enableSwarmDiagnostics: e.target.checked })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  enableSwarmDiagnostics: e.target.checked,
+                })
+              }
             />
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary, #F8F4ED)" }}>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "var(--text-primary, #F8F4ED)",
+              }}
+            >
               Enable AI Swarm Diagnostics Card in Torrent Details
             </span>
           </label>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)", paddingLeft: "1.5rem" }}>
-            Provides 1-click diagnostic bottleneck analysis and remediation in the torrent detail panel.
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted, #C7C5D3)",
+              paddingLeft: "1.5rem",
+            }}
+          >
+            Provides 1-click diagnostic bottleneck analysis and remediation in
+            the torrent detail panel.
           </span>
 
-          <div style={{ paddingTop: "0.75rem", borderTop: "1px solid var(--border-color, #23284B)", marginTop: "0.5rem" }}>
+          <div
+            style={{
+              paddingTop: "0.75rem",
+              borderTop: "1px solid var(--border-color, #23284B)",
+              marginTop: "0.5rem",
+            }}
+          >
             <button
               type="button"
               onClick={handleResetButtonPosition}

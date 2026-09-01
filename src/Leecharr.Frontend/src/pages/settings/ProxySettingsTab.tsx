@@ -42,7 +42,10 @@ export function ProxySettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -63,12 +66,16 @@ export function ProxySettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   if (isLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading proxy settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading proxy settings...
+      </div>
+    );
   }
 
   const isProxyActive = form.proxyType !== "none";
@@ -88,7 +95,13 @@ export function ProxySettingsTab() {
         title="Outbound SOCKS5 / HTTP Proxy Tunnel"
         description="Route BitTorrent tracker queries and peer data transfers through secure proxy tunnels."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <SelectInput
             label="Proxy Protocol Type"
             value={form.proxyType}
@@ -121,7 +134,13 @@ export function ProxySettingsTab() {
         </div>
 
         {isProxyActive && (
-          <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
+          <div
+            style={{
+              marginTop: "1rem",
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+            }}
+          >
             <Toggle
               label="Enable Proxy Authentication"
               checked={form.proxyAuthEnabled}
@@ -129,7 +148,14 @@ export function ProxySettingsTab() {
             />
 
             {form.proxyAuthEnabled && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem", marginTop: "0.75rem" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                  gap: "1rem",
+                  marginTop: "0.75rem",
+                }}
+              >
                 <TextInput
                   label="Proxy Username"
                   value={form.proxyUsername}
@@ -152,7 +178,13 @@ export function ProxySettingsTab() {
         title="Privacy & Anonymous Routing Policy"
         description="Enforce strict proxy routing and suppress client identification headers."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <Toggle
             label="Anonymous Mode"
             checked={form.anonymousMode}

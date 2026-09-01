@@ -129,7 +129,8 @@ export function SystemLogs() {
               marginTop: "0.2rem",
             }}
           >
-            Real-time server log stream, rolling disk log files, and diagnostic output
+            Real-time server log stream, rolling disk log files, and diagnostic
+            output
           </div>
         </div>
 

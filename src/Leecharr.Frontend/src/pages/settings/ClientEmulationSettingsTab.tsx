@@ -55,7 +55,8 @@ export function ClientEmulationSettingsTab() {
   useEffect(() => {
     if (btConfig || simConfig || peerConfig) {
       setForm({
-        clientBehaviorEngineEnabled: simConfig?.clientBehaviorEngineEnabled ?? true,
+        clientBehaviorEngineEnabled:
+          simConfig?.clientBehaviorEngineEnabled ?? true,
         primaryClient: simConfig?.primaryClient || "qBittorrent",
         bitTorrentUserAgent: btConfig?.bitTorrentUserAgent || "Leecharr/1.0",
         peerIdPrefix: btConfig?.peerIdPrefix || "-LC1000-",
@@ -68,10 +69,12 @@ export function ClientEmulationSettingsTab() {
         swarmIntelligenceEnabled: simConfig?.swarmIntelligenceEnabled ?? true,
         swarmAdaptationRate: simConfig?.swarmAdaptationRate ?? 0.1,
         swarmPeerAnalysisDepth: simConfig?.swarmPeerAnalysisDepth ?? 10,
-        seederUploadActivityProbability: peerConfig?.seederUploadActivityProbability ?? 0.7,
+        seederUploadActivityProbability:
+          peerConfig?.seederUploadActivityProbability ?? 0.7,
         peerIdleChance: peerConfig?.peerIdleChance ?? 0.1,
         peerDropoutProbability: peerConfig?.peerDropoutProbability ?? 0.05,
-        connectionRotationPercentage: peerConfig?.connectionRotationPercentage ?? 0.2,
+        connectionRotationPercentage:
+          peerConfig?.connectionRotationPercentage ?? 0.2,
         announceIntervalSeconds: btConfig?.announceIntervalSeconds ?? 1800,
         minAnnounceIntervalSeconds: btConfig?.minAnnounceIntervalSeconds ?? 300,
         scrapeIntervalSeconds: btConfig?.scrapeIntervalSeconds ?? 900,
@@ -81,15 +84,29 @@ export function ClientEmulationSettingsTab() {
     }
   }, [btConfig, simConfig, peerConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
-  const isPending = saveBtMutation.isPending || saveSimMutation.isPending || savePeerMutation.isPending;
-  const isError = saveBtMutation.isError || saveSimMutation.isError || savePeerMutation.isError;
-  const isSuccess = saveBtMutation.isSuccess && saveSimMutation.isSuccess && savePeerMutation.isSuccess;
-  const error = (saveBtMutation.error || saveSimMutation.error || savePeerMutation.error) as Error | null;
+  const isPending =
+    saveBtMutation.isPending ||
+    saveSimMutation.isPending ||
+    savePeerMutation.isPending;
+  const isError =
+    saveBtMutation.isError ||
+    saveSimMutation.isError ||
+    savePeerMutation.isError;
+  const isSuccess =
+    saveBtMutation.isSuccess &&
+    saveSimMutation.isSuccess &&
+    savePeerMutation.isSuccess;
+  const error = (saveBtMutation.error ||
+    saveSimMutation.error ||
+    savePeerMutation.error) as Error | null;
 
   const handleSave = () => {
     if (btConfig) {
@@ -132,7 +149,11 @@ export function ClientEmulationSettingsTab() {
   };
 
   if (btLoading || simLoading || peerLoading) {
-    return <div className="loading" style={{ padding: "2rem" }}>Loading client emulation settings...</div>;
+    return (
+      <div className="loading" style={{ padding: "2rem" }}>
+        Loading client emulation settings...
+      </div>
+    );
   }
 
   return (
@@ -150,13 +171,22 @@ export function ClientEmulationSettingsTab() {
         title="Client Profile Emulation & Private Tracker Stealth"
         description="Emulate real BitTorrent client signatures, peer ID prefixes, and Azureus handshake formats."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <SelectInput
             label="Primary Emulated Client"
             value={form.primaryClient}
             onChange={(v) => update("primaryClient", v)}
             options={[
-              { value: "qBittorrent", label: "qBittorrent (v4.6+ / libtorrent)" },
+              {
+                value: "qBittorrent",
+                label: "qBittorrent (v4.6+ / libtorrent)",
+              },
               { value: "Deluge", label: "Deluge (v2.1+)" },
               { value: "Transmission", label: "Transmission (v4.0+)" },
               { value: "uTorrent", label: "uTorrent (v3.5.5 Classic)" },
@@ -171,7 +201,10 @@ export function ClientEmulationSettingsTab() {
             value={form.trafficPatternProfile}
             onChange={(v) => update("trafficPatternProfile", v)}
             options={[
-              { value: "HomeUser", label: "Home Broadband User (Organic Diurnal Curves)" },
+              {
+                value: "HomeUser",
+                label: "Home Broadband User (Organic Diurnal Curves)",
+              },
               { value: "balanced", label: "Balanced Consistent Seedbox" },
               { value: "burst", label: "Burst / High Throughput" },
               { value: "stealth", label: "Stealth / Low Profile" },
@@ -193,8 +226,20 @@ export function ClientEmulationSettingsTab() {
           />
         </div>
 
-        <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            marginTop: "1rem",
+            borderTop: "1px solid var(--border-light)",
+            paddingTop: "1rem",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             <Toggle
               label="Enable Swarm Intelligence & Heuristics"
               checked={form.swarmIntelligenceEnabled}
@@ -216,7 +261,13 @@ export function ClientEmulationSettingsTab() {
         title="Tracker Query Intervals & Peer Requests"
         description="Configure announce and scrape frequencies sent to BitTorrent trackers."
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           <NumberInput
             label="Announce Interval"
             value={form.announceIntervalSeconds}

@@ -18,7 +18,9 @@ interface AiSwarmDiagnosticCardProps {
   torrent: Torrent;
 }
 
-export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ torrent }) => {
+export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
+  torrent,
+}) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_ai_diag_expanded") === "true";
   });
@@ -29,7 +31,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
   const recheckMutation = useRecheckTorrent();
 
   useEffect(() => {
-    localStorage.setItem("leecharr_ai_diag_expanded", isExpanded ? "true" : "false");
+    localStorage.setItem(
+      "leecharr_ai_diag_expanded",
+      isExpanded ? "true" : "false",
+    );
   }, [isExpanded]);
 
   const handleRunDiagnosis = () => {
@@ -85,7 +90,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <SparklesIcon size={14} style={{ color: "var(--accent-gold, #FFD166)" }} />
+          <SparklesIcon
+            size={14}
+            style={{ color: "var(--accent-gold, #FFD166)" }}
+          />
           <span>AI Swarm Health & Diagnostic Insights</span>
           {report && (
             <span
@@ -101,11 +109,22 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
             </span>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-muted, #C7C5D3)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            color: "var(--text-muted, #C7C5D3)",
+          }}
+        >
           <span style={{ fontSize: "0.75rem", fontWeight: 400 }}>
             {isExpanded ? "Collapse" : "Expand"}
           </span>
-          {isExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+          {isExpanded ? (
+            <ChevronUpIcon size={14} />
+          ) : (
+            <ChevronDownIcon size={14} />
+          )}
         </div>
       </button>
 
@@ -122,9 +141,23 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
           }}
         >
           {!report && !diagnoseMutation.isPending && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-              <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted, #C7C5D3)" }}>
-                Run instant AI swarm diagnostics to inspect tracker latency, choking bottlenecks, and piece availability.
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.5rem",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted, #C7C5D3)",
+                }}
+              >
+                Run instant AI swarm diagnostics to inspect tracker latency,
+                choking bottlenecks, and piece availability.
               </p>
               <button
                 type="button"
@@ -161,13 +194,28 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
                 color: "var(--text-muted, #C7C5D3)",
               }}
             >
-              <RefreshIcon size={14} style={{ animation: "spin 1s linear infinite", color: "#FFD166" }} />
-              <span>Analyzing swarm peers, tracker responses, and piece availability...</span>
+              <RefreshIcon
+                size={14}
+                style={{
+                  animation: "spin 1s linear infinite",
+                  color: "#FFD166",
+                }}
+              />
+              <span>
+                Analyzing swarm peers, tracker responses, and piece
+                availability...
+              </span>
             </div>
           )}
 
           {report && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.6rem",
+              }}
+            >
               {/* Summary Bar */}
               <div
                 style={{
@@ -180,24 +228,48 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
                   border: "1px solid var(--border-color, #23284B)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
                   {report.severity === "High" ? (
                     <AlertIcon size={16} style={{ color: "#f87171" }} />
                   ) : (
                     <CheckCircleIcon size={16} style={{ color: "#34d399" }} />
                   )}
                   <div>
-                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary, #F8F4ED)" }}>
+                    <div
+                      style={{
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        color: "var(--text-primary, #F8F4ED)",
+                      }}
+                    >
                       {report.summary}
                     </div>
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted, #C7C5D3)" }}>
-                      Swarm: {report.swarmAnalysis} &bull; Tracker: {report.trackerAnalysis}
+                    <div
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-muted, #C7C5D3)",
+                      }}
+                    >
+                      Swarm: {report.swarmAnalysis} &bull; Tracker:{" "}
+                      {report.trackerAnalysis}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: "0.65rem", textTransform: "uppercase", color: "var(--text-muted, #C7C5D3)" }}>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted, #C7C5D3)",
+                    }}
+                  >
                     Health Score
                   </span>
                   <div
@@ -216,10 +288,23 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
               {/* Issues & Bottlenecks */}
               {report.issues?.length > 0 && (
                 <div style={{ fontSize: "0.75rem" }}>
-                  <span style={{ fontWeight: 700, color: "#fca5a5", display: "block", marginBottom: "0.2rem" }}>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "#fca5a5",
+                      display: "block",
+                      marginBottom: "0.2rem",
+                    }}
+                  >
                     Detected Issues & Bottlenecks:
                   </span>
-                  <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "#fecaca" }}>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: "1.2rem",
+                      color: "#fecaca",
+                    }}
+                  >
                     {report.issues.map((issue, idx) => (
                       <li key={idx}>{issue}</li>
                     ))}
@@ -230,10 +315,23 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
               {/* Actionable Recommendations & 1-Click Fixes */}
               {report.recommendations?.length > 0 && (
                 <div style={{ fontSize: "0.75rem" }}>
-                  <span style={{ fontWeight: 700, color: "var(--accent-gold, #FFD166)", display: "block", marginBottom: "0.2rem" }}>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--accent-gold, #FFD166)",
+                      display: "block",
+                      marginBottom: "0.2rem",
+                    }}
+                  >
                     Recommendations & Auto-Remediation:
                   </span>
-                  <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-primary, #F8F4ED)" }}>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: "1.2rem",
+                      color: "var(--text-primary, #F8F4ED)",
+                    }}
+                  >
                     {report.recommendations.map((rec, idx) => (
                       <li key={idx}>{rec}</li>
                     ))}
@@ -242,7 +340,15 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
               )}
 
               {/* 1-Click Quick Actions Toolbar */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", paddingTop: "0.25rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  flexWrap: "wrap",
+                  paddingTop: "0.25rem",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => announceMutation.mutate(torrent.id)}
