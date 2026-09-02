@@ -230,6 +230,7 @@ public class SabnzbdApiController : ControllerBase
                             mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
                             status = t.Status == TorrentStatus.Paused ? "Paused" : "Downloading",
                             cat = t.Category ?? "default",
+                            priority = "Normal",
                             timeleft = timeleftStr,
                             percentage = ((int)(t.Progress * 100)).ToString()
                         };
@@ -279,7 +280,9 @@ public class SabnzbdApiController : ControllerBase
                     {
                         nzo_id = t.InfoHash,
                         name = t.Name ?? string.Empty,
+                        nzb_name = t.Name ?? string.Empty,
                         size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                        bytes = t.TotalSize,
                         category = t.Category ?? "default",
                         status = "Completed",
                         storage = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
@@ -301,24 +304,44 @@ public class SabnzbdApiController : ControllerBase
                 });
 
             case "addurl":
-                var url = !string.IsNullOrWhiteSpace(name) ? name : formName;
+                var targetUrl = !string.IsNullOrWhiteSpace(name) ? name : formName;
                 var targetCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
                 var addedId = Guid.NewGuid().ToString("N");
 
-                if (!string.IsNullOrWhiteSpace(url))
+                if (!string.IsNullOrWhiteSpace(targetUrl))
                 {
-                    if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        var added = await _torrentService.AddFromMagnetAsync(url, targetCat, null, false);
-                        addedId = added?.InfoHash ?? addedId;
+                        var added = await _torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
+                        if (added != null)
+                        {
+                            var prioStr = Request.Query["priority"].ToString();
+                            if (int.TryParse(prioStr, out var pVal))
+                            {
+                                added.Priority = pVal;
+                                await _torrentService.UpdateAsync(added);
+                            }
+
+                            addedId = added.InfoHash;
+                        }
                     }
                     else
                     {
                         using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                        var bytes = await client.GetByteArrayAsync(url);
+                        var bytes = await client.GetByteArrayAsync(targetUrl);
                         var parsed = _torrentFileParser.Parse(bytes);
                         var added = await _torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
-                        addedId = added?.InfoHash ?? addedId;
+                        if (added != null)
+                        {
+                            var prioStr = Request.Query["priority"].ToString();
+                            if (int.TryParse(prioStr, out var pVal))
+                            {
+                                added.Priority = pVal;
+                                await _torrentService.UpdateAsync(added);
+                            }
+
+                            addedId = added.InfoHash;
+                        }
                     }
                 }
 
@@ -335,6 +358,16 @@ public class SabnzbdApiController : ControllerBase
                     var bytes = ms.ToArray();
                     var parsed = _torrentFileParser.Parse(bytes);
                     var added = await _torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+                    if (added != null)
+                    {
+                        var prioStr = Request.Query["priority"].ToString();
+                        if (int.TryParse(prioStr, out var pVal))
+                        {
+                            added.Priority = pVal;
+                            await _torrentService.UpdateAsync(added);
+                        }
+                    }
+
                     return Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
                 }
 
