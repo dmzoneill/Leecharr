@@ -122,7 +122,7 @@ export function LogTab({
     const text = filteredLogs
       .map(
         (l) =>
-          `[${formatDate(l.timestamp || l.timeStamp)}] [${(l.level || "INFO").toUpperCase()}] [${l.source || "Engine"}] ${l.message || ""}`,
+          `[${formatDate(l.timestamp || l.timeStamp || null)}] [${(l.level || "INFO").toUpperCase()}] [${l.source || "Engine"}] ${l.message || ""}`,
       )
       .join("\n");
     navigator.clipboard.writeText(text).then(() => {
@@ -316,7 +316,7 @@ export function LogTab({
               filteredLogs.map((entry) => {
                 const entryLevel = (entry.level || "INFO").toUpperCase();
                 const entrySource = entry.source || "Engine";
-                const entryTime = entry.timestamp || entry.timeStamp;
+                const entryTime = entry.timestamp || entry.timeStamp || null;
                 return (
                   <tr
                     key={entry.id}
