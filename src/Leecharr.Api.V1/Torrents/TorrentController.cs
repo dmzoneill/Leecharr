@@ -25,6 +25,11 @@ public class MoveQueueRequest
     public string Position { get; set; }
 }
 
+public class SetFilePriorityRequest
+{
+    public int Priority { get; set; }
+}
+
 public class AddTorrentJsonRequest
 {
     public string MagnetLink { get; set; }
@@ -112,6 +117,16 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }).ToList();
 
         return Ok(resources);
+    }
+
+    [HttpPut("{id:int}/files/{fileId:int}/priority")]
+    [HttpPut("{id:int}/files/{fileId:int}")]
+    [HttpPost("{id:int}/files/{fileId:int}/priority")]
+    public async Task<ActionResult> SetFilePriority(int id, int fileId, [FromBody] SetFilePriorityRequest request = null, [FromQuery] int? priority = null)
+    {
+        var prio = request?.Priority ?? priority ?? 3;
+        await _torrentFileService.SetPriorityAsync(fileId, prio);
+        return Ok();
     }
 
     [HttpGet("{id:int}/peers")]
@@ -306,6 +321,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (!string.IsNullOrWhiteSpace(magnet))
         {
             var torrent = await _torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
+            if (torrent == null)
+            {
+                return BadRequest("Failed to add torrent");
+            }
+
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
@@ -316,6 +336,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bytes = await httpClient.GetByteArrayAsync(request.DownloadUrl);
             var parsed = _torrentFileParser.Parse(bytes);
             var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
+            if (torrent == null)
+            {
+                return BadRequest("Failed to add torrent");
+            }
+
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
@@ -343,6 +368,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var parsed = _torrentFileParser.Parse(bytes);
 
             var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+            if (torrent == null)
+            {
+                return BadRequest("Failed to add torrent");
+            }
+
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
@@ -350,6 +380,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
             var torrent = await _torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPaused);
+            if (torrent == null)
+            {
+                return BadRequest("Failed to add torrent");
+            }
+
             var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
             return Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
@@ -406,6 +441,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 var parsed = _torrentFileParser.Parse(bytes);
 
                 var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, pausedFlag, bytes);
+                if (torrent == null)
+                {
+                    failed.Add(new TorrentUploadFailure(file.FileName, "Failed to add torrent"));
+                    continue;
+                }
+
                 var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
                 added.Add(TorrentResourceMapper.ToResource(torrent, meta));
             }

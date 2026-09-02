@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -22,24 +23,33 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
     private readonly ITorrentFileService _torrentFileService;
     private readonly IDiskProvider _diskProvider;
     private readonly IEventAggregator _eventAggregator;
+    private readonly IConfigService _configService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public ArchiveExtractorEventHandler(
         IArchiveExtractorService extractorService,
         ITorrentFileService torrentFileService,
         IDiskProvider diskProvider,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        IConfigService configService = null)
     {
         _extractorService = extractorService;
         _torrentFileService = torrentFileService;
         _diskProvider = diskProvider;
         _eventAggregator = eventAggregator;
+        _configService = configService;
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
     {
         if (message?.Torrent == null)
         {
+            return;
+        }
+
+        if (_configService != null && !_configService.AutoExtractArchives && !_configService.GetValueBoolean("AutoExtract", false) && !_configService.GetValueBoolean("AutoExtractEnabled", false))
+        {
+            _logger.Debug("Archive auto-extraction is disabled in configuration. Skipping extraction for torrent {0}", message.Torrent.Name);
             return;
         }
 
@@ -84,7 +94,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         });
     }
 
-    private static bool IsSecondaryVolume(string path)
+    public static bool IsSecondaryVolume(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -97,14 +107,16 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             return true;
         }
 
-        if (Regex.IsMatch(path, @"\.(part0*[2-9]\d*|part[2-9]\d*)\.(rar|7z|zip)$", RegexOptions.IgnoreCase))
+        var partMatch = Regex.Match(path, @"\.part(\d+)\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
+        if (partMatch.Success && int.TryParse(partMatch.Groups[1].Value, out var partNum))
         {
-            return true;
+            return partNum > 1;
         }
 
-        if (Regex.IsMatch(path, @"\.(7z|tar|zip)\.0*[2-9]\d*$", RegexOptions.IgnoreCase))
+        var splitMatch = Regex.Match(path, @"\.(7z|tar|zip)\.(\d+)$", RegexOptions.IgnoreCase);
+        if (splitMatch.Success && int.TryParse(splitMatch.Groups[2].Value, out var splitNum))
         {
-            return true;
+            return splitNum > 1;
         }
 
         return false;

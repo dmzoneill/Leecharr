@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <AnalysisLevel>6.0-all</AnalysisLevel>
+    <AnalysisLevel>latest</AnalysisLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
@@ -28,8 +28,8 @@
     <BaseIntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
     <OutputPath>$(LeecharrRootDir)_temp\bin\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
-    <OutputPath Condition="'$(LeecharrProject)'=='true'">$(LeecharrRootDir)_output\</OutputPath>
-    <OutputPath Condition="'$(TestProject)'=='true'">$(LeecharrRootDir)_tests\</OutputPath>
+    <OutputPath Condition="'$(LeecharrProject)'=='true'">$(LeecharrRootDir)_output\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(TestProject)'=='true'">$(LeecharrRootDir)_tests\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
     <EnableBaseIntermediateOutputPathMismatchWarning>false</EnableBaseIntermediateOutputPathMismatchWarning>
     <BaseIntermediateOutputPath>$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)'))</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))</IntermediateOutputPath>
@@ -65,7 +65,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <AdditionalFiles Include="$(SolutionDir)stylecop.json" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(TestProject)'=='true'">

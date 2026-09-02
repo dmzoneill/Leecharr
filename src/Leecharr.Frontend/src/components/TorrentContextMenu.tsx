@@ -16,7 +16,7 @@ export interface TorrentContextMenuProps {
   onUpdate: (torrent: Torrent) => void;
   onAnnounce: (id: number) => void;
   onRecheck: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
+  onDelete: (payload: { id: number; deleteFiles: boolean }) => void;
   onMoveQueue: (payload: {
     id: number;
     position: "top" | "up" | "down" | "bottom";
@@ -435,7 +435,7 @@ export function TorrentContextMenu({
                   className="context-menu-item context-menu-item-danger"
                   onClick={() => {
                     if (confirm(`Remove "${ct.name}"?`))
-                      onDelete({ id: ct.id });
+                      onDelete({ id: ct.id, deleteFiles: false });
                     onClose();
                   }}
                 >

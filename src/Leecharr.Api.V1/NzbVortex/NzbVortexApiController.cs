@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,7 +54,6 @@ public class NzbVortexApiController : ControllerBase
     [HttpGet]
     [HttpPost]
     [Route("nzbvortex/api/v1/auth/login")]
-    [Route("api/v1/auth/login")]
     public IActionResult Login()
     {
         return Ok(new
@@ -192,8 +192,20 @@ public class NzbVortexApiController : ControllerBase
 
             if (!string.IsNullOrWhiteSpace(url))
             {
-                var added = await _torrentService.AddFromMagnetAsync(url, category, null, false);
-                addedId = added?.Id ?? addedId;
+                if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                {
+                    var added = await _torrentService.AddFromMagnetAsync(url, category, null, false);
+                    addedId = added?.Id ?? addedId;
+                }
+                else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                    var bytes = await httpClient.GetByteArrayAsync(url);
+                    var parsed = _torrentFileParser.Parse(bytes);
+                    var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
+                    addedId = added?.Id ?? addedId;
+                }
             }
         }
 

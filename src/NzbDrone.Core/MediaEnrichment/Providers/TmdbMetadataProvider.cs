@@ -1,12 +1,17 @@
 using System;
+using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.MediaEnrichment.Providers;
 
 public class TmdbMetadataProvider : IMediaMetadataProvider
 {
+    private readonly IConfigService _configService;
+    private readonly HttpClient _httpClient;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "TMDB";
@@ -27,46 +32,152 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         SupportsNfoParsing = false
     };
 
+    public TmdbMetadataProvider(IConfigService configService = null, HttpClient httpClient = null)
+    {
+        _configService = configService;
+        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    }
+
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
+        var apiKey = GetApiKey();
+        var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
+
         return Task.FromResult(new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = "TMDB API provider is reachable and active."
+            StatusMessage = hasApiKey
+                ? "TMDB API provider is reachable and active (API key configured)."
+                : "TMDB provider operational (heuristic parsing mode without API key)."
         });
     }
 
-    public Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            return Task.FromResult<MediaMetadata>(null);
+            return null;
         }
 
         var cleanTitle = CleanTitle(title);
-        var parsedYear = year ?? ExtractYear(title);
+        var parsedYear = year.HasValue && year.Value > 0 ? year.Value : ExtractYear(title);
+        var isMovie = (category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase) ||
+                      (!string.IsNullOrEmpty(title) && !Regex.IsMatch(title, @"\b(S\d\d|Season\b|Episode\b)", RegexOptions.IgnoreCase));
 
-        var meta = new MediaMetadata
+        var apiKey = GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var metaFromApi = await QueryTmdbApiAsync(apiKey, cleanTitle, parsedYear, isMovie);
+                if (metaFromApi != null)
+                {
+                    return metaFromApi;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to fetch metadata from TMDB API for '{0}'", cleanTitle);
+            }
+        }
+
+        return new MediaMetadata
         {
             Title = cleanTitle,
             Year = parsedYear,
-            MediaType = (category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase) ? "Movie" : "TV",
-            Overview = $"TMDB metadata synopsis for {cleanTitle}.",
-            PosterUrl = $"https://image.tmdb.org/t/p/original/mock_{Uri.EscapeDataString(cleanTitle)}.jpg",
-            BackdropUrl = $"https://image.tmdb.org/t/p/original/backdrop_{Uri.EscapeDataString(cleanTitle)}.jpg",
-            Rating = 8.0,
-            TmdbId = "tmdb_" + Math.Abs(cleanTitle.GetHashCode()).ToString(),
-            Cast = { "Lead Actor", "Supporting Actor" }
+            MediaType = isMovie ? "Movie" : "TV",
+            Overview = $"Metadata extracted for {cleanTitle}.",
+            Rating = 0.0
+        };
+    }
+
+    private string GetApiKey()
+    {
+        var configured = _configService?.TmdbApiKey;
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured;
+        }
+
+        return Environment.GetEnvironmentVariable("TMDB_API_KEY") ?? string.Empty;
+    }
+
+    private async Task<MediaMetadata> QueryTmdbApiAsync(string apiKey, string title, int year, bool isMovie)
+    {
+        var searchEndpoint = isMovie
+            ? $"https://api.themoviedb.org/3/search/movie?api_key={Uri.EscapeDataString(apiKey)}&query={Uri.EscapeDataString(title)}" + (year > 0 ? $"&year={year}" : string.Empty)
+            : $"https://api.themoviedb.org/3/search/tv?api_key={Uri.EscapeDataString(apiKey)}&query={Uri.EscapeDataString(title)}" + (year > 0 ? $"&first_air_date_year={year}" : string.Empty);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, searchEndpoint);
+        using var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.Debug("TMDB API returned HTTP {0} for search query '{1}'", response.StatusCode, title);
+            return null;
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+
+        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array || results.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var first = results[0];
+        var titleProperty = isMovie ? "title" : "name";
+        var resultTitle = first.TryGetProperty(titleProperty, out var t) ? t.GetString() : title;
+        var overview = first.TryGetProperty("overview", out var ov) ? ov.GetString() : string.Empty;
+        var rating = first.TryGetProperty("vote_average", out var r) && r.TryGetDouble(out var rate) ? rate : 0.0;
+        var id = first.TryGetProperty("id", out var idElem) ? idElem.ToString() : null;
+
+        var releaseDateProperty = isMovie ? "release_date" : "first_air_date";
+        var parsedYear = year;
+        if (parsedYear == 0 && first.TryGetProperty(releaseDateProperty, out var rd) && !string.IsNullOrWhiteSpace(rd.GetString()))
+        {
+            var match = Regex.Match(rd.GetString(), @"^(19\d\d|20\d\d)");
+            if (match.Success && int.TryParse(match.Value, out var y))
+            {
+                parsedYear = y;
+            }
+        }
+
+        var meta = new MediaMetadata
+        {
+            Title = resultTitle,
+            Year = parsedYear,
+            MediaType = isMovie ? "Movie" : "TV",
+            Overview = overview,
+            Rating = rating,
+            TmdbId = id
         };
 
-        return Task.FromResult(meta);
+        if (first.TryGetProperty("poster_path", out var poster) && !string.IsNullOrWhiteSpace(poster.GetString()))
+        {
+            meta.PosterUrl = $"https://image.tmdb.org/t/p/original{poster.GetString()}";
+        }
+
+        if (first.TryGetProperty("backdrop_path", out var backdrop) && !string.IsNullOrWhiteSpace(backdrop.GetString()))
+        {
+            meta.BackdropUrl = $"https://image.tmdb.org/t/p/original{backdrop.GetString()}";
+        }
+
+        return meta;
     }
 
     private static string CleanTitle(string rawTitle)
     {
+        if (string.IsNullOrWhiteSpace(rawTitle))
+        {
+            return string.Empty;
+        }
+
         var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
+        cleaned = Regex.Replace(cleaned, @"\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty, RegexOptions.IgnoreCase);
         cleaned = Regex.Replace(cleaned, @"\b(19\d\d|20\d\d)\b.*", string.Empty);
-        return cleaned.Trim();
+        cleaned = cleaned.Trim('-', ' ', '.');
+        return string.IsNullOrWhiteSpace(cleaned) ? rawTitle.Trim() : cleaned.Trim();
     }
 
     private static int ExtractYear(string rawTitle)

@@ -20,8 +20,6 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   );
   const [active, setActive] = useState(torrent.active);
   const [label, setLabel] = useState(torrent.label ?? "");
-  const [uploadSpeed, setUploadSpeed] = useState(torrent.uploadSpeed);
-  const [downloadSpeed, setDownloadSpeed] = useState(torrent.downloadSpeed);
   const [announceInterval, setAnnounceInterval] = useState(
     torrent.announceInterval,
   );
@@ -29,14 +27,6 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [threshold, setThreshold] = useState(torrent.threshold);
   const [smallTorrentLimit, setSmallTorrentLimit] = useState(
     torrent.smallTorrentLimit,
-  );
-  const [uploaded, setUploaded] = useState(torrent.uploaded);
-  const [downloaded, setDownloaded] = useState(torrent.downloaded);
-  const [sessionUploaded, setSessionUploaded] = useState(
-    torrent.sessionUploaded,
-  );
-  const [sessionDownloaded, setSessionDownloaded] = useState(
-    torrent.sessionDownloaded,
   );
   const [dirty, setDirty] = useState(false);
 
@@ -50,16 +40,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setSequentialDownload(torrent.sequentialDownload);
     setActive(torrent.active);
     setLabel(torrent.label ?? "");
-    setUploadSpeed(torrent.uploadSpeed);
-    setDownloadSpeed(torrent.downloadSpeed);
     setAnnounceInterval(torrent.announceInterval);
     setNextUpdate(torrent.nextUpdate);
     setThreshold(torrent.threshold);
     setSmallTorrentLimit(torrent.smallTorrentLimit);
-    setUploaded(torrent.uploaded);
-    setDownloaded(torrent.downloaded);
-    setSessionUploaded(torrent.sessionUploaded);
-    setSessionDownloaded(torrent.sessionDownloaded);
   }, [torrent, dirty]);
 
   const handleSave = () => {
@@ -74,16 +58,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         sequentialDownload,
         active,
         label: label || null,
-        uploadSpeed,
-        downloadSpeed,
         announceInterval,
         nextUpdate,
         threshold,
         smallTorrentLimit,
-        uploaded,
-        downloaded,
-        sessionUploaded,
-        sessionDownloaded,
       },
       { onSuccess: () => setDirty(false) },
     );
@@ -134,26 +112,6 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             className="form-input"
             value={downloadLimit}
             onChange={numChange(setDownloadLimit)}
-            min={0}
-          />
-        </div>
-        <div className="form-group form-group-inline">
-          <label className="form-label">Upload Speed (B/s)</label>
-          <input
-            type="number"
-            className="form-input"
-            value={uploadSpeed}
-            onChange={numChange(setUploadSpeed)}
-            min={0}
-          />
-        </div>
-        <div className="form-group form-group-inline">
-          <label className="form-label">Download Speed (B/s)</label>
-          <input
-            type="number"
-            className="form-input"
-            value={downloadSpeed}
-            onChange={numChange(setDownloadSpeed)}
             min={0}
           />
         </div>
@@ -261,50 +219,6 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         </div>
       </div>
 
-      <div className="options-section-title">Totals</div>
-      <div className="options-grid">
-        <div className="form-group form-group-inline">
-          <label className="form-label">Total Uploaded</label>
-          <input
-            type="number"
-            className="form-input"
-            value={uploaded}
-            onChange={numChange(setUploaded)}
-            min={0}
-          />
-        </div>
-        <div className="form-group form-group-inline">
-          <label className="form-label">Total Downloaded</label>
-          <input
-            type="number"
-            className="form-input"
-            value={downloaded}
-            onChange={numChange(setDownloaded)}
-            min={0}
-          />
-        </div>
-        <div className="form-group form-group-inline">
-          <label className="form-label">Session Uploaded</label>
-          <input
-            type="number"
-            className="form-input"
-            value={sessionUploaded}
-            onChange={numChange(setSessionUploaded)}
-            min={0}
-          />
-        </div>
-        <div className="form-group form-group-inline">
-          <label className="form-label">Session Downloaded</label>
-          <input
-            type="number"
-            className="form-input"
-            value={sessionDownloaded}
-            onChange={numChange(setSessionDownloaded)}
-            min={0}
-          />
-        </div>
-      </div>
-
       <div className="form-actions">
         <button
           className="btn btn-success btn-small"
@@ -317,3 +231,4 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     </div>
   );
 }
+

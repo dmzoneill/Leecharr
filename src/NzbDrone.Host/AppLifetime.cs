@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Authentication;
@@ -25,6 +26,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly INetworkSecurityService _networkSecurityService;
     private readonly IRssSyncService _rssSyncService;
     private readonly IDynamicAuthSchemeManager _dynamicAuthManager;
+    private readonly ITorrentService _torrentService;
     private readonly Logger _logger;
     private CancellationTokenSource _cts;
     private Task _backgroundLoopTask;
@@ -37,7 +39,8 @@ public class AppLifetime : IHostedService, IDisposable
         IWatchFolderService watchFolderService,
         INetworkSecurityService networkSecurityService,
         IRssSyncService rssSyncService,
-        IDynamicAuthSchemeManager dynamicAuthManager)
+        IDynamicAuthSchemeManager dynamicAuthManager,
+        ITorrentService torrentService = null)
     {
         _configService = configService;
         _eventAggregator = eventAggregator;
@@ -47,6 +50,7 @@ public class AppLifetime : IHostedService, IDisposable
         _networkSecurityService = networkSecurityService;
         _rssSyncService = rssSyncService;
         _dynamicAuthManager = dynamicAuthManager;
+        _torrentService = torrentService;
         _logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -69,12 +73,32 @@ public class AppLifetime : IHostedService, IDisposable
 
             if (_configService.AutoStart)
             {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var torrentsDir1 = Path.Combine(appData, "Torrents");
+                var torrentsDir2 = Path.Combine(appData, "Leecharr", "Torrents");
                 var torrents = _torrentRepository.All();
+
                 foreach (var torrent in torrents)
                 {
                     try
                     {
-                        await _downloadEngine.AddTorrentAsync(torrent, null);
+                        byte[] fileBytes = null;
+                        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        {
+                            var hash = torrent.InfoHash.ToLowerInvariant();
+                            var path1 = Path.Combine(torrentsDir1, $"{hash}.torrent");
+                            var path2 = Path.Combine(torrentsDir2, $"{hash}.torrent");
+                            if (File.Exists(path1))
+                            {
+                                fileBytes = await File.ReadAllBytesAsync(path1, cancellationToken);
+                            }
+                            else if (File.Exists(path2))
+                            {
+                                fileBytes = await File.ReadAllBytesAsync(path2, cancellationToken);
+                            }
+                        }
+
+                        await _downloadEngine.AddTorrentAsync(torrent, fileBytes);
                     }
                     catch (Exception ex)
                     {
@@ -137,6 +161,41 @@ public class AppLifetime : IHostedService, IDisposable
             try
             {
                 await Task.Delay(1000, token);
+
+                // Automated seeding check
+                if (_torrentService != null)
+                {
+                    try
+                    {
+                        var torrents = _torrentService.GetAll();
+                        foreach (var torrent in torrents)
+                        {
+                            if (torrent.Status == TorrentStatus.Seeding)
+                            {
+                                var ratioReached = torrent.TargetRatio > 0 && torrent.Ratio >= torrent.TargetRatio;
+                                var timeReached = torrent.TargetSeedTimeMinutes > 0 && torrent.SeedTimeMinutes >= torrent.TargetSeedTimeMinutes;
+
+                                if (ratioReached || timeReached)
+                                {
+                                    _logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+
+                                    var oldStatus = torrent.Status;
+                                    await _torrentService.PauseAsync(torrent.Id);
+                                    _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                    {
+                                        Torrent = torrent,
+                                        OldStatus = oldStatus,
+                                        NewStatus = TorrentStatus.Stopped
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn(ex, "Error checking seed goals in background loop");
+                    }
+                }
 
                 // 1. Scan watch folder according to configured interval
                 watchFolderTickCounter++;

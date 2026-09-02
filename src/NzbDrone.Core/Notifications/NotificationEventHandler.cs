@@ -266,6 +266,10 @@ public class NotificationEventHandler :
             {
                 Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType));
             }
+            else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
+            {
+                Task.Run(() => SendEmailNotification(notif.Settings, eventType, torrent, meta, payload));
+            }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
@@ -431,5 +435,100 @@ public class NotificationEventHandler :
         }
 
         return genericPayload;
+    }
+
+    private static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return;
+        }
+
+        try
+        {
+            var host = "localhost";
+            var port = 25;
+            var ssl = false;
+            string user = null;
+            string pass = null;
+            var from = "leecharr@localhost";
+            string to = null;
+
+            if (settings.TrimStart().StartsWith("{"))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(settings);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("server", out var s) || root.TryGetProperty("host", out s))
+                {
+                    host = s.GetString() ?? host;
+                }
+
+                if (root.TryGetProperty("port", out var p))
+                {
+                    if (p.TryGetInt32(out var pInt))
+                    {
+                        port = pInt;
+                    }
+                    else if (int.TryParse(p.GetString(), out var pParsed))
+                    {
+                        port = pParsed;
+                    }
+                }
+
+                if (root.TryGetProperty("useSsl", out var sslProp) || root.TryGetProperty("ssl", out sslProp))
+                {
+                    ssl = sslProp.GetBoolean();
+                }
+
+                if (root.TryGetProperty("username", out var u) || root.TryGetProperty("user", out u))
+                {
+                    user = u.GetString();
+                }
+
+                if (root.TryGetProperty("password", out var pwd) || root.TryGetProperty("pass", out pwd))
+                {
+                    pass = pwd.GetString();
+                }
+
+                if (root.TryGetProperty("from", out var f))
+                {
+                    from = f.GetString() ?? from;
+                }
+
+                if (root.TryGetProperty("to", out var tProp) || root.TryGetProperty("recipient", out tProp))
+                {
+                    to = tProp.GetString();
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                return;
+            }
+
+            var torrentName = torrent?.Name ?? (genericPayload as dynamic)?.Message ?? eventType;
+            var subject = $"[Leecharr] [{eventType}] {torrentName}";
+            var body = meta?.Overview ?? (torrent != null
+                ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                : (genericPayload as dynamic)?.Message ?? $"Event: {eventType}");
+
+            using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
+            using var client = new System.Net.Mail.SmtpClient(host, port)
+            {
+                EnableSsl = ssl,
+                Timeout = 10000
+            };
+
+            if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
+            {
+                client.Credentials = new System.Net.NetworkCredential(user, pass);
+            }
+
+            client.Send(mail);
+        }
+        catch (Exception ex)
+        {
+            LogManager.GetCurrentClassLogger().Warn(ex, "Failed to send email notification for event {0}", eventType);
+        }
     }
 }

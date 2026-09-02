@@ -21,6 +21,7 @@ public interface IConfigService
     // General
     string ActiveTorrentEngine { get; }
     string ActiveArchiveExtractor { get; }
+    bool AutoExtractArchives { get; }
     string ActiveMediaInspector { get; }
     string ActiveNetworkBindingProvider { get; }
     string ActiveMediaMetadataProvider { get; }
@@ -268,6 +269,7 @@ public interface IConfigService
     string MediaCachePath { get; }
     bool CacheArtworkThumbnails { get; }
     bool AutoPruneRemovedArtwork { get; }
+    string TmdbApiKey { get; }
 
     // Advanced & Logging
     bool LogToFile { get; }
@@ -400,6 +402,7 @@ public class ConfigService : IConfigService
     // General
     public string ActiveTorrentEngine => GetValue("ActiveTorrentEngine", "MonoTorrent");
     public string ActiveArchiveExtractor => GetValue("ActiveArchiveExtractor", "SharpCompress");
+    public bool AutoExtractArchives => GetValueBoolean("AutoExtractArchives", false);
     public string ActiveMediaInspector => GetValue("ActiveMediaInspector", "TagLib");
     public string ActiveNetworkBindingProvider => GetValue("ActiveNetworkBindingProvider", "ManagedSocket");
     public string ActiveMediaMetadataProvider => GetValue("ActiveMediaMetadataProvider", "ServarrSync");
@@ -647,6 +650,7 @@ public class ConfigService : IConfigService
     public string MediaCachePath => GetValue("MediaCachePath", string.Empty);
     public bool CacheArtworkThumbnails => GetValueBoolean("CacheArtworkThumbnails", true);
     public bool AutoPruneRemovedArtwork => GetValueBoolean("AutoPruneRemovedArtwork", true);
+    public string TmdbApiKey => GetValue("TmdbApiKey", Environment.GetEnvironmentVariable("TMDB_API_KEY") ?? string.Empty);
 
     // Advanced & Logging
     public bool LogToFile => GetValueBoolean("LogToFile", true);

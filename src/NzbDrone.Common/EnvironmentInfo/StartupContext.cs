@@ -17,7 +17,22 @@ public class StartupContext
 
         foreach (var arg in args)
         {
-            var parts = arg.TrimStart('-', '/').Split('=', 2);
+            if (string.IsNullOrWhiteSpace(arg))
+            {
+                continue;
+            }
+
+            var cleanArg = arg;
+            if (cleanArg.StartsWith("--"))
+            {
+                cleanArg = cleanArg.Substring(2);
+            }
+            else if (cleanArg.StartsWith("-"))
+            {
+                cleanArg = cleanArg.Substring(1);
+            }
+
+            var parts = cleanArg.Split('=', 2);
             if (parts.Length == 2)
             {
                 Args[parts[0].ToLowerInvariant()] = parts[1];

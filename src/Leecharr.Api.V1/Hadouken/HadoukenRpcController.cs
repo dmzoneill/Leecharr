@@ -47,7 +47,6 @@ public class HadoukenRpcController : ControllerBase
     }
 
     [HttpPost]
-    [Route("api")]
     [Route("api/hadouken")]
     [Route("api/rpc")]
     [Route("hadouken/api")]

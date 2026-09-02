@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,7 +8,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Tags;
@@ -19,8 +22,9 @@ namespace Leecharr.Api.V1.QBittorrent;
 [AllowAnonymous]
 [ApiController]
 [Route("api/v2")]
-public class QBittorrentApiController : ControllerBase
+public class QBittorrentApiController : ControllerBase, IActionFilter
 {
+    private static readonly ConcurrentDictionary<string, DateTime> _authenticatedSessions = new();
     private readonly ITorrentService _torrentService;
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
@@ -28,6 +32,8 @@ public class QBittorrentApiController : ControllerBase
     private readonly IConfigService _configService;
     private readonly ITrackerEntryRepository _trackerEntryRepository;
     private readonly NzbDrone.Core.Tags.ITagRepository _tagRepository;
+    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IUserService _userService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -37,7 +43,9 @@ public class QBittorrentApiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         ITrackerEntryRepository trackerEntryRepository,
-        NzbDrone.Core.Tags.ITagRepository tagRepository = null)
+        NzbDrone.Core.Tags.ITagRepository tagRepository = null,
+        IConfigFileProvider configFileProvider = null,
+        IUserService userService = null)
     {
         _torrentService = torrentService;
         _torrentFileService = torrentFileService;
@@ -46,12 +54,100 @@ public class QBittorrentApiController : ControllerBase
         _configService = configService;
         _trackerEntryRepository = trackerEntryRepository;
         _tagRepository = tagRepository;
+        _configFileProvider = configFileProvider;
+        _userService = userService;
+    }
+
+    [NonAction]
+    public void OnActionExecuting(ActionExecutingContext context)
+    {
+        var actionName = context.ActionDescriptor.RouteValues["action"];
+        if (string.Equals(actionName, nameof(Login), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!IsAuthenticated())
+        {
+            context.Result = StatusCode(StatusCodes.Status403Forbidden, "Forbidden");
+        }
+    }
+
+    [NonAction]
+    public void OnActionExecuted(ActionExecutedContext context)
+    {
+    }
+
+    private bool IsAuthenticated()
+    {
+        if (_configFileProvider == null || !_configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            return true;
+        }
+
+        if (Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
+        {
+            if (_authenticatedSessions.TryGetValue(sid, out var expiry) && expiry > DateTime.UtcNow)
+            {
+                return true;
+            }
+        }
+
+        var apiKey = Request.Headers["X-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && Request.Query.TryGetValue("apikey", out var qKey))
+        {
+            apiKey = qKey.FirstOrDefault();
+        }
+
+        if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(_configFileProvider.ApiKey))
+        {
+            if (string.Equals(apiKey, _configFileProvider.ApiKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [HttpPost("auth/login")]
     public ActionResult Login([FromForm] string username = null, [FromForm] string password = null)
     {
-        Response.Cookies.Append("SID", Guid.NewGuid().ToString("N"), new CookieOptions
+        if (_configFileProvider != null && _configFileProvider.AuthenticationEnabled)
+        {
+            var authenticated = false;
+            var masterApiKey = _configFileProvider.ApiKey;
+
+            if (!string.IsNullOrWhiteSpace(masterApiKey) &&
+                ((!string.IsNullOrWhiteSpace(password) && string.Equals(password, masterApiKey, StringComparison.Ordinal)) ||
+                 (!string.IsNullOrWhiteSpace(username) && string.Equals(username, masterApiKey, StringComparison.Ordinal))))
+            {
+                authenticated = true;
+            }
+            else if (_userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+            {
+                var user = _userService.Authenticate(username, password);
+                if (user != null)
+                {
+                    authenticated = true;
+                }
+            }
+
+            if (!authenticated)
+            {
+                return Content("Fails.", "text/plain");
+            }
+        }
+
+        var sid = Guid.NewGuid().ToString("N");
+        _authenticatedSessions[sid] = DateTime.UtcNow.AddDays(7);
+
+        Response.Cookies.Append("SID", sid, new CookieOptions
         {
             Path = "/",
             HttpOnly = true,
@@ -64,6 +160,11 @@ public class QBittorrentApiController : ControllerBase
     [HttpPost("auth/logout")]
     public ActionResult Logout()
     {
+        if (Request.Cookies.TryGetValue("SID", out var sid))
+        {
+            _authenticatedSessions.TryRemove(sid, out _);
+        }
+
         Response.Cookies.Delete("SID");
         return Content("Ok.", "text/plain");
     }
@@ -790,6 +891,58 @@ public class QBittorrentApiController : ControllerBase
         }
 
         return Ok(trackers);
+    }
+
+    [HttpPost("torrents/addTrackers")]
+    public ActionResult AddTrackers([FromForm] string hash, [FromForm] string urls)
+    {
+        if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
+        {
+            var torrent = _torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                var urlList = urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var url in urlList)
+                {
+                    var trimmed = url.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        _trackerEntryRepository.Insert(new TrackerEntry
+                        {
+                            TorrentId = torrent.Id,
+                            Url = trimmed,
+                            Status = 1,
+                            LastAnnounce = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/removeTrackers")]
+    public ActionResult RemoveTrackers([FromForm] string hash, [FromForm] string urls)
+    {
+        if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
+        {
+            var torrent = _torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                var urlSet = urls.Split('|', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(u => u.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var existing = _trackerEntryRepository.GetByTorrentId(torrent.Id);
+                foreach (var t in existing.Where(t => urlSet.Contains(t.Url)))
+                {
+                    _trackerEntryRepository.Delete(t.Id);
+                }
+            }
+        }
+
+        return Content("Ok.", "text/plain");
     }
 
     [HttpPost("torrents/recheck")]

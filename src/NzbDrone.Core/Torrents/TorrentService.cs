@@ -191,6 +191,22 @@ public class TorrentService : ITorrentService
 
         _logger.Info("Added torrent: {0} ({1})", inserted.Name, inserted.InfoHash);
 
+        if (rawBytes != null && rawBytes.Length > 0 && !string.IsNullOrWhiteSpace(inserted.InfoHash))
+        {
+            try
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var torrentsDir = Path.Combine(appData, "Torrents");
+                Directory.CreateDirectory(torrentsDir);
+                var filePath = Path.Combine(torrentsDir, $"{inserted.InfoHash.ToLowerInvariant()}.torrent");
+                await File.WriteAllBytesAsync(filePath, rawBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to save ingested .torrent file for {0}", inserted.InfoHash);
+            }
+        }
+
         // Start torrent in BitTorrent download engine
         try
         {
@@ -352,6 +368,25 @@ public class TorrentService : ITorrentService
         _trackerEntryRepository?.DeleteByTorrentId(id);
         _mediaEnrichmentService.DeleteMetadata(id);
         _torrentRepository.Delete(id);
+
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var file1 = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
+            if (File.Exists(file1))
+            {
+                File.Delete(file1);
+            }
+
+            var file2 = Path.Combine(appData, "Leecharr", "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
+            if (File.Exists(file2))
+            {
+                File.Delete(file2);
+            }
+        }
+        catch
+        {
+        }
 
         if (deleteFiles && !string.IsNullOrWhiteSpace(torrent.SavePath) && Directory.Exists(torrent.SavePath))
         {
