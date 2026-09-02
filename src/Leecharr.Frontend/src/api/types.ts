@@ -17,7 +17,6 @@ export interface Torrent {
   seeders: number;
   leechers: number;
   trackerUrl: string | null;
-  trackers?: string[];
   sourcePath: string | null;
   dateAdded: string;
   lastActive: string | null;
@@ -46,7 +45,9 @@ export interface Torrent {
   category?: string | null;
   resolution?: string | null;
   hdrFormat?: string | null;
+  videoCodec?: string | null;
   audioCodec?: string | null;
+  audioChannels?: string | null;
   artworkUrl?: string | null;
   posterUrl?: string | null;
   fanartUrl?: string | null;
@@ -58,6 +59,8 @@ export interface Torrent {
   genres?: string[];
   trackers?: string[];
   source?: string | null;
+  targetRatio?: number;
+  dateCompleted?: string | null;
 }
 
 export interface TrackerMetric {
