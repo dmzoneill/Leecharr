@@ -9,7 +9,7 @@ import {
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
-import { useIndexers, useGeneralConfig } from "./api/hooks";
+import { useIndexers, useGeneralConfig, useRefetchInterval } from "./api/hooks";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
 import {
@@ -143,6 +143,17 @@ export function App() {
   const [openSettingsGroups, setOpenSettingsGroups] = useState<
     Record<string, boolean>
   >({});
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("leecharr_sidebar_collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("leecharr_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
 
   const pathname = location.pathname;
 
@@ -219,11 +230,16 @@ export function App() {
   };
 
   const { showToast } = useToast();
+  const refreshIntervalMs = useRefetchInterval();
 
   useEffect(() => {
     loadData();
     signalRManager.start();
     setConnected(true);
+
+    const timer = setInterval(() => {
+      loadData();
+    }, refreshIntervalMs || 2000);
 
     const unsubscribe = signalRManager.subscribe((msg) => {
       if (msg.name === "speedPulse") {
@@ -295,8 +311,11 @@ export function App() {
       }
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
+  }, [refreshIntervalMs]);
 
   const handlePause = async (id: number) => {
     try {
@@ -349,14 +368,27 @@ export function App() {
   }
 
   return (
-    <div className={`app nav-${activeNav}`}>
+    <div
+      className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
+    >
       {/* Sidebar Navigation */}
       <aside className={`sidebar sidebar-${activeNav}`}>
         <div
           className="sidebar-logo"
           onClick={() => navigate("/")}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", position: "relative" }}
         >
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSidebar();
+            }}
+            title="Collapse Main Menu"
+          >
+            «
+          </button>
           <LeecharrLogo size={86} className="brand-logo" />
           <LeecharrText width={120} className="brand-text" />
         </div>
@@ -623,33 +655,64 @@ export function App() {
       <div className="main-wrapper">
         {/* Topbar Header */}
         <header className="topbar">
-          <div
-            className="topbar-search"
-            onClick={() => setShowSearchModal(true)}
-            style={{ cursor: "pointer" }}
-            title="Quick Jump / Search... (Ctrl+K or /)"
-          >
-            <SearchIcon size={14} />
-            <input
-              type="text"
-              placeholder="Quick Jump / Search... (Ctrl+K or /)"
-              className="topbar-search-input"
-              readOnly
-              style={{ cursor: "pointer" }}
-            />
-            <kbd
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <button
+              type="button"
+              className="topbar-btn sidebar-toggle-btn"
+              onClick={toggleSidebar}
+              title={
+                isSidebarCollapsed
+                  ? "Show Main Menu (Alt+M)"
+                  : "Hide Main Menu (Alt+M)"
+              }
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.16)",
-                borderRadius: "3px",
-                padding: "0.1rem 0.4rem",
-                fontSize: "0.7rem",
-                color: "var(--text-muted)",
-                fontFamily: "monospace",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "28px",
+                height: "28px",
+                border:
+                  "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+                borderRadius: "4px",
+                background: isSidebarCollapsed
+                  ? "var(--accent, #ffd166)"
+                  : "transparent",
+                color: isSidebarCollapsed ? "#10111a" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.95rem",
+                padding: 0,
               }}
             >
-              ⌘K
-            </kbd>
+              {isSidebarCollapsed ? "☰" : "⮜"}
+            </button>
+            <div
+              className="topbar-search"
+              onClick={() => setShowSearchModal(true)}
+              style={{ cursor: "pointer" }}
+              title="Quick Jump / Search... (Ctrl+K or /)"
+            >
+              <SearchIcon size={14} />
+              <input
+                type="text"
+                placeholder="Quick Jump / Search... (Ctrl+K or /)"
+                className="topbar-search-input"
+                readOnly
+                style={{ cursor: "pointer" }}
+              />
+              <kbd
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.16)",
+                  borderRadius: "3px",
+                  padding: "0.1rem 0.4rem",
+                  fontSize: "0.7rem",
+                  color: "var(--text-muted)",
+                  fontFamily: "monospace",
+                }}
+              >
+                ⌘K
+              </kbd>
+            </div>
           </div>
 
           <div

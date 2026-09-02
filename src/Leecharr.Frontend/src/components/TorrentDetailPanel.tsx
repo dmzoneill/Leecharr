@@ -69,6 +69,49 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "log", label: "Engine Log" },
 ];
 
+class TabErrorBoundary extends React.Component<
+  { children: React.ReactNode; tabKey: string },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode; tabKey: string }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: { tabKey: string }) {
+    if (prevProps.tabKey !== this.props.tabKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: "1.5rem", color: "var(--danger, #ef4444)" }}>
+          <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+            Failed to render tab contents
+          </div>
+          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+            {this.state.error?.message || "An unexpected error occurred."}
+          </p>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Retry Tab
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   torrent: initialTorrent,
   torrentId: initialTorrentId,
@@ -206,37 +249,42 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
 
       {/* Tab Content Body */}
       <div className="detail-panel-body">
-        {tab === "status" && <StatusTab torrent={currentTorrent} />}
-        {tab === "details" && <DetailsTab torrent={currentTorrent} />}
-        {tab === "files" && (
-          <FilesTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-        )}
-        {tab === "peers" && (
-          <PeersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-        )}
-        {tab === "trackers" && (
-          <TrackersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-        )}
-        {tab === "piecemap" && (
-          <PieceMap
-            pieceCount={currentTorrent.pieceCount}
-            pieceLength={currentTorrent.pieceLength}
-            progress={currentTorrent.progress}
-            isSeeding={
-              (currentTorrent.status || "").toLowerCase() === "seeding"
-            }
-          />
-        )}
-        {tab === "monitoring" && (
-          <MonitoringTab
-            torrent={currentTorrent}
-            torrentId={currentTorrent.id}
-          />
-        )}
-        {tab === "options" && <OptionsTab torrent={currentTorrent} />}
-        {tab === "log" && (
-          <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-        )}
+        <TabErrorBoundary tabKey={tab}>
+          {tab === "status" && <StatusTab torrent={currentTorrent} />}
+          {tab === "details" && <DetailsTab torrent={currentTorrent} />}
+          {tab === "files" && (
+            <FilesTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+          )}
+          {tab === "peers" && (
+            <PeersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+          )}
+          {tab === "trackers" && (
+            <TrackersTab
+              torrent={currentTorrent}
+              torrentId={currentTorrent.id}
+            />
+          )}
+          {tab === "piecemap" && (
+            <PieceMap
+              pieceCount={currentTorrent.pieceCount}
+              pieceLength={currentTorrent.pieceLength}
+              progress={currentTorrent.progress}
+              isSeeding={
+                (currentTorrent.status || "").toLowerCase() === "seeding"
+              }
+            />
+          )}
+          {tab === "monitoring" && (
+            <MonitoringTab
+              torrent={currentTorrent}
+              torrentId={currentTorrent.id}
+            />
+          )}
+          {tab === "options" && <OptionsTab torrent={currentTorrent} />}
+          {tab === "log" && (
+            <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />
+          )}
+        </TabErrorBoundary>
       </div>
     </div>
   );

@@ -2,7 +2,6 @@ import {
   useDownloadHistory,
   useArrConnections,
   useIndexers,
-  useAiConfig,
 } from "../../api/hooks";
 import { formatBytes, formatDate } from "../../utils/formatters";
 import {
@@ -12,9 +11,6 @@ import {
   getProwlarrUrl,
 } from "../../utils/arrLinks";
 import { getTorrentBadges, calculateHnrStatus } from "../../utils/milestones";
-import PieceMap from "../PieceMap";
-import SeedingSimulator from "../SeedingSimulator";
-import { AiSwarmDiagnosticCard } from "./AiSwarmDiagnosticCard";
 import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
 
@@ -22,8 +18,6 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
-  const { data: aiConfig } = useAiConfig();
-  const isSwarmDiagnosticsEnabled = aiConfig?.enableSwarmDiagnostics !== false;
 
   // Find corresponding enriched history entry by infoHash or name match
   const historyMatch = history?.find(
@@ -250,28 +244,119 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
         </div>
       </div>
 
-      <PieceMap
-        pieceCount={torrent.pieceCount}
-        pieceLength={torrent.pieceLength}
-        progress={torrent.progress}
-        isSeeding={torrent.status === "Seeding"}
-      />
+      {/* Stream Specifications if present */}
+      {(torrent.resolution ||
+        torrent.videoCodec ||
+        torrent.audioCodec ||
+        torrent.hdrFormat) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            padding: "0.5rem 0.75rem",
+            backgroundColor: "var(--bg-secondary, #222)",
+            borderRadius: "6px",
+            border: "1px solid var(--border-color, #333)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              color: "var(--accent, #ffd166)",
+              textTransform: "uppercase",
+            }}
+          >
+            Media Stream Specs:
+          </span>
+          {torrent.resolution && (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "#2563eb",
+                color: "#fff",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+              }}
+            >
+              {torrent.resolution}
+            </span>
+          )}
+          {torrent.videoCodec && (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "#4f46e5",
+                color: "#fff",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+              }}
+            >
+              {torrent.videoCodec}
+            </span>
+          )}
+          {torrent.hdrFormat && torrent.hdrFormat !== "SDR" && (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "#d97706",
+                color: "#fff",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+              }}
+            >
+              {torrent.hdrFormat}
+            </span>
+          )}
+          {torrent.audioCodec && (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "#059669",
+                color: "#fff",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+              }}
+            >
+              {torrent.audioCodec}{" "}
+              {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
+            </span>
+          )}
+        </div>
+      )}
 
-      {isSwarmDiagnosticsEnabled && <AiSwarmDiagnosticCard torrent={torrent} />}
-
-      <div className="detail-panel-grid">
-        {rows.map(([label, value]) => (
-          <InfoRow key={label} label={label} value={value} mono />
-        ))}
+      {/* Release Technical Properties */}
+      <div
+        style={{
+          backgroundColor: "var(--bg-secondary, #222)",
+          borderRadius: "6px",
+          border: "1px solid var(--border-color, #333)",
+          padding: "0.6rem 0.8rem",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            color: "var(--accent, #ffd166)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            borderBottom:
+              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            paddingBottom: "0.25rem",
+            marginBottom: "0.4rem",
+          }}
+        >
+          Technical Properties
+        </div>
+        <div className="detail-panel-grid">
+          {rows.map(([label, value]) => (
+            <InfoRow key={label} label={label} value={value} mono />
+          ))}
+        </div>
       </div>
-
-      <SeedingSimulator
-        currentUploaded={torrent.uploaded}
-        totalSize={torrent.totalSize}
-        currentRatio={torrent.ratio}
-        currentUploadSpeed={torrent.uploadSpeed}
-        seedingTimeSeconds={torrent.seedingTime}
-      />
     </div>
   );
 }

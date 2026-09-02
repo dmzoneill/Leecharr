@@ -22,16 +22,24 @@ export function PieceMap({
   const totalPieces = Math.max(1, pieceCount);
   const completedPieces = Math.floor(progress * totalPieces);
 
-  // Generate a sampled representation of 120 blocks for the grid visualizer
+  // Generate a sampled representation of blocks for the grid visualizer
   const displayBlocks = useMemo(() => {
-    const NUM_BLOCKS = 120;
+    const numBlocks = Math.min(Math.max(totalPieces, 60), 480);
     const blocks: {
-      index: number;
+      startIndex: number;
+      endIndex: number;
       status: "complete" | "missing" | "active";
     }[] = [];
 
-    for (let i = 0; i < NUM_BLOCKS; i++) {
-      const blockProgress = (i + 0.5) / NUM_BLOCKS;
+    const piecesPerBlock = totalPieces / numBlocks;
+
+    for (let i = 0; i < numBlocks; i++) {
+      const startIdx = Math.floor(i * piecesPerBlock);
+      const endIdx = Math.min(
+        totalPieces - 1,
+        Math.floor((i + 1) * piecesPerBlock) - 1,
+      );
+      const blockProgress = (i + 0.5) / numBlocks;
       let status: "complete" | "missing" | "active" = "missing";
 
       if (progress >= 1.0 || isSeeding) {
@@ -47,7 +55,8 @@ export function PieceMap({
       }
 
       blocks.push({
-        index: Math.floor((i / NUM_BLOCKS) * totalPieces),
+        startIndex: startIdx,
+        endIndex: Math.max(startIdx, endIdx),
         status,
       });
     }
@@ -168,35 +177,55 @@ export function PieceMap({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(12px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(13px, 1fr))",
             gap: "3px",
-            padding: "0.35rem 0",
+            padding: "0.6rem",
+            backgroundColor: "rgba(0, 0, 0, 0.35)",
+            borderRadius: "6px",
+            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.1))",
+            minHeight: "140px",
+            maxHeight: "320px",
+            overflowY: "auto",
           }}
         >
-          {displayBlocks.map((b, i) => (
-            <div
-              key={i}
-              onMouseEnter={() => setHoveredPiece(b.index)}
-              onMouseLeave={() => setHoveredPiece(null)}
-              style={{
-                height: "14px",
-                borderRadius: "2px",
-                backgroundColor:
-                  b.status === "complete"
-                    ? "#27ae60"
-                    : b.status === "active"
-                      ? "#3498db"
-                      : "rgba(255, 255, 255, 0.08)",
-                boxShadow:
-                  b.status === "complete"
-                    ? "0 0 4px rgba(39, 174, 96, 0.3)"
-                    : "none",
-                cursor: "pointer",
-                transition: "transform 0.1s ease",
-              }}
-              title={`Piece #${b.index} (${formatBytes(pieceLength)}) - ${b.status === "complete" ? "Seeded / Verified" : b.status === "active" ? "Downloading" : "Missing"}`}
-            />
-          ))}
+          {displayBlocks.map((b, i) => {
+            const isSingle = b.startIndex === b.endIndex;
+            const pieceLabel = isSingle
+              ? `Piece #${b.startIndex}`
+              : `Pieces #${b.startIndex} - #${b.endIndex}`;
+            return (
+              <div
+                key={i}
+                onMouseEnter={() => setHoveredPiece(b.startIndex)}
+                onMouseLeave={() => setHoveredPiece(null)}
+                style={{
+                  height: "14px",
+                  borderRadius: "2px",
+                  backgroundColor:
+                    b.status === "complete"
+                      ? "#27ae60"
+                      : b.status === "active"
+                        ? "#3b82f6"
+                        : "rgba(255, 255, 255, 0.05)",
+                  border:
+                    b.status === "complete"
+                      ? "1px solid #2ecc71"
+                      : b.status === "active"
+                        ? "1px solid #60a5fa"
+                        : "1px solid rgba(255, 255, 255, 0.12)",
+                  boxShadow:
+                    b.status === "complete"
+                      ? "0 0 3px rgba(39, 174, 96, 0.35)"
+                      : b.status === "active"
+                        ? "0 0 5px rgba(59, 130, 246, 0.6)"
+                        : "none",
+                  cursor: "pointer",
+                  transition: "transform 0.1s ease",
+                }}
+                title={`${pieceLabel} (${formatBytes(pieceLength * (b.endIndex - b.startIndex + 1))}) - ${b.status === "complete" ? "Verified / Seeded" : b.status === "active" ? "Downloading" : "Missing"}`}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -206,11 +235,13 @@ export function PieceMap({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: "0.5rem",
           fontSize: "0.72rem",
           color: "var(--text-muted)",
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <span
             style={{
               display: "inline-flex",
@@ -240,10 +271,28 @@ export function PieceMap({
                 width: "8px",
                 height: "8px",
                 borderRadius: "2px",
-                backgroundColor: "rgba(255,255,255,0.15)",
+                backgroundColor: "#3b82f6",
               }}
             />
-            {totalPieces - completedPieces} Remaining
+            Active Download
+          </span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.3rem",
+            }}
+          >
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "2px",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            />
+            {totalPieces - completedPieces} Missing
           </span>
         </div>
         {hoveredPiece !== null && (
