@@ -12,6 +12,16 @@ public interface IConfigFileProvider
 
     bool EnableSsl { get; }
 
+    int SslPort { get; }
+
+    string SslCertPath { get; }
+
+    string SslKeyPath { get; }
+
+    string SslCertPassword { get; }
+
+    bool RedirectHttpToHttps { get; }
+
     string ApiKey { get; }
 
     bool AuthenticationEnabled { get; }

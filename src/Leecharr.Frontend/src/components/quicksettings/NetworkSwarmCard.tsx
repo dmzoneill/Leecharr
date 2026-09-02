@@ -7,6 +7,7 @@ import {
   useNetworkStatus,
 } from "../../api/hooks";
 import { UsersIcon, WifiIcon } from "../icons/UIIcons";
+import { useToast } from "../../context/ToastContext";
 
 export const NetworkSwarmCard: React.FC = () => {
   const { data: netConfig, isLoading: netLoading } = useNetworkConfig();
@@ -16,25 +17,46 @@ export const NetworkSwarmCard: React.FC = () => {
   const saveBtMutation = useSaveBitTorrentConfig();
 
   const { data: netStatus } = useNetworkStatus();
+  const { showToast } = useToast();
 
   const handleNetUpdate = (
     updates: Partial<import("../../api/types").NetworkConfig>,
   ) => {
     if (!netConfig) return;
-    saveNetMutation.mutate({
-      ...netConfig,
-      ...updates,
-    });
+    saveNetMutation.mutate(
+      {
+        ...netConfig,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(
+            `Failed to update network settings: ${err.message}`,
+            "error",
+          );
+        },
+      },
+    );
   };
 
   const handleBtUpdate = (
     updates: Partial<import("../../api/types").BitTorrentConfig>,
   ) => {
     if (!btConfig) return;
-    saveBtMutation.mutate({
-      ...btConfig,
-      ...updates,
-    });
+    saveBtMutation.mutate(
+      {
+        ...btConfig,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(
+            `Failed to update protocol settings: ${err.message}`,
+            "error",
+          );
+        },
+      },
+    );
   };
 
   if (netLoading || btLoading || !netConfig || !btConfig) {
@@ -62,16 +84,20 @@ export const NetworkSwarmCard: React.FC = () => {
     <div className="quick-card">
       <div className="quick-card-header">
         <span className="quick-card-title">🛡️ Network & Swarms</span>
-        <span
+        <button
+          type="button"
           className={`quick-vpn-badge ${vpnKillSwitch ? "vpn-active" : ""}`}
+          onClick={() =>
+            handleNetUpdate({ enableVpnKillSwitch: !vpnKillSwitch })
+          }
           title={
             vpnKillSwitch
-              ? `VPN Kill Switch Active (Bound: ${activeInterface})`
-              : "Kill Switch Disabled"
+              ? `VPN Kill Switch Active (Bound: ${activeInterface}) - Click to disable`
+              : "VPN Kill Switch Disabled - Click to enable"
           }
         >
           {vpnKillSwitch ? "🛡️ Kill Switch ON" : "Kill Switch OFF"}
-        </span>
+        </button>
       </div>
 
       <div className="quick-card-body">
@@ -128,53 +154,52 @@ export const NetworkSwarmCard: React.FC = () => {
         </div>
 
         {/* Protocol Switches */}
-        <div className="quick-protocol-chips">
-          <label
-            className={`protocol-chip ${dht ? "active" : ""}`}
-            title="Distributed Hash Table (Trackerless Swarms)"
-          >
-            <input
-              type="checkbox"
-              checked={dht}
-              onChange={(e) => handleBtUpdate({ enableDht: e.target.checked })}
-            />
-            <span>DHT</span>
-          </label>
-          <label
-            className={`protocol-chip ${pex ? "active" : ""}`}
-            title="Peer Exchange (Fast Swarm Expansion)"
-          >
-            <input
-              type="checkbox"
-              checked={pex}
-              onChange={(e) => handleBtUpdate({ enablePex: e.target.checked })}
-            />
-            <span>PEX</span>
-          </label>
-          <label
-            className={`protocol-chip ${lpd ? "active" : ""}`}
-            title="Local Peer Discovery (LAN Multicast)"
-          >
-            <input
-              type="checkbox"
-              checked={lpd}
-              onChange={(e) => handleBtUpdate({ enableLpd: e.target.checked })}
-            />
-            <span>LPD</span>
-          </label>
-          <label
-            className={`protocol-chip ${vpnKillSwitch ? "active" : ""}`}
-            title="VPN Kill Switch"
-          >
-            <input
-              type="checkbox"
-              checked={vpnKillSwitch}
-              onChange={(e) =>
-                handleNetUpdate({ enableVpnKillSwitch: e.target.checked })
-              }
-            />
-            <span>Kill Switch</span>
-          </label>
+        <div className="quick-control-row">
+          <div className="quick-control-label">
+            <WifiIcon size={12} />
+            <span>Protocols:</span>
+          </div>
+          <div className="quick-protocol-chips">
+            <label
+              className={`protocol-chip ${dht ? "active" : ""}`}
+              title="Distributed Hash Table (Trackerless Swarms)"
+            >
+              <input
+                type="checkbox"
+                checked={dht}
+                onChange={(e) =>
+                  handleBtUpdate({ enableDht: e.target.checked })
+                }
+              />
+              <span>DHT</span>
+            </label>
+            <label
+              className={`protocol-chip ${pex ? "active" : ""}`}
+              title="Peer Exchange (Fast Swarm Expansion)"
+            >
+              <input
+                type="checkbox"
+                checked={pex}
+                onChange={(e) =>
+                  handleBtUpdate({ enablePex: e.target.checked })
+                }
+              />
+              <span>PEX</span>
+            </label>
+            <label
+              className={`protocol-chip ${lpd ? "active" : ""}`}
+              title="Local Peer Discovery (LAN Multicast)"
+            >
+              <input
+                type="checkbox"
+                checked={lpd}
+                onChange={(e) =>
+                  handleBtUpdate({ enableLpd: e.target.checked })
+                }
+              />
+              <span>LPD</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>

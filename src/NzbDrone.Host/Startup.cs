@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using DryIoc;
@@ -49,6 +51,15 @@ public class Startup
         services.AddSignalR();
         services.AddDataProtection();
         services.AddHttpClient();
+
+        var configFileProvider = this.container.Resolve<IConfigFileProvider>();
+        if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
+        {
+            services.AddHttpsRedirection(options =>
+            {
+                options.HttpsPort = configFileProvider.SslPort;
+            });
+        }
 
         services.AddAuthentication(options =>
         {
@@ -142,10 +153,29 @@ public class Startup
         {
             c.SwaggerDoc("v1", new OpenApiInfo
             {
-                Title = "Leecharr API",
+                Title = "Leecharr REST API",
                 Version = "v1",
-                Description = "Servarr-Native BitTorrent & Media Downloader API",
+                Description = "Servarr-Native BitTorrent & Media Downloader API Specification",
             });
+
+            c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+            {
+                Description = "Leecharr REST API Key header (X-Api-Key) or query parameter (apikey)",
+                Name = "X-Api-Key",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.ApiKey,
+            });
+
+            c.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecuritySchemeReference("ApiKey", doc),
+                    new List<string>()
+                },
+            });
+
+            c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+            c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
         });
 
         services.AddCors(options =>
@@ -209,16 +239,24 @@ public class Startup
             },
         });
 
+        if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
+        {
+            app.UseHttpsRedirection();
+        }
+
         app.UseRouting();
 
         app.UseAuthentication();
         app.UseAuthorization();
 
-        if (app.Environment.IsDevelopment())
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Leecharr API V1"));
-        }
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Leecharr REST API v1");
+            c.RoutePrefix = "swagger";
+            c.DocumentTitle = "Leecharr - REST API Docs";
+            c.InjectStylesheet("/swagger-custom.css");
+        });
 
         app.MapControllers();
         app.MapHub<MessageHub>("/signalr/messages");

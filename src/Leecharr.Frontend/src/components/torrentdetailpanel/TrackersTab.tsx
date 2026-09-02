@@ -3,6 +3,7 @@ import {
   useTorrentTrackers,
   useTrackerBoostTrackers,
   useInspectTorrentTrackers,
+  useBoostTorrent,
   useAddTorrentTracker,
   useDeleteTorrentTracker,
   useAnnounceTorrentTracker,
@@ -82,10 +83,24 @@ export function TrackersTab({
   const addTracker = useAddTorrentTracker();
   const deleteTracker = useDeleteTorrentTracker();
   const announceTracker = useAnnounceTorrentTracker();
+  const boostTorrent = useBoostTorrent();
   const { showToast } = useToast();
   const [showPickerModal, setShowPickerModal] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [isAddingBatch, setIsAddingBatch] = useState(false);
+
+  const handleBoostSwarm = () => {
+    if (!effectiveId) return;
+    boostTorrent.mutate(effectiveId, {
+      onSuccess: (res) => {
+        showToast(res.message, res.boosted ? "success" : "info");
+        refetch();
+      },
+      onError: (err) => {
+        showToast(`Failed to boost swarm: ${err.message}`, "error");
+      },
+    });
+  };
 
   const attachedUrls = useMemo(() => {
     return new Set(
@@ -450,6 +465,24 @@ export function TrackersTab({
             : selectedUrls.size > 0
               ? `+ Add & Announce (${selectedUrls.size})`
               : "+ Add & Announce"}
+        </button>
+
+        <button
+          className="btn btn-sm"
+          style={{
+            fontSize: "0.82rem",
+            padding: "0.35rem 0.85rem",
+            whiteSpace: "nowrap",
+            backgroundColor: "rgba(255, 209, 102, 0.15)",
+            color: "var(--accent, #ffd166)",
+            border: "1px solid rgba(255, 209, 102, 0.35)",
+            fontWeight: 600,
+          }}
+          onClick={handleBoostSwarm}
+          disabled={boostTorrent.isPending || !effectiveId}
+          title="Automatically detect and inject verified public trackers into this torrent swarm"
+        >
+          {boostTorrent.isPending ? "⚡ Boosting..." : "⚡ Boost Swarm"}
         </button>
       </div>
 

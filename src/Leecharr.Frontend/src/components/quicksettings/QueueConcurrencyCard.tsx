@@ -1,19 +1,28 @@
 import React from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
 import { PlayIcon, SeedingIcon } from "../icons/UIIcons";
+import { useToast } from "../../context/ToastContext";
 
 export const QueueConcurrencyCard: React.FC = () => {
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
+  const { showToast } = useToast();
 
   const handleUpdate = (
     updates: Partial<import("../../api/types").BitTorrentConfig>,
   ) => {
     if (!config) return;
-    saveMutation.mutate({
-      ...config,
-      ...updates,
-    });
+    saveMutation.mutate(
+      {
+        ...config,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(`Failed to update queue settings: ${err.message}`, "error");
+        },
+      },
+    );
   };
 
   if (isLoading || !config) {
@@ -68,7 +77,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               disabled={activeDl <= 0}
               title="Decrease max downloads"
             >
-              -
+              −
             </button>
             <span className="stepper-value">
               {activeDl === 0 ? "∞" : activeDl}
@@ -98,7 +107,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               disabled={activeSeed <= 0}
               title="Decrease max seeds"
             >
-              -
+              −
             </button>
             <span className="stepper-value">
               {activeSeed === 0 ? "∞" : activeSeed}

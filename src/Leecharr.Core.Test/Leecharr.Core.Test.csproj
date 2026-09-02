@@ -6,6 +6,8 @@
   <ItemGroup>
     <ProjectReference Include="..\NzbDrone.Common\Leecharr.Common.csproj" />
     <ProjectReference Include="..\NzbDrone.Core\Leecharr.Core.csproj" />
+    <ProjectReference Include="..\Leecharr.Http\Leecharr.Http.csproj" />
+    <ProjectReference Include="..\Leecharr.Api.V1\Leecharr.Api.V1.csproj" />
   </ItemGroup>
 
   <ItemGroup>

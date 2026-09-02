@@ -6,6 +6,7 @@ import {
   useSaveBitTorrentConfig,
 } from "../../api/hooks";
 import { DiskStorageBadge } from "./DiskStorageBadge";
+import { useToast } from "../../context/ToastContext";
 
 const RATIO_PRESETS = [
   { label: "1.0", value: 1.0 },
@@ -26,25 +27,46 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
 
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
+  const { showToast } = useToast();
 
   const handleSeedUpdate = (
     updates: Partial<import("../../api/types").SeedingConfig>,
   ) => {
     if (!seedConfig) return;
-    saveSeedMutation.mutate({
-      ...seedConfig,
-      ...updates,
-    });
+    saveSeedMutation.mutate(
+      {
+        ...seedConfig,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(
+            `Failed to update seeding settings: ${err.message}`,
+            "error",
+          );
+        },
+      },
+    );
   };
 
   const handleBtUpdate = (
     updates: Partial<import("../../api/types").BitTorrentConfig>,
   ) => {
     if (!btConfig) return;
-    saveBtMutation.mutate({
-      ...btConfig,
-      ...updates,
-    });
+    saveBtMutation.mutate(
+      {
+        ...btConfig,
+        ...updates,
+      },
+      {
+        onError: (err: any) => {
+          showToast(
+            `Failed to update piece picker settings: ${err.message}`,
+            "error",
+          );
+        },
+      },
+    );
   };
 
   if (seedLoading || btLoading || !seedConfig || !btConfig) {
@@ -75,9 +97,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
           <div className="quick-control-label">
             <span>Ratio Goal:</span>
             <span className="quick-control-current">
-              {currentRatio === 0
-                ? "∞ No Limit"
-                : `${currentRatio.toFixed(2)}x`}
+              {currentRatio === 0 ? "∞" : `${currentRatio.toFixed(1)}x`}
             </span>
           </div>
           <div className="quick-presets-group">
@@ -91,6 +111,11 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                   onClick={() =>
                     handleSeedUpdate({ globalSeedRatioLimit: p.value })
                   }
+                  title={
+                    p.value === 0
+                      ? "Unlimited ratio goal (seed indefinitely)"
+                      : `Target ratio: ${p.label}x`
+                  }
                 >
                   {p.label}
                 </button>
@@ -100,7 +125,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         </div>
 
         {/* Piece Picker / Sequential Mode Toggle */}
-        <div className="quick-toggle-row" style={{ marginTop: "0.25rem" }}>
+        <div className="quick-toggle-row">
           <label
             className="quick-checkbox-label"
             title="Prioritize first and last pieces for instant media inspection"
@@ -119,25 +144,6 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
             <span>Sequential piece picking by default</span>
           </label>
         </div>
-
-        {/* Deep Link to Full Settings */}
-        {onNavigateSettings && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginTop: "0.4rem",
-            }}
-          >
-            <button
-              type="button"
-              className="quick-settings-link-btn"
-              onClick={() => onNavigateSettings("speed")}
-            >
-              ⚙️ Full Settings &rarr;
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

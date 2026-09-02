@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Bandwidth;
 
@@ -31,7 +32,7 @@ public interface ISpeedSchedulerService
     Task ApplyCurrentLimitsAsync();
 }
 
-public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
+public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly ISpeedScheduleRepository repository;
     private readonly IConfigService configService;
@@ -73,6 +74,11 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
                 this.logger.Warn(ex, "Failed to apply scheduled rate limits to engine");
             }
         }
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        _ = this.ApplyCurrentLimitsAsync();
     }
 
     public EffectiveSpeedLimits GetCurrentLimits(DateTime? currentTime = null)

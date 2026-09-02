@@ -450,6 +450,44 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         }
     }
 
+    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && trackers != null)
+        {
+            if (task.Manager.TrackerManager != null)
+            {
+                var addedAny = false;
+                foreach (var tr in trackers)
+                {
+                    if (!string.IsNullOrWhiteSpace(tr) && Uri.TryCreate(tr.Trim(), UriKind.Absolute, out var uri))
+                    {
+                        try
+                        {
+                            await task.Manager.TrackerManager.AddTrackerAsync(uri);
+                            addedAny = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Could not add tracker {0} to torrent {1}", tr, torrentId);
+                        }
+                    }
+                }
+
+                if (addedAny)
+                {
+                    try
+                    {
+                        await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to re-announce after adding trackers to torrent {0}", torrentId);
+                    }
+                }
+            }
+        }
+    }
+
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)

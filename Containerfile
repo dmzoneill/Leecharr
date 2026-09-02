@@ -82,7 +82,7 @@ RUN chmod +x /docker-entrypoint.sh
 ENV LEECHARR__APP_DATA=/config
 ENV PATH="$PATH:/root/.dotnet/tools"
 
-EXPOSE 7889
+EXPOSE 7889 7890
 
 VOLUME ["/config", "/downloads"]
 
