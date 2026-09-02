@@ -97,7 +97,12 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             return true;
         }
 
-        if (Regex.IsMatch(path, @"\.part0*[2-9]\d*\.rar$", RegexOptions.IgnoreCase))
+        if (Regex.IsMatch(path, @"\.(part0*[2-9]\d*|part[2-9]\d*)\.(rar|7z|zip)$", RegexOptions.IgnoreCase))
+        {
+            return true;
+        }
+
+        if (Regex.IsMatch(path, @"\.(7z|tar|zip)\.0*[2-9]\d*$", RegexOptions.IgnoreCase))
         {
             return true;
         }

@@ -630,12 +630,49 @@ public class DelugeJsonRpcController : ControllerBase
                                     t.UploadLimit = (int)(mus.GetInt64() * 1024);
                                 }
 
-                                if (opts.TryGetProperty("stop_ratio", out var sr))
+                                if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array)
                                 {
-                                    t.TargetRatio = sr.GetDouble();
+                                    var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                    var fIdx = 0;
+                                    foreach (var prioElem in fp.EnumerateArray())
+                                    {
+                                        if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                        }
+
+                                        fIdx++;
+                                    }
                                 }
 
                                 await _torrentService.UpdateAsync(t);
+                            }
+                        }
+                    }
+
+                    return Ok(new { result = true, error = (object)null, id });
+
+                case "core.set_torrent_file_priorities":
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+                    {
+                        var hash = paramsElem[0].GetString();
+                        var priosElem = paramsElem[1];
+                        if (!string.IsNullOrWhiteSpace(hash) && priosElem.ValueKind == JsonValueKind.Array)
+                        {
+                            var t = _torrentService.GetByInfoHash(hash);
+                            if (t != null)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                var fIdx = 0;
+                                foreach (var prioElem in priosElem.EnumerateArray())
+                                {
+                                    if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
+                                    {
+                                        await _torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                    }
+
+                                    fIdx++;
+                                }
                             }
                         }
                     }

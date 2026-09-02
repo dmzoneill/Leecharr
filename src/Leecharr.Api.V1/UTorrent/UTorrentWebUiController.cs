@@ -186,6 +186,16 @@ public class UTorrentWebUiController : ControllerBase
                         var target = _torrentService.GetByInfoHash(hash.Trim());
                         var pVal = Request.Query["p"].ToString();
                         var fVal = Request.Query["f"].ToString();
+                        if (string.IsNullOrEmpty(pVal) && Request.HasFormContentType)
+                        {
+                            pVal = Request.Form["p"].ToString();
+                        }
+
+                        if (string.IsNullOrEmpty(fVal) && Request.HasFormContentType)
+                        {
+                            fVal = Request.Form["f"].ToString();
+                        }
+
                         if (target != null && int.TryParse(pVal, out var prio) && int.TryParse(fVal, out var fileIdx))
                         {
                             var files = _torrentFileService.GetFiles(target.Id).ToList();
