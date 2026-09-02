@@ -156,7 +156,7 @@ export function SystemLogs() {
       </div>
 
       {activeTab === "files" ? (
-        <SystemLogFiles />
+        <SystemLogFiles embedded />
       ) : (
         <div className="log-viewer">
           <div className="log-toolbar">

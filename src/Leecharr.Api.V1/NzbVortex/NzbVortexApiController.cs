@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -122,22 +123,28 @@ public class NzbVortexApiController : ControllerBase
         var all = _torrentService.GetAll().ToList();
         var nzbs = all.Select(t => new
         {
-            id = t.Id.ToString(),
+            id = t.Id,
+            uiTitle = t.Name ?? string.Empty,
+            nzbFilename = t.Name ?? string.Empty,
             nzbName = t.Name ?? string.Empty,
             groupName = t.Category ?? string.Empty,
+            totalDownloadSize = t.TotalSize,
             totalBytes = t.TotalSize,
+            downloadedSize = t.Downloaded,
             downloadedBytes = t.Downloaded,
+            transferedSpeed = (int)t.DownloadSpeed,
             speed = t.DownloadSpeed,
             isPaused = t.Status == TorrentStatus.Paused,
             state = t.Status switch
             {
-                TorrentStatus.Downloading => "Downloading",
-                TorrentStatus.Seeding => "Downloaded",
-                TorrentStatus.Stopped => "Downloaded",
-                TorrentStatus.Paused => "Paused",
-                TorrentStatus.Error => "Failed",
-                _ => "Queued"
+                TorrentStatus.Downloading => 1,
+                TorrentStatus.Seeding => 20,
+                TorrentStatus.Stopped => 20,
+                TorrentStatus.Paused => 0,
+                TorrentStatus.Error => 21,
+                _ => 0
             },
+            statusText = t.Status.ToString(),
             destinationPath = t.SavePath ?? (_configService.DownloadDir ?? "/downloads"),
             downloadRatio = t.Ratio,
             progress = t.Progress
@@ -157,8 +164,13 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/nzb/add")]
     [Route("nzbvortex/api/v1/queue/add")]
     [Route("api/v1/queue/add")]
-    public async Task<IActionResult> AddNzb([FromForm] string name, [FromForm] string groupName)
+    public async Task<IActionResult> AddNzb(
+        [FromQuery(Name = "groupname")] string queryGroup = null,
+        [FromQuery(Name = "name")] string queryName = null,
+        [FromForm] string name = null,
+        [FromForm] string groupName = null)
     {
+        var category = !string.IsNullOrWhiteSpace(queryGroup) ? queryGroup : groupName;
         var addedId = 1;
         if (Request.HasFormContentType && Request.Form.Files.Count > 0)
         {
@@ -167,7 +179,7 @@ public class NzbVortexApiController : ControllerBase
             await file.CopyToAsync(ms);
             var bytes = ms.ToArray();
             var parsed = _torrentFileParser.Parse(bytes);
-            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, groupName, null, false, bytes);
+            var added = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
             addedId = added?.Id ?? addedId;
         }
 
@@ -175,6 +187,7 @@ public class NzbVortexApiController : ControllerBase
         {
             id = addedId.ToString(),
             nzb = new { id = addedId.ToString() },
+            error = 0,
             result = 0
         });
     }
@@ -184,14 +197,17 @@ public class NzbVortexApiController : ControllerBase
     [HttpDelete]
     [Route("nzbvortex/api/v1/nzb/{id}/cancel")]
     [Route("api/v1/nzb/{id}/cancel")]
+    [Route("nzbvortex/api/v1/nzb/{id}/cancelDelete")]
+    [Route("api/v1/nzb/{id}/cancelDelete")]
     [Route("nzbvortex/api/v1/nzb/{id}/delete")]
     [Route("api/v1/nzb/{id}/delete")]
     [Route("nzbvortex/api/v1/queue/{id}")]
     [Route("api/v1/queue/{id}")]
     public async Task<IActionResult> CancelNzb(int id, [FromQuery] bool deleteFiles = false)
     {
-        await _torrentService.DeleteAsync(id, deleteFiles);
-        return Ok(new { result = 0 });
+        var isDelete = deleteFiles || (Request.Path.Value?.Contains("cancelDelete", StringComparison.OrdinalIgnoreCase) == true);
+        await _torrentService.DeleteAsync(id, isDelete);
+        return Ok(new { error = 0, result = 0 });
     }
 
     [HttpGet]

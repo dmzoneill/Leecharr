@@ -82,7 +82,11 @@ function formatRelativeTime(iso: string): string {
   return "just now";
 }
 
-function SystemLogFiles() {
+export interface SystemLogFilesProps {
+  embedded?: boolean;
+}
+
+export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
   const { data: logFiles, isLoading, error } = useLogFiles();
   const { data: status } = useSystemStatus();
   const clearLogFiles = useClearLogFiles();
@@ -108,69 +112,70 @@ function SystemLogFiles() {
     });
   };
 
-  return (
-    <div className="content-area">
-      {/* Page Header */}
-      <div
-        className="page-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
-            <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Log Files
-            </h1>
-            <span className="badge badge-primary">Disk Files</span>
+  const content = (
+    <>
+      {!embedded && (
+        <div
+          className="page-header"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <div className="page-header-group">
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            >
+              <h1 className="page-heading" style={{ margin: 0 }}>
+                System: Log Files
+              </h1>
+              <span className="badge badge-primary">Disk Files</span>
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-muted)",
+                marginTop: "0.2rem",
+              }}
+            >
+              Rotating plain text log files stored on disk for offline debugging
+              and diagnostic exports
+            </div>
           </div>
-          <div
-            style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: "0.2rem",
-            }}
-          >
-            Rotating plain text log files stored on disk for offline debugging
-            and diagnostic exports
-          </div>
-        </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <button
-            className="btn btn-outline btn-small"
-            onClick={handleRefresh}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.4rem",
-            }}
-          >
-            <RefreshIcon />
-            <span>Refresh</span>
-          </button>
-          <button
-            className="btn btn-danger btn-small"
-            onClick={handleClear}
-            disabled={clearLogFiles.isPending}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.4rem",
-            }}
-          >
-            <TrashIcon />
-            <span>
-              {clearLogFiles.isPending ? "Clearing..." : "Clear Logs"}
-            </span>
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              className="btn btn-outline btn-small"
+              onClick={handleRefresh}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <RefreshIcon />
+              <span>Refresh</span>
+            </button>
+            <button
+              className="btn btn-danger btn-small"
+              onClick={handleClear}
+              disabled={clearLogFiles.isPending}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <TrashIcon />
+              <span>
+                {clearLogFiles.isPending ? "Clearing..." : "Clear Logs"}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Info Alert Box */}
       <div
@@ -305,8 +310,14 @@ function SystemLogFiles() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <div className="content-area">{content}</div>;
 }
 
 export default SystemLogFiles;
