@@ -359,7 +359,7 @@ public class DelugeJsonRpcController : ControllerBase
                             if (!string.IsNullOrWhiteSpace(targetLabel))
                             {
                                 torrents = torrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) ||
-                                                               string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
+                                    string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
                             }
                         }
 

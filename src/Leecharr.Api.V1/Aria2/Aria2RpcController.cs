@@ -370,9 +370,20 @@ public class Aria2RpcController : ControllerBase
                     var t = _torrentService.GetByInfoHash(cpGid);
                     if (t != null)
                     {
-                        var dir = cpHow == "pos_set" && cpOffset == 0 ? "top" :
-                                  cpHow == "pos_end" ? "bottom" :
-                                  cpOffset < 0 ? "up" : "down";
+                        var dir = "down";
+                        if (cpHow == "pos_set" && cpOffset == 0)
+                        {
+                            dir = "top";
+                        }
+                        else if (cpHow == "pos_end")
+                        {
+                            dir = "bottom";
+                        }
+                        else if (cpOffset < 0)
+                        {
+                            dir = "up";
+                        }
+
                         await _torrentService.MoveQueueAsync(t.Id, dir);
                         return 1;
                     }

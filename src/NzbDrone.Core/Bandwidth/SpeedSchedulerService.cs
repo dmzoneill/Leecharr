@@ -80,8 +80,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
                 if (string.Compare(s.StartTime, s.EndTime, StringComparison.Ordinal) <= 0)
                 {
                     return (s.Days & todayFlag) != 0 &&
-                           string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
-                           string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
+                        string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
+                        string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
                 }
                 else
                 {
