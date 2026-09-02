@@ -48,7 +48,9 @@ public class CloudGeminiAiProviderTest
     [Test]
     public async Task ProbeHealthAsync_WhenKeyConfigured_ReturnsHealthy()
     {
-        using var provider = new CloudGeminiAiProvider(_configService);
+        var handler = new MockHttpMessageHandler((req, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(_configService, client);
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         health.ModelName.Should().Be("gemini-2.0-flash");

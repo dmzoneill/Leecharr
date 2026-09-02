@@ -56,8 +56,8 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
   };
 
   const getHealthScoreColor = (score: number) => {
-    if (score >= 0.8) return "#34d399";
-    if (score >= 0.5) return "#fbbf24";
+    if (score >= 80) return "#34d399";
+    if (score >= 50) return "#fbbf24";
     return "#f87171";
   };
 
@@ -105,7 +105,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                 fontWeight: 700,
               }}
             >
-              {report.overallHealth} ({Math.round(report.healthScore * 100)}%)
+              {report.overallHealth} ({Math.round(report.healthScore)}%)
             </span>
           )}
         </div>
@@ -280,7 +280,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                       color: getHealthScoreColor(report.healthScore),
                     }}
                   >
-                    {Math.round(report.healthScore * 100)}%
+                    {Math.round(report.healthScore)}%
                   </div>
                 </div>
               </div>
