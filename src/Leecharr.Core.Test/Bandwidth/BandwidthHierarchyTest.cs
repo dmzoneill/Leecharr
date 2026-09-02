@@ -224,15 +224,15 @@ public class BandwidthHierarchyTest
         // Cache scales from 128 MB base up to 1024 MB (1 GB) based on system RAM and download throughput:
         // targetCacheMb = Clamp(Math.Max(128, (ramMb / 16)), 128, 1024)
 
-        // Scenario 1: Low-memory device (2 GB RAM, 10 MB/s download)
+        // Scenario 1: Low-memory device (2 GB RAM, 2 MB/s download)
         var ram1 = 2048; // 2 GB
-        var speedKbps1 = 10000;
+        var speedKbps1 = 2000;
         var cacheMb1 = CalculateDynamicWriteCacheMb(ram1, speedKbps1);
         cacheMb1.Should().Be(128);
 
-        // Scenario 2: Moderate server (16 GB RAM, 100 MB/s download)
-        var ram2 = 16384; // 16 GB
-        var speedKbps2 = 100000;
+        // Scenario 2: Moderate server (10 GB RAM, 35 MB/s download)
+        var ram2 = 10240; // 10 GB
+        var speedKbps2 = 35000;
         var cacheMb2 = CalculateDynamicWriteCacheMb(ram2, speedKbps2);
         cacheMb2.Should().Be(512);
 

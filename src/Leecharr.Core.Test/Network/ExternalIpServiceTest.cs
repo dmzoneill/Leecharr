@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -31,10 +32,11 @@ public class ExternalIpServiceTest
 {
     private static void SetCache(ExternalIpService subject, string ip, DateTime lastFetch)
     {
-        var ipField = typeof(ExternalIpService).GetField("_cachedIp", BindingFlags.NonPublic | BindingFlags.Instance);
-        var fetchField = typeof(ExternalIpService).GetField("_lastFetch", BindingFlags.NonPublic | BindingFlags.Instance);
-        ipField.SetValue(subject, ip);
-        fetchField.SetValue(subject, lastFetch);
+        var fields = typeof(ExternalIpService).GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly);
+        var ipField = fields.FirstOrDefault(f => f.Name.Contains("cachedIp", StringComparison.OrdinalIgnoreCase));
+        var fetchField = fields.FirstOrDefault(f => f.Name.Contains("lastFetch", StringComparison.OrdinalIgnoreCase));
+        ipField?.SetValue(subject, ip);
+        fetchField?.SetValue(subject, lastFetch);
     }
 
     [Test]

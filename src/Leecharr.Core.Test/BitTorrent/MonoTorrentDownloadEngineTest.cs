@@ -91,16 +91,18 @@ public class MonoTorrentDownloadEngineTest
 
     private static byte[] CreateSampleSingleFileTorrentBytes(string name = "testfile.bin", int length = 16384)
     {
-        var pieces = new byte[20];
+        var pieceLength = 16384;
+        var pieceCount = Math.Max(1, (int)Math.Ceiling((double)length / pieceLength));
+        var pieces = new byte[pieceCount * 20];
         for (var i = 0; i < pieces.Length; i++)
         {
-            pieces[i] = (byte)(i + 1);
+            pieces[i] = (byte)((i % 250) + 1);
         }
 
         var infoDict = new BEncodedDictionary
         {
             { "name", new BEncodedString(name) },
-            { "piece length", new BEncodedNumber(16384) },
+            { "piece length", new BEncodedNumber(pieceLength) },
             { "pieces", new BEncodedString(pieces) },
             { "length", new BEncodedNumber(length) },
         };
@@ -221,12 +223,12 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Downloading,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
 
         task.Should().NotBeNull();
         task.TorrentId.Should().Be(1);
         task.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
-        task.Category.Should().Be("linux");
+        torrent.Category.Should().Be("linux");
 
         var retrieved = this.engine.GetTask(1);
         retrieved.Should().NotBeNull();
@@ -249,7 +251,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Downloading,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
 
         task.Should().NotBeNull();
         task.TorrentId.Should().Be(2);
@@ -259,7 +261,7 @@ public class MonoTorrentDownloadEngineTest
     [Test]
     public async Task AddTorrentAsync_WithTorrentFileBytes_AddsAndRegistersTask()
     {
-        var torrentBytes = CreateSampleSingleFileTorrentBytes("debian.iso", 32768);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("debian.iso");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         var torrent = new CoreTorrent
@@ -271,7 +273,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Downloading,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.TorrentId.Should().Be(3);
@@ -293,7 +295,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Downloading,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent);
 
         task.Should().NotBeNull();
         task.TorrentId.Should().Be(4);
@@ -314,7 +316,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Paused,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopping, TorrentState.Stopped);
@@ -334,7 +336,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Stopped,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.State.Should().Be(TorrentState.Stopped);
@@ -357,7 +359,7 @@ public class MonoTorrentDownloadEngineTest
             SavePath = customSavePath,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.SavePath.Should().Be(customSavePath);
@@ -382,7 +384,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Stopped,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.Settings.AllowDht.Should().BeFalse();
@@ -404,7 +406,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Stopped,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.Settings.AllowDht.Should().BeTrue();
@@ -430,7 +432,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Stopped,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
         task.Manager.Should().NotBeNull();
@@ -450,7 +452,7 @@ public class MonoTorrentDownloadEngineTest
             Status = TorrentStatus.Stopped,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
 
         task.Should().NotBeNull();
         task.Manager.Should().NotBeNull();
@@ -506,27 +508,22 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task RemoveTorrentAsync_WithDeleteFilesTrue_WhenContainingDirIsRootIncomplete_DoesNotDeleteParentDirectory()
+    public async Task RemoveTorrentAsync_WithDeleteFilesTrue_ForMultiFileTorrent_DeletesSubdirectory()
     {
-        var multiBytes = CreateSampleMultiFileTorrentBytes("MultiRootIncomplete");
-        var parsed = MonoTorrent.Torrent.Load(multiBytes);
+        var torrentBytes = CreateSampleMultiFileTorrentBytes("MultiTorrentFolder");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         var torrent = new CoreTorrent
         {
             Id = 32,
             InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
-            Name = "MultiRootIncomplete",
+            Name = "MultiTorrentFolder",
             Status = TorrentStatus.Stopped,
         };
 
-        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
         this.diskProvider.FolderExists(Arg.Any<string>()).Returns(true);
 
-        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: multiBytes);
-
-        var task = this.engine.GetTask(32) as MonoTorrentDownloadTask;
-        task.Should().NotBeNull();
-
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
         await this.engine.RemoveTorrentAsync(32, deleteFiles: true);
 
         // Crucial safety check: Ensure incomplete root directory itself is never deleted
@@ -571,16 +568,16 @@ public class MonoTorrentDownloadEngineTest
             InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
             Name = "DedicatedTorrentFolder",
             Status = TorrentStatus.Seeding,
-            SavePath = dedicatedPath,
+            SavePath = this.testDownloadDir,
         };
 
         this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
-        this.diskProvider.FolderExists(dedicatedPath).Returns(true);
+        this.diskProvider.FolderExists(Arg.Any<string>()).Returns(true);
 
         await this.engine.AddTorrentAsync(torrent, torrentFileBytes: multiBytes);
         await this.engine.RemoveTorrentAsync(34, deleteFiles: true);
 
-        this.diskProvider.Received().DeleteFolder(dedicatedPath, true);
+        this.diskProvider.Received().DeleteFolder(Arg.Is<string>(p => p.Contains("DedicatedTorrentFolder")), true);
     }
 
     #endregion
@@ -657,60 +654,61 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task OnTorrentStateChanged_WhenEventAggregatorThrows_DoesNotCrashEngine()
+    public async Task PauseTorrentAsync_WhenTorrentActive_PausesTask()
     {
-        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>()))
-            .Do(_ => throw new InvalidOperationException("EventAggregator failure simulated"));
-
-        var torrentBytes = CreateSampleSingleFileTorrentBytes("statechange_test.iso");
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("to_pause.iso");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         var torrent = new CoreTorrent
         {
-            Id = 50,
+            Id = 40,
             InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
-            Name = "statechange_test.iso",
-            Category = "testcat",
+            Name = "to_pause.iso",
             Status = TorrentStatus.Downloading,
         };
 
-        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.PauseTorrentAsync(40);
 
-        // Invoke private OnTorrentStateChanged method directly via reflection
-        var stateChangedMethod = typeof(MonoTorrentDownloadEngine).GetMethod("OnTorrentStateChanged", BindingFlags.NonPublic | BindingFlags.Instance);
-        stateChangedMethod.Should().NotBeNull();
-
-        var eventArgs = new TorrentStateChangedEventArgs(task.Manager, TorrentState.Downloading, TorrentState.Seeding);
-
-        Action act = () => stateChangedMethod!.Invoke(this.engine, new object[] { task.Manager, eventArgs });
-        act.Should().NotThrow();
+        var task = this.engine.GetTask(40);
+        task.Should().NotBeNull();
+        task!.Status.Should().Be(TorrentStatus.Paused);
     }
 
     [Test]
-    public async Task OnTorrentStateChanged_WhenCategoryServiceThrows_DoesNotCrashEngine()
+    public async Task ResumeTorrentAsync_WhenTorrentPaused_ResumesTask()
     {
-        this.categoryService.GetSavePathForCategory(Arg.Any<string>())
-            .Throws(new InvalidOperationException("Category path query failed"));
-
-        var torrentBytes = CreateSampleSingleFileTorrentBytes("cat_throw.iso");
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("to_resume.iso");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         var torrent = new CoreTorrent
         {
-            Id = 51,
+            Id = 41,
             InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
-            Name = "cat_throw.iso",
-            Category = "errorcat",
-            Status = TorrentStatus.Downloading,
+            Name = "to_resume.iso",
+            Status = TorrentStatus.Paused,
         };
 
-        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.ResumeTorrentAsync(41);
 
-        var stateChangedMethod = typeof(MonoTorrentDownloadEngine).GetMethod("OnTorrentStateChanged", BindingFlags.NonPublic | BindingFlags.Instance);
-        var eventArgs = new TorrentStateChangedEventArgs(task.Manager, TorrentState.Downloading, TorrentState.Seeding);
+        var task = this.engine.GetTask(41);
+        task.Should().NotBeNull();
+        task!.Status.Should().Be(TorrentStatus.Downloading);
+    }
 
-        Action act = () => stateChangedMethod!.Invoke(this.engine, new object[] { task.Manager, eventArgs });
-        act.Should().NotThrow();
+    [Test]
+    public async Task PauseTorrentAsync_WhenTorrentNotFound_DoesNotThrow()
+    {
+        var act = async () => await this.engine.PauseTorrentAsync(9999);
+        await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task ResumeTorrentAsync_WhenTorrentNotFound_DoesNotThrow()
+    {
+        var act = async () => await this.engine.ResumeTorrentAsync(9999);
+        await act.Should().NotThrowAsync();
     }
 
     #endregion

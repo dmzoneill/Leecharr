@@ -52,7 +52,6 @@ clean:
 test:
 	dotnet test $(UNIT_TEST) --configuration Release --no-build \
 		--settings .runsettings \
-		-maxcpucount:4 \
 		--logger "trx;LogFileName=test-results.trx" \
 		--collect:"XPlat Code Coverage"
 
@@ -62,7 +61,6 @@ integration:
 	@if [ -f $(INTEGRATION_TEST) ]; then \
 		dotnet test $(INTEGRATION_TEST) --configuration Release --no-build \
 			--settings .runsettings \
-			-maxcpucount:4 \
 			--logger "trx;LogFileName=integration-test-results.trx" \
 			--collect:"XPlat Code Coverage"; \
 	fi
