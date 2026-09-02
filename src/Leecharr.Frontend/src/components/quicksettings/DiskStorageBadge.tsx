@@ -42,7 +42,10 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
   const freeBytes = primary.freeSpace ?? 0;
   const totalBytes = primary.totalSpace ?? 1;
   const usedBytes = Math.max(0, totalBytes - freeBytes);
-  const usedPct = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100)));
+  const usedPct = Math.min(
+    100,
+    Math.max(0, Math.round((usedBytes / totalBytes) * 100)),
+  );
   const isLowSpace = freeBytes < 20 * 1024 * 1024 * 1024 || usedPct >= 90; // < 20GB or > 90% full
 
   return (
@@ -70,7 +73,12 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
       }}
     >
       <span style={{ fontSize: "0.85rem" }}>💾</span>
-      <span style={{ fontWeight: 600, color: isLowSpace ? "#ff6b6b" : "var(--text-primary, #f8f4ed)" }}>
+      <span
+        style={{
+          fontWeight: 600,
+          color: isLowSpace ? "#ff6b6b" : "var(--text-primary, #f8f4ed)",
+        }}
+      >
         {formatBytes(freeBytes)} Free
       </span>
       <div

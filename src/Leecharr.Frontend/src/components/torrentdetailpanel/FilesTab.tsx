@@ -9,7 +9,11 @@ import { PanelLoading, PanelEmpty } from "./shared";
 import type { Torrent, TorrentFileInfo } from "../../api/types";
 
 export const PRIORITY_OPTIONS = [
-  { value: 0, label: "Skip (Do not download)", color: "var(--danger, #ef4444)" },
+  {
+    value: 0,
+    label: "Skip (Do not download)",
+    color: "var(--danger, #ef4444)",
+  },
   { value: 1, label: "Low", color: "var(--info, #38bdf8)" },
   { value: 3, label: "Normal", color: "var(--text-primary, #f8f4ed)" },
   { value: 4, label: "High", color: "var(--accent, #ffd166)" },
@@ -122,7 +126,7 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
           file: f,
           children: new Map(),
           size: f.size,
-          bytesCompleted: (f.bytesCompleted ?? (f.size * (f.progress ?? 0))),
+          bytesCompleted: f.bytesCompleted ?? f.size * (f.progress ?? 0),
         });
       } else {
         if (!currentMap.has(part)) {
@@ -158,10 +162,16 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
     childrenArr.sort((a, b) => {
       if (a.isFolder && !b.isFolder) return -1;
       if (!a.isFolder && b.isFolder) return 1;
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      return a.name.localeCompare(b.name, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
 
-    const progress = totalSize > 0 ? Math.min(1, Math.max(0, totalCompleted / totalSize)) : (node.file?.progress ?? 0);
+    const progress =
+      totalSize > 0
+        ? Math.min(1, Math.max(0, totalCompleted / totalSize))
+        : (node.file?.progress ?? 0);
 
     return {
       id: node.fullPath,
@@ -185,7 +195,10 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
   result.sort((a, b) => {
     if (a.isFolder && !b.isFolder) return -1;
     if (!a.isFolder && b.isFolder) return 1;
-    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+    return a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
   });
 
   return result;
@@ -214,7 +227,9 @@ export function FilesTab({
   const setFilePriority = useSetFilePriority();
   const setFilesPriority = useSetFilesPriority();
 
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [filterQuery, setFilterQuery] = useState("");
   const [initializedTree, setInitializedTree] = useState(false);
 
@@ -297,7 +312,9 @@ export function FilesTab({
       const targetFiles = getDescendantFiles(node);
       if (targetFiles.length === 0) return;
 
-      const anyActive = targetFiles.some((f) => normalizePriority(f.priority) !== 0);
+      const anyActive = targetFiles.some(
+        (f) => normalizePriority(f.priority) !== 0,
+      );
       const newPriority = anyActive ? 0 : 3; // Toggle between Skip (0) and Normal (3)
       handleBatchSetPriority(targetFiles, newPriority);
     },
@@ -311,10 +328,11 @@ export function FilesTab({
   const totalFilesCount = files.length;
   const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
   const totalCompletedBytes = files.reduce(
-    (acc, f) => acc + (f.bytesCompleted ?? (f.size * (f.progress ?? 0))),
+    (acc, f) => acc + (f.bytesCompleted ?? f.size * (f.progress ?? 0)),
     0,
   );
-  const overallProgress = totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
+  const overallProgress =
+    totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
 
   // Flatten visible tree rows based on expanded state and filter query
   const flatRows: TreeNode[] = [];
@@ -326,7 +344,10 @@ export function FilesTab({
         !q ||
         node.name.toLowerCase().includes(q) ||
         node.fullPath.toLowerCase().includes(q) ||
-        (node.isFolder && getDescendantFiles(node).some((f) => f.path.toLowerCase().includes(q)));
+        (node.isFolder &&
+          getDescendantFiles(node).some((f) =>
+            f.path.toLowerCase().includes(q),
+          ));
 
       if (!matchesFilter) continue;
 
@@ -428,7 +449,10 @@ export function FilesTab({
         className="detail-panel-table-wrap"
         style={{ flex: 1, overflow: "auto", minHeight: 0 }}
       >
-        <table className="torrent-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table
+          className="torrent-table"
+          style={{ width: "100%", borderCollapse: "collapse" }}
+        >
           <thead>
             <tr
               style={{
@@ -439,19 +463,30 @@ export function FilesTab({
                 borderBottom: "1px solid var(--border, #23284B)",
               }}
             >
-              <th className="torrent-table-th" style={{ width: 36, textAlign: "center" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 36, textAlign: "center" }}
+              >
                 <input
                   type="checkbox"
-                  checked={files.every((f) => normalizePriority(f.priority) !== 0)}
+                  checked={files.every(
+                    (f) => normalizePriority(f.priority) !== 0,
+                  )}
                   ref={(input) => {
                     if (input) {
-                      const someActive = files.some((f) => normalizePriority(f.priority) !== 0);
-                      const allActive = files.every((f) => normalizePriority(f.priority) !== 0);
+                      const someActive = files.some(
+                        (f) => normalizePriority(f.priority) !== 0,
+                      );
+                      const allActive = files.every(
+                        (f) => normalizePriority(f.priority) !== 0,
+                      );
                       input.indeterminate = someActive && !allActive;
                     }
                   }}
                   onChange={() => {
-                    const allActive = files.every((f) => normalizePriority(f.priority) !== 0);
+                    const allActive = files.every(
+                      (f) => normalizePriority(f.priority) !== 0,
+                    );
                     handleBatchSetPriority(files, allActive ? 0 : 3);
                   }}
                   title="Toggle all files selective download"
@@ -460,13 +495,22 @@ export function FilesTab({
               <th className="torrent-table-th" style={{ textAlign: "left" }}>
                 File / Folder Name
               </th>
-              <th className="torrent-table-th" style={{ width: 90, textAlign: "right" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 90, textAlign: "right" }}
+              >
                 Size
               </th>
-              <th className="torrent-table-th" style={{ width: 140, textAlign: "left" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 140, textAlign: "left" }}
+              >
                 Progress
               </th>
-              <th className="torrent-table-th" style={{ width: 130, textAlign: "center" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 130, textAlign: "center" }}
+              >
                 Priority
               </th>
             </tr>
@@ -504,7 +548,9 @@ export function FilesTab({
                   key={node.id}
                   className="torrent-table-row"
                   style={{
-                    backgroundColor: isFolder ? "rgba(23, 27, 53, 0.4)" : "transparent",
+                    backgroundColor: isFolder
+                      ? "rgba(23, 27, 53, 0.4)"
+                      : "transparent",
                     borderBottom: "1px solid rgba(35, 40, 75, 0.5)",
                     fontSize: "0.8rem",
                   }}
@@ -554,7 +600,9 @@ export function FilesTab({
                           {isExpanded ? "▼" : "▶"}
                         </button>
                       ) : (
-                        <span style={{ width: "12px", display: "inline-block" }} />
+                        <span
+                          style={{ width: "12px", display: "inline-block" }}
+                        />
                       )}
 
                       <span style={{ fontSize: "0.95rem" }}>
@@ -570,7 +618,8 @@ export function FilesTab({
                               : isFolder
                                 ? "var(--text-primary, #F8F4ED)"
                                 : "var(--text-secondary, #C7C5D3)",
-                          textDecoration: currentPriority === 0 ? "line-through" : "none",
+                          textDecoration:
+                            currentPriority === 0 ? "line-through" : "none",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
@@ -608,7 +657,13 @@ export function FilesTab({
 
                   {/* Progress Bar & Pct */}
                   <td style={{ padding: "0.4rem 0.75rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
                       <div
                         style={{
                           flex: 1,

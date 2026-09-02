@@ -74,10 +74,16 @@ export function AiTab() {
         setFormData((prev) => ({ ...prev, activeAiProvider: providerId }));
         showToast(`Switched active AI engine to ${providerId}.`, "success");
       } else {
-        showToast(`Failed to switch AI engine: ${res.error || "Unknown error"}`, "error");
+        showToast(
+          `Failed to switch AI engine: ${res.error || "Unknown error"}`,
+          "error",
+        );
       }
     } catch (err: any) {
-      showToast(`Failed to switch AI engine: ${err.message || "Unknown error"}`, "error");
+      showToast(
+        `Failed to switch AI engine: ${err.message || "Unknown error"}`,
+        "error",
+      );
     }
   };
 

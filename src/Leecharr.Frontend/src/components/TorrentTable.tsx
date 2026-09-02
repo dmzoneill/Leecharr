@@ -840,7 +840,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                     type="checkbox"
                     checked={allSelected}
                     onChange={() =>
-                      onSelectAll(allSelected ? [] : sourceTorrents.map((t) => t.id))
+                      onSelectAll(
+                        allSelected ? [] : sourceTorrents.map((t) => t.id),
+                      )
                     }
                   />
                 </th>

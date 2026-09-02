@@ -17,7 +17,9 @@ export const NetworkSwarmCard: React.FC = () => {
 
   const { data: netStatus } = useNetworkStatus();
 
-  const handleNetUpdate = (updates: Partial<import("../../api/types").NetworkConfig>) => {
+  const handleNetUpdate = (
+    updates: Partial<import("../../api/types").NetworkConfig>,
+  ) => {
     if (!netConfig) return;
     saveNetMutation.mutate({
       ...netConfig,
@@ -25,7 +27,9 @@ export const NetworkSwarmCard: React.FC = () => {
     });
   };
 
-  const handleBtUpdate = (updates: Partial<import("../../api/types").BitTorrentConfig>) => {
+  const handleBtUpdate = (
+    updates: Partial<import("../../api/types").BitTorrentConfig>,
+  ) => {
     if (!btConfig) return;
     saveBtMutation.mutate({
       ...btConfig,
@@ -51,7 +55,8 @@ export const NetworkSwarmCard: React.FC = () => {
   const pex = btConfig.enablePex ?? true;
   const lpd = btConfig.enableLpd ?? true;
 
-  const activeInterface = netStatus?.networkInterface || netConfig.bindInterface || "All";
+  const activeInterface =
+    netStatus?.networkInterface || netConfig.bindInterface || "All";
 
   return (
     <div className="quick-card">
@@ -59,7 +64,11 @@ export const NetworkSwarmCard: React.FC = () => {
         <span className="quick-card-title">🛡️ Network & Swarms</span>
         <span
           className={`quick-vpn-badge ${vpnKillSwitch ? "vpn-active" : ""}`}
-          title={vpnKillSwitch ? `VPN Kill Switch Active (Bound: ${activeInterface})` : "Kill Switch Disabled"}
+          title={
+            vpnKillSwitch
+              ? `VPN Kill Switch Active (Bound: ${activeInterface})`
+              : "Kill Switch Disabled"
+          }
         >
           {vpnKillSwitch ? "🛡️ Kill Switch ON" : "Kill Switch OFF"}
         </span>
@@ -73,12 +82,19 @@ export const NetworkSwarmCard: React.FC = () => {
             <span>Max Conns:</span>
           </div>
           <div className="quick-inline-inputs">
-            <div className="quick-mini-input-group" title="Global maximum peer connections">
+            <div
+              className="quick-mini-input-group"
+              title="Global maximum peer connections"
+            >
               <span className="quick-mini-label">Global:</span>
               <select
                 className="quick-select"
                 value={globalConns}
-                onChange={(e) => handleNetUpdate({ maxGlobalConnections: parseInt(e.target.value, 10) })}
+                onChange={(e) =>
+                  handleNetUpdate({
+                    maxGlobalConnections: parseInt(e.target.value, 10),
+                  })
+                }
               >
                 <option value={100}>100</option>
                 <option value={200}>200</option>
@@ -87,12 +103,19 @@ export const NetworkSwarmCard: React.FC = () => {
                 <option value={1000}>1000</option>
               </select>
             </div>
-            <div className="quick-mini-input-group" title="Per-torrent maximum peer connections">
+            <div
+              className="quick-mini-input-group"
+              title="Per-torrent maximum peer connections"
+            >
               <span className="quick-mini-label">Per-Torrent:</span>
               <select
                 className="quick-select"
                 value={perTorrentConns}
-                onChange={(e) => handleNetUpdate({ maxPerTorrentConnections: parseInt(e.target.value, 10) })}
+                onChange={(e) =>
+                  handleNetUpdate({
+                    maxPerTorrentConnections: parseInt(e.target.value, 10),
+                  })
+                }
               >
                 <option value={20}>20</option>
                 <option value={50}>50</option>
@@ -106,7 +129,10 @@ export const NetworkSwarmCard: React.FC = () => {
 
         {/* Protocol Switches */}
         <div className="quick-protocol-chips">
-          <label className={`protocol-chip ${dht ? "active" : ""}`} title="Distributed Hash Table (Trackerless Swarms)">
+          <label
+            className={`protocol-chip ${dht ? "active" : ""}`}
+            title="Distributed Hash Table (Trackerless Swarms)"
+          >
             <input
               type="checkbox"
               checked={dht}
@@ -114,7 +140,10 @@ export const NetworkSwarmCard: React.FC = () => {
             />
             <span>DHT</span>
           </label>
-          <label className={`protocol-chip ${pex ? "active" : ""}`} title="Peer Exchange (Fast Swarm Expansion)">
+          <label
+            className={`protocol-chip ${pex ? "active" : ""}`}
+            title="Peer Exchange (Fast Swarm Expansion)"
+          >
             <input
               type="checkbox"
               checked={pex}
@@ -122,7 +151,10 @@ export const NetworkSwarmCard: React.FC = () => {
             />
             <span>PEX</span>
           </label>
-          <label className={`protocol-chip ${lpd ? "active" : ""}`} title="Local Peer Discovery (LAN Multicast)">
+          <label
+            className={`protocol-chip ${lpd ? "active" : ""}`}
+            title="Local Peer Discovery (LAN Multicast)"
+          >
             <input
               type="checkbox"
               checked={lpd}
@@ -130,11 +162,16 @@ export const NetworkSwarmCard: React.FC = () => {
             />
             <span>LPD</span>
           </label>
-          <label className={`protocol-chip ${vpnKillSwitch ? "active" : ""}`} title="VPN Kill Switch">
+          <label
+            className={`protocol-chip ${vpnKillSwitch ? "active" : ""}`}
+            title="VPN Kill Switch"
+          >
             <input
               type="checkbox"
               checked={vpnKillSwitch}
-              onChange={(e) => handleNetUpdate({ enableVpnKillSwitch: e.target.checked })}
+              onChange={(e) =>
+                handleNetUpdate({ enableVpnKillSwitch: e.target.checked })
+              }
             />
             <span>Kill Switch</span>
           </label>
