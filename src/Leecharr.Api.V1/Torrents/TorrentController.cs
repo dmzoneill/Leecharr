@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +20,7 @@ using NzbDrone.SignalR;
 namespace Leecharr.Api.V1.Torrents;
 
 public record TorrentUploadFailure(string FileName, string Reason);
+
 public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploadFailure> Failed);
 
 public class MoveQueueRequest
@@ -33,12 +36,19 @@ public class SetFilePriorityRequest
 public class AddTorrentJsonRequest
 {
     public string MagnetLink { get; set; }
+
     public string MagnetUrl { get; set; }
+
     public string DownloadUrl { get; set; }
+
     public string Title { get; set; }
+
     public string Category { get; set; }
+
     public string SavePath { get; set; }
+
     public bool Paused { get; set; }
+
     public bool StartPaused { get; set; }
 }
 
@@ -46,13 +56,13 @@ public class AddTorrentJsonRequest
 [Route("api/v1/torrent")]
 public class TorrentController : RestControllerWithSignalR<TorrentResource, Torrent>
 {
-    private readonly ITorrentService _torrentService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly ITorrentFileParser _torrentFileParser;
-    private readonly IMediaEnrichmentService _mediaEnrichmentService;
-    private readonly ITrackerEntryRepository _trackerEntryRepository;
-    private readonly IGeoIpService _geoIpService;
-    private readonly IDownloadEngine _downloadEngine;
+    private readonly ITorrentService torrentService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IGeoIpService geoIpService;
+    private readonly IDownloadEngine downloadEngine;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -65,45 +75,45 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         IDownloadEngine downloadEngine = null)
         : base(signalRBroadcaster)
     {
-        _torrentService = torrentService;
-        _torrentFileService = torrentFileService;
-        _torrentFileParser = torrentFileParser;
-        _mediaEnrichmentService = mediaEnrichmentService;
-        _trackerEntryRepository = trackerEntryRepository;
-        _geoIpService = geoIpService;
-        _downloadEngine = downloadEngine;
+        this.torrentService = torrentService;
+        this.torrentFileService = torrentFileService;
+        this.torrentFileParser = torrentFileParser;
+        this.mediaEnrichmentService = mediaEnrichmentService;
+        this.trackerEntryRepository = trackerEntryRepository;
+        this.geoIpService = geoIpService;
+        this.downloadEngine = downloadEngine;
     }
 
     [HttpGet]
     public ActionResult<List<TorrentResource>> GetAll()
     {
-        var torrents = _torrentService.GetAll();
+        var torrents = this.torrentService.GetAll();
         var resources = torrents.Select(t =>
         {
-            var meta = _mediaEnrichmentService.GetMetadata(t.Id);
+            var meta = this.mediaEnrichmentService.GetMetadata(t.Id);
             return TorrentResourceMapper.ToResource(t, meta);
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<TorrentResource> GetById(int id)
     {
-        var torrent = _torrentService.Get(id);
+        var torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var meta = _mediaEnrichmentService.GetMetadata(id);
-        return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+        var meta = this.mediaEnrichmentService.GetMetadata(id);
+        return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
     }
 
     [HttpGet("{id:int}/files")]
     public ActionResult<List<TorrentFileResource>> GetFiles(int id)
     {
-        var files = _torrentFileService.GetFiles(id);
+        var files = this.torrentFileService.GetFiles(id);
         var resources = files.Select(f => new TorrentFileResource
         {
             Id = f.Id,
@@ -113,10 +123,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             PieceOffset = f.PieceOffset,
             PieceCount = f.PieceCount,
             Priority = f.Priority,
-            Progress = f.Progress
+            Progress = f.Progress,
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpPut("{id:int}/files/{fileId:int}/priority")]
@@ -125,23 +135,23 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     public async Task<ActionResult> SetFilePriority(int id, int fileId, [FromBody] SetFilePriorityRequest request = null, [FromQuery] int? priority = null)
     {
         var prio = request?.Priority ?? priority ?? 3;
-        await _torrentFileService.SetPriorityAsync(fileId, prio);
-        return Ok();
+        await this.torrentFileService.SetPriorityAsync(fileId, prio);
+        return this.Ok();
     }
 
     [HttpGet("{id:int}/peers")]
     public ActionResult<List<PeerResource>> GetPeers(int id)
     {
-        var task = _torrentService.GetDownloadTask(id);
+        var task = this.torrentService.GetDownloadTask(id);
         if (task == null)
         {
-            return Ok(new List<PeerResource>());
+            return this.Ok(new List<PeerResource>());
         }
 
         var peers = task.GetPeers();
         var resources = peers.Select((p, idx) =>
         {
-            var geo = _geoIpService?.Lookup(p.Ip);
+            var geo = this.geoIpService?.Lookup(p.Ip);
             return new PeerResource
             {
                 Id = idx + 1,
@@ -156,23 +166,23 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Flags = p.Flags,
                 CountryCode = geo?.CountryCode ?? string.Empty,
                 CountryName = geo?.CountryName ?? string.Empty,
-                City = geo?.City ?? string.Empty
+                City = geo?.City ?? string.Empty,
             };
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpGet("{id:int}/trackers")]
     public ActionResult<List<TrackerResource>> GetTrackers(int id)
     {
-        var torrent = _torrentService.Get(id);
+        var torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var dbTrackers = _trackerEntryRepository.GetByTorrentId(id).ToList();
+        var dbTrackers = this.trackerEntryRepository.GetByTorrentId(id).ToList();
         if (dbTrackers.Count == 0 && !string.IsNullOrWhiteSpace(torrent.TrackerUrl))
         {
             dbTrackers.Add(new TrackerEntry
@@ -183,7 +193,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Status = 1,
                 Seeders = torrent.Seeders,
                 Leechers = torrent.Leechers,
-                LastAnnounce = DateTime.UtcNow
+                LastAnnounce = DateTime.UtcNow,
             });
         }
 
@@ -196,19 +206,19 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Leechers = t.Leechers > 0 ? t.Leechers : torrent.Leechers,
             Downloaded = t.Downloaded,
             LastAnnounce = t.LastAnnounce ?? DateTime.UtcNow,
-            Message = !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "OK"
+            Message = !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "OK",
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     [HttpPost("{id:int}/trackers")]
     public ActionResult<TrackerResource> AddTracker(int id, [FromBody] AddTrackerRequest request)
     {
-        var torrent = _torrentService.Get(id);
+        var torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var entry = new TrackerEntry
@@ -220,10 +230,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Status = 1,
             Seeders = 0,
             Leechers = 0,
-            LastAnnounce = DateTime.UtcNow
+            LastAnnounce = DateTime.UtcNow,
         };
-        var created = _trackerEntryRepository.Insert(entry);
-        return Ok(new TrackerResource
+        var created = this.trackerEntryRepository.Insert(entry);
+        return this.Ok(new TrackerResource
         {
             Id = created.Id,
             Url = created.Url,
@@ -231,31 +241,31 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Seeders = 0,
             Leechers = 0,
             LastAnnounce = created.LastAnnounce ?? DateTime.UtcNow,
-            Message = "OK"
+            Message = "OK",
         });
     }
 
     [HttpDelete("{id:int}/trackers/{trackerId:int}")]
     public ActionResult DeleteTracker(int id, int trackerId)
     {
-        _trackerEntryRepository.Delete(trackerId);
-        return Ok();
+        this.trackerEntryRepository.Delete(trackerId);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/trackers/{trackerId:int}/announce")]
     public async Task<ActionResult> AnnounceTracker(int id, int trackerId)
     {
-        await _torrentService.ForceAnnounceAsync(id);
-        return Ok();
+        await this.torrentService.ForceAnnounceAsync(id);
+        return this.Ok();
     }
 
     [HttpGet("{id:int}/logs")]
     public ActionResult<List<TorrentEventLogResource>> GetLogs(int id, [FromQuery] int count = 100)
     {
-        var torrent = _torrentService.Get(id);
+        var torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var list = new List<TorrentEventLogResource>();
@@ -267,7 +277,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             TorrentId = id,
             Level = "Info",
             Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
-            Timestamp = torrent.DateAdded
+            Timestamp = torrent.DateAdded,
         });
 
         if (!string.IsNullOrWhiteSpace(torrent.SavePath))
@@ -278,7 +288,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 TorrentId = id,
                 Level = "Info",
                 Message = $"Storage allocation configured at '{torrent.SavePath}'",
-                Timestamp = torrent.DateAdded.AddSeconds(1)
+                Timestamp = torrent.DateAdded.AddSeconds(1),
             });
         }
 
@@ -290,7 +300,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 TorrentId = id,
                 Level = "Info",
                 Message = "Torrent download completed (100% verified)",
-                Timestamp = torrent.DateCompleted.Value
+                Timestamp = torrent.DateCompleted.Value,
             });
         }
 
@@ -300,10 +310,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             TorrentId = id,
             Level = torrent.Status == TorrentStatus.Error ? "Error" : "Info",
             Message = $"Current state: {torrent.Status} (Progress: {torrent.Progress * 100:F1}%, DL: {torrent.DownloadSpeed / 1024} KB/s, UL: {torrent.UploadSpeed / 1024} KB/s, Seeds: {torrent.Seeders}, Peers: {torrent.Leechers})",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
         });
 
-        return Ok(list);
+        return this.Ok(list);
     }
 
     [HttpPost]
@@ -312,7 +322,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     {
         if (request == null)
         {
-            return BadRequest("Request body is empty.");
+            return this.BadRequest("Request body is empty.");
         }
 
         var magnet = !string.IsNullOrWhiteSpace(request.MagnetLink) ? request.MagnetLink : request.MagnetUrl;
@@ -320,32 +330,32 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(magnet))
         {
-            var torrent = await _torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
+            var torrent = await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
             if (torrent == null)
             {
-                return BadRequest("Failed to add torrent");
+                return this.BadRequest("Failed to add torrent");
             }
 
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+            var meta = this.mediaEnrichmentService.GetMetadata(torrent.Id);
+            return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
 
         if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
         {
             using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
             var bytes = await httpClient.GetByteArrayAsync(request.DownloadUrl);
-            var parsed = _torrentFileParser.Parse(bytes);
-            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
             if (torrent == null)
             {
-                return BadRequest("Failed to add torrent");
+                return this.BadRequest("Failed to add torrent");
             }
 
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+            var meta = this.mediaEnrichmentService.GetMetadata(torrent.Id);
+            return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
 
-        return BadRequest("Either magnetLink or downloadUrl is required.");
+        return this.BadRequest("Either magnetLink or downloadUrl is required.");
     }
 
     [HttpPost]
@@ -365,31 +375,31 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
             var bytes = ms.ToArray();
-            var parsed = _torrentFileParser.Parse(bytes);
+            var parsed = this.torrentFileParser.Parse(bytes);
 
-            var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
             if (torrent == null)
             {
-                return BadRequest("Failed to add torrent");
+                return this.BadRequest("Failed to add torrent");
             }
 
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+            var meta = this.mediaEnrichmentService.GetMetadata(torrent.Id);
+            return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
-            var torrent = await _torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPaused);
+            var torrent = await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPaused);
             if (torrent == null)
             {
-                return BadRequest("Failed to add torrent");
+                return this.BadRequest("Failed to add torrent");
             }
 
-            var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
-            return Ok(TorrentResourceMapper.ToResource(torrent, meta));
+            var meta = this.mediaEnrichmentService.GetMetadata(torrent.Id);
+            return this.Ok(TorrentResourceMapper.ToResource(torrent, meta));
         }
 
-        return BadRequest("Either a .torrent file or a magnetUrl is required.");
+        return this.BadRequest("Either a .torrent file or a magnetUrl is required.");
     }
 
     [HttpPost("upload")]
@@ -406,9 +416,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             formFiles.AddRange(files);
         }
 
-        if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
-            foreach (var f in Request.Form.Files)
+            foreach (var f in this.Request.Form.Files)
             {
                 if (!formFiles.Contains(f))
                 {
@@ -419,7 +429,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (formFiles.Count == 0)
         {
-            return BadRequest("No torrent file provided");
+            return this.BadRequest("No torrent file provided");
         }
 
         var pausedFlag = isPaused || startPaused;
@@ -438,16 +448,16 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms);
                 var bytes = ms.ToArray();
-                var parsed = _torrentFileParser.Parse(bytes);
+                var parsed = this.torrentFileParser.Parse(bytes);
 
-                var torrent = await _torrentService.AddFromParsedTorrentAsync(parsed, category, null, pausedFlag, bytes);
+                var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, pausedFlag, bytes);
                 if (torrent == null)
                 {
                     failed.Add(new TorrentUploadFailure(file.FileName, "Failed to add torrent"));
                     continue;
                 }
 
-                var meta = _mediaEnrichmentService.GetMetadata(torrent.Id);
+                var meta = this.mediaEnrichmentService.GetMetadata(torrent.Id);
                 added.Add(TorrentResourceMapper.ToResource(torrent, meta));
             }
             catch (Exception ex)
@@ -456,44 +466,44 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             }
         }
 
-        return Ok(new TorrentUploadResult(added, failed));
+        return this.Ok(new TorrentUploadResult(added, failed));
     }
 
     [HttpPost("grab")]
     [Consumes("application/json")]
     public async Task<ActionResult<TorrentResource>> GrabRelease([FromBody] AddTorrentJsonRequest request)
     {
-        return await AddTorrentJson(request);
+        return await this.AddTorrentJson(request);
     }
 
     [HttpPost("{id:int}/pause")]
     public async Task<ActionResult> Pause(int id)
     {
-        await _torrentService.PauseAsync(id);
-        return Ok();
+        await this.torrentService.PauseAsync(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/resume")]
     public async Task<ActionResult> Resume(int id)
     {
-        await _torrentService.ResumeAsync(id);
-        return Ok();
+        await this.torrentService.ResumeAsync(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/recheck")]
     public async Task<ActionResult> Recheck(int id)
     {
-        await _torrentService.ForceRecheckAsync(id);
-        return Ok();
+        await this.torrentService.ForceRecheckAsync(id);
+        return this.Ok();
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<TorrentResource>> Update(int id, [FromBody] TorrentResource resource)
     {
-        var existing = _torrentService.Get(id);
+        var existing = this.torrentService.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         if (!string.IsNullOrWhiteSpace(resource.Category))
@@ -536,36 +546,36 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.Name = resource.Name;
         }
 
-        var updated = await _torrentService.UpdateAsync(existing);
-        if (_downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
+        var updated = await this.torrentService.UpdateAsync(existing);
+        if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
         {
-            await _downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);
+            await this.downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);
         }
 
-        var meta = _mediaEnrichmentService.GetMetadata(id);
-        return Ok(TorrentResourceMapper.ToResource(updated, meta));
+        var meta = this.mediaEnrichmentService.GetMetadata(id);
+        return this.Ok(TorrentResourceMapper.ToResource(updated, meta));
     }
 
     [HttpPost("{id:int}/announce")]
     public async Task<ActionResult> Announce(int id)
     {
-        await _torrentService.ForceAnnounceAsync(id);
-        return Ok();
+        await this.torrentService.ForceAnnounceAsync(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/queue")]
     [HttpPut("{id:int}/queue")]
     public async Task<ActionResult> MoveQueue(int id, [FromBody] MoveQueueRequest request)
     {
-        await _torrentService.MoveQueueAsync(id, request?.Position);
-        return Ok();
+        await this.torrentService.MoveQueueAsync(id, request?.Position);
+        return this.Ok();
     }
 
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id, [FromQuery] bool deleteFiles = false)
     {
-        await _torrentService.DeleteAsync(id, deleteFiles);
-        return NoContent();
+        await this.torrentService.DeleteAsync(id, deleteFiles);
+        return this.NoContent();
     }
 
     protected override TorrentResource GetResourceById(Torrent model)
@@ -575,7 +585,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return null;
         }
 
-        var meta = _mediaEnrichmentService.GetMetadata(model.Id);
+        var meta = this.mediaEnrichmentService.GetMetadata(model.Id);
         return TorrentResourceMapper.ToResource(model, meta);
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,7 +26,7 @@ public static class AppleClientSecretGenerator
         {
             alg = "ES256",
             kid = keyId,
-            typ = "JWT"
+            typ = "JWT",
         };
 
         var payload = new
@@ -33,7 +35,7 @@ public static class AppleClientSecretGenerator
             iat = now.ToUnixTimeSeconds(),
             exp = exp.ToUnixTimeSeconds(),
             aud = "https://appleid.apple.com",
-            sub = clientId
+            sub = clientId,
         };
 
         var headerBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(header));

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net;
 using System.Net.Http;
@@ -14,30 +16,30 @@ namespace Leecharr.Core.Test.Ai;
 [TestFixture]
 public class CloudGeminiAiProviderTest
 {
-    private IConfigService _configService = null!;
-    private string _originalEnvKey;
+    private IConfigService configService = null!;
+    private string originalEnvKey;
 
     [SetUp]
     public void SetUp()
     {
-        _originalEnvKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        this.originalEnvKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         Environment.SetEnvironmentVariable("GEMINI_API_KEY", null);
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("test-api-key-12345");
-        _configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("gemini-2.0-flash");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("test-api-key-12345");
+        this.configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("gemini-2.0-flash");
     }
 
     [TearDown]
     public void TearDown()
     {
-        Environment.SetEnvironmentVariable("GEMINI_API_KEY", _originalEnvKey);
+        Environment.SetEnvironmentVariable("GEMINI_API_KEY", this.originalEnvKey);
     }
 
     [Test]
     public void Properties_ReturnExpectedValues()
     {
-        using var provider = new CloudGeminiAiProvider(_configService);
+        using var provider = new CloudGeminiAiProvider(this.configService);
         provider.ProviderId.Should().Be("Gemini");
         provider.DisplayName.Should().Contain("Gemini");
         provider.Version.Should().Be("1.0");
@@ -50,7 +52,7 @@ public class CloudGeminiAiProviderTest
     {
         var handler = new MockHttpMessageHandler((req, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
         using var client = new HttpClient(handler);
-        using var provider = new CloudGeminiAiProvider(_configService, client);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         health.ModelName.Should().Be("gemini-2.0-flash");
@@ -59,8 +61,8 @@ public class CloudGeminiAiProviderTest
     [Test]
     public async Task ProbeHealthAsync_WhenKeyMissing_ReturnsUnhealthy()
     {
-        _configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns(string.Empty);
-        using var provider = new CloudGeminiAiProvider(_configService);
+        this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns(string.Empty);
+        using var provider = new CloudGeminiAiProvider(this.configService);
 
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeFalse();
@@ -88,12 +90,12 @@ public class CloudGeminiAiProviderTest
         {
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(responseJson)
+                Content = new StringContent(responseJson),
             });
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new CloudGeminiAiProvider(_configService, client);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
 
         var response = await provider.GenerateChatResponseAsync("Explain the VPN kill switch");
         response.Should().Be("Gemini response: VPN kill switch protects against DNS and IP leaks.");
@@ -108,7 +110,7 @@ public class CloudGeminiAiProviderTest
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new CloudGeminiAiProvider(_configService, client);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
 
         var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
         response.Should().Contain("Ratio");
@@ -116,16 +118,16 @@ public class CloudGeminiAiProviderTest
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
+        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
 
         public MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
         {
-            _handler = handler;
+            this.handler = handler;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            return _handler(request, cancellationToken);
+            return this.handler(request, cancellationToken);
         }
     }
 }

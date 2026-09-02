@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,41 +12,47 @@ namespace NzbDrone.Core.Bandwidth;
 public class EffectiveSpeedLimits
 {
     public int MaxDownloadSpeedKbps { get; set; }
+
     public int MaxUploadSpeedKbps { get; set; }
+
     public bool IsThrottled { get; set; }
+
     public bool IsPaused { get; set; }
 }
 
 public interface ISpeedSchedulerService
 {
     EffectiveSpeedLimits GetCurrentLimits(DateTime? currentTime = null);
+
     int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null);
+
     int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null);
+
     Task ApplyCurrentLimitsAsync();
 }
 
 public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
 {
-    private readonly ISpeedScheduleRepository _repository;
-    private readonly IConfigService _configService;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly System.Threading.Timer _timer;
-    private readonly Logger _logger;
+    private readonly ISpeedScheduleRepository repository;
+    private readonly IConfigService configService;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly System.Threading.Timer timer;
+    private readonly Logger logger;
 
     public SpeedSchedulerService(
         ISpeedScheduleRepository repository,
         IConfigService configService,
         IDownloadEngine downloadEngine = null)
     {
-        _repository = repository;
-        _configService = configService;
-        _downloadEngine = downloadEngine;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.repository = repository;
+        this.configService = configService;
+        this.downloadEngine = downloadEngine;
+        this.logger = LogManager.GetCurrentClassLogger();
 
-        if (_downloadEngine != null)
+        if (this.downloadEngine != null)
         {
-            _timer = new System.Threading.Timer(
-                _ => { _ = ApplyCurrentLimitsAsync(); },
+            this.timer = new System.Threading.Timer(
+                _ => { _ = this.ApplyCurrentLimitsAsync(); },
                 null,
                 TimeSpan.FromSeconds(10),
                 TimeSpan.FromSeconds(60));
@@ -53,16 +61,16 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
 
     public async Task ApplyCurrentLimitsAsync()
     {
-        if (_downloadEngine != null)
+        if (this.downloadEngine != null)
         {
             try
             {
-                var limits = GetCurrentLimits();
-                await _downloadEngine.SetRateLimitsAsync(limits.MaxDownloadSpeedKbps, limits.MaxUploadSpeedKbps);
+                var limits = this.GetCurrentLimits();
+                await this.downloadEngine.SetRateLimitsAsync(limits.MaxDownloadSpeedKbps, limits.MaxUploadSpeedKbps);
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to apply scheduled rate limits to engine");
+                this.logger.Warn(ex, "Failed to apply scheduled rate limits to engine");
             }
         }
     }
@@ -74,7 +82,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
         var prevDayFlag = 1 << (((int)now.DayOfWeek + 6) % 7);
         var timeStr = now.ToString("HH:mm:ss");
 
-        var activeSchedules = _repository.GetEnabled()
+        var activeSchedules = this.repository.GetEnabled()
             .Where(s =>
             {
                 if (string.Compare(s.StartTime, s.EndTime, StringComparison.Ordinal) <= 0)
@@ -112,29 +120,29 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
                 MaxDownloadSpeedKbps = match.MaxDownloadSpeed < 0 ? 0 : match.MaxDownloadSpeed,
                 MaxUploadSpeedKbps = match.MaxUploadSpeed < 0 ? 0 : match.MaxUploadSpeed,
                 IsThrottled = isThrottled,
-                IsPaused = isPaused
+                IsPaused = isPaused,
             };
         }
 
-        if (_configService.AlternativeSpeedEnabled)
+        if (this.configService.AlternativeSpeedEnabled)
         {
-            var isPaused = _configService.AltDownloadSpeedKbps < 0 || _configService.AltUploadSpeedKbps < 0;
-            var isThrottled = _configService.AltDownloadSpeedKbps > 0 || _configService.AltUploadSpeedKbps > 0;
+            var isPaused = this.configService.AltDownloadSpeedKbps < 0 || this.configService.AltUploadSpeedKbps < 0;
+            var isThrottled = this.configService.AltDownloadSpeedKbps > 0 || this.configService.AltUploadSpeedKbps > 0;
             return new EffectiveSpeedLimits
             {
-                MaxDownloadSpeedKbps = _configService.AltDownloadSpeedKbps < 0 ? 0 : _configService.AltDownloadSpeedKbps,
-                MaxUploadSpeedKbps = _configService.AltUploadSpeedKbps < 0 ? 0 : _configService.AltUploadSpeedKbps,
+                MaxDownloadSpeedKbps = this.configService.AltDownloadSpeedKbps < 0 ? 0 : this.configService.AltDownloadSpeedKbps,
+                MaxUploadSpeedKbps = this.configService.AltUploadSpeedKbps < 0 ? 0 : this.configService.AltUploadSpeedKbps,
                 IsThrottled = isThrottled,
-                IsPaused = isPaused
+                IsPaused = isPaused,
             };
         }
 
         return new EffectiveSpeedLimits
         {
-            MaxDownloadSpeedKbps = _configService.MaxDownloadSpeedKbps,
-            MaxUploadSpeedKbps = _configService.MaxUploadSpeedKbps,
+            MaxDownloadSpeedKbps = this.configService.MaxDownloadSpeedKbps,
+            MaxUploadSpeedKbps = this.configService.MaxUploadSpeedKbps,
             IsThrottled = false,
-            IsPaused = false
+            IsPaused = false,
         };
     }
 
@@ -151,13 +159,13 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
             return categoryLimit;
         }
 
-        var schedule = GetCurrentLimits(currentTime);
+        var schedule = this.GetCurrentLimits(currentTime);
         if (schedule.IsThrottled || schedule.IsPaused)
         {
             return schedule.MaxDownloadSpeedKbps;
         }
 
-        return _configService.MaxDownloadSpeedKbps;
+        return this.configService.MaxDownloadSpeedKbps;
     }
 
     public int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null)
@@ -172,17 +180,17 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IDisposable
             return categoryLimit;
         }
 
-        var schedule = GetCurrentLimits(currentTime);
+        var schedule = this.GetCurrentLimits(currentTime);
         if (schedule.IsThrottled || schedule.IsPaused)
         {
             return schedule.MaxUploadSpeedKbps;
         }
 
-        return _configService.MaxUploadSpeedKbps;
+        return this.configService.MaxUploadSpeedKbps;
     }
 
     public void Dispose()
     {
-        _timer?.Dispose();
+        this.timer?.Dispose();
     }
 }

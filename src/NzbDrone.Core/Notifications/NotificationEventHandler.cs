@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,15 +26,15 @@ public class NotificationEventHandler :
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<ApplicationUpdatedEvent>
 {
-    private readonly INotificationRepository _notificationRepository;
-    private readonly IWebhookDispatcher _webhookDispatcher;
-    private readonly ICustomScriptService _customScriptService;
-    private readonly IConfigService _configService;
-    private readonly IMediaEnrichmentService _mediaEnrichmentService;
-    private readonly ITorrentRepository _torrentRepository;
-    private readonly ITorrentFileRepository _torrentFileRepository;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly INotificationRepository notificationRepository;
+    private readonly IWebhookDispatcher webhookDispatcher;
+    private readonly ICustomScriptService customScriptService;
+    private readonly IConfigService configService;
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NotificationEventHandler(
         INotificationRepository notificationRepository,
@@ -44,14 +46,14 @@ public class NotificationEventHandler :
         ITorrentFileRepository torrentFileRepository = null,
         IDownloadEngine downloadEngine = null)
     {
-        _notificationRepository = notificationRepository;
-        _webhookDispatcher = webhookDispatcher;
-        _customScriptService = customScriptService;
-        _configService = configService;
-        _mediaEnrichmentService = mediaEnrichmentService;
-        _torrentRepository = torrentRepository;
-        _torrentFileRepository = torrentFileRepository;
-        _downloadEngine = downloadEngine;
+        this.notificationRepository = notificationRepository;
+        this.webhookDispatcher = webhookDispatcher;
+        this.customScriptService = customScriptService;
+        this.configService = configService;
+        this.mediaEnrichmentService = mediaEnrichmentService;
+        this.torrentRepository = torrentRepository;
+        this.torrentFileRepository = torrentFileRepository;
+        this.downloadEngine = downloadEngine;
     }
 
     public void Handle(TorrentAddedEvent message)
@@ -61,7 +63,7 @@ public class NotificationEventHandler :
             return;
         }
 
-        Dispatch(n => n.OnGrab, "OnGrab", message.Torrent);
+        this.Dispatch(n => n.OnGrab, "OnGrab", message.Torrent);
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
@@ -71,11 +73,11 @@ public class NotificationEventHandler :
             return;
         }
 
-        Dispatch(n => n.OnDownloadComplete, "OnDownloadComplete", message.Torrent);
+        this.Dispatch(n => n.OnDownloadComplete, "OnDownloadComplete", message.Torrent);
 
-        if (!string.IsNullOrWhiteSpace(_configService?.OnDownloadCompleteScript))
+        if (!string.IsNullOrWhiteSpace(this.configService?.OnDownloadCompleteScript))
         {
-            Task.Run(() => _customScriptService.ExecuteScriptAsync(_configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete"));
+            Task.Run(() => this.customScriptService.ExecuteScriptAsync(this.configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete"));
         }
     }
 
@@ -86,7 +88,7 @@ public class NotificationEventHandler :
             return;
         }
 
-        Dispatch(n => n.OnTorrentDeleted, "OnTorrentDeleted", message.Torrent);
+        this.Dispatch(n => n.OnTorrentDeleted, "OnTorrentDeleted", message.Torrent);
     }
 
     public void Handle(MediaEnrichedEvent message)
@@ -96,10 +98,10 @@ public class NotificationEventHandler :
             return;
         }
 
-        var torrent = _torrentRepository?.Get(message.TorrentId);
+        var torrent = this.torrentRepository?.Get(message.TorrentId);
         if (torrent != null)
         {
-            Dispatch(n => n.OnMediaInspected, "OnMediaInspected", torrent);
+            this.Dispatch(n => n.OnMediaInspected, "OnMediaInspected", torrent);
         }
     }
 
@@ -110,7 +112,7 @@ public class NotificationEventHandler :
             return;
         }
 
-        Dispatch(n => n.OnExtractComplete, "OnExtractComplete", message.Torrent);
+        this.Dispatch(n => n.OnExtractComplete, "OnExtractComplete", message.Torrent);
     }
 
     public void Handle(TorrentStatusChangedEvent message)
@@ -122,60 +124,60 @@ public class NotificationEventHandler :
 
         if (message.NewStatus == TorrentStatus.Error)
         {
-            Dispatch(n => n.OnHealthIssue, "OnHealthIssue", message.Torrent);
-            Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
+            this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", message.Torrent);
+            this.Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
         }
         else if (message.OldStatus == TorrentStatus.Error && message.NewStatus != TorrentStatus.Error)
         {
-            Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
+            this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
         }
         else if (message.NewStatus == TorrentStatus.Stopped && message.Torrent.Progress >= 1.0)
         {
-            Dispatch(n => n.OnSeedGoalReached, "OnSeedGoalReached", message.Torrent);
+            this.Dispatch(n => n.OnSeedGoalReached, "OnSeedGoalReached", message.Torrent);
 
-            if (!string.IsNullOrWhiteSpace(_configService?.OnSeedGoalReachedScript))
+            if (!string.IsNullOrWhiteSpace(this.configService?.OnSeedGoalReachedScript))
             {
-                Task.Run(() => _customScriptService.ExecuteScriptAsync(_configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached"));
+                Task.Run(() => this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached"));
             }
         }
     }
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
     {
-        if (_downloadEngine != null)
+        if (this.downloadEngine != null)
         {
-            _logger.Warn("Halting download engine due to VPN Kill Switch event on interface: {0}", message.InterfaceName);
+            this.logger.Warn("Halting download engine due to VPN Kill Switch event on interface: {0}", message.InterfaceName);
             Task.Run(async () =>
             {
                 try
                 {
-                    await _downloadEngine.StopAsync();
+                    await this.downloadEngine.StopAsync();
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Error halting download engine after VPN kill switch trigger");
+                    this.logger.Error(ex, "Error halting download engine after VPN kill switch trigger");
                 }
             });
         }
 
-        var activeNotifications = _notificationRepository.GetEnabled().Where(n => n.OnHealthIssue).ToList();
+        var activeNotifications = this.notificationRepository.GetEnabled().Where(n => n.OnHealthIssue).ToList();
         var payload = new
         {
             EventType = "OnHealthIssue",
             Message = "VPN Kill Switch triggered: VPN interface disconnected. BitTorrent traffic halted.",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
         };
 
         foreach (var notif in activeNotifications)
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue"));
+                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue"));
             }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
-                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
@@ -187,44 +189,44 @@ public class NotificationEventHandler :
             return;
         }
 
-        var activeNotifications = _notificationRepository.GetEnabled().Where(n => n.OnApplicationUpdate).ToList();
+        var activeNotifications = this.notificationRepository.GetEnabled().Where(n => n.OnApplicationUpdate).ToList();
         var payload = new
         {
             EventType = "OnApplicationUpdate",
             PreviousVersion = message.PreviousVersion ?? string.Empty,
             NewVersion = message.NewVersion ?? string.Empty,
             Message = $"Leecharr updated to version {message.NewVersion}",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
         };
 
         foreach (var notif in activeNotifications)
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate"));
+                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate"));
             }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
-                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
 
     private void Dispatch(Func<NotificationDefinition, bool> predicate, string eventType, Torrent torrent)
     {
-        var activeNotifications = _notificationRepository.GetEnabled().Where(predicate).ToList();
+        var activeNotifications = this.notificationRepository.GetEnabled().Where(predicate).ToList();
         if (activeNotifications.Count == 0)
         {
             return;
         }
 
-        var meta = _mediaEnrichmentService?.GetMetadata(torrent.Id);
-        var files = _torrentFileRepository?.GetByTorrentId(torrent.Id)?.Select(f => new
+        var meta = this.mediaEnrichmentService?.GetMetadata(torrent.Id);
+        var files = this.torrentFileRepository?.GetByTorrentId(torrent.Id)?.Select(f => new
         {
             Path = f.Path,
             Size = f.Size,
-            Progress = f.Progress
+            Progress = f.Progress,
         }).ToList();
 
         var payload = new
@@ -248,7 +250,7 @@ public class NotificationEventHandler :
             MediaOverview = meta?.Overview,
             MediaGenres = meta?.Genres,
             Files = files,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
         };
 
         foreach (var notif in activeNotifications)
@@ -264,7 +266,7 @@ public class NotificationEventHandler :
 
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => _customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType));
+                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType));
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
@@ -273,7 +275,7 @@ public class NotificationEventHandler :
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
-                Task.Run(() => _webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
             }
         }
     }
@@ -379,7 +381,7 @@ public class NotificationEventHandler :
                         color = 16765286, // Gold
                         timestamp = DateTime.UtcNow.ToString("o")
                     }
-                }
+                },
             };
         }
 
@@ -392,7 +394,7 @@ public class NotificationEventHandler :
             var payloadDict = new Dictionary<string, object>
             {
                 ["text"] = text,
-                ["parse_mode"] = "Markdown"
+                ["parse_mode"] = "Markdown",
             };
 
             if (!string.IsNullOrEmpty(chatId))
@@ -409,7 +411,7 @@ public class NotificationEventHandler :
             {
                 title = $"Leecharr: {eventType}",
                 message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType),
-                priority = 5
+                priority = 5,
             };
         }
 
@@ -418,7 +420,7 @@ public class NotificationEventHandler :
             var payloadDict = new Dictionary<string, object>
             {
                 ["title"] = $"Leecharr: {eventType}",
-                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType)
+                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType),
             };
 
             if (!string.IsNullOrEmpty(token))
@@ -516,7 +518,7 @@ public class NotificationEventHandler :
             using var client = new System.Net.Mail.SmtpClient(host, port)
             {
                 EnableSsl = ssl,
-                Timeout = 10000
+                Timeout = 10000,
             };
 
             if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))

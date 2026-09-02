@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -17,16 +19,20 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    private readonly IConfigService _configService;
-    private readonly HttpClient _httpClient;
-    private readonly bool _ownsHttpClient;
-    private readonly RuleHeuristicAiProvider _fallbackProvider = new();
-    private bool _disposed;
+    private readonly IConfigService configService;
+    private readonly HttpClient httpClient;
+    private readonly bool ownsHttpClient;
+    private readonly RuleHeuristicAiProvider fallbackProvider = new();
+    private bool disposed;
 
     public string ProviderId => "Gemini";
+
     public string DisplayName => "Google Gemini Cloud LLM (Gemini 2.0 / 1.5)";
+
     public string Version => "1.0";
+
     public string Description => "Cloud Large Language Model provider powered by Google Gemini API for deep semantic release classification, diagnostics, and natural query parsing.";
+
     public bool IsAvailable => true;
 
     public AiCapabilities Capabilities =>
@@ -48,9 +54,9 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
 
     public CloudGeminiAiProvider(IConfigService configService, HttpClient httpClient, bool ownsHttpClient = false)
     {
-        _configService = configService;
-        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        _ownsHttpClient = ownsHttpClient || httpClient == null;
+        this.configService = configService;
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.ownsHttpClient = ownsHttpClient || httpClient == null;
     }
 
     private string GetApiKey()
@@ -61,18 +67,18 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
             return env.Trim();
         }
 
-        return _configService?.GetValue("GeminiApiKey", string.Empty) ?? string.Empty;
+        return this.configService?.GetValue("GeminiApiKey", string.Empty) ?? string.Empty;
     }
 
     private string GetModelName()
     {
-        return _configService?.GetValue("GeminiModel", "gemini-2.0-flash") ?? "gemini-2.0-flash";
+        return this.configService?.GetValue("GeminiModel", "gemini-2.0-flash") ?? "gemini-2.0-flash";
     }
 
     public async Task<AiHealthResult> ProbeHealthAsync()
     {
-        var apiKey = GetApiKey();
-        var model = GetModelName();
+        var apiKey = this.GetApiKey();
+        var model = this.GetModelName();
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -83,7 +89,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                 Warnings = new List<string> { "Missing Gemini API key" },
                 LatencyMs = 0,
                 ModelName = model,
-                Version = Version
+                Version = this.Version,
             };
         }
 
@@ -92,7 +98,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
         {
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}?key={apiKey}";
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var response = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
+            var response = await this.httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
             sw.Stop();
 
             if (response.IsSuccessStatusCode)
@@ -103,7 +109,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                     StatusMessage = $"Google Gemini API healthy and reachable with model '{model}'.",
                     LatencyMs = sw.ElapsedMilliseconds,
                     ModelName = model,
-                    Version = Version
+                    Version = this.Version,
                 };
             }
 
@@ -115,7 +121,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                 Warnings = new List<string> { errorBody },
                 LatencyMs = sw.ElapsedMilliseconds,
                 ModelName = model,
-                Version = Version
+                Version = this.Version,
             };
         }
         catch (Exception ex)
@@ -128,25 +134,25 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                 Warnings = new List<string> { ex.ToString() },
                 LatencyMs = sw.ElapsedMilliseconds,
                 ModelName = model,
-                Version = Version
+                Version = this.Version,
             };
         }
     }
 
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
     {
-        var result = await _fallbackProvider.ParseReleaseAsync(releaseName);
+        var result = await this.fallbackProvider.ParseReleaseAsync(releaseName);
         result.AdditionalTags["Engine"] = "Gemini";
         return result;
     }
 
     public async Task<AiDiagnosticReport> DiagnoseTorrentHealthAsync(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
     {
-        var report = await _fallbackProvider.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
+        var report = await this.fallbackProvider.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
         try
         {
             var prompt = $"Analyze BitTorrent swarm: Name '{torrent?.Name}', Status '{torrent?.Status}', Progress {torrent?.Progress * 100:F1}%, Seeders {torrent?.Seeders}, Leechers {torrent?.Leechers}, DL Speed {torrent?.DownloadSpeed} B/s. Provide concise 1-sentence diagnostic.";
-            var aiText = await GenerateChatResponseAsync(prompt, "You are a BitTorrent network diagnostics expert. Provide a single sentence diagnostic.");
+            var aiText = await this.GenerateChatResponseAsync(prompt, "You are a BitTorrent network diagnostics expert. Provide a single sentence diagnostic.");
             if (!string.IsNullOrWhiteSpace(aiText))
             {
                 report.Recommendations.Insert(0, $"[Gemini AI] {aiText.Trim()}");
@@ -161,20 +167,20 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
 
     public async Task<AiSearchParameters> ProcessNaturalLanguageSearchAsync(string naturalQuery)
     {
-        var result = await _fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
+        var result = await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
         return result;
     }
 
     public async Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
     {
-        var assessment = await _fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
+        var assessment = await this.fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
         return assessment;
     }
 
     public async Task<string> GenerateChatResponseAsync(string userMessage, string systemContext = null)
     {
-        var apiKey = GetApiKey();
-        var model = GetModelName();
+        var apiKey = this.GetApiKey();
+        var model = this.GetModelName();
 
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
@@ -190,7 +196,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                             {
                                 new { text = userMessage }
                             }
-                        }
+                        },
                     },
                     systemInstruction = new
                     {
@@ -198,14 +204,14 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                         {
                             new { text = systemContext ?? "You are Leecharr AI Assistant, an expert in BitTorrent protocol, Servarr integrations (*arr), swarm diagnostics, and media management." }
                         }
-                    }
+                    },
                 };
 
                 var json = JsonSerializer.Serialize(payload);
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-                using var response = await _httpClient.PostAsync(url, content, cts.Token);
+                using var response = await this.httpClient.PostAsync(url, content, cts.Token);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -230,17 +236,17 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
             }
         }
 
-        return await _fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
+        return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            if (_ownsHttpClient)
+            this.disposed = true;
+            if (this.ownsHttpClient)
             {
-                _httpClient.Dispose();
+                this.httpClient.Dispose();
             }
         }
     }

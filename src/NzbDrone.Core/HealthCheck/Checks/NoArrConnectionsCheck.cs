@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Linq;
 using NzbDrone.Core.ArrIntegration;
 
@@ -5,16 +7,16 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class NoArrConnectionsCheck : IHealthCheck
 {
-    private readonly IArrConnectionRepository _arrRepo;
+    private readonly IArrConnectionRepository arrRepo;
 
     public NoArrConnectionsCheck(IArrConnectionRepository arrRepo)
     {
-        _arrRepo = arrRepo;
+        this.arrRepo = arrRepo;
     }
 
     public HealthCheckResult Check()
     {
-        var connections = _arrRepo.GetEnabled();
+        var connections = this.arrRepo.GetEnabled();
         if (!connections.Any())
         {
             return HealthCheckResult.Warning(

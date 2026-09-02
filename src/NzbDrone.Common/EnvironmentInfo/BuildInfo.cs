@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Reflection;
@@ -19,7 +21,9 @@ public static class BuildInfo
     }
 
     public static Version Version { get; }
+
     public static string AppName => "Leecharr";
+
     public static string Branch => "main";
 
     private static Version ReadVersionFile()

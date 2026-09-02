@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -18,11 +20,11 @@ namespace NzbDrone.Host;
 
 public class Startup
 {
-    private readonly IContainer _container;
+    private readonly IContainer container;
 
     public Startup(IContainer container)
     {
-        _container = container;
+        this.container = container;
     }
 
     public void ConfigureServices(IServiceCollection services)
@@ -142,7 +144,7 @@ public class Startup
             {
                 Title = "Leecharr API",
                 Version = "v1",
-                Description = "Servarr-Native BitTorrent & Media Downloader API"
+                Description = "Servarr-Native BitTorrent & Media Downloader API",
             });
         });
 
@@ -184,7 +186,7 @@ public class Startup
 
         app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
         });
 
         app.UseCors();
@@ -204,7 +206,7 @@ public class Startup
                 {
                     ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
                 }
-            }
+            },
         });
 
         app.UseRouting();

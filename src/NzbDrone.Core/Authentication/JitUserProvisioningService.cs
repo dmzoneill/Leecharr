@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Text.Json;
 using NLog;
@@ -6,10 +8,10 @@ namespace NzbDrone.Core.Authentication;
 
 public class JitUserProvisioningService : IJitUserProvisioningService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IIdentityProviderRepository _identityProviderRepository;
-    private readonly IClaimsRoleMappingService _roleMapper;
-    private readonly Logger _logger;
+    private readonly IUserRepository userRepository;
+    private readonly IIdentityProviderRepository identityProviderRepository;
+    private readonly IClaimsRoleMappingService roleMapper;
+    private readonly Logger logger;
 
     public JitUserProvisioningService(
         IUserRepository userRepository,
@@ -17,19 +19,19 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         IClaimsRoleMappingService roleMapper,
         Logger logger)
     {
-        _userRepository = userRepository;
-        _identityProviderRepository = identityProviderRepository;
-        _roleMapper = roleMapper;
-        _logger = logger;
+        this.userRepository = userRepository;
+        this.identityProviderRepository = identityProviderRepository;
+        this.roleMapper = roleMapper;
+        this.logger = logger;
     }
 
     public User ProvisionOrUpdateUser(ExternalUserProfile profile)
     {
-        var isFirstUser = _userRepository.GetUserCount() == 0;
-        var provider = _identityProviderRepository.FindByProviderId(profile.ProviderId);
+        var isFirstUser = this.userRepository.GetUserCount() == 0;
+        var provider = this.identityProviderRepository.FindByProviderId(profile.ProviderId);
 
         // 1. Check if user already exists by external ID
-        var existingUser = _userRepository.FindByExternalId(profile.ProviderId, profile.SubjectId);
+        var existingUser = this.userRepository.FindByExternalId(profile.ProviderId, profile.SubjectId);
         if (existingUser != null)
         {
             existingUser.LastLogin = DateTime.UtcNow;
@@ -51,12 +53,12 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             // Recalculate roles if groups provided
             if (profile.RawGroups != null && profile.RawGroups.Count > 0)
             {
-                var roles = _roleMapper.ResolveRoles(provider, profile.RawGroups, false);
+                var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
                 existingUser.Roles = JsonSerializer.Serialize(roles);
             }
 
             existingUser.UpdatedAt = DateTime.UtcNow;
-            _userRepository.Update(existingUser);
+            this.userRepository.Update(existingUser);
             return existingUser;
         }
 
@@ -64,12 +66,12 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         User matchedUser = null;
         if (!string.IsNullOrEmpty(profile.Email))
         {
-            matchedUser = _userRepository.FindByEmail(profile.Email);
+            matchedUser = this.userRepository.FindByEmail(profile.Email);
         }
 
         if (matchedUser == null && !string.IsNullOrEmpty(profile.Username))
         {
-            matchedUser = _userRepository.FindByUsername(profile.Username);
+            matchedUser = this.userRepository.FindByUsername(profile.Username);
         }
 
         if (matchedUser != null)
@@ -84,18 +86,18 @@ public class JitUserProvisioningService : IJitUserProvisioningService
 
             if (profile.RawGroups != null && profile.RawGroups.Count > 0)
             {
-                var roles = _roleMapper.ResolveRoles(provider, profile.RawGroups, false);
+                var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
                 matchedUser.Roles = JsonSerializer.Serialize(roles);
             }
 
             matchedUser.UpdatedAt = DateTime.UtcNow;
-            _userRepository.Update(matchedUser);
-            _logger.Info("Linked external {0} login to existing user {1}", profile.ProviderId, matchedUser.Username);
+            this.userRepository.Update(matchedUser);
+            this.logger.Info("Linked external {0} login to existing user {1}", profile.ProviderId, matchedUser.Username);
             return matchedUser;
         }
 
         // 3. JIT Provision new user
-        var assignedRoles = _roleMapper.ResolveRoles(provider, profile.RawGroups, isFirstUser);
+        var assignedRoles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, isFirstUser);
 
         var newUser = new User
         {
@@ -109,11 +111,11 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             Roles = JsonSerializer.Serialize(assignedRoles),
             LastLogin = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
         };
 
-        var created = _userRepository.Insert(newUser);
-        _logger.Info("JIT provisioned new user {0} via {1}", created.Username, profile.ProviderId);
+        var created = this.userRepository.Insert(newUser);
+        this.logger.Info("JIT provisioned new user {0} via {1}", created.Username, profile.ProviderId);
         return created;
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,77 +16,77 @@ namespace Leecharr.Core.Test.BitTorrent;
 [TestFixture]
 public class DynamicDownloadEngineProxyTest
 {
-    private ITorrentEngine _monoTorrentEngine = null!;
-    private ITorrentEngine _libTorrentEngine = null!;
-    private ITorrentEngine _transmissionEngine = null!;
-    private IConfigService _configService = null!;
-    private ITorrentRepository _torrentRepository = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicDownloadEngineProxy _proxy = null!;
+    private ITorrentEngine monoTorrentEngine = null!;
+    private ITorrentEngine libTorrentEngine = null!;
+    private ITorrentEngine transmissionEngine = null!;
+    private IConfigService configService = null!;
+    private ITorrentRepository torrentRepository = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicDownloadEngineProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _monoTorrentEngine = Substitute.For<ITorrentEngine>();
-        _monoTorrentEngine.EngineId.Returns("MonoTorrent");
-        _monoTorrentEngine.DisplayName.Returns("MonoTorrent (Pure .NET)");
-        _monoTorrentEngine.ProtocolName.Returns("BitTorrent");
-        _monoTorrentEngine.IsAvailable.Returns(true);
-        _monoTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.monoTorrentEngine = Substitute.For<ITorrentEngine>();
+        this.monoTorrentEngine.EngineId.Returns("MonoTorrent");
+        this.monoTorrentEngine.DisplayName.Returns("MonoTorrent (Pure .NET)");
+        this.monoTorrentEngine.ProtocolName.Returns("BitTorrent");
+        this.monoTorrentEngine.IsAvailable.Returns(true);
+        this.monoTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _libTorrentEngine = Substitute.For<ITorrentEngine>();
-        _libTorrentEngine.EngineId.Returns("LibTorrent");
-        _libTorrentEngine.DisplayName.Returns("libtorrent (Rasterbar C++)");
-        _libTorrentEngine.ProtocolName.Returns("BitTorrent");
-        _libTorrentEngine.IsAvailable.Returns(true);
-        _libTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.libTorrentEngine = Substitute.For<ITorrentEngine>();
+        this.libTorrentEngine.EngineId.Returns("LibTorrent");
+        this.libTorrentEngine.DisplayName.Returns("libtorrent (Rasterbar C++)");
+        this.libTorrentEngine.ProtocolName.Returns("BitTorrent");
+        this.libTorrentEngine.IsAvailable.Returns(true);
+        this.libTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _transmissionEngine = Substitute.For<ITorrentEngine>();
-        _transmissionEngine.EngineId.Returns("Transmission");
-        _transmissionEngine.DisplayName.Returns("Transmission Daemon (Sidecar)");
-        _transmissionEngine.ProtocolName.Returns("BitTorrent");
-        _transmissionEngine.IsAvailable.Returns(true);
-        _transmissionEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.transmissionEngine = Substitute.For<ITorrentEngine>();
+        this.transmissionEngine.EngineId.Returns("Transmission");
+        this.transmissionEngine.DisplayName.Returns("Transmission Daemon (Sidecar)");
+        this.transmissionEngine.ProtocolName.Returns("BitTorrent");
+        this.transmissionEngine.IsAvailable.Returns(true);
+        this.transmissionEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.ActiveTorrentEngine.Returns("MonoTorrent");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.ActiveTorrentEngine.Returns("MonoTorrent");
 
-        _torrentRepository = Substitute.For<ITorrentRepository>();
-        _torrentRepository.All().Returns(new List<Torrent>
+        this.torrentRepository = Substitute.For<ITorrentRepository>();
+        this.torrentRepository.All().Returns(new List<Torrent>
         {
             new() { Id = 1, Name = "Ubuntu ISO", InfoHash = "0123456789ABCDEF0123456789ABCDEF01234567", Status = TorrentStatus.Downloading },
-            new() { Id = 2, Name = "Debian ISO", InfoHash = "FEDCBA9876543210FEDCBA9876543210FEDCBA98", Status = TorrentStatus.Paused }
+            new() { Id = 2, Name = "Debian ISO", InfoHash = "FEDCBA9876543210FEDCBA9876543210FEDCBA98", Status = TorrentStatus.Paused },
         });
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
-        var engines = new List<ITorrentEngine> { _monoTorrentEngine, _libTorrentEngine, _transmissionEngine };
+        var engines = new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine, this.transmissionEngine };
 
-        _proxy = new DynamicDownloadEngineProxy(
+        this.proxy = new DynamicDownloadEngineProxy(
             engines,
-            _configService,
-            _torrentRepository,
-            _eventAggregator);
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredEngine()
     {
-        _proxy.ActiveEngineId.Should().Be("MonoTorrent");
-        _proxy.ActiveEngine.Should().BeSameAs(_monoTorrentEngine);
-        _proxy.ProtocolName.Should().Be("BitTorrent");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+        this.proxy.ActiveEngine.Should().BeSameAs(this.monoTorrentEngine);
+        this.proxy.ProtocolName.Should().Be("BitTorrent");
     }
 
     [Test]
     public void GetEngines_ReturnsAllRegisteredEngines()
     {
-        var engines = _proxy.GetEngines().ToList();
+        var engines = this.proxy.GetEngines().ToList();
         engines.Should().HaveCount(3);
         engines.Select(e => e.EngineId).Should().Contain(new[] { "MonoTorrent", "LibTorrent", "Transmission" });
     }
@@ -92,7 +94,7 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public void GetEngine_WithValidId_ReturnsMatchingEngine()
     {
-        var engine = _proxy.GetEngine("libtorrent");
+        var engine = this.proxy.GetEngine("libtorrent");
         engine.Should().NotBeNull();
         engine!.EngineId.Should().Be("LibTorrent");
     }
@@ -100,14 +102,14 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public void GetEngine_WithInvalidId_ReturnsNull()
     {
-        var engine = _proxy.GetEngine("NonExistentEngine");
+        var engine = this.proxy.GetEngine("NonExistentEngine");
         engine.Should().BeNull();
     }
 
     [Test]
     public async Task ProbeEngineAsync_WithValidEngine_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeEngineAsync("LibTorrent");
+        var probe = await this.proxy.ProbeEngineAsync("LibTorrent");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -116,7 +118,7 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task ProbeEngineAsync_WithInvalidEngine_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeEngineAsync("InvalidEngine");
+        var probe = await this.proxy.ProbeEngineAsync("InvalidEngine");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -125,90 +127,90 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task SwitchEngineAsync_SwitchesActiveEngineAndMigratesTorrents()
     {
-        var result = await _proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
         result.Success.Should().BeTrue();
         result.PreviousEngine.Should().Be("MonoTorrent");
         result.ActiveEngine.Should().Be("LibTorrent");
         result.TorrentsMigrated.Should().Be(2);
 
-        _proxy.ActiveEngineId.Should().Be("LibTorrent");
-        _proxy.ActiveEngine.Should().BeSameAs(_libTorrentEngine);
+        this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+        this.proxy.ActiveEngine.Should().BeSameAs(this.libTorrentEngine);
 
-        await _monoTorrentEngine.Received(1).StopAsync();
-        await _libTorrentEngine.Received(1).StartAsync();
-        await _libTorrentEngine.Received(2).AddTorrentAsync(Arg.Any<Torrent>(), null, Arg.Any<string>());
-        await _libTorrentEngine.Received(1).PauseTorrentAsync(2);
+        await this.monoTorrentEngine.Received(1).StopAsync();
+        await this.libTorrentEngine.Received(1).StartAsync();
+        await this.libTorrentEngine.Received(2).AddTorrentAsync(Arg.Any<Torrent>(), null, Arg.Any<string>());
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(2);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveTorrentEngine"] == "LibTorrent"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentEngineSwitchedEvent>(e => e.PreviousEngine == "MonoTorrent" && e.NewEngine == "LibTorrent" && e.TorrentsMigrated == 2));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveTorrentEngine"] == "LibTorrent"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentEngineSwitchedEvent>(e => e.PreviousEngine == "MonoTorrent" && e.NewEngine == "LibTorrent" && e.TorrentsMigrated == 2));
     }
 
     [Test]
     public async Task SwitchEngineAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
-        var result = await _proxy.SwitchEngineAsync("MonoTorrent");
+        var result = await this.proxy.SwitchEngineAsync("MonoTorrent");
 
         result.Success.Should().BeTrue();
         result.ActiveEngine.Should().Be("MonoTorrent");
         result.TorrentsMigrated.Should().Be(0);
 
-        await _monoTorrentEngine.DidNotReceive().StopAsync();
+        await this.monoTorrentEngine.DidNotReceive().StopAsync();
     }
 
     [Test]
     public async Task SwitchEngineAsync_WithUnknownEngine_ReturnsFailure()
     {
-        var result = await _proxy.SwitchEngineAsync("UnknownEngine");
+        var result = await this.proxy.SwitchEngineAsync("UnknownEngine");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("not registered");
-        _proxy.ActiveEngineId.Should().Be("MonoTorrent");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
     }
 
     [Test]
     public async Task SwitchEngineAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _libTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult
+        this.libTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "Missing native shared library"
+            StatusMessage = "Missing native shared library",
         }));
 
-        var result = await _proxy.SwitchEngineAsync("LibTorrent");
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
-        _proxy.ActiveEngineId.Should().Be("MonoTorrent");
-        await _monoTorrentEngine.DidNotReceive().StopAsync();
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+        await this.monoTorrentEngine.DidNotReceive().StopAsync();
     }
 
     [Test]
     public async Task Delegation_ForwardsCallsToActiveEngine()
     {
-        await _proxy.StartAsync();
-        await _monoTorrentEngine.Received(1).StartAsync();
+        await this.proxy.StartAsync();
+        await this.monoTorrentEngine.Received(1).StartAsync();
 
-        await _proxy.StopAsync();
-        await _monoTorrentEngine.Received(1).StopAsync();
+        await this.proxy.StopAsync();
+        await this.monoTorrentEngine.Received(1).StopAsync();
 
         var torrent = new Torrent { Id = 10, InfoHash = "HASH" };
-        await _proxy.AddTorrentAsync(torrent, null, "magnet:?");
-        await _monoTorrentEngine.Received(1).AddTorrentAsync(torrent, null, "magnet:?");
+        await this.proxy.AddTorrentAsync(torrent, null, "magnet:?");
+        await this.monoTorrentEngine.Received(1).AddTorrentAsync(torrent, null, "magnet:?");
 
-        await _proxy.PauseTorrentAsync(10);
-        await _monoTorrentEngine.Received(1).PauseTorrentAsync(10);
+        await this.proxy.PauseTorrentAsync(10);
+        await this.monoTorrentEngine.Received(1).PauseTorrentAsync(10);
 
-        await _proxy.ResumeTorrentAsync(10);
-        await _monoTorrentEngine.Received(1).ResumeTorrentAsync(10);
+        await this.proxy.ResumeTorrentAsync(10);
+        await this.monoTorrentEngine.Received(1).ResumeTorrentAsync(10);
 
-        await _proxy.ForceRecheckAsync(10);
-        await _monoTorrentEngine.Received(1).ForceRecheckAsync(10);
+        await this.proxy.ForceRecheckAsync(10);
+        await this.monoTorrentEngine.Received(1).ForceRecheckAsync(10);
 
-        await _proxy.ForceAnnounceAsync(10);
-        await _monoTorrentEngine.Received(1).ForceAnnounceAsync(10);
+        await this.proxy.ForceAnnounceAsync(10);
+        await this.monoTorrentEngine.Received(1).ForceAnnounceAsync(10);
 
-        await _proxy.RemoveTorrentAsync(10, true);
-        await _monoTorrentEngine.Received(1).RemoveTorrentAsync(10, true);
+        await this.proxy.RemoveTorrentAsync(10, true);
+        await this.monoTorrentEngine.Received(1).RemoveTorrentAsync(10, true);
     }
 }

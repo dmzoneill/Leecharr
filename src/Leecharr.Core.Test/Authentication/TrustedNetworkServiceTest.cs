@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Net;
 using NUnit.Framework;
 using NzbDrone.Core.Authentication;
@@ -7,12 +9,12 @@ namespace Leecharr.Core.Test.Authentication;
 [TestFixture]
 public class TrustedNetworkServiceTest
 {
-    private TrustedNetworkService _service;
+    private TrustedNetworkService service;
 
     [SetUp]
     public void SetUp()
     {
-        _service = new TrustedNetworkService();
+        this.service = new TrustedNetworkService();
     }
 
     [TestCase("127.0.0.1", true)]
@@ -25,7 +27,7 @@ public class TrustedNetworkServiceTest
     public void IsLocalOrPrivateNetwork_ShouldIdentifyCorrectly(string ipStr, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);
-        var result = _service.IsLocalOrPrivateNetwork(ip);
+        var result = this.service.IsLocalOrPrivateNetwork(ip);
 
         Assert.That(result, Is.EqualTo(expected));
     }
@@ -36,7 +38,7 @@ public class TrustedNetworkServiceTest
     public void IsTrustedProxy_WithCidrs_ShouldMatchCorrectly(string ipStr, string cidrs, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);
-        var result = _service.IsTrustedProxy(ip, cidrs);
+        var result = this.service.IsTrustedProxy(ip, cidrs);
 
         Assert.That(result, Is.EqualTo(expected));
     }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddMediaMetadata : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("TorrentMediaMetadata")
+        this.Create.Table("TorrentMediaMetadata")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("TorrentId").AsInt32().NotNullable().Unique().ForeignKey("Torrents", "Id")
             .WithColumn("ArrType").AsString().NotNullable()

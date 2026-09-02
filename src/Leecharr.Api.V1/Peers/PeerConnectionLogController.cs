@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using Leecharr.Http;
@@ -11,18 +13,18 @@ namespace Leecharr.Api.V1.Peers;
 [V1ApiController("peerlog")]
 public class PeerConnectionLogController : Controller
 {
-    private readonly ITorrentService _torrentService;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly IGeoIpService _geoIpService;
+    private readonly ITorrentService torrentService;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly IGeoIpService geoIpService;
 
     public PeerConnectionLogController(
         ITorrentService torrentService,
         IDownloadEngine downloadEngine,
         IGeoIpService geoIpService)
     {
-        _torrentService = torrentService;
-        _downloadEngine = downloadEngine;
-        _geoIpService = geoIpService;
+        this.torrentService = torrentService;
+        this.downloadEngine = downloadEngine;
+        this.geoIpService = geoIpService;
     }
 
     [HttpGet]
@@ -32,7 +34,7 @@ public class PeerConnectionLogController : Controller
         [FromQuery] string infoHash)
     {
         var logs = new List<PeerConnectionLogResource>();
-        var torrents = _torrentService.GetAll();
+        var torrents = this.torrentService.GetAll();
         var idCounter = 1;
 
         foreach (var torrent in torrents)
@@ -42,12 +44,12 @@ public class PeerConnectionLogController : Controller
                 continue;
             }
 
-            var task = _downloadEngine.GetTask(torrent.Id);
+            var task = this.downloadEngine.GetTask(torrent.Id);
             if (task != null)
             {
                 foreach (var peer in task.GetPeers())
                 {
-                    var geo = _geoIpService?.Lookup(peer.Ip);
+                    var geo = this.geoIpService?.Lookup(peer.Ip);
 
                     logs.Add(new PeerConnectionLogResource
                     {
@@ -62,19 +64,19 @@ public class PeerConnectionLogController : Controller
                         CountryName = geo?.CountryName ?? string.Empty,
                         City = geo?.City ?? string.Empty,
                         EventType = "Connected",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow,
                     });
                 }
             }
         }
 
-        return Ok(logs);
+        return this.Ok(logs);
     }
 
     [HttpGet("active")]
     public ActionResult<List<PeerConnectionLogResource>> GetActive()
     {
-        return GetLogs(null, null, null);
+        return this.GetLogs(null, null, null);
     }
 
     [HttpGet("graph")]
@@ -91,10 +93,10 @@ public class PeerConnectionLogController : Controller
         {
             Id = "leecharr",
             Label = "Leecharr",
-            Type = "center"
+            Type = "center",
         });
 
-        var torrents = _torrentService.GetAll();
+        var torrents = this.torrentService.GetAll();
         foreach (var torrent in torrents)
         {
             var hash = torrent.InfoHash ?? torrent.Id.ToString();
@@ -105,18 +107,18 @@ public class PeerConnectionLogController : Controller
                     Id = $"torrent:{hash}",
                     Label = torrent.Name ?? (hash.Length > 8 ? hash[..8] : hash),
                     Type = "torrent",
-                    InfoHash = torrent.InfoHash
+                    InfoHash = torrent.InfoHash,
                 });
 
                 links.Add(new PeerGraphLink
                 {
                     Source = "leecharr",
                     Target = $"torrent:{hash}",
-                    Type = "seeds"
+                    Type = "seeds",
                 });
             }
 
-            var task = _downloadEngine.GetTask(torrent.Id);
+            var task = this.downloadEngine.GetTask(torrent.Id);
             if (task != null)
             {
                 foreach (var peer in task.GetPeers())
@@ -129,30 +131,30 @@ public class PeerConnectionLogController : Controller
                             Id = $"peer:{peerKey}:{hash}",
                             Label = peer.Ip,
                             Type = "peer",
-                            IsEncrypted = peer.IsEncrypted
+                            IsEncrypted = peer.IsEncrypted,
                         });
 
                         links.Add(new PeerGraphLink
                         {
                             Source = $"torrent:{hash}",
                             Target = $"peer:{peerKey}:{hash}",
-                            Type = peer.IsEncrypted ? "encrypted" : "plain"
+                            Type = peer.IsEncrypted ? "encrypted" : "plain",
                         });
                     }
                 }
             }
         }
 
-        return Ok(new PeerGraphResource
+        return this.Ok(new PeerGraphResource
         {
             Nodes = nodes,
-            Links = links
+            Links = links,
         });
     }
 
     [HttpDelete]
     public ActionResult Purge([FromQuery] DateTime? before)
     {
-        return Ok();
+        return this.Ok();
     }
 }

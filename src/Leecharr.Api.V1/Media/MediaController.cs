@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Diagnostics.CodeAnalysis;
 using Leecharr.Http;
 using Leecharr.Http.REST;
@@ -9,33 +11,33 @@ namespace Leecharr.Api.V1.Media;
 [V1ApiController("media")]
 public class MediaController : RestController<MediaMetadataResource>
 {
-    private readonly IMediaEnrichmentService _mediaEnrichmentService;
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
 
     public MediaController(IMediaEnrichmentService mediaEnrichmentService)
     {
-        _mediaEnrichmentService = mediaEnrichmentService;
+        this.mediaEnrichmentService = mediaEnrichmentService;
     }
 
     [HttpGet("{torrentId:int}")]
     public ActionResult<MediaMetadataResource> GetByTorrentId(int torrentId)
     {
-        var meta = _mediaEnrichmentService.GetMetadata(torrentId);
+        var meta = this.mediaEnrichmentService.GetMetadata(torrentId);
         if (meta == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(MediaMetadataResourceMapper.ToResource(meta));
+        return this.Ok(MediaMetadataResourceMapper.ToResource(meta));
     }
 
     [HttpGet("artwork/{torrentId:int}/{type}")]
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "Path is resolved internally from server metadata storage")]
     public ActionResult GetArtwork(int torrentId, string type)
     {
-        var meta = _mediaEnrichmentService.GetMetadata(torrentId);
+        var meta = this.mediaEnrichmentService.GetMetadata(torrentId);
         if (meta == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var path = string.Equals(type, "poster", global::System.StringComparison.OrdinalIgnoreCase)
@@ -44,9 +46,9 @@ public class MediaController : RestController<MediaMetadataResource>
 
         if (string.IsNullOrEmpty(path) || path.Contains("..") || !global::System.IO.File.Exists(path))
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return PhysicalFile(global::System.IO.Path.GetFullPath(path), "image/jpeg");
+        return this.PhysicalFile(global::System.IO.Path.GetFullPath(path), "image/jpeg");
     }
 }

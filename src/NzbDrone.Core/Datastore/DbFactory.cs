@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -50,27 +52,27 @@ public class TimeOnlyTypeHandler : SqlMapper.TypeHandler<TimeOnly>
 
 public class DbFactory : IDbFactory
 {
-    private static bool _typeHandlersRegistered;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private static bool typeHandlersRegistered;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IDatabase Create(DatabaseType dbType, string connectionString)
     {
-        if (!_typeHandlersRegistered)
+        if (!typeHandlersRegistered)
         {
             SqlMapper.AddTypeHandler(new SqliteDoubleTypeHandler());
             SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
-            _typeHandlersRegistered = true;
+            typeHandlersRegistered = true;
         }
 
-        _logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
+        this.logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
 
-        RunMigrations(dbType, connectionString);
+        this.RunMigrations(dbType, connectionString);
 
         Func<IDbConnection> factory = dbType switch
         {
             DatabaseType.PostgreSQL => () => new NpgsqlConnection(connectionString),
-            _ => () => new SqliteConnection(connectionString)
+            _ => () => new SqliteConnection(connectionString),
         };
 
         return new Database(factory, dbType);
@@ -114,6 +116,6 @@ public class DbFactory : IDbFactory
         var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
         runner.MigrateUp();
 
-        _logger.Info("Database migrations complete");
+        this.logger.Info("Database migrations complete");
     }
 }

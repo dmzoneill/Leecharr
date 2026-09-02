@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddTorrentExtendedFields : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Alter.Table("Torrents")
+        this.Alter.Table("Torrents")
             .AddColumn("TrackerUrl").AsString().Nullable()
             .AddColumn("QueuePosition").AsInt32().NotNullable().WithDefaultValue(0)
             .AddColumn("Label").AsString().Nullable()

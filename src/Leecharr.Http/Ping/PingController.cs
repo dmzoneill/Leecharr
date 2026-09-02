@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +13,7 @@ public class PingController : ControllerBase
     [HttpGet]
     public ActionResult<PingResource> Ping()
     {
-        return Ok(new PingResource { Status = "OK" });
+        return this.Ok(new PingResource { Status = "OK" });
     }
 }
 

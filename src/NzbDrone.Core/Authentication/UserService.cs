@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,13 +15,13 @@ public class UserService : IUserService
     private const int HashByteSize = 32;
     private const int DefaultIterations = 100000;
 
-    private readonly IUserRepository _userRepository;
-    private readonly Logger _logger;
+    private readonly IUserRepository userRepository;
+    private readonly Logger logger;
 
     public UserService(IUserRepository userRepository, Logger logger)
     {
-        _userRepository = userRepository;
-        _logger = logger;
+        this.userRepository = userRepository;
+        this.logger = logger;
     }
 
     public User Authenticate(string username, string password)
@@ -29,33 +31,33 @@ public class UserService : IUserService
             return null;
         }
 
-        var user = _userRepository.FindByUsername(username);
+        var user = this.userRepository.FindByUsername(username);
         if (user == null || string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.Salt))
         {
             return null;
         }
 
-        if (!VerifyPassword(password, user.PasswordHash, user.Salt, user.Iterations))
+        if (!this.VerifyPassword(password, user.PasswordHash, user.Salt, user.Iterations))
         {
-            _logger.Warn("Failed login attempt for username: {0}", username);
+            this.logger.Warn("Failed login attempt for username: {0}", username);
             return null;
         }
 
         user.LastLogin = DateTime.UtcNow;
-        _userRepository.Update(user);
+        this.userRepository.Update(user);
         return user;
     }
 
     public User CreateUser(string username, string password, string email = null, string displayName = null, List<string> roles = null)
     {
-        var existing = _userRepository.FindByUsername(username);
+        var existing = this.userRepository.FindByUsername(username);
         if (existing != null)
         {
             throw new InvalidOperationException($"User with username '{username}' already exists.");
         }
 
-        var passwordHash = HashPassword(password, out var salt);
-        var effectiveRoles = roles ?? (HasAnyUsers() ? new List<string> { "User" } : new List<string> { "Admin" });
+        var passwordHash = this.HashPassword(password, out var salt);
+        var effectiveRoles = roles ?? (this.HasAnyUsers() ? new List<string> { "User" } : new List<string> { "Admin" });
 
         var user = new User
         {
@@ -68,58 +70,58 @@ public class UserService : IUserService
             DisplayName = displayName?.Trim() ?? username.Trim(),
             Roles = JsonSerializer.Serialize(effectiveRoles),
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
         };
 
-        return _userRepository.Insert(user);
+        return this.userRepository.Insert(user);
     }
 
     public User GetById(int id)
     {
-        return _userRepository.Get(id);
+        return this.userRepository.Get(id);
     }
 
     public User GetByIdentifier(Guid identifier)
     {
-        return _userRepository.FindByIdentifier(identifier);
+        return this.userRepository.FindByIdentifier(identifier);
     }
 
     public User GetByUsername(string username)
     {
-        return _userRepository.FindByUsername(username);
+        return this.userRepository.FindByUsername(username);
     }
 
     public List<User> GetAll()
     {
-        return _userRepository.All().ToList();
+        return this.userRepository.All().ToList();
     }
 
     public User Update(User user)
     {
         user.UpdatedAt = DateTime.UtcNow;
-        _userRepository.Update(user);
+        this.userRepository.Update(user);
         return user;
     }
 
     public void UpdatePassword(int userId, string newPassword)
     {
-        var user = _userRepository.Get(userId);
+        var user = this.userRepository.Get(userId);
         if (user == null)
         {
             throw new KeyNotFoundException($"User with ID {userId} not found.");
         }
 
-        user.PasswordHash = HashPassword(newPassword, out var salt);
+        user.PasswordHash = this.HashPassword(newPassword, out var salt);
         user.Salt = salt;
         user.Iterations = DefaultIterations;
         user.UpdatedAt = DateTime.UtcNow;
 
-        _userRepository.Update(user);
+        this.userRepository.Update(user);
     }
 
     public void Delete(int id)
     {
-        _userRepository.Delete(id);
+        this.userRepository.Delete(id);
     }
 
     public string HashPassword(string password, out string salt)
@@ -144,13 +146,13 @@ public class UserService : IUserService
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error validating password hash");
+            this.logger.Error(ex, "Error validating password hash");
             return false;
         }
     }
 
     public bool HasAnyUsers()
     {
-        return _userRepository.GetUserCount() > 0;
+        return this.userRepository.GetUserCount() > 0;
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -22,24 +24,29 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 {
-    private readonly IConfigService _configService;
-    private readonly IStoragePathService _storagePathService;
-    private readonly ICategoryService _categoryService;
-    private readonly IDiskProvider _diskProvider;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly Logger _logger;
+    private readonly IConfigService configService;
+    private readonly IStoragePathService storagePathService;
+    private readonly ICategoryService categoryService;
+    private readonly IDiskProvider diskProvider;
+    private readonly IEventAggregator eventAggregator;
+    private readonly Logger logger;
 
-    private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> _tasks = new();
-    private readonly ConcurrentDictionary<string, int> _infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
+    private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
 
-    private ClientEngine _engine;
-    private bool _disposed;
+    private ClientEngine engine;
+    private bool disposed;
 
     public string ProtocolName => "BitTorrent";
+
     public string EngineId => "MonoTorrent";
+
     public string DisplayName => "MonoTorrent (Pure .NET)";
+
     public string Version => typeof(ClientEngine).Assembly.GetName().Version?.ToString() ?? "3.0.2";
+
     public string Description => "Pure managed C# BitTorrent engine powered by MonoTorrent. Zero native dependencies, runs anywhere.";
+
     public bool IsAvailable => true;
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
@@ -55,7 +62,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         SupportsDynamicRateLimits = true,
         SupportsSparseAllocation = true,
         SupportsMemoryMappedIo = false,
-        SupportsEncryptionToggle = true
+        SupportsEncryptionToggle = true,
     };
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
@@ -69,7 +76,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                 ".NET Runtime: OK",
                 "MonoTorrent Assembly: OK",
                 "Managed Sockets: Ready"
-            }
+            },
         });
     }
 
@@ -80,23 +87,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator)
     {
-        _configService = configService;
-        _storagePathService = storagePathService;
-        _categoryService = categoryService;
-        _diskProvider = diskProvider;
-        _eventAggregator = eventAggregator;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.storagePathService = storagePathService;
+        this.categoryService = categoryService;
+        this.diskProvider = diskProvider;
+        this.eventAggregator = eventAggregator;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task StartAsync()
     {
-        if (_engine != null)
+        if (this.engine != null)
         {
             return;
         }
 
-        var port = _configService.ListeningPort > 0 ? _configService.ListeningPort : 51413;
-        _logger.Info("Initializing MonoTorrent download engine on port {0}...", port);
+        var port = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        this.logger.Info("Initializing MonoTorrent download engine on port {0}...", port);
 
         var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
         try
@@ -107,41 +114,41 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         {
         }
 
-        var allowedEncryption = _configService.EncryptionMode?.ToLowerInvariant() switch
+        var allowedEncryption = this.configService.EncryptionMode?.ToLowerInvariant() switch
         {
             "forceencrypted" => new List<MonoTorrent.Connections.EncryptionType>
             {
                 MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header
+                MonoTorrent.Connections.EncryptionType.RC4Header,
             },
             "preferencrypted" => new List<MonoTorrent.Connections.EncryptionType>
             {
                 MonoTorrent.Connections.EncryptionType.RC4Full,
                 MonoTorrent.Connections.EncryptionType.RC4Header,
-                MonoTorrent.Connections.EncryptionType.PlainText
+                MonoTorrent.Connections.EncryptionType.PlainText,
             },
             "allowplaintext" => new List<MonoTorrent.Connections.EncryptionType>
             {
                 MonoTorrent.Connections.EncryptionType.PlainText,
                 MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header
+                MonoTorrent.Connections.EncryptionType.RC4Header,
             },
             "disabled" => new List<MonoTorrent.Connections.EncryptionType>
             {
-                MonoTorrent.Connections.EncryptionType.PlainText
+                MonoTorrent.Connections.EncryptionType.PlainText,
             },
             _ => new List<MonoTorrent.Connections.EncryptionType>
             {
                 MonoTorrent.Connections.EncryptionType.RC4Full,
                 MonoTorrent.Connections.EncryptionType.RC4Header,
                 MonoTorrent.Connections.EncryptionType.PlainText
-            }
+            },
         };
 
         var listenIp = IPAddress.Any;
-        var iface = !string.IsNullOrWhiteSpace(_configService.NetworkInterfaceBinding)
-            ? _configService.NetworkInterfaceBinding
-            : _configService.BindInterface;
+        var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
         if (!string.IsNullOrWhiteSpace(iface) && !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) && !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase))
         {
             try
@@ -156,51 +163,51 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                     if (unicast != null)
                     {
                         listenIp = unicast.Address;
-                        _logger.Info("Bound MonoTorrent listening socket to interface '{0}' ({1})", nic.Name, listenIp);
+                        this.logger.Info("Bound MonoTorrent listening socket to interface '{0}' ({1})", nic.Name, listenIp);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to resolve IP for bound interface '{0}'. Defaulting to IPAddress.Any", iface);
+                this.logger.Warn(ex, "Failed to resolve IP for bound interface '{0}'. Defaulting to IPAddress.Any", iface);
             }
         }
 
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
-            AllowPortForwarding = _configService.UpnpEnabled,
-            AllowLocalPeerDiscovery = _configService.EnableLpd,
+            AllowPortForwarding = this.configService.UpnpEnabled,
+            AllowLocalPeerDiscovery = this.configService.EnableLpd,
             AllowedEncryption = allowedEncryption,
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = true,
-            DhtEndPoint = _configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
+            DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
-            DiskCacheBytes = _configService.DiskCacheBytes > 0 ? _configService.DiskCacheBytes : Math.Max(128, _configService.DiskWriteCacheSizeMb) * 1024 * 1024,
-            MaximumConnections = _configService.MaxGlobalConnections > 0 ? _configService.MaxGlobalConnections : 300,
-            MaximumDownloadRate = _configService.MaxDownloadSpeedKbps > 0 ? _configService.MaxDownloadSpeedKbps * 1024 : 0,
-            MaximumUploadRate = _configService.MaxUploadSpeedKbps > 0 ? _configService.MaxUploadSpeedKbps * 1024 : 0,
+            DiskCacheBytes = this.configService.DiskCacheBytes > 0 ? this.configService.DiskCacheBytes : Math.Max(128, this.configService.DiskWriteCacheSizeMb) * 1024 * 1024,
+            MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
+            MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0 ? this.configService.MaxDownloadSpeedKbps * 1024 : 0,
+            MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps * 1024 : 0,
             ListenEndPoints = new Dictionary<string, IPEndPoint>
             {
                 { "ipv4", new IPEndPoint(listenIp, port) }
-            }
+            },
         };
 
         var engineSettings = engineSettingsBuilder.ToSettings();
-        _engine = new ClientEngine(engineSettings);
+        this.engine = new ClientEngine(engineSettings);
 
-        _logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
+        this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
     }
 
     public async Task StopAsync()
     {
-        if (_engine == null)
+        if (this.engine == null)
         {
             return;
         }
 
-        _logger.Info("Stopping MonoTorrent download engine...");
+        this.logger.Info("Stopping MonoTorrent download engine...");
 
-        foreach (var task in _tasks.Values)
+        foreach (var task in this.tasks.Values)
         {
             try
             {
@@ -211,27 +218,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
+                this.logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
             }
         }
 
-        await _engine.StopAllAsync();
-        _engine.Dispose();
-        _engine = null;
-        _logger.Info("MonoTorrent download engine stopped.");
+        await this.engine.StopAllAsync();
+        this.engine.Dispose();
+        this.engine = null;
+        this.logger.Info("MonoTorrent download engine stopped.");
     }
 
     public async Task<IDownloadTask> AddTorrentAsync(CoreTorrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
     {
-        if (_engine == null)
+        if (this.engine == null)
         {
-            await StartAsync();
+            await this.StartAsync();
         }
 
         var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding || (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath));
         var workingPath = isCompleteOrSeeding && !string.IsNullOrWhiteSpace(torrent.SavePath)
             ? torrent.SavePath
-            : _storagePathService.GetIncompleteDirectory();
+            : this.storagePathService.GetIncompleteDirectory();
 
         try
         {
@@ -243,10 +250,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
         var torrentSettingsBuilder = new TorrentSettingsBuilder
         {
-            MaximumConnections = _configService.MaxPerTorrentConnections > 0 ? _configService.MaxPerTorrentConnections : 50,
-            UploadSlots = _configService.MaxUploadSlots > 0 ? _configService.MaxUploadSlots : 4,
+            MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
+            UploadSlots = this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4,
             MaximumDownloadRate = torrent.DownloadLimit > 0 ? torrent.DownloadLimit * 1024 : 0,
-            MaximumUploadRate = torrent.UploadLimit > 0 ? torrent.UploadLimit * 1024 : 0
+            MaximumUploadRate = torrent.UploadLimit > 0 ? torrent.UploadLimit * 1024 : 0,
         };
 
         if (torrent.IsPrivate)
@@ -263,12 +270,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             if (torrentFileBytes != null && torrentFileBytes.Length > 0)
             {
                 var parsedTorrent = MtTorrent.Load(torrentFileBytes);
-                manager = await _engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
+                manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(magnetUri))
             {
                 var magnetLink = MagnetLink.Parse(magnetUri);
-                manager = await _engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
+                manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
             {
@@ -276,7 +283,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                     ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
                     : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
                 var magnetLink = MagnetLink.Parse(magnetString);
-                manager = await _engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
+                manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
             }
         }
         else
@@ -284,12 +291,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             if (torrentFileBytes != null && torrentFileBytes.Length > 0)
             {
                 var parsedTorrent = MtTorrent.Load(torrentFileBytes);
-                manager = await _engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
+                manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(magnetUri))
             {
                 var magnetLink = MagnetLink.Parse(magnetUri);
-                manager = await _engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
             {
@@ -297,7 +304,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                     ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
                     : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
                 var magnetLink = MagnetLink.Parse(magnetString);
-                manager = await _engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
             }
         }
 
@@ -307,25 +314,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         }
 
         var downloadTask = new MonoTorrentDownloadTask(torrent.Id, torrent.InfoHash, manager, torrent.Category);
-        _tasks[torrent.Id] = downloadTask;
-        _infoHashToId[torrent.InfoHash] = torrent.Id;
+        this.tasks[torrent.Id] = downloadTask;
+        this.infoHashToId[torrent.InfoHash] = torrent.Id;
 
-        manager.TorrentStateChanged += OnTorrentStateChanged;
-        manager.PieceHashed += OnPieceHashed;
+        manager.TorrentStateChanged += this.OnTorrentStateChanged;
+        manager.PieceHashed += this.OnPieceHashed;
 
         if (torrent.Status == TorrentStatus.Paused)
         {
             await manager.PauseAsync();
-            _logger.Info("Added paused torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            this.logger.Info("Added paused torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
         }
         else if (torrent.Status == TorrentStatus.Stopped)
         {
-            _logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
         }
         else
         {
             await manager.StartAsync();
-            _logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
         }
 
         return downloadTask;
@@ -333,17 +340,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
-        if (_tasks.TryRemove(torrentId, out var task))
+        if (this.tasks.TryRemove(torrentId, out var task))
         {
-            _infoHashToId.TryRemove(task.InfoHash, out _);
+            this.infoHashToId.TryRemove(task.InfoHash, out _);
 
             if (task.Manager != null)
             {
-                task.Manager.TorrentStateChanged -= OnTorrentStateChanged;
-                task.Manager.PieceHashed -= OnPieceHashed;
+                task.Manager.TorrentStateChanged -= this.OnTorrentStateChanged;
+                task.Manager.PieceHashed -= this.OnPieceHashed;
 
                 await task.Manager.StopAsync();
-                await _engine.RemoveAsync(task.Manager);
+                await this.engine.RemoveAsync(task.Manager);
 
                 if (deleteFiles)
                 {
@@ -356,14 +363,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                                 try
                                 {
                                     var filePath = file.FullPath;
-                                    if (_diskProvider.FileExists(filePath))
+                                    if (this.diskProvider.FileExists(filePath))
                                     {
-                                        _diskProvider.DeleteFile(filePath);
+                                        this.diskProvider.DeleteFile(filePath);
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger.Warn(ex, "Failed to delete file {0} for torrent id {1}", file.Path, torrentId);
+                                    this.logger.Warn(ex, "Failed to delete file {0} for torrent id {1}", file.Path, torrentId);
                                 }
                             }
                         }
@@ -371,32 +378,34 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                         if (task.Manager.Torrent?.Files?.Count > 1)
                         {
                             var containingDir = task.Manager.ContainingDirectory;
-                            if (!string.IsNullOrWhiteSpace(containingDir) && _diskProvider.FolderExists(containingDir))
+                            if (!string.IsNullOrWhiteSpace(containingDir) && this.diskProvider.FolderExists(containingDir))
                             {
                                 var dirName = Path.GetFileName(containingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                                var incompleteDir = _storagePathService.GetIncompleteDirectory();
-                                var downloadDir = _configService.DownloadDir ?? "/downloads";
+                                var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+                                var downloadDir = this.configService.DownloadDir ?? "/downloads";
 
                                 var isMatchingName = string.Equals(dirName, task.Manager.Torrent.Name, StringComparison.OrdinalIgnoreCase);
                                 var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
-                                    string.Equals(Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    string.Equals(
+                                        Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                                   Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                                   StringComparison.OrdinalIgnoreCase);
                                 var isRootDownload = !string.IsNullOrWhiteSpace(downloadDir) &&
-                                    string.Equals(Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    string.Equals(
+                                        Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                                   Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                                   StringComparison.OrdinalIgnoreCase);
 
                                 if (isMatchingName && !isRootIncomplete && !isRootDownload)
                                 {
-                                    _diskProvider.DeleteFolder(containingDir, true);
+                                    this.diskProvider.DeleteFolder(containingDir, true);
                                 }
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to delete files for torrent id {0}", torrentId);
+                        this.logger.Error(ex, "Failed to delete files for torrent id {0}", torrentId);
                     }
                 }
             }
@@ -405,34 +414,34 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task PauseTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             await task.Manager.PauseAsync();
-            _logger.Info("Paused torrent id {0}", torrentId);
+            this.logger.Info("Paused torrent id {0}", torrentId);
         }
     }
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             await task.Manager.StartAsync();
-            _logger.Info("Resumed torrent id {0}", torrentId);
+            this.logger.Info("Resumed torrent id {0}", torrentId);
         }
     }
 
     public async Task ForceRecheckAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             await task.Manager.HashCheckAsync(true);
-            _logger.Info("Triggered hash recheck for torrent id {0}", torrentId);
+            this.logger.Info("Triggered hash recheck for torrent id {0}", torrentId);
         }
     }
 
     public async Task ForceAnnounceAsync(int torrentId)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             if (task.Manager.TrackerManager != null)
             {
@@ -443,7 +452,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)
         {
             var targetFile = task.Manager.Files.FirstOrDefault(f => string.Equals(f.Path, filePath, StringComparison.OrdinalIgnoreCase));
             if (targetFile != null)
@@ -456,51 +465,51 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                     3 => MonoTorrent.Priority.Normal,
                     4 => MonoTorrent.Priority.High,
                     5 => MonoTorrent.Priority.Highest,
-                    _ => MonoTorrent.Priority.Normal
+                    _ => MonoTorrent.Priority.Normal,
                 };
                 await task.Manager.SetFilePriorityAsync(targetFile, monoPriority);
-                _logger.Info("Updated file priority for {0} (file: {1}, priority: {2})", task.InfoHash, filePath, monoPriority);
+                this.logger.Info("Updated file priority for {0} (file: {1}, priority: {2})", task.InfoHash, filePath, monoPriority);
             }
         }
     }
 
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
     {
-        if (_engine != null)
+        if (this.engine != null)
         {
-            var settingsBuilder = new EngineSettingsBuilder(_engine.Settings)
+            var settingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
             {
                 MaximumDownloadRate = maxDownloadKbps > 0 ? maxDownloadKbps * 1024 : 0,
-                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0
+                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0,
             };
-            await _engine.UpdateSettingsAsync(settingsBuilder.ToSettings());
-            _logger.Info("Updated MonoTorrent rate limits: Download = {0} KB/s, Upload = {1} KB/s", maxDownloadKbps, maxUploadKbps);
+            await this.engine.UpdateSettingsAsync(settingsBuilder.ToSettings());
+            this.logger.Info("Updated MonoTorrent rate limits: Download = {0} KB/s, Upload = {1} KB/s", maxDownloadKbps, maxUploadKbps);
         }
     }
 
     public async Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
     {
-        if (_tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings)
             {
                 MaximumDownloadRate = maxDownloadKbps > 0 ? maxDownloadKbps * 1024 : 0,
-                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0
+                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0,
             };
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
-            _logger.Info("Updated MonoTorrent per-torrent rate limits for {0}: Download = {1} KB/s, Upload = {2} KB/s", task.InfoHash, maxDownloadKbps, maxUploadKbps);
+            this.logger.Info("Updated MonoTorrent per-torrent rate limits for {0}: Download = {1} KB/s, Upload = {2} KB/s", task.InfoHash, maxDownloadKbps, maxUploadKbps);
         }
     }
 
     public IDownloadTask GetTask(int torrentId)
     {
-        _tasks.TryGetValue(torrentId, out var task);
+        this.tasks.TryGetValue(torrentId, out var task);
         return task;
     }
 
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
-        return _tasks.Values;
+        return this.tasks.Values;
     }
 
     private async void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
@@ -510,17 +519,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             var manager = e.TorrentManager;
             var infoHash = manager.InfoHashes.V1OrV2.ToHex();
 
-            if (_infoHashToId.TryGetValue(infoHash, out var torrentId))
+            if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
-                _logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
+                this.logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
 
                 if (e.NewState == TorrentState.Seeding)
                 {
-                    _tasks.TryGetValue(torrentId, out var existingTask);
+                    this.tasks.TryGetValue(torrentId, out var existingTask);
                     var category = existingTask?.Category;
                     var completedDir = !string.IsNullOrWhiteSpace(category)
-                        ? _categoryService.GetSavePathForCategory(category)
-                        : (_configService.DownloadDir ?? "/downloads");
+                        ? this.categoryService.GetSavePathForCategory(category)
+                        : (this.configService.DownloadDir ?? "/downloads");
 
                     try
                     {
@@ -528,30 +537,30 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                         {
                             Directory.CreateDirectory(completedDir);
                             await manager.MoveFilesAsync(completedDir, true);
-                            _logger.Info("Moved completed torrent files for {0} to {1}", infoHash, completedDir);
+                            this.logger.Info("Moved completed torrent files for {0} to {1}", infoHash, completedDir);
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, "Failed to move completed torrent files for {0} to {1}", infoHash, completedDir);
+                        this.logger.Warn(ex, "Failed to move completed torrent files for {0} to {1}", infoHash, completedDir);
                     }
 
                     var savePath = manager.SavePath ?? completedDir;
-                    _eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
+                    this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
                     {
                         Id = torrentId,
                         InfoHash = infoHash,
                         Name = manager.Torrent?.Name ?? infoHash,
                         Status = TorrentStatus.Seeding,
                         Category = category,
-                        SavePath = savePath
+                        SavePath = savePath,
                     }));
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error handling torrent state change");
+            this.logger.Error(ex, "Error handling torrent state change");
         }
     }
 
@@ -562,55 +571,58 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
 
         if (e.HashPassed)
         {
-            _logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
-            if (_infoHashToId.TryGetValue(infoHash, out var torrentId))
+            this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
+            if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
-                _eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
+                this.eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
             }
         }
         else
         {
-            _logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+            this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
         }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (this.disposed)
         {
             return;
         }
 
-        _disposed = true;
-        StopAsync().GetAwaiter().GetResult();
+        this.disposed = true;
+        this.StopAsync().GetAwaiter().GetResult();
     }
 }
 
 public class MonoTorrentDownloadTask : IDownloadTask
 {
     public int TorrentId { get; }
+
     public string InfoHash { get; }
+
     public string Category { get; set; }
+
     public TorrentManager Manager { get; }
 
     public MonoTorrentDownloadTask(int torrentId, string infoHash, TorrentManager manager, string category = null)
     {
-        TorrentId = torrentId;
-        InfoHash = infoHash;
-        Manager = manager;
-        Category = category;
+        this.TorrentId = torrentId;
+        this.InfoHash = infoHash;
+        this.Manager = manager;
+        this.Category = category;
     }
 
     public TorrentStatus Status
     {
         get
         {
-            if (Manager == null)
+            if (this.Manager == null)
             {
                 return TorrentStatus.Stopped;
             }
 
-            return Manager.State switch
+            return this.Manager.State switch
             {
                 TorrentState.Downloading => TorrentStatus.Downloading,
                 TorrentState.Seeding => TorrentStatus.Seeding,
@@ -621,57 +633,63 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 TorrentState.Starting => TorrentStatus.Queued,
                 TorrentState.Stopping => TorrentStatus.Paused,
                 TorrentState.Error => TorrentStatus.Error,
-                _ => TorrentStatus.Stopped
+                _ => TorrentStatus.Stopped,
             };
         }
     }
 
-    public long DownloadedBytes => Manager?.Monitor?.DataBytesReceived ?? 0;
-    public long UploadedBytes => Manager?.Monitor?.DataBytesSent ?? 0;
-    public double Progress => Manager != null ? Manager.Progress / 100.0 : 0.0;
-    public long DownloadSpeed => Manager?.Monitor?.DownloadRate ?? 0;
-    public long UploadSpeed => Manager?.Monitor?.UploadRate ?? 0;
-    public int ConnectedSeeders => Manager?.Peers?.Seeds ?? 0;
-    public int ConnectedLeechers => Manager?.Peers?.Leechs ?? 0;
+    public long DownloadedBytes => this.Manager?.Monitor?.DataBytesReceived ?? 0;
+
+    public long UploadedBytes => this.Manager?.Monitor?.DataBytesSent ?? 0;
+
+    public double Progress => this.Manager != null ? this.Manager.Progress / 100.0 : 0.0;
+
+    public long DownloadSpeed => this.Manager?.Monitor?.DownloadRate ?? 0;
+
+    public long UploadSpeed => this.Manager?.Monitor?.UploadRate ?? 0;
+
+    public int ConnectedSeeders => this.Manager?.Peers?.Seeds ?? 0;
+
+    public int ConnectedLeechers => this.Manager?.Peers?.Leechs ?? 0;
 
     public bool[] PieceBitfield
     {
         get
         {
-            if (Manager?.Bitfield == null)
+            if (this.Manager?.Bitfield == null)
             {
                 return Array.Empty<bool>();
             }
 
-            var bitfield = new bool[Manager.Bitfield.Length];
+            var bitfield = new bool[this.Manager.Bitfield.Length];
             for (var i = 0; i < bitfield.Length; i++)
             {
-                bitfield[i] = Manager.Bitfield[i];
+                bitfield[i] = this.Manager.Bitfield[i];
             }
 
             return bitfield;
         }
     }
 
-    private readonly object _peerLock = new();
-    private IList<PeerId> _cachedMonoPeers;
-    private DateTime _lastPeersUpdate = DateTime.MinValue;
-    private bool _isUpdatingPeers;
+    private readonly object peerLock = new();
+    private IList<PeerId> cachedMonoPeers;
+    private DateTime lastPeersUpdate = DateTime.MinValue;
+    private bool isUpdatingPeers;
 
     private IList<PeerId> GetCachedPeers()
     {
-        if (Manager == null)
+        if (this.Manager == null)
         {
             return Array.Empty<PeerId>();
         }
 
         var shouldUpdate = false;
-        lock (_peerLock)
+        lock (this.peerLock)
         {
-            if (!_isUpdatingPeers && (DateTime.UtcNow - _lastPeersUpdate > TimeSpan.FromSeconds(2) || _cachedMonoPeers == null))
+            if (!this.isUpdatingPeers && (DateTime.UtcNow - this.lastPeersUpdate > TimeSpan.FromSeconds(2) || this.cachedMonoPeers == null))
             {
-                _isUpdatingPeers = true;
-                _lastPeersUpdate = DateTime.UtcNow;
+                this.isUpdatingPeers = true;
+                this.lastPeersUpdate = DateTime.UtcNow;
                 shouldUpdate = true;
             }
         }
@@ -682,10 +700,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
             {
                 try
                 {
-                    var peers = await Manager.GetPeersAsync().ConfigureAwait(false);
-                    lock (_peerLock)
+                    var peers = await this.Manager.GetPeersAsync().ConfigureAwait(false);
+                    lock (this.peerLock)
                     {
-                        _cachedMonoPeers = peers;
+                        this.cachedMonoPeers = peers;
                     }
                 }
                 catch
@@ -693,17 +711,17 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 }
                 finally
                 {
-                    lock (_peerLock)
+                    lock (this.peerLock)
                     {
-                        _isUpdatingPeers = false;
+                        this.isUpdatingPeers = false;
                     }
                 }
             });
         }
 
-        lock (_peerLock)
+        lock (this.peerLock)
         {
-            return _cachedMonoPeers ?? Array.Empty<PeerId>();
+            return this.cachedMonoPeers ?? Array.Empty<PeerId>();
         }
     }
 
@@ -711,12 +729,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         get
         {
-            if (Manager == null)
+            if (this.Manager == null)
             {
                 return Array.Empty<int>();
             }
 
-            var pieceCount = Manager.Bitfield?.Length ?? 0;
+            var pieceCount = this.Manager.Bitfield?.Length ?? 0;
             if (pieceCount <= 0)
             {
                 return Array.Empty<int>();
@@ -725,7 +743,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             var availability = new int[pieceCount];
             try
             {
-                var peers = GetCachedPeers();
+                var peers = this.GetCachedPeers();
                 foreach (var p in peers)
                 {
                     if (p.BitField != null)
@@ -750,14 +768,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public IReadOnlyList<PeerInfo> GetPeers()
     {
-        if (Manager == null)
+        if (this.Manager == null)
         {
             return Array.Empty<PeerInfo>();
         }
 
         try
         {
-            var peers = GetCachedPeers();
+            var peers = this.GetCachedPeers();
             var list = new List<PeerInfo>();
             foreach (var p in peers)
             {
@@ -799,7 +817,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     UploadSpeed = p.Monitor?.UploadRate ?? 0,
                     Downloaded = p.Monitor?.DataBytesReceived ?? 0,
                     Uploaded = p.Monitor?.DataBytesSent ?? 0,
-                    IsEncrypted = isEncrypted
+                    IsEncrypted = isEncrypted,
                 });
             }
 
@@ -815,11 +833,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
 public class PieceVerifiedEvent : IEvent
 {
     public int TorrentId { get; }
+
     public int PieceIndex { get; }
 
     public PieceVerifiedEvent(int torrentId, int pieceIndex)
     {
-        TorrentId = torrentId;
-        PieceIndex = pieceIndex;
+        this.TorrentId = torrentId;
+        this.PieceIndex = pieceIndex;
     }
 }

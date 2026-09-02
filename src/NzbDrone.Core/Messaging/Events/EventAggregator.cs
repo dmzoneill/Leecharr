@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
@@ -6,13 +8,13 @@ namespace NzbDrone.Core.Messaging.Events;
 
 public class EventAggregator : IEventAggregator
 {
-    private readonly Logger _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly Logger logger;
+    private readonly IServiceProvider serviceProvider;
 
     public EventAggregator(IServiceProvider serviceProvider)
     {
-        _logger = LogManager.GetCurrentClassLogger();
-        _serviceProvider = serviceProvider;
+        this.logger = LogManager.GetCurrentClassLogger();
+        this.serviceProvider = serviceProvider;
     }
 
     public void PublishEvent<TEvent>(TEvent @event)
@@ -23,10 +25,10 @@ public class EventAggregator : IEventAggregator
             return;
         }
 
-        _logger.Trace("Publishing {0}", @event.GetType().Name);
+        this.logger.Trace("Publishing {0}", @event.GetType().Name);
 
         var handlerType = typeof(IHandle<>).MakeGenericType(@event.GetType());
-        var handlers = _serviceProvider.GetServices(handlerType);
+        var handlers = this.serviceProvider.GetServices(handlerType);
 
         foreach (var handler in handlers)
         {
@@ -36,7 +38,7 @@ public class EventAggregator : IEventAggregator
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error handling {0}", @event.GetType().Name);
+                this.logger.Error(ex, "Error handling {0}", @event.GetType().Name);
             }
         }
     }

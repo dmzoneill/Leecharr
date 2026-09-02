@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -99,18 +101,21 @@ public class DiskProvider : IDiskProvider
     }
 
     public DateTime FolderGetCreationTime(string path) => Directory.GetCreationTime(path);
+
     public DateTime FolderGetLastWrite(string path) => Directory.GetLastWriteTime(path);
+
     public DateTime FileGetLastWrite(string path) => File.GetLastWriteTime(path);
 
     public void EnsureFolder(string path)
     {
-        if (!FolderExists(path))
+        if (!this.FolderExists(path))
         {
-            CreateFolder(path);
+            this.CreateFolder(path);
         }
     }
 
     public bool FolderExists(string path) => Directory.Exists(path);
+
     public bool FileExists(string path) => File.Exists(path);
 
     public bool FolderWritable(string path)
@@ -130,7 +135,7 @@ public class DiskProvider : IDiskProvider
 
     public bool FolderEmpty(string path)
     {
-        if (!FolderExists(path))
+        if (!this.FolderExists(path))
         {
             return true;
         }
@@ -147,7 +152,7 @@ public class DiskProvider : IDiskProvider
 
     public long GetFolderSize(string path)
     {
-        if (!FolderExists(path))
+        if (!this.FolderExists(path))
         {
             return 0;
         }
@@ -170,7 +175,7 @@ public class DiskProvider : IDiskProvider
 
     public long GetFileSize(string path)
     {
-        if (!FileExists(path))
+        if (!this.FileExists(path))
         {
             return 0;
         }
@@ -182,7 +187,7 @@ public class DiskProvider : IDiskProvider
 
     public void DeleteFile(string path)
     {
-        if (FileExists(path))
+        if (this.FileExists(path))
         {
             File.Delete(path);
         }
@@ -191,9 +196,9 @@ public class DiskProvider : IDiskProvider
     public void CopyFile(string source, string destination, bool overwrite = false)
     {
         var destDir = Path.GetDirectoryName(destination);
-        if (!string.IsNullOrEmpty(destDir) && !FolderExists(destDir))
+        if (!string.IsNullOrEmpty(destDir) && !this.FolderExists(destDir))
         {
-            CreateFolder(destDir);
+            this.CreateFolder(destDir);
         }
 
         File.Copy(source, destination, overwrite);
@@ -202,9 +207,9 @@ public class DiskProvider : IDiskProvider
     public void MoveFile(string source, string destination, bool overwrite = false)
     {
         var destDir = Path.GetDirectoryName(destination);
-        if (!string.IsNullOrEmpty(destDir) && !FolderExists(destDir))
+        if (!string.IsNullOrEmpty(destDir) && !this.FolderExists(destDir))
         {
-            CreateFolder(destDir);
+            this.CreateFolder(destDir);
         }
 
         File.Move(source, destination, overwrite);
@@ -213,9 +218,9 @@ public class DiskProvider : IDiskProvider
     public void MoveFolder(string source, string destination)
     {
         var destParent = Path.GetDirectoryName(destination);
-        if (!string.IsNullOrEmpty(destParent) && !FolderExists(destParent))
+        if (!string.IsNullOrEmpty(destParent) && !this.FolderExists(destParent))
         {
-            CreateFolder(destParent);
+            this.CreateFolder(destParent);
         }
 
         Directory.Move(source, destination);
@@ -223,7 +228,7 @@ public class DiskProvider : IDiskProvider
 
     public void DeleteFolder(string path, bool recursive)
     {
-        if (FolderExists(path))
+        if (this.FolderExists(path))
         {
             Directory.Delete(path, recursive);
         }
@@ -234,9 +239,9 @@ public class DiskProvider : IDiskProvider
     public void WriteAllText(string filename, string contents)
     {
         var destDir = Path.GetDirectoryName(filename);
-        if (!string.IsNullOrEmpty(destDir) && !FolderExists(destDir))
+        if (!string.IsNullOrEmpty(destDir) && !this.FolderExists(destDir))
         {
-            CreateFolder(destDir);
+            this.CreateFolder(destDir);
         }
 
         File.WriteAllText(filename, contents);
@@ -247,9 +252,9 @@ public class DiskProvider : IDiskProvider
     public FileStream OpenWriteStream(string path)
     {
         var destDir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(destDir) && !FolderExists(destDir))
+        if (!string.IsNullOrEmpty(destDir) && !this.FolderExists(destDir))
         {
-            CreateFolder(destDir);
+            this.CreateFolder(destDir);
         }
 
         return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);

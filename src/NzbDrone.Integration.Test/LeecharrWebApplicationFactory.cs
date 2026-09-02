@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Net;
@@ -12,9 +14,9 @@ namespace NzbDrone.Integration.Test;
 
 public sealed class LeecharrWebApplicationFactory : IDisposable
 {
-    private readonly WebApplication _app;
-    private readonly string _tempDir;
-    private bool _disposed;
+    private readonly WebApplication app;
+    private readonly string tempDir;
+    private bool disposed;
 
     public string BaseUrl { get; }
 
@@ -22,37 +24,37 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
     public HttpClient Client { get; }
 
-    public IServiceProvider Services => _app.Services;
+    public IServiceProvider Services => this.app.Services;
 
     public LeecharrWebApplicationFactory()
     {
-        _tempDir = Path.Combine(
+        this.tempDir = Path.Combine(
             Path.GetTempPath(),
             "leecharr-test-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
+        Directory.CreateDirectory(this.tempDir);
 
         var port = FindFreePort();
-        BaseUrl = $"http://127.0.0.1:{port}";
+        this.BaseUrl = $"http://127.0.0.1:{port}";
 
-        var startupContext = new StartupContext("--data=" + _tempDir);
-        _app = Bootstrap.CreateApplication(startupContext, new[] { BaseUrl });
-        _app.StartAsync().GetAwaiter().GetResult();
+        var startupContext = new StartupContext("--data=" + this.tempDir);
+        this.app = Bootstrap.CreateApplication(startupContext, new[] { this.BaseUrl });
+        this.app.StartAsync().GetAwaiter().GetResult();
 
-        LoadApiKey();
-        Client = new HttpClient { BaseAddress = new Uri(BaseUrl) };
-        if (!string.IsNullOrEmpty(ApiKey))
+        this.LoadApiKey();
+        this.Client = new HttpClient { BaseAddress = new Uri(this.BaseUrl) };
+        if (!string.IsNullOrEmpty(this.ApiKey))
         {
-            Client.DefaultRequestHeaders.Add("X-Api-Key", ApiKey);
+            this.Client.DefaultRequestHeaders.Add("X-Api-Key", this.ApiKey);
         }
 
-        WaitForHealthy();
+        this.WaitForHealthy();
     }
 
     private void LoadApiKey()
     {
         try
         {
-            var configFile = Path.Combine(_tempDir, "config.xml");
+            var configFile = Path.Combine(this.tempDir, "config.xml");
             if (!File.Exists(configFile))
             {
                 return;
@@ -60,7 +62,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
             using var stream = File.OpenRead(configFile);
             var doc = System.Xml.Linq.XDocument.Load(stream);
-            ApiKey = doc.Root?.Element("ApiKey")?.Value ?? string.Empty;
+            this.ApiKey = doc.Root?.Element("ApiKey")?.Value ?? string.Empty;
         }
         catch
         {
@@ -75,7 +77,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         {
             try
             {
-                var response = Client.GetAsync("/api/v1/system/status").GetAwaiter().GetResult();
+                var response = this.Client.GetAsync("/api/v1/system/status").GetAwaiter().GetResult();
                 if (response.IsSuccessStatusCode)
                 {
                     healthy = true;
@@ -92,7 +94,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
         if (!healthy)
         {
-            throw new InvalidOperationException($"Test server failed to start at {BaseUrl}");
+            throw new InvalidOperationException($"Test server failed to start at {this.BaseUrl}");
         }
     }
 
@@ -105,18 +107,18 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (this.disposed)
         {
             return;
         }
 
-        _disposed = true;
-        Client.Dispose();
+        this.disposed = true;
+        this.Client.Dispose();
 
         try
         {
-            _app.StopAsync().GetAwaiter().GetResult();
-            _app.DisposeAsync().GetAwaiter().GetResult();
+            this.app.StopAsync().GetAwaiter().GetResult();
+            this.app.DisposeAsync().GetAwaiter().GetResult();
         }
         catch
         {
@@ -125,9 +127,9 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
 
         try
         {
-            if (Directory.Exists(_tempDir))
+            if (Directory.Exists(this.tempDir))
             {
-                Directory.Delete(_tempDir, true);
+                Directory.Delete(this.tempDir, true);
             }
         }
         catch

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -13,18 +15,20 @@ namespace NzbDrone.Core.Extraction;
 public class ArchiveExtractionCompletedEvent : IEvent
 {
     public Torrent Torrent { get; set; }
+
     public string ArchivePath { get; set; }
+
     public string DestinationDirectory { get; set; }
 }
 
 public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEvent>
 {
-    private readonly IArchiveExtractorService _extractorService;
-    private readonly ITorrentFileService _torrentFileService;
-    private readonly IDiskProvider _diskProvider;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IArchiveExtractorService extractorService;
+    private readonly ITorrentFileService torrentFileService;
+    private readonly IDiskProvider diskProvider;
+    private readonly IEventAggregator eventAggregator;
+    private readonly IConfigService configService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public ArchiveExtractorEventHandler(
         IArchiveExtractorService extractorService,
@@ -33,11 +37,11 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         IEventAggregator eventAggregator,
         IConfigService configService = null)
     {
-        _extractorService = extractorService;
-        _torrentFileService = torrentFileService;
-        _diskProvider = diskProvider;
-        _eventAggregator = eventAggregator;
-        _configService = configService;
+        this.extractorService = extractorService;
+        this.torrentFileService = torrentFileService;
+        this.diskProvider = diskProvider;
+        this.eventAggregator = eventAggregator;
+        this.configService = configService;
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
@@ -47,9 +51,9 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             return;
         }
 
-        if (_configService != null && !_configService.AutoExtractArchives && !_configService.GetValueBoolean("AutoExtract", false) && !_configService.GetValueBoolean("AutoExtractEnabled", false))
+        if (this.configService != null && !this.configService.AutoExtractArchives && !this.configService.GetValueBoolean("AutoExtract", false) && !this.configService.GetValueBoolean("AutoExtractEnabled", false))
         {
-            _logger.Debug("Archive auto-extraction is disabled in configuration. Skipping extraction for torrent {0}", message.Torrent.Name);
+            this.logger.Debug("Archive auto-extraction is disabled in configuration. Skipping extraction for torrent {0}", message.Torrent.Name);
             return;
         }
 
@@ -57,7 +61,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         {
             try
             {
-                var files = _torrentFileService.GetFiles(message.Torrent.Id);
+                var files = this.torrentFileService.GetFiles(message.Torrent.Id);
                 var savePath = message.Torrent.SavePath;
                 if (string.IsNullOrEmpty(savePath))
                 {
@@ -66,21 +70,21 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
 
                 foreach (var file in files)
                 {
-                    if (_extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
+                    if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
                     {
                         var fullPath = Path.Combine(savePath, file.Path);
-                        if (_diskProvider.FileExists(fullPath))
+                        if (this.diskProvider.FileExists(fullPath))
                         {
-                            _logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                            this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
                             var destDir = Path.GetDirectoryName(fullPath);
-                            var success = await _extractorService.ExtractArchiveAsync(fullPath, destDir);
+                            var success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir);
                             if (success)
                             {
-                                _eventAggregator.PublishEvent(new ArchiveExtractionCompletedEvent
+                                this.eventAggregator.PublishEvent(new ArchiveExtractionCompletedEvent
                                 {
                                     Torrent = message.Torrent,
                                     ArchivePath = fullPath,
-                                    DestinationDirectory = destDir
+                                    DestinationDirectory = destDir,
                                 });
                             }
                         }
@@ -89,7 +93,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
+                this.logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
             }
         });
     }

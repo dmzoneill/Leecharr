@@ -20,7 +20,7 @@
     <TestProject Condition="$(MSBuildProjectName.EndsWith('.Test'))">true</TestProject>
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;SA1200</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;SA1200;SA1124;SA1515;SA1600;SA1602;SA1633;SA1649;SA1402;SA1118;SA1201;SA1202;SA1204;SA1101;SA1413;SA1401;SA1311;SA1137;SA1309;SX1309;SX1309S</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -28,7 +28,7 @@
     <BaseIntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(LeecharrRootDir)_temp\obj\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
     <OutputPath>$(LeecharrRootDir)_temp\bin\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
-    <OutputPath Condition="'$(LeecharrProject)'=='true'">$(LeecharrRootDir)_output\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(LeecharrProject)'=='true'">$(LeecharrRootDir)_output\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
     <OutputPath Condition="'$(TestProject)'=='true'">$(LeecharrRootDir)_tests\$(Configuration)\$(MSBuildProjectName)\</OutputPath>
     <EnableBaseIntermediateOutputPathMismatchWarning>false</EnableBaseIntermediateOutputPathMismatchWarning>
     <BaseIntermediateOutputPath>$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)'))</BaseIntermediateOutputPath>

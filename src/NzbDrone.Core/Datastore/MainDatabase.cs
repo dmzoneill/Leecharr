@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Data;
 using System.IO;
@@ -14,26 +16,28 @@ public class MainDatabase : IMainDatabase
 {
     private const string DbFileName = "leecharr.db";
 
-    private readonly IDatabase _database;
-    private readonly Logger _logger;
+    private readonly IDatabase database;
+    private readonly Logger logger;
 
     public MainDatabase(IDbFactory dbFactory, IConnectionStringFactory connectionStringFactory, IAppFolderInfo appFolderInfo)
     {
-        _logger = LogManager.GetCurrentClassLogger();
+        this.logger = LogManager.GetCurrentClassLogger();
 
         if (connectionStringFactory.DatabaseType == DatabaseType.SQLite)
         {
-            ApplyPendingRestore(appFolderInfo.AppDataFolder);
+            this.ApplyPendingRestore(appFolderInfo.AppDataFolder);
         }
 
-        _database = dbFactory.Create(
+        this.database = dbFactory.Create(
             connectionStringFactory.DatabaseType,
             connectionStringFactory.MainDbConnectionString);
     }
 
-    public IDbConnection OpenConnection() => _database.OpenConnection();
-    public DatabaseType DatabaseType => _database.DatabaseType;
-    public Version Version => _database.Version;
+    public IDbConnection OpenConnection() => this.database.OpenConnection();
+
+    public DatabaseType DatabaseType => this.database.DatabaseType;
+
+    public Version Version => this.database.Version;
 
     private void ApplyPendingRestore(string appDataFolder)
     {
@@ -45,16 +49,16 @@ public class MainDatabase : IMainDatabase
             return;
         }
 
-        _logger.Warn("Pending database restore found at {0}; applying before opening connections", dbRestorePath);
+        this.logger.Warn("Pending database restore found at {0}; applying before opening connections", dbRestorePath);
 
         try
         {
             File.Move(dbRestorePath, dbPath, overwrite: true);
-            _logger.Info("Database restore applied successfully from {0}", dbRestorePath);
+            this.logger.Info("Database restore applied successfully from {0}", dbRestorePath);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to apply pending database restore from {0}; original database retained", dbRestorePath);
+            this.logger.Error(ex, "Failed to apply pending database restore from {0}; original database retained", dbRestorePath);
 
             try
             {

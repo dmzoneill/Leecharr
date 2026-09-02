@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddCategories : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("Categories")
+        this.Create.Table("Categories")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable().Unique()
             .WithColumn("SavePath").AsString().NotNullable()

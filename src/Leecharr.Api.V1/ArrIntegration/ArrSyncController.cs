@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -13,20 +15,20 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [V1ApiController("arrsync")]
 public class ArrSyncController : Controller
 {
-    private readonly IArrConnectionRepository _arrRepository;
-    private readonly ITorrentService _torrentService;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IArrConnectionRepository arrRepository;
+    private readonly ITorrentService torrentService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public ArrSyncController(IArrConnectionRepository arrRepository, ITorrentService torrentService)
     {
-        _arrRepository = arrRepository;
-        _torrentService = torrentService;
+        this.arrRepository = arrRepository;
+        this.torrentService = torrentService;
     }
 
     [HttpPost("sync")]
     public async Task<ActionResult<SyncResultResource>> Sync()
     {
-        var connections = _arrRepository.GetEnabled().ToList();
+        var connections = this.arrRepository.GetEnabled().ToList();
         var syncedCount = 0;
 
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -53,15 +55,15 @@ public class ArrSyncController : Controller
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to sync Arr connection {0} ({1})", conn.Name, conn.Url);
+                this.logger.Warn(ex, "Failed to sync Arr connection {0} ({1})", conn.Name, conn.Url);
             }
         }
 
-        return Ok(new SyncResultResource
+        return this.Ok(new SyncResultResource
         {
             Success = true,
             SyncedCount = syncedCount,
-            Message = $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected)."
+            Message = $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected).",
         });
     }
 }

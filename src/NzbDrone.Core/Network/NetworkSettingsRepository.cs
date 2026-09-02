@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Linq;
 using NzbDrone.Core.Datastore;
 
@@ -17,6 +19,6 @@ public class NetworkSettingsRepository : BasicRepository<NetworkSettings>, INetw
 
     public NetworkSettings GetSettings()
     {
-        return All().FirstOrDefault() ?? new NetworkSettings();
+        return this.All().FirstOrDefault() ?? new NetworkSettings();
     }
 }

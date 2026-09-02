@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,41 +19,41 @@ namespace Leecharr.Core.Test.Torrents;
 [TestFixture]
 public class TorrentServiceTest
 {
-    private ITorrentRepository _torrentRepository = null!;
-    private ITorrentFileRepository _fileRepository = null!;
-    private ICategoryService _categoryService = null!;
-    private IMediaEnrichmentService _mediaEnrichmentService = null!;
-    private IConfigService _configService = null!;
-    private IDownloadEngine _downloadEngine = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private ITrackerEntryRepository _trackerEntryRepository = null!;
-    private TorrentService _service = null!;
+    private ITorrentRepository torrentRepository = null!;
+    private ITorrentFileRepository fileRepository = null!;
+    private ICategoryService categoryService = null!;
+    private IMediaEnrichmentService mediaEnrichmentService = null!;
+    private IConfigService configService = null!;
+    private IDownloadEngine downloadEngine = null!;
+    private IEventAggregator eventAggregator = null!;
+    private ITrackerEntryRepository trackerEntryRepository = null!;
+    private TorrentService service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _torrentRepository = Substitute.For<ITorrentRepository>();
-        _fileRepository = Substitute.For<ITorrentFileRepository>();
-        _categoryService = Substitute.For<ICategoryService>();
-        _mediaEnrichmentService = Substitute.For<IMediaEnrichmentService>();
-        _configService = Substitute.For<IConfigService>();
-        _downloadEngine = Substitute.For<IDownloadEngine>();
-        _eventAggregator = Substitute.For<IEventAggregator>();
-        _trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        this.torrentRepository = Substitute.For<ITorrentRepository>();
+        this.fileRepository = Substitute.For<ITorrentFileRepository>();
+        this.categoryService = Substitute.For<ICategoryService>();
+        this.mediaEnrichmentService = Substitute.For<IMediaEnrichmentService>();
+        this.configService = Substitute.For<IConfigService>();
+        this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
+        this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
 
-        _categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns("/downloads");
-        _configService.DefaultCategory.Returns("default");
-        _configService.AutoEnrichEnabled.Returns(false);
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns("/downloads");
+        this.configService.DefaultCategory.Returns("default");
+        this.configService.AutoEnrichEnabled.Returns(false);
 
-        _service = new TorrentService(
-            _torrentRepository,
-            _fileRepository,
-            _categoryService,
-            _mediaEnrichmentService,
-            _configService,
-            _downloadEngine,
-            _eventAggregator,
-            _trackerEntryRepository);
+        this.service = new TorrentService(
+            this.torrentRepository,
+            this.fileRepository,
+            this.categoryService,
+            this.mediaEnrichmentService,
+            this.configService,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.trackerEntryRepository);
     }
 
     [Test]
@@ -67,12 +69,12 @@ public class TorrentServiceTest
             {
                 new() { Path = "file1.txt", Size = 500 },  // bytes 0-499: piece 0 (count 1)
                 new() { Path = "file2.txt", Size = 1200 }, // bytes 500-1699: piece 0 to piece 1 (count 2)
-                new() { Path = "file3.txt", Size = 1800 }  // bytes 1700-3499: piece 1 to piece 3 (count 3)
-            }
+                new() { Path = "file3.txt", Size = 1800 } // bytes 1700-3499: piece 1 to piece 3 (count 3)
+            },
         };
 
-        _torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
-        _torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
         {
             var t = callInfo.Arg<Torrent>();
             t.Id = 42;
@@ -80,9 +82,9 @@ public class TorrentServiceTest
         });
 
         var insertedFiles = new List<TorrentFile>();
-        _fileRepository.Insert(Arg.Do<TorrentFile>(f => insertedFiles.Add(f)));
+        this.fileRepository.Insert(Arg.Do<TorrentFile>(f => insertedFiles.Add(f)));
 
-        var result = await _service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, Array.Empty<byte>());
+        var result = await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, Array.Empty<byte>());
 
         result.Should().NotBeNull();
         result.Id.Should().Be(42);

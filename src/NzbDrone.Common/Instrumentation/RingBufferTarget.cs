@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
@@ -8,17 +10,17 @@ namespace NzbDrone.Common.Instrumentation;
 [Target("RingBuffer")]
 public class RingBufferTarget : TargetWithLayout
 {
-    private readonly object _lock = new();
-    private readonly LogEntryRecord[] _buffer;
-    private int _position;
-    private int _count;
+    private readonly object @lock = new();
+    private readonly LogEntryRecord[] buffer;
+    private int position;
+    private int count;
 
     public int Capacity { get; }
 
     public RingBufferTarget(int capacity = 2048)
     {
-        Capacity = capacity;
-        _buffer = new LogEntryRecord[capacity];
+        this.Capacity = capacity;
+        this.buffer = new LogEntryRecord[capacity];
     }
 
     protected override void Write(LogEventInfo logEvent)
@@ -29,41 +31,41 @@ public class RingBufferTarget : TargetWithLayout
             Level = logEvent.Level.Name,
             Logger = logEvent.LoggerName,
             Message = logEvent.FormattedMessage,
-            Exception = logEvent.Exception?.ToString()
+            Exception = logEvent.Exception?.ToString(),
         };
 
-        lock (_lock)
+        lock (this.@lock)
         {
-            _buffer[_position] = entry;
-            _position = (_position + 1) % Capacity;
+            this.buffer[this.position] = entry;
+            this.position = (this.position + 1) % this.Capacity;
 
-            if (_count < Capacity)
+            if (this.count < this.Capacity)
             {
-                _count++;
+                this.count++;
             }
         }
     }
 
     public List<LogEntryRecord> GetEntries(int count, LogLevel minimumLevel)
     {
-        lock (_lock)
+        lock (this.@lock)
         {
             var result = new List<LogEntryRecord>();
 
             int start;
-            if (_count < Capacity)
+            if (this.count < this.Capacity)
             {
                 start = 0;
             }
             else
             {
-                start = _position;
+                start = this.position;
             }
 
-            for (var i = 0; i < _count; i++)
+            for (var i = 0; i < this.count; i++)
             {
-                var index = (start + i) % Capacity;
-                var entry = _buffer[index];
+                var index = (start + i) % this.Capacity;
+                var entry = this.buffer[index];
 
                 if (entry == null)
                 {

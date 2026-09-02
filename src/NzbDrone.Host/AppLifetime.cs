@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using System.Threading;
@@ -18,18 +20,18 @@ namespace NzbDrone.Host;
 
 public class AppLifetime : IHostedService, IDisposable
 {
-    private readonly IConfigService _configService;
-    private readonly IEventAggregator _eventAggregator;
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly ITorrentRepository _torrentRepository;
-    private readonly IWatchFolderService _watchFolderService;
-    private readonly INetworkSecurityService _networkSecurityService;
-    private readonly IRssSyncService _rssSyncService;
-    private readonly IDynamicAuthSchemeManager _dynamicAuthManager;
-    private readonly ITorrentService _torrentService;
-    private readonly Logger _logger;
-    private CancellationTokenSource _cts;
-    private Task _backgroundLoopTask;
+    private readonly IConfigService configService;
+    private readonly IEventAggregator eventAggregator;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly IWatchFolderService watchFolderService;
+    private readonly INetworkSecurityService networkSecurityService;
+    private readonly IRssSyncService rssSyncService;
+    private readonly IDynamicAuthSchemeManager dynamicAuthManager;
+    private readonly ITorrentService torrentService;
+    private readonly Logger logger;
+    private CancellationTokenSource cts;
+    private Task backgroundLoopTask;
 
     public AppLifetime(
         IConfigService configService,
@@ -42,41 +44,41 @@ public class AppLifetime : IHostedService, IDisposable
         IDynamicAuthSchemeManager dynamicAuthManager,
         ITorrentService torrentService = null)
     {
-        _configService = configService;
-        _eventAggregator = eventAggregator;
-        _downloadEngine = downloadEngine;
-        _torrentRepository = torrentRepository;
-        _watchFolderService = watchFolderService;
-        _networkSecurityService = networkSecurityService;
-        _rssSyncService = rssSyncService;
-        _dynamicAuthManager = dynamicAuthManager;
-        _torrentService = torrentService;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.eventAggregator = eventAggregator;
+        this.downloadEngine = downloadEngine;
+        this.torrentRepository = torrentRepository;
+        this.watchFolderService = watchFolderService;
+        this.networkSecurityService = networkSecurityService;
+        this.rssSyncService = rssSyncService;
+        this.dynamicAuthManager = dynamicAuthManager;
+        this.torrentService = torrentService;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.Info("Leecharr application starting up...");
+        this.logger.Info("Leecharr application starting up...");
 
         try
         {
-            await _dynamicAuthManager.InitializeConfiguredProvidersAsync();
+            await this.dynamicAuthManager.InitializeConfiguredProvidersAsync();
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Error initializing dynamic authentication providers on startup");
+            this.logger.Warn(ex, "Error initializing dynamic authentication providers on startup");
         }
 
         try
         {
-            await _downloadEngine.StartAsync();
+            await this.downloadEngine.StartAsync();
 
-            if (_configService.AutoStart)
+            if (this.configService.AutoStart)
             {
                 var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 var torrentsDir1 = Path.Combine(appData, "Torrents");
                 var torrentsDir2 = Path.Combine(appData, "Leecharr", "Torrents");
-                var torrents = _torrentRepository.All();
+                var torrents = this.torrentRepository.All();
 
                 foreach (var torrent in torrents)
                 {
@@ -98,41 +100,41 @@ public class AppLifetime : IHostedService, IDisposable
                             }
                         }
 
-                        await _downloadEngine.AddTorrentAsync(torrent, fileBytes);
+                        await this.downloadEngine.AddTorrentAsync(torrent, fileBytes);
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
+                        this.logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error initializing download engine on startup");
+            this.logger.Error(ex, "Error initializing download engine on startup");
         }
 
-        _cts = new CancellationTokenSource();
-        _backgroundLoopTask = Task.Run(() => RunBackgroundLoopAsync(_cts.Token), _cts.Token);
+        this.cts = new CancellationTokenSource();
+        this.backgroundLoopTask = Task.Run(() => this.RunBackgroundLoopAsync(this.cts.Token), this.cts.Token);
 
-        _logger.Info("Leecharr application started");
-        _eventAggregator.PublishEvent(new ApplicationStartedEvent());
+        this.logger.Info("Leecharr application started");
+        this.eventAggregator.PublishEvent(new ApplicationStartedEvent());
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.Info("Leecharr application shutting down...");
+        this.logger.Info("Leecharr application shutting down...");
 
         try
         {
-            if (_cts != null)
+            if (this.cts != null)
             {
-                await _cts.CancelAsync();
+                await this.cts.CancelAsync();
             }
 
-            if (_backgroundLoopTask != null)
+            if (this.backgroundLoopTask != null)
             {
-                await Task.WhenAny(_backgroundLoopTask, Task.Delay(5000, cancellationToken));
+                await Task.WhenAny(this.backgroundLoopTask, Task.Delay(5000, cancellationToken));
             }
         }
         catch
@@ -141,14 +143,14 @@ public class AppLifetime : IHostedService, IDisposable
 
         try
         {
-            await _downloadEngine.StopAsync();
+            await this.downloadEngine.StopAsync();
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Error shutting down download engine");
+            this.logger.Error(ex, "Error shutting down download engine");
         }
 
-        _eventAggregator.PublishEvent(new ApplicationShutdownRequested());
+        this.eventAggregator.PublishEvent(new ApplicationShutdownRequested());
     }
 
     private async Task RunBackgroundLoopAsync(CancellationToken token)
@@ -163,11 +165,11 @@ public class AppLifetime : IHostedService, IDisposable
                 await Task.Delay(1000, token);
 
                 // Automated seeding check
-                if (_torrentService != null)
+                if (this.torrentService != null)
                 {
                     try
                     {
-                        var torrents = _torrentService.GetAll();
+                        var torrents = this.torrentService.GetAll();
                         foreach (var torrent in torrents)
                         {
                             if (torrent.Status == TorrentStatus.Seeding)
@@ -177,15 +179,15 @@ public class AppLifetime : IHostedService, IDisposable
 
                                 if (ratioReached || timeReached)
                                 {
-                                    _logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                    this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
 
                                     var oldStatus = torrent.Status;
-                                    await _torrentService.PauseAsync(torrent.Id);
-                                    _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                    await this.torrentService.PauseAsync(torrent.Id);
+                                    this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
                                     {
                                         Torrent = torrent,
                                         OldStatus = oldStatus,
-                                        NewStatus = TorrentStatus.Stopped
+                                        NewStatus = TorrentStatus.Stopped,
                                     });
                                 }
                             }
@@ -193,26 +195,26 @@ public class AppLifetime : IHostedService, IDisposable
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, "Error checking seed goals in background loop");
+                        this.logger.Warn(ex, "Error checking seed goals in background loop");
                     }
                 }
 
                 // 1. Scan watch folder according to configured interval
                 watchFolderTickCounter++;
-                var watchInterval = _configService.WatchFolderScanIntervalSeconds > 0
-                    ? _configService.WatchFolderScanIntervalSeconds
+                var watchInterval = this.configService.WatchFolderScanIntervalSeconds > 0
+                    ? this.configService.WatchFolderScanIntervalSeconds
                     : 10;
 
                 if (watchFolderTickCounter >= watchInterval)
                 {
                     watchFolderTickCounter = 0;
-                    await _watchFolderService.ScanWatchFolderAsync();
+                    await this.watchFolderService.ScanWatchFolderAsync();
                 }
 
                 // 2. Check VPN Kill Switch every 5 seconds
                 if (watchFolderTickCounter % 5 == 0)
                 {
-                    _networkSecurityService.CheckVpnKillSwitch();
+                    this.networkSecurityService.CheckVpnKillSwitch();
                 }
 
                 // 3. RSS Sync every ~15 minutes (900 seconds)
@@ -220,7 +222,7 @@ public class AppLifetime : IHostedService, IDisposable
                 if (rssTickCounter >= 900)
                 {
                     rssTickCounter = 0;
-                    await _rssSyncService.SyncRssFeedsAsync();
+                    await this.rssSyncService.SyncRssFeedsAsync();
                 }
             }
             catch (OperationCanceledException)
@@ -229,13 +231,13 @@ public class AppLifetime : IHostedService, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error in background maintenance loop");
+                this.logger.Error(ex, "Error in background maintenance loop");
             }
         }
     }
 
     public void Dispose()
     {
-        _cts?.Dispose();
+        this.cts?.Dispose();
     }
 }

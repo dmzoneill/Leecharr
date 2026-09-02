@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,32 +18,32 @@ namespace Leecharr.Api.V1.DownloadClients;
 [V1ApiController("downloadclients")]
 public class DownloadClientController : Controller
 {
-    private readonly IDownloadClientRepository _repository;
-    private readonly ITorrentService _torrentService;
+    private readonly IDownloadClientRepository repository;
+    private readonly ITorrentService torrentService;
 
     public DownloadClientController(IDownloadClientRepository repository, ITorrentService torrentService)
     {
-        _repository = repository;
-        _torrentService = torrentService;
+        this.repository = repository;
+        this.torrentService = torrentService;
     }
 
     [HttpGet]
     public ActionResult<List<DownloadClientResource>> GetAll()
     {
-        var definitions = _repository.All();
-        return Ok(definitions.Select(ToResource).ToList());
+        var definitions = this.repository.All();
+        return this.Ok(definitions.Select(ToResource).ToList());
     }
 
     [HttpGet("{id:int}")]
     public ActionResult<DownloadClientResource> Get(int id)
     {
-        var definition = _repository.Get(id);
+        var definition = this.repository.Get(id);
         if (definition == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return Ok(ToResource(definition));
+        return this.Ok(ToResource(definition));
     }
 
     [HttpPost]
@@ -49,12 +51,12 @@ public class DownloadClientController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
         var model = ToModel(resource);
-        var created = _repository.Insert(model);
-        return Ok(ToResource(created));
+        var created = this.repository.Insert(model);
+        return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
@@ -62,13 +64,13 @@ public class DownloadClientController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        var existing = _repository.Get(id);
+        var existing = this.repository.Get(id);
         if (existing == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var model = ToModel(resource);
@@ -78,27 +80,27 @@ public class DownloadClientController : Controller
             model.Password = existing.Password;
         }
 
-        _repository.Update(model);
-        return Ok(ToResource(model));
+        this.repository.Update(model);
+        return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        _repository.Delete(id);
-        return Ok();
+        this.repository.Delete(id);
+        return this.Ok();
     }
 
     [HttpPost("{id:int}/test")]
     public async Task<ActionResult<DownloadClientTestResult>> Test(int id)
     {
-        var definition = _repository.Get(id);
+        var definition = this.repository.Get(id);
         if (definition == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        return await TestDirectInternal(ToResource(definition));
+        return await this.TestDirectInternal(ToResource(definition));
     }
 
     [HttpPost("test")]
@@ -106,53 +108,53 @@ public class DownloadClientController : Controller
     {
         if (resource == null)
         {
-            return BadRequest();
+            return this.BadRequest();
         }
 
-        return await TestDirectInternal(resource);
+        return await this.TestDirectInternal(resource);
     }
 
     [HttpGet("{id:int}/items")]
     public async Task<ActionResult<List<DownloadClientRemoteItem>>> GetItems(int id)
     {
-        var client = _repository.Get(id);
+        var client = this.repository.Get(id);
         if (client == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var items = await QueryRemoteClientItemsAsync(client);
-        return Ok(items);
+        var items = await this.QueryRemoteClientItemsAsync(client);
+        return this.Ok(items);
     }
 
     [HttpPost("{id:int}/import/{hash}")]
     public async Task<ActionResult<TorrentResource>> ImportTorrent(int id, string hash)
     {
-        var client = _repository.Get(id);
+        var client = this.repository.Get(id);
         if (client == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
-        var existing = _torrentService.GetByInfoHash(hash);
+        var existing = this.torrentService.GetByInfoHash(hash);
         if (existing != null)
         {
-            return Ok(TorrentResourceMapper.ToResource(existing));
+            return this.Ok(TorrentResourceMapper.ToResource(existing));
         }
 
         // Add magnet by hash to engine
         var magnetUri = $"magnet:?xt=urn:btih:{hash}";
-        var added = await _torrentService.AddFromMagnetAsync(magnetUri, client.Category, null, false);
-        return Ok(TorrentResourceMapper.ToResource(added));
+        var added = await this.torrentService.AddFromMagnetAsync(magnetUri, client.Category, null, false);
+        return this.Ok(TorrentResourceMapper.ToResource(added));
     }
 
     [HttpPost("{id:int}/import")]
     public async Task<ActionResult<SyncResultResource>> ImportTorrents(int id, [FromBody] ImportRequest request)
     {
-        var client = _repository.Get(id);
+        var client = this.repository.Get(id);
         if (client == null)
         {
-            return NotFound();
+            return this.NotFound();
         }
 
         var count = 0;
@@ -162,11 +164,11 @@ public class DownloadClientController : Controller
             {
                 try
                 {
-                    var existing = _torrentService.GetByInfoHash(hash);
+                    var existing = this.torrentService.GetByInfoHash(hash);
                     if (existing == null)
                     {
                         var magnetUri = $"magnet:?xt=urn:btih:{hash}";
-                        await _torrentService.AddFromMagnetAsync(magnetUri, request.Category ?? client.Category, request.SavePath, request.StartPaused);
+                        await this.torrentService.AddFromMagnetAsync(magnetUri, request.Category ?? client.Category, request.SavePath, request.StartPaused);
                         count++;
                     }
                 }
@@ -176,11 +178,11 @@ public class DownloadClientController : Controller
             }
         }
 
-        return Ok(new SyncResultResource
+        return this.Ok(new SyncResultResource
         {
             Success = true,
             SyncedCount = count,
-            Message = $"Import completed ({count} torrent(s) imported)."
+            Message = $"Import completed ({count} torrent(s) imported).",
         });
     }
 
@@ -196,7 +198,7 @@ public class DownloadClientController : Controller
             UseSsl = model.UseSsl,
             Username = model.Username,
             Password = string.IsNullOrEmpty(model.Password) ? string.Empty : "********",
-            Enabled = model.Enable
+            Enabled = model.Enable,
         };
     }
 
@@ -212,7 +214,7 @@ public class DownloadClientController : Controller
             UseSsl = resource.UseSsl,
             Username = resource.Username,
             Password = resource.Password,
-            Enable = resource.Enabled
+            Enable = resource.Enabled,
         };
     }
 
@@ -220,7 +222,7 @@ public class DownloadClientController : Controller
     {
         if (string.IsNullOrWhiteSpace(resource.Host))
         {
-            return Ok(new DownloadClientTestResult { Success = false, Message = "Host is required." });
+            return this.Ok(new DownloadClientTestResult { Success = false, Message = "Host is required." });
         }
 
         var port = resource.Port > 0 ? resource.Port : 8080;
@@ -237,7 +239,7 @@ public class DownloadClientController : Controller
                 if (resp.IsSuccessStatusCode)
                 {
                     var ver = await resp.Content.ReadAsStringAsync();
-                    return Ok(new DownloadClientTestResult { Success = true, Message = $"qBittorrent WebAPI connected (v{ver.Trim()})." });
+                    return this.Ok(new DownloadClientTestResult { Success = true, Message = $"qBittorrent WebAPI connected (v{ver.Trim()})." });
                 }
             }
             else if (string.Equals(resource.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
@@ -245,7 +247,7 @@ public class DownloadClientController : Controller
                 var resp = await http.GetAsync($"{baseUrl}/transmission/rpc");
                 if (resp.StatusCode == global::System.Net.HttpStatusCode.Conflict || resp.IsSuccessStatusCode)
                 {
-                    return Ok(new DownloadClientTestResult { Success = true, Message = "Transmission RPC endpoint reachable." });
+                    return this.Ok(new DownloadClientTestResult { Success = true, Message = "Transmission RPC endpoint reachable." });
                 }
             }
             else if (string.Equals(resource.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
@@ -254,25 +256,25 @@ public class DownloadClientController : Controller
                 var resp = await http.PostAsync($"{baseUrl}/json", content);
                 if (resp.IsSuccessStatusCode)
                 {
-                    return Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC endpoint reachable." });
+                    return this.Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC endpoint reachable." });
                 }
             }
 
             using var client = new TcpClient();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await client.ConnectAsync(resource.Host, port, cts.Token);
-            return Ok(new DownloadClientTestResult
+            return this.Ok(new DownloadClientTestResult
             {
                 Success = true,
-                Message = $"Connected to {resource.ClientType ?? "Client"} socket at {resource.Host}:{port} successfully."
+                Message = $"Connected to {resource.ClientType ?? "Client"} socket at {resource.Host}:{port} successfully.",
             });
         }
         catch (Exception ex)
         {
-            return Ok(new DownloadClientTestResult
+            return this.Ok(new DownloadClientTestResult
             {
                 Success = false,
-                Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}"
+                Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}",
             });
         }
     }
@@ -317,7 +319,7 @@ public class DownloadClientController : Controller
                                 Progress = prog,
                                 State = state,
                                 SavePath = save,
-                                Category = cat
+                                Category = cat,
                             });
                         }
                     }
@@ -365,7 +367,7 @@ public class DownloadClientController : Controller
                                 Progress = prog,
                                 State = "active",
                                 SavePath = save,
-                                Category = string.Empty
+                                Category = string.Empty,
                             });
                         }
                     }
@@ -406,7 +408,7 @@ public class DownloadClientController : Controller
                                 Progress = prog,
                                 State = state,
                                 SavePath = save,
-                                Category = cat
+                                Category = cat,
                             });
                         }
                     }

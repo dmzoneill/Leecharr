@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -15,6 +17,7 @@ namespace NzbDrone.Core.Network;
 public interface IExternalIpService
 {
     string CachedIp { get; }
+
     Task<string> GetExternalIpAsync(CancellationToken cancellationToken = default);
 }
 
@@ -31,30 +34,30 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         "https://api.ipify.org",
         "https://ifconfig.me/ip",
         "https://icanhazip.com",
-        "https://checkip.amazonaws.com"
+        "https://checkip.amazonaws.com",
     };
 
     private static readonly HttpClient SharedClient = new(new SocketsHttpHandler
     {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
     })
     { Timeout = TimeSpan.FromSeconds(5) };
 
-    private readonly HttpClient _client;
-    private readonly IConfigService _configService;
-    private readonly Logger _logger;
-    private readonly SemaphoreSlim _fetchLock = new(1, 1);
-    private string _cachedIp = "";
-    private DateTime _lastFetch = DateTime.MinValue;
-    private volatile bool _networkChanged;
+    private readonly HttpClient client;
+    private readonly IConfigService configService;
+    private readonly Logger logger;
+    private readonly SemaphoreSlim fetchLock = new(1, 1);
+    private string cachedIp = string.Empty;
+    private DateTime lastFetch = DateTime.MinValue;
+    private volatile bool networkChanged;
 
-    public string CachedIp => _cachedIp;
+    public string CachedIp => this.cachedIp;
 
     public ExternalIpService(IConfigService configService, HttpClient httpClient = null)
     {
-        _configService = configService;
-        _client = httpClient ?? SharedClient;
-        _logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.client = httpClient ?? SharedClient;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public ExternalIpService(HttpClient httpClient)
@@ -69,26 +72,26 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        NetworkChange.NetworkAddressChanged += OnNetworkChanged;
+        NetworkChange.NetworkAddressChanged += this.OnNetworkChanged;
 
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-            await FetchExternalIpAsync(stoppingToken);
+            await this.FetchExternalIpAsync(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
 
-                if (_networkChanged)
+                if (this.networkChanged)
                 {
-                    _networkChanged = false;
-                    _logger.Info("Network change detected, refreshing external IP");
-                    await RefreshIp(stoppingToken);
+                    this.networkChanged = false;
+                    this.logger.Info("Network change detected, refreshing external IP");
+                    await this.RefreshIp(stoppingToken);
                 }
-                else if (DateTime.UtcNow - _lastFetch > FallbackInterval)
+                else if (DateTime.UtcNow - this.lastFetch > FallbackInterval)
                 {
-                    await RefreshIp(stoppingToken);
+                    await this.RefreshIp(stoppingToken);
                 }
             }
         }
@@ -97,53 +100,53 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         }
         finally
         {
-            NetworkChange.NetworkAddressChanged -= OnNetworkChanged;
+            NetworkChange.NetworkAddressChanged -= this.OnNetworkChanged;
         }
     }
 
     private void OnNetworkChanged(object sender, EventArgs e)
     {
-        _networkChanged = true;
+        this.networkChanged = true;
     }
 
     private async Task RefreshIp(CancellationToken cancellationToken)
     {
         try
         {
-            var oldIp = _cachedIp;
-            var newIp = await FetchExternalIpAsync(cancellationToken);
+            var oldIp = this.cachedIp;
+            var newIp = await this.FetchExternalIpAsync(cancellationToken);
 
             if (!string.IsNullOrEmpty(newIp) && newIp != oldIp)
             {
-                _logger.Info("External IP changed: {0} -> {1}", oldIp, newIp);
+                this.logger.Info("External IP changed: {0} -> {1}", oldIp, newIp);
             }
         }
         catch (Exception ex)
         {
-            _logger.Debug(ex, "External IP refresh failed");
+            this.logger.Debug(ex, "External IP refresh failed");
         }
     }
 
     public async Task<string> GetExternalIpAsync(CancellationToken cancellationToken = default)
     {
-        if (!string.IsNullOrEmpty(_cachedIp) && DateTime.UtcNow - _lastFetch < CacheDuration)
+        if (!string.IsNullOrEmpty(this.cachedIp) && DateTime.UtcNow - this.lastFetch < CacheDuration)
         {
-            return _cachedIp;
+            return this.cachedIp;
         }
 
-        return await FetchExternalIpAsync(cancellationToken);
+        return await this.FetchExternalIpAsync(cancellationToken);
     }
 
     private async Task<string> FetchExternalIpAsync(CancellationToken cancellationToken)
     {
-        if (!await _fetchLock.WaitAsync(0, cancellationToken))
+        if (!await this.fetchLock.WaitAsync(0, cancellationToken))
         {
-            return _cachedIp;
+            return this.cachedIp;
         }
 
         try
         {
-            var uuid = _configService?.InstanceUuid;
+            var uuid = this.configService?.InstanceUuid;
             if (string.IsNullOrWhiteSpace(uuid))
             {
                 uuid = Guid.NewGuid().ToString().ToLowerInvariant();
@@ -152,7 +155,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
             var sources = new List<string>
             {
                 string.Format(PrimaryEndpointTemplate, Uri.EscapeDataString(uuid)),
-                string.Format(PrimaryHttpEndpointTemplate, Uri.EscapeDataString(uuid))
+                string.Format(PrimaryHttpEndpointTemplate, Uri.EscapeDataString(uuid)),
             };
             sources.AddRange(FallbackSources);
 
@@ -160,27 +163,27 @@ public class ExternalIpService : BackgroundService, IExternalIpService
             {
                 try
                 {
-                    var response = await _client.GetStringAsync(source, cancellationToken);
+                    var response = await this.client.GetStringAsync(source, cancellationToken);
 
                     if (TryExtractIpFromResponse(response, out var ip))
                     {
-                        _cachedIp = ip;
-                        _lastFetch = DateTime.UtcNow;
-                        _logger.Debug("External IP from {0}: {1}", source, ip);
+                        this.cachedIp = ip;
+                        this.lastFetch = DateTime.UtcNow;
+                        this.logger.Debug("External IP from {0}: {1}", source, ip);
                         return ip;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.Debug(ex, "Failed to get external IP from {0}", source);
+                    this.logger.Debug(ex, "Failed to get external IP from {0}", source);
                 }
             }
 
-            return _cachedIp;
+            return this.cachedIp;
         }
         finally
         {
-            _fetchLock.Release();
+            this.fetchLock.Release();
         }
     }
 

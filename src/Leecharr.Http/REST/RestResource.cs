@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Text.Json.Serialization;
 
 namespace Leecharr.Http.REST;
@@ -12,7 +14,7 @@ public abstract class RestResource
     {
         get
         {
-            var typeName = GetType().Name;
+            var typeName = this.GetType().Name;
 
             if (typeName.EndsWith("Resource", System.StringComparison.Ordinal))
             {

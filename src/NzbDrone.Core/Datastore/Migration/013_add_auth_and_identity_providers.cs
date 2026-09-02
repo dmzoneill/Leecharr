@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -8,7 +10,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
     public override void Up()
     {
         // 1. Users Table
-        Create.Table("Users")
+        this.Create.Table("Users")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Identifier").AsGuid().NotNullable().Unique()
             .WithColumn("Username").AsString(255).NotNullable().Unique()
@@ -26,7 +28,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
             .WithColumn("UpdatedAt").AsDateTime().NotNullable();
 
         // 2. IdentityProviders Table
-        Create.Table("IdentityProviders")
+        this.Create.Table("IdentityProviders")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("ProviderId").AsString(100).NotNullable().Unique()
             .WithColumn("Name").AsString(255).NotNullable()
@@ -45,7 +47,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
             .WithColumn("UpdatedAt").AsDateTime().NotNullable();
 
         // 3. UserSessions Table
-        Create.Table("UserSessions")
+        this.Create.Table("UserSessions")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("UserId").AsInt32().NotNullable()
             .WithColumn("SessionToken").AsString(255).NotNullable().Unique()
@@ -57,7 +59,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
             .WithColumn("LastActivity").AsDateTime().NotNullable();
 
         // 4. UserExternalLogins Table
-        Create.Table("UserExternalLogins")
+        this.Create.Table("UserExternalLogins")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("UserId").AsInt32().NotNullable()
             .WithColumn("LoginProvider").AsString(100).NotNullable()
@@ -68,9 +70,9 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
 
     public override void Down()
     {
-        Delete.Table("UserExternalLogins");
-        Delete.Table("UserSessions");
-        Delete.Table("IdentityProviders");
-        Delete.Table("Users");
+        this.Delete.Table("UserExternalLogins");
+        this.Delete.Table("UserSessions");
+        this.Delete.Table("IdentityProviders");
+        this.Delete.Table("Users");
     }
 }

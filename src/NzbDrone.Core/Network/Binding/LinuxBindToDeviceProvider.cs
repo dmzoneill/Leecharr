@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -13,12 +15,16 @@ namespace NzbDrone.Core.Network.Binding;
 public class LinuxBindToDeviceProvider : INetworkBindingProvider
 {
     private const int SoBindToDevice = 25;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "LinuxBindToDevice";
+
     public string DisplayName => "Linux Kernel Device Binding (SO_BINDTODEVICE)";
+
     public string Version => "1.0.0";
+
     public string Description => "Kernel-level socket binding directly locking network traffic to specific network interfaces (SO_BINDTODEVICE socket option 25).";
+
     public bool IsAvailable => OsInfo.IsLinux || RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
     public NetworkBindingCapabilities Capabilities => new()
@@ -28,18 +34,18 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         SupportsSocks5Proxy = false,
         SupportsTorOnion = false,
         SupportsVpnKillSwitch = true,
-        SupportsAnonymousRouting = false
+        SupportsAnonymousRouting = false,
     };
 
     public Task<NetworkBindingHealthCheckResult> ProbeHealthAsync()
     {
-        if (!IsAvailable)
+        if (!this.IsAvailable)
         {
             return Task.FromResult(new NetworkBindingHealthCheckResult
             {
                 IsHealthy = false,
                 StatusMessage = "SO_BINDTODEVICE is only supported on Linux operating systems.",
-                Warnings = { "Current operating system does not support raw SO_BINDTODEVICE kernel socket option." }
+                Warnings = { "Current operating system does not support raw SO_BINDTODEVICE kernel socket option." },
             });
         }
 
@@ -49,7 +55,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             return Task.FromResult(new NetworkBindingHealthCheckResult
             {
                 IsHealthy = true,
-                StatusMessage = $"Linux SO_BINDTODEVICE kernel socket option available ({interfaces.Length} interfaces enumerated)."
+                StatusMessage = $"Linux SO_BINDTODEVICE kernel socket option available ({interfaces.Length} interfaces enumerated).",
             });
         }
         catch (Exception ex)
@@ -58,7 +64,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             {
                 IsHealthy = false,
                 StatusMessage = $"Failed to probe Linux network interfaces: {ex.Message}",
-                Warnings = { ex.ToString() }
+                Warnings = { ex.ToString() },
             });
         }
     }
@@ -75,7 +81,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             return;
         }
 
-        if (!IsAvailable)
+        if (!this.IsAvailable)
         {
             throw new PlatformNotSupportedException("SO_BINDTODEVICE is only supported on Linux platforms.");
         }
@@ -84,11 +90,11 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         {
             var ifaceBytes = Encoding.ASCII.GetBytes(interfaceName + "\0");
             socket.SetRawSocketOption((int)SocketOptionLevel.Socket, SoBindToDevice, ifaceBytes);
-            _logger.Debug("Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}'", interfaceName);
+            this.logger.Debug("Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}'", interfaceName);
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to apply SO_BINDTODEVICE on interface '{0}', falling back to standard bind", interfaceName);
+            this.logger.Warn(ex, "Failed to apply SO_BINDTODEVICE on interface '{0}', falling back to standard bind", interfaceName);
             throw;
         }
     }

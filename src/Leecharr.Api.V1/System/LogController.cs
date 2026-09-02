@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,11 +14,11 @@ namespace Leecharr.Api.V1.System;
 [V1ApiController("log")]
 public class LogController : ControllerBase
 {
-    private readonly IConfigService _configService;
+    private readonly IConfigService configService;
 
     public LogController(IConfigService configService)
     {
-        _configService = configService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -45,7 +47,7 @@ public class LogController : ControllerBase
 
         if (target == null)
         {
-            return Ok(new List<LogResource>());
+            return this.Ok(new List<LogResource>());
         }
 
         var entries = target.GetEntries(count, minimumLevel);
@@ -57,10 +59,10 @@ public class LogController : ControllerBase
             Level = e.Level,
             Logger = e.Logger,
             Message = e.Message,
-            Exception = e.Exception
+            Exception = e.Exception,
         }).ToList();
 
-        return Ok(resources);
+        return this.Ok(resources);
     }
 
     private static LogLevel ParseLogLevel(string level)
@@ -84,9 +86,14 @@ public class LogController : ControllerBase
 public class LogResource
 {
     public int Id { get; set; }
+
     public string Time { get; set; }
+
     public string Level { get; set; }
+
     public string Logger { get; set; }
+
     public string Message { get; set; }
+
     public string Exception { get; set; }
 }

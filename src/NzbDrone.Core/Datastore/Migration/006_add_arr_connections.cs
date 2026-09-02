@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddArrConnections : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("ArrConnectionDefinitions")
+        this.Create.Table("ArrConnectionDefinitions")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("Implementation").AsString().NotNullable()

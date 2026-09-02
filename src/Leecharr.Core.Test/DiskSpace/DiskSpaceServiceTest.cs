@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.IO;
 using FluentAssertions;
@@ -11,24 +13,24 @@ namespace Leecharr.Core.Test.DiskSpace;
 [TestFixture]
 public class DiskSpaceServiceTest
 {
-    private IAppFolderInfo _appFolderInfo = null!;
-    private DiskSpaceService _service = null!;
+    private IAppFolderInfo appFolderInfo = null!;
+    private DiskSpaceService service = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _appFolderInfo = Substitute.For<IAppFolderInfo>();
-        _service = new DiskSpaceService(_appFolderInfo);
+        this.appFolderInfo = Substitute.For<IAppFolderInfo>();
+        this.service = new DiskSpaceService(this.appFolderInfo);
     }
 
     [Test]
     public void GetDiskSpace_ReturnsDriveInfo_WhenAppFoldersAreProvided()
     {
         var tempPath = Path.GetTempPath();
-        _appFolderInfo.AppDataFolder.Returns(tempPath);
-        _appFolderInfo.StartUpFolder.Returns(tempPath);
+        this.appFolderInfo.AppDataFolder.Returns(tempPath);
+        this.appFolderInfo.StartUpFolder.Returns(tempPath);
 
-        var result = _service.GetDiskSpace();
+        var result = this.service.GetDiskSpace();
 
         result.Should().NotBeNull();
         result.Should().NotBeEmpty();
@@ -43,10 +45,10 @@ public class DiskSpaceServiceTest
     [Test]
     public void GetDiskSpace_WhenAppFoldersAreNullOrEmpty_DoesNotThrowAndReturnsFixedDrives()
     {
-        _appFolderInfo.AppDataFolder.Returns((string)null!);
-        _appFolderInfo.StartUpFolder.Returns(string.Empty);
+        this.appFolderInfo.AppDataFolder.Returns((string)null!);
+        this.appFolderInfo.StartUpFolder.Returns(string.Empty);
 
-        var result = _service.GetDiskSpace();
+        var result = this.service.GetDiskSpace();
 
         result.Should().NotBeNull();
     }
@@ -55,10 +57,10 @@ public class DiskSpaceServiceTest
     public void GetDiskSpace_DeduplicatesDrivesWithSameRoot()
     {
         var tempPath = Path.GetTempPath();
-        _appFolderInfo.AppDataFolder.Returns(tempPath);
-        _appFolderInfo.StartUpFolder.Returns(tempPath);
+        this.appFolderInfo.AppDataFolder.Returns(tempPath);
+        this.appFolderInfo.StartUpFolder.Returns(tempPath);
 
-        var result = _service.GetDiskSpace();
+        var result = this.service.GetDiskSpace();
 
         var root = Path.GetPathRoot(tempPath);
         if (!string.IsNullOrEmpty(root))
@@ -70,10 +72,10 @@ public class DiskSpaceServiceTest
     [Test]
     public void GetDiskSpace_WhenPathIsInvalid_HandlesGracefullyWithoutThrowing()
     {
-        _appFolderInfo.AppDataFolder.Returns("invalid_drive_xyz:\\nonexistent\\path");
-        _appFolderInfo.StartUpFolder.Returns("another_invalid_path");
+        this.appFolderInfo.AppDataFolder.Returns("invalid_drive_xyz:\\nonexistent\\path");
+        this.appFolderInfo.StartUpFolder.Returns("another_invalid_path");
 
-        var result = _service.GetDiskSpace();
+        var result = this.service.GetDiskSpace();
 
         result.Should().NotBeNull();
     }

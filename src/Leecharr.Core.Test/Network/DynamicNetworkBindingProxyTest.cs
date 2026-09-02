@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,78 +18,78 @@ namespace Leecharr.Core.Test.Network;
 [TestFixture]
 public class DynamicNetworkBindingProxyTest
 {
-    private INetworkBindingProvider _managedSocketProvider = null!;
-    private INetworkBindingProvider _linuxBindProvider = null!;
-    private INetworkBindingProvider _proxyTunnelProvider = null!;
-    private IConfigService _configService = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicNetworkBindingProxy _proxy = null!;
+    private INetworkBindingProvider managedSocketProvider = null!;
+    private INetworkBindingProvider linuxBindProvider = null!;
+    private INetworkBindingProvider proxyTunnelProvider = null!;
+    private IConfigService configService = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicNetworkBindingProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _managedSocketProvider = Substitute.For<INetworkBindingProvider>();
-        _managedSocketProvider.ProviderId.Returns("ManagedSocket");
-        _managedSocketProvider.DisplayName.Returns("Managed Socket Binding (.NET Standard)");
-        _managedSocketProvider.IsAvailable.Returns(true);
-        _managedSocketProvider.Capabilities.Returns(new NetworkBindingCapabilities
+        this.managedSocketProvider = Substitute.For<INetworkBindingProvider>();
+        this.managedSocketProvider.ProviderId.Returns("ManagedSocket");
+        this.managedSocketProvider.DisplayName.Returns("Managed Socket Binding (.NET Standard)");
+        this.managedSocketProvider.IsAvailable.Returns(true);
+        this.managedSocketProvider.Capabilities.Returns(new NetworkBindingCapabilities
         {
             SupportsInterfaceBinding = true,
-            SupportsVpnKillSwitch = true
+            SupportsVpnKillSwitch = true,
         });
-        _managedSocketProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _managedSocketProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
+        this.managedSocketProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.managedSocketProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
 
-        _linuxBindProvider = Substitute.For<INetworkBindingProvider>();
-        _linuxBindProvider.ProviderId.Returns("LinuxBindToDevice");
-        _linuxBindProvider.DisplayName.Returns("Linux Kernel Device Binding (SO_BINDTODEVICE)");
-        _linuxBindProvider.IsAvailable.Returns(true);
-        _linuxBindProvider.Capabilities.Returns(new NetworkBindingCapabilities
+        this.linuxBindProvider = Substitute.For<INetworkBindingProvider>();
+        this.linuxBindProvider.ProviderId.Returns("LinuxBindToDevice");
+        this.linuxBindProvider.DisplayName.Returns("Linux Kernel Device Binding (SO_BINDTODEVICE)");
+        this.linuxBindProvider.IsAvailable.Returns(true);
+        this.linuxBindProvider.Capabilities.Returns(new NetworkBindingCapabilities
         {
             SupportsInterfaceBinding = true,
             SupportsSoBindToDevice = true,
-            SupportsVpnKillSwitch = true
+            SupportsVpnKillSwitch = true,
         });
-        _linuxBindProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _linuxBindProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
+        this.linuxBindProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.linuxBindProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
 
-        _proxyTunnelProvider = Substitute.For<INetworkBindingProvider>();
-        _proxyTunnelProvider.ProviderId.Returns("ProxyTunnel");
-        _proxyTunnelProvider.DisplayName.Returns("Proxy Tunnel Binding (SOCKS5 / Tor Onion)");
-        _proxyTunnelProvider.IsAvailable.Returns(true);
-        _proxyTunnelProvider.Capabilities.Returns(new NetworkBindingCapabilities
+        this.proxyTunnelProvider = Substitute.For<INetworkBindingProvider>();
+        this.proxyTunnelProvider.ProviderId.Returns("ProxyTunnel");
+        this.proxyTunnelProvider.DisplayName.Returns("Proxy Tunnel Binding (SOCKS5 / Tor Onion)");
+        this.proxyTunnelProvider.IsAvailable.Returns(true);
+        this.proxyTunnelProvider.Capabilities.Returns(new NetworkBindingCapabilities
         {
             SupportsSocks5Proxy = true,
             SupportsTorOnion = true,
-            SupportsAnonymousRouting = true
+            SupportsAnonymousRouting = true,
         });
-        _proxyTunnelProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _proxyTunnelProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
+        this.proxyTunnelProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.proxyTunnelProvider.IsInterfaceUp(Arg.Any<string>()).Returns(true);
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.ActiveNetworkBindingProvider.Returns("ManagedSocket");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.ActiveNetworkBindingProvider.Returns("ManagedSocket");
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
-        var providers = new List<INetworkBindingProvider> { _managedSocketProvider, _linuxBindProvider, _proxyTunnelProvider };
+        var providers = new List<INetworkBindingProvider> { this.managedSocketProvider, this.linuxBindProvider, this.proxyTunnelProvider };
 
-        _proxy = new DynamicNetworkBindingProxy(
+        this.proxy = new DynamicNetworkBindingProxy(
             providers,
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredProvider()
     {
-        _proxy.ActiveProviderId.Should().Be("ManagedSocket");
-        _proxy.ActiveProvider.Should().BeSameAs(_managedSocketProvider);
+        this.proxy.ActiveProviderId.Should().Be("ManagedSocket");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.managedSocketProvider);
     }
 
     [Test]
@@ -97,9 +99,9 @@ public class DynamicNetworkBindingProxyTest
         config.ActiveNetworkBindingProvider.Returns(string.Empty);
 
         using var proxy = new DynamicNetworkBindingProxy(
-            new[] { _managedSocketProvider, _linuxBindProvider },
+            new[] { this.managedSocketProvider, this.linuxBindProvider },
             config,
-            _eventAggregator);
+            this.eventAggregator);
 
         proxy.ActiveProviderId.Should().Be("ManagedSocket");
     }
@@ -109,8 +111,8 @@ public class DynamicNetworkBindingProxyTest
     {
         var act = () => new DynamicNetworkBindingProxy(
             Enumerable.Empty<INetworkBindingProvider>(),
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
 
         act.Should().Throw<InvalidOperationException>();
     }
@@ -118,7 +120,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void GetProviders_ReturnsAllRegisteredProviders()
     {
-        var providers = _proxy.GetProviders().ToList();
+        var providers = this.proxy.GetProviders().ToList();
         providers.Should().HaveCount(3);
         providers.Select(p => p.ProviderId).Should().Contain(new[] { "ManagedSocket", "LinuxBindToDevice", "ProxyTunnel" });
     }
@@ -126,7 +128,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void GetProvider_WithValidId_ReturnsMatchingProvider()
     {
-        var provider = _proxy.GetProvider("linuxbindtodevice");
+        var provider = this.proxy.GetProvider("linuxbindtodevice");
         provider.Should().NotBeNull();
         provider!.ProviderId.Should().Be("LinuxBindToDevice");
     }
@@ -134,15 +136,15 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void GetProvider_WithInvalidOrEmptyId_ReturnsNull()
     {
-        _proxy.GetProvider("NonExistent").Should().BeNull();
-        _proxy.GetProvider(string.Empty).Should().BeNull();
-        _proxy.GetProvider(null).Should().BeNull();
+        this.proxy.GetProvider("NonExistent").Should().BeNull();
+        this.proxy.GetProvider(string.Empty).Should().BeNull();
+        this.proxy.GetProvider(null).Should().BeNull();
     }
 
     [Test]
     public async Task ProbeProviderAsync_WithValidProvider_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeProviderAsync("LinuxBindToDevice");
+        var probe = await this.proxy.ProbeProviderAsync("LinuxBindToDevice");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -151,7 +153,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public async Task ProbeProviderAsync_WithInvalidProvider_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeProviderAsync("InvalidProvider");
+        var probe = await this.proxy.ProbeProviderAsync("InvalidProvider");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -160,96 +162,96 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPersistsConfig()
     {
-        var result = await _proxy.SwitchProviderAsync("LinuxBindToDevice");
+        var result = await this.proxy.SwitchProviderAsync("LinuxBindToDevice");
 
         result.Success.Should().BeTrue();
         result.PreviousProvider.Should().Be("ManagedSocket");
         result.ActiveProvider.Should().Be("LinuxBindToDevice");
 
-        _proxy.ActiveProviderId.Should().Be("LinuxBindToDevice");
-        _proxy.ActiveProvider.Should().BeSameAs(_linuxBindProvider);
+        this.proxy.ActiveProviderId.Should().Be("LinuxBindToDevice");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.linuxBindProvider);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveNetworkBindingProvider"] == "LinuxBindToDevice"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<NetworkBindingProviderSwitchedEvent>(e => e.PreviousProvider == "ManagedSocket" && e.NewProvider == "LinuxBindToDevice"));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveNetworkBindingProvider"] == "LinuxBindToDevice"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NetworkBindingProviderSwitchedEvent>(e => e.PreviousProvider == "ManagedSocket" && e.NewProvider == "LinuxBindToDevice"));
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
-        var result = await _proxy.SwitchProviderAsync("ManagedSocket");
+        var result = await this.proxy.SwitchProviderAsync("ManagedSocket");
 
         result.Success.Should().BeTrue();
         result.ActiveProvider.Should().Be("ManagedSocket");
 
-        _configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
     }
 
     [Test]
     public async Task SwitchProviderAsync_WithUnknownOrEmptyProvider_ReturnsFailure()
     {
-        var result1 = await _proxy.SwitchProviderAsync("UnknownProvider");
+        var result1 = await this.proxy.SwitchProviderAsync("UnknownProvider");
         result1.Success.Should().BeFalse();
         result1.Error.Should().Contain("not registered");
 
-        var result2 = await _proxy.SwitchProviderAsync(string.Empty);
+        var result2 = await this.proxy.SwitchProviderAsync(string.Empty);
         result2.Success.Should().BeFalse();
         result2.Error.Should().Contain("empty");
 
-        _proxy.ActiveProviderId.Should().Be("ManagedSocket");
+        this.proxy.ActiveProviderId.Should().Be("ManagedSocket");
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _linuxBindProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult
+        this.linuxBindProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "Not supported on this platform"
+            StatusMessage = "Not supported on this platform",
         }));
 
-        var result = await _proxy.SwitchProviderAsync("LinuxBindToDevice");
+        var result = await this.proxy.SwitchProviderAsync("LinuxBindToDevice");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
-        _proxy.ActiveProviderId.Should().Be("ManagedSocket");
+        this.proxy.ActiveProviderId.Should().Be("ManagedSocket");
     }
 
     [Test]
     public void Delegation_ForwardsBindSocketAndIsInterfaceUpToActiveProvider()
     {
         using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        _proxy.BindSocket(socket, "eth0");
-        _managedSocketProvider.Received(1).BindSocket(socket, "eth0");
+        this.proxy.BindSocket(socket, "eth0");
+        this.managedSocketProvider.Received(1).BindSocket(socket, "eth0");
 
-        var isUp = _proxy.IsInterfaceUp("eth0");
+        var isUp = this.proxy.IsInterfaceUp("eth0");
         isUp.Should().BeTrue();
-        _managedSocketProvider.Received(1).IsInterfaceUp("eth0");
+        this.managedSocketProvider.Received(1).IsInterfaceUp("eth0");
     }
 
     [Test]
     public void CheckVpnKillSwitch_WhenInterfaceIsUp_ReturnsFalse()
     {
-        _managedSocketProvider.IsInterfaceUp("tun0").Returns(true);
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(true);
 
-        var killSwitchTriggered = _proxy.CheckVpnKillSwitch("tun0");
+        var killSwitchTriggered = this.proxy.CheckVpnKillSwitch("tun0");
         killSwitchTriggered.Should().BeFalse();
-        _eventAggregator.DidNotReceive().PublishEvent(Arg.Any<VpnKillSwitchTriggeredEvent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<VpnKillSwitchTriggeredEvent>());
     }
 
     [Test]
     public void CheckVpnKillSwitch_WhenInterfaceDropped_PublishesEventAndReturnsTrue()
     {
-        _managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
 
-        var killSwitchTriggered = _proxy.CheckVpnKillSwitch("tun0");
+        var killSwitchTriggered = this.proxy.CheckVpnKillSwitch("tun0");
         killSwitchTriggered.Should().BeTrue();
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<VpnKillSwitchTriggeredEvent>(e => e.InterfaceName == "tun0"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnKillSwitchTriggeredEvent>(e => e.InterfaceName == "tun0"));
     }
 
     [Test]
     public void CheckVpnKillSwitch_WhenInterfaceEmpty_ReturnsFalse()
     {
-        var killSwitchTriggered = _proxy.CheckVpnKillSwitch(string.Empty);
+        var killSwitchTriggered = this.proxy.CheckVpnKillSwitch(string.Empty);
         killSwitchTriggered.Should().BeFalse();
     }
 

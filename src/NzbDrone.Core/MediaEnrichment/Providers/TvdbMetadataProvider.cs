@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -6,9 +8,13 @@ namespace NzbDrone.Core.MediaEnrichment.Providers;
 public class TvdbMetadataProvider : IMediaMetadataProvider
 {
     public string ProviderId => "TheTVDB";
+
     public string DisplayName => "TheTVDB API v4";
+
     public string Version => "4.0.0";
+
     public string Description => "Fetches TV series episodic metadata, season posters, series overviews, and actor credits from TheTVDB.";
+
     public bool IsAvailable => true;
 
     public MediaMetadataCapabilities Capabilities => new()
@@ -20,7 +26,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
         SupportsFanart = true,
         SupportsCast = true,
         SupportsSeasonBanners = true,
-        SupportsNfoParsing = false
+        SupportsNfoParsing = false,
     };
 
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
@@ -28,7 +34,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
         return Task.FromResult(new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = "TheTVDB provider is active."
+            StatusMessage = "TheTVDB provider is active.",
         });
     }
 
@@ -48,7 +54,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             Year = parsedYear,
             MediaType = "TV",
             Overview = $"TheTVDB series details for {cleanTitle}.",
-            Rating = 0.0
+            Rating = 0.0,
         };
 
         return Task.FromResult(meta);

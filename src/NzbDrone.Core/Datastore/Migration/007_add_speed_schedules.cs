@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddSpeedSchedules : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("SpeedSchedules")
+        this.Create.Table("SpeedSchedules")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("Days").AsInt32().NotNullable().WithDefaultValue(127)

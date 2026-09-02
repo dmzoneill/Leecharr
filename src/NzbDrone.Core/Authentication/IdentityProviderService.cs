@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,54 +11,54 @@ namespace NzbDrone.Core.Authentication;
 
 public class IdentityProviderService : IIdentityProviderService
 {
-    private readonly IIdentityProviderRepository _repository;
-    private readonly Logger _logger;
+    private readonly IIdentityProviderRepository repository;
+    private readonly Logger logger;
 
     public IdentityProviderService(
         IIdentityProviderRepository repository,
         Logger logger)
     {
-        _repository = repository;
-        _logger = logger;
+        this.repository = repository;
+        this.logger = logger;
     }
 
     public List<IdentityProviderDefinition> GetAll()
     {
-        return _repository.All().ToList();
+        return this.repository.All().ToList();
     }
 
     public List<IdentityProviderDefinition> GetEnabled()
     {
-        return _repository.GetEnabled().ToList();
+        return this.repository.GetEnabled().ToList();
     }
 
     public IdentityProviderDefinition GetById(int id)
     {
-        return _repository.Get(id);
+        return this.repository.Get(id);
     }
 
     public IdentityProviderDefinition GetByProviderId(string providerId)
     {
-        return _repository.FindByProviderId(providerId);
+        return this.repository.FindByProviderId(providerId);
     }
 
     public IdentityProviderDefinition Add(IdentityProviderDefinition provider)
     {
         provider.CreatedAt = DateTime.UtcNow;
         provider.UpdatedAt = DateTime.UtcNow;
-        return _repository.Insert(provider);
+        return this.repository.Insert(provider);
     }
 
     public IdentityProviderDefinition Update(IdentityProviderDefinition provider)
     {
         provider.UpdatedAt = DateTime.UtcNow;
-        _repository.Update(provider);
+        this.repository.Update(provider);
         return provider;
     }
 
     public void Delete(int id)
     {
-        _repository.Delete(id);
+        this.repository.Delete(id);
     }
 
     public async Task<bool> TestConnectionAsync(IdentityProviderDefinition provider)
@@ -72,7 +74,7 @@ public class IdentityProviderService : IIdentityProviderService
                     ? (provider.IssuerUrl.EndsWith("/") ? provider.IssuerUrl + ".well-known/openid-configuration" : provider.IssuerUrl + "/.well-known/openid-configuration")
                     : null,
                 IdentityProviderType.Saml => provider.MetadataUrl,
-                _ => provider.IssuerUrl
+                _ => provider.IssuerUrl,
             };
 
             if (string.IsNullOrEmpty(targetUrl))
@@ -85,7 +87,7 @@ public class IdentityProviderService : IIdentityProviderService
         }
         catch (Exception ex)
         {
-            _logger.Warn(ex, "Failed to test connection to identity provider {0}", provider.Name);
+            this.logger.Warn(ex, "Failed to test connection to identity provider {0}", provider.Name);
             return false;
         }
     }

@@ -1,3 +1,6 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
+using System;
 using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
@@ -8,145 +11,449 @@ namespace Leecharr.Core.Test.BitTorrent;
 [TestFixture]
 public class PiecePickerTest
 {
+    #region Basic & Construction Tests
+
     [Test]
-    public void should_pick_rarest_pieces_first()
+    public void Constructor_InitializesPiecesAndPropertiesCorrectly()
     {
         // 10 pieces, 32KB each, total 320KB
         var picker = new PiecePicker(10, 32768, 327680);
 
-        // Peer 1 has pieces 0..9
-        var peer1Bitfield = Enumerable.Repeat(true, 10).ToArray();
-        picker.UpdatePeerAvailability(peer1Bitfield, true);
+        picker.PieceCount.Should().Be(10);
+        picker.PieceLength.Should().Be(32768);
+        picker.TotalSize.Should().Be(327680);
+        picker.GetProgress().Should().Be(0.0);
 
-        // Peer 2 has only piece 5
-        var peer2Bitfield = new bool[10];
-        peer2Bitfield[5] = true;
-        picker.UpdatePeerAvailability(peer2Bitfield, true);
+        var bitfield = picker.GetBitfield();
+        bitfield.Should().HaveCount(10);
+        bitfield.All(b => !b).Should().BeTrue();
+    }
 
-        // Pieces 0..4 and 6..9 have rarity 1; Piece 5 has rarity 2.
-        // Peer 3 has pieces 3 and 5.
-        var peer3Bitfield = new bool[10];
-        peer3Bitfield[3] = true;
-        peer3Bitfield[5] = true;
+    [Test]
+    public void Constructor_HandlesNonUniformLastPieceSize()
+    {
+        // 3 pieces, 16384 each, total size 35000 (piece 0: 16384, piece 1: 16384, piece 2: 2232)
+        var picker = new PiecePicker(3, 16384, 35000);
 
-        var requests = picker.PickBlocks(peer3Bitfield, 2);
+        picker.PieceCount.Should().Be(3);
+
+        var fullBitfield = new[] { true, true, true };
+        var requests = picker.PickBlocks(fullBitfield, 10);
+
+        // Piece 0: 1 block of 16384
+        // Piece 1: 1 block of 16384
+        // Piece 2: 1 block of 2232
+        requests.Should().HaveCount(3);
+        requests[2].PieceIndex.Should().Be(2);
+        requests[2].BlockLength.Should().Be(2232);
+    }
+
+    [Test]
+    public void PickBlocks_WithNullOrEmptyInputs_ReturnsEmptyList()
+    {
+        var picker = new PiecePicker(5, 16384, 81920);
+
+        picker.PickBlocks(null!, 5).Should().BeEmpty();
+        picker.PickBlocks(new bool[5], 0).Should().BeEmpty();
+        picker.PickBlocks(new bool[5], -1).Should().BeEmpty();
+        picker.PickBlocks(new bool[5], 5).Should().BeEmpty();
+    }
+
+    #endregion
+
+    #region Rarest-First Tests
+
+    [Test]
+    public void PickBlocks_PicksRarestPiecesFirst_InMultiPeerSwarm()
+    {
+        // 10 pieces, 16KB each
+        var picker = new PiecePicker(10, 16384, 163840);
+
+        // Peer 1 has pieces 0..9 (availability = 1 for all)
+        var peer1 = Enumerable.Repeat(true, 10).ToArray();
+        picker.UpdatePeerAvailability(peer1, isAdd: true);
+
+        // Peer 2 has pieces 0, 1, 2, 3 (availability for 0..3 is 2)
+        var peer2 = new bool[10];
+        peer2[0] = peer2[1] = peer2[2] = peer2[3] = true;
+        picker.UpdatePeerAvailability(peer2, isAdd: true);
+
+        // Peer 3 has pieces 0, 1 (availability for 0..1 is 3)
+        var peer3 = new bool[10];
+        peer3[0] = peer3[1] = true;
+        picker.UpdatePeerAvailability(peer3, isAdd: true);
+
+        // Availability:
+        // Pieces 0, 1 = 3 (most common)
+        // Pieces 2, 3 = 2
+        // Pieces 4, 5, 6, 7, 8, 9 = 1 (rarest)
+
+        // Peer 4 has pieces 1 (common) and 7 (rare)
+        var peer4 = new bool[10];
+        peer4[1] = true;
+        peer4[7] = true;
+
+        var requests = picker.PickBlocks(peer4, 2);
 
         requests.Should().HaveCount(2);
-
-        // Piece 3 is rarer than Piece 5, so Piece 3 must be picked first!
-        requests.All(r => r.PieceIndex == 3).Should().BeTrue();
+        // Rarest (Piece 7) must be picked before Piece 1
+        requests[0].PieceIndex.Should().Be(7);
+        requests[1].PieceIndex.Should().Be(1);
     }
 
     [Test]
-    public void should_prioritize_head_and_tail_in_sequential_mode()
+    public void PickBlocks_WhenPeerLeaves_RecalculatesRarestFirstOrder()
     {
-        // 20 pieces, 16KB each
-        var picker = new PiecePicker(20, 16384, 327680);
-        var fullBitfield = Enumerable.Repeat(true, 20).ToArray();
+        var picker = new PiecePicker(5, 16384, 81920);
 
-        var requests = picker.PickBlocks(fullBitfield, 6, sequentialMode: true);
+        // Peer 1 has piece 0 and 1
+        var peer1 = new bool[] { true, true, false, false, false };
+        picker.UpdatePeerAvailability(peer1, isAdd: true);
 
-        requests.Should().HaveCount(6);
-        var pickedPieces = requests.Select(r => r.PieceIndex).Distinct().ToList();
-        pickedPieces.Should().Contain(0);
-        pickedPieces.Any(p => p >= 18).Should().BeTrue();
+        // Peer 2 has piece 1
+        var peer2 = new bool[] { false, true, false, false, false };
+        picker.UpdatePeerAvailability(peer2, isAdd: true);
+
+        // Piece 0 rarity: 1, Piece 1 rarity: 2
+        // Peer 1 disconnects:
+        picker.UpdatePeerAvailability(peer1, isAdd: false);
+
+        // Now Piece 0 rarity: 0, Piece 1 rarity: 1
+        // Peer 3 connects with pieces 0 and 1
+        var peer3 = new bool[] { true, true, false, false, false };
+        var requests = picker.PickBlocks(peer3, 2);
+
+        requests.Should().HaveCount(2);
+        // Piece 0 has rarity 0, so it is rarer than Piece 1 (rarity 1)
+        requests[0].PieceIndex.Should().Be(0);
+        requests[1].PieceIndex.Should().Be(1);
     }
 
     [Test]
-    public void should_complete_piece_when_all_blocks_received()
+    public void PickBlocks_PrioritizesHigherPriorityPiecesOverRarity()
     {
-        // 1 piece with 2 blocks (32KB piece, 16KB blocks)
-        var picker = new PiecePicker(1, 32768, 32768);
+        var picker = new PiecePicker(5, 16384, 81920);
 
-        var firstDone = picker.MarkBlockReceived(0, 0, 16384);
-        firstDone.Should().BeFalse();
+        // Swarm: piece 0 has rarity 1, piece 4 has rarity 5
+        var peerSwarm = Enumerable.Repeat(true, 5).ToArray();
+        for (var i = 0; i < 5; i++)
+        {
+            picker.UpdatePeerAvailability(peerSwarm, isAdd: true);
+        }
 
-        var secondDone = picker.MarkBlockReceived(0, 16384, 16384);
-        secondDone.Should().BeTrue();
+        // Set high priority on piece 4 (even though it is common)
+        picker.SetPiecePriority(4, 3); // Max priority
+        picker.SetPiecePriority(0, 1); // Normal priority
 
-        picker.MarkPieceVerified(0);
-        picker.GetProgress().Should().Be(1.0);
+        var requests = picker.PickBlocks(peerSwarm, 1);
+
+        requests.Should().HaveCount(1);
+        requests[0].PieceIndex.Should().Be(4);
     }
 
     [Test]
-    public void should_skip_pieces_with_zero_priority()
+    public void PickBlocks_SkipsPiecesWithPriorityZero()
     {
         var picker = new PiecePicker(5, 16384, 81920);
         picker.SetPiecePriority(0, 0); // Skip piece 0
+        picker.SetPiecePriority(2, 0); // Skip piece 2
 
         var fullBitfield = Enumerable.Repeat(true, 5).ToArray();
         var requests = picker.PickBlocks(fullBitfield, 10);
 
         requests.Should().NotBeEmpty();
         requests.Any(r => r.PieceIndex == 0).Should().BeFalse();
+        requests.Any(r => r.PieceIndex == 2).Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Sequential Mode Tests
+
+    [Test]
+    public void PickBlocks_SequentialMode_PrioritizesHeadAndTailPiecesForMediaInspection()
+    {
+        // 50 pieces, 16KB each
+        var picker = new PiecePicker(50, 16384, 819200);
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        // Pick 6 blocks in sequential mode: should pick head pieces (0, 1, 2, 3) and tail pieces (48, 49)
+        var requests = picker.PickBlocks(fullBitfield, 6, sequentialMode: true);
+
+        requests.Should().HaveCount(6);
+
+        var pieceIndices = requests.Select(r => r.PieceIndex).Distinct().ToList();
+
+        // First 4 pieces (head: 0, 1, 2, 3)
+        pieceIndices.Should().Contain(new[] { 0, 1, 2, 3 });
+        // Last 2 pieces (tail: 48, 49)
+        pieceIndices.Should().Contain(new[] { 48, 49 });
     }
 
     [Test]
-    public void should_prioritize_high_priority_pieces()
+    public void PickBlocks_SequentialMode_RequestsSequentialInteriorAfterHeadAndTailComplete()
     {
+        // 10 pieces, 16KB each
+        var picker = new PiecePicker(10, 16384, 163840);
+        var fullBitfield = Enumerable.Repeat(true, 10).ToArray();
+
+        // Complete head pieces (0, 1, 2, 3) and tail pieces (8, 9)
+        foreach (var p in new[] { 0, 1, 2, 3, 8, 9 })
+        {
+            picker.MarkBlockReceived(p, 0, 16384);
+            picker.MarkPieceVerified(p);
+        }
+
+        // Pick next blocks: should sequentially pick 4, 5, 6, 7
+        var requests = picker.PickBlocks(fullBitfield, 4, sequentialMode: true);
+
+        requests.Should().HaveCount(4);
+        requests[0].PieceIndex.Should().Be(4);
+        requests[1].PieceIndex.Should().Be(5);
+        requests[2].PieceIndex.Should().Be(6);
+        requests[3].PieceIndex.Should().Be(7);
+    }
+
+    [Test]
+    public void PickBlocks_SequentialMode_HandlesSmallTorrentsUnder6Pieces()
+    {
+        // 4 pieces
+        var picker = new PiecePicker(4, 16384, 65536);
+        var fullBitfield = Enumerable.Repeat(true, 4).ToArray();
+
+        var requests = picker.PickBlocks(fullBitfield, 4, sequentialMode: true);
+
+        requests.Should().HaveCount(4);
+        var pieces = requests.Select(r => r.PieceIndex).Distinct().ToList();
+        pieces.Should().ContainInOrder(0, 1, 2, 3);
+    }
+
+    [Test]
+    public void PickBlocks_SequentialMode_WithPartialPeerBitfield_PicksAvailableHeadOrTail()
+    {
+        var picker = new PiecePicker(20, 16384, 327680);
+
+        // Peer only has tail piece 19 and interior piece 10
+        var partialBitfield = new bool[20];
+        partialBitfield[10] = true;
+        partialBitfield[19] = true;
+
+        var requests = picker.PickBlocks(partialBitfield, 2, sequentialMode: true);
+
+        requests.Should().HaveCount(2);
+        // Tail piece (19) prioritized before interior piece (10)
+        requests[0].PieceIndex.Should().Be(19);
+        requests[1].PieceIndex.Should().Be(10);
+    }
+
+    #endregion
+
+    #region Endgame Mode Tests
+
+    [Test]
+    public void IsEndgameMode_ReturnsFalse_WhenManyBlocksRemaining()
+    {
+        // 100 pieces of 16KB = 100 blocks
+        var picker = new PiecePicker(100, 16384, 1638400);
+
+        picker.IsEndgameMode().Should().BeFalse();
+    }
+
+    [Test]
+    public void IsEndgameMode_ReturnsTrue_WhenRemainingBlocksUnderThreshold()
+    {
+        // 20 pieces of 16KB = 20 blocks <= 30
+        var picker = new PiecePicker(20, 16384, 327680);
+
+        picker.IsEndgameMode().Should().BeTrue();
+    }
+
+    [Test]
+    public void IsEndgameMode_ReturnsFalse_WhenAllBlocksCompleted()
+    {
+        // 5 pieces of 16KB
         var picker = new PiecePicker(5, 16384, 81920);
-        picker.SetPiecePriority(3, 3); // Max priority on piece 3
 
-        var fullBitfield = Enumerable.Repeat(true, 5).ToArray();
-        var requests = picker.PickBlocks(fullBitfield, 1);
+        for (var i = 0; i < 5; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
 
-        requests.Should().HaveCount(1);
-        requests[0].PieceIndex.Should().Be(3);
+        picker.IsEndgameMode().Should().BeFalse();
+        picker.GetProgress().Should().Be(1.0);
     }
 
     [Test]
-    public void should_reset_corrupted_piece_when_verification_fails()
+    public void PickBlocks_InNormalMode_PreventsDuplicateInFlightRequestsAcrossPeers()
     {
-        var picker = new PiecePicker(2, 16384, 32768);
-        picker.MarkBlockReceived(0, 0, 16384);
+        // 50 pieces of 16KB (50 blocks > 30, so normal mode)
+        var picker = new PiecePicker(50, 16384, 819200);
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
 
-        // Reset piece 0
+        // Peer A requests 2 blocks
+        var requestsPeerA = picker.PickBlocks(fullBitfield, 2);
+        requestsPeerA.Should().HaveCount(2);
+
+        // Peer B requests 2 blocks: should NOT get the blocks already in flight for Peer A
+        var requestsPeerB = picker.PickBlocks(fullBitfield, 2);
+        requestsPeerB.Should().HaveCount(2);
+
+        var pieceA = requestsPeerA.Select(r => $"{r.PieceIndex}:{r.BlockOffset}").ToList();
+        var pieceB = requestsPeerB.Select(r => $"{r.PieceIndex}:{r.BlockOffset}").ToList();
+
+        pieceA.Intersect(pieceB).Should().BeEmpty();
+    }
+
+    [Test]
+    public void PickBlocks_InEndgameMode_AllowsDuplicateRequestsToFinishRapidly()
+    {
+        // 2 pieces of 16KB = 2 blocks (<= 30, so endgame mode!)
+        var picker = new PiecePicker(2, 16384, 32768);
+        var fullBitfield = new[] { true, true };
+
+        picker.IsEndgameMode().Should().BeTrue();
+
+        // Peer A requests all blocks
+        var requestsPeerA = picker.PickBlocks(fullBitfield, 2);
+        requestsPeerA.Should().HaveCount(2);
+
+        // In endgame mode, Peer B can also request the in-flight blocks!
+        var requestsPeerB = picker.PickBlocks(fullBitfield, 2);
+        requestsPeerB.Should().HaveCount(2);
+
+        requestsPeerB[0].PieceIndex.Should().Be(requestsPeerA[0].PieceIndex);
+        requestsPeerB[1].PieceIndex.Should().Be(requestsPeerA[1].PieceIndex);
+    }
+
+    #endregion
+
+    #region Choke, Cancellation & Corruption Recovery Tests
+
+    [Test]
+    public void CancelBlock_FreesInFlightBlockForOtherPeers()
+    {
+        // 50 pieces (normal mode)
+        var picker = new PiecePicker(50, 16384, 819200);
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        var request1 = picker.PickBlocks(fullBitfield, 1);
+        request1.Should().HaveCount(1);
+        var pIdx = request1[0].PieceIndex;
+        var offset = request1[0].BlockOffset;
+
+        // Block is in flight, cannot be picked again
+        var nextReq = picker.PickBlocks(fullBitfield, 1);
+        nextReq[0].PieceIndex.Should().NotBe(pIdx);
+
+        // Cancel the in-flight request (e.g. peer choked us)
+        picker.CancelBlock(pIdx, offset);
+
+        // Now block can be re-picked
+        var retryReq = picker.PickBlocks(fullBitfield, 1);
+        retryReq.Should().HaveCount(1);
+        retryReq[0].PieceIndex.Should().Be(pIdx);
+    }
+
+    [Test]
+    public void MarkBlockReceived_MultiBlockPiece_CompletesOnlyWhenAllBlocksArrive()
+    {
+        // 1 piece with 4 blocks of 16KB = 64KB
+        var picker = new PiecePicker(1, 65536, 65536);
+
+        // Block 0
+        picker.MarkBlockReceived(0, 0, 16384).Should().BeFalse();
+        // Block 1
+        picker.MarkBlockReceived(0, 16384, 16384).Should().BeFalse();
+        // Block 2
+        picker.MarkBlockReceived(0, 32768, 16384).Should().BeFalse();
+        // Block 3 (final)
+        picker.MarkBlockReceived(0, 49152, 16384).Should().BeTrue();
+
+        picker.MarkPieceVerified(0);
+        picker.GetBitfield()[0].Should().BeTrue();
+        picker.GetProgress().Should().Be(1.0);
+    }
+
+    [Test]
+    public void MarkBlockReceived_DuplicateArrival_IgnoresDuplicateBlock()
+    {
+        var picker = new PiecePicker(1, 32768, 32768);
+
+        picker.MarkBlockReceived(0, 0, 16384).Should().BeFalse();
+        // Duplicate block 0 arrival
+        picker.MarkBlockReceived(0, 0, 16384).Should().BeFalse();
+
+        // Receive block 1
+        picker.MarkBlockReceived(0, 16384, 16384).Should().BeTrue();
+    }
+
+    [Test]
+    public void MarkPieceCorrupt_ResetsPieceStateAndAllowsFullRedownload()
+    {
+        // 1 piece with 2 blocks
+        var picker = new PiecePicker(1, 32768, 32768);
+        var fullBitfield = new[] { true };
+
+        picker.MarkBlockReceived(0, 0, 16384);
+        picker.MarkBlockReceived(0, 16384, 16384);
+        picker.MarkPieceVerified(0);
+
+        picker.GetBitfield()[0].Should().BeTrue();
+        picker.GetProgress().Should().Be(1.0);
+
+        // Verification failed on hash check: mark corrupt
         picker.MarkPieceCorrupt(0);
 
-        var bitfield = picker.GetBitfield();
-        bitfield[0].Should().BeFalse();
+        picker.GetBitfield()[0].Should().BeFalse();
         picker.GetProgress().Should().Be(0.0);
+
+        // Piece should be pickable again
+        var retryRequests = picker.PickBlocks(fullBitfield, 2);
+        retryRequests.Should().HaveCount(2);
+        retryRequests[0].PieceIndex.Should().Be(0);
+        retryRequests[1].PieceIndex.Should().Be(0);
     }
 
     [Test]
-    public void should_handle_peer_disconnect_and_decrease_availability()
-    {
-        var picker = new PiecePicker(5, 16384, 81920);
-        var peerBitfield = new bool[] { true, true, false, false, false };
-
-        picker.UpdatePeerAvailability(peerBitfield, isAdd: true);
-        picker.UpdatePeerAvailability(peerBitfield, isAdd: false);
-
-        // Availability should not go negative
-        var requests = picker.PickBlocks(peerBitfield, 2);
-        requests.Should().NotBeNull();
-    }
-
-    [Test]
-    public void should_cancel_in_flight_block_request()
+    public void MarkBlockReceived_WithInvalidPieceOrOffset_ReturnsFalseWithoutThrowing()
     {
         var picker = new PiecePicker(2, 16384, 32768);
-        var fullBitfield = new bool[] { true, true };
 
-        var requests1 = picker.PickBlocks(fullBitfield, 1);
-        requests1.Should().HaveCount(1);
-
-        // Cancel the block request
-        picker.CancelBlock(requests1[0].PieceIndex, requests1[0].BlockOffset);
-
-        // Block can be requested again
-        var requests2 = picker.PickBlocks(fullBitfield, 1);
-        requests2.Should().HaveCount(1);
-        requests2[0].PieceIndex.Should().Be(requests1[0].PieceIndex);
+        picker.MarkBlockReceived(-1, 0, 16384).Should().BeFalse();
+        picker.MarkBlockReceived(99, 0, 16384).Should().BeFalse();
+        picker.MarkBlockReceived(0, 999999, 16384).Should().BeFalse();
     }
 
     [Test]
-    public void should_return_empty_when_peer_has_no_pieces()
+    public void SetPiecePriority_WithInvalidPiece_DoesNotThrow()
     {
-        var picker = new PiecePicker(5, 16384, 81920);
-        var emptyBitfield = new bool[5];
+        var picker = new PiecePicker(2, 16384, 32768);
 
-        var requests = picker.PickBlocks(emptyBitfield, 5);
-        requests.Should().BeEmpty();
+        Action act1 = () => picker.SetPiecePriority(-1, 2);
+        act1.Should().NotThrow();
+
+        Action act2 = () => picker.SetPiecePriority(100, 2);
+        act2.Should().NotThrow();
     }
+
+    [Test]
+    public void MarkPieceVerifiedAndCorrupt_WithInvalidPiece_DoesNotThrow()
+    {
+        var picker = new PiecePicker(2, 16384, 32768);
+
+        Action act1 = () => picker.MarkPieceVerified(-1);
+        act1.Should().NotThrow();
+
+        Action act2 = () => picker.MarkPieceVerified(100);
+        act2.Should().NotThrow();
+
+        Action act3 = () => picker.MarkPieceCorrupt(-1);
+        act3.Should().NotThrow();
+
+        Action act4 = () => picker.MarkPieceCorrupt(100);
+        act4.Should().NotThrow();
+    }
+
+    #endregion
 }

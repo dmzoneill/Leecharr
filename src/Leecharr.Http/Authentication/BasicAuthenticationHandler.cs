@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -18,7 +20,7 @@ public class BasicAuthenticationOptions : AuthenticationSchemeOptions
 
 public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticationOptions>
 {
-    private readonly IConfigFileProvider _configFileProvider;
+    private readonly IConfigFileProvider configFileProvider;
 
     public BasicAuthenticationHandler(
         IOptionsMonitor<BasicAuthenticationOptions> options,
@@ -27,19 +29,19 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
         IConfigFileProvider configFileProvider)
         : base(options, logger, encoder)
     {
-        _configFileProvider = configFileProvider;
+        this.configFileProvider = configFileProvider;
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.ContainsKey("Authorization"))
+        if (!this.Request.Headers.ContainsKey("Authorization"))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         try
         {
-            var authHeader = AuthenticationHeaderValue.Parse(Request.Headers["Authorization"]);
+            var authHeader = AuthenticationHeaderValue.Parse(this.Request.Headers["Authorization"]);
             if (!string.Equals(authHeader.Scheme, "Basic", StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult(AuthenticateResult.NoResult());
@@ -50,10 +52,10 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
             var username = credentials.Length > 0 ? credentials[0] : string.Empty;
             var password = credentials.Length > 1 ? credentials[1] : string.Empty;
 
-            var configuredApiKey = _configFileProvider.ApiKey;
+            var configuredApiKey = this.configFileProvider.ApiKey;
 
             // Allow auth if password or username matches API key or authentication is disabled
-            if (!_configFileProvider.AuthenticationEnabled ||
+            if (!this.configFileProvider.AuthenticationEnabled ||
                 (!string.IsNullOrWhiteSpace(configuredApiKey) && (password == configuredApiKey || username == configuredApiKey)))
             {
                 var claims = new[]
@@ -62,7 +64,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
                     new Claim(ClaimTypes.Name, string.IsNullOrWhiteSpace(username) ? "Admin" : username),
                     new Claim(ClaimTypes.Role, "Admin"),
                     new Claim(ClaimTypes.Role, "Operator"),
-                    new Claim(ClaimTypes.Role, "User")
+                    new Claim(ClaimTypes.Role, "User"),
                 };
                 var identity = new ClaimsIdentity(claims, BasicAuthenticationOptions.DefaultScheme);
                 return Task.FromResult(AuthenticateResult.Success(

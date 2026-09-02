@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Data;
 
@@ -5,12 +7,12 @@ namespace NzbDrone.Core.Datastore;
 
 public class Database : IDatabase
 {
-    private readonly Func<IDbConnection> _connectionFactory;
+    private readonly Func<IDbConnection> connectionFactory;
 
     public Database(Func<IDbConnection> connectionFactory, DatabaseType databaseType)
     {
-        _connectionFactory = connectionFactory;
-        DatabaseType = databaseType;
+        this.connectionFactory = connectionFactory;
+        this.DatabaseType = databaseType;
     }
 
     public DatabaseType DatabaseType { get; }
@@ -19,7 +21,7 @@ public class Database : IDatabase
 
     public IDbConnection OpenConnection()
     {
-        var connection = _connectionFactory();
+        var connection = this.connectionFactory();
         connection.Open();
         return connection;
     }

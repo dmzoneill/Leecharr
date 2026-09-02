@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,101 +17,101 @@ namespace Leecharr.Core.Test.MediaInspection;
 [TestFixture]
 public class DynamicMediaInspectorProxyTest
 {
-    private IMediaInspectorProvider _tagLibProvider = null!;
-    private IMediaInspectorProvider _mediaInfoProvider = null!;
-    private IMediaInspectorProvider _ffprobeProvider = null!;
-    private IConfigService _configService = null!;
-    private IEventAggregator _eventAggregator = null!;
-    private DynamicMediaInspectorProxy _proxy = null!;
+    private IMediaInspectorProvider tagLibProvider = null!;
+    private IMediaInspectorProvider mediaInfoProvider = null!;
+    private IMediaInspectorProvider ffprobeProvider = null!;
+    private IConfigService configService = null!;
+    private IEventAggregator eventAggregator = null!;
+    private DynamicMediaInspectorProxy proxy = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _tagLibProvider = Substitute.For<IMediaInspectorProvider>();
-        _tagLibProvider.ProviderId.Returns("TagLib");
-        _tagLibProvider.DisplayName.Returns("TagLib# & Pure EBML (Pure .NET)");
-        _tagLibProvider.IsAvailable.Returns(true);
-        _tagLibProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsDolbyVision = true, SupportsHdr10Plus = true });
-        _tagLibProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
+        this.tagLibProvider = Substitute.For<IMediaInspectorProvider>();
+        this.tagLibProvider.ProviderId.Returns("TagLib");
+        this.tagLibProvider.DisplayName.Returns("TagLib# & Pure EBML (Pure .NET)");
+        this.tagLibProvider.IsAvailable.Returns(true);
+        this.tagLibProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsDolbyVision = true, SupportsHdr10Plus = true });
+        this.tagLibProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _tagLibProvider.InspectFile(Arg.Any<string>()).Returns(new MediaContainerInfo
+        this.tagLibProvider.InspectFile(Arg.Any<string>()).Returns(new MediaContainerInfo
         {
             ContainerFormat = "Matroska (MKV)",
             VideoCodec = "HEVC / H.265",
             Resolution = "4K UHD (2160p)",
             HdrFormat = "Dolby Vision",
-            AudioCodec = "Dolby Atmos"
+            AudioCodec = "Dolby Atmos",
         });
-        _tagLibProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>()).Returns(new MediaContainerInfo
+        this.tagLibProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>()).Returns(new MediaContainerInfo
         {
             ContainerFormat = "MP4",
             VideoCodec = "AVC / H.264",
-            Resolution = "1080p"
+            Resolution = "1080p",
         });
-        _tagLibProvider.InspectMediaAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.tagLibProvider.InspectMediaAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new MediaContainerInfo
             {
                 ContainerFormat = "Matroska (MKV)",
-                VideoCodec = "HEVC / H.265"
+                VideoCodec = "HEVC / H.265",
             }));
 
-        _mediaInfoProvider = Substitute.For<IMediaInspectorProvider>();
-        _mediaInfoProvider.ProviderId.Returns("MediaInfo");
-        _mediaInfoProvider.DisplayName.Returns("MediaInfo (CLI / Shared Library)");
-        _mediaInfoProvider.IsAvailable.Returns(true);
-        _mediaInfoProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsDolbyVision = true, SupportsChapters = true });
-        _mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
+        this.mediaInfoProvider = Substitute.For<IMediaInspectorProvider>();
+        this.mediaInfoProvider.ProviderId.Returns("MediaInfo");
+        this.mediaInfoProvider.DisplayName.Returns("MediaInfo (CLI / Shared Library)");
+        this.mediaInfoProvider.IsAvailable.Returns(true);
+        this.mediaInfoProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsDolbyVision = true, SupportsChapters = true });
+        this.mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
-        _mediaInfoProvider.InspectFile(Arg.Any<string>()).Returns(new MediaContainerInfo
+        this.mediaInfoProvider.InspectFile(Arg.Any<string>()).Returns(new MediaContainerInfo
         {
             ContainerFormat = "Matroska (MKV)",
             VideoCodec = "HEVC / H.265",
-            Resolution = "4K UHD (2160p)"
+            Resolution = "4K UHD (2160p)",
         });
 
-        _ffprobeProvider = Substitute.For<IMediaInspectorProvider>();
-        _ffprobeProvider.ProviderId.Returns("FFprobe");
-        _ffprobeProvider.DisplayName.Returns("FFprobe / FFmpeg (CLI / Multi-Stream)");
-        _ffprobeProvider.IsAvailable.Returns(true);
-        _ffprobeProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsVideoThumbnails = true });
-        _ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
+        this.ffprobeProvider = Substitute.For<IMediaInspectorProvider>();
+        this.ffprobeProvider.ProviderId.Returns("FFprobe");
+        this.ffprobeProvider.DisplayName.Returns("FFprobe / FFmpeg (CLI / Multi-Stream)");
+        this.ffprobeProvider.IsAvailable.Returns(true);
+        this.ffprobeProvider.Capabilities.Returns(new MediaInspectorCapabilities { SupportsVideoThumbnails = true });
+        this.ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
-        _configService = Substitute.For<IConfigService>();
-        _configService.ActiveMediaInspector.Returns("TagLib");
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.ActiveMediaInspector.Returns("TagLib");
 
-        _eventAggregator = Substitute.For<IEventAggregator>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
 
         var providers = new List<IMediaInspectorProvider>
         {
-            _tagLibProvider,
-            _mediaInfoProvider,
-            _ffprobeProvider
+            this.tagLibProvider,
+            this.mediaInfoProvider,
+            this.ffprobeProvider,
         };
 
-        _proxy = new DynamicMediaInspectorProxy(
+        this.proxy = new DynamicMediaInspectorProxy(
             providers,
-            _configService,
-            _eventAggregator);
+            this.configService,
+            this.eventAggregator);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _proxy?.Dispose();
+        this.proxy?.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesWithConfiguredProvider()
     {
-        _proxy.ActiveProviderId.Should().Be("TagLib");
-        _proxy.ActiveProvider.Should().BeSameAs(_tagLibProvider);
+        this.proxy.ActiveProviderId.Should().Be("TagLib");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.tagLibProvider);
     }
 
     [Test]
     public void GetProviders_ReturnsAllRegisteredProviders()
     {
-        var providers = _proxy.GetProviders().ToList();
+        var providers = this.proxy.GetProviders().ToList();
         providers.Should().HaveCount(3);
         providers.Select(p => p.ProviderId).Should().Contain(new[] { "TagLib", "MediaInfo", "FFprobe" });
     }
@@ -117,7 +119,7 @@ public class DynamicMediaInspectorProxyTest
     [Test]
     public void GetProvider_WithValidId_ReturnsMatchingProvider()
     {
-        var provider = _proxy.GetProvider("mediainfo");
+        var provider = this.proxy.GetProvider("mediainfo");
         provider.Should().NotBeNull();
         provider!.ProviderId.Should().Be("MediaInfo");
     }
@@ -125,14 +127,14 @@ public class DynamicMediaInspectorProxyTest
     [Test]
     public void GetProvider_WithInvalidId_ReturnsNull()
     {
-        var provider = _proxy.GetProvider("NonExistentProvider");
+        var provider = this.proxy.GetProvider("NonExistentProvider");
         provider.Should().BeNull();
     }
 
     [Test]
     public async Task ProbeProviderAsync_WithValidProvider_ReturnsHealthResult()
     {
-        var probe = await _proxy.ProbeProviderAsync("MediaInfo");
+        var probe = await this.proxy.ProbeProviderAsync("MediaInfo");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeTrue();
         probe.StatusMessage.Should().Be("OK");
@@ -141,7 +143,7 @@ public class DynamicMediaInspectorProxyTest
     [Test]
     public async Task ProbeProviderAsync_WithInvalidProvider_ReturnsUnhealthy()
     {
-        var probe = await _proxy.ProbeProviderAsync("InvalidProvider");
+        var probe = await this.proxy.ProbeProviderAsync("InvalidProvider");
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
@@ -150,104 +152,104 @@ public class DynamicMediaInspectorProxyTest
     [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProvider()
     {
-        var result = await _proxy.SwitchProviderAsync("MediaInfo");
+        var result = await this.proxy.SwitchProviderAsync("MediaInfo");
 
         result.Success.Should().BeTrue();
         result.PreviousProvider.Should().Be("TagLib");
         result.ActiveProvider.Should().Be("MediaInfo");
 
-        _proxy.ActiveProviderId.Should().Be("MediaInfo");
-        _proxy.ActiveProvider.Should().BeSameAs(_mediaInfoProvider);
+        this.proxy.ActiveProviderId.Should().Be("MediaInfo");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.mediaInfoProvider);
 
-        _configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveMediaInspector"] == "MediaInfo"));
-        _eventAggregator.Received(1).PublishEvent(Arg.Is<MediaInspectorSwitchedEvent>(e => e.PreviousProvider == "TagLib" && e.NewProvider == "MediaInfo"));
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveMediaInspector"] == "MediaInfo"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaInspectorSwitchedEvent>(e => e.PreviousProvider == "TagLib" && e.NewProvider == "MediaInfo"));
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
-        var result = await _proxy.SwitchProviderAsync("TagLib");
+        var result = await this.proxy.SwitchProviderAsync("TagLib");
 
         result.Success.Should().BeTrue();
         result.ActiveProvider.Should().Be("TagLib");
 
-        _configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
     }
 
     [Test]
     public async Task SwitchProviderAsync_WithUnknownProvider_ReturnsFailure()
     {
-        var result = await _proxy.SwitchProviderAsync("UnknownProvider");
+        var result = await this.proxy.SwitchProviderAsync("UnknownProvider");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("not registered");
-        _proxy.ActiveProviderId.Should().Be("TagLib");
+        this.proxy.ActiveProviderId.Should().Be("TagLib");
     }
 
     [Test]
     public async Task SwitchProviderAsync_WhenTargetUnhealthy_AbortsSwitch()
     {
-        _mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new MediaInspectorHealthCheckResult
+        this.mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new MediaInspectorHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "mediainfo executable missing"
+            StatusMessage = "mediainfo executable missing",
         }));
 
-        var result = await _proxy.SwitchProviderAsync("MediaInfo");
+        var result = await this.proxy.SwitchProviderAsync("MediaInfo");
 
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
-        _proxy.ActiveProviderId.Should().Be("TagLib");
+        this.proxy.ActiveProviderId.Should().Be("TagLib");
     }
 
     [Test]
     public void InspectFile_DelegatesToActiveProvider()
     {
-        var info = _proxy.InspectFile("/path/to/movie.mkv");
+        var info = this.proxy.InspectFile("/path/to/movie.mkv");
 
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("Matroska (MKV)");
         info.Resolution.Should().Be("4K UHD (2160p)");
         info.HdrFormat.Should().Be("Dolby Vision");
 
-        _tagLibProvider.Received(1).InspectFile("/path/to/movie.mkv");
+        this.tagLibProvider.Received(1).InspectFile("/path/to/movie.mkv");
     }
 
     [Test]
     public async Task InspectFile_WhenActiveProviderFails_FallsBackToTagLib()
     {
-        await _proxy.SwitchProviderAsync("MediaInfo");
-        _mediaInfoProvider.InspectFile(Arg.Any<string>()).Returns((MediaContainerInfo)null!);
+        await this.proxy.SwitchProviderAsync("MediaInfo");
+        this.mediaInfoProvider.InspectFile(Arg.Any<string>()).Returns((MediaContainerInfo)null!);
 
-        var info = _proxy.InspectFile("/path/to/movie.mkv");
+        var info = this.proxy.InspectFile("/path/to/movie.mkv");
 
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("Matroska (MKV)");
-        _mediaInfoProvider.Received(1).InspectFile("/path/to/movie.mkv");
-        _tagLibProvider.Received(1).InspectFile("/path/to/movie.mkv");
+        this.mediaInfoProvider.Received(1).InspectFile("/path/to/movie.mkv");
+        this.tagLibProvider.Received(1).InspectFile("/path/to/movie.mkv");
     }
 
     [Test]
     public void Inspect_DelegatesToActiveProvider()
     {
         using var stream = new MemoryStream(new byte[16]);
-        var info = _proxy.Inspect(stream, "sample.mp4");
+        var info = this.proxy.Inspect(stream, "sample.mp4");
 
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("MP4");
         info.Resolution.Should().Be("1080p");
 
-        _tagLibProvider.Received(1).Inspect(stream, "sample.mp4");
+        this.tagLibProvider.Received(1).Inspect(stream, "sample.mp4");
     }
 
     [Test]
     public async Task InspectMediaAsync_DelegatesToActiveProvider()
     {
-        var info = await _proxy.InspectMediaAsync("/path/to/movie.mkv");
+        var info = await this.proxy.InspectMediaAsync("/path/to/movie.mkv");
 
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("Matroska (MKV)");
 
-        await _tagLibProvider.Received(1).InspectMediaAsync("/path/to/movie.mkv", Arg.Any<CancellationToken>());
+        await this.tagLibProvider.Received(1).InspectMediaAsync("/path/to/movie.mkv", Arg.Any<CancellationToken>());
     }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddDownloadHistory : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("DownloadHistory")
+        this.Create.Table("DownloadHistory")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("TorrentId").AsInt32().Nullable()
             .WithColumn("Title").AsString().NotNullable()
@@ -29,19 +31,19 @@ public class AddDownloadHistory : NzbDroneMigrationBase
             .WithColumn("RemovalReason").AsString().Nullable()
             .WithColumn("DataJson").AsString().Nullable();
 
-        Create.Index("IX_DownloadHistory_InfoHash")
+        this.Create.Index("IX_DownloadHistory_InfoHash")
             .OnTable("DownloadHistory")
             .OnColumn("InfoHash");
 
-        Create.Index("IX_DownloadHistory_DateAdded")
+        this.Create.Index("IX_DownloadHistory_DateAdded")
             .OnTable("DownloadHistory")
             .OnColumn("DateAdded");
 
-        Create.Index("IX_DownloadHistory_DateRemoved")
+        this.Create.Index("IX_DownloadHistory_DateRemoved")
             .OnTable("DownloadHistory")
             .OnColumn("DateRemoved");
 
-        Create.Index("IX_DownloadHistory_Status")
+        this.Create.Index("IX_DownloadHistory_Status")
             .OnTable("DownloadHistory")
             .OnColumn("Status");
     }

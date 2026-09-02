@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
@@ -7,7 +9,7 @@ public class AddDownloadClients : NzbDroneMigrationBase
 {
     public override void Up()
     {
-        Create.Table("DownloadClientDefinitions")
+        this.Create.Table("DownloadClientDefinitions")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
             .WithColumn("Name").AsString().NotNullable()
             .WithColumn("ClientType").AsString().NotNullable()
