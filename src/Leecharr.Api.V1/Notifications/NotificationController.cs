@@ -109,12 +109,58 @@ public class NotificationController : Controller
 
     private async Task<ActionResult<NotificationTestResult>> TestInternal(NotificationDefinition notif)
     {
-        var payload = new
+        object payload;
+        if (string.Equals(notif.Implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
-            EventType = "Test",
-            Message = "Leecharr test notification",
-            Timestamp = DateTime.UtcNow
-        };
+            payload = new
+            {
+                username = "Leecharr",
+                embeds = new object[]
+                {
+                    new
+                    {
+                        title = "[Test] Leecharr Notification Test",
+                        description = "This is a test notification from Leecharr. Your webhook configuration is working properly.",
+                        color = 16765286, // Gold
+                        timestamp = DateTime.UtcNow.ToString("o")
+                    }
+                }
+            };
+        }
+        else if (string.Equals(notif.Implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                text = "*Leecharr Test Notification*\nYour Telegram notification connection is working properly.",
+                parse_mode = "Markdown"
+            };
+        }
+        else if (string.Equals(notif.Implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                title = "Leecharr: Test",
+                message = "This is a test notification from Leecharr.",
+                priority = 5
+            };
+        }
+        else if (string.Equals(notif.Implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                title = "Leecharr: Test",
+                message = "This is a test notification from Leecharr."
+            };
+        }
+        else
+        {
+            payload = new
+            {
+                EventType = "Test",
+                Message = "Leecharr test notification",
+                Timestamp = DateTime.UtcNow
+            };
+        }
 
         if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
         {

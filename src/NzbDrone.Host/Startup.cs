@@ -72,7 +72,13 @@ public class Startup
                     return ApiKeyAuthenticationOptions.DefaultScheme;
                 }
 
-                // 2. Forward-Auth reverse proxy headers
+                // 2. HTTP Basic Auth header
+                if (req.Headers.ContainsKey("Authorization") && req.Headers["Authorization"].ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BasicAuthenticationOptions.DefaultScheme;
+                }
+
+                // 3. Forward-Auth reverse proxy headers
                 if (req.Headers.ContainsKey("Remote-User") ||
                     req.Headers.ContainsKey("X-authentik-username") ||
                     req.Headers.ContainsKey("X-Forwarded-User"))
@@ -80,7 +86,7 @@ public class Startup
                     return ForwardAuthOptions.DefaultScheme;
                 }
 
-                // 3. Default to Cookie authentication for interactive browser
+                // 4. Default to Cookie authentication for interactive browser
                 return "Cookies";
             };
         })
@@ -110,6 +116,8 @@ public class Startup
         })
         .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
             ApiKeyAuthenticationOptions.DefaultScheme, _ => { })
+        .AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
+            BasicAuthenticationOptions.DefaultScheme, _ => { })
         .AddScheme<ForwardAuthOptions, ForwardAuthHandler>(
             ForwardAuthOptions.DefaultScheme, _ => { });
 

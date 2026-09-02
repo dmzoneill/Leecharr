@@ -66,6 +66,8 @@ public class NetworkStatusService : INetworkStatusService
         var localAddresses = GetLocalAddresses();
         var primaryLocal = localAddresses.FirstOrDefault() ?? "127.0.0.1";
         var port = _configFileProvider?.Port ?? 7889;
+        var btPort = _configService?.ListeningPort > 0 ? _configService.ListeningPort : 51413;
+        var activeInterface = !string.IsNullOrWhiteSpace(_configService?.BindInterface) ? _configService.BindInterface : "Auto";
 
         return new NetworkStatus
         {
@@ -73,7 +75,7 @@ public class NetworkStatusService : INetworkStatusService
             ExternalIp = externalIp,
             ListenPort = port,
             PortOpen = true,
-            ActiveInterface = "Auto",
+            ActiveInterface = activeInterface,
             UpnpAvailable = _configService?.UpnpEnabled ?? true,
             ProxyEnabled = _configService?.ProxyType != null && _configService.ProxyType != "none",
             LocalAddresses = localAddresses,
@@ -85,6 +87,14 @@ public class NetworkStatusService : INetworkStatusService
                     ExternalPort = port,
                     Protocol = "TCP",
                     Description = "Leecharr Web UI & API",
+                    IsActive = true
+                },
+                new()
+                {
+                    InternalPort = btPort,
+                    ExternalPort = btPort,
+                    Protocol = "TCP/UDP",
+                    Description = "BitTorrent Peer Swarm & DHT",
                     IsActive = true
                 }
             }

@@ -22,6 +22,7 @@ import { getMediaDeepLink } from "../utils/arrLinks";
 import { getTorrentBadges } from "../utils/milestones";
 import { SkeletonTableRow } from "./Skeleton";
 import TorrentContextMenu from "./TorrentContextMenu";
+import TrackerFavicon from "./TrackerFavicon";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import type { Torrent } from "../api/types";
 
@@ -486,14 +487,16 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                     <span
                       key={i}
                       className="badge"
+                      title={b.title}
                       style={{
                         fontSize: "0.65rem",
                         padding: "0.05rem 0.3rem",
-                        backgroundColor: "rgba(255, 255, 255, 0.08)",
-                        color: "var(--text-secondary, #c7c5d3)",
+                        backgroundColor: `${b.color}22`,
+                        color: b.color,
+                        border: `1px solid ${b.color}44`,
                       }}
                     >
-                      {b}
+                      {b.icon} {b.label}
                     </span>
                   ))}
                 </div>
@@ -837,7 +840,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                     type="checkbox"
                     checked={allSelected}
                     onChange={() =>
-                      onSelectAll(allSelected ? [] : torrents.map((t) => t.id))
+                      onSelectAll(allSelected ? [] : sourceTorrents.map((t) => t.id))
                     }
                   />
                 </th>
@@ -883,7 +886,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 <tr
                   key={t.id}
                   className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
-                  onClick={() => onSelect(t)}
+                  onClick={() => onSelect?.(t)}
                   onContextMenu={(e) => handleContextMenu(e, t)}
                   style={{
                     cursor: "pointer",

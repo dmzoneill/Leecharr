@@ -5,8 +5,21 @@ const BASE_URL = "/api/v1";
 class ApiClient {
   private apiKey: string | null = null;
 
+  constructor() {
+    this.apiKey = localStorage.getItem("leecharr_apikey");
+  }
+
   setApiKey(key: string) {
     this.apiKey = key;
+    if (key) {
+      localStorage.setItem("leecharr_apikey", key);
+    } else {
+      localStorage.removeItem("leecharr_apikey");
+    }
+  }
+
+  getApiKey(): string | null {
+    return this.apiKey || localStorage.getItem("leecharr_apikey");
   }
 
   private async request<T>(
@@ -19,8 +32,9 @@ class ApiClient {
       ...options.headers,
     };
 
-    if (this.apiKey) {
-      (headers as Record<string, string>)["X-Api-Key"] = this.apiKey;
+    const key = this.getApiKey();
+    if (key) {
+      (headers as Record<string, string>)["X-Api-Key"] = key;
     }
 
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -90,17 +104,31 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const apiKey = apiClient.getApiKey();
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (apiKey) {
+    headers["X-Api-Key"] = apiKey;
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      Accept: "application/json",
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText);
     throw new Error(errorText || `HTTP Error ${response.status}`);
+  }
+
+  if (
+    response.status === 204 ||
+    response.headers.get("content-length") === "0"
+  ) {
+    return null as unknown as T;
   }
 
   return response.json();

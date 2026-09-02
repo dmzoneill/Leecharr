@@ -354,9 +354,56 @@ public class Aria2RpcController : ControllerBase
                 return new Dictionary<string, string>
                 {
                     { "dir", _configService.DownloadDir ?? "/downloads" },
-                    { "max-overall-download-limit", "0" },
-                    { "max-overall-upload-limit", "0" }
+                    { "max-overall-download-limit", (_configService.MaxDownloadSpeedKbps * 1024).ToString() },
+                    { "max-overall-upload-limit", (_configService.MaxUploadSpeedKbps * 1024).ToString() },
+                    { "max-download-limit", "0" },
+                    { "max-upload-limit", "0" }
                 };
+
+            case "aria2.changeposition":
+                var cpParams = GetCleanParams(parameters);
+                if (cpParams.Count >= 3)
+                {
+                    var cpGid = cpParams[0].GetString();
+                    var cpOffset = cpParams[1].GetInt32();
+                    var cpHow = cpParams[2].GetString()?.ToLowerInvariant();
+                    var t = _torrentService.GetByInfoHash(cpGid);
+                    if (t != null)
+                    {
+                        var dir = cpHow == "pos_set" && cpOffset == 0 ? "top" :
+                                  cpHow == "pos_end" ? "bottom" :
+                                  cpOffset < 0 ? "up" : "down";
+                        await _torrentService.MoveQueueAsync(t.Id, dir);
+                        return 1;
+                    }
+                }
+
+                return 0;
+
+            case "aria2.changeoption":
+            case "aria2.changeglobaloption":
+                var coParams = GetCleanParams(parameters);
+                var optDictElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.Object);
+                if (optDictElem.ValueKind == JsonValueKind.Object)
+                {
+                    var updateDict = new Dictionary<string, object>();
+                    if (optDictElem.TryGetProperty("max-overall-download-limit", out var dlOpt) && int.TryParse(dlOpt.GetString(), out var dlBps))
+                    {
+                        updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
+                    }
+
+                    if (optDictElem.TryGetProperty("max-overall-upload-limit", out var ulOpt) && int.TryParse(ulOpt.GetString(), out var ulBps))
+                    {
+                        updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
+                    }
+
+                    if (updateDict.Count > 0)
+                    {
+                        _configService.SaveConfigDictionary(updateDict);
+                    }
+                }
+
+                return "OK";
 
             case "system.multicall":
                 if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)

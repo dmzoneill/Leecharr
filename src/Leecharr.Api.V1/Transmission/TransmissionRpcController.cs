@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Transmission;
@@ -47,18 +48,21 @@ public class TransmissionRpcController : ControllerBase
     private readonly ITorrentFileService _torrentFileService;
     private readonly ITorrentFileParser _torrentFileParser;
     private readonly IConfigService _configService;
+    private readonly IDiskSpaceService _diskSpaceService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public TransmissionRpcController(
         ITorrentService torrentService,
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
-        IConfigService configService)
+        IConfigService configService,
+        IDiskSpaceService diskSpaceService = null)
     {
         _torrentService = torrentService;
         _torrentFileService = torrentFileService;
         _torrentFileParser = torrentFileParser;
         _configService = configService;
+        _diskSpaceService = diskSpaceService;
     }
 
     [HttpGet]
@@ -320,11 +324,87 @@ public class TransmissionRpcController : ControllerBase
                                 t.UploadLimit = ulLimitVal.GetInt32();
                             }
 
+                            if (request.Arguments.TryGetValue("location", out var locVal) && locVal.ValueKind == JsonValueKind.String)
+                            {
+                                t.SavePath = locVal.GetString();
+                            }
+
+                            if (request.Arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                foreach (var item in unwantedVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var idx = item.GetInt32();
+                                        if (idx >= 0 && idx < files.Count)
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[idx].Id, 0);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("files-wanted", out var wantedVal) && wantedVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var files = _torrentFileService.GetFiles(t.Id).ToList();
+                                foreach (var item in wantedVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var idx = item.GetInt32();
+                                        if (idx >= 0 && idx < files.Count)
+                                        {
+                                            await _torrentFileService.SetPriorityAsync(files[idx].Id, 1);
+                                        }
+                                    }
+                                }
+                            }
+
                             await _torrentService.UpdateAsync(t);
                         }
                     }
 
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "torrent-set-location":
+                    var locIds = ExtractIds(request.Arguments, false);
+                    var newLocation = request.Arguments != null && request.Arguments.TryGetValue("location", out var locElem)
+                        ? locElem.GetString()
+                        : null;
+                    if (!string.IsNullOrWhiteSpace(newLocation))
+                    {
+                        foreach (var id in locIds)
+                        {
+                            var t = _torrentService.Get(id);
+                            if (t != null)
+                            {
+                                t.SavePath = newLocation;
+                                await _torrentService.UpdateAsync(t);
+                            }
+                        }
+                    }
+
+                    return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+
+                case "free-space":
+                    var freePath = request.Arguments != null && request.Arguments.TryGetValue("path", out var pElem)
+                        ? pElem.GetString()
+                        : (_configService.DownloadDir ?? "/downloads");
+                    var freeBytes = _diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? (100L * 1024 * 1024 * 1024);
+                    var totalBytes = _diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? (500L * 1024 * 1024 * 1024);
+
+                    return Ok(new TransmissionRpcResponse
+                    {
+                        Result = "success",
+                        Arguments = new Dictionary<string, object>
+                        {
+                            { "path", freePath },
+                            { "size-bytes", freeBytes },
+                            { "total_size", totalBytes }
+                        },
+                        Tag = tag
+                    });
 
                 case "queue-move-top":
                     var qTopIds = ExtractIds(request.Arguments);
@@ -364,7 +444,7 @@ public class TransmissionRpcController : ControllerBase
 
                 case "torrent-start":
                 case "torrent-start-now":
-                    var startIds = ExtractIds(request.Arguments);
+                    var startIds = ExtractIds(request.Arguments, true);
                     foreach (var id in startIds)
                     {
                         await _torrentService.ResumeAsync(id);
@@ -373,7 +453,7 @@ public class TransmissionRpcController : ControllerBase
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "torrent-stop":
-                    var stopIds = ExtractIds(request.Arguments);
+                    var stopIds = ExtractIds(request.Arguments, true);
                     foreach (var id in stopIds)
                     {
                         await _torrentService.PauseAsync(id);
@@ -382,7 +462,7 @@ public class TransmissionRpcController : ControllerBase
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "torrent-verify":
-                    var verifyIds = ExtractIds(request.Arguments);
+                    var verifyIds = ExtractIds(request.Arguments, true);
                     foreach (var id in verifyIds)
                     {
                         await _torrentService.ForceRecheckAsync(id);
@@ -391,7 +471,7 @@ public class TransmissionRpcController : ControllerBase
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "torrent-reannounce":
-                    var reannounceIds = ExtractIds(request.Arguments);
+                    var reannounceIds = ExtractIds(request.Arguments, true);
                     foreach (var id in reannounceIds)
                     {
                         await _torrentService.ForceAnnounceAsync(id);
@@ -400,7 +480,7 @@ public class TransmissionRpcController : ControllerBase
                     return Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "torrent-remove":
-                    var removeIds = ExtractIds(request.Arguments);
+                    var removeIds = ExtractIds(request.Arguments, false);
                     var deleteLocalData = request.Arguments != null && request.Arguments.TryGetValue("delete-local-data", out var delVal) && delVal.GetBoolean();
                     foreach (var id in removeIds)
                     {
@@ -429,7 +509,7 @@ public class TransmissionRpcController : ControllerBase
         }
     }
 
-    private List<int> ExtractIds(Dictionary<string, JsonElement> arguments)
+    private List<int> ExtractIds(Dictionary<string, JsonElement> arguments, bool applyAllIfEmpty = false)
     {
         var ids = new List<int>();
         if (arguments != null && arguments.TryGetValue("ids", out var idsElem))
@@ -466,6 +546,11 @@ public class TransmissionRpcController : ControllerBase
                     ids.Add(torrent.Id);
                 }
             }
+        }
+
+        if (ids.Count == 0 && applyAllIfEmpty)
+        {
+            return _torrentService.GetAll().Select(t => t.Id).ToList();
         }
 
         return ids;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NzbDrone.Core.Torrents;
 
@@ -18,6 +19,7 @@ public interface IDownloadHistoryService
     void RecordTorrentUpdated(Torrent torrent);
     void RecordTorrentRemoved(Torrent torrent, string reason = "Deleted from library");
     Torrent ReAdd(int historyId);
+    Task<Torrent> ReAddAsync(int historyId);
     void Update(DownloadHistory history);
     int ReconcileAllTorrents();
 }
