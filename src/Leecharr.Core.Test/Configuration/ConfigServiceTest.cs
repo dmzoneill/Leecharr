@@ -63,6 +63,7 @@ public class ConfigServiceTest
         this.service.EnableDht.Should().BeTrue();
         this.service.EnablePex.Should().BeTrue();
         this.service.EnableLpd.Should().BeTrue();
+        this.service.EnableBep27PrivateTorrents.Should().BeTrue();
         this.service.MaxGlobalConnections.Should().Be(300);
         this.service.MaxActiveDownloads.Should().Be(3);
         this.service.ThemeStyle.Should().Be("dark");
@@ -79,6 +80,7 @@ public class ConfigServiceTest
             { "DownloadDir", "/media/downloads" },
             { "ListeningPort", 55000 },
             { "EnableDht", false },
+            { "EnableBep27PrivateTorrents", false },
             { "GlobalSeedRatioLimit", 2.5 },
         };
 
@@ -87,6 +89,7 @@ public class ConfigServiceTest
         this.service.DownloadDir.Should().Be("/media/downloads");
         this.service.ListeningPort.Should().Be(55000);
         this.service.EnableDht.Should().BeFalse();
+        this.service.EnableBep27PrivateTorrents.Should().BeFalse();
         this.service.GlobalSeedRatioLimit.Should().Be(2.5);
 
         this.eventAggregator.Received(1).PublishEvent(Arg.Any<ConfigSavedEvent>());

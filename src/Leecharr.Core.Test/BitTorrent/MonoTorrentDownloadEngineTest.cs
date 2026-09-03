@@ -49,6 +49,9 @@ public class MonoTorrentDownloadEngineTest
         this.configService.DownloadDir.Returns(this.testDownloadDir);
         this.configService.MaxPerTorrentConnections.Returns(50);
         this.configService.MaxUploadSlots.Returns(4);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(true);
+        this.configService.EnableBep27PrivateTorrents.Returns(true);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -89,7 +92,7 @@ public class MonoTorrentDownloadEngineTest
         }
     }
 
-    private static byte[] CreateSampleSingleFileTorrentBytes(string name = "testfile.bin", int length = 16384)
+    private static byte[] CreateSampleSingleFileTorrentBytes(string name = "testfile.bin", int length = 16384, bool isPrivate = false)
     {
         var pieceLength = 16384;
         var pieceCount = Math.Max(1, (int)Math.Ceiling((double)length / pieceLength));
@@ -106,6 +109,11 @@ public class MonoTorrentDownloadEngineTest
             { "pieces", new BEncodedString(pieces) },
             { "length", new BEncodedNumber(length) },
         };
+
+        if (isPrivate)
+        {
+            infoDict.Add("private", new BEncodedNumber(1));
+        }
 
         var rootDict = new BEncodedDictionary
         {
@@ -777,6 +785,91 @@ public class MonoTorrentDownloadEngineTest
     {
         var act = async () => await this.engine.SetFilePriorityAsync(9999, "nonexistent.file", 3);
         await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenTorrentIsPrivateAndBep27Enabled_DisablesDhtAndPex()
+    {
+        this.configService.EnableBep27PrivateTorrents.Returns(true);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(true);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_bep27.bin", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 91,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_bep27.bin",
+            IsPrivate = true,
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Manager.Settings.AllowDht.Should().BeFalse();
+        task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenTorrentIsPrivateAndBep27Disabled_AllowsDhtAndPex()
+    {
+        this.configService.EnableBep27PrivateTorrents.Returns(false);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(true);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_bep27_off.bin", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 92,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_bep27_off.bin",
+            IsPrivate = true,
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Manager.Settings.AllowDht.Should().BeTrue();
+        task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SetTorrentPrivateStatusAsync_TogglesDhtAndPexDynamically()
+    {
+        this.configService.EnableBep27PrivateTorrents.Returns(true);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(true);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("dynamic_privacy.bin", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 93,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "dynamic_privacy.bin",
+            IsPrivate = false,
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Manager.Settings.AllowDht.Should().BeTrue();
+        task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
+
+        // Dynamically toggle to Private
+        await this.engine.SetTorrentPrivateStatusAsync(93, true);
+        task.Manager.Settings.AllowDht.Should().BeFalse();
+        task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
+
+        // Dynamically toggle back to Public
+        await this.engine.SetTorrentPrivateStatusAsync(93, false);
+        task.Manager.Settings.AllowDht.Should().BeTrue();
+        task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
     }
 
     #endregion

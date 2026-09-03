@@ -35,6 +35,9 @@ interface TorrentFilterPanelProps {
   onSelectState: (state: string) => void;
   selectedTracker: string;
   onSelectTracker: (tracker: string) => void;
+  selectedPrivacy?: string;
+  onSelectPrivacy?: (privacy: string) => void;
+  privacyCounts?: { All: number; Private: number; Public: number };
   stateCounts: Record<string, number>;
   trackerGroups: [string, number][];
   count: number;
@@ -46,6 +49,9 @@ export function TorrentFilterPanel({
   onSelectState,
   selectedTracker,
   onSelectTracker,
+  selectedPrivacy = "All",
+  onSelectPrivacy,
+  privacyCounts,
   stateCounts,
   trackerGroups,
   count,
@@ -102,6 +108,71 @@ export function TorrentFilterPanel({
           </li>
         ))}
       </ul>
+      {onSelectPrivacy && privacyCounts && (
+        <>
+          <div className="filter-panel-section">Swarm Type</div>
+          <ul className="filter-panel-list">
+            <li>
+              <button
+                type="button"
+                className={`filter-panel-item${selectedPrivacy === "All" ? " active" : ""}`}
+                onClick={() => onSelectPrivacy("All")}
+              >
+                <span className="filter-panel-label">
+                  <AllIcon size={13} /> All Swarms
+                </span>
+                <span className="filter-panel-count">{privacyCounts.All}</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`filter-panel-item${selectedPrivacy === "Private" ? " active" : ""}`}
+                onClick={() => onSelectPrivacy("Private")}
+              >
+                <span
+                  className="filter-panel-label"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    color: "#f87171",
+                  }}
+                >
+                  <i className="fas fa-lock" style={{ fontSize: "0.7rem" }} />{" "}
+                  Private (BEP 27)
+                </span>
+                <span className="filter-panel-count">
+                  {privacyCounts.Private}
+                </span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`filter-panel-item${selectedPrivacy === "Public" ? " active" : ""}`}
+                onClick={() => onSelectPrivacy("Public")}
+              >
+                <span
+                  className="filter-panel-label"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    color: "#60a5fa",
+                  }}
+                >
+                  <i className="fas fa-globe" style={{ fontSize: "0.7rem" }} />{" "}
+                  Public Swarm
+                </span>
+                <span className="filter-panel-count">
+                  {privacyCounts.Public}
+                </span>
+              </button>
+            </li>
+          </ul>
+        </>
+      )}
       <div className="filter-panel-section">Tracker</div>
       <ul className="filter-panel-list">
         <li>

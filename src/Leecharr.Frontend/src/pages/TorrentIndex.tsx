@@ -34,6 +34,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedState, setSelectedState] = useState<string>("All");
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
+  const [selectedPrivacy, setSelectedPrivacy] = useState<string>("All");
   const [filter, setFilter] = useState<string>("");
   const [selectedTorrent, setSelectedTorrent] = useState<Torrent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -95,6 +96,20 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       else if (st === "error") counts.Error++;
     }
     return counts;
+  }, [torrents]);
+
+  const privacyCounts = useMemo(() => {
+    let priv = 0;
+    let pub = 0;
+    for (const t of torrents) {
+      if (t.isPrivate) priv++;
+      else pub++;
+    }
+    return {
+      All: torrents.length,
+      Private: priv,
+      Public: pub,
+    };
   }, [torrents]);
 
   const trackerGroups = useMemo(() => {
@@ -234,6 +249,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
             onSelectState={setSelectedState}
             selectedTracker={selectedTracker}
             onSelectTracker={setSelectedTracker}
+            selectedPrivacy={selectedPrivacy}
+            onSelectPrivacy={setSelectedPrivacy}
+            privacyCounts={privacyCounts}
             stateCounts={stateCounts}
             trackerGroups={trackerGroups}
             count={torrents.length}
@@ -249,6 +267,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   filter={filter}
                   stateFilter={selectedState}
                   trackerFilter={selectedTracker}
+                  privacyFilter={selectedPrivacy}
                   selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={setSelectedTorrent}
                   onPause={onPause}
@@ -266,6 +285,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   filter={filter}
                   stateFilter={selectedState}
                   trackerFilter={selectedTracker}
+                  privacyFilter={selectedPrivacy}
                   selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={setSelectedTorrent}
                   onPause={onPause}

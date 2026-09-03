@@ -161,8 +161,9 @@ public class TorrentFileParser : ITorrentFileParser
                 PieceCount = pieceCount,
                 PieceHashes = piecesStr.Value.ToArray(),
                 Comment = torrent.ContainsKey("comment") ? (torrent["comment"] as BString)?.ToString() : null,
-                CreatedBy = torrent.ContainsKey("created by") ? (torrent["created by"] as BString)?.ToString() : null,
-                IsPrivate = info.ContainsKey("private") && (info["private"] as BNumber)?.Value == 1,
+                IsPrivate = info.ContainsKey("private") &&
+                    (((info["private"] as BNumber)?.Value == 1) ||
+                     ((info["private"] as BString)?.ToString() == "1")),
                 AnnounceUrl = announceUrl,
                 AnnounceList = announceListParsed,
                 Files = new List<ParsedTorrentFile>(),

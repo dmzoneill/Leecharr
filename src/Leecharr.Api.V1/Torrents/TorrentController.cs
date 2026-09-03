@@ -677,6 +677,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.Name = resource.Name;
         }
 
+        var isPrivateChanged = resource.IsPrivate != existing.IsPrivate;
+        if (isPrivateChanged)
+        {
+            existing.IsPrivate = resource.IsPrivate;
+        }
+
         if (resource.AnnounceInterval.HasValue && resource.AnnounceInterval.Value > 0)
         {
             var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
@@ -706,6 +712,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
         {
             await this.downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);
+        }
+
+        if (this.downloadEngine != null && isPrivateChanged)
+        {
+            await this.downloadEngine.SetTorrentPrivateStatusAsync(updated.Id, updated.IsPrivate);
         }
 
         var meta = this.mediaEnrichmentService.GetMetadata(id);

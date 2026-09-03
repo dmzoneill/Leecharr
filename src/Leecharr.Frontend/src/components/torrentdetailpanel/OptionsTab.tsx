@@ -22,6 +22,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [sequentialDownload, setSequentialDownload] = useState(
     Boolean(torrent.sequentialDownload),
   );
+  const [isPrivate, setIsPrivate] = useState(Boolean(torrent.isPrivate));
   const [active, setActive] = useState(
     torrent.active ??
       (torrent.status !== "paused" && torrent.status !== "stopped"),
@@ -45,6 +46,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setInitialSeeding(Boolean(torrent.initialSeeding));
     setForceStart(Boolean(torrent.forceStart));
     setSequentialDownload(Boolean(torrent.sequentialDownload));
+    setIsPrivate(Boolean(torrent.isPrivate));
     setActive(
       torrent.active ??
         (torrent.status !== "paused" && torrent.status !== "stopped"),
@@ -66,6 +68,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         initialSeeding,
         forceStart,
         sequentialDownload,
+        isPrivate,
         active,
         label: label || null,
         announceInterval,
@@ -84,6 +87,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setInitialSeeding(Boolean(torrent.initialSeeding));
     setForceStart(Boolean(torrent.forceStart));
     setSequentialDownload(Boolean(torrent.sequentialDownload));
+    setIsPrivate(Boolean(torrent.isPrivate));
     setActive(
       torrent.active ??
         (torrent.status !== "paused" && torrent.status !== "stopped"),
@@ -388,6 +392,43 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 type="checkbox"
                 checked={sequentialDownload}
                 onChange={(e) => mark(setSequentialDownload)(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                <i
+                  className="fas fa-lock"
+                  style={{ color: "#f87171", fontSize: "0.75rem" }}
+                />
+                Private Swarm (BEP 27)
+              </label>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                Strict isolation: disables DHT, PEX, and LPD
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => mark(setIsPrivate)(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>

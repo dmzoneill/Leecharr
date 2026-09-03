@@ -31,6 +31,7 @@ export function ProtocolsSettingsTab() {
     extensionUtPex: true,
     extensionLtDontHave: true,
     extensionFastExtension: true,
+    enableBep27PrivateTorrents: true,
     utpEnabled: true,
     tcpFallback: true,
     transportConnectionTimeoutSeconds: 30,
@@ -57,6 +58,8 @@ export function ProtocolsSettingsTab() {
         extensionUtPex: protoConfig?.extensionUtPex ?? true,
         extensionLtDontHave: protoConfig?.extensionLtDontHave ?? true,
         extensionFastExtension: protoConfig?.extensionFastExtension ?? true,
+        enableBep27PrivateTorrents:
+          protoConfig?.enableBep27PrivateTorrents ?? true,
         utpEnabled: protoConfig?.utpEnabled ?? true,
         tcpFallback: protoConfig?.tcpFallback ?? true,
         transportConnectionTimeoutSeconds:
@@ -111,6 +114,7 @@ export function ProtocolsSettingsTab() {
       saveBtMutation.mutate({
         ...btConfig,
         encryptionMode: form.encryptionMode,
+        enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
       });
     }
     if (protoConfig) {
@@ -120,6 +124,7 @@ export function ProtocolsSettingsTab() {
         extensionUtPex: form.extensionUtPex,
         extensionLtDontHave: form.extensionLtDontHave,
         extensionFastExtension: form.extensionFastExtension,
+        enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
         utpEnabled: form.utpEnabled,
         tcpFallback: form.tcpFallback,
         transportConnectionTimeoutSeconds:
@@ -254,6 +259,12 @@ export function ProtocolsSettingsTab() {
               checked={form.extensionFastExtension}
               onChange={(v) => update("extensionFastExtension", v)}
               hint="Allowed Fast & Suggest Pieces"
+            />
+            <Toggle
+              label="Private Torrents (BEP 27)"
+              checked={form.enableBep27PrivateTorrents}
+              onChange={(v) => update("enableBep27PrivateTorrents", v)}
+              hint="Strictly disables DHT, PEX, and Local Peer Discovery on private swarms"
             />
             <Toggle
               label="uTP LEDBAT (BEP 29)"

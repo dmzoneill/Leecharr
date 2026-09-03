@@ -142,6 +142,7 @@ export interface TorrentTableProps {
   filter?: string;
   stateFilter?: string;
   trackerFilter?: string;
+  privacyFilter?: string;
   selectedId?: number | null;
   selectedTorrentId?: number | null;
   onSelect?: (torrent: Torrent) => void;
@@ -161,6 +162,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   filter,
   stateFilter,
   trackerFilter,
+  privacyFilter,
   selectedId,
   selectedTorrentId,
   onSelect,
@@ -246,6 +248,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
         extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
       if (!matchesTracker) return false;
+    }
+    if (privacyFilter && privacyFilter !== "All") {
+      if (privacyFilter === "Private" && !t.isPrivate) return false;
+      if (privacyFilter === "Public" && t.isPrivate) return false;
     }
     return true;
   });
@@ -429,6 +435,26 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               <div
                 style={{ display: "flex", alignItems: "center", gap: "6px" }}
               >
+                {t.isPrivate && (
+                  <span
+                    className="badge"
+                    title="Private Torrent (BEP 27: Strict Swarm Isolation, DHT/PEX Disabled)"
+                    style={{
+                      backgroundColor: "rgba(239, 68, 68, 0.2)",
+                      color: "#f87171",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      fontSize: "0.65rem",
+                      padding: "0.05rem 0.35rem",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} />{" "}
+                    Private
+                  </span>
+                )}
                 <span
                   style={{
                     fontWeight: 600,
@@ -726,6 +752,42 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return (
           <span style={{ fontFamily: "monospace", fontSize: "0.72rem" }}>
             {t.infoHash?.substring(0, 10)}...
+          </span>
+        );
+
+      case "isPrivate":
+        return t.isPrivate ? (
+          <span
+            className="badge"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.2)",
+              color: "#f87171",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              fontSize: "0.7rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title="Private Torrent (BEP 27: Strict Swarm Isolation)"
+          >
+            <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} />{" "}
+            Private
+          </span>
+        ) : (
+          <span
+            className="badge"
+            style={{
+              backgroundColor: "rgba(59, 130, 246, 0.15)",
+              color: "#60a5fa",
+              fontSize: "0.7rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title="Public Swarm (DHT/PEX/LPD enabled)"
+          >
+            <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} />{" "}
+            Public
           </span>
         );
 

@@ -22,6 +22,29 @@ export function PeersTab({
 
   return (
     <div className="detail-panel-table-wrap">
+      {torrent?.isPrivate && (
+        <div
+          style={{
+            padding: "0.4rem 0.6rem",
+            marginBottom: "0.5rem",
+            borderRadius: "4px",
+            fontSize: "0.72rem",
+            backgroundColor: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "#fca5a5",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <i className="fas fa-lock" />
+          <span>
+            <strong>BEP 27 Private Swarm:</strong> Peer discovery is restricted
+            exclusively to tracker announces. DHT and PEX peer exchanges are
+            disabled to protect passkey privacy.
+          </span>
+        </div>
+      )}
       <table className="torrent-table">
         <thead>
           <tr>

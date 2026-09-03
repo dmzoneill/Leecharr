@@ -297,6 +297,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["seeding_time_limit"] = t.TargetSeedTimeMinutes > 0 ? t.TargetSeedTimeMinutes : -2,
                 ["seeding_time"] = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0,
                 ["last_activity"] = new DateTimeOffset(t.LastActive ?? t.DateAdded).ToUnixTimeSeconds(),
+                ["is_private"] = t.IsPrivate,
+                ["private"] = t.IsPrivate,
             };
         }).ToList();
 
@@ -847,6 +849,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["seeding_time"] = torrent.DateCompleted.HasValue ? (int)(DateTime.UtcNow - torrent.DateCompleted.Value).TotalSeconds : 0,
             ["nb_connections"] = torrent.Seeders + torrent.Leechers,
             ["share_ratio"] = torrent.Ratio,
+            ["is_private"] = torrent.IsPrivate,
+            ["private"] = torrent.IsPrivate,
         });
     }
 

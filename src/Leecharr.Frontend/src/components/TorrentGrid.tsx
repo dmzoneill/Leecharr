@@ -8,6 +8,7 @@ interface TorrentGridProps {
   filter?: string;
   stateFilter?: string;
   trackerFilter?: string;
+  privacyFilter?: string;
   selectedId: number | null;
   onSelect: (torrent: Torrent) => void;
   onPause: (id: number) => void;
@@ -20,6 +21,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   filter,
   stateFilter,
   trackerFilter,
+  privacyFilter,
   selectedId,
   onSelect,
   onPause,
@@ -67,9 +69,13 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
         if (!matchesTracker) return false;
       }
+      if (privacyFilter && privacyFilter !== "All") {
+        if (privacyFilter === "Private" && !t.isPrivate) return false;
+        if (privacyFilter === "Public" && t.isPrivate) return false;
+      }
       return true;
     });
-  }, [torrents, filter, stateFilter, trackerFilter]);
+  }, [torrents, filter, stateFilter, trackerFilter, privacyFilter]);
 
   if (filteredTorrents.length === 0) {
     return (
@@ -193,8 +199,31 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                   display: "flex",
                   gap: "4px",
                   flexWrap: "wrap",
+                  zIndex: 2,
                 }}
               >
+                {t.isPrivate && (
+                  <span
+                    className="badge"
+                    title="Private Torrent (BEP 27: Strict Swarm Isolation, DHT/PEX Disabled)"
+                    style={{
+                      backgroundColor: "#ef4444",
+                      color: "#fff",
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    <i
+                      className="fas fa-lock"
+                      style={{ fontSize: "0.58rem" }}
+                    />{" "}
+                    Private
+                  </span>
+                )}
                 {t.resolution && (
                   <span
                     className="badge"
@@ -278,6 +307,17 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 }}
                 title={t.name}
               >
+                {t.isPrivate && (
+                  <i
+                    className="fas fa-lock"
+                    title="Private Torrent (BEP 27)"
+                    style={{
+                      color: "#f87171",
+                      marginRight: "6px",
+                      fontSize: "0.75rem",
+                    }}
+                  />
+                )}
                 {t.mediaTitle || t.name}
               </div>
 

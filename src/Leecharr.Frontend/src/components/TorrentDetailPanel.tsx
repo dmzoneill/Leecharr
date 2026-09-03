@@ -182,6 +182,42 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
                 ({currentTorrent.name})
               </span>
             )}
+          {currentTorrent.isPrivate ? (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                color: "#f87171",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                fontSize: "0.7rem",
+                marginLeft: "0.6rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Private Swarm (BEP 27: DHT & PEX Disabled)"
+            >
+              <i className="fas fa-lock" style={{ fontSize: "0.62rem" }} />{" "}
+              Private Swarm (BEP 27)
+            </span>
+          ) : (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "rgba(59, 130, 246, 0.15)",
+                color: "#60a5fa",
+                fontSize: "0.7rem",
+                marginLeft: "0.6rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Public Swarm (DHT, PEX, and LPD Active)"
+            >
+              <i className="fas fa-globe" style={{ fontSize: "0.62rem" }} />{" "}
+              Public Swarm
+            </span>
+          )}
         </div>
 
         <div className="detail-panel-actions">

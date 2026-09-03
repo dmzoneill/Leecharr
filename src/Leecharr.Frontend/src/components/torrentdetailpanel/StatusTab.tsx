@@ -359,7 +359,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           <InfoRow
             label="Flags"
             value={[
-              torrent.isPrivate ? "Private" : "Public",
+              torrent.isPrivate ? "🔒 Private (BEP 27)" : "🌐 Public",
               torrent.sequentialDownload ? "Sequential" : null,
               torrent.forceStart ? "Forced" : null,
               torrent.initialSeeding ? "Super-Seed" : null,

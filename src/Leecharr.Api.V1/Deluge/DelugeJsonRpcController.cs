@@ -904,6 +904,8 @@ public class DelugeJsonRpcController : ControllerBase
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", false },
             { "stop_ratio", t.TargetRatio },
+            { "private", t.IsPrivate },
+            { "is_private", t.IsPrivate },
         };
     }
 

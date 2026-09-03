@@ -676,6 +676,7 @@ public class TransmissionRpcController : ControllerBase
             { "seedIdleMode", t.TargetSeedTimeMinutes > 0 ? 1 : 0 },
             { "fileCount", filesList.Count },
             { "file-count", filesList.Count },
+            { "isPrivate", t.IsPrivate },
             { "files", filesList },
             { "fileStats", fileStats },
         };

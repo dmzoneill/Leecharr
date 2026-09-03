@@ -43,7 +43,12 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
     ["Info Hash", torrent.infoHash],
     ["Total Size", formatBytes(torrent.totalSize)],
     ["Pieces", `${torrent.pieceCount} x ${formatBytes(torrent.pieceLength)}`],
-    ["Private", torrent.isPrivate ? "Yes" : "No"],
+    [
+      "Private Swarm",
+      torrent.isPrivate
+        ? "🔒 Yes (BEP 27: DHT/PEX Disabled, Swarm Isolated)"
+        : "🌐 No (Public Swarm, DHT/PEX Active)",
+    ],
     ["Tracker", torrent.trackerUrl ?? "-"],
   ];
   if (torrent.creationDate)

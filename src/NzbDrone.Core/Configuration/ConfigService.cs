@@ -132,6 +132,8 @@ public interface IConfigService
 
     bool EnableLpd { get; }
 
+    bool EnableBep27PrivateTorrents { get; }
+
     string EncryptionMode { get; }
 
     string BitTorrentUserAgent { get; }
@@ -696,6 +698,8 @@ public class ConfigService : IConfigService
     public bool EnablePex => this.GetValueBoolean("EnablePex", true);
 
     public bool EnableLpd => this.GetValueBoolean("EnableLpd", true);
+
+    public bool EnableBep27PrivateTorrents => this.GetValueBoolean("EnableBep27PrivateTorrents", true);
 
     public string EncryptionMode => this.GetValue("EncryptionMode", "preferEncrypted");
 

@@ -36,6 +36,8 @@ public interface IDownloadEngine
 
     Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps);
 
+    Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate) => Task.CompletedTask;
+
     IDownloadTask GetTask(int torrentId);
 
     IEnumerable<IDownloadTask> GetAllTasks();
