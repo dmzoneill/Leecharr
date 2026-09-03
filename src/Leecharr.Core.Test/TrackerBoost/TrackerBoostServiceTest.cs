@@ -211,4 +211,145 @@ public class TrackerBoostServiceTest
         healthLogs.Should().Contain(l => l.Message == "Test Message 2");
         healthLogs.Should().NotContain(l => l.Message == "Test Message 1");
     }
+
+    [Test]
+    public void IsValidPublicTrackerUrl_And_HasPasskey_DetectsPathBasedAndQueryPasskeys()
+    {
+        // Public trackers - valid and no passkey
+        TrackerBoostService.IsValidPublicTrackerUrl("udp://tracker.opentrackr.org:1337/announce").Should().BeTrue();
+        TrackerBoostService.IsValidPublicTrackerUrl("http://tracker.files.fm:6969/announce").Should().BeTrue();
+        TrackerBoostService.IsValidPublicTrackerUrl("https://tracker.tamersunion.org:443/announce").Should().BeTrue();
+        TrackerBoostService.IsValidPublicTrackerUrl("http://tracker.example.com/announce.php").Should().BeTrue();
+        TrackerBoostService.IsValidPublicTrackerUrl("http://tracker.example.com/a/announce").Should().BeTrue();
+
+        TrackerBoostService.HasPasskey("udp://tracker.opentrackr.org:1337/announce").Should().BeFalse();
+        TrackerBoostService.HasPasskey("http://tracker.files.fm:6969/announce").Should().BeFalse();
+        TrackerBoostService.HasPasskey("http://tracker.example.com/announce.php").Should().BeFalse();
+
+        // Path-based passkeys (Gazelle, UNIT3D, PTP, RED, etc.)
+        var pathBasedPasskeyUrls = new[]
+        {
+            "https://tracker.site/abcdef123456/announce",
+            "https://tracker.site/announce/abcdef123456",
+            "https://gazelle.tracker.org/0123456789abcdef0123456789abcdef/announce",
+            "https://ptp.tracker.org/announce/0123456789abcdef0123456789abcdef",
+            "https://unit3d.tracker.org/announce/MySecretToken123456",
+            "udp://tracker.site:1337/0123456789abcdef0123456789abcdef/announce",
+            "http://tracker.site/passkey/123456/announce",
+            "http://tracker.site/authkey/abcdef/announce",
+            "http://user:secret123456@tracker.site/announce",
+        };
+
+        foreach (var url in pathBasedPasskeyUrls)
+        {
+            TrackerBoostService.HasPasskey(url).Should().BeTrue($"URL '{url}' should be detected as having a passkey");
+            TrackerBoostService.IsValidPublicTrackerUrl(url).Should().BeFalse($"URL '{url}' should not be considered a valid public tracker");
+        }
+
+        // Query-based passkeys
+        var queryBasedPasskeyUrls = new[]
+        {
+            "http://private.tracker.org/announce?passkey=123456",
+            "http://private.tracker.org/announce?authkey=123456",
+            "http://private.tracker.org/announce?torrentpass=123456",
+            "http://private.tracker.org/announce?auth=abcdef123456",
+            "http://private.tracker.org/announce?token=abcdef123456789012",
+        };
+
+        foreach (var url in queryBasedPasskeyUrls)
+        {
+            TrackerBoostService.HasPasskey(url).Should().BeTrue($"URL '{url}' should be detected as having a passkey");
+            TrackerBoostService.IsValidPublicTrackerUrl(url).Should().BeFalse($"URL '{url}' should not be considered a valid public tracker");
+        }
+    }
+
+    [Test]
+    public async Task HarvestFromActiveDownloads_NeverHarvestsFromPrivateTorrents_OrTrackersWithPasskeys()
+    {
+        // 1. Private torrent with both a public-looking tracker and a path-passkey tracker
+        var privateTorrent = new Torrent
+        {
+            Id = 10,
+            Name = "Secret Private Torrent",
+            InfoHash = "AAAA111122223333444455556666777788889999",
+            IsPrivate = true,
+        };
+        this.storedTorrents.Add(privateTorrent);
+
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 10,
+            Url = "udp://public.looking.tracker.org:1337/announce",
+        });
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 10,
+            Url = "https://redacted.ch/0123456789abcdef0123456789abcdef/announce",
+        });
+
+        // 2. Public torrent with a passkey tracker and a valid public tracker
+        var publicTorrent = new Torrent
+        {
+            Id = 20,
+            Name = "Open Source Distro",
+            InfoHash = "BBBB111122223333444455556666777788889999",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(publicTorrent);
+
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 20,
+            Url = "https://tracker.site/announce/abcdef123456", // path-based passkey
+        });
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 20,
+            Url = "http://tracker.site/announce?passkey=secret123", // query-based passkey
+        });
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 20,
+            Url = "udp://newharvested.tracker.org:1337/announce", // valid public tracker
+        });
+
+        var count = await this.service.HarvestFromActiveDownloadsAsync();
+
+        // Only the valid public tracker from the public torrent should be harvested
+        count.Should().Be(1);
+        this.storedTrackers.Should().Contain(t => t.Url == "udp://newharvested.tracker.org:1337/announce");
+
+        // None of the private torrent trackers or passkey trackers should exist in the repository
+        this.storedTrackers.Should().NotContain(t => t.Url == "udp://public.looking.tracker.org:1337/announce");
+        this.storedTrackers.Should().NotContain(t => t.Url == "https://redacted.ch/0123456789abcdef0123456789abcdef/announce");
+        this.storedTrackers.Should().NotContain(t => t.Url == "https://tracker.site/announce/abcdef123456");
+        this.storedTrackers.Should().NotContain(t => t.Url == "http://tracker.site/announce?passkey=secret123");
+    }
+
+    [Test]
+    public void AddTracker_ThrowsArgumentException_WhenUrlContainsPasskey()
+    {
+        var act1 = () => this.service.AddTracker("https://tracker.site/abcdef123456/announce");
+        act1.Should().Throw<ArgumentException>().WithMessage("*passkey*");
+
+        var act2 = () => this.service.AddTracker("https://tracker.site/announce?passkey=123456");
+        act2.Should().Throw<ArgumentException>().WithMessage("*passkey*");
+    }
+
+    [Test]
+    public async Task InjectTrackerToTorrent_RejectsUrlWithPasskey()
+    {
+        var publicTorrent = new Torrent
+        {
+            Id = 30,
+            Name = "Public Torrent",
+            InfoHash = "CCCC111122223333444455556666777788889999",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(publicTorrent);
+
+        var result = await this.service.InjectTrackerToTorrentAsync(30, "https://tracker.site/announce/abcdef123456");
+        result.Boosted.Should().BeFalse();
+        result.Message.Should().Contain("invalid or contains private passkey");
+    }
 }
