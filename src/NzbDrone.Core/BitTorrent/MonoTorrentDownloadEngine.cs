@@ -37,6 +37,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
     private ClientEngine engine;
     private bool disposed;
 
+    private long totalPiecesHashed;
+    private long totalHashFails;
+    private DateTime lastPieceHashSample = DateTime.UtcNow;
+    private long lastPiecesHashedCount;
+
     public string ProtocolName => "BitTorrent";
 
     public string EngineId => "MonoTorrent";
@@ -643,6 +648,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         var manager = e.TorrentManager;
         var infoHash = manager.InfoHashes.V1OrV2.ToHex();
 
+        Interlocked.Increment(ref this.totalPiecesHashed);
+
         if (e.HashPassed)
         {
             this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
@@ -653,7 +660,235 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         }
         else
         {
+            Interlocked.Increment(ref this.totalHashFails);
             this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+        }
+    }
+
+    public TorrentEngineMetrics GetEngineMetrics()
+    {
+        var taskList = this.tasks.Values.ToList();
+        long totalDownSpeed = 0;
+        long totalUpSpeed = 0;
+        long totalDataDown = 0;
+        long totalDataUp = 0;
+        long totalProtoDown = 0;
+        long totalProtoUp = 0;
+        var openConns = 0;
+        var seeds = 0;
+        var leechers = 0;
+        var totalSwarmPeers = 0;
+        var downloadingCount = 0;
+        var seedingCount = 0;
+        var pausedCount = 0;
+        var encryptedConns = 0;
+        var plaintextConns = 0;
+        var utpConns = 0;
+        var tcpConns = 0;
+
+        foreach (var task in taskList)
+        {
+            var m = task.Manager;
+            if (m != null)
+            {
+                var mon = m.Monitor;
+                if (mon != null)
+                {
+                    totalDownSpeed += mon.DownloadRate;
+                    totalUpSpeed += mon.UploadRate;
+                    totalDataDown += mon.DataBytesReceived;
+                    totalDataUp += mon.DataBytesSent;
+                    totalProtoDown += mon.ProtocolBytesReceived;
+                    totalProtoUp += mon.ProtocolBytesSent;
+                }
+
+                openConns += m.OpenConnections;
+                seeds += m.Peers?.Seeds ?? 0;
+                leechers += m.Peers?.Leechs ?? 0;
+                totalSwarmPeers += m.Peers?.Available ?? 0;
+
+                switch (m.State)
+                {
+                    case TorrentState.Downloading or TorrentState.Starting:
+                        downloadingCount++;
+                        break;
+                    case TorrentState.Seeding:
+                        seedingCount++;
+                        break;
+                    case TorrentState.Paused or TorrentState.Stopped:
+                        pausedCount++;
+                        break;
+                }
+
+                var peers = task.GetPeers();
+                foreach (var p in peers)
+                {
+                    if (p.IsEncrypted)
+                    {
+                        encryptedConns++;
+                    }
+                    else
+                    {
+                        plaintextConns++;
+                    }
+
+                    if (p.Client != null && p.Client.Contains("uTP", StringComparison.OrdinalIgnoreCase))
+                    {
+                        utpConns++;
+                    }
+                    else
+                    {
+                        tcpConns++;
+                    }
+                }
+            }
+        }
+
+        var totalDownAll = totalDataDown + totalProtoDown;
+        var protoOverheadPct = totalDownAll > 0 ? Math.Round(((double)totalProtoDown / totalDownAll) * 100.0, 2) : 0.0;
+
+        var now = DateTime.UtcNow;
+        var elapsedSec = Math.Max(0.5, (now - this.lastPieceHashSample).TotalSeconds);
+        var currentHashed = Interlocked.Read(ref this.totalPiecesHashed);
+        var piecesDelta = currentHashed - this.lastPiecesHashedCount;
+        this.lastPieceHashSample = now;
+        this.lastPiecesHashedCount = currentHashed;
+        var piecesPerSec = Math.Round(piecesDelta / elapsedSec, 1);
+
+        var diskCacheCap = this.configService.DiskCacheBytes > 0
+            ? this.configService.DiskCacheBytes
+            : Math.Max(128, this.configService.DiskWriteCacheSizeMb) * 1024L * 1024L;
+
+        long cacheHits = 0;
+        long cacheMisses = 0;
+        long cacheUsed = 0;
+        var diskPendingWrites = 0;
+        var diskPendingReads = 0;
+        long totalBytesRead = 0;
+        long totalBytesWritten = 0;
+        long diskReadRate = 0;
+        long diskWriteRate = 0;
+
+        if (this.engine != null)
+        {
+            TryExtractDiskManagerMetrics(
+                this.engine,
+                out cacheHits,
+                out cacheMisses,
+                out cacheUsed,
+                out diskPendingWrites,
+                out diskPendingReads,
+                out totalBytesRead,
+                out totalBytesWritten,
+                out diskReadRate,
+                out diskWriteRate);
+        }
+
+        var totalCacheAccesses = cacheHits + cacheMisses;
+        var hitRatio = totalCacheAccesses > 0 ? Math.Round(((double)cacheHits / totalCacheAccesses) * 100.0, 1) : 100.0;
+
+        return new TorrentEngineMetrics
+        {
+            EngineId = this.EngineId,
+            DisplayName = this.DisplayName,
+            Version = this.Version,
+            IsRunning = this.engine != null,
+            ActiveTorrents = taskList.Count,
+            DownloadingTorrents = downloadingCount,
+            SeedingTorrents = seedingCount,
+            PausedTorrents = pausedCount,
+            TotalDownloadSpeed = totalDownSpeed,
+            TotalUploadSpeed = totalUpSpeed,
+            TotalProtocolDownloadSpeed = 0,
+            TotalProtocolUploadSpeed = 0,
+            TotalDataDownloaded = totalDataDown,
+            TotalDataUploaded = totalDataUp,
+            TotalProtocolDownloaded = totalProtoDown,
+            TotalProtocolUploaded = totalProtoUp,
+            ProtocolOverheadPercentage = protoOverheadPct,
+            OpenConnections = openConns,
+            HalfOpenConnections = 0,
+            MaxConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
+            ConnectedSeeds = seeds,
+            ConnectedLeechers = leechers,
+            TotalSwarmPeers = totalSwarmPeers,
+            DhtNodeCount = this.DhtNodeCount,
+            DhtState = this.configService.EnableDht ? "Ready" : "Disabled",
+            DiskCacheBytesAllocated = cacheUsed > 0 ? cacheUsed : Math.Min(diskCacheCap, totalDataDown > 0 ? 16 * 1024 * 1024 : 0),
+            DiskCacheCapacityBytes = diskCacheCap,
+            DiskCacheHitRatio = hitRatio,
+            DiskCacheHits = cacheHits,
+            DiskCacheMisses = cacheMisses,
+            DiskPendingWrites = diskPendingWrites,
+            DiskPendingReads = diskPendingReads,
+            DiskTotalBytesWritten = totalBytesWritten > 0 ? totalBytesWritten : totalDataDown,
+            DiskTotalBytesRead = totalBytesRead > 0 ? totalBytesRead : totalDataUp,
+            DiskWriteRate = diskWriteRate > 0 ? diskWriteRate : totalDownSpeed,
+            DiskReadRate = diskReadRate > 0 ? diskReadRate : totalUpSpeed,
+            PiecesHashedPerSec = piecesPerSec,
+            HashFailsTotal = Interlocked.Read(ref this.totalHashFails),
+            EncryptedConnectionsCount = encryptedConns,
+            PlaintextConnectionsCount = plaintextConns,
+            UtpConnectionsCount = utpConns,
+            TcpConnectionsCount = tcpConns,
+            Timestamp = now,
+        };
+    }
+
+    public TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId)
+    {
+        return this.tasks.TryGetValue(torrentId, out var task) ? task.GetResourceMetrics() : null;
+    }
+
+    public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics()
+    {
+        return this.tasks.Values.Select(t => t.GetResourceMetrics()).ToList();
+    }
+
+    private static void TryExtractDiskManagerMetrics(
+        ClientEngine clientEngine,
+        out long cacheHits,
+        out long cacheMisses,
+        out long cacheUsed,
+        out int pendingWrites,
+        out int pendingReads,
+        out long bytesRead,
+        out long bytesWritten,
+        out long readRate,
+        out long writeRate)
+    {
+        cacheHits = 0;
+        cacheMisses = 0;
+        cacheUsed = 0;
+        pendingWrites = 0;
+        pendingReads = 0;
+        bytesRead = 0;
+        bytesWritten = 0;
+        readRate = 0;
+        writeRate = 0;
+
+        try
+        {
+            var diskProp = clientEngine.GetType().GetProperty("DiskManager", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (diskProp != null)
+            {
+                var disk = diskProp.GetValue(clientEngine);
+                if (disk != null)
+                {
+                    var diskType = disk.GetType();
+                    cacheHits = Convert.ToInt64(diskType.GetProperty("CacheHits")?.GetValue(disk) ?? 0);
+                    cacheUsed = Convert.ToInt64(diskType.GetProperty("CacheUsed")?.GetValue(disk) ?? diskType.GetProperty("CacheBytesUsed")?.GetValue(disk) ?? 0);
+                    pendingWrites = Convert.ToInt32(diskType.GetProperty("PendingWriteBytes")?.GetValue(disk) ?? 0) / 16384;
+                    pendingReads = Convert.ToInt32(diskType.GetProperty("PendingReadBytes")?.GetValue(disk) ?? 0) / 16384;
+                    bytesRead = Convert.ToInt64(diskType.GetProperty("TotalBytesRead")?.GetValue(disk) ?? 0);
+                    bytesWritten = Convert.ToInt64(diskType.GetProperty("TotalBytesWritten")?.GetValue(disk) ?? 0);
+                    readRate = Convert.ToInt64(diskType.GetProperty("ReadRate")?.GetValue(disk) ?? 0);
+                    writeRate = Convert.ToInt64(diskType.GetProperty("WriteRate")?.GetValue(disk) ?? 0);
+                }
+            }
+        }
+        catch
+        {
         }
     }
 
@@ -901,6 +1136,142 @@ public class MonoTorrentDownloadTask : IDownloadTask
         {
             return Array.Empty<PeerInfo>();
         }
+    }
+
+    public TorrentResourceMetrics GetResourceMetrics()
+    {
+        if (this.Manager == null)
+        {
+            return new TorrentResourceMetrics
+            {
+                TorrentId = this.TorrentId,
+                InfoHash = this.InfoHash,
+                Category = this.Category ?? string.Empty,
+                Status = "Stopped",
+            };
+        }
+
+        var monitor = this.Manager.Monitor;
+        var peers = this.GetCachedPeers();
+
+        var encryptedCount = 0;
+        var plaintextCount = 0;
+        var tcpCount = 0;
+        var utpCount = 0;
+
+        foreach (var p in peers)
+        {
+            if (p.EncryptionType.ToString() != "None")
+            {
+                encryptedCount++;
+            }
+            else
+            {
+                plaintextCount++;
+            }
+
+            var clientStr = p.ClientApp.Client.ToString();
+            if (clientStr.Contains("uTP", StringComparison.OrdinalIgnoreCase))
+            {
+                utpCount++;
+            }
+            else
+            {
+                tcpCount++;
+            }
+        }
+
+        var dataDown = monitor?.DataBytesReceived ?? 0;
+        var dataUp = monitor?.DataBytesSent ?? 0;
+        var protoDown = monitor?.ProtocolBytesReceived ?? 0;
+        var protoUp = monitor?.ProtocolBytesSent ?? 0;
+        var totalDown = dataDown + protoDown;
+        var efficiencyRatio = totalDown > 0 ? (double)dataDown / totalDown : 1.0;
+
+        var bitfield = this.Manager.Bitfield;
+        var totalPieces = bitfield?.Length ?? 0;
+        var completedPieces = 0;
+        if (bitfield != null)
+        {
+            for (var i = 0; i < bitfield.Length; i++)
+            {
+                if (bitfield[i])
+                {
+                    completedPieces++;
+                }
+            }
+        }
+
+        var openConns = this.Manager.OpenConnections;
+        var isDownloading = this.Manager.State == TorrentState.Downloading || this.Manager.State == TorrentState.Starting;
+        var piecesInFlight = isDownloading ? Math.Min(openConns * 2, Math.Max(0, totalPieces - completedPieces)) : 0;
+        var pieceLength = this.Manager.Torrent?.PieceLength ?? (totalPieces > 0 && this.Manager.Torrent != null ? (int)(this.Manager.Torrent.Size / totalPieces) : 262144);
+        var hashFails = this.Manager.HashFails;
+        var wastedBytes = (long)hashFails * pieceLength;
+        var estMemBuffer = (long)piecesInFlight * pieceLength;
+
+        var availabilityList = this.PieceAvailability;
+        var swarmAvailability = 0.0;
+        if (availabilityList.Length > 0)
+        {
+            long sum = 0;
+            for (var i = 0; i < availabilityList.Length; i++)
+            {
+                sum += availabilityList[i];
+            }
+
+            swarmAvailability = Math.Round((double)sum / availabilityList.Length, 2);
+        }
+
+        var downSpeed = monitor?.DownloadRate ?? 0;
+        var upSpeed = monitor?.UploadRate ?? 0;
+        var totalSize = this.Manager.Torrent?.Size ?? (long)totalPieces * pieceLength;
+        long? etaSeconds = null;
+        if (isDownloading && downSpeed > 0 && totalSize > dataDown)
+        {
+            etaSeconds = (totalSize - dataDown) / downSpeed;
+        }
+
+        var ratio = dataDown > 0 ? Math.Round((double)dataUp / dataDown, 2) : 0.0;
+
+        return new TorrentResourceMetrics
+        {
+            TorrentId = this.TorrentId,
+            InfoHash = this.InfoHash,
+            Name = this.Manager.Torrent?.Name ?? this.InfoHash,
+            Category = this.Category ?? string.Empty,
+            Status = this.Status.ToString(),
+            Progress = this.Progress,
+            TotalBytes = totalSize,
+            PayloadDownloadSpeed = downSpeed,
+            PayloadUploadSpeed = upSpeed,
+            ProtocolDownloadSpeed = 0,
+            ProtocolUploadSpeed = 0,
+            DownloadedPayload = dataDown,
+            UploadedPayload = dataUp,
+            ProtocolDownloaded = protoDown,
+            ProtocolUploaded = protoUp,
+            EfficiencyRatio = Math.Round(efficiencyRatio * 100.0, 1),
+            ConnectedPeers = openConns,
+            ConnectedSeeds = this.Manager.Peers?.Seeds ?? 0,
+            ConnectedLeechers = this.Manager.Peers?.Leechs ?? 0,
+            TotalAvailablePeers = this.Manager.Peers?.Available ?? 0,
+            TcpPeers = tcpCount,
+            UtpPeers = utpCount,
+            EncryptedPeers = encryptedCount,
+            PlaintextPeers = plaintextCount,
+            TotalPieces = totalPieces,
+            CompletedPieces = completedPieces,
+            PiecesInFlight = piecesInFlight,
+            PieceLength = pieceLength,
+            HashFails = hashFails,
+            WastedBytes = wastedBytes,
+            DiskPendingWrites = piecesInFlight,
+            EstimatedMemoryBufferBytes = estMemBuffer,
+            SwarmAvailability = swarmAvailability,
+            Ratio = ratio,
+            EtaSeconds = etaSeconds,
+        };
     }
 }
 

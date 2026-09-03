@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router";
 import { useTorrents, useSeedingStats, useSpeedHistory } from "../api/hooks";
 import { formatSpeed, formatRatio } from "../utils/formatters";
 import LineChart from "../components/LineChart";
@@ -180,6 +181,20 @@ function Activity() {
             </span>
           </div>
         </div>
+        <Link
+          to="/system/resources"
+          className="btn btn-small"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            backgroundColor: "rgba(255, 209, 102, 0.15)",
+            color: "var(--accent, #ffd166)",
+            border: "1px solid rgba(255, 209, 102, 0.3)",
+          }}
+        >
+          <span>📊</span> Live Telemetry & Resources
+        </Link>
       </div>
 
       <div className="monitoring-grid">

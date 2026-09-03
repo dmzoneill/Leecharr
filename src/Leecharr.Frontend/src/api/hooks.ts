@@ -1542,3 +1542,49 @@ export function useAiConfig() {
 export function useSaveAiConfig() {
   return useConfigMutation<AiConfig>("ai");
 }
+
+export function useSystemResources(refetchInterval: number | false = 2000) {
+  return useQuery<import("./types").SystemResourceTelemetrySnapshot>({
+    queryKey: ["system", "resources"],
+    queryFn: () => apiClient.get("/system/resources"),
+    refetchInterval,
+  });
+}
+
+export function useHostResources(refetchInterval: number | false = 2000) {
+  return useQuery<import("./types").HostProcessResourceMetrics>({
+    queryKey: ["system", "resources", "host"],
+    queryFn: () => apiClient.get("/system/resources/host"),
+    refetchInterval,
+  });
+}
+
+export function useTorrentEngineMetrics(
+  refetchInterval: number | false = 2000,
+) {
+  return useQuery<import("./types").TorrentEngineMetrics>({
+    queryKey: ["system", "resources", "engine"],
+    queryFn: () => apiClient.get("/system/resources/engine"),
+    refetchInterval,
+  });
+}
+
+export function usePerTorrentMetrics(refetchInterval: number | false = 2000) {
+  return useQuery<import("./types").TorrentResourceMetrics[]>({
+    queryKey: ["system", "resources", "torrents"],
+    queryFn: () => apiClient.get("/system/resources/torrents"),
+    refetchInterval,
+  });
+}
+
+export function useTorrentResourceMetrics(
+  id: number,
+  refetchInterval: number | false = 2000,
+) {
+  return useQuery<import("./types").TorrentResourceMetrics>({
+    queryKey: ["system", "resources", "torrents", id],
+    queryFn: () => apiClient.get(`/system/resources/torrents/${id}`),
+    refetchInterval,
+    enabled: id > 0,
+  });
+}

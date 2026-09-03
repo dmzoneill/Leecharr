@@ -15,6 +15,7 @@ using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Telemetry;
 
 namespace Leecharr.Api.V1.Subsystems;
 
@@ -30,6 +31,7 @@ public class SubsystemsController : Controller
     private readonly IMediaMetadataManager mediaMetadataManager;
     private readonly IHttpTransportManager httpTransportManager;
     private readonly IAiManager aiManager;
+    private readonly ISystemResourceService resourceService;
 
     public SubsystemsController(
         ITorrentEngineManager torrentEngineManager,
@@ -40,7 +42,8 @@ public class SubsystemsController : Controller
         INetworkBindingManager networkBindingManager,
         IMediaMetadataManager mediaMetadataManager,
         IHttpTransportManager httpTransportManager,
-        IAiManager aiManager)
+        IAiManager aiManager,
+        ISystemResourceService resourceService)
     {
         this.torrentEngineManager = torrentEngineManager;
         this.extractorManager = extractorManager;
@@ -51,6 +54,28 @@ public class SubsystemsController : Controller
         this.mediaMetadataManager = mediaMetadataManager;
         this.httpTransportManager = httpTransportManager;
         this.aiManager = aiManager;
+        this.resourceService = resourceService;
+    }
+
+    [HttpGet("metrics")]
+    public ActionResult<List<SubsystemTelemetryReport>> GetSubsystemsMetrics()
+    {
+        return this.Ok(this.resourceService.GetSubsystemTelemetry());
+    }
+
+    [HttpGet("{subsystemId}/metrics")]
+    public ActionResult<SubsystemTelemetryReport> GetSubsystemMetrics(string subsystemId)
+    {
+        var normalized = subsystemId?.ToLowerInvariant();
+        var telemetry = this.resourceService.GetSubsystemTelemetry()
+            .FirstOrDefault(t => string.Equals(t.SubsystemId, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (telemetry == null)
+        {
+            return this.NotFound(new { error = $"Telemetry report for subsystem '{subsystemId}' was not found." });
+        }
+
+        return this.Ok(telemetry);
     }
 
     [HttpGet]
