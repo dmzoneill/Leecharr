@@ -89,6 +89,7 @@ public class TorrentServiceTest
 
         var insertedFiles = new List<TorrentFile>();
         this.fileRepository.Insert(Arg.Do<TorrentFile>(f => insertedFiles.Add(f)));
+        this.fileRepository.InsertMany(Arg.Do<IEnumerable<TorrentFile>>(files => insertedFiles.AddRange(files)));
 
         var result = await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, Array.Empty<byte>());
 

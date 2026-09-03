@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using Dapper;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Events;
@@ -15,6 +16,19 @@ public interface IBasicRepository<TModel>
     TModel Get(int id);
 
     TModel Insert(TModel model);
+
+    void InsertMany(IEnumerable<TModel> models)
+    {
+        if (models == null)
+        {
+            return;
+        }
+
+        foreach (var model in models)
+        {
+            this.Insert(model);
+        }
+    }
 
     TModel Update(TModel model);
 
@@ -72,6 +86,53 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
         this.eventAggregator?.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Created));
         return model;
+    }
+
+    public void InsertMany(IEnumerable<TModel> models)
+    {
+        if (models == null)
+        {
+            return;
+        }
+
+        var modelList = models as IList<TModel> ?? models.ToList();
+        if (modelList.Count == 0)
+        {
+            return;
+        }
+
+        using var connection = this.database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var isSqlite = this.database.DatabaseType == DatabaseType.SQLite;
+            var insertSql = TableMapping.GetInsertSql(this.table, modelList[0]);
+            var querySql = isSqlite
+                ? insertSql + "; SELECT last_insert_rowid()"
+                : insertSql + " RETURNING \"Id\"";
+
+            foreach (var model in modelList)
+            {
+                var id = connection.ExecuteScalar<int>(querySql, model, transaction: transaction);
+                model.Id = id;
+            }
+
+            transaction.Commit();
+
+            if (this.eventAggregator != null)
+            {
+                foreach (var model in modelList)
+                {
+                    this.eventAggregator.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Created));
+                }
+            }
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     public TModel Update(TModel model)
