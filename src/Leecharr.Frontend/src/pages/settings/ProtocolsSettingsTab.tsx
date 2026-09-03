@@ -7,13 +7,7 @@ import {
   usePeerProtocolConfig,
   useSavePeerProtocolConfig,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  SelectInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
 
 export function ProtocolsSettingsTab() {
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
@@ -58,53 +52,36 @@ export function ProtocolsSettingsTab() {
         extensionUtPex: protoConfig?.extensionUtPex ?? true,
         extensionLtDontHave: protoConfig?.extensionLtDontHave ?? true,
         extensionFastExtension: protoConfig?.extensionFastExtension ?? true,
-        enableBep27PrivateTorrents:
-          protoConfig?.enableBep27PrivateTorrents ?? true,
+        enableBep27PrivateTorrents: protoConfig?.enableBep27PrivateTorrents ?? true,
         utpEnabled: protoConfig?.utpEnabled ?? true,
         tcpFallback: protoConfig?.tcpFallback ?? true,
-        transportConnectionTimeoutSeconds:
-          protoConfig?.transportConnectionTimeoutSeconds ?? 30,
+        transportConnectionTimeoutSeconds: protoConfig?.transportConnectionTimeoutSeconds ?? 30,
         handshakeTimeoutSeconds: peerConfig?.handshakeTimeoutSeconds ?? 30,
         messageReadTimeoutSeconds: peerConfig?.messageReadTimeoutSeconds ?? 60,
         keepAliveIntervalSeconds: peerConfig?.keepAliveIntervalSeconds ?? 120,
-        peerContactIntervalSeconds:
-          peerConfig?.peerContactIntervalSeconds ?? 30,
+        peerContactIntervalSeconds: peerConfig?.peerContactIntervalSeconds ?? 30,
         multiTrackerEnabled: protoConfig?.multiTrackerEnabled ?? true,
-        multiTrackerFailoverEnabled:
-          protoConfig?.multiTrackerFailoverEnabled ?? true,
+        multiTrackerFailoverEnabled: protoConfig?.multiTrackerFailoverEnabled ?? true,
         announceToAllTiers: protoConfig?.announceToAllTiers ?? true,
         announceToAllInTier: protoConfig?.announceToAllInTier ?? false,
-        failoverMaxConsecutiveFailures:
-          protoConfig?.failoverMaxConsecutiveFailures ?? 3,
-        failoverBackoffBaseSeconds:
-          protoConfig?.failoverBackoffBaseSeconds ?? 30,
-        failoverMaxBackoffSeconds:
-          protoConfig?.failoverMaxBackoffSeconds ?? 1800,
+        failoverMaxConsecutiveFailures: protoConfig?.failoverMaxConsecutiveFailures ?? 3,
+        failoverBackoffBaseSeconds: protoConfig?.failoverBackoffBaseSeconds ?? 30,
+        failoverMaxBackoffSeconds: protoConfig?.failoverMaxBackoffSeconds ?? 1800,
       });
       setDirty(false);
     }
   }, [btConfig, protoConfig, peerConfig]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
   const isPending =
-    saveBtMutation.isPending ||
-    saveProtoMutation.isPending ||
-    savePeerMutation.isPending;
-  const isError =
-    saveBtMutation.isError ||
-    saveProtoMutation.isError ||
-    savePeerMutation.isError;
+    saveBtMutation.isPending || saveProtoMutation.isPending || savePeerMutation.isPending;
+  const isError = saveBtMutation.isError || saveProtoMutation.isError || savePeerMutation.isError;
   const isSuccess =
-    saveBtMutation.isSuccess &&
-    saveProtoMutation.isSuccess &&
-    savePeerMutation.isSuccess;
+    saveBtMutation.isSuccess && saveProtoMutation.isSuccess && savePeerMutation.isSuccess;
   const error = (saveBtMutation.error ||
     saveProtoMutation.error ||
     savePeerMutation.error) as Error | null;
@@ -127,8 +104,7 @@ export function ProtocolsSettingsTab() {
         enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
         utpEnabled: form.utpEnabled,
         tcpFallback: form.tcpFallback,
-        transportConnectionTimeoutSeconds:
-          form.transportConnectionTimeoutSeconds,
+        transportConnectionTimeoutSeconds: form.transportConnectionTimeoutSeconds,
         multiTrackerEnabled: form.multiTrackerEnabled,
         multiTrackerFailoverEnabled: form.multiTrackerFailoverEnabled,
         announceToAllTiers: form.announceToAllTiers,

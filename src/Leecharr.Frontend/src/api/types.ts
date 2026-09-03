@@ -894,15 +894,9 @@ export interface DownloadReleaseRequest {
 }
 
 export type TrackerProtocol = "Udp" | "Http" | "Https" | number;
-export type TrackerHealthStatus =
-  "Untested" | "Alive" | "Slow" | "Offline" | number;
+export type TrackerHealthStatus = "Untested" | "Alive" | "Slow" | "Offline" | number;
 export type TrackerSourceType =
-  | "PublicList"
-  | "Prowlarr"
-  | "ReleaseMagnet"
-  | "Manual"
-  | "ActiveTorrent"
-  | number;
+  "PublicList" | "Prowlarr" | "ReleaseMagnet" | "Manual" | "ActiveTorrent" | number;
 
 export interface TrackerBoostTracker {
   id: number;
@@ -1035,14 +1029,7 @@ export interface TrackerBoostLogEntry {
   timestamp: string;
   level: "Info" | "Success" | "Warn" | "Error" | "Debug" | string;
   category:
-    | "General"
-    | "Scrape"
-    | "Health"
-    | "Discovery"
-    | "Inject"
-    | "Announce"
-    | "Cycle"
-    | string;
+    "General" | "Scrape" | "Health" | "Discovery" | "Inject" | "Announce" | "Cycle" | string;
   trackerUrl: string;
   infoHash: string;
   message: string;

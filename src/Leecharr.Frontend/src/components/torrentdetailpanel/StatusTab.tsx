@@ -159,8 +159,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
             style={{
               fontWeight: 700,
               fontSize: "0.9rem",
-              color:
-                (torrent.ratio || 0) >= 1.0 ? "#22c55e" : "var(--text-primary)",
+              color: (torrent.ratio || 0) >= 1.0 ? "#22c55e" : "var(--text-primary)",
               marginTop: "0.15rem",
             }}
           >
@@ -189,14 +188,11 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           }}
         >
           <span>
-            <strong>{percent.toFixed(1)}%</strong> (
-            {formatBytes(torrent.downloaded || 0)} of{" "}
+            <strong>{percent.toFixed(1)}%</strong> ({formatBytes(torrent.downloaded || 0)} of{" "}
             {formatBytes(torrent.totalSize || 0)})
           </span>
           <span style={{ color: "var(--text-muted)" }}>
-            {formatBytes(
-              Math.max(0, (torrent.totalSize || 0) - (torrent.downloaded || 0)),
-            )}{" "}
+            {formatBytes(Math.max(0, (torrent.totalSize || 0) - (torrent.downloaded || 0)))}{" "}
             remaining
           </span>
         </div>
@@ -248,44 +244,23 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
           >
             Transfer Telemetry
           </div>
-          <InfoRow
-            label="Downloaded"
-            value={formatBytes(torrent.downloaded || 0)}
-            mono
-          />
-          <InfoRow
-            label="Uploaded"
-            value={formatBytes(torrent.uploaded || 0)}
-            mono
-          />
-          <InfoRow
-            label="Total Size"
-            value={formatBytes(torrent.totalSize || 0)}
-            mono
-          />
+          <InfoRow label="Downloaded" value={formatBytes(torrent.downloaded || 0)} mono />
+          <InfoRow label="Uploaded" value={formatBytes(torrent.uploaded || 0)} mono />
+          <InfoRow label="Total Size" value={formatBytes(torrent.totalSize || 0)} mono />
           <InfoRow
             label="Download Limit"
-            value={
-              torrent.downloadLimit > 0
-                ? `${torrent.downloadLimit} KB/s`
-                : "Unlimited"
-            }
+            value={torrent.downloadLimit > 0 ? `${torrent.downloadLimit} KB/s` : "Unlimited"}
           />
           <InfoRow
             label="Upload Limit"
-            value={
-              torrent.uploadLimit > 0
-                ? `${torrent.uploadLimit} KB/s`
-                : "Unlimited"
-            }
+            value={torrent.uploadLimit > 0 ? `${torrent.uploadLimit} KB/s` : "Unlimited"}
           />
         </div>
 
@@ -308,26 +283,16 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
           >
             Swarm & Network
           </div>
-          <InfoRow
-            label="Connected Seeders"
-            value={String(torrent.seeders || 0)}
-          />
-          <InfoRow
-            label="Connected Leechers"
-            value={String(torrent.leechers || 0)}
-          />
-          <InfoRow
-            label="Tracker Domain"
-            value={extractTrackerDomain(torrent.trackerUrl)}
-          />
+          <InfoRow label="Connected Seeders" value={String(torrent.seeders || 0)} />
+          <InfoRow label="Connected Leechers" value={String(torrent.leechers || 0)} />
+          <InfoRow label="Tracker Domain" value={extractTrackerDomain(torrent.trackerUrl)} />
           <InfoRow
             label="Announce Interval"
             value={
@@ -348,13 +313,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           />
           <InfoRow
             label="Priority"
-            value={
-              torrent.priority === 2
-                ? "High"
-                : torrent.priority === 1
-                  ? "Normal"
-                  : "Low"
-            }
+            value={torrent.priority === 2 ? "High" : torrent.priority === 1 ? "Normal" : "Low"}
           />
           <InfoRow
             label="Flags"
@@ -388,18 +347,14 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
           >
             Seeding & Lifecycle
           </div>
-          <InfoRow
-            label="Seeding Time"
-            value={formatSeconds(torrent.seedingTime || 0)}
-          />
+          <InfoRow label="Seeding Time" value={formatSeconds(torrent.seedingTime || 0)} />
           <InfoRow
             label="Target Ratio"
             value={
@@ -411,9 +366,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           <InfoRow label="Added" value={formatDate(torrent.dateAdded)} />
           <InfoRow
             label="Completed"
-            value={
-              torrent.dateCompleted ? formatDate(torrent.dateCompleted) : "-"
-            }
+            value={torrent.dateCompleted ? formatDate(torrent.dateCompleted) : "-"}
           />
           <InfoRow label="Last Active" value={formatDate(torrent.lastActive)} />
           <InfoRow
