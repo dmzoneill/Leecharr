@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 using NzbDrone.Core.Datastore;
 
@@ -49,11 +51,27 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
             new { Now = DateTime.UtcNow });
     }
 
+    public async Task<int> PruneExpiredSessionsAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = this.database.OpenConnection();
+        return await connection.ExecuteAsync(
+            $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
+            new { Now = DateTime.UtcNow });
+    }
+
     public void DeleteByUserId(int userId)
     {
         using var connection = this.database.OpenConnection();
         connection.Execute(
             $"DELETE FROM \"{this.table}\" WHERE \"UserId\" = @UserId",
             new { UserId = userId });
+    }
+
+    public void RevokeSession(string token)
+    {
+        using var connection = this.database.OpenConnection();
+        connection.Execute(
+            $"DELETE FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
+            new { Token = token });
     }
 }
