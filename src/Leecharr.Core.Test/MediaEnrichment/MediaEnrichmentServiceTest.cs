@@ -412,6 +412,43 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         health.IsHealthy.Should().BeTrue();
     }
 
+    [TestCase("Show.S1E01", "Show", "TV")]
+    [TestCase("Show.1x05", "Show", "TV")]
+    [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance", "TV")]
+    [TestCase("Game.of.Thrones.Season.1.1080p", "Game of Thrones", "TV")]
+    public async Task TmdbProvider_FetchMetadataAsync_ClassifiesTvAndCleansEpisodicTags(
+        string releaseName, string expectedTitle, string expectedType)
+    {
+        var provider = new TmdbMetadataProvider();
+        var metadata = await provider.FetchMetadataAsync(releaseName);
+
+        metadata.Should().NotBeNull();
+        metadata!.Title.Should().Be(expectedTitle);
+        metadata.MediaType.Should().Be(expectedType);
+    }
+
+    [Test]
+    public async Task TmdbProvider_FetchMetadataAsync_WhenMovieContainsWordSeason_ClassifiedAsMovieAndCleaned()
+    {
+        var provider = new TmdbMetadataProvider();
+        var metadata = await provider.FetchMetadataAsync("Season.of.the.Witch.2011.1080p");
+
+        metadata.Should().NotBeNull();
+        metadata!.Title.Should().Be("Season of the Witch");
+        metadata.Year.Should().Be(2011);
+        metadata.MediaType.Should().Be("Movie");
+    }
+
+    [TestCase("Show.S1E01", "Show")]
+    [TestCase("Show.1x05", "Show")]
+    [TestCase("Season.of.the.Witch.2011.1080p", "Season of the Witch")]
+    [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance")]
+    public void CleanTitle_StripsEpisodicTagsAndYears_AcrossProviders(string raw, string expected)
+    {
+        TmdbMetadataProvider.CleanTitle(raw).Should().Be(expected);
+        ServarrSyncMetadataProvider.CleanTitle(raw).Should().Be(expected);
+    }
+
     #endregion
 
     #region Dynamic Metadata, Local Artwork, Servarr Auth & Cache Cleanup
