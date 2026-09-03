@@ -27,7 +27,7 @@ if [ -n "$FRONTEND_STAGED" ]; then
   # Auto-format staged files with Prettier
   for file in $FRONTEND_STAGED; do
     if [ -f "$file" ]; then
-      npx prettier --write "$file" > /dev/null 2>&1 || true
+      npx prettier --config "$REPO_ROOT/.prettierrc.json" --write "$file" > /dev/null 2>&1 || true
       git add "$file"
     fi
   done

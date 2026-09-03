@@ -132,9 +132,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   if (isLoading && !currentTorrent) {
     return (
       <div className="detail-panel" style={{ height }}>
-        <div className="detail-panel-loading">
-          Loading torrent specifications...
-        </div>
+        <div className="detail-panel-loading">Loading torrent specifications...</div>
       </div>
     );
   }
@@ -142,9 +140,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   if (isError && !currentTorrent) {
     return (
       <div className="detail-panel" style={{ height }}>
-        <div className="detail-panel-empty">
-          Failed to load torrent specifications.
-        </div>
+        <div className="detail-panel-empty">Failed to load torrent specifications.</div>
       </div>
     );
   }
@@ -170,18 +166,17 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
           <span style={{ fontWeight: 700, color: "var(--accent, #ffd166)" }}>
             {currentTorrent.mediaTitle || currentTorrent.name}
           </span>
-          {currentTorrent.mediaTitle &&
-            currentTorrent.mediaTitle !== currentTorrent.name && (
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted, #7e8092)",
-                  marginLeft: "0.5rem",
-                }}
-              >
-                ({currentTorrent.name})
-              </span>
-            )}
+          {currentTorrent.mediaTitle && currentTorrent.mediaTitle !== currentTorrent.name && (
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted, #7e8092)",
+                marginLeft: "0.5rem",
+              }}
+            >
+              ({currentTorrent.name})
+            </span>
+          )}
           {currentTorrent.isPrivate ? (
             <span
               className="badge"
@@ -197,8 +192,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               }}
               title="Private Swarm (BEP 27: DHT & PEX Disabled)"
             >
-              <i className="fas fa-lock" style={{ fontSize: "0.62rem" }} />{" "}
-              Private Swarm (BEP 27)
+              <i className="fas fa-lock" style={{ fontSize: "0.62rem" }} /> Private Swarm (BEP 27)
             </span>
           ) : (
             <span
@@ -214,8 +208,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               }}
               title="Public Swarm (DHT, PEX, and LPD Active)"
             >
-              <i className="fas fa-globe" style={{ fontSize: "0.62rem" }} />{" "}
-              Public Swarm
+              <i className="fas fa-globe" style={{ fontSize: "0.62rem" }} /> Public Swarm
             </span>
           )}
         </div>
@@ -257,12 +250,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             Announce
           </button>
 
-          <button
-            type="button"
-            className="btn btn-small"
-            onClick={onClose}
-            title="Close panel"
-          >
+          <button type="button" className="btn btn-small" onClick={onClose} title="Close panel">
             X
           </button>
         </div>
@@ -288,38 +276,24 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
         <TabErrorBoundary tabKey={tab}>
           {tab === "status" && <StatusTab torrent={currentTorrent} />}
           {tab === "details" && <DetailsTab torrent={currentTorrent} />}
-          {tab === "files" && (
-            <FilesTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-          )}
-          {tab === "peers" && (
-            <PeersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-          )}
+          {tab === "files" && <FilesTab torrent={currentTorrent} torrentId={currentTorrent.id} />}
+          {tab === "peers" && <PeersTab torrent={currentTorrent} torrentId={currentTorrent.id} />}
           {tab === "trackers" && (
-            <TrackersTab
-              torrent={currentTorrent}
-              torrentId={currentTorrent.id}
-            />
+            <TrackersTab torrent={currentTorrent} torrentId={currentTorrent.id} />
           )}
           {tab === "piecemap" && (
             <PieceMap
               pieceCount={currentTorrent.pieceCount}
               pieceLength={currentTorrent.pieceLength}
               progress={currentTorrent.progress}
-              isSeeding={
-                (currentTorrent.status || "").toLowerCase() === "seeding"
-              }
+              isSeeding={(currentTorrent.status || "").toLowerCase() === "seeding"}
             />
           )}
           {tab === "monitoring" && (
-            <MonitoringTab
-              torrent={currentTorrent}
-              torrentId={currentTorrent.id}
-            />
+            <MonitoringTab torrent={currentTorrent} torrentId={currentTorrent.id} />
           )}
           {tab === "options" && <OptionsTab torrent={currentTorrent} />}
-          {tab === "log" && (
-            <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />
-          )}
+          {tab === "log" && <LogTab torrent={currentTorrent} torrentId={currentTorrent.id} />}
         </TabErrorBoundary>
       </div>
     </div>

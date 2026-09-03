@@ -54,18 +54,14 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
         const st = (t.status || "").toLowerCase();
         const target = stateFilter.toLowerCase();
         if (target === "stopped" || target === "paused") {
-          if (st !== "paused" && st !== "stopped" && st !== "idle")
-            return false;
+          if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
         } else if (st !== target) {
           return false;
         }
       }
       if (trackerFilter && trackerFilter !== "All") {
         const matchesTracker =
-          (t.trackers &&
-            t.trackers.some(
-              (u) => extractTrackerDomain(u) === trackerFilter,
-            )) ||
+          (t.trackers && t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
           extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
         if (!matchesTracker) return false;
       }
@@ -95,11 +91,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           boxShadow: "none",
         }}
       >
-        <div
-          style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}
-        >
-          📁
-        </div>
+        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",
@@ -148,9 +140,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
               cursor: "pointer",
               overflow: "hidden",
               borderRadius: "6px",
-              border: isSelected
-                ? "1px solid var(--accent)"
-                : "1px solid var(--border)",
+              border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
               backgroundColor: "var(--bg-secondary)",
               transition: "all 0.15s ease-in-out",
             }}
@@ -181,9 +171,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                     color: "var(--text-muted)",
                   }}
                 >
-                  <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
-                    🎬
-                  </div>
+                  <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎬</div>
                   <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>
                     {t.mediaTitle || t.name}
                   </div>
@@ -217,11 +205,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                       boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
                     }}
                   >
-                    <i
-                      className="fas fa-lock"
-                      style={{ fontSize: "0.58rem" }}
-                    />{" "}
-                    Private
+                    <i className="fas fa-lock" style={{ fontSize: "0.58rem" }} /> Private
                   </span>
                 )}
                 {t.resolution && (
@@ -330,9 +314,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 }}
               >
                 <span>{formatSize(t.totalSize)}</span>
-                <span style={{ fontWeight: 600 }}>
-                  {(t.progress * 100).toFixed(1)}%
-                </span>
+                <span style={{ fontWeight: 600 }}>{(t.progress * 100).toFixed(1)}%</span>
               </div>
 
               {/* Progress Bar */}
@@ -348,9 +330,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                   style={{
                     height: "100%",
                     width: `${Math.min(100, Math.max(0, t.progress * 100))}%`,
-                    backgroundColor: isSeeding
-                      ? "var(--success)"
-                      : "var(--accent)",
+                    backgroundColor: isSeeding ? "var(--success)" : "var(--accent)",
                     transition: "width 0.3s",
                   }}
                 />
@@ -374,9 +354,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                     ↑ {formatSpeed(t.uploadSpeed)}
                   </span>
                 )}
-                <span style={{ color: "var(--text-dim)" }}>
-                  Ratio: {t.ratio.toFixed(2)}
-                </span>
+                <span style={{ color: "var(--text-dim)" }}>Ratio: {t.ratio.toFixed(2)}</span>
               </div>
 
               {/* Card Footer Actions */}

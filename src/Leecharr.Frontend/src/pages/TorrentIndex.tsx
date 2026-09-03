@@ -90,8 +90,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       const st = (t.status || "").toLowerCase();
       if (st === "downloading") counts.Downloading++;
       else if (st === "seeding" || st === "completed") counts.Seeding++;
-      else if (st === "paused" || st === "stopped" || st === "idle")
-        counts.Paused++;
+      else if (st === "paused" || st === "stopped" || st === "idle") counts.Paused++;
       else if (st === "queued") counts.Queued++;
       else if (st === "error") counts.Error++;
     }
@@ -238,9 +237,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           setShowQuickSettings(false);
           localStorage.setItem("leecharr_quick_settings_open", "false");
         }}
-        onNavigateSettings={(tab) =>
-          onNavigateTab && onNavigateTab("settings", tab)
-        }
+        onNavigateSettings={(tab) => onNavigateTab && onNavigateTab("settings", tab)}
       />
       <div className="torrent-content-layout">
         {!isFilterCollapsed && (
