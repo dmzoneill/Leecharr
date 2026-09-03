@@ -561,5 +561,32 @@ public class PiecePickerTest
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Test]
+    public void Constructor_WithZeroPieceCount_ThrowsArgumentOutOfRangeException()
+    {
+        Action act = () => new PiecePicker(0, 16384, 163840);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public void Constructor_WithZeroOrNegativePieceLength_ThrowsArgumentOutOfRangeException()
+    {
+        Action act1 = () => new PiecePicker(10, 0, 163840);
+        act1.Should().Throw<ArgumentOutOfRangeException>();
+
+        Action act2 = () => new PiecePicker(10, -16384, 163840);
+        act2.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public void Constructor_WhenTotalSizeProducesNegativeFinalPieceLength_ThrowsArgumentException()
+    {
+        // 5 pieces of 16384 = at least 65537 bytes needed for 5 pieces.
+        // Total size 1000 means piece 4 len is 1000 - 4 * 16384 = -64536 < 0.
+        Action act = () => new PiecePicker(5, 16384, 1000);
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*must be positive*");
+    }
+
     #endregion
 }
