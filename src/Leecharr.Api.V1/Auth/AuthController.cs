@@ -73,7 +73,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<ActionResult<CurrentUserResource>> Login([FromBody] LoginRequestResource request)
+    public async Task<ActionResult<CurrentUserResource>> Login([FromBody] LoginRequestResource request, [FromQuery] string returnUrl = null)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
@@ -154,6 +154,9 @@ public class AuthController : ControllerBase
             }
         }
 
+        var requestedUrl = returnUrl ?? request?.ReturnUrl;
+        var safeReturnUrl = SanitizeRedirectUrl(requestedUrl);
+
         return this.Ok(new CurrentUserResource
         {
             Id = user.Id,
@@ -164,6 +167,7 @@ public class AuthController : ControllerBase
             Roles = rolesList,
             AvatarUrl = user.AvatarUrl,
             IsAuthenticated = true,
+            ReturnUrl = safeReturnUrl,
         });
     }
 
@@ -242,10 +246,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult ChallengeProvider(string providerId, [FromQuery] string returnUrl = "/")
     {
+        var safeReturnUrl = SanitizeRedirectUrl(returnUrl);
         var schemeName = $"Oidc_{providerId}";
         var props = new AuthenticationProperties
         {
-            RedirectUri = returnUrl ?? "/",
+            RedirectUri = safeReturnUrl,
         };
 
         return this.Challenge(props, schemeName);
@@ -255,6 +260,7 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult ChallengeSaml(string providerId, [FromQuery] string returnUrl = "/")
     {
+        var safeReturnUrl = SanitizeRedirectUrl(returnUrl);
         var provider = this.identityProviderService.GetByProviderId(providerId);
         if (provider == null || provider.ProviderType != IdentityProviderType.Saml || string.IsNullOrWhiteSpace(provider.IssuerUrl))
         {
@@ -269,7 +275,7 @@ public class AuthController : ControllerBase
         var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{provider.IssuerUrl}"" AssertionConsumerServiceURL=""{acsUrl}""><saml:Issuer>{baseUrl}/saml/metadata</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
 
         var b64Request = Convert.ToBase64String(Encoding.UTF8.GetBytes(samlRequest));
-        var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(returnUrl ?? "/")}";
+        var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(safeReturnUrl)}";
 
         return this.Redirect(redirectUrl);
     }
@@ -290,7 +296,8 @@ public class AuthController : ControllerBase
         try
         {
             var rawXml = Encoding.UTF8.GetString(Convert.FromBase64String(samlResponse));
-            var doc = XDocument.Parse(rawXml);
+            var xmlDoc = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
+            xmlDoc.LoadXml(rawXml);
 
             // 1. Resolve Identity Provider
             IdentityProviderDefinition provider = null;
@@ -305,7 +312,7 @@ public class AuthController : ControllerBase
 
             if (provider == null)
             {
-                var issuer = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Issuer")?.Value;
+                var issuer = xmlDoc.DocumentElement?.GetElementsByTagName("Issuer")?.Item(0)?.InnerText;
                 if (!string.IsNullOrWhiteSpace(issuer))
                 {
                     provider = this.identityProviderService.GetEnabled().FirstOrDefault(p =>
@@ -324,7 +331,27 @@ public class AuthController : ControllerBase
                 return this.Unauthorized("SAML Identity Provider not found or is disabled");
             }
 
-            // 2. Validate SAML Digital Signature using System.Security.Cryptography.Xml.SignedXml
+            // 2. Reject duplicate Response or Assertion elements to prevent XML Signature Wrapping (XSW)
+            var responseCount = 0;
+            var assertionCount = 0;
+            CountSamlElements(xmlDoc.DocumentElement, ref responseCount, ref assertionCount);
+
+            if (responseCount > 1)
+            {
+                return this.Unauthorized("SAML response contains duplicate Response elements (XML Signature Wrapping detected)");
+            }
+
+            if (assertionCount > 1)
+            {
+                return this.Unauthorized("SAML response contains duplicate Assertion elements (XML Signature Wrapping detected)");
+            }
+
+            if (assertionCount == 0)
+            {
+                return this.Unauthorized("SAML response contains no Assertion elements");
+            }
+
+            // 3. Validate SAML Digital Signature using System.Security.Cryptography.Xml.SignedXml
             if (string.IsNullOrWhiteSpace(provider.Certificate))
             {
                 return this.Unauthorized("SAML certificate not configured for Identity Provider");
@@ -354,9 +381,6 @@ public class AuthController : ControllerBase
                 return this.Unauthorized($"Invalid SAML certificate in Identity Provider configuration: {ex.Message}");
             }
 
-            var xmlDoc = new XmlDocument { PreserveWhitespace = true };
-            xmlDoc.LoadXml(rawXml);
-
             var signatureNodes = xmlDoc.GetElementsByTagName("Signature", "http://www.w3.org/2000/09/xmldsig#");
             if (signatureNodes.Count == 0)
             {
@@ -369,28 +393,86 @@ public class AuthController : ControllerBase
             }
 
             var isSignatureValid = false;
+            XmlElement verifiedElement = null;
+            string verifiedReferenceId = null;
+
             foreach (XmlElement sigElement in signatureNodes)
             {
                 var signedXml = new SignedXml(xmlDoc);
                 signedXml.LoadXml(sigElement);
                 if (signedXml.CheckSignature(cert, true))
                 {
+                    if (signedXml.SignedInfo?.References?.Count > 0)
+                    {
+                        var reference = (Reference)signedXml.SignedInfo.References[0];
+                        var uri = reference.Uri;
+                        if (string.IsNullOrEmpty(uri) || uri == "#")
+                        {
+                            verifiedElement = xmlDoc.DocumentElement;
+                        }
+                        else if (uri.StartsWith('#'))
+                        {
+                            verifiedReferenceId = uri.Substring(1);
+                            verifiedElement = FindElementById(xmlDoc.DocumentElement, verifiedReferenceId);
+                        }
+                    }
+
                     isSignatureValid = true;
                     break;
                 }
             }
 
-            if (!isSignatureValid)
+            if (!isSignatureValid || verifiedElement == null)
             {
                 return this.Unauthorized("SAML digital signature verification failed");
             }
 
-            // 3. Validate SAML timestamp attributes (NotBefore, NotOnOrAfter)
+            var isResponseSigned = string.Equals(verifiedElement.LocalName, "Response", StringComparison.OrdinalIgnoreCase);
+            var isAssertionSigned = string.Equals(verifiedElement.LocalName, "Assertion", StringComparison.OrdinalIgnoreCase);
+
+            if (!isResponseSigned && !isAssertionSigned)
+            {
+                return this.Unauthorized("SAML signature does not cover Response or Assertion");
+            }
+
+            XmlElement targetAssertion = null;
+            if (isAssertionSigned)
+            {
+                targetAssertion = verifiedElement;
+            }
+            else
+            {
+                targetAssertion = FindChildElementByLocalName(verifiedElement, "Assertion");
+            }
+
+            if (targetAssertion == null)
+            {
+                return this.Unauthorized("Verified SAML element contains no Assertion");
+            }
+
+            if (isAssertionSigned && !string.IsNullOrEmpty(verifiedReferenceId))
+            {
+                var targetId = targetAssertion.GetAttribute("ID");
+                if (string.IsNullOrWhiteSpace(targetId))
+                {
+                    targetId = targetAssertion.GetAttribute("id");
+                }
+
+                if (!string.Equals(targetId, verifiedReferenceId, StringComparison.Ordinal))
+                {
+                    return this.Unauthorized("SAML assertion ID mismatch between signature reference and assertion element");
+                }
+            }
+
+            // Parse ONLY the verified assertion subtree
+            var assertionDoc = XElement.Parse(targetAssertion.OuterXml);
+
+            // 4. Validate SAML timestamp attributes (NotBefore, NotOnOrAfter)
             var now = DateTime.UtcNow;
             var allowedSkew = TimeSpan.FromMinutes(5);
 
-            var notBeforeElements = doc.Descendants().Where(e => e.Attribute("NotBefore") != null);
-            foreach (var elem in notBeforeElements)
+            var conditionsElements = assertionDoc.Descendants().Where(e => e.Name.LocalName == "Conditions");
+            foreach (var elem in conditionsElements)
             {
                 var notBeforeVal = elem.Attribute("NotBefore")?.Value;
                 if (!string.IsNullOrWhiteSpace(notBeforeVal) && DateTimeOffset.TryParse(notBeforeVal, out var notBefore))
@@ -400,11 +482,7 @@ public class AuthController : ControllerBase
                         return this.Unauthorized("SAML assertion is not yet valid (NotBefore constraint violation)");
                     }
                 }
-            }
 
-            var notOnOrAfterElements = doc.Descendants().Where(e => e.Attribute("NotOnOrAfter") != null);
-            foreach (var elem in notOnOrAfterElements)
-            {
                 var notOnOrAfterVal = elem.Attribute("NotOnOrAfter")?.Value;
                 if (!string.IsNullOrWhiteSpace(notOnOrAfterVal) && DateTimeOffset.TryParse(notOnOrAfterVal, out var notOnOrAfter))
                 {
@@ -415,10 +493,10 @@ public class AuthController : ControllerBase
                 }
             }
 
-            var nameId = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
-            var email = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("email", StringComparison.OrdinalIgnoreCase) == true))
+            var nameId = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
+            var email = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("email", StringComparison.OrdinalIgnoreCase) == true))
                 ?.Elements().FirstOrDefault(e => e.Name.LocalName == "AttributeValue")?.Value ?? nameId;
-            var displayName = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("displayName", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("name", StringComparison.OrdinalIgnoreCase) == true))
+            var displayName = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("displayName", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("name", StringComparison.OrdinalIgnoreCase) == true))
                 ?.Elements().FirstOrDefault(e => e.Name.LocalName == "AttributeValue")?.Value ?? nameId;
 
             if (string.IsNullOrWhiteSpace(nameId) && string.IsNullOrWhiteSpace(email))
@@ -429,7 +507,7 @@ public class AuthController : ControllerBase
             var username = !string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : (nameId ?? "saml_user");
             var user = this.userService.GetByUsername(username);
 
-            var roles = doc.Descendants()
+            var roles = assertionDoc.Descendants()
                 .Where(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("role", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("group", StringComparison.OrdinalIgnoreCase) == true))
                 .SelectMany(e => e.Elements().Where(v => v.Name.LocalName == "AttributeValue").Select(v => v.Value))
                 .Where(r => !string.IsNullOrWhiteSpace(r))
@@ -494,7 +572,8 @@ public class AuthController : ControllerBase
                 }
             }
 
-            return this.Redirect(string.IsNullOrWhiteSpace(relayState) ? "/" : relayState);
+            var safeRedirect = SanitizeRedirectUrl(relayState);
+            return this.Redirect(safeRedirect);
         }
         catch (Exception ex)
         {
@@ -520,5 +599,112 @@ public class AuthController : ControllerBase
 </md:EntityDescriptor>";
 
         return this.Content(xml, "application/samlmetadata+xml");
+    }
+
+    public static bool IsLocalUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        if (!url.StartsWith('/') || url.StartsWith("//", StringComparison.Ordinal) || url.StartsWith("/\\", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < url.Length; i++)
+        {
+            if (char.IsControl(url[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static string SanitizeRedirectUrl(string url)
+    {
+        return IsLocalUrl(url) ? url : "/";
+    }
+
+    private static void CountSamlElements(XmlNode node, ref int responseCount, ref int assertionCount)
+    {
+        if (node == null)
+        {
+            return;
+        }
+
+        if (node is XmlElement elem)
+        {
+            if (string.Equals(elem.LocalName, "Response", StringComparison.OrdinalIgnoreCase))
+            {
+                responseCount++;
+            }
+            else if (string.Equals(elem.LocalName, "Assertion", StringComparison.OrdinalIgnoreCase))
+            {
+                assertionCount++;
+            }
+        }
+
+        foreach (XmlNode child in node.ChildNodes)
+        {
+            CountSamlElements(child, ref responseCount, ref assertionCount);
+        }
+    }
+
+    private static XmlElement FindElementById(XmlElement root, string id)
+    {
+        if (root == null || string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        if (root.GetAttribute("ID") == id || root.GetAttribute("id") == id || root.GetAttribute("AssertionURI") == id)
+        {
+            return root;
+        }
+
+        foreach (XmlNode child in root.ChildNodes)
+        {
+            if (child is XmlElement childElem)
+            {
+                var found = FindElementById(childElem, id);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static XmlElement FindChildElementByLocalName(XmlElement root, string localName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        foreach (XmlNode child in root.ChildNodes)
+        {
+            if (child is XmlElement elem)
+            {
+                if (string.Equals(elem.LocalName, localName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return elem;
+                }
+
+                var found = FindChildElementByLocalName(elem, localName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
     }
 }
