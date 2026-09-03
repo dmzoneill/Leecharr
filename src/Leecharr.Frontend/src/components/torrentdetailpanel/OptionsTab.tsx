@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUpdateTorrent } from "../../api/hooks";
 import type { Torrent } from "../../api/types";
 
@@ -10,6 +10,7 @@ const PRIORITY_OPTIONS = [
 
 export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const updateTorrent = useUpdateTorrent();
+  const lastTorrentIdRef = useRef(torrent.id);
   const [priority, setPriority] = useState(String(torrent.priority ?? 1));
   const [uploadLimit, setUploadLimit] = useState(torrent.uploadLimit ?? 0);
   const [downloadLimit, setDownloadLimit] = useState(torrent.downloadLimit ?? 0);
@@ -32,24 +33,36 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [shareLimitAction, setShareLimitAction] = useState(torrent.shareLimitAction || "Default");
   const [dirty, setDirty] = useState(false);
 
+  const resetToTorrent = (t: Torrent) => {
+    setPriority(String(t.priority ?? 1));
+    setUploadLimit(t.uploadLimit ?? 0);
+    setDownloadLimit(t.downloadLimit ?? 0);
+    setInitialSeeding(Boolean(t.initialSeeding));
+    setForceStart(Boolean(t.forceStart));
+    setSequentialDownload(Boolean(t.sequentialDownload));
+    setIsPrivate(Boolean(t.isPrivate));
+    setActive(t.active ?? (t.status !== "paused" && t.status !== "stopped"));
+    setLabel(t.label ?? "");
+    setAnnounceInterval(t.announceInterval || 1800);
+    setNextUpdate(t.nextUpdate || 1800);
+    setThreshold(t.threshold || 1);
+    setSmallTorrentLimit(t.smallTorrentLimit || 50);
+    setTargetRatio(t.targetRatio ?? 0);
+    setTargetSeedTimeMinutes(t.targetSeedTimeMinutes ?? 0);
+    setShareLimitAction(t.shareLimitAction || "Default");
+    setDirty(false);
+  };
+
   useEffect(() => {
-    if (dirty) return;
-    setPriority(String(torrent.priority ?? 1));
-    setUploadLimit(torrent.uploadLimit ?? 0);
-    setDownloadLimit(torrent.downloadLimit ?? 0);
-    setInitialSeeding(Boolean(torrent.initialSeeding));
-    setForceStart(Boolean(torrent.forceStart));
-    setSequentialDownload(Boolean(torrent.sequentialDownload));
-    setIsPrivate(Boolean(torrent.isPrivate));
-    setActive(torrent.active ?? (torrent.status !== "paused" && torrent.status !== "stopped"));
-    setLabel(torrent.label ?? "");
-    setAnnounceInterval(torrent.announceInterval || 1800);
-    setNextUpdate(torrent.nextUpdate || 1800);
-    setThreshold(torrent.threshold || 1);
-    setSmallTorrentLimit(torrent.smallTorrentLimit || 50);
-    setTargetRatio(torrent.targetRatio ?? 0);
-    setTargetSeedTimeMinutes(torrent.targetSeedTimeMinutes ?? 0);
-    setShareLimitAction(torrent.shareLimitAction || "Default");
+    if (torrent.id !== lastTorrentIdRef.current) {
+      lastTorrentIdRef.current = torrent.id;
+      resetToTorrent(torrent);
+      return;
+    }
+
+    if (!dirty) {
+      resetToTorrent(torrent);
+    }
   }, [torrent, dirty]);
 
   const handleSave = () => {
@@ -78,23 +91,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   };
 
   const handleReset = () => {
-    setPriority(String(torrent.priority ?? 1));
-    setUploadLimit(torrent.uploadLimit ?? 0);
-    setDownloadLimit(torrent.downloadLimit ?? 0);
-    setInitialSeeding(Boolean(torrent.initialSeeding));
-    setForceStart(Boolean(torrent.forceStart));
-    setSequentialDownload(Boolean(torrent.sequentialDownload));
-    setIsPrivate(Boolean(torrent.isPrivate));
-    setActive(torrent.active ?? (torrent.status !== "paused" && torrent.status !== "stopped"));
-    setLabel(torrent.label ?? "");
-    setAnnounceInterval(torrent.announceInterval || 1800);
-    setNextUpdate(torrent.nextUpdate || 1800);
-    setThreshold(torrent.threshold || 1);
-    setSmallTorrentLimit(torrent.smallTorrentLimit || 50);
-    setTargetRatio(torrent.targetRatio ?? 0);
-    setTargetSeedTimeMinutes(torrent.targetSeedTimeMinutes ?? 0);
-    setShareLimitAction(torrent.shareLimitAction || "Default");
-    setDirty(false);
+    resetToTorrent(torrent);
   };
 
   const mark =
