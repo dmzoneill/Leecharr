@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -67,9 +68,22 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes = DefaultMaxSizeBytes, CancellationToken cancellationToken = default)
     {
+        return await this.DownloadBytesAsync(uri, maxSizeBytes, null, cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes, IDictionary<string, string> customHeaders, CancellationToken cancellationToken = default)
+    {
         this.ValidateUri(uri);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (customHeaders != null)
+        {
+            foreach (var (header, value) in customHeaders)
+            {
+                request.Headers.TryAddWithoutValidation(header, value);
+            }
+        }
+
         using var response = await this.httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
