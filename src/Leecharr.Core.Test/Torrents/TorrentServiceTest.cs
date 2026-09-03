@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -150,5 +151,127 @@ public class TorrentServiceTest
         torrent.InitialSeeding.Should().BeTrue();
         this.torrentRepository.Received(1).Update(torrent);
         await this.downloadEngine.Received(1).SetSuperSeedingAsync(42, true);
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenTorrentNameIsTraversalSequence_DoesNotDeleteDownloadRoot()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_delete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var subDir = Path.Combine(tempRoot, "subfolder");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "payload.txt"), "content");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 100,
+                Name = "..",
+                SavePath = tempRoot,
+                InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            };
+            this.torrentRepository.Get(100).Returns(torrent);
+
+            await this.service.DeleteAsync(100, deleteFiles: true);
+
+            // Neither the root directory nor its contents should have been deleted
+            Directory.Exists(tempRoot).Should().BeTrue();
+            Directory.Exists(subDir).Should().BeTrue();
+            File.Exists(Path.Combine(subDir, "payload.txt")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenTorrentFolderIsStrictSubPath_DeletesFilesProperly()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_delete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var subDir = Path.Combine(tempRoot, "my_torrent_folder");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "file.txt"), "content");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 101,
+                Name = "my_torrent_folder",
+                SavePath = tempRoot,
+                InfoHash = "11223344556677889900aabbccddeeff00112233",
+            };
+            this.torrentRepository.Get(101).Returns(torrent);
+
+            await this.service.DeleteAsync(101, deleteFiles: true);
+
+            // Subfolder should be deleted, but parent root directory remains
+            Directory.Exists(subDir).Should().BeFalse();
+            Directory.Exists(tempRoot).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [TestCase("../../etc/cron.d/payload.sh")]
+    [TestCase("/etc/shadow")]
+    [TestCase("..")]
+    [TestCase(".")]
+    [TestCase("folder/../escape.mkv")]
+    [TestCase("evil\0file.mkv")]
+    public async Task RenameFileAsync_WhenNewPathIsTraversalOrAbsolute_ReturnsFalseWithoutCallingEngine(string badPath)
+    {
+        var torrent = new Torrent { Id = 42, SavePath = "/downloads" };
+        this.torrentRepository.Get(42).Returns(torrent);
+
+        var result = await this.service.RenameFileAsync(42, "valid/old.mkv", badPath);
+
+        result.Should().BeFalse();
+        await this.downloadEngine.DidNotReceive().RenameFileAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [TestCase("../S01")]
+    [TestCase("/etc/cron.d")]
+    [TestCase("..")]
+    [TestCase(".")]
+    [TestCase("folder/../evil")]
+    [TestCase("evil\0folder")]
+    public async Task RenameFolderAsync_WhenNewPathIsTraversalOrAbsolute_ReturnsFalseWithoutCallingEngine(string badPath)
+    {
+        var torrent = new Torrent { Id = 42, SavePath = "/downloads" };
+        this.torrentRepository.Get(42).Returns(torrent);
+
+        var result = await this.service.RenameFolderAsync(42, "Season 1", badPath);
+
+        result.Should().BeFalse();
+        await this.downloadEngine.DidNotReceive().RenameFolderAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [TestCase("/downloads", "/downloads/movie", true)]
+    [TestCase("/downloads", "/downloads/movie/sub/file.txt", true)]
+    [TestCase("/downloads", "/downloads", false)]
+    [TestCase("/downloads", "/downloads/", false)]
+    [TestCase("/downloads", "/downloads/..", false)]
+    [TestCase("/downloads", "/downloads/../etc/passwd", false)]
+    [TestCase("/downloads", "/downloads_other/movie", false)]
+    [TestCase("/downloads", "/etc/shadow", false)]
+    [TestCase("/downloads", "", false)]
+    [TestCase("/downloads", null, false)]
+    [TestCase("", "/downloads/movie", false)]
+    [TestCase(null, "/downloads/movie", false)]
+    public void IsStrictSubPath_ValidatesContainmentCorrectly(string basePath, string targetPath, bool expected)
+    {
+        TorrentService.IsStrictSubPath(basePath, targetPath).Should().Be(expected);
     }
 }

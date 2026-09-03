@@ -153,9 +153,12 @@ public class TorrentFileParser : ITorrentFileParser
                 announceUrl = announceListParsed[0][0];
             }
 
+            var torrentName = nameStr.ToString();
+            ValidateTorrentName(torrentName);
+
             var result = new ParsedTorrent
             {
-                Name = nameStr.ToString(),
+                Name = torrentName,
                 InfoHash = InfoHashCalculator.Calculate(info),
                 PieceLength = (int)pieceLengthNum.Value,
                 PieceCount = pieceCount,
@@ -188,16 +191,33 @@ public class TorrentFileParser : ITorrentFileParser
                         throw new InvalidTorrentFileException("Malformed torrent file: file entry missing or invalid 'length'.");
                     }
 
-                    if (!file.ContainsKey("path") || file["path"] is not BList pathList)
+                    if (!file.ContainsKey("path") || file["path"] is not BList pathList || pathList.Count == 0)
                     {
-                        throw new InvalidTorrentFileException("Malformed torrent file: file entry missing or invalid 'path'.");
+                        throw new InvalidTorrentFileException("Malformed torrent file: file entry missing, empty, or invalid 'path'.");
                     }
 
-                    var pathParts = pathList.OfType<BString>().Select(p => p.ToString());
+                    var pathParts = new List<string>();
+                    foreach (var pathItem in pathList)
+                    {
+                        if (pathItem is not BString pathPartStr)
+                        {
+                            throw new InvalidTorrentFileException("Malformed torrent file: file entry path component is not a string.");
+                        }
+
+                        var part = pathPartStr.ToString();
+                        ValidateAndSanitizePathPart(part);
+                        pathParts.Add(part.Trim());
+                    }
+
+                    var relativeFilePath = string.Join("/", pathParts);
+                    if (Path.IsPathRooted(relativeFilePath) || relativeFilePath.StartsWith('/') || relativeFilePath.StartsWith('\\'))
+                    {
+                        throw new InvalidTorrentFileException($"Malformed torrent file: resolved file path cannot be an absolute path: '{relativeFilePath}'.");
+                    }
 
                     result.Files.Add(new ParsedTorrentFile
                     {
-                        Path = string.Join("/", pathParts),
+                        Path = relativeFilePath,
                         Size = fileLengthNum.Value,
                     });
                 }
@@ -208,6 +228,8 @@ public class TorrentFileParser : ITorrentFileParser
                 {
                     throw new InvalidTorrentFileException("Malformed torrent file: missing or invalid 'length' for single-file torrent.");
                 }
+
+                ValidateAndSanitizePathPart(result.Name);
 
                 result.Files.Add(new ParsedTorrentFile
                 {
@@ -252,6 +274,79 @@ public class TorrentFileParser : ITorrentFileParser
                 {
                     targetList.Add(new List<string> { u });
                 }
+            }
+        }
+    }
+
+    private static void ValidateTorrentName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidTorrentFileException("Malformed torrent file: torrent name is missing or empty.");
+        }
+
+        if (name.Contains('\0'))
+        {
+            throw new InvalidTorrentFileException("Malformed torrent file: torrent name contains null byte.");
+        }
+
+        if (name.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name contains invalid path characters: '{name}'.");
+        }
+
+        if (name.Contains('/') || name.Contains('\\'))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name cannot contain path separators: '{name}'.");
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed == "." || trimmed == "..")
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name contains directory traversal sequence: '{name}'.");
+        }
+
+        if (Path.IsPathRooted(name) || (name.Length >= 2 && char.IsLetter(name[0]) && name[1] == ':'))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name cannot be an absolute path: '{name}'.");
+        }
+    }
+
+    private static void ValidateAndSanitizePathPart(string part)
+    {
+        if (string.IsNullOrWhiteSpace(part))
+        {
+            throw new InvalidTorrentFileException("Malformed torrent file: file path component is empty or whitespace.");
+        }
+
+        if (part.Contains('\0'))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains null byte: '{part}'.");
+        }
+
+        if (part.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains invalid path characters: '{part}'.");
+        }
+
+        if (Path.IsPathRooted(part) || part.StartsWith('/') || part.StartsWith('\\') ||
+            (part.Length >= 2 && char.IsLetter(part[0]) && part[1] == ':'))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: file path component cannot be an absolute path: '{part}'.");
+        }
+
+        var segments = part.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+        foreach (var segment in segments)
+        {
+            var trimmed = segment.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains empty segment: '{part}'.");
+            }
+
+            if (trimmed == "." || trimmed == "..")
+            {
+                throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains directory traversal sequence: '{part}'.");
             }
         }
     }
