@@ -65,7 +65,7 @@ export function TrackersTab({
   torrent,
   torrentId,
 }: {
-  torrent?: { id: number };
+  torrent?: { id: number; isPrivate?: boolean };
   torrentId?: number;
 }) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
@@ -257,6 +257,29 @@ export function TrackersTab({
           padding: "0.5rem 0.75rem",
         }}
       >
+        {(torrent?.isPrivate || (inspection as any)?.isPrivate) && (
+          <div
+            style={{
+              padding: "0.45rem 0.65rem",
+              marginBottom: "0.5rem",
+              borderRadius: "4px",
+              fontSize: "0.72rem",
+              backgroundColor: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+              color: "#fca5a5",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <i className="fas fa-lock" />
+            <span>
+              <strong>BEP 27 Private Swarm Active:</strong> Only authorized
+              private tracker endpoints are announced. Public tracker injection,
+              DHT, PEX, and LPD are strictly disabled.
+            </span>
+          </div>
+        )}
         {!trackers || trackers.length === 0 ? (
           <PanelEmpty>No trackers attached to this torrent.</PanelEmpty>
         ) : (

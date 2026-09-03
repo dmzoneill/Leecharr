@@ -85,6 +85,17 @@ export function getTorrentBadges(
     color: string;
   }[] = [];
 
+  // Private Swarm (BEP 27)
+  if (torrent.isPrivate) {
+    badges.push({
+      label: "Private",
+      icon: "🔒",
+      title:
+        "BEP 27 Private Torrent: DHT, PEX, and Local Peer Discovery are strictly disabled to protect tracker passkeys.",
+      color: "#ef4444",
+    });
+  }
+
   // Swarm Guardian: <= 2 total seeders
   if (
     (torrent.seeders ?? 0) <= 2 &&

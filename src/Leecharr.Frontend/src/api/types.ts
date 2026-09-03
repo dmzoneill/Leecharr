@@ -390,6 +390,7 @@ export interface BitTorrentConfig {
   enableDht: boolean;
   enablePex: boolean;
   enableLpd: boolean;
+  enableBep27PrivateTorrents?: boolean;
   encryptionMode: string;
   bitTorrentUserAgent: string;
   peerIdPrefix: string;
@@ -485,6 +486,7 @@ export interface ProtocolsConfig {
   extensionUtPex: boolean;
   extensionLtDontHave: boolean;
   extensionFastExtension: boolean;
+  enableBep27PrivateTorrents?: boolean;
   utpEnabled: boolean;
   tcpFallback: boolean;
   transportConnectionTimeoutSeconds: number;

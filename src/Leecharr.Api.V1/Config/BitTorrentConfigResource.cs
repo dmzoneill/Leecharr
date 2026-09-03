@@ -17,6 +17,8 @@ public class BitTorrentConfigResource : RestResource
 
     public bool EnableLpd { get; set; }
 
+    public bool EnableBep27PrivateTorrents { get; set; } = true;
+
     public string EncryptionMode { get; set; }
 
     public string BitTorrentUserAgent { get; set; }
@@ -151,6 +153,7 @@ public static class BitTorrentConfigResourceMapper
             EnableDht = model.EnableDht,
             EnablePex = model.EnablePex,
             EnableLpd = model.EnableLpd,
+            EnableBep27PrivateTorrents = model.EnableBep27PrivateTorrents,
             EncryptionMode = model.EncryptionMode,
             BitTorrentUserAgent = model.BitTorrentUserAgent,
             PeerIdPrefix = model.PeerIdPrefix,
