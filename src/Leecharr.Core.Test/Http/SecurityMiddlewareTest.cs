@@ -175,4 +175,61 @@ public class SecurityMiddlewareTest
 
         nextCalled.Should().BeTrue();
     }
+
+    [Test]
+    public async Task SecurityHeadersMiddleware_EmitsStandardSecurityHeadersOnHttp()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.IsHttps = false;
+        context.Request.Scheme = "http";
+
+        var nextCalled = false;
+        var middleware = new SecurityHeadersMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context);
+
+        nextCalled.Should().BeTrue();
+        context.Response.Headers["X-Frame-Options"].ToString().Should().Be("SAMEORIGIN");
+        context.Response.Headers["X-Content-Type-Options"].ToString().Should().Be("nosniff");
+        context.Response.Headers["Referrer-Policy"].ToString().Should().Be("strict-origin-when-cross-origin");
+        context.Response.Headers["Permissions-Policy"].ToString().Should().Be("geolocation=(), camera=(), microphone=(), payment=()");
+        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
+        context.Response.Headers.ContainsKey("Strict-Transport-Security").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SecurityHeadersMiddleware_EmitsHstsOnHttps()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.IsHttps = true;
+        context.Request.Scheme = "https";
+
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers["X-Frame-Options"].ToString().Should().Be("SAMEORIGIN");
+        context.Response.Headers["X-Content-Type-Options"].ToString().Should().Be("nosniff");
+        context.Response.Headers["Referrer-Policy"].ToString().Should().Be("strict-origin-when-cross-origin");
+        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
+        context.Response.Headers["Strict-Transport-Security"].ToString().Should().Be("max-age=31536000; includeSubDomains");
+    }
+
+    [Test]
+    public async Task SecurityHeadersMiddleware_EmitsHstsOnForwardedProtoHttps()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.IsHttps = false;
+        context.Request.Headers["X-Forwarded-Proto"] = "https";
+
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers["Strict-Transport-Security"].ToString().Should().Be("max-age=31536000; includeSubDomains");
+    }
 }
