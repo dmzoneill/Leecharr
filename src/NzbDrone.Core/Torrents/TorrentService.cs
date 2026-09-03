@@ -1,14 +1,17 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Trackers;
@@ -17,6 +20,7 @@ namespace NzbDrone.Core.Torrents;
 
 public class TorrentService : ITorrentService
 {
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository fileRepository;
     private readonly ICategoryService categoryService;
@@ -26,6 +30,7 @@ public class TorrentService : ITorrentService
     private readonly IEventAggregator eventAggregator;
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IQueueManagerService queueManagerService;
+    private readonly IStoragePathService storagePathService;
     private readonly Logger logger;
 
     public TorrentService(
@@ -37,7 +42,8 @@ public class TorrentService : ITorrentService
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator,
         ITrackerEntryRepository trackerEntryRepository = null,
-        IQueueManagerService queueManagerService = null)
+        IQueueManagerService queueManagerService = null,
+        IStoragePathService storagePathService = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -48,6 +54,7 @@ public class TorrentService : ITorrentService
         this.eventAggregator = eventAggregator;
         this.trackerEntryRepository = trackerEntryRepository;
         this.queueManagerService = queueManagerService;
+        this.storagePathService = storagePathService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -385,72 +392,214 @@ public class TorrentService : ITorrentService
 
     public async Task DeleteAsync(int id, bool deleteFiles = false)
     {
-        var torrent = this.torrentRepository.Get(id);
-        if (torrent == null)
-        {
-            return;
-        }
-
-        this.logger.Info("Deleting torrent {0} (DeleteFiles={1})", torrent.Name, deleteFiles);
-
+        var semaphore = this.deletionLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync();
         try
         {
-            await this.downloadEngine.RemoveTorrentAsync(id, deleteFiles);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
-        }
-
-        this.fileRepository.DeleteByTorrentId(id);
-        this.trackerEntryRepository?.DeleteByTorrentId(id);
-        this.mediaEnrichmentService.DeleteMetadata(id);
-        this.torrentRepository.Delete(id);
-
-        try
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var file1 = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
-            if (File.Exists(file1))
+            var torrent = this.torrentRepository.Get(id);
+            if (torrent == null)
             {
-                File.Delete(file1);
+                return;
             }
 
-            var file2 = Path.Combine(appData, "Leecharr", "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
-            if (File.Exists(file2))
-            {
-                File.Delete(file2);
-            }
-        }
-        catch
-        {
-        }
+            this.logger.Info("Deleting torrent {0} (DeleteFiles={1})", torrent.Name, deleteFiles);
 
-        if (deleteFiles && !string.IsNullOrWhiteSpace(torrent.SavePath) && !string.IsNullOrWhiteSpace(torrent.Name) && Directory.Exists(torrent.SavePath))
-        {
             try
             {
-                var torrentFolder = Path.Combine(torrent.SavePath, torrent.Name);
-                if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, torrentFolder))
-                {
-                    this.logger.Warn("Refusing to delete files for torrent {0}: target path '{1}' escapes or equals save path '{2}'", torrent.Name, torrentFolder, torrent.SavePath);
-                }
-                else if (Directory.Exists(torrentFolder))
-                {
-                    Directory.Delete(torrentFolder, true);
-                }
-                else if (File.Exists(torrentFolder))
-                {
-                    File.Delete(torrentFolder);
-                }
+                await this.downloadEngine.RemoveTorrentAsync(id, deleteFiles);
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Failed to delete files for torrent {0}", torrent.Name);
+                this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
+            }
+
+            this.fileRepository.DeleteByTorrentId(id);
+            this.trackerEntryRepository?.DeleteByTorrentId(id);
+            this.mediaEnrichmentService.DeleteMetadata(id);
+            this.torrentRepository.Delete(id);
+
+            try
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var file1 = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
+                if (File.Exists(file1))
+                {
+                    File.Delete(file1);
+                }
+
+                var file2 = Path.Combine(appData, "Leecharr", "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
+                if (File.Exists(file2))
+                {
+                    File.Delete(file2);
+                }
+            }
+            catch
+            {
+            }
+
+            if (deleteFiles)
+            {
+                var isIncomplete = torrent.Progress < 1.0 ||
+                                   torrent.Status == TorrentStatus.Downloading ||
+                                   torrent.Status == TorrentStatus.Queued;
+
+                if (isIncomplete)
+                {
+                    await this.PurgeIncompleteChunksAsync(torrent);
+                }
+
+                if (!string.IsNullOrWhiteSpace(torrent.SavePath) && !string.IsNullOrWhiteSpace(torrent.Name) && Directory.Exists(torrent.SavePath))
+                {
+                    try
+                    {
+                        var torrentFolder = Path.Combine(torrent.SavePath, torrent.Name);
+                        if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, torrentFolder))
+                        {
+                            this.logger.Warn("Refusing to delete files for torrent {0}: target path '{1}' escapes or equals save path '{2}'", torrent.Name, torrentFolder, torrent.SavePath);
+                        }
+                        else if (Directory.Exists(torrentFolder))
+                        {
+                            await DeletePathWithRetryAsync(torrentFolder, isDirectory: true);
+                        }
+                        else if (File.Exists(torrentFolder))
+                        {
+                            await DeletePathWithRetryAsync(torrentFolder, isDirectory: false);
+                        }
+
+                        if (isIncomplete)
+                        {
+                            var candidateExtensions = new[] { ".!mt", ".!leech", this.configService?.IncompleteExtension };
+                            foreach (var ext in candidateExtensions)
+                            {
+                                if (string.IsNullOrWhiteSpace(ext))
+                                {
+                                    continue;
+                                }
+
+                                var extFile = Path.Combine(torrent.SavePath, torrent.Name + ext);
+                                if (TorrentPathValidator.IsStrictSubPath(torrent.SavePath, extFile) && File.Exists(extFile))
+                                {
+                                    await DeletePathWithRetryAsync(extFile, isDirectory: false);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to delete files for torrent {0}", torrent.Name);
+                    }
+                }
+            }
+
+            this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
+        }
+        finally
+        {
+            semaphore.Release();
+            if (semaphore.CurrentCount > 0)
+            {
+                this.deletionLocks.TryRemove(id, out _);
             }
         }
+    }
 
-        this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
+    private async Task PurgeIncompleteChunksAsync(Torrent torrent)
+    {
+        try
+        {
+            var incompleteDir = this.storagePathService?.GetIncompleteDirectory();
+            if (string.IsNullOrWhiteSpace(incompleteDir))
+            {
+                incompleteDir = this.configService?.IncompleteDownloadDir;
+            }
+
+            if (string.IsNullOrWhiteSpace(incompleteDir))
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                incompleteDir = Path.Combine(appData, "Leecharr", "downloads", "incomplete");
+            }
+
+            if (string.IsNullOrWhiteSpace(incompleteDir) || !Directory.Exists(incompleteDir))
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(torrent.Name))
+            {
+                var incompleteFolder = Path.Combine(incompleteDir, torrent.Name);
+                if (TorrentPathValidator.IsStrictSubPath(incompleteDir, incompleteFolder))
+                {
+                    if (Directory.Exists(incompleteFolder))
+                    {
+                        await DeletePathWithRetryAsync(incompleteFolder, isDirectory: true);
+                    }
+                    else if (File.Exists(incompleteFolder))
+                    {
+                        await DeletePathWithRetryAsync(incompleteFolder, isDirectory: false);
+                    }
+                }
+
+                var candidateExtensions = new[] { ".!mt", ".!leech", ".incomplete", this.configService?.IncompleteExtension };
+                foreach (var ext in candidateExtensions)
+                {
+                    if (string.IsNullOrWhiteSpace(ext))
+                    {
+                        continue;
+                    }
+
+                    var extFile = Path.Combine(incompleteDir, torrent.Name + ext);
+                    if (TorrentPathValidator.IsStrictSubPath(incompleteDir, extFile) && File.Exists(extFile))
+                    {
+                        await DeletePathWithRetryAsync(extFile, isDirectory: false);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+            {
+                var hashDir = Path.Combine(incompleteDir, torrent.InfoHash);
+                if (TorrentPathValidator.IsStrictSubPath(incompleteDir, hashDir) && Directory.Exists(hashDir))
+                {
+                    await DeletePathWithRetryAsync(hashDir, isDirectory: true);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to purge incomplete chunks for torrent {0}", torrent.Name);
+        }
+    }
+
+    private static async Task DeletePathWithRetryAsync(string path, bool isDirectory, int maxRetries = 3)
+    {
+        var delayMs = 150;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                if (isDirectory)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        Directory.Delete(path, true);
+                    }
+                }
+                else
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < maxRetries)
+            {
+                await Task.Delay(delayMs);
+                delayMs *= 2;
+            }
+        }
     }
 
     public async Task PauseAsync(int id)

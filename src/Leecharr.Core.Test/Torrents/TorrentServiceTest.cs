@@ -10,6 +10,7 @@ using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
@@ -28,6 +29,7 @@ public class TorrentServiceTest
     private IDownloadEngine downloadEngine = null!;
     private IEventAggregator eventAggregator = null!;
     private ITrackerEntryRepository trackerEntryRepository = null!;
+    private IStoragePathService storagePathService = null!;
     private TorrentService service = null!;
 
     [SetUp]
@@ -41,6 +43,7 @@ public class TorrentServiceTest
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        this.storagePathService = Substitute.For<IStoragePathService>();
 
         this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns("/downloads");
         this.configService.DefaultCategory.Returns("default");
@@ -54,7 +57,9 @@ public class TorrentServiceTest
             this.configService,
             this.downloadEngine,
             this.eventAggregator,
-            this.trackerEntryRepository);
+            this.trackerEntryRepository,
+            queueManagerService: null,
+            storagePathService: this.storagePathService);
     }
 
     [Test]
@@ -273,5 +278,133 @@ public class TorrentServiceTest
     public void IsStrictSubPath_ValidatesContainmentCorrectly(string basePath, string targetPath, bool expected)
     {
         TorrentService.IsStrictSubPath(basePath, targetPath).Should().Be(expected);
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenCalledConcurrentlyForSameTorrent_ExecutesSafelyWithoutDoubleDeletion()
+    {
+        var torrent = new Torrent
+        {
+            Id = 200,
+            Name = "concurrent_test",
+            SavePath = "/downloads",
+            InfoHash = "1234567890abcdef1234567890abcdef12345678",
+        };
+
+        var isDeleted = false;
+        this.torrentRepository.Get(200).Returns(_ => isDeleted ? null : torrent);
+        this.torrentRepository.When(x => x.Delete(200)).Do(_ => isDeleted = true);
+        this.downloadEngine.RemoveTorrentAsync(200, Arg.Any<bool>())
+            .Returns(async _ => await Task.Delay(50));
+
+        var task1 = this.service.DeleteAsync(200, deleteFiles: false);
+        var task2 = this.service.DeleteAsync(200, deleteFiles: false);
+
+        await Task.WhenAll(task1, task2);
+
+        await this.downloadEngine.Received(1).RemoveTorrentAsync(200, false);
+        this.torrentRepository.Received(1).Delete(200);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDeletedEvent>(e => e.Torrent.Id == 200));
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenTorrentIsAlreadyDeleted_ReturnsImmediatelyWithoutCallingEngineOrRepos()
+    {
+        this.torrentRepository.Get(999).Returns((Torrent)null);
+
+        await this.service.DeleteAsync(999, deleteFiles: true);
+
+        await this.downloadEngine.DidNotReceive().RemoveTorrentAsync(Arg.Any<int>(), Arg.Any<bool>());
+        this.torrentRepository.DidNotReceive().Delete(Arg.Any<int>());
+        this.fileRepository.DidNotReceive().DeleteByTorrentId(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenDeletingIncompleteTorrent_PurgesIncompleteDirectoryChunks()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_incomplete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var incompleteDir = Path.Combine(tempRoot, "incomplete");
+        Directory.CreateDirectory(incompleteDir);
+
+        var incompleteSubDir = Path.Combine(incompleteDir, "incomplete_torrent");
+        Directory.CreateDirectory(incompleteSubDir);
+        File.WriteAllText(Path.Combine(incompleteSubDir, "chunk.part"), "data");
+
+        var incompleteSingleFile = Path.Combine(incompleteDir, "incomplete_torrent.!mt");
+        File.WriteAllText(incompleteSingleFile, "single chunk");
+
+        this.storagePathService.GetIncompleteDirectory().Returns(incompleteDir);
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 201,
+                Name = "incomplete_torrent",
+                Progress = 0.45,
+                Status = TorrentStatus.Downloading,
+                SavePath = tempRoot,
+                InfoHash = "abcdef1234567890abcdef1234567890abcdef12",
+            };
+            this.torrentRepository.Get(201).Returns(torrent);
+
+            await this.service.DeleteAsync(201, deleteFiles: true);
+
+            Directory.Exists(incompleteSubDir).Should().BeFalse();
+            File.Exists(incompleteSingleFile).Should().BeFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenFileIsLockedInitially_RetriesAndDeletesSuccessfully()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_lock_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var torrentFolder = Path.Combine(tempRoot, "locked_torrent");
+        Directory.CreateDirectory(torrentFolder);
+        var payloadFile = Path.Combine(torrentFolder, "payload.bin");
+        File.WriteAllBytes(payloadFile, new byte[1024]);
+
+        var lockStream = new FileStream(payloadFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            lockStream.Dispose();
+        });
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 202,
+                Name = "locked_torrent",
+                Progress = 1.0,
+                Status = TorrentStatus.Seeding,
+                SavePath = tempRoot,
+                InfoHash = "5566778899aabbccddeeff001122334455667788",
+            };
+            this.torrentRepository.Get(202).Returns(torrent);
+
+            await this.service.DeleteAsync(202, deleteFiles: true);
+
+            Directory.Exists(torrentFolder).Should().BeFalse();
+            File.Exists(payloadFile).Should().BeFalse();
+        }
+        finally
+        {
+            lockStream.Dispose();
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
     }
 }
