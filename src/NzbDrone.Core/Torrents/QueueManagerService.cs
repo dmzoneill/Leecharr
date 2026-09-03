@@ -70,7 +70,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 if (torrent.Status == TorrentStatus.Paused ||
                     torrent.Status == TorrentStatus.Stopped ||
                     torrent.Status == TorrentStatus.Error ||
-                    torrent.Status == TorrentStatus.Checking)
+                    torrent.Status == TorrentStatus.Checking ||
+                    torrent.Status == TorrentStatus.Stalled)
                 {
                     continue;
                 }

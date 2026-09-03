@@ -423,6 +423,96 @@ public class MonoTorrentDownloadEngineTest
         task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
     }
 
+    [Test]
+    public async Task AddTorrentAsync_WhenPrivateTorrentHasTrackerFailureAndZeroPeers_EntersStalledState()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_stall.iso", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 42,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_stall.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.IsPrivate.Should().BeTrue();
+        task.IsStalled.Should().BeFalse();
+
+        // Simulate tracker failure
+        task.SetTrackerStalled("Tracker failure: http://tracker.example.com/announce: Offline", this.eventAggregator);
+
+        task.Status.Should().Be(TorrentStatus.Stalled);
+        task.IsStalled.Should().BeTrue();
+        task.ErrorMessage.Should().Contain("Offline");
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 42 &&
+            !e.IsResolved &&
+            e.Source == "Tracker" &&
+            e.Message.Contains("Offline")));
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenStalledPrivateTorrentTrackerRecovers_RestoresDownloadingState()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_recover.iso", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 43,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_recover.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.SetTrackerStalled("Tracker failure: http://tracker.example.com/announce: Offline", this.eventAggregator);
+        task.Status.Should().Be(TorrentStatus.Stalled);
+
+        // Tracker recovers and peers connect
+        task.ClearTrackerStalled(this.eventAggregator);
+
+        task.Status.Should().Be(TorrentStatus.Downloading);
+        task.IsStalled.Should().BeFalse();
+        task.ErrorMessage.Should().BeNull();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 43 &&
+            e.IsResolved &&
+            e.Source == "Tracker"));
+    }
+
+    [Test]
+    public async Task CheckTrackerHealth_OnEngine_ChecksAllActiveTasks()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_check.iso", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 44,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_check.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        this.engine.CheckTrackerHealth();
+    }
+
     #endregion
 
     #region Sequential Streaming Download Tests

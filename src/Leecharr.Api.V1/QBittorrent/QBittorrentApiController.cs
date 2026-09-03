@@ -1450,6 +1450,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             TorrentStatus.Paused => progress >= 1.0 ? "pausedUP" : "pausedDL",
             TorrentStatus.Stopped => progress >= 1.0 ? "stoppedUP" : "stoppedDL",
             TorrentStatus.Error => "error",
+            TorrentStatus.Stalled => progress >= 1.0 ? "stalledUP" : "stalledDL",
             _ => "unknown",
         };
     }

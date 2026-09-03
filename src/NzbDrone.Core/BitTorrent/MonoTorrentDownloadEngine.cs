@@ -47,6 +47,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
 
     private ClientEngine engine;
+    private Timer trackerHealthTimer;
     private volatile bool isHaltedByKillSwitch;
     private bool disposed;
 
@@ -164,6 +165,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.vpnKillSwitchService.VpnDropped += this.OnVpnDropped;
             this.vpnKillSwitchService.VpnRestored += this.OnVpnRestored;
         }
+
+        this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
     }
 
     public async Task StartAsync()
@@ -1450,7 +1453,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.vpnKillSwitchService.VpnRestored -= this.OnVpnRestored;
         }
 
+        this.trackerHealthTimer?.Dispose();
+        this.trackerHealthTimer = null;
+
         this.StopAsync().GetAwaiter().GetResult();
+    }
+
+    public void CheckTrackerHealth()
+    {
+        foreach (var task in this.tasks.Values)
+        {
+            try
+            {
+                task.CheckTrackerHealth(this.eventAggregator);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error checking tracker health for torrent {0}", task.TorrentId);
+            }
+        }
     }
 }
 
@@ -1468,6 +1489,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
+    private readonly MtTorrent initialTorrent;
+    private readonly object peerLock = new();
+
+    private bool isTrackerStalled;
+    private string errorMessage;
+    private IList<PeerId> cachedMonoPeers;
+    private DateTime lastPeersUpdate = DateTime.MinValue;
+    private bool isUpdatingPeers;
 
     public MonoTorrentDownloadTask(
         int torrentId,
@@ -1482,6 +1511,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.InfoHash = infoHash;
         this.Manager = manager;
         this.Category = category;
+        this.initialTorrent = initialTorrent;
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
 
@@ -1603,6 +1633,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    public bool IsStalled => this.isTrackerStalled;
+
+    public string ErrorMessage => this.errorMessage;
+
+    public bool IsPrivate => this.Manager?.Torrent?.IsPrivate == true ||
+                             this.Manager?.TrackerManager?.Private == true ||
+                             this.initialTorrent?.IsPrivate == true;
+
     public TorrentStatus Status
     {
         get
@@ -1610,6 +1648,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
             if (this.Manager == null)
             {
                 return TorrentStatus.Stopped;
+            }
+
+            if (this.isTrackerStalled && this.Manager.State != TorrentState.Paused)
+            {
+                return TorrentStatus.Stalled;
             }
 
             return this.Manager.State switch
@@ -1625,6 +1668,141 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 TorrentState.Error => TorrentStatus.Error,
                 _ => TorrentStatus.Stopped,
             };
+        }
+    }
+
+    public bool CheckTrackerHealth(IEventAggregator eventAggregator = null)
+    {
+        if (this.Manager == null)
+        {
+            return false;
+        }
+
+        var state = this.Manager.State;
+        if (state is not (TorrentState.Downloading or TorrentState.Starting or TorrentState.Metadata) ||
+            this.Progress >= 1.0)
+        {
+            if (this.isTrackerStalled)
+            {
+                this.isTrackerStalled = false;
+                this.errorMessage = null;
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Torrent transitioned out of downloading state.", isResolved: true));
+            }
+
+            return false;
+        }
+
+        var isPrivate = this.IsPrivate;
+        var dhtPexDisabled = isPrivate ||
+            (this.Manager.Settings?.AllowDht == false && this.Manager.Settings?.AllowPeerExchange == false);
+
+        var totalPeers = this.ConnectedSeeders + this.ConnectedLeechers + this.Manager.OpenConnections;
+
+        if (totalPeers > 0 || this.DownloadSpeed > 0)
+        {
+            if (this.isTrackerStalled)
+            {
+                this.isTrackerStalled = false;
+                this.errorMessage = null;
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker recovered and peers connected.", isResolved: true));
+            }
+
+            return false;
+        }
+
+        if (!dhtPexDisabled)
+        {
+            return false;
+        }
+
+        var trackerManager = this.Manager.TrackerManager;
+        var tiers = trackerManager?.Tiers;
+
+        var allTrackers = tiers != null
+            ? tiers.SelectMany(t => t.Trackers).ToList()
+            : new List<MonoTorrent.Trackers.ITracker>();
+
+        if (allTrackers.Count == 0)
+        {
+            var msg = "No trackers configured for private torrent.";
+            var wasStalled = this.isTrackerStalled;
+            this.isTrackerStalled = true;
+            this.errorMessage = msg;
+
+            if (!wasStalled)
+            {
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", msg, isResolved: false));
+            }
+
+            return true;
+        }
+
+        var anyWorking = allTrackers.Any(t => t.Status == MonoTorrent.Trackers.TrackerState.Ok);
+        var anyTierSucceeded = tiers != null && tiers.Any(t => t.LastAnnounceSucceeded);
+
+        if (anyWorking || anyTierSucceeded)
+        {
+            if (this.isTrackerStalled)
+            {
+                this.isTrackerStalled = false;
+                this.errorMessage = null;
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker announce succeeded.", isResolved: true));
+            }
+
+            return false;
+        }
+
+        var failingTrackers = allTrackers
+            .Where(t => t.Status is MonoTorrent.Trackers.TrackerState.Offline or MonoTorrent.Trackers.TrackerState.InvalidResponse ||
+                        !string.IsNullOrWhiteSpace(t.FailureMessage))
+            .ToList();
+
+        if (failingTrackers.Count == allTrackers.Count || allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok))
+        {
+            var failDetails = failingTrackers
+                .Select(t => $"{t.Uri}: {(!string.IsNullOrWhiteSpace(t.FailureMessage) ? t.FailureMessage : t.Status.ToString())}")
+                .ToList();
+
+            var trackerError = failDetails.Count > 0
+                ? "Tracker failure: " + string.Join("; ", failDetails)
+                : "All trackers failed or unresponsive.";
+
+            var wasStalled = this.isTrackerStalled;
+            this.isTrackerStalled = true;
+            this.errorMessage = trackerError;
+
+            if (!wasStalled)
+            {
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", trackerError, isResolved: false));
+            }
+
+            return true;
+        }
+
+        return this.isTrackerStalled;
+    }
+
+    internal void SetTrackerStalled(string message, IEventAggregator eventAggregator = null)
+    {
+        var wasStalled = this.isTrackerStalled;
+        this.isTrackerStalled = true;
+        this.errorMessage = message;
+
+        if (!wasStalled)
+        {
+            eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", message, isResolved: false));
+        }
+    }
+
+    internal void ClearTrackerStalled(IEventAggregator eventAggregator = null)
+    {
+        var wasStalled = this.isTrackerStalled;
+        this.isTrackerStalled = false;
+        this.errorMessage = null;
+
+        if (wasStalled)
+        {
+            eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker recovered", isResolved: true));
         }
     }
 
@@ -1662,11 +1840,6 @@ public class MonoTorrentDownloadTask : IDownloadTask
             return bitfield;
         }
     }
-
-    private readonly object peerLock = new();
-    private IList<PeerId> cachedMonoPeers;
-    private DateTime lastPeersUpdate = DateTime.MinValue;
-    private bool isUpdatingPeers;
 
     private IList<PeerId> GetCachedPeers()
     {

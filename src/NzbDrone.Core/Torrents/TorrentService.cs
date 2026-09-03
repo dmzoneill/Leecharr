@@ -734,7 +734,9 @@ public class TorrentService : ITorrentService
         var task = this.downloadEngine.GetTask(torrent.Id);
         if (task != null)
         {
+            var oldStatus = torrent.Status;
             torrent.Status = task.Status;
+            torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
             torrent.Downloaded = task.DownloadedBytes;
             torrent.Uploaded = task.UploadedBytes;
@@ -742,6 +744,34 @@ public class TorrentService : ITorrentService
             torrent.UploadSpeed = task.UploadSpeed;
             torrent.Seeders = task.ConnectedSeeders;
             torrent.Leechers = task.ConnectedLeechers;
+
+            if (oldStatus != torrent.Status)
+            {
+                this.torrentRepository.Update(torrent);
+                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = torrent,
+                    OldStatus = oldStatus,
+                    NewStatus = torrent.Status,
+                });
+
+                if (torrent.Status == TorrentStatus.Stalled)
+                {
+                    this.eventAggregator.PublishEvent(new HealthIssueEvent(
+                        torrent,
+                        "Tracker",
+                        !string.IsNullOrWhiteSpace(torrent.ErrorMessage) ? torrent.ErrorMessage : "Torrent stalled due to tracker failure.",
+                        isResolved: false));
+                }
+                else if (oldStatus == TorrentStatus.Stalled)
+                {
+                    this.eventAggregator.PublishEvent(new HealthIssueEvent(
+                        torrent,
+                        "Tracker",
+                        "Tracker recovered and peers connected.",
+                        isResolved: true));
+                }
+            }
         }
 
         if (string.IsNullOrWhiteSpace(torrent.TrackerUrl) && this.trackerEntryRepository != null)
