@@ -77,23 +77,20 @@ public sealed class LinuxPtySession : ITerminalSession
             return 0;
         }
 
+        var temp = new byte[buffer.Length];
         return await Task.Run(
             () =>
-        {
-            unsafe
             {
-                fixed (byte* p = buffer.Span)
+                nint bytesRead = NativePty.Read(this.masterFd, temp, (nuint)temp.Length);
+                if (bytesRead <= 0)
                 {
-                    nint bytesRead = NativePty.Read(this.masterFd, (IntPtr)p, (nuint)buffer.Length);
-                    if (bytesRead <= 0)
-                    {
-                        return 0;
-                    }
-
-                    return (int)bytesRead;
+                    return 0;
                 }
-            }
-        }, cancellationToken).ConfigureAwait(false);
+
+                temp.AsSpan(0, (int)bytesRead).CopyTo(buffer.Span);
+                return (int)bytesRead;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
@@ -103,17 +100,13 @@ public sealed class LinuxPtySession : ITerminalSession
             return;
         }
 
+        var temp = buffer.ToArray();
         await Task.Run(
             () =>
-        {
-            unsafe
             {
-                fixed (byte* p = buffer.Span)
-                {
-                    NativePty.Write(this.masterFd, (IntPtr)p, (nuint)buffer.Length);
-                }
-            }
-        }, cancellationToken).ConfigureAwait(false);
+                NativePty.Write(this.masterFd, temp, (nuint)temp.Length);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     public void Resize(int cols, int rows)
