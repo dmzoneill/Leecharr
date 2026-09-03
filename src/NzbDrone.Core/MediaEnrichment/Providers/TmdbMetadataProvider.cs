@@ -67,8 +67,16 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
 
         var cleanTitle = CleanTitle(title);
         var parsedYear = year.HasValue && year.Value > 0 ? year.Value : ExtractYear(title);
-        var isMovie = (category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase) ||
-                      (!string.IsNullOrEmpty(title) && !Regex.IsMatch(title, @"\b(S\d\d|Season\b|Episode\b)", RegexOptions.IgnoreCase));
+
+        var isTv = ((category ?? string.Empty).Contains("tv", StringComparison.OrdinalIgnoreCase) ||
+                    (category ?? string.Empty).Contains("show", StringComparison.OrdinalIgnoreCase) ||
+                    (category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase) ||
+                    (category ?? string.Empty).Contains("sonarr", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b")))
+                   && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
+                   && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
+
+        var isMovie = !isTv;
 
         var apiKey = this.GetApiKey();
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -172,7 +180,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         return meta;
     }
 
-    private static string CleanTitle(string rawTitle)
+    internal static string CleanTitle(string rawTitle)
     {
         if (string.IsNullOrWhiteSpace(rawTitle))
         {
@@ -180,7 +188,8 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         }
 
         var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
-        cleaned = Regex.Replace(cleaned, @"\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty, RegexOptions.IgnoreCase);
+        cleaned = Regex.Replace(cleaned, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
         cleaned = Regex.Replace(cleaned, @"\b(19\d\d|20\d\d)\b.*", string.Empty);
         cleaned = cleaned.Trim('-', ' ', '.');
         return string.IsNullOrWhiteSpace(cleaned) ? rawTitle.Trim() : cleaned.Trim();
