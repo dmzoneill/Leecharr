@@ -164,4 +164,83 @@ public class TransmissionRpcControllerTest
         result.Should().BeOfType<OkObjectResult>();
         this.torrentFileService.Received(1).GetFiles(42);
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithMoveTrue_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"/downloads/target\"");
+        using var moveDoc = System.Text.Json.JsonDocument.Parse("true");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+        args["move"] = moveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", true);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithMoveFalse_InvokesSetLocationAsyncWithMoveFalse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"/downloads/target\"");
+        using var moveDoc = System.Text.Json.JsonDocument.Parse("false");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+        args["move"] = moveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", false);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithoutMoveSpecified_DefaultsToMoveTrue()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"/downloads/target\"");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", true);
+    }
 }

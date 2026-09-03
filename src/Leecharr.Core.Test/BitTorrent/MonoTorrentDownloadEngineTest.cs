@@ -1200,5 +1200,54 @@ public class MonoTorrentDownloadEngineTest
         act.Should().NotThrow();
     }
 
+    [Test]
+    public async Task MoveTorrentFilesAsync_WithValidTask_UpdatesSavePath()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("move_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 106,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "move_test.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testDownloadDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var newDir = Path.Combine(Path.GetTempPath(), "leecharr_move_target_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await this.engine.MoveTorrentFilesAsync(106, newDir);
+
+            var task = this.engine.GetTask(106) as MonoTorrentDownloadTask;
+            task.Should().NotBeNull();
+            task!.Manager.SavePath.Should().Be(newDir);
+        }
+        finally
+        {
+            if (Directory.Exists(newDir))
+            {
+                Directory.Delete(newDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_WithEmptyPath_ThrowsArgumentException()
+    {
+        var act = () => this.engine.MoveTorrentFilesAsync(106, string.Empty);
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_WithNonExistentTorrent_DoesNotThrow()
+    {
+        var act = () => this.engine.MoveTorrentFilesAsync(99999, "/some/path");
+        await act.Should().NotThrowAsync();
+    }
+
     #endregion
 }
