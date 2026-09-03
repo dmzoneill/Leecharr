@@ -197,7 +197,8 @@ public class NotificationController : Controller
         }
         else
         {
-            var success = await this.webhookDispatcher.DispatchAsync(notif.Settings, payload);
+            var targetUrl = NotificationEventHandler.ResolveTargetUrl(notif.Implementation, notif.Settings);
+            var success = await this.webhookDispatcher.DispatchAsync(targetUrl, payload);
             return this.Ok(new NotificationTestResult
             {
                 Success = success,

@@ -207,7 +207,8 @@ public class NotificationEventHandler :
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
-                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
+                Task.Run(() => this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload));
             }
         }
     }
@@ -248,11 +249,12 @@ public class NotificationEventHandler :
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
+                var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -345,11 +347,12 @@ public class NotificationEventHandler :
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
+                var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -425,6 +428,54 @@ public class NotificationEventHandler :
         }
 
         return (chatId, token, user);
+    }
+
+    public static string ResolveTargetUrl(string implementation, string settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = settings.Trim();
+
+        if (string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            var (_, token, _) = ExtractProviderSettings(trimmed);
+            return string.IsNullOrWhiteSpace(token)
+                ? "https://api.telegram.org/bot/sendMessage"
+                : $"https://api.telegram.org/bot{token}/sendMessage";
+        }
+
+        if (string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://api.pushover.net/1/messages.json";
+        }
+
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("url", out var u) ||
+                    root.TryGetProperty("webhookUrl", out u) ||
+                    root.TryGetProperty("targetUrl", out u))
+                {
+                    var resolved = u.GetString();
+                    if (!string.IsNullOrWhiteSpace(resolved))
+                    {
+                        return resolved.Trim();
+                    }
+                }
+            }
+            catch
+            {
+                // Fall back to trimmed string
+            }
+        }
+
+        return trimmed;
     }
 
     private static string EscapeMarkdown(string text)
