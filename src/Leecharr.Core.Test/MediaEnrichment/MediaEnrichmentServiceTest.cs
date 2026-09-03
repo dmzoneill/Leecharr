@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -13,6 +14,7 @@ using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
@@ -533,13 +535,21 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         var arrConn = new ArrConnectionDefinition
         {
             Id = 1,
-            Url = "http://localhost:8989",
+            Url = "https://sonarr.example.com",
             ApiKey = "servarr-secret-key-xyz",
             ArrType = "Sonarr",
         };
         arrRepository.All().Returns(new[] { arrConn });
 
-        var handler = new TestHttpMessageHandler();
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var validJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+        safeHttpClient.DownloadBytesAsync(
+            Arg.Any<Uri>(),
+            Arg.Any<long>(),
+            Arg.Any<IDictionary<string, string>>(),
+            Arg.Any<CancellationToken>())
+            .Returns(validJpeg);
+
         var customService = new MediaEnrichmentService(
             this.repository,
             this.inspector,
@@ -547,17 +557,140 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
             this.appFolderInfo,
             this.eventAggregator,
             arrRepository: arrRepository,
-            httpClient: new HttpClient(handler));
+            safeHttpClientService: safeHttpClient);
 
-        var url = "http://localhost:8989/api/v3/mediacover/42/poster.jpg";
+        var url = "https://sonarr.example.com/api/v3/mediacover/42/poster.jpg";
         var result = await customService.CacheArtworkAsync(url, 202, "poster");
 
         result.Should().NotBeNull();
         File.Exists(result).Should().BeTrue();
 
-        handler.CapturedRequest.Should().NotBeNull();
-        handler.CapturedRequest.Headers.Contains("X-Api-Key").Should().BeTrue();
-        handler.CapturedRequest.Headers.GetValues("X-Api-Key").First().Should().Be("servarr-secret-key-xyz");
+        await safeHttpClient.Received(1).DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == url),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h != null && h.ContainsKey("X-Api-Key") && h["X-Api-Key"] == "servarr-secret-key-xyz"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [TestCase("http://169.254.169.254/latest/meta-data/")]
+    [TestCase("http://127.0.0.1:8080/admin/secrets.json")]
+    [TestCase("http://localhost:5000/keys")]
+    [TestCase("http://10.0.0.1/private")]
+    [TestCase("http://192.168.1.1/admin")]
+    [TestCase("http://172.16.0.1/internal")]
+    public async Task CacheArtworkAsync_WhenRemoteUrlIsSsrfTarget_IsRejectedAndNotCached(string ssrfUrl)
+    {
+        var result = await this.service.CacheArtworkAsync(ssrfUrl, 999, "poster");
+
+        result.Should().BeNull();
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "999");
+        if (Directory.Exists(cacheDir))
+        {
+            Directory.GetFiles(cacheDir).Should().BeEmpty();
+        }
+    }
+
+    [TestCase("file:///etc/passwd")]
+    [TestCase("ftp://example.com/image.jpg")]
+    [TestCase("gopher://example.com/")]
+    public async Task CacheArtworkAsync_WhenSchemeIsNotHttpOrHttps_IsRejectedAndNotCached(string badSchemeUrl)
+    {
+        var result = await this.service.CacheArtworkAsync(badSchemeUrl, 998, "poster");
+
+        result.Should().BeNull();
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "998");
+        if (Directory.Exists(cacheDir))
+        {
+            Directory.GetFiles(cacheDir).Should().BeEmpty();
+        }
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenPayloadIsNotValidImage_IsRejectedAndNotCached()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            safeHttpClientService: safeHttpClient);
+
+        var nonImagePayloads = new[]
+        {
+            System.Text.Encoding.UTF8.GetBytes("<html><body>Error 404 Not Found</body></html>"),
+            System.Text.Encoding.UTF8.GetBytes("{\"access_token\": \"secret_token_12345\"}"),
+            System.Text.Encoding.UTF8.GetBytes("AWS_SECRET_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"),
+            new byte[] { 1, 2, 3, 4 },
+        };
+
+        var torrentId = 888;
+        foreach (var payload in nonImagePayloads)
+        {
+            safeHttpClient.DownloadBytesAsync(
+                Arg.Any<Uri>(),
+                Arg.Any<long>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<CancellationToken>())
+                .Returns(payload);
+
+            var result = await customService.CacheArtworkAsync("https://example.com/artwork.jpg", torrentId++, "poster");
+
+            result.Should().BeNull();
+        }
+
+        var cacheParent = Path.Combine(this.tempDirectory, "MediaCache");
+        if (Directory.Exists(cacheParent))
+        {
+            for (var id = 888; id < torrentId; id++)
+            {
+                var dir = Path.Combine(cacheParent, id.ToString());
+                if (Directory.Exists(dir))
+                {
+                    Directory.GetFiles(dir).Should().BeEmpty();
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenPayloadIsValidImage_IsSafelyCached()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            safeHttpClientService: safeHttpClient);
+
+        var validImages = new Dictionary<string, byte[]>
+        {
+            ["jpeg"] = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 },
+            ["png"] = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D },
+            ["webp"] = new byte[] { 0x52, 0x49, 0x46, 0x46, 0x20, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50 },
+            ["gif"] = new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00 },
+        };
+
+        var torrentId = 777;
+        foreach (var (format, imageBytes) in validImages)
+        {
+            safeHttpClient.DownloadBytesAsync(
+                Arg.Any<Uri>(),
+                Arg.Any<long>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<CancellationToken>())
+                .Returns(imageBytes);
+
+            var result = await customService.CacheArtworkAsync($"https://example.com/image.{format}", torrentId, "poster");
+
+            result.Should().NotBeNull();
+            File.Exists(result).Should().BeTrue();
+            (await File.ReadAllBytesAsync(result)).Should().Equal(imageBytes);
+            torrentId++;
+        }
     }
 
     [Test]
