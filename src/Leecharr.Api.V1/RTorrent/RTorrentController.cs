@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -16,7 +17,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.RTorrent;
 
-[AllowAnonymous]
 [ApiController]
 public class RTorrentController : ControllerBase
 {
@@ -25,6 +25,7 @@ public class RTorrentController : ControllerBase
     private readonly ITorrentFileService torrentFileService;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public RTorrentController(
@@ -32,13 +33,15 @@ public class RTorrentController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        ITorrentFileService torrentFileService = null)
+        ITorrentFileService torrentFileService = null,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
         this.torrentFileService = torrentFileService;
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpPost]
@@ -48,6 +51,12 @@ public class RTorrentController : ControllerBase
     [Route("plugins/httprpc/action.php")]
     public async Task<IActionResult> HandleXmlRpc()
     {
+        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"rTorrent\"";
+            return this.Unauthorized();
+        }
+
         string requestBody;
         using (var reader = new StreamReader(this.Request.Body, Encoding.UTF8))
         {

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -31,7 +32,6 @@ public class Aria2RpcRequest
     public object Id { get; set; } = 1;
 }
 
-[AllowAnonymous]
 [ApiController]
 [Route("jsonrpc")]
 [Route("rpc")]
@@ -44,6 +44,7 @@ public class Aria2RpcController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public Aria2RpcController(
@@ -51,13 +52,15 @@ public class Aria2RpcController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpGet]
@@ -79,6 +82,12 @@ public class Aria2RpcController : ControllerBase
                     var trimmed = rawBody.TrimStart();
                     if (trimmed.StartsWith("<", StringComparison.Ordinal))
                     {
+                        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+                        {
+                            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Aria2\"";
+                            return this.StatusCode(StatusCodes.Status401Unauthorized, new { id, jsonrpc = "2.0", error = new { code = 1, message = "Unauthorized" } });
+                        }
+
                         var xmlDoc = global::System.Xml.Linq.XDocument.Parse(rawBody);
                         var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
                         return await this.HandleXmlRpcAsync(xmlMethodName, xmlDoc);
@@ -113,6 +122,32 @@ public class Aria2RpcController : ControllerBase
             {
                 this.logger.Debug(ex, "Could not parse Aria2 payload");
             }
+        }
+
+        var aria2Secret = string.Empty;
+        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 &&
+            paramsElem[0].ValueKind == JsonValueKind.String)
+        {
+            var firstStr = paramsElem[0].GetString();
+            if (firstStr != null && firstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+            {
+                aria2Secret = firstStr["token:".Length..];
+            }
+        }
+
+        var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+        if (!isAuth && !string.IsNullOrWhiteSpace(aria2Secret) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
+        {
+            if (string.Equals(aria2Secret, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            {
+                isAuth = true;
+            }
+        }
+
+        if (!isAuth)
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Aria2\"";
+            return this.StatusCode(StatusCodes.Status401Unauthorized, new { id, jsonrpc = "2.0", error = new { code = 1, message = "Unauthorized" } });
         }
 
         if (string.IsNullOrWhiteSpace(method))

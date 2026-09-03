@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
@@ -22,29 +24,57 @@ public class FreeboxUpdateRequest
     public double? StopRatio { get; set; }
 }
 
-[AllowAnonymous]
 [ApiController]
 public class FreeboxDownloadController : ControllerBase
 {
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FreeboxDownloadController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
+    }
+
+    private bool IsFreeboxAuthenticated()
+    {
+        if (this.configFileProvider != null && !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
+        if (!string.IsNullOrEmpty(token) && string.Equals(token, "freebox-session-token", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     [HttpGet]
     [Route("api/v4/downloads/config")]
     public IActionResult GetDownloadConfig()
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         var downloadDir = this.configService.DownloadDir ?? "/downloads";
         var b64Dir = Convert.ToBase64String(Encoding.UTF8.GetBytes(downloadDir));
         return this.Ok(new
@@ -59,6 +89,7 @@ public class FreeboxDownloadController : ControllerBase
         });
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [Route("api/v4/login/authorize")]
     public IActionResult LoginAuthorize()
@@ -69,11 +100,12 @@ public class FreeboxDownloadController : ControllerBase
             result = new
             {
                 logged_in = true,
-                challenge = "freebox-challenge-token"
+                challenge = "freebox-challenge-token",
             },
         });
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [HttpPost]
     [Route("api/v4/login/session")]
@@ -87,7 +119,7 @@ public class FreeboxDownloadController : ControllerBase
             {
                 session_token = "freebox-session-token",
                 logged_in = true,
-                permissions = new { downloader = true }
+                permissions = new { downloader = true },
             },
         });
     }
@@ -96,6 +128,11 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads")]
     public IActionResult GetDownloads()
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         var all = this.torrentService.GetAll().ToList();
         var results = all.Select(t =>
         {
@@ -143,6 +180,11 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads/add")]
     public async Task<IActionResult> AddDownload([FromForm] string download_url, [FromForm] string download_dir)
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         var addedId = 0;
         if (!string.IsNullOrWhiteSpace(download_url))
         {
@@ -182,6 +224,11 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads/{id}")]
     public async Task<IActionResult> DeleteDownload(int id)
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         await this.torrentService.DeleteAsync(id, false);
         return this.Ok(new { success = true });
     }
@@ -190,6 +237,11 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads/{id}/erase")]
     public async Task<IActionResult> EraseDownload(int id)
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         await this.torrentService.DeleteAsync(id, true);
         return this.Ok(new { success = true });
     }
@@ -198,6 +250,11 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/downloads/{id}")]
     public async Task<IActionResult> UpdateDownload(int id, [FromBody] FreeboxUpdateRequest jsonRequest = null)
     {
+        if (!this.IsFreeboxAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         string status = null;
         string queuePos = null;
 
