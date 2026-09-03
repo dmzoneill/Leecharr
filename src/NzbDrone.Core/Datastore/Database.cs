@@ -23,6 +23,14 @@ public class Database : IDatabase
     {
         var connection = this.connectionFactory();
         connection.Open();
+
+        if (this.DatabaseType == DatabaseType.SQLite)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA synchronous = NORMAL;";
+            cmd.ExecuteNonQuery();
+        }
+
         return connection;
     }
 }

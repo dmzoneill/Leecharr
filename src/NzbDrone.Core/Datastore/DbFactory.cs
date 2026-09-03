@@ -67,6 +67,15 @@ public class DbFactory : IDbFactory
 
         this.logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
 
+        if (dbType == DatabaseType.SQLite)
+        {
+            using var conn = new SqliteConnection(connectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA synchronous = NORMAL;";
+            cmd.ExecuteNonQuery();
+        }
+
         this.RunMigrations(dbType, connectionString);
 
         Func<IDbConnection> factory = dbType switch
