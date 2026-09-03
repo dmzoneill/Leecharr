@@ -97,4 +97,71 @@ public class TransmissionRpcControllerTest
 
         result.Should().BeOfType<OkObjectResult>();
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_WithoutFilesField_DoesNotQueryFileService()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Transmission.Test",
+            InfoHash = "1122334455667788990011223344556677889900",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new System.Collections.Generic.List<Torrent> { torrent });
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var doc = System.Text.Json.JsonDocument.Parse("[\"id\", \"name\", \"status\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_WithFilesField_QueriesFileService()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Transmission.Test",
+            InfoHash = "1122334455667788990011223344556677889900",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new System.Collections.Generic.List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(42).Returns(new System.Collections.Generic.List<TorrentFile>());
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var doc = System.Text.Json.JsonDocument.Parse("[\"id\", \"name\", \"files\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.torrentFileService.Received(1).GetFiles(42);
+    }
 }

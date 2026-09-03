@@ -1131,48 +1131,183 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
+    private static readonly object SyncLock = new();
+    private static int currentRid = 0;
+    private static Dictionary<string, (QBitTorrentSnapshot Snapshot, int LastModifiedRid)> cachedTorrents = new(StringComparer.OrdinalIgnoreCase);
+    private static List<(string Hash, int RemovedAtRid)> removedTorrents = new();
+
+    public static void ResetSyncState()
+    {
+        lock (SyncLock)
+        {
+            currentRid = 0;
+            cachedTorrents.Clear();
+            removedTorrents.Clear();
+        }
+    }
+
+    private record QBitTorrentSnapshot(
+        string Name,
+        long Size,
+        double Progress,
+        long DlSpeed,
+        long UpSpeed,
+        string State,
+        string Category,
+        string Tags,
+        string SavePath,
+        long Eta,
+        double Ratio);
+
     [HttpGet("sync/maindata")]
     public ActionResult<Dictionary<string, object>> GetMainData([FromQuery] int rid = 0)
     {
-        var torrents = this.torrentService.GetAll();
-        var torrentDict = torrents.ToDictionary(
-            t => t.InfoHash,
-            t => (object)new
-            {
-                name = t.Name,
-                size = t.TotalSize,
-                progress = t.Progress,
-                dlspeed = t.DownloadSpeed,
-                upspeed = t.UploadSpeed,
-                state = MapToQBitState(t.Status, t.Progress),
-                category = t.Category ?? string.Empty,
-                tags = t.Label ?? string.Empty,
-                save_path = t.SavePath ?? string.Empty,
-                eta = t.Eta > 0 ? t.Eta : 8640000,
-                ratio = t.Ratio,
-            });
-
-        var categories = this.categoryService.GetAll().ToDictionary(
-            c => c.Name,
-            c => (object)new { name = c.Name, savePath = c.SavePath });
-
-        var result = new Dictionary<string, object>
+        lock (SyncLock)
         {
-            ["rid"] = rid + 1,
-            ["full_update"] = true,
-            ["torrents"] = torrentDict,
-            ["categories"] = categories,
-            ["server_state"] = new
+            var torrents = this.torrentService.GetAll().ToList();
+            var categories = this.categoryService.GetAll().ToDictionary(
+                c => c.Name,
+                c => (object)new { name = c.Name, savePath = c.SavePath });
+
+            var serverState = new
             {
                 dl_info_speed = torrents.Sum(t => t.DownloadSpeed),
                 up_info_speed = torrents.Sum(t => t.UploadSpeed),
                 dl_info_data = torrents.Sum(t => t.Downloaded),
                 up_info_data = torrents.Sum(t => t.Uploaded),
-                connection_status = "connected"
-            },
-        };
+                connection_status = "connected",
+            };
 
-        return this.Ok(result);
+            var currentHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // If rid == 0, or cached state is unavailable, or rid is out of sequence, perform a full update
+            if (rid <= 0 || cachedTorrents.Count == 0 || rid > currentRid)
+            {
+                currentRid = rid <= 0 ? 1 : rid + 1;
+                cachedTorrents.Clear();
+                removedTorrents.Clear();
+
+                var torrentDict = new Dictionary<string, object>();
+                foreach (var t in torrents)
+                {
+                    currentHashes.Add(t.InfoHash);
+                    var state = MapToQBitState(t.Status, t.Progress);
+                    var snapshot = new QBitTorrentSnapshot(
+                        t.Name,
+                        t.TotalSize,
+                        t.Progress,
+                        t.DownloadSpeed,
+                        t.UploadSpeed,
+                        state,
+                        t.Category ?? string.Empty,
+                        t.Label ?? string.Empty,
+                        t.SavePath ?? string.Empty,
+                        t.Eta > 0 ? t.Eta : 8640000,
+                        t.Ratio);
+
+                    cachedTorrents[t.InfoHash] = (snapshot, currentRid);
+
+                    torrentDict[t.InfoHash] = new
+                    {
+                        name = snapshot.Name,
+                        size = snapshot.Size,
+                        progress = snapshot.Progress,
+                        dlspeed = snapshot.DlSpeed,
+                        upspeed = snapshot.UpSpeed,
+                        state = snapshot.State,
+                        category = snapshot.Category,
+                        tags = snapshot.Tags,
+                        save_path = snapshot.SavePath,
+                        eta = snapshot.Eta,
+                        ratio = snapshot.Ratio,
+                    };
+                }
+
+                var fullResult = new Dictionary<string, object>
+                {
+                    ["rid"] = currentRid,
+                    ["full_update"] = true,
+                    ["torrents"] = torrentDict,
+                    ["categories"] = categories,
+                    ["server_state"] = serverState,
+                };
+
+                return this.Ok(fullResult);
+            }
+
+            // Incremental delta sync
+            var nextRid = currentRid + 1;
+            var updatedTorrents = new Dictionary<string, object>();
+
+            foreach (var t in torrents)
+            {
+                currentHashes.Add(t.InfoHash);
+                var state = MapToQBitState(t.Status, t.Progress);
+                var snapshot = new QBitTorrentSnapshot(
+                    t.Name,
+                    t.TotalSize,
+                    t.Progress,
+                    t.DownloadSpeed,
+                    t.UploadSpeed,
+                    state,
+                    t.Category ?? string.Empty,
+                    t.Label ?? string.Empty,
+                    t.SavePath ?? string.Empty,
+                    t.Eta > 0 ? t.Eta : 8640000,
+                    t.Ratio);
+
+                if (!cachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot)
+                {
+                    cachedTorrents[t.InfoHash] = (snapshot, nextRid);
+                    updatedTorrents[t.InfoHash] = new
+                    {
+                        name = snapshot.Name,
+                        size = snapshot.Size,
+                        progress = snapshot.Progress,
+                        dlspeed = snapshot.DlSpeed,
+                        upspeed = snapshot.UpSpeed,
+                        state = snapshot.State,
+                        category = snapshot.Category,
+                        tags = snapshot.Tags,
+                        save_path = snapshot.SavePath,
+                        eta = snapshot.Eta,
+                        ratio = snapshot.Ratio,
+                    };
+                }
+            }
+
+            // Detect removed torrents
+            var removedNow = cachedTorrents.Keys.Where(h => !currentHashes.Contains(h)).ToList();
+            foreach (var hash in removedNow)
+            {
+                cachedTorrents.Remove(hash);
+                removedTorrents.Add((hash, nextRid));
+            }
+
+            if (removedTorrents.Count > 500)
+            {
+                removedTorrents.RemoveRange(0, removedTorrents.Count - 500);
+            }
+
+            var torrentsRemoved = removedTorrents
+                .Where(r => r.RemovedAtRid > rid)
+                .Select(r => r.Hash)
+                .ToList();
+
+            currentRid = nextRid;
+
+            var deltaResult = new Dictionary<string, object>
+            {
+                ["rid"] = currentRid,
+                ["full_update"] = false,
+                ["torrents"] = updatedTorrents,
+                ["torrents_removed"] = torrentsRemoved,
+                ["categories"] = categories,
+                ["server_state"] = serverState,
+            };
+
+            return this.Ok(deltaResult);
+        }
     }
 
     [HttpGet("transfer/info")]
