@@ -130,7 +130,7 @@ public class TorrentService : ITorrentService
         var effectiveCategory = !string.IsNullOrWhiteSpace(category) ? category : this.configService.DefaultCategory;
         var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
             ? savePath
-            : this.categoryService.GetSavePathForCategory(effectiveCategory);
+            : this.categoryService.GetSavePathForCategory(effectiveCategory, this.configService.DownloadDir ?? "/downloads");
 
         var torrent = new Torrent
         {
@@ -309,7 +309,7 @@ public class TorrentService : ITorrentService
         var effectiveCategory = !string.IsNullOrWhiteSpace(category) ? category : this.configService.DefaultCategory;
         var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
             ? savePath
-            : this.categoryService.GetSavePathForCategory(effectiveCategory);
+            : this.categoryService.GetSavePathForCategory(effectiveCategory, this.configService.DownloadDir ?? "/downloads");
 
         var torrent = new Torrent
         {
