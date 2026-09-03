@@ -139,7 +139,17 @@ public class NotificationEventHandler :
 
             if (!string.IsNullOrWhiteSpace(this.configService?.OnSeedGoalReachedScript))
             {
-                Task.Run(() => this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached"));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error executing OnSeedGoalReached script");
+                    }
+                });
             }
         }
     }
@@ -223,12 +233,32 @@ public class NotificationEventHandler :
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate"));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate").ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error executing custom script for OnApplicationUpdate");
+                    }
+                });
             }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
-                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error dispatching notification for OnApplicationUpdate");
+                    }
+                });
             }
         }
     }
@@ -286,16 +316,46 @@ public class NotificationEventHandler :
 
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error executing custom script for {0}", eventType);
+                    }
+                });
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => SendEmailNotification(notif.Settings, eventType, torrent, meta, payload));
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        SendEmailNotification(notif.Settings, eventType, torrent, meta, payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error sending email notification for {0}", eventType);
+                    }
+                });
             }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
-                Task.Run(() => this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.webhookDispatcher.DispatchAsync(notif.Settings, providerPayload).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error dispatching webhook notification for {0}", eventType);
+                    }
+                });
             }
         }
     }
