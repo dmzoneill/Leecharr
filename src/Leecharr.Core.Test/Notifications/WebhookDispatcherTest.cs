@@ -56,7 +56,7 @@ public class WebhookDispatcherTest
         this.httpClient = new HttpClient(this.handler);
         this.fastRetryPolicy = Policy<HttpResponseMessage>
             .Handle<HttpRequestException>()
-            .OrResult(r => (int)r.StatusCode >= 500)
+            .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
             .WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(1));
 
         this.dispatcher = new WebhookDispatcher(this.httpClient, this.fastRetryPolicy);
@@ -180,5 +180,34 @@ public class WebhookDispatcherTest
 
         result.Should().BeTrue();
         this.handler.SentRequests.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenTooManyRequests429_RetriesAndSucceeds()
+    {
+        var attempts = 0;
+        this.handler.ResponseFactory = req =>
+        {
+            attempts++;
+            return attempts < 3
+                ? new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+                : new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://api.telegram.org/bot123/sendMessage", new { text = "Test" });
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenAllRetriesFail429_ReturnsFalse()
+    {
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+
+        var result = await this.dispatcher.DispatchAsync("https://api.pushover.net/1/messages.json", new { message = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
     }
 }

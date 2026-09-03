@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -40,7 +41,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         this.retryPolicy = retryPolicy ?? Policy<HttpResponseMessage>
             .Handle<HttpRequestException>()
-            .OrResult(r => (int)r.StatusCode >= 500)
+            .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
             .WaitAndRetryAsync(
                 3,
                 retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // 2s, 4s, 8s
