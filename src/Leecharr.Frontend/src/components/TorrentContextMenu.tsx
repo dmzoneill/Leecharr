@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useArrConnections, useDownloadHistory } from "../api/hooks";
 import { getMediaDeepLink } from "../utils/arrLinks";
+import { useConfirm } from "../context/ConfirmContext";
 import type { Torrent } from "../api/types";
 
 export interface TorrentContextMenuProps {
@@ -17,10 +18,7 @@ export interface TorrentContextMenuProps {
   onAnnounce: (id: number) => void;
   onRecheck: (id: number) => void;
   onDelete: (payload: { id: number; deleteFiles: boolean }) => void;
-  onMoveQueue: (payload: {
-    id: number;
-    position: "top" | "up" | "down" | "bottom";
-  }) => void;
+  onMoveQueue: (payload: { id: number; position: "top" | "up" | "down" | "bottom" }) => void;
   onSearchIndexers?: (query: string) => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
 }
@@ -51,6 +49,7 @@ export function TorrentContextMenu({
 }: TorrentContextMenuProps) {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
+  const confirm = useConfirm();
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
 
@@ -79,24 +78,17 @@ export function TorrentContextMenu({
   const historyMatch = ct
     ? history?.find(
         (h) =>
-          (ct.infoHash &&
-            h.infoHash?.toLowerCase() === ct.infoHash.toLowerCase()) ||
-          h.title?.toLowerCase() === ct.name?.toLowerCase(),
+          (ct.infoHash && h.infoHash?.toLowerCase() === ct.infoHash.toLowerCase()) ||
+          h.title?.toLowerCase() === ct.name?.toLowerCase()
       )
     : null;
 
-  const arrLink = historyMatch
-    ? getMediaDeepLink(historyMatch, arrConnections)
-    : null;
+  const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
 
   const isPaused = ct?.status?.toLowerCase() === "paused";
 
   return (
-    <div
-      className="context-menu"
-      style={{ left: x, top: y }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="context-menu" style={{ left: x, top: y }} onClick={(e) => e.stopPropagation()}>
       {ct ? (
         <>
           {/* Arr Direct Jump Link */}
@@ -288,12 +280,11 @@ export function TorrentContextMenu({
                   onClick={() => {
                     const limit = window.prompt(
                       "Upload limit in KB/s (0 = unlimited):",
-                      String(ct.uploadLimit || 0),
+                      String(ct.uploadLimit || 0)
                     );
                     if (limit !== null) {
                       const val = parseInt(limit, 10);
-                      if (!isNaN(val) && val >= 0)
-                        onUpdate({ ...ct, uploadLimit: val });
+                      if (!isNaN(val) && val >= 0) onUpdate({ ...ct, uploadLimit: val });
                     }
                     onClose();
                   }}
@@ -306,12 +297,11 @@ export function TorrentContextMenu({
                   onClick={() => {
                     const limit = window.prompt(
                       "Download limit in KB/s (0 = unlimited):",
-                      String(ct.downloadLimit || 0),
+                      String(ct.downloadLimit || 0)
                     );
                     if (limit !== null) {
                       const val = parseInt(limit, 10);
-                      if (!isNaN(val) && val >= 0)
-                        onUpdate({ ...ct, downloadLimit: val });
+                      if (!isNaN(val) && val >= 0) onUpdate({ ...ct, downloadLimit: val });
                     }
                     onClose();
                   }}
@@ -392,10 +382,7 @@ export function TorrentContextMenu({
             type="button"
             className="context-menu-item"
             onClick={() => {
-              const l = window.prompt(
-                "Set category / label:",
-                ct.category ?? ct.label ?? "",
-              );
+              const l = window.prompt("Set category / label:", ct.category ?? ct.label ?? "");
               if (l !== null)
                 onUpdate({
                   ...ct,
@@ -415,8 +402,7 @@ export function TorrentContextMenu({
               onClose();
             }}
           >
-            {ct.sequentialDownload ? "Disable" : "Enable"} Sequential Download
-            (Head/Tail Priority)
+            {ct.sequentialDownload ? "Disable" : "Enable"} Sequential Download (Head/Tail Priority)
           </button>
 
           <div className="context-menu-separator" />
@@ -433,10 +419,15 @@ export function TorrentContextMenu({
                 <button
                   type="button"
                   className="context-menu-item context-menu-item-danger"
-                  onClick={() => {
-                    if (confirm(`Remove "${ct.name}"?`))
-                      onDelete({ id: ct.id, deleteFiles: false });
+                  onClick={async () => {
                     onClose();
+                    const ok = await confirm({
+                      title: "Remove Torrent",
+                      message: `Remove "${ct.name}"?`,
+                      danger: true,
+                      confirmText: "Remove",
+                    });
+                    if (ok) onDelete({ id: ct.id, deleteFiles: false });
                   }}
                 >
                   Remove Torrent
@@ -444,14 +435,15 @@ export function TorrentContextMenu({
                 <button
                   type="button"
                   className="context-menu-item context-menu-item-danger"
-                  onClick={() => {
-                    if (
-                      confirm(
-                        `Remove "${ct.name}" and delete all downloaded data from disk?`,
-                      )
-                    )
-                      onDelete({ id: ct.id, deleteFiles: true });
+                  onClick={async () => {
                     onClose();
+                    const ok = await confirm({
+                      title: "Remove Torrent and Delete Files",
+                      message: `Remove "${ct.name}" and delete all downloaded data from disk?`,
+                      danger: true,
+                      confirmText: "Delete Files",
+                    });
+                    if (ok) onDelete({ id: ct.id, deleteFiles: true });
                   }}
                 >
                   Remove Torrent and Delete Files

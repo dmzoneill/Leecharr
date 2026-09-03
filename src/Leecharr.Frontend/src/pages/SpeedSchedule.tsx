@@ -9,6 +9,8 @@ import {
 import { formatSpeed } from "../utils/formatters";
 import type { SpeedScheduleEntry } from "../api/types";
 import { useToast } from "../context/ToastContext";
+import { useConfirm } from "../context/ConfirmContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 
 const DAY_FLAGS = [
   { label: "Mon", value: 1 },
@@ -67,6 +69,7 @@ function ScheduleModal({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  useEscapeKey(onCancel);
   const [form, setForm] = useState({ ...EMPTY_SCHEDULE, ...schedule });
 
   function toggleDay(value: number) {
@@ -155,9 +158,7 @@ function ScheduleModal({
                 className="form-input"
                 type="time"
                 value={form.startTime}
-                onChange={(e) =>
-                  setForm({ ...form, startTime: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
                 style={{ width: "100%", borderRadius: "6px" }}
               />
             </label>
@@ -255,9 +256,7 @@ function ScheduleModal({
                 className="form-input"
                 type="number"
                 value={form.priority}
-                onChange={(e) =>
-                  setForm({ ...form, priority: Number(e.target.value) })
-                }
+                onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
                 style={{ width: "100%", borderRadius: "6px" }}
               />
             </label>
@@ -274,13 +273,9 @@ function ScheduleModal({
               <input
                 type="checkbox"
                 checked={form.isEnabled}
-                onChange={(e) =>
-                  setForm({ ...form, isEnabled: e.target.checked })
-                }
+                onChange={(e) => setForm({ ...form, isEnabled: e.target.checked })}
               />
-              <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                Schedule Enabled
-              </span>
+              <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Schedule Enabled</span>
             </label>
           </div>
 
@@ -294,11 +289,7 @@ function ScheduleModal({
               borderTop: "1px solid var(--border-light)",
             }}
           >
-            <button
-              className="btn btn-outline btn-small"
-              onClick={onCancel}
-              type="button"
-            >
+            <button className="btn btn-outline btn-small" onClick={onCancel} type="button">
               Cancel
             </button>
             <button
@@ -326,8 +317,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
         overflowX: "auto",
         marginBottom: "1.25rem",
         borderRadius: "8px",
-        boxShadow:
-          "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
         border: "1px solid rgba(255, 255, 255, 0.08)",
         padding: "1.25rem",
       }}
@@ -341,9 +331,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
         }}
       >
         <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Weekly Schedule View</h3>
-        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          24-Hour Time Matrix
-        </span>
+        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>24-Hour Time Matrix</span>
       </div>
 
       <div
@@ -397,7 +385,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                   s.isEnabled &&
                   s.days & day.value &&
                   timeToHour(s.startTime) <= hour &&
-                  timeToHour(s.endTime) > hour,
+                  timeToHour(s.endTime) > hour
               );
               const top = active[0];
               return (
@@ -408,9 +396,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                     borderTop: "1px solid rgba(255, 255, 255, 0.04)",
                     borderLeft: "1px solid rgba(255, 255, 255, 0.04)",
                     backgroundColor: top
-                      ? BLOCK_COLORS[
-                          schedules.indexOf(top) % BLOCK_COLORS.length
-                        ]
+                      ? BLOCK_COLORS[schedules.indexOf(top) % BLOCK_COLORS.length]
                       : "transparent",
                     opacity: top ? 0.85 : 1,
                     transition: "all 0.15s ease",
@@ -428,14 +414,9 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
       </div>
 
       {schedules.length > 0 && (
-        <div
-          style={{ display: "flex", gap: 16, marginTop: 14, flexWrap: "wrap" }}
-        >
+        <div style={{ display: "flex", gap: 16, marginTop: 14, flexWrap: "wrap" }}>
           {schedules.map((s, i) => (
-            <div
-              key={s.id}
-              style={{ display: "flex", alignItems: "center", gap: 6 }}
-            >
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div
                 style={{
                   width: 12,
@@ -445,9 +426,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                   opacity: s.isEnabled ? 0.9 : 0.3,
                 }}
               />
-              <span
-                style={{ fontSize: "0.82rem", opacity: s.isEnabled ? 1 : 0.5 }}
-              >
+              <span style={{ fontSize: "0.82rem", opacity: s.isEnabled ? 1 : 0.5 }}>
                 {s.name} ({s.startTime} - {s.endTime})
               </span>
             </div>
@@ -460,6 +439,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
 
 export function SpeedSchedule() {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { data: schedules, isLoading, isError } = useSpeedSchedules();
   const { data: activeLimits } = useActiveSpeedLimits();
   const createSchedule = useCreateSpeedSchedule();
@@ -492,16 +472,19 @@ export function SpeedSchedule() {
     }
   }
 
-  function handleDelete(id: number, name: string) {
-    if (
-      window.confirm(`Are you sure you want to delete the schedule "${name}"?`)
-    ) {
-      deleteSchedule.mutate(id, {
-        onSuccess: () => showToast("Speed schedule deleted", "info"),
-        onError: (err: any) =>
-          showToast(err?.message || "Failed to delete schedule", "error"),
-      });
-    }
+  async function handleDelete(id: number, name: string) {
+    const ok = await confirm({
+      title: "Delete Speed Schedule",
+      message: `Are you sure you want to delete the schedule "${name}"?`,
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+
+    deleteSchedule.mutate(id, {
+      onSuccess: () => showToast("Speed schedule deleted", "info"),
+      onError: (err: any) => showToast(err?.message || "Failed to delete schedule", "error"),
+    });
   }
 
   const scheduleCount = schedules?.length ?? 0;
@@ -519,9 +502,7 @@ export function SpeedSchedule() {
         }}
       >
         <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <h1 className="page-heading" style={{ margin: 0 }}>
               Speed Schedule ({scheduleCount})
             </h1>
@@ -534,16 +515,12 @@ export function SpeedSchedule() {
               marginTop: "0.2rem",
             }}
           >
-            Manage time-based upload and download speed throttles and seeding
-            priorities
+            Manage time-based upload and download speed throttles and seeding priorities
           </div>
         </div>
 
         <div className="page-header-actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => setModal({ ...EMPTY_SCHEDULE })}
-          >
+          <button className="btn btn-primary" onClick={() => setModal({ ...EMPTY_SCHEDULE })}>
             + Add Schedule
           </button>
         </div>
@@ -566,8 +543,7 @@ export function SpeedSchedule() {
             justifyContent: "space-between",
             padding: "1rem 1.25rem",
             borderRadius: "8px",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             border: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
@@ -594,10 +570,7 @@ export function SpeedSchedule() {
             }}
           >
             {activeLimits?.isScheduleActive ? (
-              <span
-                className="badge badge-primary"
-                style={{ fontSize: "0.85rem" }}
-              >
+              <span className="badge badge-primary" style={{ fontSize: "0.85rem" }}>
                 ⚡ {activeLimits.activeScheduleName}
               </span>
             ) : (
@@ -621,8 +594,7 @@ export function SpeedSchedule() {
             justifyContent: "space-between",
             padding: "1rem 1.25rem",
             borderRadius: "8px",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             border: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
@@ -664,8 +636,7 @@ export function SpeedSchedule() {
             justifyContent: "space-between",
             padding: "1rem 1.25rem",
             borderRadius: "8px",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             border: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
@@ -708,8 +679,7 @@ export function SpeedSchedule() {
         className="card"
         style={{
           borderRadius: "8px",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           border: "1px solid rgba(255, 255, 255, 0.08)",
           padding: "1.25rem",
         }}
@@ -722,9 +692,7 @@ export function SpeedSchedule() {
             marginBottom: "1rem",
           }}
         >
-          <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
-            Configured Schedules ({scheduleCount})
-          </h3>
+          <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Configured Schedules ({scheduleCount})</h3>
         </div>
 
         {isLoading ? (
@@ -743,10 +711,7 @@ export function SpeedSchedule() {
                   <th className="torrent-table-th">Upload Limit</th>
                   <th className="torrent-table-th">Download Limit</th>
                   <th className="torrent-table-th">Priority</th>
-                  <th
-                    className="torrent-table-th"
-                    style={{ textAlign: "right" }}
-                  >
+                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
                     Actions
                   </th>
                 </tr>
@@ -754,13 +719,8 @@ export function SpeedSchedule() {
               <tbody>
                 {(schedules ?? []).length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      style={{ textAlign: "center", padding: "2.5rem 1rem" }}
-                    >
-                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
-                        ⏱️
-                      </div>
+                    <td colSpan={8} style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏱️</div>
                       <div
                         style={{
                           fontWeight: 600,
@@ -779,8 +739,8 @@ export function SpeedSchedule() {
                           margin: "0 auto 1.25rem",
                         }}
                       >
-                        Create scheduled speed rules to throttle bandwidth or
-                        prioritize seeding during specific hours of the day.
+                        Create scheduled speed rules to throttle bandwidth or prioritize seeding
+                        during specific hours of the day.
                       </div>
                       <button
                         className="btn btn-primary btn-small"
@@ -814,9 +774,7 @@ export function SpeedSchedule() {
                           {daysToLabels(s.days)}
                         </span>
                       </td>
-                      <td
-                        style={{ fontFamily: "monospace", fontSize: "0.85rem" }}
-                      >
+                      <td style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>
                         {s.startTime} - {s.endTime}
                       </td>
                       <td
@@ -825,9 +783,7 @@ export function SpeedSchedule() {
                           fontWeight: 600,
                         }}
                       >
-                        {s.maxUploadSpeed > 0
-                          ? formatSpeed(s.maxUploadSpeed)
-                          : "Unlimited"}
+                        {s.maxUploadSpeed > 0 ? formatSpeed(s.maxUploadSpeed) : "Unlimited"}
                       </td>
                       <td
                         style={{
@@ -835,9 +791,7 @@ export function SpeedSchedule() {
                           fontWeight: 600,
                         }}
                       >
-                        {s.maxDownloadSpeed > 0
-                          ? formatSpeed(s.maxDownloadSpeed)
-                          : "Unlimited"}
+                        {s.maxDownloadSpeed > 0 ? formatSpeed(s.maxDownloadSpeed) : "Unlimited"}
                       </td>
                       <td>
                         <span
