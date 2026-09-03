@@ -17,6 +17,43 @@ public static class ContainerExtensions
             .With(Made.Of(FactoryMethod.ConstructorWithResolvableArguments));
     }
 
+    public static void RegisterSingletonWithInterfaces<TImplementation>(
+        this IContainer container,
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        where TImplementation : class
+    {
+        container.RegisterSingletonWithInterfaces(typeof(TImplementation), ifAlreadyRegistered);
+    }
+
+    public static void RegisterSingletonWithInterfaces(
+        this IContainer container,
+        Type implementationType,
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+    {
+        container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
+
+        var interfaces = implementationType.GetInterfaces()
+            .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
+            .ToArray();
+
+        foreach (var iface in interfaces)
+        {
+            container.RegisterMapping(iface, implementationType, ifAlreadyRegistered: ifAlreadyRegistered);
+        }
+    }
+
+    public static void RegisterSingleton<TService, TImplementation>(
+        this IContainer container,
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        where TImplementation : class, TService
+    {
+        container.Register<TImplementation>(Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
+        if (typeof(TService) != typeof(TImplementation))
+        {
+            container.RegisterMapping<TService, TImplementation>(ifAlreadyRegistered: ifAlreadyRegistered);
+        }
+    }
+
     public static void AutoAddServices(this IContainer container, List<string> assemblyNames)
     {
         var assemblies = AssemblyLoader.Load(assemblyNames);
@@ -34,7 +71,10 @@ public static class ContainerExtensions
                 continue;
             }
 
-            var interfaces = type.GetInterfaces();
+            var interfaces = type.GetInterfaces()
+                .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
+                .ToArray();
+
             if (type.Name.EndsWith("Controller") || (type.BaseType != null && (type.BaseType.Name == "ControllerBase" || type.BaseType.Name == "Controller")))
             {
                 var handleInterfaces = interfaces.Where(i => i.IsGenericType && i.Name.StartsWith("IHandle`1")).ToArray();
@@ -46,13 +86,25 @@ public static class ContainerExtensions
                 continue;
             }
 
-            if (interfaces.Length > 0)
+            if (type.IsGenericTypeDefinition)
             {
                 container.RegisterMany(new[] { type }, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
             }
+            else if (interfaces.Length > 0)
+            {
+                // Register concrete type as Singleton first
+                container.Register(type, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
+
+                // Map all interfaces to the concrete singleton instance
+                foreach (var iface in interfaces)
+                {
+                    container.RegisterMapping(iface, type, ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
+                }
+            }
             else
             {
-                container.Register(type, Reuse.Transient, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
+                // Concrete classes without interfaces must also be registered as Singleton to prevent duplicate stateful instances
+                container.Register(type, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
             }
         }
     }
