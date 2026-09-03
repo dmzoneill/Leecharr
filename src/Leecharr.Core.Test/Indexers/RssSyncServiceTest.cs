@@ -191,6 +191,33 @@ public class RssSyncServiceTest
     }
 
     [Test]
+    public void MatchesRule_WhenCategoryIdConfigured_ExactMatchesTokensOnly()
+    {
+        var rule = new RssRule
+        {
+            Name = "Category 100 Only",
+            IsEnabled = true,
+            CategoryId = 100,
+            MinSeeders = 0,
+        };
+
+        // Substrings containing 100 like 1000 or 2100 should NOT match
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T1", Category = "1000" }, rule).Should().BeFalse();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T2", Category = "2100" }, rule).Should().BeFalse();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T3", Category = "1000, 2100" }, rule).Should().BeFalse();
+
+        // Delimited tokens containing exact 100 SHOULD match
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T4", Category = "100" }, rule).Should().BeTrue();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T5", Category = "1000, 100, 2000" }, rule).Should().BeTrue();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T6", Category = "1000;100;2000" }, rule).Should().BeTrue();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T7", Category = "1000 100 2000" }, rule).Should().BeTrue();
+
+        // Empty or null category should NOT match
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T8", Category = string.Empty }, rule).Should().BeFalse();
+        this.service.MatchesRule(new TorznabSearchResult { Title = "T9", Category = null }, rule).Should().BeFalse();
+    }
+
+    [Test]
     public void MatchesRule_WhenRuleDisabledOrNull_ReturnsFalse()
     {
         var release = new TorznabSearchResult { Title = "Test" };
