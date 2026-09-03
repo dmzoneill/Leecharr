@@ -177,6 +177,101 @@ public class SecurityMiddlewareTest
     }
 
     [Test]
+    public async Task CsrfProtectionMiddleware_BlocksCrossPortOrigin()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Request.Headers["Origin"] = "http://localhost:3000";
+        context.Response.Body = new MemoryStream();
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeFalse();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_BlocksMissingOriginAndRefererWhenNoAuthHeader()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Response.Body = new MemoryStream();
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeFalse();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_AllowsMissingOriginAndRefererWhenExplicitApiKeyHeaderPresent()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Request.Headers["X-Api-Key"] = "secret-api-key";
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_AllowsMatchingOriginAndPort()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Request.Headers["Origin"] = "http://localhost:7889";
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Test]
     public async Task SecurityHeadersMiddleware_EmitsStandardSecurityHeadersOnHttp()
     {
         var context = new DefaultHttpContext();
