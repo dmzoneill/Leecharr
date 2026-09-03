@@ -11,6 +11,7 @@ using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Messaging.Events;
@@ -52,6 +53,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     private readonly IEventAggregator eventAggregator;
     private readonly IMediaMetadataService mediaMetadataService;
     private readonly IArrConnectionRepository arrRepository;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
     private readonly Logger logger;
 
@@ -63,6 +65,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         IEventAggregator eventAggregator,
         IMediaMetadataService mediaMetadataService = null,
         IArrConnectionRepository arrRepository = null,
+        ISafeHttpClientService safeHttpClientService = null,
         HttpClient httpClient = null)
     {
         this.repository = repository;
@@ -72,6 +75,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         this.eventAggregator = eventAggregator;
         this.mediaMetadataService = mediaMetadataService;
         this.arrRepository = arrRepository;
+        this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         this.logger = LogManager.GetCurrentClassLogger();
     }
@@ -299,25 +303,38 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             }
 
             // Remote URL
-            var extRemote = ".jpg";
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
             {
-                var uriExt = Path.GetExtension(uri.AbsolutePath);
-                if (!string.IsNullOrEmpty(uriExt) && uriExt.Length <= 5)
-                {
-                    extRemote = uriExt;
-                }
+                this.logger.Warn("Refusing to cache artwork from non-HTTP/HTTPS URL: {0}", url);
+                return null;
+            }
+
+            var extRemote = ".jpg";
+            var uriExt = Path.GetExtension(uri.AbsolutePath);
+            if (!string.IsNullOrEmpty(uriExt) && uriExt.Length <= 5)
+            {
+                extRemote = uriExt;
             }
 
             var destFile = Path.Combine(cacheDir, $"{type}{extRemote}");
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            this.ApplyServarrAuthHeaders(request, url);
+            Dictionary<string, string> customHeaders = null;
+            var apiKey = this.GetServarrApiKey(url);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                customHeaders = new Dictionary<string, string> { { "X-Api-Key", apiKey } };
+            }
 
-            using var response = await this.httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
+            var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024, customHeaders: customHeaders);
 
-            var bytes = await response.Content.ReadAsByteArrayAsync();
+            if (!IsValidImage(bytes))
+            {
+                this.logger.Warn("Downloaded artwork from {0} has invalid image magic bytes (not JPEG/PNG/WebP/GIF). Discarding.", url);
+                return null;
+            }
+
             await File.WriteAllBytesAsync(destFile, bytes);
 
             this.logger.Debug("Cached {0} artwork to {1}", type, destFile);
@@ -330,17 +347,52 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         }
     }
 
-    internal void ApplyServarrAuthHeaders(HttpRequestMessage request, string url)
+    internal static bool IsValidImage(byte[] bytes)
     {
-        if (request == null || string.IsNullOrWhiteSpace(url))
+        if (bytes == null || bytes.Length < 12)
         {
-            return;
+            return false;
+        }
+
+        // JPEG: FF D8 FF
+        if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            return true;
+        }
+
+        // PNG: 89 50 4E 47
+        if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+        {
+            return true;
+        }
+
+        // WebP: RIFF ???? WEBP
+        if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+            bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50)
+        {
+            return true;
+        }
+
+        // GIF: GIF87a or GIF89a
+        if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 &&
+            (bytes[4] == 0x37 || bytes[4] == 0x39) && bytes[5] == 0x61)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    internal string GetServarrApiKey(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
         }
 
         if (url.Contains("/api/v3/mediacover/", StringComparison.OrdinalIgnoreCase) ||
             url.Contains("/mediacover/", StringComparison.OrdinalIgnoreCase))
         {
-            string apiKey = null;
             if (this.arrRepository != null)
             {
                 var connections = this.arrRepository.All()?.ToList();
@@ -351,14 +403,25 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                         url.StartsWith(c.Url.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                         !string.IsNullOrWhiteSpace(c.ApiKey));
 
-                    apiKey = matched?.ApiKey ?? connections.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.ApiKey))?.ApiKey;
+                    return matched?.ApiKey ?? connections.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.ApiKey))?.ApiKey;
                 }
             }
+        }
 
-            if (!string.IsNullOrWhiteSpace(apiKey))
-            {
-                request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
-            }
+        return null;
+    }
+
+    internal void ApplyServarrAuthHeaders(HttpRequestMessage request, string url)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        var apiKey = this.GetServarrApiKey(url);
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
         }
     }
 
