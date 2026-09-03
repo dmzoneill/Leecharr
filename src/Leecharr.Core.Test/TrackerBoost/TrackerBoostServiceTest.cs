@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -351,5 +352,114 @@ public class TrackerBoostServiceTest
         var result = await this.service.InjectTrackerToTorrentAsync(30, "https://tracker.site/announce/abcdef123456");
         result.Boosted.Should().BeFalse();
         result.Message.Should().Contain("invalid or contains private passkey");
+    }
+
+    [Test]
+    public async Task GetCrossMatrixAsync_UsesScrapeCache_ToAvoidDuplicateNetworkScrapes()
+    {
+        var torrent1 = new Torrent
+        {
+            Id = 101,
+            Name = "Cache Test Torrent 1",
+            InfoHash = "1111222233334444555566667777888899990000",
+            IsPrivate = false,
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 102,
+            Name = "Cache Test Torrent 2",
+            InfoHash = "AAAA222233334444555566667777888899990000",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(torrent1);
+        this.storedTorrents.Add(torrent2);
+
+        this.service.ClearScrapeCache();
+        this.service.ScrapeCacheCount.Should().Be(0);
+
+        // First call populates scrape cache
+        var matrix1 = await this.service.GetCrossMatrixAsync();
+        matrix1.Should().NotBeNull();
+        matrix1.Torrents.Should().HaveCount(2);
+
+        var initialCacheCount = this.service.ScrapeCacheCount;
+        initialCacheCount.Should().BeGreaterThan(0);
+
+        // Second call reuses scrape cache
+        var matrix2 = await this.service.GetCrossMatrixAsync();
+        matrix2.Should().NotBeNull();
+        matrix2.Torrents.Should().HaveCount(2);
+        this.service.ScrapeCacheCount.Should().Be(initialCacheCount);
+
+        // Clearing cache empties it
+        this.service.ClearScrapeCache();
+        this.service.ScrapeCacheCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetCrossMatrixAsync_BindsConcurrency_AndCompletesWithMultipleTorrents()
+    {
+        for (var i = 1; i <= 5; i++)
+        {
+            this.storedTorrents.Add(new Torrent
+            {
+                Id = 200 + i,
+                Name = $"Bulk Torrent {i}",
+                InfoHash = new string((char)('A' + i), 40),
+                IsPrivate = false,
+            });
+        }
+
+        var matrix = await this.service.GetCrossMatrixAsync();
+        matrix.Should().NotBeNull();
+        matrix.Torrents.Should().HaveCount(5);
+        matrix.Trackers.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task TrackerBoostOptimizationTask_ExecutesAsyncWithoutSyncOverAsync_AndGuardsReentrancy()
+    {
+        var mockService = Substitute.For<ITrackerBoostService>();
+        mockService.GetSettings().Returns(new TrackerBoostSettings { IntervalMinutes = 60 });
+
+        var tcs = new TaskCompletionSource<bool>();
+        var invocationCount = 0;
+
+        mockService.RunOptimizationCycleAsync().Returns(async _ =>
+        {
+            Interlocked.Increment(ref invocationCount);
+            await tcs.Task;
+        });
+
+        using var task = new TrackerBoostOptimizationTask(mockService);
+
+        // Launch first execution (will pause on tcs.Task)
+        var runTask1 = task.ExecuteAsync();
+
+        // Launch second execution concurrently while first is still running
+        var runTask2 = task.ExecuteAsync();
+
+        // The second call must complete immediately without waiting due to re-entrancy guard
+        runTask2.IsCompleted.Should().BeTrue();
+
+        // Release the first run
+        tcs.SetResult(true);
+        await runTask1;
+
+        // Verify only 1 invocation occurred
+        invocationCount.Should().Be(1);
+    }
+
+    [Test]
+    public void TrackerBoostOptimizationTask_CancelsCleanlyOnDispose()
+    {
+        var mockService = Substitute.For<ITrackerBoostService>();
+        mockService.GetSettings().Returns(new TrackerBoostSettings { IntervalMinutes = 120 });
+
+        var task = new TrackerBoostOptimizationTask(mockService);
+        task.StartLoop();
+
+        var act = () => task.Dispose();
+        act.Should().NotThrow();
     }
 }

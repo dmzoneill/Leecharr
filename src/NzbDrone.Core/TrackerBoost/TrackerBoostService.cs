@@ -33,6 +33,7 @@ public class TrackerBoostService : ITrackerBoostService
     private static readonly BencodeParser BParser = new();
     private static readonly ConcurrentDictionary<string, (DateTime BoostedAt, HashSet<string> InjectedTrackers)> BoostHistory = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentQueue<TrackerBoostLogEntry> LogBuffer = new();
+    private static readonly TimeSpan ScrapeCacheTtl = TimeSpan.FromSeconds(60);
 
     private static readonly string[] DefaultBootstrapTrackers = new[]
     {
@@ -66,6 +67,8 @@ public class TrackerBoostService : ITrackerBoostService
     private readonly IConfigService configService;
     private readonly IDownloadEngine downloadEngine;
     private readonly IDownloadClientRepository downloadClientRepository;
+    private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
+    private readonly ConcurrentDictionary<string, (bool Success, int Seeders, int Leechers, int Downloaded, DateTime CachedUtc)> scrapeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
 
     public TrackerBoostService(
@@ -957,43 +960,63 @@ public class TrackerBoostService : ITrackerBoostService
         return results;
     }
 
+    public void ClearScrapeCache()
+    {
+        this.scrapeCache.Clear();
+    }
+
+    public int ScrapeCacheCount => this.scrapeCache.Count;
+
     public async Task<TrackerCrossMatrixResult> GetCrossMatrixAsync()
     {
         var torrents = this.torrentService.GetAll().ToList();
         var allTrackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
 
-        var torrentMatrix = new List<TorrentMatrixItem>();
-        var trackerTorrentsMap = new Dictionary<int, List<string>>();
+        var torrentMatrix = new ConcurrentBag<TorrentMatrixItem>();
+        var trackerTorrentsMap = new ConcurrentDictionary<int, ConcurrentBag<string>>();
         foreach (var tr in allTrackers)
         {
-            trackerTorrentsMap[tr.Id] = new List<string>();
+            trackerTorrentsMap[tr.Id] = new ConcurrentBag<string>();
         }
 
-        foreach (var t in torrents)
+        using var matrixSemaphore = new SemaphoreSlim(10);
+        var tasks = torrents.Select(async t =>
         {
-            var inspection = await this.InspectTorrentTrackersAsync(t.Id);
-            var item = new TorrentMatrixItem
+            await matrixSemaphore.WaitAsync().ConfigureAwait(false);
+            try
             {
-                TorrentId = t.Id,
-                TorrentName = t.Name,
-                InfoHash = t.InfoHash,
-                IsPrivate = t.IsPrivate,
-                IsBoosted = inspection.IsBoosted,
-                AttachedTrackersCount = inspection.AttachedTrackersCount,
-                VerifiedTrackersCount = inspection.VerifiedTrackersCount,
-                Trackers = inspection.Detections.Where(d => d.IsAttached || d.IsVerified).ToList(),
-            };
-
-            foreach (var d in item.Trackers)
-            {
-                if (trackerTorrentsMap.TryGetValue(d.TrackerId, out var list))
+                var inspection = await this.InspectTorrentTrackersAsync(t.Id).ConfigureAwait(false);
+                var item = new TorrentMatrixItem
                 {
-                    list.Add(t.Name);
-                }
-            }
+                    TorrentId = t.Id,
+                    TorrentName = t.Name,
+                    InfoHash = t.InfoHash,
+                    IsPrivate = t.IsPrivate,
+                    IsBoosted = inspection.IsBoosted,
+                    AttachedTrackersCount = inspection.AttachedTrackersCount,
+                    VerifiedTrackersCount = inspection.VerifiedTrackersCount,
+                    Trackers = inspection.Detections.Where(d => d.IsAttached || d.IsVerified).ToList(),
+                };
 
-            torrentMatrix.Add(item);
-        }
+                foreach (var d in item.Trackers)
+                {
+                    if (trackerTorrentsMap.TryGetValue(d.TrackerId, out var bag))
+                    {
+                        bag.Add(t.Name);
+                    }
+                }
+
+                torrentMatrix.Add(item);
+            }
+            finally
+            {
+                matrixSemaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        var orderedTorrentMatrix = torrentMatrix.OrderBy(t => t.TorrentId).ToList();
 
         var trackerMatrix = allTrackers.Select(tr => new TrackerMatrixItem
         {
@@ -1003,17 +1026,29 @@ public class TrackerBoostService : ITrackerBoostService
             Protocol = tr.Protocol,
             Status = tr.Status,
             LatencyMs = tr.LatencyMs,
-            RegisteredTorrentsCount = trackerTorrentsMap.TryGetValue(tr.Id, out var l) ? l.Count : 0,
-            RegisteredTorrentNames = trackerTorrentsMap.TryGetValue(tr.Id, out var l2) ? l2 : new List<string>(),
+            RegisteredTorrentsCount = trackerTorrentsMap.TryGetValue(tr.Id, out var b) ? b.Count : 0,
+            RegisteredTorrentNames = trackerTorrentsMap.TryGetValue(tr.Id, out var b2) ? b2.ToList() : new List<string>(),
         }).OrderByDescending(tr => tr.RegisteredTorrentsCount)
             .ThenByDescending(tr => tr.Status == TrackerHealthStatus.Alive)
             .ToList();
 
         return new TrackerCrossMatrixResult
         {
-            Torrents = torrentMatrix,
+            Torrents = orderedTorrentMatrix,
             Trackers = trackerMatrix,
         };
+    }
+
+    private void PruneScrapeCache()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var kvp in this.scrapeCache)
+        {
+            if (now - kvp.Value.CachedUtc > ScrapeCacheTtl)
+            {
+                this.scrapeCache.TryRemove(kvp.Key, out _);
+            }
+        }
     }
 
     public async Task<int> RecoverMissingTrackersAsync()
@@ -1356,7 +1391,10 @@ public class TrackerBoostService : ITrackerBoostService
         };
     }
 
-    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeTrackerForHashAsync(TrackerBoostTracker tracker, string infoHash)
+    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeTrackerForHashAsync(
+        TrackerBoostTracker tracker,
+        string infoHash,
+        CancellationToken cancellationToken = default)
     {
         if (tracker == null || string.IsNullOrWhiteSpace(infoHash))
         {
@@ -1369,37 +1407,80 @@ public class TrackerBoostService : ITrackerBoostService
             return (false, 0, 0, 0);
         }
 
+        var cacheKey = $"{tracker.Id}:{cleanHash.ToUpperInvariant()}";
+        if (this.scrapeCache.TryGetValue(cacheKey, out var cached) &&
+            (DateTime.UtcNow - cached.CachedUtc) < ScrapeCacheTtl)
+        {
+            return (cached.Success, cached.Seeders, cached.Leechers, cached.Downloaded);
+        }
+
+        // Bounded concurrency: max 10 concurrent outgoing scrape requests globally
         try
         {
-            if (tracker.Protocol == TrackerProtocol.Udp)
-            {
-                return await this.ScrapeUdpTrackerAsync(tracker.Host, tracker.Port, cleanHash);
-            }
-            else
-            {
-                return await this.ScrapeHttpTrackerAsync(tracker.Url, cleanHash);
-            }
+            await this.globalScrapeThrottle.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
             return (false, 0, 0, 0);
         }
+
+        try
+        {
+            // Strict timeout per scrape request (3.5 seconds max) to prevent hanging
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(3500));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
+            (bool Success, int Seeders, int Leechers, int Downloaded) result;
+            try
+            {
+                if (tracker.Protocol == TrackerProtocol.Udp)
+                {
+                    result = await this.ScrapeUdpTrackerAsync(tracker.Host, tracker.Port, cleanHash, linkedCts.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await this.ScrapeHttpTrackerAsync(tracker.Url, cleanHash, linkedCts.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                result = (false, 0, 0, 0);
+            }
+            catch
+            {
+                result = (false, 0, 0, 0);
+            }
+
+            this.scrapeCache[cacheKey] = (result.Success, result.Seeders, result.Leechers, result.Downloaded, DateTime.UtcNow);
+
+            if (this.scrapeCache.Count > 10000)
+            {
+                this.PruneScrapeCache();
+            }
+
+            return result;
+        }
+        finally
+        {
+            this.globalScrapeThrottle.Release();
+        }
     }
 
-    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeUdpTrackerAsync(string host, int port, string hexHash)
+    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeUdpTrackerAsync(
+        string host,
+        int port,
+        string hexHash,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(host);
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
             if (addresses.Length == 0)
             {
                 return (false, 0, 0, 0);
             }
 
             using var client = new UdpClient();
-            client.Client.ReceiveTimeout = 2500;
-            client.Client.SendTimeout = 2500;
-
             var endpoint = new IPEndPoint(addresses[0], port);
 
             var connectTxId = Random.Shared.Next();
@@ -1408,15 +1489,9 @@ public class TrackerBoostService : ITrackerBoostService
             BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
             BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), connectTxId);
 
-            await client.SendAsync(connectPacket, connectPacket.Length, endpoint);
+            await client.SendAsync(connectPacket, connectPacket.Length, endpoint).ConfigureAwait(false);
 
-            var connectReceive = client.ReceiveAsync();
-            if (await Task.WhenAny(connectReceive, Task.Delay(2500)) != connectReceive)
-            {
-                return (false, 0, 0, 0);
-            }
-
-            var connectResult = await connectReceive;
+            var connectResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
             if (connectResult.Buffer.Length < 16)
             {
                 return (false, 0, 0, 0);
@@ -1439,15 +1514,9 @@ public class TrackerBoostService : ITrackerBoostService
             BinaryPrimitives.WriteInt32BigEndian(scrapePacket.AsSpan(12, 4), scrapeTxId);
             Array.Copy(hashBytes, 0, scrapePacket, 16, 20);
 
-            await client.SendAsync(scrapePacket, scrapePacket.Length, endpoint);
+            await client.SendAsync(scrapePacket, scrapePacket.Length, endpoint).ConfigureAwait(false);
 
-            var scrapeReceive = client.ReceiveAsync();
-            if (await Task.WhenAny(scrapeReceive, Task.Delay(2500)) != scrapeReceive)
-            {
-                return (false, 0, 0, 0);
-            }
-
-            var scrapeResult = await scrapeReceive;
+            var scrapeResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
             if (scrapeResult.Buffer.Length < 20)
             {
                 return (false, 0, 0, 0);
@@ -1466,13 +1535,20 @@ public class TrackerBoostService : ITrackerBoostService
 
             return (true, Math.Max(0, seeders), Math.Max(0, leechers), Math.Max(0, completed));
         }
+        catch (OperationCanceledException)
+        {
+            return (false, 0, 0, 0);
+        }
         catch
         {
             return (false, 0, 0, 0);
         }
     }
 
-    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeHttpTrackerAsync(string announceUrl, string hexHash)
+    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeHttpTrackerAsync(
+        string announceUrl,
+        string hexHash,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -1488,14 +1564,13 @@ public class TrackerBoostService : ITrackerBoostService
             var separator = scrapeUrl.Contains('?') ? "&" : "?";
             var requestUrl = $"{scrapeUrl}{separator}info_hash={encodedHash}";
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
-            var resp = await HttpClient.GetAsync(requestUrl, cts.Token);
+            var resp = await HttpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 return (false, 0, 0, 0);
             }
 
-            var bytes = await resp.Content.ReadAsByteArrayAsync(cts.Token);
+            var bytes = await resp.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
             if (bytes.Length == 0)
             {
                 return (false, 0, 0, 0);
@@ -1518,6 +1593,10 @@ public class TrackerBoostService : ITrackerBoostService
             }
 
             return (true, 0, 0, 0);
+        }
+        catch (OperationCanceledException)
+        {
+            return (false, 0, 0, 0);
         }
         catch
         {
