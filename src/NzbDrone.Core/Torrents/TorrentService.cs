@@ -159,6 +159,7 @@ public class TorrentService : ITorrentService
         {
             var pieceLength = Math.Max(1, parsed.PieceLength);
             long currentByteOffset = 0;
+            var torrentFiles = new List<TorrentFile>();
             foreach (var file in parsed.Files)
             {
                 var startPiece = (int)(currentByteOffset / pieceLength);
@@ -176,8 +177,13 @@ public class TorrentService : ITorrentService
                     Priority = 1,
                     Progress = 0.0,
                 };
-                this.fileRepository.Insert(torrentFile);
+                torrentFiles.Add(torrentFile);
                 currentByteOffset += file.Size;
+            }
+
+            if (torrentFiles.Count > 0)
+            {
+                this.fileRepository.InsertMany(torrentFiles);
             }
         }
 
@@ -186,13 +192,14 @@ public class TorrentService : ITorrentService
         {
             if (parsed.AnnounceList != null && parsed.AnnounceList.Count > 0)
             {
+                var trackerEntries = new List<TrackerEntry>();
                 for (var tier = 0; tier < parsed.AnnounceList.Count; tier++)
                 {
                     foreach (var url in parsed.AnnounceList[tier])
                     {
                         if (!string.IsNullOrWhiteSpace(url))
                         {
-                            this.trackerEntryRepository.Insert(new TrackerEntry
+                            trackerEntries.Add(new TrackerEntry
                             {
                                 TorrentId = inserted.Id,
                                 Url = url,
@@ -207,6 +214,11 @@ public class TorrentService : ITorrentService
                             });
                         }
                     }
+                }
+
+                if (trackerEntries.Count > 0)
+                {
+                    this.trackerEntryRepository.InsertMany(trackerEntries);
                 }
             }
             else if (!string.IsNullOrWhiteSpace(parsed.AnnounceUrl))

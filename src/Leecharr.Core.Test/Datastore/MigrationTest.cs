@@ -68,4 +68,42 @@ public class MigrationTest
         var count = Convert.ToInt32(command.ExecuteScalar());
         count.Should().Be(9);
     }
+
+    [Test]
+    public void Migration018_CreatesForeignKeyAndPerformanceIndexes()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT count(*) FROM sqlite_master 
+            WHERE type='index' AND name IN (
+                'IX_TorrentFiles_TorrentId',
+                'IX_TrackerEntries_TorrentId',
+                'IX_Torrents_Category',
+                'IX_Torrents_Status',
+                'IX_UserSessions_UserId_Expiry'
+            );";
+
+        var count = Convert.ToInt32(command.ExecuteScalar());
+        count.Should().Be(5);
+    }
 }

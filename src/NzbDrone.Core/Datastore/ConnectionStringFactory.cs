@@ -46,7 +46,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
     private string BuildSqliteConnectionString(string dataFolder)
     {
         var dbPath = Path.Combine(dataFolder, "leecharr.db");
-        return $"Data Source={dbPath};Cache=Shared";
+        return $"Data Source={dbPath};";
     }
 
     private string BuildPostgresConnectionString()
