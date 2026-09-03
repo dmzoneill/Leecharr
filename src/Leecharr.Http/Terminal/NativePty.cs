@@ -39,10 +39,10 @@ public static class NativePty
         IntPtr argv);
 
     [DllImport("libc", EntryPoint = "read", SetLastError = true)]
-    public static extern nint Read(int fd, IntPtr buf, nuint count);
+    public static extern nint Read(int fd, [Out] byte[] buf, nuint count);
 
     [DllImport("libc", EntryPoint = "write", SetLastError = true)]
-    public static extern nint Write(int fd, IntPtr buf, nuint count);
+    public static extern nint Write(int fd, [In] byte[] buf, nuint count);
 
     [DllImport("libc", EntryPoint = "close", SetLastError = true)]
     public static extern int Close(int fd);
