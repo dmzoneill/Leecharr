@@ -1,8 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
@@ -433,5 +436,250 @@ public class EmbeddedTrackerServiceTest
         // Valid hash works
         this.trackerService.RegisterSwarm("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
         this.trackerService.ActiveSwarmsCount.Should().Be(1);
+    }
+
+    [Test]
+    public void ProcessAnnounce_CompactMode_WithIPv6Peers_SerializesPeers6KeyUnderBep7()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xAA;
+
+        // Peer 1: IPv6
+        var ipv6Address = IPAddress.Parse("2001:db8::1");
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = ipv6Address,
+            Port = 6881,
+            Left = 0,
+            Compact = true,
+        });
+
+        // Peer 2: IPv4
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.100"),
+            Port = 6882,
+            Left = 100,
+            Compact = true,
+        });
+
+        // Peer 3 announces and requests compact peers
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 5000,
+            Left = 100,
+            Compact = true,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        dict.ContainsKey("peers6").Should().BeTrue();
+
+        // IPv4 peer packed into peers (6 bytes)
+        var peers4 = ((BEncodedString)dict["peers"]).Span;
+        peers4.Length.Should().Be(6);
+        peers4[0].Should().Be(192);
+        peers4[1].Should().Be(168);
+        peers4[2].Should().Be(1);
+        peers4[3].Should().Be(100);
+        BinaryPrimitives.ReadUInt16BigEndian(peers4.Slice(4, 2)).Should().Be(6882);
+
+        // IPv6 peer packed into peers6 (18 bytes) per BEP 7
+        var peers6 = ((BEncodedString)dict["peers6"]).Span;
+        peers6.Length.Should().Be(18);
+        peers6.Slice(0, 16).ToArray().Should().Equal(ipv6Address.GetAddressBytes());
+        BinaryPrimitives.ReadUInt16BigEndian(peers6.Slice(16, 2)).Should().Be(6881);
+    }
+
+    [Test]
+    public void ProcessAnnounce_CompactMode_WithIPv4MappedIPv6Address_MapsToIPv4AndPacksIntoPeers()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xBB;
+
+        // Peer with IPv4-mapped IPv6 address (e.g. ::ffff:192.0.2.1)
+        var mappedIp = IPAddress.Parse("::ffff:192.0.2.1");
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = mappedIp,
+            Port = 6881,
+            Left = 0,
+            Compact = true,
+        });
+
+        // Announce from another peer
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 5000,
+            Left = 100,
+            Compact = true,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        dict.ContainsKey("peers6").Should().BeFalse();
+
+        var peers4 = ((BEncodedString)dict["peers"]).Span;
+        peers4.Length.Should().Be(6);
+        peers4[0].Should().Be(192);
+        peers4[1].Should().Be(0);
+        peers4[2].Should().Be(2);
+        peers4[3].Should().Be(1);
+        BinaryPrimitives.ReadUInt16BigEndian(peers4.Slice(4, 2)).Should().Be(6881);
+    }
+
+    [Test]
+    public void ProcessAnnounce_NonCompactMode_ReturnsBothIPv4AndIPv6InPeersList()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xCC;
+
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.1"),
+            Port = 6881,
+            Left = 0,
+            PeerIdBytes = Encoding.ASCII.GetBytes("-TR3000-012345678901"),
+            Compact = false,
+        });
+
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("2001:db8::1"),
+            Port = 6882,
+            Left = 50,
+            PeerIdBytes = Encoding.ASCII.GetBytes("-TR3000-012345678902"),
+            Compact = false,
+        });
+
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 5000,
+            Left = 100,
+            Compact = false,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        var list = (BEncodedList)dict["peers"];
+        list.Count.Should().Be(2);
+
+        var ips = list.Cast<BEncodedDictionary>().Select(d => ((BEncodedString)d["ip"]).Text).ToList();
+        ips.Should().Contain("192.168.1.1");
+        ips.Should().Contain("2001:db8::1");
+    }
+
+    [Test]
+    public void ProcessAnnounce_CandidatePeers_AreShuffledRandomly()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xDD;
+
+        // Register 20 peers with distinct ports
+        for (var i = 1; i <= 20; i++)
+        {
+            this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse($"10.0.0.{i}"),
+                Port = 6000 + i,
+                Left = 100,
+                Compact = false,
+            });
+        }
+
+        // Query multiple times requesting 10 peers each time
+        var orderSignatures = new HashSet<string>();
+        for (var trial = 0; trial < 10; trial++)
+        {
+            var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse("172.16.0.1"),
+                Port = 9999,
+                NumWant = 10,
+                Compact = false,
+            });
+
+            var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+            var list = (BEncodedList)dict["peers"];
+            list.Count.Should().Be(10);
+
+            var ports = string.Join(",", list.Cast<BEncodedDictionary>().Select(d => ((BEncodedNumber)d["port"]).Number));
+            orderSignatures.Add(ports);
+        }
+
+        // Over 10 random trials of 20 peers, we should see multiple distinct orderings (not static dictionary order)
+        orderSignatures.Count.Should().BeGreaterThan(1);
+    }
+
+    [Test]
+    public void ProcessScrape_BinaryInfoHash_AndHexInfoHash_ReturnsProperlyEncodedScrapeMetrics()
+    {
+        var infoHash = new byte[20];
+        for (var i = 0; i < 20; i++)
+        {
+            infoHash[i] = (byte)(i + 1);
+        }
+
+        // Add 2 seeders and 1 leecher
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 0,
+        });
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            Left = 0,
+        });
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.3"),
+            Port = 6883,
+            Left = 500,
+        });
+
+        // 1. Scrape using binary info_hash (20 bytes)
+        var binaryScrapeResp = this.trackerService.ProcessScrape(new List<byte[]> { infoHash });
+        var binaryDict = (BEncodedDictionary)BEncodedValue.Decode(binaryScrapeResp);
+        binaryDict.ContainsKey("files").Should().BeTrue();
+        var files = (BEncodedDictionary)binaryDict["files"];
+        files.ContainsKey(new BEncodedString(infoHash)).Should().BeTrue();
+
+        var metrics = (BEncodedDictionary)files[new BEncodedString(infoHash)];
+        ((BEncodedNumber)metrics["complete"]).Number.Should().Be(2);
+        ((BEncodedNumber)metrics["incomplete"]).Number.Should().Be(1);
+        ((BEncodedNumber)metrics["downloaded"]).Number.Should().Be(0);
+
+        // 2. Scrape using 40-char ASCII hex representation of info_hash
+        var hexStr = Convert.ToHexString(infoHash);
+        var hexBytes = Encoding.ASCII.GetBytes(hexStr);
+        var hexScrapeResp = this.trackerService.ProcessScrape(new List<byte[]> { hexBytes });
+        var hexDict = (BEncodedDictionary)BEncodedValue.Decode(hexScrapeResp);
+        var hexFiles = (BEncodedDictionary)hexDict["files"];
+        hexFiles.ContainsKey(new BEncodedString(infoHash)).Should().BeTrue();
+
+        // 3. Scrape all swarms (null list)
+        var scrapeAllResp = this.trackerService.ProcessScrape(null);
+        var allDict = (BEncodedDictionary)BEncodedValue.Decode(scrapeAllResp);
+        var allFiles = (BEncodedDictionary)allDict["files"];
+        allFiles.ContainsKey(new BEncodedString(infoHash)).Should().BeTrue();
     }
 }

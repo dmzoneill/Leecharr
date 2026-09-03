@@ -231,10 +231,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         var seeders = swarm.Peers.Values.Count(p => p.IsSeeder);
         var leechers = swarm.Peers.Values.Count(p => !p.IsSeeder);
 
-        var candidatePeers = swarm.Peers.Values
+        var eligiblePeers = swarm.Peers.Values
             .Where(p => !Equals(p.Ip, request.RemoteIp) || p.Port != request.Port)
-            .Take(request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50))
-            .ToList();
+            .ToArray();
+
+        Random.Shared.Shuffle(eligiblePeers);
+
+        var numWant = request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50);
+        var candidatePeers = eligiblePeers.Take(numWant).ToList();
 
         return this.BuildAnnounceResponse(seeders, leechers, candidatePeers, request);
     }
@@ -252,15 +256,32 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         {
             foreach (var rawHash in infoHashList)
             {
-                if (rawHash == null || rawHash.Length != 20 || IsAllZeros(rawHash))
+                if (rawHash == null || IsAllZeros(rawHash))
                 {
                     continue;
                 }
 
-                var hex = ConvertBytesToHex(rawHash);
-                if (this.swarms.TryGetValue(hex, out var swarm))
+                string hexKey = null;
+                byte[] binaryHash = null;
+
+                if (rawHash.Length == 20)
                 {
-                    filesDict[new BEncodedString(rawHash)] = new BEncodedDictionary
+                    hexKey = ConvertBytesToHex(rawHash);
+                    binaryHash = rawHash;
+                }
+                else if (rawHash.Length == 40)
+                {
+                    var hexStr = System.Text.Encoding.ASCII.GetString(rawHash);
+                    if (IsValidHex(hexStr))
+                    {
+                        hexKey = hexStr.ToUpperInvariant();
+                        binaryHash = ConvertHexToBytes(hexStr);
+                    }
+                }
+
+                if (hexKey != null && binaryHash != null && this.swarms.TryGetValue(hexKey, out var swarm))
+                {
+                    filesDict[new BEncodedString(binaryHash)] = new BEncodedDictionary
                     {
                         { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
                         { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
@@ -271,9 +292,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         }
         else
         {
-            foreach (var swarm in this.swarms.Values)
+            foreach (var kvp in this.swarms)
             {
-                var hashBytes = swarm.InfoHash ?? ConvertHexToBytes(ConvertBytesToHex(swarm.InfoHash));
+                var hexKey = kvp.Key;
+                var swarm = kvp.Value;
+                var hashBytes = (swarm.InfoHash != null && swarm.InfoHash.Length == 20)
+                    ? swarm.InfoHash
+                    : ConvertHexToBytes(hexKey);
+
                 filesDict[new BEncodedString(hashBytes)] = new BEncodedDictionary
                 {
                     { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
@@ -427,29 +453,65 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
         if (request.Compact)
         {
-            using var ms = new MemoryStream();
+            using var ms4 = new MemoryStream();
+            using var ms6 = new MemoryStream();
             Span<byte> portBytes = stackalloc byte[2];
+
             foreach (var p in candidatePeers)
             {
-                if (p.Ip.AddressFamily == AddressFamily.InterNetwork)
+                if (p.Ip == null)
                 {
-                    var ipBytes = p.Ip.GetAddressBytes();
-                    BinaryPrimitives.WriteUInt16BigEndian(portBytes, (ushort)p.Port);
-                    ms.Write(ipBytes);
-                    ms.Write(portBytes);
+                    continue;
+                }
+
+                var ip = p.Ip;
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                }
+
+                BinaryPrimitives.WriteUInt16BigEndian(portBytes, (ushort)p.Port);
+
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    var ipBytes = ip.GetAddressBytes();
+                    ms4.Write(ipBytes);
+                    ms4.Write(portBytes);
+                }
+                else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    var ipBytes = ip.GetAddressBytes();
+                    ms6.Write(ipBytes);
+                    ms6.Write(portBytes);
                 }
             }
 
-            dict["peers"] = new BEncodedString(ms.ToArray());
+            dict["peers"] = new BEncodedString(ms4.ToArray());
+
+            if (ms6.Length > 0)
+            {
+                dict["peers6"] = new BEncodedString(ms6.ToArray());
+            }
         }
         else
         {
             var peerList = new BEncodedList();
             foreach (var p in candidatePeers)
             {
+                if (p.Ip == null)
+                {
+                    continue;
+                }
+
+                var ip = p.Ip;
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                }
+
                 var pDict = new BEncodedDictionary
                 {
-                    { "ip", new BEncodedString(p.Ip.ToString()) },
+                    { "ip", new BEncodedString(ip.ToString()) },
                     { "port", new BEncodedNumber(p.Port) },
                 };
                 if (p.PeerId != null && p.PeerId.Length > 0)
