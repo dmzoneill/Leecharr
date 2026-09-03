@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./context/ToastContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./App.css";
 
@@ -28,10 +29,12 @@ root.render(
       <BrowserRouter>
         <ThemeProvider>
           <ToastProvider>
-            <App />
+            <ErrorBoundary title="Application Error">
+              <App />
+            </ErrorBoundary>
           </ToastProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

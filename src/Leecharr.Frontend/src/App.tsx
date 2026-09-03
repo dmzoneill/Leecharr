@@ -45,6 +45,7 @@ import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
 import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from "./components/GettingStartedModal";
 import { SETTINGS_GROUPS, LEGACY_SETTINGS_MAP } from "./pages/settings/settingsNavData";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./App.css";
 
 const systemSubItems = [
@@ -357,12 +358,14 @@ export function App() {
 
   if (pathname === "/login") {
     return (
-      <LoginPage
-        onLoginSuccess={() => {
-          loadUser();
-          navigate("/");
-        }}
-      />
+      <ErrorBoundary title="Login Error">
+        <LoginPage
+          onLoginSuccess={() => {
+            loadUser();
+            navigate("/");
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -808,99 +811,229 @@ export function App() {
 
         {/* Declarative React Router Viewport */}
         <main className="app-main">
-          <Routes>
-            {/* Dashboard */}
-            <Route
-              path="/"
-              element={
-                <div className="content-area">
-                  <Dashboard
-                    torrents={torrents}
-                    onNavigateTorrents={() => navigate("/torrents")}
-                    onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
-                  />
-                </div>
-              }
-            />
-            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <ErrorBoundary title="View Error">
+            <Routes>
+              {/* Dashboard */}
+              <Route
+                path="/"
+                element={
+                  <ErrorBoundary title="Dashboard Error">
+                    <div className="content-area">
+                      <Dashboard
+                        torrents={torrents}
+                        onNavigateTorrents={() => navigate("/torrents")}
+                        onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
+                      />
+                    </div>
+                  </ErrorBoundary>
+                }
+              />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
-            {/* Torrents (Primary Client) */}
-            <Route
-              path="/torrents"
-              element={
-                <TorrentIndex
-                  torrents={torrents}
-                  onPause={handlePause}
-                  onResume={handleResume}
-                  onDelete={handleDelete}
-                  onOpenAddModal={() => setShowAddModal(true)}
-                  onOpenSearchModal={() => setShowSearchModal(true)}
-                  onNavigateTab={(nav, subNav) => {
-                    if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
-                    else if (nav === "system") navigate(`/system/${subNav || "status"}`);
-                    else if (subNav) navigate(`/${nav}/${subNav}`);
-                    else navigate(`/${nav}`);
-                  }}
-                />
-              }
-            />
-            <Route
-              path="/torrents/add"
-              element={
-                <AddTorrentPage
-                  onSuccess={() => {
-                    navigate("/torrents");
-                    loadData();
-                  }}
-                />
-              }
-            />
+              {/* Torrents (Primary Client) */}
+              <Route
+                path="/torrents"
+                element={
+                  <ErrorBoundary title="Torrents Error">
+                    <TorrentIndex
+                      torrents={torrents}
+                      onPause={handlePause}
+                      onResume={handleResume}
+                      onDelete={handleDelete}
+                      onOpenAddModal={() => setShowAddModal(true)}
+                      onOpenSearchModal={() => setShowSearchModal(true)}
+                      onNavigateTab={(nav, subNav) => {
+                        if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
+                        else if (nav === "system") navigate(`/system/${subNav || "status"}`);
+                        else if (subNav) navigate(`/${nav}/${subNav}`);
+                        else navigate(`/${nav}`);
+                      }}
+                    />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/torrents/add"
+                element={
+                  <ErrorBoundary title="Add Torrent Error">
+                    <AddTorrentPage
+                      onSuccess={() => {
+                        navigate("/torrents");
+                        loadData();
+                      }}
+                    />
+                  </ErrorBoundary>
+                }
+              />
 
-            {/* Activity Hub */}
-            <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
-            <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
-            <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
-            <Route path="/activity/history" element={<DownloadHistory />} />
-            <Route path="/history" element={<Navigate to="/activity/history" replace />} />
-            <Route path="/activity/metrics" element={<Activity />} />
+              {/* Activity Hub */}
+              <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
+              <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
+              <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
+              <Route
+                path="/activity/history"
+                element={
+                  <ErrorBoundary title="Download History Error">
+                    <DownloadHistory />
+                  </ErrorBoundary>
+                }
+              />
+              <Route path="/history" element={<Navigate to="/activity/history" replace />} />
+              <Route
+                path="/activity/metrics"
+                element={
+                  <ErrorBoundary title="Activity Metrics Error">
+                    <Activity />
+                  </ErrorBoundary>
+                }
+              />
 
-            {/* Indexers */}
-            <Route path="/indexers" element={<Indexers />} />
-            <Route path="/search" element={<Navigate to="/indexers" replace />} />
+              {/* Indexers */}
+              <Route
+                path="/indexers"
+                element={
+                  <ErrorBoundary title="Indexers Error">
+                    <Indexers />
+                  </ErrorBoundary>
+                }
+              />
+              <Route path="/search" element={<Navigate to="/indexers" replace />} />
 
-            {/* Operational Visualizations */}
-            <Route path="/peermap" element={<PeerMap />} />
-            <Route path="/schedule" element={<SpeedSchedule />} />
-            <Route path="/statistics" element={<Statistics />} />
+              {/* Operational Visualizations */}
+              <Route
+                path="/peermap"
+                element={
+                  <ErrorBoundary title="Peer Map Error">
+                    <PeerMap />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <ErrorBoundary title="Speed Schedule Error">
+                    <SpeedSchedule />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/statistics"
+                element={
+                  <ErrorBoundary title="Statistics Error">
+                    <Statistics />
+                  </ErrorBoundary>
+                }
+              />
 
-            {/* Tracker Boost */}
-            <Route path="/trackerboost" element={<TrackerBoost />} />
-            <Route path="/boost" element={<Navigate to="/trackerboost" replace />} />
-            <Route path="/downloadplusplus" element={<Navigate to="/trackerboost" replace />} />
+              {/* Tracker Boost */}
+              <Route
+                path="/trackerboost"
+                element={
+                  <ErrorBoundary title="Tracker Boost Error">
+                    <TrackerBoost />
+                  </ErrorBoundary>
+                }
+              />
+              <Route path="/boost" element={<Navigate to="/trackerboost" replace />} />
+              <Route path="/downloadplusplus" element={<Navigate to="/trackerboost" replace />} />
 
-            {/* Settings */}
-            <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
-            <Route path="/settings/:section" element={<Settings />} />
+              {/* Settings */}
+              <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
+              <Route
+                path="/settings/:section"
+                element={
+                  <ErrorBoundary title="Settings Error">
+                    <Settings />
+                  </ErrorBoundary>
+                }
+              />
 
-            {/* System Diagnostics & Maintenance */}
-            <Route path="/system" element={<Navigate to="/system/status" replace />} />
-            <Route path="/system/status" element={<SystemStatus />} />
-            <Route path="/system/resources" element={<SystemResources />} />
-            <Route path="/system/telemetry" element={<Navigate to="/system/resources" replace />} />
-            <Route path="/system/tasks" element={<SystemTasks />} />
-            <Route path="/system/backup" element={<SystemBackup />} />
-            <Route path="/system/updates" element={<SystemUpdates />} />
-            <Route path="/system/events" element={<SystemEvents />} />
-            <Route path="/system/logs" element={<SystemLogs />} />
-            <Route path="/system/network" element={<SystemNetwork />} />
-            <Route path="/system/api" element={<ApiDocsPage />} />
-            <Route path="/system/api-docs" element={<Navigate to="/system/api" replace />} />
-            <Route path="/system/swagger" element={<Navigate to="/system/api" replace />} />
-            <Route path="/api-docs" element={<Navigate to="/system/api" replace />} />
+              {/* System Diagnostics & Maintenance */}
+              <Route path="/system" element={<Navigate to="/system/status" replace />} />
+              <Route
+                path="/system/status"
+                element={
+                  <ErrorBoundary title="System Status Error">
+                    <SystemStatus />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/resources"
+                element={
+                  <ErrorBoundary title="System Resources Error">
+                    <SystemResources />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/telemetry"
+                element={<Navigate to="/system/resources" replace />}
+              />
+              <Route
+                path="/system/tasks"
+                element={
+                  <ErrorBoundary title="System Tasks Error">
+                    <SystemTasks />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/backup"
+                element={
+                  <ErrorBoundary title="System Backup Error">
+                    <SystemBackup />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/updates"
+                element={
+                  <ErrorBoundary title="System Updates Error">
+                    <SystemUpdates />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/events"
+                element={
+                  <ErrorBoundary title="System Events Error">
+                    <SystemEvents />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/logs"
+                element={
+                  <ErrorBoundary title="System Logs Error">
+                    <SystemLogs />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/network"
+                element={
+                  <ErrorBoundary title="System Network Error">
+                    <SystemNetwork />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/api"
+                element={
+                  <ErrorBoundary title="API Reference Error">
+                    <ApiDocsPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route path="/system/api-docs" element={<Navigate to="/system/api" replace />} />
+              <Route path="/system/swagger" element={<Navigate to="/system/api" replace />} />
+              <Route path="/api-docs" element={<Navigate to="/system/api" replace />} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ErrorBoundary>
         </main>
 
         {/* Bottom Status Bar */}
@@ -909,32 +1042,40 @@ export function App() {
 
       {/* Add Torrent Modal */}
       {showAddModal && (
-        <AddTorrentModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            setShowAddModal(false);
-            loadData();
-          }}
-        />
+        <ErrorBoundary title="Add Torrent Modal Error">
+          <AddTorrentModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onSuccess={() => {
+              setShowAddModal(false);
+              loadData();
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Indexer Search Modal */}
       {showSearchModal && (
-        <IndexerSearchModal onClose={() => setShowSearchModal(false)} onTorrentAdded={loadData} />
+        <ErrorBoundary title="Search Modal Error">
+          <IndexerSearchModal onClose={() => setShowSearchModal(false)} onTorrentAdded={loadData} />
+        </ErrorBoundary>
       )}
 
       {/* Getting Started & Setup Guide Modal */}
-      <GettingStartedModal
-        isOpen={showGettingStartedModal}
-        onClose={() => setShowGettingStartedModal(false)}
-        onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
-        onNavigateTorrents={() => navigate("/torrents")}
-        onNavigateIndexers={() => navigate("/indexers")}
-      />
+      <ErrorBoundary title="Setup Guide Error">
+        <GettingStartedModal
+          isOpen={showGettingStartedModal}
+          onClose={() => setShowGettingStartedModal(false)}
+          onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
+          onNavigateTorrents={() => navigate("/torrents")}
+          onNavigateIndexers={() => navigate("/indexers")}
+        />
+      </ErrorBoundary>
 
       {/* Discrete Collapsible AI Copilot Drawer */}
-      <AiCopilotDrawer />
+      <ErrorBoundary title="Copilot Drawer Error">
+        <AiCopilotDrawer />
+      </ErrorBoundary>
 
       {/* Global Floating Toast Notifications */}
       <ToastContainer />
