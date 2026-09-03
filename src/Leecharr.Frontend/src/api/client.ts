@@ -275,4 +275,28 @@ export const api = {
         body: JSON.stringify(request),
       },
     ),
+  getSystemResources: () =>
+    fetchJson<import("./types").SystemResourceTelemetrySnapshot>(
+      `${BASE_URL}/system/resources`,
+    ),
+  getHostResources: () =>
+    fetchJson<import("./types").HostProcessResourceMetrics>(
+      `${BASE_URL}/system/resources/host`,
+    ),
+  getTorrentEngineMetrics: () =>
+    fetchJson<import("./types").TorrentEngineMetrics>(
+      `${BASE_URL}/system/resources/engine`,
+    ),
+  getPerTorrentMetrics: () =>
+    fetchJson<import("./types").TorrentResourceMetrics[]>(
+      `${BASE_URL}/system/resources/torrents`,
+    ),
+  getTorrentResourceMetrics: (id: number) =>
+    fetchJson<import("./types").TorrentResourceMetrics>(
+      `${BASE_URL}/system/resources/torrents/${id}`,
+    ),
+  getSubsystemsTelemetry: () =>
+    fetchJson<import("./types").SubsystemTelemetryReport[]>(
+      `${BASE_URL}/system/resources/subsystems`,
+    ),
 };

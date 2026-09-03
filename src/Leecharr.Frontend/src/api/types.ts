@@ -1334,3 +1334,132 @@ export interface IdentityProviderDefinition {
   iconUrl?: string | null;
   buttonText?: string | null;
 }
+
+export interface DiskMountPointMetrics {
+  mountPoint: string;
+  driveType: string;
+  totalSpaceBytes: number;
+  freeSpaceBytes: number;
+  usedSpaceBytes: number;
+  usedPercent: number;
+}
+
+export interface HostProcessResourceMetrics {
+  cpuProcessPercent: number;
+  cpuCores: number;
+  workingSetBytes: number;
+  privateMemoryBytes: number;
+  virtualMemoryBytes: number;
+  managedHeapBytes: number;
+  gcGen0Collections: number;
+  gcGen1Collections: number;
+  gcGen2Collections: number;
+  threadCount: number;
+  threadPoolWorkerThreads: number;
+  threadPoolCompletionPortThreads: number;
+  handleCount: number;
+  uptimeSeconds: number;
+  diskDrives: DiskMountPointMetrics[];
+  timestamp: string;
+}
+
+export interface TorrentEngineMetrics {
+  engineId: string;
+  displayName: string;
+  version: string;
+  isRunning: boolean;
+  activeTorrents: number;
+  downloadingTorrents: number;
+  seedingTorrents: number;
+  pausedTorrents: number;
+  totalDownloadSpeed: number;
+  totalUploadSpeed: number;
+  totalProtocolDownloadSpeed: number;
+  totalProtocolUploadSpeed: number;
+  totalDataDownloaded: number;
+  totalDataUploaded: number;
+  totalProtocolDownloaded: number;
+  totalProtocolUploaded: number;
+  protocolOverheadPercentage: number;
+  openConnections: number;
+  halfOpenConnections: number;
+  maxConnections: number;
+  connectedSeeds: number;
+  connectedLeechers: number;
+  totalSwarmPeers: number;
+  dhtNodeCount: number;
+  dhtState: string;
+  diskCacheBytesAllocated: number;
+  diskCacheCapacityBytes: number;
+  diskCacheHitRatio: number;
+  diskCacheHits: number;
+  diskCacheMisses: number;
+  diskPendingWrites: number;
+  diskPendingReads: number;
+  diskTotalBytesWritten: number;
+  diskTotalBytesRead: number;
+  diskWriteRate: number;
+  diskReadRate: number;
+  piecesHashedPerSec: number;
+  hashFailsTotal: number;
+  encryptedConnectionsCount: number;
+  plaintextConnectionsCount: number;
+  utpConnectionsCount: number;
+  tcpConnectionsCount: number;
+  timestamp: string;
+}
+
+export interface TorrentResourceMetrics {
+  torrentId: number;
+  infoHash: string;
+  name: string;
+  category: string;
+  status: string;
+  progress: number;
+  totalBytes: number;
+  payloadDownloadSpeed: number;
+  payloadUploadSpeed: number;
+  protocolDownloadSpeed: number;
+  protocolUploadSpeed: number;
+  downloadedPayload: number;
+  uploadedPayload: number;
+  protocolDownloaded: number;
+  protocolUploaded: number;
+  efficiencyRatio: number;
+  connectedPeers: number;
+  connectedSeeds: number;
+  connectedLeechers: number;
+  totalAvailablePeers: number;
+  tcpPeers: number;
+  utpPeers: number;
+  encryptedPeers: number;
+  plaintextPeers: number;
+  totalPieces: number;
+  completedPieces: number;
+  piecesInFlight: number;
+  pieceLength: number;
+  hashFails: number;
+  wastedBytes: number;
+  diskPendingWrites: number;
+  estimatedMemoryBufferBytes: number;
+  swarmAvailability: number;
+  ratio: number;
+  etaSeconds?: number | null;
+}
+
+export interface SubsystemTelemetryReport {
+  subsystemId: string;
+  subsystemName: string;
+  activeProvider: string;
+  status: string;
+  resourceLoad: string;
+  metrics: Record<string, any>;
+}
+
+export interface SystemResourceTelemetrySnapshot {
+  host: HostProcessResourceMetrics;
+  torrentEngine: TorrentEngineMetrics;
+  perTorrent: TorrentResourceMetrics[];
+  subsystems: SubsystemTelemetryReport[];
+  timestamp: string;
+}

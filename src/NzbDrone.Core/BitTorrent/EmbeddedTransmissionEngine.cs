@@ -255,6 +255,21 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
         }
     }
 
+    public TorrentEngineMetrics GetEngineMetrics() => new()
+    {
+        EngineId = this.EngineId,
+        DisplayName = this.DisplayName,
+        Version = this.Version,
+        IsRunning = this.isRunning,
+        ActiveTorrents = this.tasks.Count,
+    };
+
+    public TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId) =>
+        this.tasks.TryGetValue(torrentId, out var task) ? task.GetResourceMetrics() : null;
+
+    public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics() =>
+        System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(this.tasks.Values, t => t.GetResourceMetrics()));
+
     public void Dispose()
     {
         if (!this.disposed)
@@ -295,6 +310,23 @@ public class TransmissionDownloadTask : IDownloadTask
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
+
+    public TorrentResourceMetrics GetResourceMetrics() => new()
+    {
+        TorrentId = this.TorrentId,
+        InfoHash = this.InfoHash,
+        Name = this.Name,
+        Status = this.Status.ToString(),
+        Progress = this.Progress,
+        TotalBytes = this.TotalSize,
+        DownloadedPayload = this.DownloadedBytes,
+        UploadedPayload = this.UploadedBytes,
+        PayloadDownloadSpeed = this.DownloadSpeed,
+        PayloadUploadSpeed = this.UploadSpeed,
+        ConnectedSeeds = this.ConnectedSeeders,
+        ConnectedLeechers = this.ConnectedLeechers,
+        ConnectedPeers = this.ConnectedSeeders + this.ConnectedLeechers,
+    };
 
     public TransmissionDownloadTask(int torrentId, string infoHash, string name, long totalSize)
     {

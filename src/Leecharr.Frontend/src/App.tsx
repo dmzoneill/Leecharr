@@ -32,6 +32,7 @@ import { SpeedSchedule } from "./pages/SpeedSchedule";
 import { Indexers } from "./pages/Indexers";
 import { Settings } from "./pages/Settings";
 import SystemStatus from "./pages/SystemStatus";
+import SystemResources from "./pages/SystemResources";
 import Activity from "./pages/Activity";
 import DownloadHistory from "./pages/DownloadHistory";
 import AddTorrentPage from "./pages/AddTorrentPage";
@@ -64,6 +65,7 @@ import "./App.css";
 
 const systemSubItems = [
   { id: "status", label: "Status" },
+  { id: "resources", label: "Resources" },
   { id: "tasks", label: "Tasks" },
   { id: "backup", label: "Backup" },
   { id: "updates", label: "Updates" },
@@ -902,6 +904,11 @@ export function App() {
               element={<Navigate to="/system/status" replace />}
             />
             <Route path="/system/status" element={<SystemStatus />} />
+            <Route path="/system/resources" element={<SystemResources />} />
+            <Route
+              path="/system/telemetry"
+              element={<Navigate to="/system/resources" replace />}
+            />
             <Route path="/system/tasks" element={<SystemTasks />} />
             <Route path="/system/backup" element={<SystemBackup />} />
             <Route path="/system/updates" element={<SystemUpdates />} />

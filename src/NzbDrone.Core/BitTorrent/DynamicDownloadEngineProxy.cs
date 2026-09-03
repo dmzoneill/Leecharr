@@ -278,6 +278,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public IEnumerable<IDownloadTask> GetAllTasks()
         => Volatile.Read(ref this.activeEngine).GetAllTasks();
 
+    public TorrentEngineMetrics GetEngineMetrics()
+        => Volatile.Read(ref this.activeEngine)?.GetEngineMetrics() ?? new TorrentEngineMetrics();
+
+    public TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId)
+        => Volatile.Read(ref this.activeEngine)?.GetTorrentResourceMetrics(torrentId);
+
+    public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics()
+        => Volatile.Read(ref this.activeEngine)?.GetAllTorrentResourceMetrics() ?? Array.Empty<TorrentResourceMetrics>();
+
     public void Dispose()
     {
         if (!this.disposed)
