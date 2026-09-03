@@ -652,7 +652,7 @@ export interface IndexerDefinition {
   apiPath: string;
   enableRss: boolean;
   enableSearch: boolean;
-  categories: string;
+  categories: string | number[];
   downloadClientId: number;
   implementation: string;
   configContract: string;

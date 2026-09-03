@@ -143,25 +143,44 @@ public class ArrConnectionController : Controller
             return this.Ok(new ArrTestResult { Success = false, Message = "URL is required." });
         }
 
-        try
-        {
-            using var req = new HttpRequestMessage(HttpMethod.Get, resource.Url.TrimEnd('/') + "/api/v3/system/status");
-            if (!string.IsNullOrWhiteSpace(resource.ApiKey))
-            {
-                req.Headers.Add("X-Api-Key", resource.ApiKey);
-            }
+        var baseUrl = resource.Url.TrimEnd('/');
+        var endpoints = new[] { "/api/v3/system/status", "/api/v1/system/status" };
+        string lastError = null;
 
-            var resp = await HttpClient.SendAsync(req);
-            if (resp.IsSuccessStatusCode)
-            {
-                return this.Ok(new ArrTestResult { Success = true, Message = $"Connected to {resource.ArrType ?? "Arr"} successfully.", Version = "v3" });
-            }
-
-            return this.Ok(new ArrTestResult { Success = false, Message = $"Server returned {resp.StatusCode}" });
-        }
-        catch (Exception ex)
+        foreach (var endpoint in endpoints)
         {
-            return this.Ok(new ArrTestResult { Success = false, Message = ex.Message });
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, baseUrl + endpoint);
+                if (!string.IsNullOrWhiteSpace(resource.ApiKey))
+                {
+                    req.Headers.Add("X-Api-Key", resource.ApiKey);
+                }
+
+                var resp = await HttpClient.SendAsync(req);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var version = endpoint.Contains("v3") ? "v3" : "v1";
+                    return this.Ok(new ArrTestResult
+                    {
+                        Success = true,
+                        Message = $"Connected to {resource.ArrType ?? "Arr"} successfully.",
+                        Version = version,
+                    });
+                }
+
+                lastError = $"Server returned HTTP {(int)resp.StatusCode} {resp.StatusCode}.";
+            }
+            catch (Exception ex)
+            {
+                lastError = ex.Message;
+            }
         }
+
+        return this.Ok(new ArrTestResult
+        {
+            Success = false,
+            Message = lastError ?? $"Failed to connect to {resource.ArrType ?? "Arr"}.",
+        });
     }
 }
