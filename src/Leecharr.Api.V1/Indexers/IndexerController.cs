@@ -9,6 +9,7 @@ using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
 
@@ -18,12 +19,12 @@ namespace Leecharr.Api.V1.Indexers;
 [Route("api/v1/indexer")]
 public class IndexerController : Controller
 {
-    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
     private readonly IProwlarrSyncService prowlarrSyncService;
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
@@ -31,13 +32,15 @@ public class IndexerController : Controller
         ITorznabClient torznabClient,
         IProwlarrSyncService prowlarrSyncService,
         ITorrentService torrentService,
-        ITorrentFileParser torrentFileParser)
+        ITorrentFileParser torrentFileParser,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
         this.prowlarrSyncService = prowlarrSyncService;
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -240,7 +243,7 @@ public class IndexerController : Controller
             }
             else
             {
-                var bytes = await HttpClient.GetByteArrayAsync(request.DownloadUrl);
+                var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl);
                 var parsed = this.torrentFileParser.Parse(bytes);
                 torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
             }
