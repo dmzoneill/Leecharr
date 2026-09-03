@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Text.Json.Serialization;
 using Leecharr.Http.REST;
 
 namespace Leecharr.Api.V1.ArrIntegration;
@@ -16,6 +17,19 @@ public class ArrConnectionResource : RestResource
     public string ApiKey { get; set; }
 
     public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("enable")]
+    public bool? Enable
+    {
+        get => this.Enabled;
+        set
+        {
+            if (value.HasValue)
+            {
+                this.Enabled = value.Value;
+            }
+        }
+    }
 
     public bool SyncCategories { get; set; } = true;
 

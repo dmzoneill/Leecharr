@@ -12,6 +12,7 @@ import type {
   ArrTestResult,
 } from "../api/types";
 import { TextInput, SelectInput, Toggle } from "../pages/settings/shared";
+import { normalizeIndexerPayload } from "../pages/settings/IndexersTab";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -195,26 +196,20 @@ export function GettingStartedModal({
   // Test Connection Handlers
   const handleTestIndexer = () => {
     setIndexerTestResult(null);
-    testIndexerMutation.mutate(indexerForm, {
+    const payload = normalizeIndexerPayload(indexerForm);
+    testIndexerMutation.mutate(payload, {
       onSuccess: (data) => setIndexerTestResult(data),
       onError: (err) => setIndexerTestResult({ success: false, message: err.message }),
     });
   };
 
   const handleSaveIndexer = () => {
-    createIndexerMutation.mutate(
-      {
-        ...indexerForm,
-        name: indexerForm.name?.trim() || "Prowlarr",
-        implementation: `${indexerForm.indexerType || "Prowlarr"}Indexer`,
-        configContract: "IndexerDefinition",
+    const payload = normalizeIndexerPayload(indexerForm);
+    createIndexerMutation.mutate(payload, {
+      onSuccess: () => {
+        handleNext();
       },
-      {
-        onSuccess: () => {
-          handleNext();
-        },
-      }
-    );
+    });
   };
 
   const handleTestArr = (
@@ -746,7 +741,11 @@ export function GettingStartedModal({
                   />
                   <TextInput
                     label="Categories"
-                    value={indexerForm.categories || ""}
+                    value={
+                      Array.isArray(indexerForm.categories)
+                        ? indexerForm.categories.join(",")
+                        : indexerForm.categories || ""
+                    }
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, categories: v });
                       setIndexerTestResult(null);
