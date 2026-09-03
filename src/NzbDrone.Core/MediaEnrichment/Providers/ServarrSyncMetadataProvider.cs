@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
@@ -73,8 +74,10 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         var cleanTitle = CleanTitle(title);
         var cat = (category ?? string.Empty).ToLowerInvariant();
-        var preferredType = cat.Contains("movie") || cat.Contains("radarr") ? "Radarr" :
-                             cat.Contains("music") || cat.Contains("lidarr") ? "Lidarr" : "Sonarr";
+        var isTv = cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("series") ||
+                   (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b"));
+        var isMusic = cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac");
+        var preferredType = isMusic ? "Lidarr" : isTv ? "Sonarr" : "Radarr";
 
         var connections = this.arrRepository?.GetEnabled().ToList() ?? new List<ArrConnectionDefinition>();
 
@@ -212,15 +215,18 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return meta;
     }
 
-    private static string CleanTitle(string raw)
+    internal static string CleanTitle(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
             return string.Empty;
         }
 
-        var clean = System.Text.RegularExpressions.Regex.Replace(raw, @"[._-]", " ");
-        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper)\b.*$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        return clean.Trim();
+        var clean = Regex.Replace(raw, @"[._]", " ");
+        clean = Regex.Replace(clean, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+        clean = Regex.Replace(clean, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
+        clean = Regex.Replace(clean, @"\b(19\d\d|20\d\d)\b.*", string.Empty);
+        clean = clean.Trim('-', ' ', '.');
+        return string.IsNullOrWhiteSpace(clean) ? raw.Trim() : clean.Trim();
     }
 }
