@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
@@ -26,6 +28,8 @@ public interface IStoragePathService
 
 public class StoragePathService : IStoragePathService
 {
+    private static readonly string[] DefaultIncompleteExtensions = new[] { ".!mt", ".!leech", ".incomplete" };
+
     private readonly IConfigService configService;
     private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
@@ -124,11 +128,20 @@ public class StoragePathService : IStoragePathService
 
             if (this.diskProvider.FolderExists(sourcePath))
             {
-                this.diskProvider.MoveFolder(sourcePath, finalDestination);
+                this.MoveFolderWithFallback(sourcePath, finalDestination);
             }
             else if (this.diskProvider.FileExists(sourcePath))
             {
-                this.diskProvider.MoveFile(sourcePath, finalDestination);
+                try
+                {
+                    this.diskProvider.MoveFile(sourcePath, finalDestination, overwrite: true);
+                }
+                catch (IOException ioEx)
+                {
+                    this.logger.Info(ioEx, "MoveFile failed from '{0}' to '{1}'. Falling back to copy and delete.", sourcePath, finalDestination);
+                    this.diskProvider.CopyFile(sourcePath, finalDestination, overwrite: true);
+                    this.diskProvider.DeleteFile(sourcePath);
+                }
             }
 
             this.StripIncompleteExtensions(finalDestination);
@@ -150,34 +163,65 @@ public class StoragePathService : IStoragePathService
 
         try
         {
-            var ext = this.configService.IncompleteExtension;
-            if (this.diskProvider.FileExists(targetDirectoryOrFile))
+            var candidateExtensions = new List<string>();
+            var configuredExt = this.configService.IncompleteExtension;
+            if (!string.IsNullOrWhiteSpace(configuredExt))
             {
-                if (targetDirectoryOrFile.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                candidateExtensions.Add(configuredExt);
+            }
+
+            foreach (var ext in DefaultIncompleteExtensions)
+            {
+                if (!candidateExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
                 {
-                    var cleanPath = targetDirectoryOrFile[..^ext.Length];
-                    this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath);
-                }
-                else if (targetDirectoryOrFile.EndsWith(".!mt", StringComparison.OrdinalIgnoreCase))
-                {
-                    var cleanPath = targetDirectoryOrFile[..^4];
-                    this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath);
+                    candidateExtensions.Add(ext);
                 }
             }
-            else if (this.diskProvider.FolderExists(targetDirectoryOrFile))
+
+            if (this.diskProvider.FolderExists(targetDirectoryOrFile))
             {
                 var files = this.diskProvider.GetFiles(targetDirectoryOrFile, true);
-                foreach (var file in files)
+                if (files != null)
                 {
-                    if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    foreach (var file in files)
                     {
-                        var cleanPath = file[..^ext.Length];
-                        this.diskProvider.MoveFile(file, cleanPath);
+                        foreach (var ext in candidateExtensions)
+                        {
+                            if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var cleanPath = file[..^ext.Length];
+                                this.diskProvider.MoveFile(file, cleanPath, overwrite: true);
+                                break;
+                            }
+                        }
                     }
-                    else if (file.EndsWith(".!mt", StringComparison.OrdinalIgnoreCase))
+                }
+
+                return;
+            }
+
+            // Single-file case 1: targetDirectoryOrFile is the clean path (e.g. /downloads/Movie.mkv)
+            // and the file on disk has the incomplete extension appended (e.g. /downloads/Movie.mkv.!mt)
+            foreach (var ext in candidateExtensions)
+            {
+                var incompletePath = targetDirectoryOrFile + ext;
+                if (this.diskProvider.FileExists(incompletePath))
+                {
+                    this.diskProvider.MoveFile(incompletePath, targetDirectoryOrFile, overwrite: true);
+                    return;
+                }
+            }
+
+            // Single-file case 2: targetDirectoryOrFile itself already includes the incomplete extension
+            if (this.diskProvider.FileExists(targetDirectoryOrFile))
+            {
+                foreach (var ext in candidateExtensions)
+                {
+                    if (targetDirectoryOrFile.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
                     {
-                        var cleanPath = file[..^4];
-                        this.diskProvider.MoveFile(file, cleanPath);
+                        var cleanPath = targetDirectoryOrFile[..^ext.Length];
+                        this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath, overwrite: true);
+                        return;
                     }
                 }
             }
@@ -185,6 +229,47 @@ public class StoragePathService : IStoragePathService
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Error stripping incomplete extensions from '{0}'", targetDirectoryOrFile);
+        }
+    }
+
+    private void MoveFolderWithFallback(string source, string destination)
+    {
+        try
+        {
+            this.diskProvider.MoveFolder(source, destination);
+        }
+        catch (IOException ioEx)
+        {
+            this.logger.Info(ioEx, "MoveFolder failed (cross-volume) from '{0}' to '{1}'. Falling back to recursive copy and delete.", source, destination);
+            this.CopyFolderRecursive(source, destination);
+            this.diskProvider.DeleteFolder(source, true);
+        }
+    }
+
+    private void CopyFolderRecursive(string source, string destination)
+    {
+        this.diskProvider.EnsureFolder(destination);
+
+        var dirs = this.diskProvider.GetDirectories(source);
+        if (dirs != null)
+        {
+            foreach (var dir in dirs)
+            {
+                var dirName = Path.GetFileName(dir);
+                var destSubDir = Path.Combine(destination, dirName);
+                this.CopyFolderRecursive(dir, destSubDir);
+            }
+        }
+
+        var files = this.diskProvider.GetFiles(source, false);
+        if (files != null)
+        {
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileName(file);
+                var destFile = Path.Combine(destination, fileName);
+                this.diskProvider.CopyFile(file, destFile, overwrite: true);
+            }
         }
     }
 }
