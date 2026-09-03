@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { IdentityProviderDefinition, IdentityProviderType } from "../../api/types";
 import { SaveBar, SectionCard, SelectInput, TextInput, Toggle } from "./shared";
 
@@ -95,6 +97,8 @@ export function SecuritySettingsTab() {
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [editingProvider, setEditingProvider] =
     useState<Partial<IdentityProviderDefinition> | null>(null);
+  const confirm = useConfirm();
+  useEscapeKey(() => setEditingProvider(null), Boolean(editingProvider));
   const [isNewProvider, setIsNewProvider] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -209,7 +213,14 @@ export function SecuritySettingsTab() {
   };
 
   const handleDeleteProvider = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this identity provider?")) return;
+    const ok = await confirm({
+      title: "Remove Identity Provider",
+      message: "Are you sure you want to remove this identity provider?",
+      danger: true,
+      confirmText: "Remove",
+    });
+    if (!ok) return;
+
     try {
       await api.deleteIdProvider(id);
       await loadProviders();

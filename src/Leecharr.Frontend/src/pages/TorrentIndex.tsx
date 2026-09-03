@@ -8,6 +8,7 @@ import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
 import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDrawer";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
+import { useConfirm } from "../context/ConfirmContext";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -39,6 +40,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [selectedTorrent, setSelectedTorrent] = useState<Torrent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkPending, setBulkPending] = useState<boolean>(false);
+  const confirm = useConfirm();
   const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_quick_settings_open") === "true";
   });
@@ -191,7 +193,14 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selectedIds.size} selected torrent(s)?`)) return;
+    const ok = await confirm({
+      title: "Delete Selected Torrents",
+      message: `Delete ${selectedIds.size} selected torrent(s)?`,
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+
     setBulkPending(true);
     try {
       selectedIds.forEach((id) => onDelete({ id, deleteFiles: false }));

@@ -20,6 +20,8 @@ import {
   getProwlarrUrl,
 } from "../utils/arrLinks";
 import { useToast } from "../context/ToastContext";
+import { useConfirm } from "../context/ConfirmContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { IndexerSearchModal } from "../components/IndexerSearchModal";
 import type { DownloadHistoryEntry } from "../api/types";
 
@@ -39,9 +41,11 @@ export default function DownloadHistory() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [searchModalQuery, setSearchModalQuery] = useState<string | null>(null);
-  const [selectedDetailItem, setSelectedDetailItem] =
-    useState<DownloadHistoryEntry | null>(null);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<DownloadHistoryEntry | null>(null);
   const { showToast } = useToast();
+  const confirm = useConfirm();
+
+  useEscapeKey(() => setSelectedDetailItem(null), Boolean(selectedDetailItem));
 
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
@@ -68,16 +72,20 @@ export default function DownloadHistory() {
         showToast(`Re-added "${title}" to active seeding library`, "success");
       },
       onError: (err) => {
-        showToast(
-          `Failed to re-add "${title}": ${err.message || "Unknown error"}`,
-          "error",
-        );
+        showToast(`Failed to re-add "${title}": ${err.message || "Unknown error"}`, "error");
       },
     });
   };
 
-  const handleDelete = (id: number, title: string) => {
-    if (!confirm(`Delete history record for "${title}"?`)) return;
+  const handleDelete = async (id: number, title: string) => {
+    const ok = await confirm({
+      title: "Delete History Record",
+      message: `Delete history record for "${title}"?`,
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+
     deleteMutation.mutate(id, {
       onSuccess: () => {
         if (selectedDetailItem?.id === id) {
@@ -108,10 +116,7 @@ export default function DownloadHistory() {
   const handleEnrichAll = () => {
     enrichAllMutation.mutate(undefined, {
       onSuccess: () => {
-        showToast(
-          "Started metadata enrichment from connected Arr instances",
-          "info",
-        );
+        showToast("Started metadata enrichment from connected Arr instances", "info");
       },
       onError: (err) => {
         showToast(`Failed to start enrichment: ${err.message}`, "error");
@@ -124,7 +129,7 @@ export default function DownloadHistory() {
       onSuccess: (res) => {
         showToast(
           `Reconciled library and enriched metadata (${res.processedCount} processed)`,
-          "success",
+          "success"
         );
       },
       onError: (err) => {
@@ -133,14 +138,15 @@ export default function DownloadHistory() {
     });
   };
 
-  const handleClearAll = () => {
-    if (
-      !confirm(
-        "Are you sure you want to clear all download history? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+  const handleClearAll = async () => {
+    const ok = await confirm({
+      title: "Clear Download History",
+      message: "Are you sure you want to clear all download history? This action cannot be undone.",
+      danger: true,
+      confirmText: "Clear All",
+    });
+    if (!ok) return;
+
     clearMutation.mutate(undefined, {
       onSuccess: () => {
         setSelectedDetailItem(null);
@@ -217,9 +223,7 @@ export default function DownloadHistory() {
             disabled={reconcileMutation.isPending}
             title="Scan all active downloads, ensure all torrents are accounted for in history, and fetch metadata from Sonarr/Radarr/Lidarr"
           >
-            {reconcileMutation.isPending
-              ? "Reconciling..."
-              : "🔄 Reconcile & Sync Arrs"}
+            {reconcileMutation.isPending ? "Reconciling..." : "🔄 Reconcile & Sync Arrs"}
           </button>
 
           <button
@@ -254,8 +258,7 @@ export default function DownloadHistory() {
           marginBottom: "1.25rem",
           padding: "0.75rem 1rem",
           borderRadius: "8px",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           flexShrink: 0,
         }}
       >
@@ -329,13 +332,8 @@ export default function DownloadHistory() {
 
       {/* Loading & Error States */}
       {isLoading && (
-        <div
-          className="card"
-          style={{ padding: "3rem", textAlign: "center", borderRadius: "8px" }}
-        >
-          <div className="loading">
-            Loading download history & rich metadata...
-          </div>
+        <div className="card" style={{ padding: "3rem", textAlign: "center", borderRadius: "8px" }}>
+          <div className="loading">Loading download history & rich metadata...</div>
         </div>
       )}
 
@@ -427,8 +425,7 @@ export default function DownloadHistory() {
                   borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
                   backgroundColor: "var(--bg-secondary)",
-                  boxShadow:
-                    "0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)",
+                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)",
                   transition:
                     "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
                   cursor: "pointer",
@@ -474,13 +471,10 @@ export default function DownloadHistory() {
                         justifyContent: "center",
                         padding: "1rem",
                         textAlign: "center",
-                        background:
-                          "linear-gradient(180deg, #2a2620 0%, #151412 100%)",
+                        background: "linear-gradient(180deg, #2a2620 0%, #151412 100%)",
                       }}
                     >
-                      <span
-                        style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}
-                      >
+                      <span style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
                         {item.source === "Radarr"
                           ? "🎬"
                           : item.source === "Sonarr"
@@ -515,11 +509,7 @@ export default function DownloadHistory() {
                       onClick={(e) => {
                         if (arrLink) {
                           e.stopPropagation();
-                          window.open(
-                            arrLink.url,
-                            "_blank",
-                            "noopener,noreferrer",
-                          );
+                          window.open(arrLink.url, "_blank", "noopener,noreferrer");
                         }
                       }}
                     >
@@ -538,11 +528,7 @@ export default function DownloadHistory() {
                           gap: "0.25rem",
                           borderRadius: "4px",
                         }}
-                        title={
-                          arrLink
-                            ? `${arrLink.label} (${arrLink.url})`
-                            : item.source
-                        }
+                        title={arrLink ? `${arrLink.label} (${arrLink.url})` : item.source}
                       >
                         {item.source} {arrLink ? "↗" : ""}
                       </span>
@@ -595,9 +581,7 @@ export default function DownloadHistory() {
                       borderTop: "1px solid rgba(255,255,255,0.1)",
                     }}
                   >
-                    <span style={{ color: "#eee" }}>
-                      ↑ {formatBytes(item.uploaded)}
-                    </span>
+                    <span style={{ color: "#eee" }}>↑ {formatBytes(item.uploaded)}</span>
                     <span style={{ color: "var(--text-muted, #aaa)" }}>
                       ⏱ {formatDuration(item.seedingTime)}
                     </span>
@@ -705,10 +689,7 @@ export default function DownloadHistory() {
                       <span>Ratio: </span>
                       <strong
                         style={{
-                          color:
-                            item.ratio >= 1.0
-                              ? "var(--success)"
-                              : "var(--text-primary)",
+                          color: item.ratio >= 1.0 ? "var(--success)" : "var(--text-primary)",
                         }}
                       >
                         {formatRatio(item.ratio)}
@@ -761,13 +742,9 @@ export default function DownloadHistory() {
                         gap: "0.35rem",
                       }}
                       onClick={() => handleReAdd(item.id, item.title)}
-                      disabled={
-                        reAddMutation.isPending || item.status === "Active"
-                      }
+                      disabled={reAddMutation.isPending || item.status === "Active"}
                       title={
-                        item.status === "Active"
-                          ? "Already in library"
-                          : "Re-add to active queue"
+                        item.status === "Active" ? "Already in library" : "Re-add to active queue"
                       }
                     >
                       <span>🔄</span> <span>Re-add</span>
@@ -806,8 +783,7 @@ export default function DownloadHistory() {
             display: "flex",
             flexDirection: "column",
             borderRadius: "8px",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           }}
         >
           <div
@@ -818,10 +794,7 @@ export default function DownloadHistory() {
               overflowX: "auto",
             }}
           >
-            <table
-              className="table"
-              style={{ width: "100%", borderCollapse: "collapse" }}
-            >
+            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead
                 style={{
                   position: "sticky",
@@ -837,24 +810,12 @@ export default function DownloadHistory() {
                   }}
                 >
                   <th style={{ padding: "0.75rem 1rem" }}>Release & Media</th>
-                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Size
-                  </th>
-                  <th style={{ padding: "0.75rem 1rem", width: "120px" }}>
-                    Uploaded
-                  </th>
-                  <th style={{ padding: "0.75rem 1rem", width: "90px" }}>
-                    Ratio
-                  </th>
-                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Seed Time
-                  </th>
-                  <th style={{ padding: "0.75rem 1rem", width: "130px" }}>
-                    Date Added
-                  </th>
-                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Status
-                  </th>
+                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>Size</th>
+                  <th style={{ padding: "0.75rem 1rem", width: "120px" }}>Uploaded</th>
+                  <th style={{ padding: "0.75rem 1rem", width: "90px" }}>Ratio</th>
+                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>Seed Time</th>
+                  <th style={{ padding: "0.75rem 1rem", width: "130px" }}>Date Added</th>
+                  <th style={{ padding: "0.75rem 1rem", width: "100px" }}>Status</th>
                   <th
                     style={{
                       padding: "0.75rem 1rem",
@@ -993,9 +954,7 @@ export default function DownloadHistory() {
                                     color: "var(--text-dim, #999)",
                                     cursor: "pointer",
                                   }}
-                                  onClick={() =>
-                                    setSearchTerm(item.primaryTracker || "")
-                                  }
+                                  onClick={() => setSearchTerm(item.primaryTracker || "")}
                                   title="Filter by tracker"
                                 >
                                   • {item.primaryTracker}
@@ -1006,24 +965,18 @@ export default function DownloadHistory() {
                         </div>
                       </td>
 
-                      <td
-                        style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                      >
+                      <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                         {formatBytes(item.totalSize)}
                       </td>
 
-                      <td
-                        style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                      >
+                      <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                         {formatBytes(item.uploaded)}
                       </td>
 
                       <td style={{ padding: "0.75rem 1rem" }}>
                         <span
                           className={`badge ${
-                            item.ratio >= 1.0
-                              ? "badge-success"
-                              : "badge-secondary"
+                            item.ratio >= 1.0 ? "badge-success" : "badge-secondary"
                           }`}
                           style={{ fontSize: "0.8rem" }}
                         >
@@ -1031,15 +984,11 @@ export default function DownloadHistory() {
                         </span>
                       </td>
 
-                      <td
-                        style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                      >
+                      <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                         {formatDuration(item.seedingTime)}
                       </td>
 
-                      <td
-                        style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                      >
+                      <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                         <div>{formatDate(item.dateAdded)}</div>
                         {item.dateRemoved && (
                           <div
@@ -1125,10 +1074,7 @@ export default function DownloadHistory() {
                               whiteSpace: "nowrap",
                             }}
                             onClick={() => handleReAdd(item.id, item.title)}
-                            disabled={
-                              reAddMutation.isPending ||
-                              item.status === "Active"
-                            }
+                            disabled={reAddMutation.isPending || item.status === "Active"}
                             title={
                               item.status === "Active"
                                 ? "Already in library"
@@ -1167,10 +1113,7 @@ export default function DownloadHistory() {
 
       {/* RICH MEDIA DETAILS MODAL WITH DEEP-LINK INTEGRATIONS */}
       {selectedDetailItem && (
-        <div
-          className="modal-overlay"
-          onClick={() => setSelectedDetailItem(null)}
-        >
+        <div className="modal-overlay" onClick={() => setSelectedDetailItem(null)}>
           <div
             className="modal-content"
             style={{
@@ -1189,8 +1132,7 @@ export default function DownloadHistory() {
                 position: "relative",
                 height: "230px",
                 backgroundImage:
-                  selectedDetailItem.metadata?.backdropUrl ||
-                  selectedDetailItem.metadata?.fanartUrl
+                  selectedDetailItem.metadata?.backdropUrl || selectedDetailItem.metadata?.fanartUrl
                     ? `url(${selectedDetailItem.metadata.backdropUrl || selectedDetailItem.metadata.fanartUrl})`
                     : undefined,
                 backgroundSize: "cover",
@@ -1264,8 +1206,7 @@ export default function DownloadHistory() {
                       wordBreak: "break-word",
                     }}
                   >
-                    {selectedDetailItem.metadata?.title ||
-                      selectedDetailItem.title}
+                    {selectedDetailItem.metadata?.title || selectedDetailItem.title}
                     {selectedDetailItem.metadata?.year && (
                       <span
                         style={{
@@ -1290,10 +1231,7 @@ export default function DownloadHistory() {
                     }}
                   >
                     {(() => {
-                      const arrLink = getMediaDeepLink(
-                        selectedDetailItem,
-                        arrConnections,
-                      );
+                      const arrLink = getMediaDeepLink(selectedDetailItem, arrConnections);
                       if (arrLink) {
                         return (
                           <a
@@ -1317,9 +1255,7 @@ export default function DownloadHistory() {
                       }
                       if (selectedDetailItem.source) {
                         return (
-                          <span className="badge badge-primary">
-                            {selectedDetailItem.source}
-                          </span>
+                          <span className="badge badge-primary">{selectedDetailItem.source}</span>
                         );
                       }
                       return null;
@@ -1329,8 +1265,7 @@ export default function DownloadHistory() {
                     <a
                       href={getImdbUrl(
                         selectedDetailItem.metadata?.imdbId,
-                        selectedDetailItem.metadata?.title ||
-                          selectedDetailItem.title,
+                        selectedDetailItem.metadata?.title || selectedDetailItem.title
                       )}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -1354,7 +1289,7 @@ export default function DownloadHistory() {
                         href={
                           getTmdbUrl(
                             selectedDetailItem.metadata.tmdbId,
-                            selectedDetailItem.metadata.mediaType,
+                            selectedDetailItem.metadata.mediaType
                           ) || "#"
                         }
                         target="_blank"
@@ -1377,9 +1312,7 @@ export default function DownloadHistory() {
                     {/* TheTVDB link */}
                     {selectedDetailItem.metadata?.tvdbId && (
                       <a
-                        href={
-                          getTvdbUrl(selectedDetailItem.metadata.tvdbId) || "#"
-                        }
+                        href={getTvdbUrl(selectedDetailItem.metadata.tvdbId) || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="badge"
@@ -1400,15 +1333,13 @@ export default function DownloadHistory() {
                     {/* Prowlarr Deep Link if configured */}
                     {getProwlarrUrl(
                       indexers,
-                      selectedDetailItem.metadata?.title ||
-                        selectedDetailItem.title,
+                      selectedDetailItem.metadata?.title || selectedDetailItem.title
                     ) && (
                       <a
                         href={
                           getProwlarrUrl(
                             indexers,
-                            selectedDetailItem.metadata?.title ||
-                              selectedDetailItem.title,
+                            selectedDetailItem.metadata?.title || selectedDetailItem.title
                           ) || "#"
                         }
                         target="_blank"
@@ -1672,10 +1603,7 @@ export default function DownloadHistory() {
                     style={{
                       fontSize: "1.1rem",
                       fontWeight: 700,
-                      color:
-                        selectedDetailItem.ratio >= 1.0
-                          ? "var(--success)"
-                          : "inherit",
+                      color: selectedDetailItem.ratio >= 1.0 ? "var(--success)" : "inherit",
                     }}
                   >
                     {formatRatio(selectedDetailItem.ratio)}
@@ -1737,9 +1665,7 @@ export default function DownloadHistory() {
                     style={{
                       fontSize: "0.85rem",
                       wordBreak: "break-all",
-                      cursor: selectedDetailItem.primaryTracker
-                        ? "pointer"
-                        : "default",
+                      cursor: selectedDetailItem.primaryTracker ? "pointer" : "default",
                     }}
                     onClick={() => {
                       if (selectedDetailItem.primaryTracker) {
@@ -1748,9 +1674,7 @@ export default function DownloadHistory() {
                       }
                     }}
                     title={
-                      selectedDetailItem.primaryTracker
-                        ? "Click to filter by tracker"
-                        : undefined
+                      selectedDetailItem.primaryTracker ? "Click to filter by tracker" : undefined
                     }
                   >
                     {selectedDetailItem.primaryTracker || "None"}
@@ -1804,16 +1728,8 @@ export default function DownloadHistory() {
                   </button>
                   <button
                     className="btn btn-primary"
-                    onClick={() =>
-                      handleReAdd(
-                        selectedDetailItem.id,
-                        selectedDetailItem.title,
-                      )
-                    }
-                    disabled={
-                      reAddMutation.isPending ||
-                      selectedDetailItem.status === "Active"
-                    }
+                    onClick={() => handleReAdd(selectedDetailItem.id, selectedDetailItem.title)}
+                    disabled={reAddMutation.isPending || selectedDetailItem.status === "Active"}
                   >
                     🔄 Re-add Torrent
                   </button>
