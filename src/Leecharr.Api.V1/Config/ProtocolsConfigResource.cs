@@ -15,6 +15,8 @@ public class ProtocolsConfigResource : RestResource
 
     public bool ExtensionFastExtension { get; set; }
 
+    public bool EnableBep27PrivateTorrents { get; set; } = true;
+
     public bool UtpEnabled { get; set; }
 
     public bool TcpFallback { get; set; }
@@ -70,6 +72,7 @@ public static class ProtocolsConfigResourceMapper
             ExtensionUtPex = model.ExtensionUtPex,
             ExtensionLtDontHave = model.ExtensionLtDontHave,
             ExtensionFastExtension = model.ExtensionFastExtension,
+            EnableBep27PrivateTorrents = model.EnableBep27PrivateTorrents,
             UtpEnabled = model.UtpEnabled,
             TcpFallback = model.TcpFallback,
             TransportConnectionTimeoutSeconds = model.TransportConnectionTimeoutSeconds,

@@ -289,6 +289,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         {
         }
 
+        MtTorrent parsedTorrent = null;
+        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+        {
+            try
+            {
+                parsedTorrent = MtTorrent.Load(torrentFileBytes);
+                if (parsedTorrent.IsPrivate && !torrent.IsPrivate)
+                {
+                    torrent.IsPrivate = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to pre-inspect torrent file bytes for BEP 27 flag on {0}", torrent.Name);
+            }
+        }
+
         var torrentSettingsBuilder = new TorrentSettingsBuilder
         {
             MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
@@ -297,10 +314,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             MaximumUploadRate = torrent.UploadLimit > 0 ? torrent.UploadLimit * 1024 : 0,
         };
 
-        if (torrent.IsPrivate)
+        var enforceBep27 = this.configService.EnableBep27PrivateTorrents && torrent.IsPrivate;
+        if (enforceBep27)
         {
             torrentSettingsBuilder.AllowDht = false;
             torrentSettingsBuilder.AllowPeerExchange = false;
+            this.logger.Info("BEP 27 active for private torrent {0}: DHT and PEX disabled", torrent.Name);
+        }
+        else
+        {
+            torrentSettingsBuilder.AllowDht = this.configService.EnableDht;
+            torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
         }
 
         TorrentManager manager = null;
@@ -310,7 +334,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         {
             if (torrentFileBytes != null && torrentFileBytes.Length > 0)
             {
-                var parsedTorrent = MtTorrent.Load(torrentFileBytes);
+                parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
                 manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(magnetUri))
@@ -331,7 +355,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         {
             if (torrentFileBytes != null && torrentFileBytes.Length > 0)
             {
-                var parsedTorrent = MtTorrent.Load(torrentFileBytes);
+                parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
                 manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(magnetUri))
@@ -580,6 +604,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         }
     }
 
+    public async Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        {
+            var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings);
+            if (isPrivate && this.configService.EnableBep27PrivateTorrents)
+            {
+                settingsBuilder.AllowDht = false;
+                settingsBuilder.AllowPeerExchange = false;
+            }
+            else
+            {
+                settingsBuilder.AllowDht = this.configService.EnableDht;
+                settingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+            }
+
+            await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
+            this.logger.Info("Updated BEP 27 settings for {0} (IsPrivate: {1}, EnforceBep27: {2})", task.InfoHash, isPrivate, this.configService.EnableBep27PrivateTorrents);
+        }
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);
@@ -601,6 +646,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
                 this.logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
+
+                if (manager.Torrent != null && manager.Torrent.IsPrivate && this.configService.EnableBep27PrivateTorrents)
+                {
+                    if (manager.Settings.AllowDht || manager.Settings.AllowPeerExchange)
+                    {
+                        var strictSettings = new TorrentSettingsBuilder(manager.Settings)
+                        {
+                            AllowDht = false,
+                            AllowPeerExchange = false,
+                        }.ToSettings();
+                        _ = manager.UpdateSettingsAsync(strictSettings);
+                        this.logger.Info("Enforced BEP 27 restrictions for private torrent {0} after metadata received (DHT/PEX disabled)", infoHash);
+                    }
+                }
 
                 if (e.NewState == TorrentState.Seeding)
                 {
