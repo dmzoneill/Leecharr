@@ -26,9 +26,9 @@ public static class ContainerExtensions
 
         foreach (var type in types)
         {
-            if (type.IsInterface || type.IsAbstract || type.IsEnum || type.IsSubclassOf(typeof(Attribute)) ||
+            if (type.IsInterface || type.IsAbstract || type.IsEnum || type.IsValueType || type.IsSubclassOf(typeof(Attribute)) ||
                 type.Name.EndsWith("Event") || type.Name.EndsWith("Command") || type.Name.EndsWith("Resource") ||
-                type.GetInterfaces().Any(i => i.Name == "IEvent" || i.Name == "IDownloadTask") ||
+                type.GetInterfaces().Any(i => i.Name == "IEvent" || i.Name == "IDownloadTask" || i.Name == "ITerminalSession") ||
                 (type.BaseType != null && (type.BaseType.Name == "ModelBase" || type.BaseType.Name == "Command" || type.BaseType.Name == "RestResource")))
             {
                 continue;
