@@ -139,11 +139,33 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return InspectByFileName(fileName);
         }
 
-        var header = new byte[Math.Min(65536, stream.Length)];
-        var originalPos = stream.Position;
-        stream.Seek(0, SeekOrigin.Begin);
-        var bytesRead = stream.Read(header, 0, header.Length);
-        stream.Seek(originalPos, SeekOrigin.Begin);
+        byte[] header;
+        int bytesRead;
+
+        if (!stream.CanSeek)
+        {
+            var ms = new MemoryStream();
+            var buf = new byte[4096];
+            int read;
+            int totalRead = 0;
+            while (totalRead < 65536 && (read = stream.Read(buf, 0, Math.Min(buf.Length, 65536 - totalRead))) > 0)
+            {
+                ms.Write(buf, 0, read);
+                totalRead += read;
+            }
+
+            header = ms.ToArray();
+            bytesRead = header.Length;
+        }
+        else
+        {
+            var len = Math.Min(65536, stream.Length);
+            header = new byte[len];
+            var originalPos = stream.Position;
+            stream.Seek(0, SeekOrigin.Begin);
+            bytesRead = stream.Read(header, 0, header.Length);
+            stream.Seek(originalPos, SeekOrigin.Begin);
+        }
 
         if (bytesRead < 4)
         {
@@ -192,69 +214,461 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             ContainerFormat = "Matroska (MKV)",
         };
 
-        var text = System.Text.Encoding.ASCII.GetString(header);
+        int offset = 0;
+        int limit = header.Length;
 
-        // Detect video codec from EBML CodecID strings
-        if (text.Contains("V_MPEGH/ISO/HEVC"))
+        while (offset < limit)
         {
-            info.VideoCodec = "HEVC (H.265)";
-        }
-        else if (text.Contains("V_AV1"))
-        {
-            info.VideoCodec = "AV1";
-        }
-        else if (text.Contains("V_VP9"))
-        {
-            info.VideoCodec = "VP9";
-        }
-        else if (text.Contains("V_VP8"))
-        {
-            info.VideoCodec = "VP8";
-        }
-        else if (text.Contains("V_MPEG4/ISO/AVC"))
-        {
-            info.VideoCodec = "H.264";
+            if (!ReadElementId(header, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (!ReadElementSize(header, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            if (IsEbmlMasterElement(id))
+            {
+                // Master element: descend directly into children
+                continue;
+            }
+
+            // Leaf element
+            if (size < 0 || offset + size > limit)
+            {
+                break;
+            }
+
+            int elemSize = (int)size;
+            switch (id)
+            {
+                case 0x4282: // DocType
+                    var docType = ReadEbmlString(header, offset, elemSize);
+                    if (docType.Equals("webm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        info.ContainerFormat = "WebM";
+                    }
+                    else if (docType.Equals("matroska", StringComparison.OrdinalIgnoreCase))
+                    {
+                        info.ContainerFormat = "Matroska (MKV)";
+                    }
+
+                    break;
+
+                case 0x86: // CodecID
+                    var codecId = ReadEbmlString(header, offset, elemSize);
+                    ApplyCodecId(info, codecId);
+                    break;
+
+                case 0xB0: // PixelWidth
+                    info.Width = (int)ReadEbmlUInt(header, offset, elemSize);
+                    break;
+
+                case 0xBA: // PixelHeight
+                    info.Height = (int)ReadEbmlUInt(header, offset, elemSize);
+                    break;
+
+                case 0x9F: // Channels
+                    var channels = (int)ReadEbmlUInt(header, offset, elemSize);
+                    info.AudioChannels = channels switch
+                    {
+                        1 => "1.0",
+                        2 => "2.0",
+                        6 => "5.1",
+                        8 => "7.1",
+                        _ => $"{channels}.0",
+                    };
+                    break;
+
+                case 0xB5: // SamplingFrequency
+                    var sampleRate = ReadEbmlFloat(header, offset, elemSize);
+                    if (sampleRate > 0)
+                    {
+                        info.AudioSampleRate = (int)sampleRate;
+                    }
+
+                    break;
+
+                case 0x6264: // BitDepth
+                    info.AudioBitDepth = (int)ReadEbmlUInt(header, offset, elemSize);
+                    break;
+            }
+
+            offset += elemSize;
         }
 
-        // Detect audio codec from EBML CodecID strings
-        if (text.Contains("A_TRUEHD"))
+        if (info.VideoCodec == null && info.AudioCodec == null)
         {
-            info.AudioCodec = "Dolby TrueHD / Atmos";
-            info.AudioChannels = "7.1";
-        }
-        else if (text.Contains("A_EAC3"))
-        {
-            info.AudioCodec = "E-AC3 / Dolby Digital Plus";
-            info.AudioChannels = "5.1";
-        }
-        else if (text.Contains("A_AC3"))
-        {
-            info.AudioCodec = "AC3 / Dolby Digital";
-            info.AudioChannels = "5.1";
-        }
-        else if (text.Contains("A_DTS"))
-        {
-            info.AudioCodec = "DTS";
-            info.AudioChannels = "5.1";
-        }
-        else if (text.Contains("A_FLAC"))
-        {
-            info.AudioCodec = "FLAC";
-            info.AudioChannels = "2.0";
-        }
-        else if (text.Contains("A_OPUS"))
-        {
-            info.AudioCodec = "Opus";
-            info.AudioChannels = "2.0";
-        }
-        else if (text.Contains("A_AAC"))
-        {
-            info.AudioCodec = "AAC";
-            info.AudioChannels = "2.0";
+            var span = header.AsSpan();
+            if (span.IndexOf("V_MPEGH/ISO/HEVC"u8) >= 0)
+            {
+                info.VideoCodec = "HEVC (H.265)";
+            }
+            else if (span.IndexOf("V_AV1"u8) >= 0)
+            {
+                info.VideoCodec = "AV1";
+            }
+            else if (span.IndexOf("V_VP9"u8) >= 0)
+            {
+                info.VideoCodec = "VP9";
+            }
+            else if (span.IndexOf("V_VP8"u8) >= 0)
+            {
+                info.VideoCodec = "VP8";
+            }
+            else if (span.IndexOf("V_MPEG4/ISO/AVC"u8) >= 0)
+            {
+                info.VideoCodec = "H.264";
+            }
+
+            if (span.IndexOf("A_TRUEHD"u8) >= 0)
+            {
+                info.AudioCodec = "Dolby TrueHD / Atmos";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "7.1";
+                }
+            }
+            else if (span.IndexOf("A_EAC3"u8) >= 0)
+            {
+                info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
+            else if (span.IndexOf("A_AC3"u8) >= 0)
+            {
+                info.AudioCodec = "AC3 / Dolby Digital";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
+            else if (span.IndexOf("A_DTS"u8) >= 0)
+            {
+                info.AudioCodec = "DTS";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
+            else if (span.IndexOf("A_FLAC"u8) >= 0)
+            {
+                info.AudioCodec = "FLAC";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "2.0";
+                }
+            }
+            else if (span.IndexOf("A_OPUS"u8) >= 0)
+            {
+                info.AudioCodec = "Opus";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "2.0";
+                }
+            }
+            else if (span.IndexOf("A_AAC"u8) >= 0)
+            {
+                info.AudioCodec = "AAC";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "2.0";
+                }
+            }
         }
 
         ApplyFilenameHints(info, fileName);
         return info;
+    }
+
+    private static bool IsEbmlMasterElement(uint id)
+    {
+        return id == 0x1A45DFA3
+            || id == 0x18538067
+            || id == 0x1654AE6B
+            || id == 0xAE
+            || id == 0xE0
+            || id == 0xE1;
+    }
+
+    private static bool ReadElementId(byte[] data, ref int offset, out uint id, out int idLen)
+    {
+        id = 0;
+        idLen = 0;
+        if (offset >= data.Length)
+        {
+            return false;
+        }
+
+        byte b = data[offset];
+        if ((b & 0x80) != 0)
+        {
+            idLen = 1;
+        }
+        else if ((b & 0x40) != 0)
+        {
+            idLen = 2;
+        }
+        else if ((b & 0x20) != 0)
+        {
+            idLen = 3;
+        }
+        else if ((b & 0x10) != 0)
+        {
+            idLen = 4;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (offset + idLen > data.Length)
+        {
+            return false;
+        }
+
+        uint result = 0;
+        for (int i = 0; i < idLen; i++)
+        {
+            result = (result << 8) | data[offset + i];
+        }
+
+        id = result;
+        offset += idLen;
+        return true;
+    }
+
+    private static bool ReadElementSize(byte[] data, ref int offset, out long size, out int sizeLen)
+    {
+        size = 0;
+        sizeLen = 0;
+        if (offset >= data.Length)
+        {
+            return false;
+        }
+
+        byte b = data[offset];
+        byte mask;
+        if ((b & 0x80) != 0)
+        {
+            sizeLen = 1;
+            mask = 0x7F;
+        }
+        else if ((b & 0x40) != 0)
+        {
+            sizeLen = 2;
+            mask = 0x3F;
+        }
+        else if ((b & 0x20) != 0)
+        {
+            sizeLen = 3;
+            mask = 0x1F;
+        }
+        else if ((b & 0x10) != 0)
+        {
+            sizeLen = 4;
+            mask = 0x0F;
+        }
+        else if ((b & 0x08) != 0)
+        {
+            sizeLen = 5;
+            mask = 0x07;
+        }
+        else if ((b & 0x04) != 0)
+        {
+            sizeLen = 6;
+            mask = 0x03;
+        }
+        else if ((b & 0x02) != 0)
+        {
+            sizeLen = 7;
+            mask = 0x01;
+        }
+        else if ((b & 0x01) != 0)
+        {
+            sizeLen = 8;
+            mask = 0x00;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (offset + sizeLen > data.Length)
+        {
+            return false;
+        }
+
+        long result = data[offset] & mask;
+        bool allOnes = (data[offset] & mask) == mask;
+
+        for (int i = 1; i < sizeLen; i++)
+        {
+            byte nextByte = data[offset + i];
+            if (nextByte != 0xFF)
+            {
+                allOnes = false;
+            }
+
+            result = (result << 8) | nextByte;
+        }
+
+        offset += sizeLen;
+
+        if (allOnes)
+        {
+            size = -1;
+        }
+        else
+        {
+            size = result;
+        }
+
+        return true;
+    }
+
+    private static string ReadEbmlString(byte[] data, int offset, int length)
+    {
+        if (length <= 0 || offset + length > data.Length)
+        {
+            return string.Empty;
+        }
+
+        var end = offset + length;
+        while (end > offset && data[end - 1] == 0)
+        {
+            end--;
+        }
+
+        return System.Text.Encoding.UTF8.GetString(data, offset, end - offset);
+    }
+
+    private static ulong ReadEbmlUInt(byte[] data, int offset, int length)
+    {
+        ulong val = 0;
+        for (int i = 0; i < length && (offset + i) < data.Length; i++)
+        {
+            val = (val << 8) | data[offset + i];
+        }
+
+        return val;
+    }
+
+    private static double ReadEbmlFloat(byte[] data, int offset, int length)
+    {
+        if (length == 4 && offset + 4 <= data.Length)
+        {
+            var bytes = new byte[4];
+            Array.Copy(data, offset, bytes, 0, 4);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+
+            return BitConverter.ToSingle(bytes, 0);
+        }
+        else if (length == 8 && offset + 8 <= data.Length)
+        {
+            var bytes = new byte[8];
+            Array.Copy(data, offset, bytes, 0, 8);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+
+            return BitConverter.ToDouble(bytes, 0);
+        }
+
+        return 0.0;
+    }
+
+    private static void ApplyCodecId(MediaContainerInfo info, string codecId)
+    {
+        if (string.IsNullOrWhiteSpace(codecId))
+        {
+            return;
+        }
+
+        if (codecId.StartsWith("V_MPEGH/ISO/HEVC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (codecId.StartsWith("V_AV1", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "AV1";
+        }
+        else if (codecId.StartsWith("V_VP9", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "VP9";
+        }
+        else if (codecId.StartsWith("V_VP8", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "VP8";
+        }
+        else if (codecId.StartsWith("V_MPEG4/ISO/AVC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "H.264";
+        }
+        else if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "Dolby TrueHD / Atmos";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "7.1";
+            }
+        }
+        else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "5.1";
+            }
+        }
+        else if (codecId.StartsWith("A_AC3", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "AC3 / Dolby Digital";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "5.1";
+            }
+        }
+        else if (codecId.StartsWith("A_DTS", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "DTS";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "5.1";
+            }
+        }
+        else if (codecId.StartsWith("A_FLAC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "FLAC";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "2.0";
+            }
+        }
+        else if (codecId.StartsWith("A_OPUS", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "Opus";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "2.0";
+            }
+        }
+        else if (codecId.StartsWith("A_AAC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.AudioCodec = "AAC";
+            if (string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = "2.0";
+            }
+        }
     }
 
     private static MediaContainerInfo InspectMp4(byte[] header, string fileName)
