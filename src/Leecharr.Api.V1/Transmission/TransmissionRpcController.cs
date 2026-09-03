@@ -235,7 +235,20 @@ public class TransmissionRpcController : ControllerBase
                         torrents = torrents.Where(t => targetIdSet.Contains(t.Id));
                     }
 
-                    var mappedTorrents = torrents.Select(this.MapTorrentToTransmission).ToList();
+                    HashSet<string> requestedFields = null;
+                    if (request.Arguments != null && request.Arguments.TryGetValue("fields", out var fieldsVal) && fieldsVal.ValueKind == JsonValueKind.Array)
+                    {
+                        requestedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var f in fieldsVal.EnumerateArray())
+                        {
+                            if (f.ValueKind == JsonValueKind.String)
+                            {
+                                requestedFields.Add(f.GetString());
+                            }
+                        }
+                    }
+
+                    var mappedTorrents = torrents.Select(t => this.MapTorrentToTransmission(t, requestedFields)).ToList();
                     return this.Ok(new TransmissionRpcResponse
                     {
                         Result = "success",
@@ -629,7 +642,7 @@ public class TransmissionRpcController : ControllerBase
         return ids;
     }
 
-    private Dictionary<string, object> MapTorrentToTransmission(Torrent t)
+    private Dictionary<string, object> MapTorrentToTransmission(Torrent t, ISet<string> requestedFields = null)
     {
         var statusNum = t.Status switch
         {
@@ -641,20 +654,41 @@ public class TransmissionRpcController : ControllerBase
             _ => 0,
         };
 
-        var files = this.torrentFileService.GetFiles(t.Id);
-        var filesList = files.Select(f => new Dictionary<string, object>
-        {
-            { "name", f.Path },
-            { "bytesCompleted", (long)(f.Size * f.Progress) },
-            { "length", f.Size },
-        }).ToList();
+        var needsFiles = requestedFields == null || requestedFields.Count == 0 ||
+            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count");
 
-        var fileStats = files.Select(f => new Dictionary<string, object>
+        List<Dictionary<string, object>> filesList;
+        List<Dictionary<string, object>> fileStats;
+        List<int> priorities;
+        int fileCount;
+
+        if (needsFiles)
         {
-            { "bytesCompleted", (long)(f.Size * f.Progress) },
-            { "wanted", f.Priority > 0 },
-            { "priority", f.Priority },
-        }).ToList();
+            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+            fileCount = files.Count;
+            filesList = files.Select(f => new Dictionary<string, object>
+            {
+                { "name", f.Path },
+                { "bytesCompleted", (long)(f.Size * f.Progress) },
+                { "length", f.Size },
+            }).ToList();
+
+            fileStats = files.Select(f => new Dictionary<string, object>
+            {
+                { "bytesCompleted", (long)(f.Size * f.Progress) },
+                { "wanted", f.Priority > 0 },
+                { "priority", f.Priority },
+            }).ToList();
+
+            priorities = files.Select(f => f.Priority).ToList();
+        }
+        else
+        {
+            filesList = new List<Dictionary<string, object>>();
+            fileStats = new List<Dictionary<string, object>>();
+            priorities = new List<int>();
+            fileCount = 0;
+        }
 
         var labels = string.IsNullOrWhiteSpace(t.Category)
             ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
@@ -664,7 +698,7 @@ public class TransmissionRpcController : ControllerBase
         var secondsSeeding = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0;
         var isError = t.Status == TorrentStatus.Error;
 
-        return new Dictionary<string, object>
+        var dict = new Dictionary<string, object>
         {
             { "id", t.Id },
             { "name", t.Name },
@@ -692,11 +726,28 @@ public class TransmissionRpcController : ControllerBase
             { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
             { "seedIdleLimit", t.TargetSeedTimeMinutes },
             { "seedIdleMode", t.TargetSeedTimeMinutes > 0 ? 1 : 0 },
-            { "fileCount", filesList.Count },
-            { "file-count", filesList.Count },
+            { "fileCount", fileCount },
+            { "file-count", fileCount },
             { "isPrivate", t.IsPrivate },
             { "files", filesList },
             { "fileStats", fileStats },
+            { "priorities", priorities },
         };
+
+        if (requestedFields != null && requestedFields.Count > 0)
+        {
+            var filtered = new Dictionary<string, object>();
+            foreach (var field in requestedFields)
+            {
+                if (dict.TryGetValue(field, out var val))
+                {
+                    filtered[field] = val;
+                }
+            }
+
+            return filtered;
+        }
+
+        return dict;
     }
 }

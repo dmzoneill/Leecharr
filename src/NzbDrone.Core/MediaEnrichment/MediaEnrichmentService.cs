@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -26,6 +28,11 @@ public interface IMediaEnrichmentService
     Task<TorrentMediaMetadata> EnrichTorrentAsync(Torrent torrent, string filePath = null);
 
     TorrentMediaMetadata GetMetadata(int torrentId);
+
+    Dictionary<int, TorrentMediaMetadata> GetAllMetadata()
+    {
+        return new Dictionary<int, TorrentMediaMetadata>();
+    }
 
     void DeleteMetadata(int torrentId);
 }
@@ -120,6 +127,21 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     public TorrentMediaMetadata GetMetadata(int torrentId)
     {
         return this.repository.GetByTorrentId(torrentId);
+    }
+
+    public Dictionary<int, TorrentMediaMetadata> GetAllMetadata()
+    {
+        try
+        {
+            return this.repository.All()
+                .GroupBy(m => m.TorrentId)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to load all media metadata");
+            return new Dictionary<int, TorrentMediaMetadata>();
+        }
     }
 
     public void DeleteMetadata(int torrentId)

@@ -93,9 +93,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             .ToDictionary(g => g.Key, g => g.ToList())
             ?? new Dictionary<int, List<TrackerEntry>>();
 
+        var allMetadata = this.mediaEnrichmentService?.GetAllMetadata()
+            ?? new Dictionary<int, TorrentMediaMetadata>();
+
         var resources = torrents.Select((t, idx) =>
         {
-            var meta = this.mediaEnrichmentService.GetMetadata(t.Id);
+            allMetadata.TryGetValue(t.Id, out var meta);
             var res = TorrentResourceMapper.ToResource(t, meta);
             res.QueuePosition = t.QueuePosition > 0 ? t.QueuePosition : idx + 1;
             if (allDbTrackers.TryGetValue(t.Id, out var trackerEntries) && trackerEntries.Count > 0)
