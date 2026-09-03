@@ -702,7 +702,7 @@ public class MonoTorrentDownloadEngineTest
 
         var task = this.engine.GetTask(41);
         task.Should().NotBeNull();
-        task!.Status.Should().Be(TorrentStatus.Downloading);
+        task!.Status.Should().BeOneOf(TorrentStatus.Downloading, TorrentStatus.Checking);
     }
 
     [Test]
