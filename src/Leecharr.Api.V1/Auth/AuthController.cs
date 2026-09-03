@@ -15,6 +15,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
@@ -28,6 +29,7 @@ public class AuthController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly IConfigService configService;
     private readonly IUserSessionRepository userSessionRepository;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public AuthController(
         IUserService userService,
@@ -114,6 +116,11 @@ public class AuthController : ControllerBase
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
+        var sessionToken = Guid.NewGuid().ToString("N");
+        claims.Add(new Claim("SessionId", sessionToken));
+        claims.Add(new Claim("TicketId", sessionToken));
+        claims.Add(new Claim("SessionToken", sessionToken));
+
         var identity = new ClaimsIdentity(claims, "Cookies");
         var principal = new ClaimsPrincipal(identity);
 
@@ -132,7 +139,7 @@ public class AuthController : ControllerBase
                 var session = new UserSession
                 {
                     UserId = user.Id,
-                    SessionToken = Guid.NewGuid().ToString("N"),
+                    SessionToken = sessionToken,
                     IpAddress = this.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
                     UserAgent = this.Request.Headers["User-Agent"].ToString(),
                     CreatedAt = DateTime.UtcNow,
@@ -164,6 +171,26 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> Logout()
     {
+        var sessionToken = this.User.FindFirst("SessionId")?.Value ??
+                           this.User.FindFirst("TicketId")?.Value ??
+                           this.User.FindFirst("SessionToken")?.Value;
+
+        if (!string.IsNullOrEmpty(sessionToken) && this.userSessionRepository != null)
+        {
+            try
+            {
+                var session = this.userSessionRepository.FindBySessionToken(sessionToken);
+                if (session != null)
+                {
+                    this.userSessionRepository.Delete(session.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to remove session record upon logout.");
+            }
+        }
+
         await this.HttpContext.SignOutAsync("Cookies");
         return this.Ok(new { message = "Logged out successfully" });
     }
@@ -436,6 +463,11 @@ public class AuthController : ControllerBase
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
+            var sessionToken = Guid.NewGuid().ToString("N");
+            claims.Add(new Claim("SessionId", sessionToken));
+            claims.Add(new Claim("TicketId", sessionToken));
+            claims.Add(new Claim("SessionToken", sessionToken));
+
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
             await this.HttpContext.SignInAsync("Cookies", principal);
@@ -447,7 +479,7 @@ public class AuthController : ControllerBase
                     var session = new UserSession
                     {
                         UserId = user.Id,
-                        SessionToken = Guid.NewGuid().ToString("N"),
+                        SessionToken = sessionToken,
                         IpAddress = this.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
                         UserAgent = this.Request.Headers["User-Agent"].ToString(),
                         CreatedAt = DateTime.UtcNow,
