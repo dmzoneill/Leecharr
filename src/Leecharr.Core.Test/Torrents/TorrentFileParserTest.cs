@@ -239,4 +239,67 @@ public class TorrentFileParserTest
         parsed.Files[1].Size.Should().Be(2048);
         parsed.TotalSize.Should().Be(3072);
     }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    [TestCase(-16384)]
+    public void Parse_WhenPieceLengthIsZeroOrNegative_ThrowsInvalidTorrentFileException(long badPieceLength)
+    {
+        var bytes = CreateTorrentBytes(info => info["piece length"] = new BEncodedNumber(badPieceLength));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Piece length must be a positive integer.*");
+    }
+
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(19)]
+    [TestCase(21)]
+    [TestCase(39)]
+    public void Parse_WhenPiecesHashStringLengthIsNotMultipleOf20_ThrowsInvalidTorrentFileException(int invalidLength)
+    {
+        var bytes = CreateTorrentBytes(info => info["pieces"] = new BEncodedString(new byte[invalidLength]));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Pieces hash string length must be a non-zero multiple of 20.*");
+    }
+
+    [Test]
+    public void Parse_WhenSingleFileLengthIsNegative_ThrowsInvalidTorrentFileException()
+    {
+        var bytes = CreateTorrentBytes(info => info["length"] = new BEncodedNumber(-1024));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*File length cannot be negative.*");
+    }
+
+    [Test]
+    public void Parse_WhenMultiFileLengthIsNegative_ThrowsInvalidTorrentFileException()
+    {
+        var bytes = CreateMultiFileTorrentBytes("MyTorrent", (-500, new[] { "sub", "corrupt.txt" }));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*File length cannot be negative.*");
+    }
+
+    [Test]
+    public void Parse_WhenPieceCountDoesNotMatchTotalFileSize_ThrowsInvalidTorrentFileException()
+    {
+        // 16384 bytes with pieceLength 16384 expects exactly 1 piece (20 bytes).
+        // Providing 40 bytes (2 pieces) causes a mismatch.
+        var bytes = CreateTorrentBytes(info => info["pieces"] = new BEncodedString(new byte[40]));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Piece count does not match total file size.*");
+    }
 }
