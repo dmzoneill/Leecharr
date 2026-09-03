@@ -55,6 +55,10 @@ public interface IDownloadEngine
     TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId) => null;
 
     IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics() => System.Array.Empty<TorrentResourceMetrics>();
+
+    void CheckTrackerHealth()
+    {
+    }
 }
 
 public interface IDownloadTask
@@ -90,6 +94,10 @@ public interface IDownloadTask
     PiecePicker Picker => null;
 
     bool IsSuperSeeding => false;
+
+    string ErrorMessage => null;
+
+    bool IsStalled => false;
 }
 
 public class PeerInfo

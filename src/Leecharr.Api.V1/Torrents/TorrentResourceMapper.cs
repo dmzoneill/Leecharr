@@ -42,6 +42,7 @@ public static class TorrentResourceMapper
             Category = model.Category,
             Label = model.Label,
             TrackerUrl = model.TrackerUrl,
+            ErrorMessage = model.ErrorMessage,
             Priority = model.Priority,
             QueuePosition = model.QueuePosition,
             DownloadLimit = model.DownloadLimit,
