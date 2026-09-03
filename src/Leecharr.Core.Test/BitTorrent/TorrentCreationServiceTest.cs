@@ -120,4 +120,174 @@ public class TorrentCreationServiceTest
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("does not exist");
     }
+
+    [TestCase("/etc/cron.d/torrent_cron")]
+    [TestCase("/etc/shadow")]
+    [TestCase("/bin/sh")]
+    [TestCase("/root/.ssh/authorized_keys")]
+    [TestCase("/usr/bin/payload")]
+    [TestCase("/boot/grub/grub.cfg")]
+    public async Task CreateTorrentAsync_WhenOutputPathIsSensitiveSystemPath_ReturnsFailure(string sensitivePath)
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = sensitivePath,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("restricted system directory");
+    }
+
+    [TestCase("../../etc/cron.d/torrent_cron")]
+    [TestCase("sub/../../etc/cron.d/torrent_cron")]
+    [TestCase("../evil.torrent")]
+    [TestCase("..")]
+    [TestCase(".")]
+    public async Task CreateTorrentAsync_WhenOutputPathContainsTraversal_ReturnsFailure(string traversalPath)
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = traversalPath,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("directory traversal");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathContainsNullByte_ReturnsFailure()
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = Path.Combine(this.testDir, "evil\0.torrent"),
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("null bytes");
+    }
+
+    [TestCase("/etc/shadow")]
+    [TestCase("/etc/passwd")]
+    [TestCase("/root/.bashrc")]
+    [TestCase("/bin/sh")]
+    public async Task CreateTorrentAsync_WhenPathIsSensitiveSystemPath_ReturnsFailure(string sensitivePath)
+    {
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = sensitivePath,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("restricted system directory");
+    }
+
+    [TestCase("../../etc/shadow")]
+    [TestCase("../somefile")]
+    [TestCase("..")]
+    public async Task CreateTorrentAsync_WhenPathContainsTraversal_ReturnsFailure(string traversalPath)
+    {
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = traversalPath,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("directory traversal");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenPathContainsNullByte_ReturnsFailure()
+    {
+        var service = new TorrentCreationService();
+        var request = new TorrentCreationRequest
+        {
+            Path = "video\0.mp4",
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("null bytes");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenAllowedDirectoriesConfigured_RejectsPathsOutside()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        var outsideDir = Path.Combine(this.testDir, "outside");
+        Directory.CreateDirectory(allowedDir);
+        Directory.CreateDirectory(outsideDir);
+
+        var sourceFile = Path.Combine(outsideDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = Path.Combine(allowedDir, "out.torrent"),
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("allowed storage directories");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenAllowedDirectoriesConfigured_AcceptsPathsInside()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        Directory.CreateDirectory(allowedDir);
+
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = Path.Combine(allowedDir, "out.torrent"),
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        File.Exists(result.OutputPath).Should().BeTrue();
+    }
 }
