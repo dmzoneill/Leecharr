@@ -458,16 +458,20 @@ public class TransmissionRpcController : ControllerBase
                     var newLocation = request.Arguments != null && request.Arguments.TryGetValue("location", out var locElem)
                         ? locElem.GetString()
                         : null;
+                    var shouldMove = true;
+                    if (request.Arguments != null && request.Arguments.TryGetValue("move", out var moveElem))
+                    {
+                        if (moveElem.ValueKind == JsonValueKind.True || moveElem.ValueKind == JsonValueKind.False)
+                        {
+                            shouldMove = moveElem.GetBoolean();
+                        }
+                    }
+
                     if (!string.IsNullOrWhiteSpace(newLocation))
                     {
                         foreach (var id in locIds)
                         {
-                            var t = this.torrentService.Get(id);
-                            if (t != null)
-                            {
-                                t.SavePath = newLocation;
-                                await this.torrentService.UpdateAsync(t);
-                            }
+                            await this.torrentService.SetLocationAsync(id, newLocation, shouldMove);
                         }
                     }
 
