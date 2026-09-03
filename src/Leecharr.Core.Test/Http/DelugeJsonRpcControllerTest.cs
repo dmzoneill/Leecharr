@@ -109,4 +109,53 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"error\":null");
         json.Should().Contain("\"result\":");
     }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_WithoutFilesKey_DoesNotQueryFileService()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new System.Collections.Generic.List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, [\"name\", \"state\", \"progress\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_WithFilesKey_QueriesFileService()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new System.Collections.Generic.List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(42).Returns(new System.Collections.Generic.List<TorrentFile>());
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, [\"name\", \"files\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        this.torrentFileService.Received(1).GetFiles(42);
+    }
 }
