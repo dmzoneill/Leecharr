@@ -128,4 +128,54 @@ public class BasicRepositoryTest
         var updatedFetched = this.repository.Get(inserted.Id);
         updatedFetched.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 42, 99 });
     }
+
+    [Test]
+    public void InsertMany_BatchesRecordsInTransaction_AssignsIdsAndPersists()
+    {
+        var torrents = new System.Collections.Generic.List<Torrent>();
+        for (var i = 1; i <= 50; i++)
+        {
+            torrents.Add(new Torrent
+            {
+                Name = $"Batch.Torrent.{i}",
+                InfoHash = $"0123456789abcdef0123456789abcdef{i:D8}",
+                Category = "batch",
+                TotalSize = 1000 * i,
+                Status = TorrentStatus.Downloading,
+                DateAdded = DateTime.UtcNow,
+            });
+        }
+
+        this.repository.InsertMany(torrents);
+
+        foreach (var t in torrents)
+        {
+            t.Id.Should().BeGreaterThan(0);
+        }
+
+        var all = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(this.repository.All(), t => t.Category == "batch"));
+        all.Should().HaveCount(50);
+    }
+
+    [Test]
+    public void Database_OpenConnection_AppliesWalModeAndBusyTimeout()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+
+        using var connection = database.OpenConnection();
+        using var cmd = connection.CreateCommand();
+
+        cmd.CommandText = "PRAGMA journal_mode;";
+        var journalMode = cmd.ExecuteScalar()?.ToString();
+        journalMode.Should().BeEquivalentTo("wal");
+
+        cmd.CommandText = "PRAGMA busy_timeout;";
+        var busyTimeout = Convert.ToInt32(cmd.ExecuteScalar());
+        busyTimeout.Should().Be(5000);
+
+        cmd.CommandText = "PRAGMA synchronous;";
+        var synchronous = Convert.ToInt32(cmd.ExecuteScalar());
+        synchronous.Should().Be(1);
+    }
 }
