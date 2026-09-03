@@ -170,6 +170,7 @@ public class AppLifetime : IHostedService, IDisposable
     {
         var watchFolderTickCounter = 0;
         var rssTickCounter = 0;
+        var seedingTickCounter = 0;
 
         while (!token.IsCancellationRequested)
         {
@@ -177,54 +178,52 @@ public class AppLifetime : IHostedService, IDisposable
             {
                 await Task.Delay(1000, token);
 
+                var tasks = this.downloadEngine?.GetAllTasks()?.ToList();
+
                 // Broadcast 1-second speedPulse telemetry to SignalR clients
-                if (this.signalRBroadcaster != null && this.signalRBroadcaster.IsConnected && this.downloadEngine != null)
+                if (this.signalRBroadcaster != null && this.signalRBroadcaster.IsConnected && tasks != null && tasks.Count > 0)
                 {
                     try
                     {
-                        var tasks = this.downloadEngine.GetAllTasks()?.ToList();
-                        if (tasks != null && tasks.Count > 0)
+                        var updates = new List<object>(tasks.Count);
+                        foreach (var task in tasks)
                         {
-                            var updates = new List<object>(tasks.Count);
-                            foreach (var task in tasks)
+                            var dlSpeed = task.DownloadSpeed;
+                            var ulSpeed = task.UploadSpeed;
+                            var dlBytes = task.DownloadedBytes;
+                            var ulBytes = task.UploadedBytes;
+                            var progress = task.Progress;
+                            var ratio = dlBytes > 0 ? Math.Round((double)ulBytes / dlBytes, 2) : 0.0;
+
+                            long eta = 0;
+                            if (task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
                             {
-                                var dlSpeed = task.DownloadSpeed;
-                                var ulSpeed = task.UploadSpeed;
-                                var dlBytes = task.DownloadedBytes;
-                                var ulBytes = task.UploadedBytes;
-                                var progress = task.Progress;
-                                var ratio = dlBytes > 0 ? Math.Round((double)ulBytes / dlBytes, 2) : 0.0;
-
-                                long eta = 0;
-                                if (task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
-                                {
-                                    var totalBytes = progress > 0 ? (long)(dlBytes / progress) : 0;
-                                    var remainingBytes = Math.Max(0, totalBytes - dlBytes);
-                                    eta = remainingBytes / dlSpeed;
-                                }
-
-                                updates.Add(new
-                                {
-                                    id = task.TorrentId,
-                                    uploadSpeed = ulSpeed,
-                                    downloadSpeed = dlSpeed,
-                                    progress = progress,
-                                    uploaded = ulBytes,
-                                    downloaded = dlBytes,
-                                    ratio = ratio,
-                                    eta = eta,
-                                    status = task.Status.ToString(),
-                                    seeders = task.ConnectedSeeders,
-                                    leechers = task.ConnectedLeechers,
-                                });
+                                var totalBytes = progress > 0 ? (long)(dlBytes / progress) : 0;
+                                var remainingBytes = Math.Max(0, totalBytes - dlBytes);
+                                eta = remainingBytes / dlSpeed;
                             }
 
-                            this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
+                            updates.Add(new
                             {
-                                Name = "speedPulse",
-                                Body = updates,
+                                id = task.TorrentId,
+                                uploadSpeed = ulSpeed,
+                                downloadSpeed = dlSpeed,
+                                progress = progress,
+                                uploaded = ulBytes,
+                                downloaded = dlBytes,
+                                ratio = ratio,
+                                eta = eta,
+                                status = task.Status.ToString(),
+                                seeders = task.ConnectedSeeders,
+                                leechers = task.ConnectedLeechers,
                             });
                         }
+
+                        this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
+                        {
+                            Name = "speedPulse",
+                            Body = updates,
+                        });
                     }
                     catch (Exception ex)
                     {
@@ -232,53 +231,59 @@ public class AppLifetime : IHostedService, IDisposable
                     }
                 }
 
-                // Automated seeding check
-                if (this.torrentService != null)
+                // Automated seeding check (throttled to every 10s and only checks active in-memory seeding tasks)
+                seedingTickCounter++;
+                if (this.torrentService != null && seedingTickCounter >= 10)
                 {
+                    seedingTickCounter = 0;
                     try
                     {
-                        var torrents = this.torrentService.GetAll();
-                        foreach (var torrent in torrents)
+                        var seedingTaskIds = tasks?.Where(t => t.Status == TorrentStatus.Seeding).Select(t => t.TorrentId).ToList();
+                        if (seedingTaskIds != null && seedingTaskIds.Count > 0)
                         {
-                            if (torrent.Status == TorrentStatus.Seeding)
+                            foreach (var torrentId in seedingTaskIds)
                             {
-                                var ratioReached = torrent.TargetRatio > 0 && torrent.Ratio >= torrent.TargetRatio;
-                                var timeReached = torrent.TargetSeedTimeMinutes > 0 && torrent.SeedTimeMinutes >= torrent.TargetSeedTimeMinutes;
-
-                                if (ratioReached || timeReached)
+                                var torrent = this.torrentService.Get(torrentId);
+                                if (torrent != null && torrent.Status == TorrentStatus.Seeding)
                                 {
-                                    var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction)
-                                        ? torrent.ShareLimitAction
-                                        : this.configService.GlobalShareLimitAction;
+                                    var ratioReached = torrent.TargetRatio > 0 && torrent.Ratio >= torrent.TargetRatio;
+                                    var timeReached = torrent.TargetSeedTimeMinutes > 0 && torrent.SeedTimeMinutes >= torrent.TargetSeedTimeMinutes;
 
-                                    if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
+                                    if (ratioReached || timeReached)
                                     {
-                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
-                                        await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: true);
-                                    }
-                                    else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
-                                        await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: false);
-                                    }
-                                    else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
-                                        torrent.InitialSeeding = true;
-                                        await this.torrentService.UpdateAsync(torrent);
-                                    }
-                                    else
-                                    {
-                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                        var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction)
+                                            ? torrent.ShareLimitAction
+                                            : this.configService.GlobalShareLimitAction;
 
-                                        var oldStatus = torrent.Status;
-                                        await this.torrentService.PauseAsync(torrent.Id);
-                                        this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                        if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            Torrent = torrent,
-                                            OldStatus = oldStatus,
-                                            NewStatus = TorrentStatus.Stopped,
-                                        });
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: true);
+                                        }
+                                        else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: false);
+                                        }
+                                        else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            torrent.InitialSeeding = true;
+                                            await this.torrentService.UpdateAsync(torrent);
+                                        }
+                                        else
+                                        {
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+
+                                            var oldStatus = torrent.Status;
+                                            await this.torrentService.PauseAsync(torrent.Id);
+                                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                            {
+                                                Torrent = torrent,
+                                                OldStatus = oldStatus,
+                                                NewStatus = TorrentStatus.Stopped,
+                                            });
+                                        }
                                     }
                                 }
                             }
