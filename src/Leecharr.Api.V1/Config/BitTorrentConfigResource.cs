@@ -55,6 +55,14 @@ public class BitTorrentConfigResource : RestResource
 
     public int IdleSeedingLimitMinutes { get; set; }
 
+    public string IncompleteExtension { get; set; } = ".!leech";
+
+    public string GlobalShareLimitAction { get; set; } = "Pause";
+
+    public string AutoShutdownAction { get; set; } = "None";
+
+    public string AutoShutdownCondition { get; set; } = "None";
+
     // Network & Sockets Extended
     public string NetworkInterfaceBinding { get; set; }
 
@@ -173,6 +181,10 @@ public static class BitTorrentConfigResourceMapper
             QueueStalledEnabled = model.QueueStalledEnabled,
             QueueStalledMinutes = model.QueueStalledMinutes,
             IdleSeedingLimitMinutes = model.IdleSeedingLimitMinutes,
+            IncompleteExtension = model.IncompleteExtension,
+            GlobalShareLimitAction = model.GlobalShareLimitAction,
+            AutoShutdownAction = model.AutoShutdownAction,
+            AutoShutdownCondition = model.AutoShutdownCondition,
 
             NetworkInterfaceBinding = model.NetworkInterfaceBinding,
             MaxConnectionsPerIp = model.MaxConnectionsPerIp,

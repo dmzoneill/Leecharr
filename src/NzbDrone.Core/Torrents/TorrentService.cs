@@ -23,8 +23,9 @@ public class TorrentService : ITorrentService
     private readonly IMediaEnrichmentService mediaEnrichmentService;
     private readonly IConfigService configService;
     private readonly IDownloadEngine downloadEngine;
-    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IEventAggregator eventAggregator;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IQueueManagerService queueManagerService;
     private readonly Logger logger;
 
     public TorrentService(
@@ -35,7 +36,8 @@ public class TorrentService : ITorrentService
         IConfigService configService,
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator,
-        ITrackerEntryRepository trackerEntryRepository = null)
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IQueueManagerService queueManagerService = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -45,6 +47,7 @@ public class TorrentService : ITorrentService
         this.downloadEngine = downloadEngine;
         this.eventAggregator = eventAggregator;
         this.trackerEntryRepository = trackerEntryRepository;
+        this.queueManagerService = queueManagerService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -567,7 +570,10 @@ public class TorrentService : ITorrentService
             this.torrentRepository.Update(allTorrents[i]);
         }
 
-        await Task.CompletedTask;
+        if (this.queueManagerService != null)
+        {
+            await this.queueManagerService.ProcessQueueAsync();
+        }
     }
 
     private void SyncWithEngine(Torrent torrent)
@@ -598,5 +604,62 @@ public class TorrentService : ITorrentService
     public IDownloadTask GetDownloadTask(int torrentId)
     {
         return this.downloadEngine.GetTask(torrentId);
+    }
+
+    public async Task<bool> RenameFileAsync(int torrentId, string oldPath, string newPath)
+    {
+        var result = await this.downloadEngine.RenameFileAsync(torrentId, oldPath, newPath);
+        if (result && this.fileRepository != null)
+        {
+            var normalizedOld = oldPath.Replace('\\', '/').TrimStart('/');
+            var normalizedNew = newPath.Replace('\\', '/').TrimStart('/');
+            var dbFiles = this.fileRepository.GetByTorrentId(torrentId);
+            var matching = dbFiles.FirstOrDefault(f => !string.IsNullOrEmpty(f.Path) && f.Path.Replace('\\', '/').TrimStart('/').Equals(normalizedOld, StringComparison.OrdinalIgnoreCase));
+            if (matching != null)
+            {
+                matching.Path = normalizedNew;
+                this.fileRepository.Update(matching);
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<bool> RenameFolderAsync(int torrentId, string oldPath, string newPath)
+    {
+        var result = await this.downloadEngine.RenameFolderAsync(torrentId, oldPath, newPath);
+        if (result && this.fileRepository != null)
+        {
+            var normalizedOld = oldPath.Replace('\\', '/').Trim('/');
+            var normalizedNew = newPath.Replace('\\', '/').Trim('/');
+            var dbFiles = this.fileRepository.GetByTorrentId(torrentId);
+            foreach (var file in dbFiles)
+            {
+                if (!string.IsNullOrEmpty(file.Path))
+                {
+                    var cur = file.Path.Replace('\\', '/').TrimStart('/');
+                    if (cur.StartsWith(normalizedOld + "/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var sub = cur[(normalizedOld.Length + 1)..];
+                        file.Path = $"{normalizedNew}/{sub}";
+                        this.fileRepository.Update(file);
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public async Task SetSuperSeedingAsync(int id, bool enabled)
+    {
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent != null)
+        {
+            torrent.InitialSeeding = enabled;
+            this.torrentRepository.Update(torrent);
+            await this.downloadEngine.SetSuperSeedingAsync(id, enabled);
+            this.logger.Info("Set super seeding for torrent {0} ({1}): {2}", id, torrent.Name, enabled);
+        }
     }
 }

@@ -20,6 +20,8 @@ public interface IStoragePathService
     string GetFinalPath(string category, string torrentName);
 
     bool MoveToCompleted(string sourcePath, string category, string torrentName, out string finalDestination);
+
+    void StripIncompleteExtensions(string targetDirectoryOrFile);
 }
 
 public class StoragePathService : IStoragePathService
@@ -129,12 +131,60 @@ public class StoragePathService : IStoragePathService
                 this.diskProvider.MoveFile(sourcePath, finalDestination);
             }
 
+            this.StripIncompleteExtensions(finalDestination);
             return true;
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to move completed torrent from '{0}' to '{1}'", sourcePath, finalDestination);
             return false;
+        }
+    }
+
+    public void StripIncompleteExtensions(string targetDirectoryOrFile)
+    {
+        if (string.IsNullOrWhiteSpace(targetDirectoryOrFile))
+        {
+            return;
+        }
+
+        try
+        {
+            var ext = this.configService.IncompleteExtension;
+            if (this.diskProvider.FileExists(targetDirectoryOrFile))
+            {
+                if (targetDirectoryOrFile.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                {
+                    var cleanPath = targetDirectoryOrFile[..^ext.Length];
+                    this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath);
+                }
+                else if (targetDirectoryOrFile.EndsWith(".!mt", StringComparison.OrdinalIgnoreCase))
+                {
+                    var cleanPath = targetDirectoryOrFile[..^4];
+                    this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath);
+                }
+            }
+            else if (this.diskProvider.FolderExists(targetDirectoryOrFile))
+            {
+                var files = this.diskProvider.GetFiles(targetDirectoryOrFile, true);
+                foreach (var file in files)
+                {
+                    if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var cleanPath = file[..^ext.Length];
+                        this.diskProvider.MoveFile(file, cleanPath);
+                    }
+                    else if (file.EndsWith(".!mt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var cleanPath = file[..^4];
+                        this.diskProvider.MoveFile(file, cleanPath);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error stripping incomplete extensions from '{0}'", targetDirectoryOrFile);
         }
     }
 }

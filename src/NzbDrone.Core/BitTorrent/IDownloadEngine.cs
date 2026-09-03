@@ -38,6 +38,12 @@ public interface IDownloadEngine
 
     Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate) => Task.CompletedTask;
 
+    Task SetSuperSeedingAsync(int torrentId, bool enabled) => Task.CompletedTask;
+
+    Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath) => Task.FromResult(false);
+
+    Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder) => Task.FromResult(false);
+
     IDownloadTask GetTask(int torrentId);
 
     IEnumerable<IDownloadTask> GetAllTasks();
@@ -78,6 +84,10 @@ public interface IDownloadTask
     IReadOnlyList<PeerInfo> GetPeers();
 
     TorrentResourceMetrics GetResourceMetrics() => null;
+
+    PiecePicker Picker => null;
+
+    bool IsSuperSeeding => false;
 }
 
 public class PeerInfo

@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  useNetworkConfig,
-  useSaveNetworkConfig,
-  useNetworkStatus,
-} from "../../api/hooks";
+import { useNetworkConfig, useSaveNetworkConfig, useNetworkStatus } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function NetworkSettingsTab() {
@@ -14,6 +10,7 @@ export function NetworkSettingsTab() {
   const [form, setForm] = useState({
     listeningPort: 51413,
     upnpEnabled: true,
+    enableIPv6: true,
     bindInterface: "",
     enableVpnKillSwitch: false,
     maxGlobalConnections: 300,
@@ -31,6 +28,7 @@ export function NetworkSettingsTab() {
       setForm({
         listeningPort: config.listeningPort ?? 51413,
         upnpEnabled: config.upnpEnabled ?? true,
+        enableIPv6: config.enableIPv6 ?? true,
         bindInterface: config.bindInterface || "",
         enableVpnKillSwitch: config.enableVpnKillSwitch ?? false,
         maxGlobalConnections: config.maxGlobalConnections ?? 300,
@@ -44,10 +42,7 @@ export function NetworkSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -59,6 +54,7 @@ export function NetworkSettingsTab() {
         ...config,
         listeningPort: form.listeningPort,
         upnpEnabled: form.upnpEnabled,
+        enableIPv6: form.enableIPv6,
         bindInterface: form.bindInterface,
         enableVpnKillSwitch: form.enableVpnKillSwitch,
         maxGlobalConnections: form.maxGlobalConnections,
@@ -70,7 +66,7 @@ export function NetworkSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      },
+      }
     );
   };
 
@@ -126,16 +122,13 @@ export function NetworkSettingsTab() {
               Local IP: <strong>{netStatus.localIp || "0.0.0.0"}</strong>
             </div>
             <div>
-              Public IP:{" "}
-              <strong>{netStatus.externalIp || "Not Detected"}</strong>
+              Public IP: <strong>{netStatus.externalIp || "Not Detected"}</strong>
             </div>
             <div>
-              UPnP Active:{" "}
-              <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
+              UPnP Active: <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
             </div>
             <div>
-              Active Port Mappings:{" "}
-              <strong>{netStatus.portMappings?.length ?? 0}</strong>
+              Active Port Mappings: <strong>{netStatus.portMappings?.length ?? 0}</strong>
             </div>
           </div>
         </div>
@@ -161,12 +154,26 @@ export function NetworkSettingsTab() {
             hint="TCP & UDP port for incoming peer connections (default: 51413)"
           />
 
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+              justifyContent: "center",
+            }}
+          >
             <Toggle
               label="Enable UPnP / NAT-PMP Port Forwarding"
               checked={form.upnpEnabled}
               onChange={(v) => update("upnpEnabled", v)}
               hint="Automatically negotiate port forwarding with your router"
+            />
+
+            <Toggle
+              label="Enable IPv6 Dual-Stack Swarm Listener"
+              checked={form.enableIPv6}
+              onChange={(v) => update("enableIPv6", v)}
+              hint="Listens on both IPv4 (0.0.0.0) and IPv6 ([::]) for incoming peer handshakes"
             />
           </div>
         </div>

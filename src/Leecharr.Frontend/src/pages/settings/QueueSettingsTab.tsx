@@ -5,7 +5,7 @@ import {
   useSeedingConfig,
   useSaveSeedingConfig,
 } from "../../api/hooks";
-import { SaveBar, SectionCard, NumberInput, Toggle } from "./shared";
+import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
 
 export function QueueSettingsTab() {
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
@@ -21,6 +21,9 @@ export function QueueSettingsTab() {
     queueStalledMinutes: 30,
     idleSeedingLimitMinutes: 0,
     globalSeedRatioLimit: 0,
+    globalShareLimitAction: "Pause",
+    autoShutdownAction: "None",
+    autoShutdownCondition: "WhenDownloadsComplete",
   });
 
   const [dirty, setDirty] = useState(false);
@@ -34,15 +37,15 @@ export function QueueSettingsTab() {
         queueStalledMinutes: btConfig?.queueStalledMinutes ?? 30,
         idleSeedingLimitMinutes: btConfig?.idleSeedingLimitMinutes ?? 0,
         globalSeedRatioLimit: seedConfig?.globalSeedRatioLimit ?? 0,
+        globalShareLimitAction: btConfig?.globalShareLimitAction || "Pause",
+        autoShutdownAction: btConfig?.autoShutdownAction || "None",
+        autoShutdownCondition: btConfig?.autoShutdownCondition || "WhenDownloadsComplete",
       });
       setDirty(false);
     }
   }, [btConfig, seedConfig]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -50,8 +53,7 @@ export function QueueSettingsTab() {
   const isPending = saveBtMutation.isPending || saveSeedMutation.isPending;
   const isError = saveBtMutation.isError || saveSeedMutation.isError;
   const isSuccess = saveBtMutation.isSuccess && saveSeedMutation.isSuccess;
-  const error = (saveBtMutation.error ||
-    saveSeedMutation.error) as Error | null;
+  const error = (saveBtMutation.error || saveSeedMutation.error) as Error | null;
 
   const handleSave = () => {
     if (btConfig) {
@@ -62,6 +64,9 @@ export function QueueSettingsTab() {
         queueStalledEnabled: form.queueStalledEnabled,
         queueStalledMinutes: form.queueStalledMinutes,
         idleSeedingLimitMinutes: form.idleSeedingLimitMinutes,
+        globalShareLimitAction: form.globalShareLimitAction,
+        autoShutdownAction: form.autoShutdownAction,
+        autoShutdownCondition: form.autoShutdownCondition,
       });
     }
     if (seedConfig) {
@@ -185,6 +190,58 @@ export function QueueSettingsTab() {
             max={100}
             step={0.1}
             hint="Target ratio (e.g. 1.0 or 2.0). 0 = seed indefinitely until manual action."
+          />
+
+          <SelectInput
+            label="Action on Reaching Share Goal"
+            value={form.globalShareLimitAction}
+            onChange={(v) => update("globalShareLimitAction", v)}
+            options={[
+              { value: "Pause", label: "Pause Seeding" },
+              { value: "Remove", label: "Remove Torrent (Keep Data Files)" },
+              { value: "RemoveWithData", label: "Remove Torrent & Delete Data" },
+              { value: "SuperSeeding", label: "Switch to Super Seeding" },
+            ]}
+            hint="Automated lifecycle trigger executed when torrents meet target seed goals."
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Automated Power Management & OS Actions"
+        description="Trigger operating system sleep, hibernation, or shutdown when queue downloads complete."
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
+          <SelectInput
+            label="Action on Completion"
+            value={form.autoShutdownAction}
+            onChange={(v) => update("autoShutdownAction", v)}
+            options={[
+              { value: "None", label: "None (Do Nothing)" },
+              { value: "Shutdown", label: "Shutdown Computer" },
+              { value: "Suspend", label: "Suspend / Sleep System" },
+              { value: "Hibernate", label: "Hibernate System" },
+              { value: "ExitApplication", label: "Exit Leecharr Process" },
+            ]}
+            hint="Operating system power command to execute automatically."
+          />
+
+          <SelectInput
+            label="Completion Trigger Condition"
+            value={form.autoShutdownCondition}
+            onChange={(v) => update("autoShutdownCondition", v)}
+            disabled={form.autoShutdownAction === "None"}
+            options={[
+              { value: "WhenDownloadsComplete", label: "When Active Downloads Complete" },
+              { value: "WhenAllTorrentsComplete", label: "When All Torrents Finish (Queue Empty)" },
+            ]}
+            hint="Condition required to trigger the selected power management action."
           />
         </div>
       </SectionCard>

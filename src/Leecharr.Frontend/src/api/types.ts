@@ -60,6 +60,8 @@ export interface Torrent {
   trackers?: string[];
   source?: string | null;
   targetRatio?: number;
+  targetSeedTimeMinutes?: number;
+  shareLimitAction?: string;
   dateCompleted?: string | null;
 }
 
@@ -312,6 +314,9 @@ export interface GeneralConfig {
   sslKeyPath: string;
   sslCertPassword?: string;
   redirectHttpToHttps: boolean;
+  csrfProtectionEnabled?: boolean;
+  hostHeaderValidationEnabled?: boolean;
+  allowedHosts?: string;
 }
 
 export interface SslTestRequest {
@@ -364,6 +369,7 @@ export interface NetworkConfig {
   id: number;
   listeningPort: number;
   upnpEnabled: boolean;
+  enableIPv6?: boolean;
   bindInterface?: string;
   enableVpnKillSwitch?: boolean;
   maxGlobalConnections: number;
@@ -404,6 +410,7 @@ export interface BitTorrentConfig {
   enableIncompleteDir?: boolean;
   preallocationMode?: string;
   renamePartialFiles?: boolean;
+  incompleteExtension?: string;
   umask?: string;
 
   // Queue & Concurrency Management
@@ -412,6 +419,9 @@ export interface BitTorrentConfig {
   queueStalledEnabled?: boolean;
   queueStalledMinutes?: number;
   idleSeedingLimitMinutes?: number;
+  globalShareLimitAction?: string;
+  autoShutdownAction?: string;
+  autoShutdownCondition?: string;
 
   // Network & Sockets Extended
   networkInterfaceBinding?: string;
@@ -1451,4 +1461,26 @@ export interface SystemResourceTelemetrySnapshot {
   perTorrent: TorrentResourceMetrics[];
   subsystems: SubsystemTelemetryReport[];
   timestamp: string;
+}
+
+export interface TorrentCreationRequest {
+  path: string;
+  name?: string;
+  comment?: string;
+  createdBy?: string;
+  isPrivate?: boolean;
+  pieceLength?: number;
+  trackers?: string[];
+  webSeeds?: string[];
+  outputPath?: string;
+}
+
+export interface TorrentCreationResult {
+  success: boolean;
+  errorMessage?: string;
+  outputPath?: string;
+  infoHash?: string;
+  totalSize: number;
+  pieceCount: number;
+  pieceLength: number;
 }

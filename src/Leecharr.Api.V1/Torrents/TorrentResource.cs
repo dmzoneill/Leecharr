@@ -84,6 +84,8 @@ public class TorrentResource : RestResource
 
     public int TargetSeedTimeMinutes { get; set; }
 
+    public string ShareLimitAction { get; set; }
+
     public DateTime DateAdded { get; set; }
 
     public DateTime? DateCompleted { get; set; }

@@ -71,7 +71,7 @@ export function AddTorrentModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            Add Torrent
+            Add / Create Torrent
           </h2>
           <button
             type="button"

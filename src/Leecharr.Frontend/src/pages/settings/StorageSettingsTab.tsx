@@ -12,6 +12,7 @@ export function StorageSettingsTab() {
     incompleteDownloadDir: "/downloads/incomplete",
     preallocationMode: "Sparse",
     renamePartialFiles: true,
+    incompleteExtension: ".!leech",
     umask: "022",
   });
 
@@ -22,20 +23,17 @@ export function StorageSettingsTab() {
       setForm({
         downloadDir: config.downloadDir || "/downloads",
         enableIncompleteDir: config.enableIncompleteDir ?? true,
-        incompleteDownloadDir:
-          config.incompleteDownloadDir || "/downloads/incomplete",
+        incompleteDownloadDir: config.incompleteDownloadDir || "/downloads/incomplete",
         preallocationMode: config.preallocationMode || "Sparse",
         renamePartialFiles: config.renamePartialFiles ?? true,
+        incompleteExtension: config.incompleteExtension || ".!leech",
         umask: config.umask || "022",
       });
       setDirty(false);
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -50,11 +48,12 @@ export function StorageSettingsTab() {
         incompleteDownloadDir: form.incompleteDownloadDir,
         preallocationMode: form.preallocationMode,
         renamePartialFiles: form.renamePartialFiles,
+        incompleteExtension: form.incompleteExtension,
         umask: form.umask,
       },
       {
         onSuccess: () => setDirty(false),
-      },
+      }
     );
   };
 
@@ -118,13 +117,11 @@ export function StorageSettingsTab() {
               options={[
                 {
                   value: "Sparse",
-                  label:
-                    "Sparse Allocation (Instant Non-Blocking, Recommended)",
+                  label: "Sparse Allocation (Instant Non-Blocking, Recommended)",
                 },
                 {
                   value: "Full",
-                  label:
-                    "Full Preallocation (Zero-fill, Prevents Fragmentation)",
+                  label: "Full Preallocation (Zero-fill, Prevents Fragmentation)",
                 },
                 { value: "Off", label: "Disabled / Compact (Grow On Write)" },
               ]}
@@ -146,11 +143,22 @@ export function StorageSettingsTab() {
             }}
           >
             <Toggle
-              label="Append .part Extension to Incomplete Files"
+              label="Append Custom Extension to Incomplete Files"
               checked={form.renamePartialFiles}
               onChange={(v) => update("renamePartialFiles", v)}
-              hint="Renames downloading files with .part to prevent external media indexers from processing partial media"
+              hint="Renames in-progress downloading files to prevent external media managers from processing partial files"
             />
+
+            {form.renamePartialFiles && (
+              <div style={{ marginTop: "0.75rem" }}>
+                <TextInput
+                  label="Incomplete File Extension"
+                  value={form.incompleteExtension}
+                  onChange={(v) => update("incompleteExtension", v)}
+                  hint="Extension suffix appended during transfer and stripped upon 100% verification (e.g. .!leech, .!qB, or .part)"
+                />
+              </div>
+            )}
           </div>
         </div>
       </SectionCard>

@@ -8,6 +8,7 @@
     <ProjectReference Include="..\NzbDrone.Core\Leecharr.Core.csproj" />
     <ProjectReference Include="..\Leecharr.Http\Leecharr.Http.csproj" />
     <ProjectReference Include="..\Leecharr.Api.V1\Leecharr.Api.V1.csproj" />
+    <ProjectReference Include="..\NzbDrone.SignalR\Leecharr.SignalR.csproj" />
   </ItemGroup>
 
   <ItemGroup>

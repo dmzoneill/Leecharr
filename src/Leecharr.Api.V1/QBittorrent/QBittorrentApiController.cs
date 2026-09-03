@@ -13,8 +13,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Indexers.Search;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -36,6 +38,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly NzbDrone.Core.Tags.ITagRepository tagRepository;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IUserService userService;
+    private readonly ITorrentCreationService torrentCreationService;
+    private readonly IQBittorrentSearchService qbittorrentSearchService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -47,7 +51,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         ITrackerEntryRepository trackerEntryRepository,
         NzbDrone.Core.Tags.ITagRepository tagRepository = null,
         IConfigFileProvider configFileProvider = null,
-        IUserService userService = null)
+        IUserService userService = null,
+        ITorrentCreationService torrentCreationService = null,
+        IQBittorrentSearchService qbittorrentSearchService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -58,6 +64,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.tagRepository = tagRepository;
         this.configFileProvider = configFileProvider;
         this.userService = userService;
+        this.torrentCreationService = torrentCreationService ?? new TorrentCreationService();
+        this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
     }
 
     [NonAction]
@@ -204,9 +212,19 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["lsd"] = this.configService.EnableLpd,
             ["encryption"] = 1,
             ["anonymous_mode"] = false,
-            ["queueing_enabled"] = false,
+            ["queueing_enabled"] = true,
+            ["max_active_downloads"] = this.configService.MaxActiveDownloads,
+            ["max_active_uploads"] = this.configService.MaxActiveUploads,
+            ["max_active_torrents"] = this.configService.MaxActiveTorrents,
+            ["dont_count_slow_torrents"] = this.configService.IgnoreSlowTorrents,
+            ["slow_torrent_dl_rate_threshold"] = this.configService.SlowTorrentDownloadRateThreshold,
+            ["slow_torrent_ul_rate_threshold"] = this.configService.SlowTorrentUploadRateThreshold,
+            ["incomplete_files_ext"] = this.configService.AppendIncompleteExtension,
             ["alt_dl_limit"] = this.configService.AltDownloadSpeedKbps * 1024,
             ["alt_up_limit"] = this.configService.AltUploadSpeedKbps * 1024,
+            ["enable_embedded_tracker"] = this.configService.TrackerServerEnabled,
+            ["embedded_tracker_port"] = this.configService.TrackerHttpPort,
+            ["auto_shutdown_on_downloads_finished"] = !string.Equals(this.configService.AutoShutdownAction, "None", StringComparison.OrdinalIgnoreCase),
         });
     }
 
@@ -299,6 +317,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["last_activity"] = new DateTimeOffset(t.LastActive ?? t.DateAdded).ToUnixTimeSeconds(),
                 ["is_private"] = t.IsPrivate,
                 ["private"] = t.IsPrivate,
+                ["super_seeding"] = t.InitialSeeding,
             };
         }).ToList();
 
@@ -473,7 +492,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] string hashes,
         [FromForm] double? ratioLimit = null,
         [FromForm] int? seedingTimeLimit = null,
-        [FromForm] int? inactiveSeedingTimeLimit = null)
+        [FromForm] int? inactiveSeedingTimeLimit = null,
+        [FromForm] int? maxRatioAction = null)
     {
         if (string.IsNullOrEmpty(hashes))
         {
@@ -499,6 +519,18 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     updated = true;
                 }
 
+                if (maxRatioAction.HasValue)
+                {
+                    torrent.ShareLimitAction = maxRatioAction.Value switch
+                    {
+                        1 => "Remove",
+                        2 => "SuperSeeding",
+                        3 => "RemoveWithData",
+                        _ => "Pause",
+                    };
+                    updated = true;
+                }
+
                 if (updated)
                 {
                     await this.torrentService.UpdateAsync(torrent);
@@ -507,6 +539,131 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/renameFile")]
+    public async Task<ActionResult> RenameFile(
+        [FromForm] string hash,
+        [FromForm] string oldPath,
+        [FromForm] string newPath)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
+        {
+            return this.BadRequest();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var success = await this.torrentService.RenameFileAsync(torrent.Id, oldPath, newPath);
+        return success ? this.Content("Ok.", "text/plain") : this.StatusCode(StatusCodes.Status409Conflict, "Failed to rename file.");
+    }
+
+    [HttpPost("torrents/renameFolder")]
+    public async Task<ActionResult> RenameFolder(
+        [FromForm] string hash,
+        [FromForm] string oldPath,
+        [FromForm] string newPath)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
+        {
+            return this.BadRequest();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var success = await this.torrentService.RenameFolderAsync(torrent.Id, oldPath, newPath);
+        return success ? this.Content("Ok.", "text/plain") : this.StatusCode(StatusCodes.Status409Conflict, "Failed to rename folder.");
+    }
+
+    [HttpPost("torrents/setSuperSeeding")]
+    public async Task<ActionResult> SetSuperSeeding(
+        [FromForm] string hashes,
+        [FromForm] bool value)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var hash in hashList)
+        {
+            var torrent = this.torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                await this.torrentService.SetSuperSeedingAsync(torrent.Id, value);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/create")]
+    public async Task<ActionResult> CreateTorrent(
+        [FromForm] string path,
+        [FromForm] string name = null,
+        [FromForm] string comment = null,
+        [FromForm] string created_by = null,
+        [FromForm] bool is_private = false,
+        [FromForm] int piece_size = 0,
+        [FromForm] string trackers = null,
+        [FromForm] string webseeds = null,
+        [FromForm] string output_path = null)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return this.BadRequest("Path is required.");
+        }
+
+        var trackerList = !string.IsNullOrWhiteSpace(trackers)
+            ? trackers.Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries).ToList()
+            : new List<string>();
+
+        var webSeedList = !string.IsNullOrWhiteSpace(webseeds)
+            ? webseeds.Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries).ToList()
+            : new List<string>();
+
+        var request = new TorrentCreationRequest
+        {
+            Path = path,
+            Name = name,
+            Comment = comment,
+            CreatedBy = created_by,
+            IsPrivate = is_private,
+            PieceLength = piece_size,
+            Trackers = trackerList,
+            WebSeeds = webSeedList,
+            OutputPath = output_path,
+        };
+
+        var result = await this.torrentCreationService.CreateTorrentAsync(request);
+        if (!result.Success)
+        {
+            return this.StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage);
+        }
+
+        if (string.IsNullOrWhiteSpace(output_path) && result.TorrentFileBytes != null)
+        {
+            return this.File(result.TorrentFileBytes, "application/x-bittorrent", $"{name ?? Path.GetFileName(path)}.torrent");
+        }
+
+        return this.Ok(new
+        {
+            success = true,
+            infoHash = result.InfoHash,
+            totalSize = result.TotalSize,
+            pieceCount = result.PieceCount,
+            pieceLength = result.PieceLength,
+            outputPath = result.OutputPath,
+        });
     }
 
     [HttpPost("torrents/setForceStart")]
@@ -851,6 +1008,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["share_ratio"] = torrent.Ratio,
             ["is_private"] = torrent.IsPrivate,
             ["private"] = torrent.IsPrivate,
+            ["super_seeding"] = torrent.InitialSeeding,
         });
     }
 
@@ -1198,6 +1356,84 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("search/start")]
+    public ActionResult StartSearch(
+        [FromForm] string pattern,
+        [FromForm] string plugins = null,
+        [FromForm] string category = null)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            return this.BadRequest("Pattern is required.");
+        }
+
+        var id = this.qbittorrentSearchService.StartSearch(pattern, plugins, category);
+        return this.Ok(new { id });
+    }
+
+    [HttpPost("search/stop")]
+    public ActionResult StopSearch([FromForm] int id)
+    {
+        this.qbittorrentSearchService.StopSearch(id);
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpGet("search/status")]
+    [HttpPost("search/status")]
+    public ActionResult GetSearchStatus([FromQuery] int? id, [FromForm] int? formId)
+    {
+        var targetId = id ?? formId;
+        if (targetId.HasValue)
+        {
+            var status = this.qbittorrentSearchService.GetStatus(targetId.Value);
+            if (status == null)
+            {
+                return this.NotFound();
+            }
+
+            return this.Ok(new[] { status });
+        }
+
+        return this.Ok(this.qbittorrentSearchService.GetAllStatuses());
+    }
+
+    [HttpGet("search/results")]
+    [HttpPost("search/results")]
+    public ActionResult GetSearchResults(
+        [FromQuery] int id,
+        [FromQuery] int limit = 0,
+        [FromQuery] int offset = 0,
+        [FromForm] int? formId = null,
+        [FromForm] int? formLimit = null,
+        [FromForm] int? formOffset = null)
+    {
+        var searchId = formId ?? id;
+        var searchLimit = formLimit ?? limit;
+        var searchOffset = formOffset ?? offset;
+
+        var results = this.qbittorrentSearchService.GetResults(searchId, searchLimit, searchOffset);
+        return this.Ok(results);
+    }
+
+    [HttpPost("search/delete")]
+    public ActionResult DeleteSearch([FromForm] int id)
+    {
+        this.qbittorrentSearchService.DeleteSearch(id);
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpGet("search/plugins")]
+    public ActionResult GetSearchPlugins()
+    {
+        return this.Ok(this.qbittorrentSearchService.GetPlugins());
+    }
+
+    [HttpGet("search/categories")]
+    public ActionResult GetSearchCategories()
+    {
+        return this.Ok(this.qbittorrentSearchService.GetCategories());
     }
 
     private static string MapToQBitState(TorrentStatus status, double progress)

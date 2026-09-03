@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  useMemo,
-} from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   useAddTorrent,
   useIndexers,
@@ -15,17 +9,18 @@ import {
 } from "../api/hooks";
 import { formatBytes, formatDate } from "../utils/formatters";
 import { useToast } from "../context/ToastContext";
-import type { ReleaseInfo } from "../api/types";
+import { api } from "../api/client";
+import type { ReleaseInfo, TorrentCreationResult } from "../api/types";
 
 export interface AddTorrentFormProps {
-  initialMode?: "file" | "magnet" | "search";
+  initialMode?: "file" | "magnet" | "search" | "create";
   initialQuery?: string;
   isModal?: boolean;
   onClose?: () => void;
   onSuccess?: () => void;
 }
 
-export type InputMode = "file" | "magnet" | "search";
+export type InputMode = "file" | "magnet" | "search" | "create";
 
 interface MagnetInfo {
   name?: string;
@@ -76,10 +71,21 @@ export function AddTorrentForm({
   // Indexer Search State
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [activeSearchTerm, setActiveSearchTerm] = useState(initialQuery);
-  const [selectedIndexerId, setSelectedIndexerId] = useState<
-    number | undefined
-  >(undefined);
+  const [selectedIndexerId, setSelectedIndexerId] = useState<number | undefined>(undefined);
   const [downloadingGuid, setDownloadingGuid] = useState<string | null>(null);
+
+  // Torrent Creator State
+  const [createPath, setCreatePath] = useState("");
+  const [createName, setCreateName] = useState("");
+  const [createComment, setCreateComment] = useState("");
+  const [createCreatedBy, setCreateCreatedBy] = useState("Leecharr");
+  const [createPieceLength, setCreatePieceLength] = useState(0);
+  const [createIsPrivate, setCreateIsPrivate] = useState(false);
+  const [createTrackers, setCreateTrackers] = useState("");
+  const [createWebSeeds, setCreateWebSeeds] = useState("");
+  const [createOutputPath, setCreateOutputPath] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createResult, setCreateResult] = useState<TorrentCreationResult | null>(null);
 
   const { data: indexers } = useIndexers();
   const enabledIndexers = indexers?.filter((i) => i.enable) || [];
@@ -89,7 +95,7 @@ export function AddTorrentForm({
       query: activeSearchTerm,
       indexerId: selectedIndexerId,
     },
-    mode === "search" && Boolean(activeSearchTerm.trim()),
+    mode === "search" && Boolean(activeSearchTerm.trim())
   );
 
   const downloadReleaseMutation = useDownloadIndexerRelease();
@@ -113,9 +119,7 @@ export function AddTorrentForm({
   }, [searchQuery, activeSearchTerm]);
 
   const addFiles = useCallback((incoming: FileList | File[]) => {
-    const torrentFiles = Array.from(incoming).filter((f) =>
-      f.name.endsWith(".torrent"),
-    );
+    const torrentFiles = Array.from(incoming).filter((f) => f.name.endsWith(".torrent"));
     if (torrentFiles.length === 0) return;
     setFiles((prev) => {
       const existing = new Set(prev.map((f) => f.name));
@@ -150,7 +154,7 @@ export function AddTorrentForm({
       setIsDragOver(false);
       addFiles(e.dataTransfer.files);
     },
-    [addFiles],
+    [addFiles]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,10 +172,7 @@ export function AddTorrentForm({
         {
           onSuccess: (result: AddTorrentResult) => {
             if (result && result.failed && result.failed.length === 0) {
-              showToast(
-                `Added ${result.added.length} torrent(s) successfully`,
-                "success",
-              );
+              showToast(`Added ${result.added.length} torrent(s) successfully`, "success");
               if (onSuccess) onSuccess();
               if (onClose) onClose();
               return;
@@ -182,7 +183,7 @@ export function AddTorrentForm({
               setResultMessage(
                 `${result.added.length} added, ${result.failed.length} skipped: ${result.failed
                   .map((f) => `${f.fileName} (${f.reason})`)
-                  .join("; ")}`,
+                  .join("; ")}`
               );
             } else {
               showToast("Torrent(s) added successfully", "success");
@@ -193,7 +194,7 @@ export function AddTorrentForm({
           onError: (err) => {
             showToast(`Failed to upload torrents: ${err.message}`, "error");
           },
-        },
+        }
       );
     } else if (mode === "magnet" && magnetLink.trim()) {
       addTorrent.mutate(
@@ -208,7 +209,7 @@ export function AddTorrentForm({
           onError: (err) => {
             showToast(`Failed to add magnet: ${err.message}`, "error");
           },
-        },
+        }
       );
     }
   };
@@ -241,23 +242,61 @@ export function AddTorrentForm({
         },
         onError: (err) => {
           setDownloadingGuid(null);
-          showToast(
-            `Failed to add release: ${err.message || "Unknown error"}`,
-            "error",
-          );
+          showToast(`Failed to add release: ${err.message || "Unknown error"}`, "error");
         },
-      },
+      }
     );
   };
 
+  const handleCreateTorrent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createPath.trim()) {
+      showToast("Source path is required to create a torrent", "error");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setCreateResult(null);
+
+      const trackersList = createTrackers
+        .split("\n")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+
+      const webSeedsList = createWebSeeds
+        .split("\n")
+        .map((w) => w.trim())
+        .filter((w) => w.length > 0);
+
+      const res = await api.createTorrent({
+        path: createPath.trim(),
+        name: createName.trim() || undefined,
+        comment: createComment.trim() || undefined,
+        createdBy: createCreatedBy.trim() || undefined,
+        isPrivate: createIsPrivate,
+        pieceLength: createPieceLength > 0 ? createPieceLength : undefined,
+        trackers: trackersList.length > 0 ? trackersList : undefined,
+        webSeeds: webSeedsList.length > 0 ? webSeedsList : undefined,
+        outputPath: createOutputPath.trim() || undefined,
+      });
+
+      setCreateResult(res);
+      if (res.success) {
+        showToast("Torrent created successfully!", "success");
+      } else {
+        showToast(res.errorMessage || "Failed to create torrent", "error");
+      }
+    } catch (err: any) {
+      showToast(err?.message || "Failed to create torrent", "error");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const isMagnetValid = magnetLink.trim().startsWith("magnet:?");
-  const magnetPreview = useMemo(
-    () => parseMagnetPreview(magnetLink),
-    [magnetLink],
-  );
-  const canSubmit =
-    (mode === "file" && files.length > 0) ||
-    (mode === "magnet" && isMagnetValid);
+  const magnetPreview = useMemo(() => parseMagnetPreview(magnetLink), [magnetLink]);
+  const canSubmit = (mode === "file" && files.length > 0) || (mode === "magnet" && isMagnetValid);
 
   return (
     <div
@@ -290,10 +329,8 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor:
-              mode === "file" ? "var(--accent, #ffd166)" : "transparent",
-            color:
-              mode === "file" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor: mode === "file" ? "var(--accent, #ffd166)" : "transparent",
+            color: mode === "file" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -309,10 +346,8 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor:
-              mode === "magnet" ? "var(--accent, #ffd166)" : "transparent",
-            color:
-              mode === "magnet" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor: mode === "magnet" ? "var(--accent, #ffd166)" : "transparent",
+            color: mode === "magnet" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -328,16 +363,31 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor:
-              mode === "search" ? "var(--accent, #ffd166)" : "transparent",
-            color:
-              mode === "search" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor: mode === "search" ? "var(--accent, #ffd166)" : "transparent",
+            color: mode === "search" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
           }}
         >
           🔍 Indexer Search
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${mode === "create" ? "tab-btn-active" : ""}`}
+          onClick={() => setMode("create")}
+          style={{
+            fontSize: "0.9rem",
+            padding: "0.45rem 1rem",
+            borderRadius: "6px",
+            backgroundColor: mode === "create" ? "var(--accent, #ffd166)" : "transparent",
+            color: mode === "create" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            border: "none",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          ⚡ Create Torrent
         </button>
       </div>
 
@@ -385,9 +435,7 @@ export function AddTorrentForm({
             <div style={{ fontSize: "2.5rem", marginBottom: "0.6rem" }}>📤</div>
             {files.length > 0 ? (
               <div>
-                <span
-                  style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}
-                >
+                <span style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}>
                   {files.length === 1
                     ? `${files[0].name} selected`
                     : `${files.length} torrent files selected`}
@@ -598,9 +646,7 @@ export function AddTorrentForm({
                   : "1px solid var(--border-light, rgba(255, 255, 255, 0.15))",
                 backgroundColor: "var(--bg-primary, #10111a)",
                 boxShadow:
-                  magnetLink.trim() && isMagnetValid
-                    ? "0 0 0 1px rgba(34, 197, 94, 0.2)"
-                    : "none",
+                  magnetLink.trim() && isMagnetValid ? "0 0 0 1px rgba(34, 197, 94, 0.2)" : "none",
                 transition: "all 0.2s ease",
               }}
             >
@@ -621,8 +667,7 @@ export function AddTorrentForm({
                   outline: "none",
                   boxShadow: "none",
                   color: "inherit",
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                   fontSize: "0.85rem",
                   lineHeight: "1.45",
                   resize: isModal ? "vertical" : "none",
@@ -646,15 +691,11 @@ export function AddTorrentForm({
               {magnetLink.trim() && (
                 <span
                   style={{
-                    color: isMagnetValid
-                      ? "var(--success, #22c55e)"
-                      : "var(--danger, #ef4444)",
+                    color: isMagnetValid ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
                     fontWeight: 600,
                   }}
                 >
-                  {isMagnetValid
-                    ? "✓ Valid Magnet Format"
-                    : "✗ Must start with magnet:?"}
+                  {isMagnetValid ? "✓ Valid Magnet Format" : "✗ Must start with magnet:?"}
                 </span>
               )}
             </div>
@@ -710,22 +751,21 @@ export function AddTorrentForm({
                     </span>
                   </div>
                 )}
-                {magnetPreview?.trackerCount !== undefined &&
-                  magnetPreview.trackerCount > 0 && (
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <span
-                        style={{
-                          color: "var(--text-muted, #7e8092)",
-                          minWidth: "75px",
-                        }}
-                      >
-                        Trackers:
-                      </span>
-                      <span style={{ color: "#4ade80" }}>
-                        {magnetPreview.trackerCount} bundled tracker(s)
-                      </span>
-                    </div>
-                  )}
+                {magnetPreview?.trackerCount !== undefined && magnetPreview.trackerCount > 0 && (
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted, #7e8092)",
+                        minWidth: "75px",
+                      }}
+                    >
+                      Trackers:
+                    </span>
+                    <span style={{ color: "#4ade80" }}>
+                      {magnetPreview.trackerCount} bundled tracker(s)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -765,8 +805,8 @@ export function AddTorrentForm({
                   margin: "0 auto 1.25rem",
                 }}
               >
-                Connect Jackett, Prowlarr, Torznab, or Newznab indexers in
-                Settings to search releases directly.
+                Connect Jackett, Prowlarr, Torznab, or Newznab indexers in Settings to search
+                releases directly.
               </p>
             </div>
           ) : (
@@ -812,9 +852,7 @@ export function AddTorrentForm({
                     className="form-control"
                     value={selectedIndexerId ?? ""}
                     onChange={(e) =>
-                      setSelectedIndexerId(
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
+                      setSelectedIndexerId(e.target.value ? Number(e.target.value) : undefined)
                     }
                     style={{
                       backgroundColor: "var(--bg-primary, #10111a)",
@@ -825,9 +863,7 @@ export function AddTorrentForm({
                       fontSize: "0.85rem",
                     }}
                   >
-                    <option value="">
-                      All Indexers ({enabledIndexers.length})
-                    </option>
+                    <option value="">All Indexers ({enabledIndexers.length})</option>
                     {enabledIndexers.map((idx) => (
                       <option key={idx.id} value={idx.id}>
                         {idx.name} ({idx.indexerType})
@@ -860,9 +896,7 @@ export function AddTorrentForm({
               >
                 {searchResults.isFetching && (
                   <div style={{ padding: "3rem", textAlign: "center" }}>
-                    <div className="loading">
-                      Searching configured indexers...
-                    </div>
+                    <div className="loading">Searching configured indexers...</div>
                   </div>
                 )}
 
@@ -875,8 +909,7 @@ export function AddTorrentForm({
                     }}
                   >
                     Search failed:{" "}
-                    {(searchResults.error as Error)?.message ||
-                      "Check indexer connection"}
+                    {(searchResults.error as Error)?.message || "Check indexer connection"}
                   </div>
                 )}
 
@@ -891,8 +924,7 @@ export function AddTorrentForm({
                         color: "var(--text-muted, #7e8092)",
                       }}
                     >
-                      No releases found for "{activeSearchTerm}". Try different
-                      keywords or indexer.
+                      No releases found for "{activeSearchTerm}". Try different keywords or indexer.
                     </div>
                   )}
 
@@ -909,218 +941,536 @@ export function AddTorrentForm({
                   </div>
                 )}
 
-                {!searchResults.isFetching &&
-                  (searchResults.data?.length ?? 0) > 0 && (
-                    <table
-                      className="table"
-                      style={{ width: "100%", borderCollapse: "collapse" }}
-                    >
-                      <thead>
-                        <tr
+                {!searchResults.isFetching && (searchResults.data?.length ?? 0) > 0 && (
+                  <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr
+                        style={{
+                          borderBottom: "1px solid var(--border-light, #1c203b)",
+                          textAlign: "left",
+                          fontSize: "0.8rem",
+                          color: "var(--text-muted, #7e8092)",
+                          position: "sticky",
+                          top: 0,
+                          backgroundColor: "var(--bg-secondary, #171b35)",
+                          zIndex: 2,
+                        }}
+                      >
+                        <th style={{ padding: "0.65rem 0.85rem" }}>Title</th>
+                        <th
                           style={{
-                            borderBottom:
-                              "1px solid var(--border-light, #1c203b)",
-                            textAlign: "left",
-                            fontSize: "0.8rem",
-                            color: "var(--text-muted, #7e8092)",
-                            position: "sticky",
-                            top: 0,
-                            backgroundColor: "var(--bg-secondary, #171b35)",
-                            zIndex: 2,
+                            padding: "0.65rem 0.85rem",
+                            width: "130px",
                           }}
                         >
-                          <th style={{ padding: "0.65rem 0.85rem" }}>Title</th>
-                          <th
-                            style={{
-                              padding: "0.65rem 0.85rem",
-                              width: "130px",
-                            }}
-                          >
-                            Indexer
-                          </th>
-                          <th
-                            style={{
-                              padding: "0.65rem 0.85rem",
-                              width: "100px",
-                            }}
-                          >
-                            Size
-                          </th>
-                          <th
-                            style={{
-                              padding: "0.65rem 0.85rem",
-                              width: "95px",
-                            }}
-                          >
-                            Peers
-                          </th>
-                          <th
-                            style={{
-                              padding: "0.65rem 0.85rem",
-                              width: "100px",
-                            }}
-                          >
-                            Date
-                          </th>
-                          <th
-                            style={{
-                              padding: "0.65rem 0.85rem",
-                              width: "90px",
-                              textAlign: "right",
-                            }}
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {searchResults.data?.map((rel) => {
-                          const itemKey = rel.guid || rel.infoHash || rel.title;
-                          const isDownloading = downloadingGuid === itemKey;
+                          Indexer
+                        </th>
+                        <th
+                          style={{
+                            padding: "0.65rem 0.85rem",
+                            width: "100px",
+                          }}
+                        >
+                          Size
+                        </th>
+                        <th
+                          style={{
+                            padding: "0.65rem 0.85rem",
+                            width: "95px",
+                          }}
+                        >
+                          Peers
+                        </th>
+                        <th
+                          style={{
+                            padding: "0.65rem 0.85rem",
+                            width: "100px",
+                          }}
+                        >
+                          Date
+                        </th>
+                        <th
+                          style={{
+                            padding: "0.65rem 0.85rem",
+                            width: "90px",
+                            textAlign: "right",
+                          }}
+                        >
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.data?.map((rel) => {
+                        const itemKey = rel.guid || rel.infoHash || rel.title;
+                        const isDownloading = downloadingGuid === itemKey;
 
-                          return (
-                            <tr
-                              key={itemKey}
-                              style={{
-                                borderBottom:
-                                  "1px solid rgba(255, 255, 255, 0.05)",
-                                fontSize: "0.85rem",
-                              }}
-                            >
-                              <td style={{ padding: "0.65rem 0.85rem" }}>
+                        return (
+                          <tr
+                            key={itemKey}
+                            style={{
+                              borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            <td style={{ padding: "0.65rem 0.85rem" }}>
+                              <div
+                                style={{
+                                  fontWeight: 500,
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {rel.title}
+                              </div>
+                              {rel.categories && rel.categories.length > 0 && (
                                 <div
                                   style={{
-                                    fontWeight: 500,
-                                    wordBreak: "break-word",
+                                    display: "flex",
+                                    gap: "0.3rem",
+                                    marginTop: "0.25rem",
                                   }}
                                 >
-                                  {rel.title}
-                                </div>
-                                {rel.categories &&
-                                  rel.categories.length > 0 && (
-                                    <div
+                                  {rel.categories.slice(0, 3).map((c, i) => (
+                                    <span
+                                      key={i}
+                                      className="badge badge-secondary"
                                       style={{
-                                        display: "flex",
-                                        gap: "0.3rem",
-                                        marginTop: "0.25rem",
+                                        fontSize: "0.65rem",
+                                        padding: "0.1rem 0.35rem",
+                                        borderRadius: "3px",
+                                        backgroundColor: "rgba(255, 255, 255, 0.08)",
                                       }}
                                     >
-                                      {rel.categories
-                                        .slice(0, 3)
-                                        .map((c, i) => (
-                                          <span
-                                            key={i}
-                                            className="badge badge-secondary"
-                                            style={{
-                                              fontSize: "0.65rem",
-                                              padding: "0.1rem 0.35rem",
-                                              borderRadius: "3px",
-                                              backgroundColor:
-                                                "rgba(255, 255, 255, 0.08)",
-                                            }}
-                                          >
-                                            {c}
-                                          </span>
-                                        ))}
-                                    </div>
-                                  )}
-                              </td>
+                                      {c}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
 
-                              <td style={{ padding: "0.65rem 0.85rem" }}>
-                                <span
-                                  className="badge badge-primary"
-                                  style={{
-                                    fontSize: "0.75rem",
-                                    borderRadius: "4px",
-                                    backgroundColor:
-                                      "rgba(255, 209, 102, 0.15)",
-                                    color: "var(--accent, #ffd166)",
-                                  }}
-                                >
-                                  {rel.indexer || "Indexer"}
-                                </span>
-                              </td>
-
-                              <td
+                            <td style={{ padding: "0.65rem 0.85rem" }}>
+                              <span
+                                className="badge badge-primary"
                                 style={{
-                                  padding: "0.65rem 0.85rem",
-                                  whiteSpace: "nowrap",
+                                  fontSize: "0.75rem",
+                                  borderRadius: "4px",
+                                  backgroundColor: "rgba(255, 209, 102, 0.15)",
+                                  color: "var(--accent, #ffd166)",
                                 }}
                               >
-                                {formatBytes(rel.size)}
-                              </td>
+                                {rel.indexer || "Indexer"}
+                              </span>
+                            </td>
 
-                              <td
+                            <td
+                              style={{
+                                padding: "0.65rem 0.85rem",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {formatBytes(rel.size)}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "0.65rem 0.85rem",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              <span
                                 style={{
-                                  padding: "0.65rem 0.85rem",
-                                  whiteSpace: "nowrap",
+                                  color: "var(--success, #22c55e)",
+                                  fontWeight: 600,
                                 }}
                               >
-                                <span
-                                  style={{
-                                    color: "var(--success, #22c55e)",
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  ▲ {rel.seeders ?? 0}
-                                </span>{" "}
-                                <span
-                                  style={{
-                                    color: "var(--text-muted, #7e8092)",
-                                    marginLeft: "0.2rem",
-                                  }}
-                                >
-                                  ▼ {rel.leechers ?? 0}
-                                </span>
-                              </td>
-
-                              <td
+                                ▲ {rel.seeders ?? 0}
+                              </span>{" "}
+                              <span
                                 style={{
-                                  padding: "0.65rem 0.85rem",
-                                  fontSize: "0.8rem",
                                   color: "var(--text-muted, #7e8092)",
-                                  whiteSpace: "nowrap",
+                                  marginLeft: "0.2rem",
                                 }}
                               >
-                                {rel.publishDate
-                                  ? formatDate(rel.publishDate)
-                                  : "-"}
-                              </td>
+                                ▼ {rel.leechers ?? 0}
+                              </span>
+                            </td>
 
-                              <td
+                            <td
+                              style={{
+                                padding: "0.65rem 0.85rem",
+                                fontSize: "0.8rem",
+                                color: "var(--text-muted, #7e8092)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {rel.publishDate ? formatDate(rel.publishDate) : "-"}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "0.65rem 0.85rem",
+                                textAlign: "right",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-success"
                                 style={{
-                                  padding: "0.65rem 0.85rem",
-                                  textAlign: "right",
+                                  fontSize: "0.78rem",
+                                  padding: "0.3rem 0.65rem",
+                                  borderRadius: "4px",
                                 }}
+                                onClick={() => handleAddRelease(rel)}
+                                disabled={isDownloading}
                               >
-                                <button
-                                  type="button"
-                                  className="btn btn-success"
-                                  style={{
-                                    fontSize: "0.78rem",
-                                    padding: "0.3rem 0.65rem",
-                                    borderRadius: "4px",
-                                  }}
-                                  onClick={() => handleAddRelease(rel)}
-                                  disabled={isDownloading}
-                                >
-                                  {isDownloading ? "Adding..." : "+ Add"}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
+                                {isDownloading ? "Adding..." : "+ Add"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
 
+      {/* Mode 4: Torrent Creator */}
+      {mode === "create" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflowY: "auto",
+            paddingRight: "0.5rem",
+            gap: "1rem",
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  marginBottom: "0.3rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Source Path (File or Directory) *
+              </label>
+              <input
+                type="text"
+                value={createPath}
+                onChange={(e) => setCreatePath(e.target.value)}
+                placeholder="/downloads/complete/MyMovie or /data/file.iso"
+                className="form-input"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  color: "inherit",
+                }}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  marginBottom: "0.3rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Torrent Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="Defaults to file / folder name"
+                className="form-input"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  color: "inherit",
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  marginBottom: "0.3rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Piece Size
+              </label>
+              <select
+                value={createPieceLength}
+                onChange={(e) => setCreatePieceLength(parseInt(e.target.value, 10))}
+                className="form-input"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  color: "inherit",
+                }}
+              >
+                <option value={0}>Auto (Optimal Size based on content)</option>
+                <option value={16384}>16 KiB</option>
+                <option value={32768}>32 KiB</option>
+                <option value={65536}>64 KiB</option>
+                <option value={131072}>128 KiB</option>
+                <option value={262144}>256 KiB</option>
+                <option value={524288}>512 KiB</option>
+                <option value={1048576}>1 MiB</option>
+                <option value={2097152}>2 MiB</option>
+                <option value={4194304}>4 MiB</option>
+                <option value={8388608}>8 MiB</option>
+                <option value={16777216}>16 MiB</option>
+                <option value={33554432}>32 MiB</option>
+              </select>
+            </div>
+
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingTop: "1.2rem" }}
+            >
+              <input
+                type="checkbox"
+                id="createPrivateCheck"
+                checked={createIsPrivate}
+                onChange={(e) => setCreateIsPrivate(e.target.checked)}
+              />
+              <label
+                htmlFor="createPrivateCheck"
+                style={{ fontSize: "0.85rem", color: "var(--text-secondary)", cursor: "pointer" }}
+              >
+                <strong>Private Torrent</strong> (BEP 27 - Disables DHT & PEX)
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                marginBottom: "0.3rem",
+                color: "var(--text-secondary)",
+              }}
+            >
+              Tracker URLs (One per line, tiers separated by empty line)
+            </label>
+            <textarea
+              rows={3}
+              value={createTrackers}
+              onChange={(e) => setCreateTrackers(e.target.value)}
+              placeholder="http://tracker.example.com:80/announce&#10;udp://tracker.opentrackr.org:1337/announce"
+              className="form-input"
+              style={{
+                width: "100%",
+                padding: "0.5rem 0.75rem",
+                fontSize: "0.85rem",
+                borderRadius: "6px",
+                border: "1px solid var(--border-light, #1c203b)",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                fontFamily: "monospace",
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                marginBottom: "0.3rem",
+                color: "var(--text-secondary)",
+              }}
+            >
+              Web Seed URLs (One per line)
+            </label>
+            <textarea
+              rows={2}
+              value={createWebSeeds}
+              onChange={(e) => setCreateWebSeeds(e.target.value)}
+              placeholder="https://cdn.example.com/downloads/MyMovie.mkv"
+              className="form-input"
+              style={{
+                width: "100%",
+                padding: "0.5rem 0.75rem",
+                fontSize: "0.85rem",
+                borderRadius: "6px",
+                border: "1px solid var(--border-light, #1c203b)",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                fontFamily: "monospace",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  marginBottom: "0.3rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Comment
+              </label>
+              <input
+                type="text"
+                value={createComment}
+                onChange={(e) => setCreateComment(e.target.value)}
+                placeholder="Optional description or license info"
+                className="form-input"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  color: "inherit",
+                }}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  marginBottom: "0.3rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Output .torrent Save Path
+              </label>
+              <input
+                type="text"
+                value={createOutputPath}
+                onChange={(e) => setCreateOutputPath(e.target.value)}
+                placeholder="Optional destination for .torrent file"
+                className="form-input"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  color: "inherit",
+                }}
+              />
+            </div>
+          </div>
+
+          {createResult && (
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                borderRadius: "6px",
+                backgroundColor: createResult.success
+                  ? "rgba(16, 185, 129, 0.15)"
+                  : "rgba(239, 68, 68, 0.15)",
+                border: `1px solid ${createResult.success ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
+                fontSize: "0.85rem",
+              }}
+            >
+              {createResult.success ? (
+                <div>
+                  <div style={{ fontWeight: 700, color: "#10b981", marginBottom: "0.25rem" }}>
+                    ✓ Torrent file created successfully!
+                  </div>
+                  <div>
+                    <strong>Info Hash:</strong>{" "}
+                    <code style={{ wordBreak: "break-all" }}>{createResult.infoHash}</code>
+                  </div>
+                  <div>
+                    <strong>Total Size:</strong> {formatBytes(createResult.totalSize)} (
+                    {createResult.pieceCount} pieces @ {formatBytes(createResult.pieceLength)})
+                  </div>
+                  {createResult.outputPath && (
+                    <div style={{ marginTop: "0.25rem" }}>
+                      <strong>Saved To:</strong> <code>{createResult.outputPath}</code>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ color: "#ef4444" }}>
+                  <strong>Creation Error:</strong> {createResult.errorMessage}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "0.5rem",
+              marginTop: "0.5rem",
+            }}
+          >
+            {isModal && onClose && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={onClose}
+                disabled={isCreating}
+                style={{ borderRadius: "6px" }}
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleCreateTorrent}
+              disabled={isCreating || !createPath.trim()}
+              style={{ borderRadius: "6px", padding: "0.45rem 1.25rem" }}
+            >
+              {isCreating ? "Hashing & Creating..." : "⚡ Create .torrent"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Category & Download Options in File and Magnet modes */}
-      {mode !== "search" && (
+      {mode !== "search" && mode !== "create" && (
         <div
           style={{
             display: "flex",
@@ -1134,9 +1484,7 @@ export function AddTorrentForm({
           }}
         >
           {categories && categories.length > 0 && (
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <label
                 style={{
                   fontSize: "0.85rem",
@@ -1211,7 +1559,7 @@ export function AddTorrentForm({
         </div>
       )}
 
-      {mode !== "search" && (
+      {mode !== "search" && mode !== "create" && (
         <div
           className="modal-actions"
           style={{

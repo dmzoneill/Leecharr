@@ -19,6 +19,8 @@ public interface IConfigService
 
     int GetValueInt(string key, int defaultValue = 0);
 
+    long GetValueLong(string key, long defaultValue = 0);
+
     double GetValueDouble(string key, double defaultValue = 0.0);
 
     // Instance Identity
@@ -110,7 +112,33 @@ public interface IConfigService
 
     int MaxActiveDownloads { get; }
 
+    int MaxActiveUploads { get; }
+
     int MaxActiveTorrents { get; }
+
+    bool IgnoreSlowTorrents { get; }
+
+    long SlowTorrentDownloadRateThreshold { get; }
+
+    long SlowTorrentUploadRateThreshold { get; }
+
+    string GlobalShareLimitAction { get; }
+
+    bool AppendIncompleteExtension { get; }
+
+    string IncompleteExtension { get; }
+
+    bool EnableIPv6 { get; }
+
+    bool CsrfProtectionEnabled { get; }
+
+    bool HostHeaderValidationEnabled { get; }
+
+    string AllowedHosts { get; }
+
+    string AutoShutdownAction { get; }
+
+    string AutoShutdownCondition { get; }
 
     // Proxy
     string ProxyType { get; }
@@ -562,6 +590,18 @@ public class ConfigService : IConfigService
         return defaultValue;
     }
 
+    public long GetValueLong(string key, long defaultValue = 0)
+    {
+        var value = this.GetValue(key, string.Empty);
+
+        if (long.TryParse(value, out var result))
+        {
+            return result;
+        }
+
+        return defaultValue;
+    }
+
     public double GetValueDouble(string key, double defaultValue = 0.0)
     {
         var value = this.GetValue(key, string.Empty);
@@ -677,7 +717,33 @@ public class ConfigService : IConfigService
 
     public int MaxActiveDownloads => this.GetValueInt("MaxActiveDownloads", 3);
 
+    public int MaxActiveUploads => this.GetValueInt("MaxActiveUploads", 3);
+
     public int MaxActiveTorrents => this.GetValueInt("MaxActiveTorrents", 10);
+
+    public bool IgnoreSlowTorrents => this.GetValueBoolean("IgnoreSlowTorrents", false);
+
+    public long SlowTorrentDownloadRateThreshold => this.GetValueLong("SlowTorrentDownloadRateThreshold", 2048);
+
+    public long SlowTorrentUploadRateThreshold => this.GetValueLong("SlowTorrentUploadRateThreshold", 2048);
+
+    public string GlobalShareLimitAction => this.GetValue("GlobalShareLimitAction", "Pause");
+
+    public bool AppendIncompleteExtension => this.GetValueBoolean("AppendIncompleteExtension", false);
+
+    public string IncompleteExtension => this.GetValue("IncompleteExtension", ".!leech");
+
+    public bool EnableIPv6 => this.GetValueBoolean("EnableIPv6", true);
+
+    public bool CsrfProtectionEnabled => this.GetValueBoolean("CsrfProtectionEnabled", true);
+
+    public bool HostHeaderValidationEnabled => this.GetValueBoolean("HostHeaderValidationEnabled", false);
+
+    public string AllowedHosts => this.GetValue("AllowedHosts", string.Empty);
+
+    public string AutoShutdownAction => this.GetValue("AutoShutdownAction", "None");
+
+    public string AutoShutdownCondition => this.GetValue("AutoShutdownCondition", "None");
 
     // Proxy
     public string ProxyType => this.GetValue("ProxyType", "none");

@@ -32,4 +32,10 @@ public interface ITorrentService
     Task MoveQueueAsync(int id, string position);
 
     NzbDrone.Core.BitTorrent.IDownloadTask GetDownloadTask(int torrentId);
+
+    Task<bool> RenameFileAsync(int id, string oldPath, string newPath);
+
+    Task<bool> RenameFolderAsync(int id, string oldPath, string newPath);
+
+    Task SetSuperSeedingAsync(int id, bool enabled);
 }

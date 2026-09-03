@@ -103,4 +103,52 @@ public class TorrentServiceTest
         insertedFiles[2].PieceOffset.Should().Be(1);
         insertedFiles[2].PieceCount.Should().Be(3);
     }
+
+    [Test]
+    public async Task RenameFileAsync_WhenEngineSucceeds_UpdatesDatabaseRecord()
+    {
+        var file = new TorrentFile { Id = 10, TorrentId = 42, Path = "folder/old_video.mkv" };
+        this.fileRepository.GetByTorrentId(42).Returns(new List<TorrentFile> { file });
+        this.downloadEngine.RenameFileAsync(42, "folder/old_video.mkv", "folder/new_video.mkv").Returns(true);
+
+        var result = await this.service.RenameFileAsync(42, "folder/old_video.mkv", "folder/new_video.mkv");
+
+        result.Should().BeTrue();
+        file.Path.Should().Be("folder/new_video.mkv");
+        this.fileRepository.Received(1).Update(file);
+    }
+
+    [Test]
+    public async Task RenameFolderAsync_WhenEngineSucceeds_UpdatesAllSubpathRecords()
+    {
+        var file1 = new TorrentFile { Id = 10, TorrentId = 42, Path = "Season 1/Episode 1.mkv" };
+        var file2 = new TorrentFile { Id = 11, TorrentId = 42, Path = "Season 1/Episode 2.mkv" };
+        var file3 = new TorrentFile { Id = 12, TorrentId = 42, Path = "Other/Bonus.mkv" };
+
+        this.fileRepository.GetByTorrentId(42).Returns(new List<TorrentFile> { file1, file2, file3 });
+        this.downloadEngine.RenameFolderAsync(42, "Season 1", "S01").Returns(true);
+
+        var result = await this.service.RenameFolderAsync(42, "Season 1", "S01");
+
+        result.Should().BeTrue();
+        file1.Path.Should().Be("S01/Episode 1.mkv");
+        file2.Path.Should().Be("S01/Episode 2.mkv");
+        file3.Path.Should().Be("Other/Bonus.mkv");
+        this.fileRepository.Received(1).Update(file1);
+        this.fileRepository.Received(1).Update(file2);
+        this.fileRepository.DidNotReceive().Update(file3);
+    }
+
+    [Test]
+    public async Task SetSuperSeedingAsync_UpdatesTorrentAndEngine()
+    {
+        var torrent = new Torrent { Id = 42, Name = "test", InitialSeeding = false };
+        this.torrentRepository.Get(42).Returns(torrent);
+
+        await this.service.SetSuperSeedingAsync(42, true);
+
+        torrent.InitialSeeding.Should().BeTrue();
+        this.torrentRepository.Received(1).Update(torrent);
+        await this.downloadEngine.Received(1).SetSuperSeedingAsync(42, true);
+    }
 }
