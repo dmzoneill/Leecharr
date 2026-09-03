@@ -105,9 +105,19 @@ public class TorrentFileParser : ITorrentFileParser
                 throw new InvalidTorrentFileException("Malformed torrent file: missing or invalid 'piece length'.");
             }
 
+            if (pieceLengthNum.Value <= 0)
+            {
+                throw new InvalidTorrentFileException("Piece length must be a positive integer.");
+            }
+
             if (!info.ContainsKey("pieces") || info["pieces"] is not BString piecesStr)
             {
                 throw new InvalidTorrentFileException("Malformed torrent file: missing or invalid 'pieces'.");
+            }
+
+            if (piecesStr.Value.Length == 0 || piecesStr.Value.Length % 20 != 0)
+            {
+                throw new InvalidTorrentFileException("Pieces hash string length must be a non-zero multiple of 20.");
             }
 
             if (!info.ContainsKey("name") || info["name"] is not BString nameStr)
@@ -191,6 +201,11 @@ public class TorrentFileParser : ITorrentFileParser
                         throw new InvalidTorrentFileException("Malformed torrent file: file entry missing or invalid 'length'.");
                     }
 
+                    if (fileLengthNum.Value < 0)
+                    {
+                        throw new InvalidTorrentFileException("File length cannot be negative.");
+                    }
+
                     if (!file.ContainsKey("path") || file["path"] is not BList pathList || pathList.Count == 0)
                     {
                         throw new InvalidTorrentFileException("Malformed torrent file: file entry missing, empty, or invalid 'path'.");
@@ -229,6 +244,11 @@ public class TorrentFileParser : ITorrentFileParser
                     throw new InvalidTorrentFileException("Malformed torrent file: missing or invalid 'length' for single-file torrent.");
                 }
 
+                if (lengthNum.Value < 0)
+                {
+                    throw new InvalidTorrentFileException("File length cannot be negative.");
+                }
+
                 ValidateAndSanitizePathPart(result.Name);
 
                 result.Files.Add(new ParsedTorrentFile
@@ -239,6 +259,15 @@ public class TorrentFileParser : ITorrentFileParser
             }
 
             result.TotalSize = result.Files.Sum(f => f.Size);
+
+            if (result.TotalSize > 0)
+            {
+                var expectedPieceCount = (int)Math.Ceiling((double)result.TotalSize / result.PieceLength);
+                if (result.PieceCount != expectedPieceCount)
+                {
+                    throw new InvalidTorrentFileException("Piece count does not match total file size.");
+                }
+            }
 
             return result;
         }
