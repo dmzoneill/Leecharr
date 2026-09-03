@@ -112,12 +112,15 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             var startInfo = new ProcessStartInfo
             {
                 FileName = binary,
-                Arguments = $"x -y -o\"{targetDir}\" \"{archivePath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+            startInfo.ArgumentList.Add("x");
+            startInfo.ArgumentList.Add("-y");
+            startInfo.ArgumentList.Add($"-o{targetDir}");
+            startInfo.ArgumentList.Add(archivePath);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();

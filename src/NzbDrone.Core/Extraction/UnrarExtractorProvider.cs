@@ -124,12 +124,16 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             var startInfo = new ProcessStartInfo
             {
                 FileName = binary,
-                Arguments = $"x -o+ -y \"{archivePath}\" \"{normalizedDest}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+            startInfo.ArgumentList.Add("x");
+            startInfo.ArgumentList.Add("-o+");
+            startInfo.ArgumentList.Add("-y");
+            startInfo.ArgumentList.Add(archivePath);
+            startInfo.ArgumentList.Add(normalizedDest);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
