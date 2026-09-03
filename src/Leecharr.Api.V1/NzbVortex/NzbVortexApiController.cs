@@ -5,8 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -14,15 +17,15 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.NzbVortex;
 
-[AllowAnonymous]
 [ApiController]
-public class NzbVortexApiController : ControllerBase
+public class NzbVortexApiController : ControllerBase, IActionFilter
 {
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbVortexApiController(
@@ -30,15 +33,60 @@ public class NzbVortexApiController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
     }
 
+    [NonAction]
+    public void OnActionExecuting(ActionExecutingContext context)
+    {
+        var actionName = context.ActionDescriptor.RouteValues["action"];
+        if (string.Equals(actionName, nameof(this.GetNonce), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(actionName, nameof(this.Login), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!this.IsNzbVortexAuthenticated())
+        {
+            context.Result = this.StatusCode(StatusCodes.Status401Unauthorized, new { error = 401, result = "Unauthorized" });
+        }
+    }
+
+    [NonAction]
+    public void OnActionExecuted(ActionExecutedContext context)
+    {
+    }
+
+    private bool IsNzbVortexAuthenticated()
+    {
+        if (this.configFileProvider != null && !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        var session = this.Request.Query["session"].ToString();
+        if (!string.IsNullOrEmpty(session) && string.Equals(session, "leecharr-session-token", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    [AllowAnonymous]
     [HttpGet]
     [Route("nzbvortex/api/v1/auth/nonce")]
     [Route("api/v1/auth/nonce")]
@@ -53,11 +101,27 @@ public class NzbVortexApiController : ControllerBase
         });
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [HttpPost]
     [Route("nzbvortex/api/v1/auth/login")]
     public IActionResult Login()
     {
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
+        {
+            var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+            if (!isAuth)
+            {
+                return this.Ok(new
+                {
+                    loginResult = 1,
+                    auth = false,
+                    error = 401,
+                    result = 1,
+                });
+            }
+        }
+
         return this.Ok(new
         {
             loginResult = 0,
@@ -73,6 +137,11 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/app/appversion")]
     public IActionResult GetAppVersion()
     {
+        if (!this.IsNzbVortexAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         return this.Ok(new
         {
             appVersion = "3.4.2",
@@ -122,6 +191,11 @@ public class NzbVortexApiController : ControllerBase
     [Route("api/v1/queue")]
     public IActionResult GetNzbs()
     {
+        if (!this.IsNzbVortexAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         var all = this.torrentService.GetAll().ToList();
         var nzbs = all.Select(t => new
         {
