@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Net;
 
@@ -40,6 +41,8 @@ public interface IEmbeddedTrackerService
 
     int ActivePeersCount { get; }
 
+    int MaxSwarms { get; set; }
+
     byte[] ProcessAnnounce(TrackerAnnounceRequest request);
 
     byte[] ProcessScrape(List<byte[]> infoHashList);
@@ -47,4 +50,8 @@ public interface IEmbeddedTrackerService
     void RegisterSwarm(string infoHashHex);
 
     void UnregisterSwarm(string infoHashHex);
+
+    void PruneInactivePeers();
+
+    void PruneInactivePeers(TimeSpan timeout);
 }
