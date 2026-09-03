@@ -16,6 +16,7 @@ using NzbDrone.Core.Authentication;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers.Search;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
@@ -40,6 +41,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly IUserService userService;
     private readonly ITorrentCreationService torrentCreationService;
     private readonly IQBittorrentSearchService qbittorrentSearchService;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -53,7 +55,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         IConfigFileProvider configFileProvider = null,
         IUserService userService = null,
         ITorrentCreationService torrentCreationService = null,
-        IQBittorrentSearchService qbittorrentSearchService = null)
+        IQBittorrentSearchService qbittorrentSearchService = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -66,6 +69,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.userService = userService;
         this.torrentCreationService = torrentCreationService ?? new TorrentCreationService();
         this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [NonAction]
@@ -391,8 +395,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 {
                     try
                     {
-                        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                        var bytes = await httpClient.GetByteArrayAsync(trimmed);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savepath, isPaused, bytes);
                         if (added != null)

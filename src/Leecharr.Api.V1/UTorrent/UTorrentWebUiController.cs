@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.UTorrent;
@@ -48,6 +49,7 @@ public class UTorrentWebUiController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public UTorrentWebUiController(
@@ -55,13 +57,15 @@ public class UTorrentWebUiController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -108,8 +112,7 @@ public class UTorrentWebUiController : ControllerBase
                         }
                         else
                         {
-                            using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                            var bytes = await client.GetByteArrayAsync(s);
+                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(s);
                             var parsed = this.torrentFileParser.Parse(bytes);
                             await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                         }
