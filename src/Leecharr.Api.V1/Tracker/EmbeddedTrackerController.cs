@@ -1,0 +1,172 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Net;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using NLog;
+using NzbDrone.Core.BitTorrent.Tracker;
+
+namespace Leecharr.Api.V1.Tracker;
+
+[AllowAnonymous]
+[ApiController]
+public class EmbeddedTrackerController : ControllerBase
+{
+    private readonly IEmbeddedTrackerService trackerService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    public EmbeddedTrackerController(IEmbeddedTrackerService trackerService)
+    {
+        this.trackerService = trackerService;
+    }
+
+    [HttpGet("/announce")]
+    public ActionResult Announce()
+    {
+        var rawQuery = this.Request.QueryString.Value;
+        var announceRequest = ParseAnnounceQuery(rawQuery, this.HttpContext.Connection.RemoteIpAddress);
+
+        var responseBytes = this.trackerService.ProcessAnnounce(announceRequest);
+        return this.File(responseBytes, "text/plain");
+    }
+
+    [HttpGet("/scrape")]
+    public ActionResult Scrape()
+    {
+        var rawQuery = this.Request.QueryString.Value;
+        var hashes = ParseScrapeQuery(rawQuery);
+
+        var responseBytes = this.trackerService.ProcessScrape(hashes);
+        return this.File(responseBytes, "text/plain");
+    }
+
+    [HttpGet("api/v1/tracker/stats")]
+    public ActionResult GetStats()
+    {
+        return this.Ok(new
+        {
+            enabled = this.trackerService.IsEnabled,
+            activeSwarms = this.trackerService.ActiveSwarmsCount,
+            activePeers = this.trackerService.ActivePeersCount,
+        });
+    }
+
+    private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
+    {
+        var request = new TrackerAnnounceRequest
+        {
+            RemoteIp = remoteIp ?? IPAddress.Loopback,
+            Compact = true,
+            NumWant = 50,
+        };
+
+        if (string.IsNullOrWhiteSpace(rawQuery))
+        {
+            return request;
+        }
+
+        var parts = rawQuery.TrimStart('?').Split('&');
+        foreach (var part in parts)
+        {
+            var kvp = part.Split('=', 2);
+            if (kvp.Length != 2)
+            {
+                continue;
+            }
+
+            var key = kvp[0];
+            var val = kvp[1];
+
+            if (string.Equals(key, "info_hash", StringComparison.OrdinalIgnoreCase))
+            {
+                request.InfoHashBytes = ParseRawUrlBytes(val);
+                request.InfoHashHex = Convert.ToHexString(request.InfoHashBytes);
+            }
+            else if (string.Equals(key, "peer_id", StringComparison.OrdinalIgnoreCase))
+            {
+                request.PeerIdBytes = ParseRawUrlBytes(val);
+                request.PeerId = val;
+            }
+            else if (string.Equals(key, "port", StringComparison.OrdinalIgnoreCase) && int.TryParse(val, out var port))
+            {
+                request.Port = port;
+            }
+            else if (string.Equals(key, "uploaded", StringComparison.OrdinalIgnoreCase) && long.TryParse(val, out var up))
+            {
+                request.Uploaded = up;
+            }
+            else if (string.Equals(key, "downloaded", StringComparison.OrdinalIgnoreCase) && long.TryParse(val, out var down))
+            {
+                request.Downloaded = down;
+            }
+            else if (string.Equals(key, "left", StringComparison.OrdinalIgnoreCase) && long.TryParse(val, out var left))
+            {
+                request.Left = left;
+            }
+            else if (string.Equals(key, "compact", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Compact = val == "1";
+            }
+            else if (string.Equals(key, "numwant", StringComparison.OrdinalIgnoreCase) && int.TryParse(val, out var want))
+            {
+                request.NumWant = want;
+            }
+            else if (string.Equals(key, "event", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Event = val;
+            }
+        }
+
+        return request;
+    }
+
+    private static List<byte[]> ParseScrapeQuery(string rawQuery)
+    {
+        var list = new List<byte[]>();
+        if (string.IsNullOrWhiteSpace(rawQuery))
+        {
+            return list;
+        }
+
+        var parts = rawQuery.TrimStart('?').Split('&');
+        foreach (var part in parts)
+        {
+            var kvp = part.Split('=', 2);
+            if (kvp.Length == 2 && string.Equals(kvp[0], "info_hash", StringComparison.OrdinalIgnoreCase))
+            {
+                var bytes = ParseRawUrlBytes(kvp[1]);
+                if (bytes.Length > 0)
+                {
+                    list.Add(bytes);
+                }
+            }
+        }
+
+        return list;
+    }
+
+    private static byte[] ParseRawUrlBytes(string urlEncoded)
+    {
+        var bytes = new List<byte>();
+        for (var i = 0; i < urlEncoded.Length; i++)
+        {
+            if (urlEncoded[i] == '%' && i + 2 < urlEncoded.Length)
+            {
+                var hex = urlEncoded.Substring(i + 1, 2);
+                if (byte.TryParse(hex, NumberStyles.HexNumber, null, out var b))
+                {
+                    bytes.Add(b);
+                    i += 2;
+                    continue;
+                }
+            }
+
+            bytes.Add((byte)urlEncoded[i]);
+        }
+
+        return bytes.ToArray();
+    }
+}

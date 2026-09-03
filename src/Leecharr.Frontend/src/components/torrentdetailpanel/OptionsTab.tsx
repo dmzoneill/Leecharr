@@ -25,6 +25,11 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [nextUpdate, setNextUpdate] = useState(torrent.nextUpdate || 1800);
   const [threshold, setThreshold] = useState(torrent.threshold || 1);
   const [smallTorrentLimit, setSmallTorrentLimit] = useState(torrent.smallTorrentLimit || 50);
+  const [targetRatio, setTargetRatio] = useState(torrent.targetRatio ?? 0);
+  const [targetSeedTimeMinutes, setTargetSeedTimeMinutes] = useState(
+    torrent.targetSeedTimeMinutes ?? 0
+  );
+  const [shareLimitAction, setShareLimitAction] = useState(torrent.shareLimitAction || "Default");
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -42,6 +47,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setNextUpdate(torrent.nextUpdate || 1800);
     setThreshold(torrent.threshold || 1);
     setSmallTorrentLimit(torrent.smallTorrentLimit || 50);
+    setTargetRatio(torrent.targetRatio ?? 0);
+    setTargetSeedTimeMinutes(torrent.targetSeedTimeMinutes ?? 0);
+    setShareLimitAction(torrent.shareLimitAction || "Default");
   }, [torrent, dirty]);
 
   const handleSave = () => {
@@ -61,6 +69,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         nextUpdate,
         threshold,
         smallTorrentLimit,
+        targetRatio,
+        targetSeedTimeMinutes,
+        shareLimitAction,
       },
       { onSuccess: () => setDirty(false) }
     );
@@ -80,6 +91,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     setNextUpdate(torrent.nextUpdate || 1800);
     setThreshold(torrent.threshold || 1);
     setSmallTorrentLimit(torrent.smallTorrentLimit || 50);
+    setTargetRatio(torrent.targetRatio ?? 0);
+    setTargetSeedTimeMinutes(torrent.targetSeedTimeMinutes ?? 0);
+    setShareLimitAction(torrent.shareLimitAction || "Default");
     setDirty(false);
   };
 
@@ -315,6 +329,56 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               />
               <span className="toggle-slider" />
             </label>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+              Share Goal Action
+            </label>
+            <select
+              value={shareLimitAction}
+              onChange={(e) => mark(setShareLimitAction)(e.target.value)}
+              className="input-select"
+              style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
+            >
+              <option value="Default">Follow Global Setting</option>
+              <option value="Pause">Pause Seeding</option>
+              <option value="Remove">Remove Torrent (Keep Data)</option>
+              <option value="RemoveWithData">Remove Torrent & Delete Data</option>
+              <option value="SuperSeeding">Switch to Super Seeding</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                Target Ratio
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={targetRatio}
+                onChange={(e) => mark(setTargetRatio)(parseFloat(e.target.value) || 0)}
+                className="input-text"
+                style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
+                placeholder="0 = global"
+              />
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                Target Seed Time (m)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={targetSeedTimeMinutes}
+                onChange={(e) => mark(setTargetSeedTimeMinutes)(parseInt(e.target.value, 10) || 0)}
+                className="input-text"
+                style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
+                placeholder="0 = global"
+              />
+            </div>
           </div>
 
           <div

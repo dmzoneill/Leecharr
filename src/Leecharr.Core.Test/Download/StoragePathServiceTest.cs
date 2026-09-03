@@ -146,4 +146,35 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(Path.Combine("/downloads/tv", "Show.Season.1"));
         this.diskProvider.Received(1).MoveFolder(source, Path.Combine("/downloads/tv", "Show.Season.1"));
     }
+
+    [Test]
+    public void StripIncompleteExtensions_WhenSingleFileHasIncompleteExt_RenamesToCleanName()
+    {
+        var target = "/downloads/tv/Movie.mkv.!leech";
+        this.configService.IncompleteExtension.Returns(".!leech");
+        this.diskProvider.FileExists(target).Returns(true);
+
+        this.storagePathService.StripIncompleteExtensions(target);
+
+        this.diskProvider.Received(1).MoveFile(target, "/downloads/tv/Movie.mkv");
+    }
+
+    [Test]
+    public void StripIncompleteExtensions_WhenDirectoryContainsIncompleteFiles_RenamesAll()
+    {
+        var dir = "/downloads/tv/Show";
+        var file1 = "/downloads/tv/Show/ep1.mkv.!leech";
+        var file2 = "/downloads/tv/Show/ep2.mkv.!mt";
+        var file3 = "/downloads/tv/Show/ep3.nfo";
+
+        this.configService.IncompleteExtension.Returns(".!leech");
+        this.diskProvider.FolderExists(dir).Returns(true);
+        this.diskProvider.GetFiles(dir, true).Returns(new[] { file1, file2, file3 });
+
+        this.storagePathService.StripIncompleteExtensions(dir);
+
+        this.diskProvider.Received(1).MoveFile(file1, "/downloads/tv/Show/ep1.mkv");
+        this.diskProvider.Received(1).MoveFile(file2, "/downloads/tv/Show/ep2.mkv");
+        this.diskProvider.DidNotReceive().MoveFile(file3, Arg.Any<string>());
+    }
 }

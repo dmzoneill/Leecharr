@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Authentication;
@@ -13,8 +15,10 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.SystemServices;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
+using NzbDrone.SignalR;
 
 namespace NzbDrone.Host;
 
@@ -29,6 +33,9 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IRssSyncService rssSyncService;
     private readonly IDynamicAuthSchemeManager dynamicAuthManager;
     private readonly ITorrentService torrentService;
+    private readonly IBroadcastSignalRMessage signalRBroadcaster;
+    private readonly IQueueManagerService queueManagerService;
+    private readonly IPowerManagementService powerManagementService;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -42,7 +49,10 @@ public class AppLifetime : IHostedService, IDisposable
         INetworkSecurityService networkSecurityService,
         IRssSyncService rssSyncService,
         IDynamicAuthSchemeManager dynamicAuthManager,
-        ITorrentService torrentService = null)
+        ITorrentService torrentService = null,
+        IBroadcastSignalRMessage signalRBroadcaster = null,
+        IQueueManagerService queueManagerService = null,
+        IPowerManagementService powerManagementService = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -53,6 +63,9 @@ public class AppLifetime : IHostedService, IDisposable
         this.rssSyncService = rssSyncService;
         this.dynamicAuthManager = dynamicAuthManager;
         this.torrentService = torrentService;
+        this.signalRBroadcaster = signalRBroadcaster;
+        this.queueManagerService = queueManagerService;
+        this.powerManagementService = powerManagementService ?? new PowerManagementService();
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -164,6 +177,61 @@ public class AppLifetime : IHostedService, IDisposable
             {
                 await Task.Delay(1000, token);
 
+                // Broadcast 1-second speedPulse telemetry to SignalR clients
+                if (this.signalRBroadcaster != null && this.signalRBroadcaster.IsConnected && this.downloadEngine != null)
+                {
+                    try
+                    {
+                        var tasks = this.downloadEngine.GetAllTasks()?.ToList();
+                        if (tasks != null && tasks.Count > 0)
+                        {
+                            var updates = new List<object>(tasks.Count);
+                            foreach (var task in tasks)
+                            {
+                                var dlSpeed = task.DownloadSpeed;
+                                var ulSpeed = task.UploadSpeed;
+                                var dlBytes = task.DownloadedBytes;
+                                var ulBytes = task.UploadedBytes;
+                                var progress = task.Progress;
+                                var ratio = dlBytes > 0 ? Math.Round((double)ulBytes / dlBytes, 2) : 0.0;
+
+                                long eta = 0;
+                                if (task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
+                                {
+                                    var totalBytes = progress > 0 ? (long)(dlBytes / progress) : 0;
+                                    var remainingBytes = Math.Max(0, totalBytes - dlBytes);
+                                    eta = remainingBytes / dlSpeed;
+                                }
+
+                                updates.Add(new
+                                {
+                                    id = task.TorrentId,
+                                    uploadSpeed = ulSpeed,
+                                    downloadSpeed = dlSpeed,
+                                    progress = progress,
+                                    uploaded = ulBytes,
+                                    downloaded = dlBytes,
+                                    ratio = ratio,
+                                    eta = eta,
+                                    status = task.Status.ToString(),
+                                    seeders = task.ConnectedSeeders,
+                                    leechers = task.ConnectedLeechers,
+                                });
+                            }
+
+                            this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
+                            {
+                                Name = "speedPulse",
+                                Body = updates,
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Trace(ex, "Error broadcasting speedPulse telemetry");
+                    }
+                }
+
                 // Automated seeding check
                 if (this.torrentService != null)
                 {
@@ -179,16 +247,39 @@ public class AppLifetime : IHostedService, IDisposable
 
                                 if (ratioReached || timeReached)
                                 {
-                                    this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                    var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction)
+                                        ? torrent.ShareLimitAction
+                                        : this.configService.GlobalShareLimitAction;
 
-                                    var oldStatus = torrent.Status;
-                                    await this.torrentService.PauseAsync(torrent.Id);
-                                    this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                    if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        Torrent = torrent,
-                                        OldStatus = oldStatus,
-                                        NewStatus = TorrentStatus.Stopped,
-                                    });
+                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                        await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: true);
+                                    }
+                                    else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                        await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: false);
+                                    }
+                                    else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                        torrent.InitialSeeding = true;
+                                        await this.torrentService.UpdateAsync(torrent);
+                                    }
+                                    else
+                                    {
+                                        this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+
+                                        var oldStatus = torrent.Status;
+                                        await this.torrentService.PauseAsync(torrent.Id);
+                                        this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                        {
+                                            Torrent = torrent,
+                                            OldStatus = oldStatus,
+                                            NewStatus = TorrentStatus.Stopped,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -215,6 +306,38 @@ public class AppLifetime : IHostedService, IDisposable
                 if (watchFolderTickCounter % 5 == 0)
                 {
                     this.networkSecurityService.CheckVpnKillSwitch();
+
+                    if (this.queueManagerService != null)
+                    {
+                        await this.queueManagerService.ProcessQueueAsync();
+                    }
+
+                    var autoShutdownActionStr = this.configService.AutoShutdownAction;
+                    if (!string.Equals(autoShutdownActionStr, "None", StringComparison.OrdinalIgnoreCase) &&
+                        Enum.TryParse<PowerAction>(autoShutdownActionStr, true, out var powerAction) &&
+                        powerAction != PowerAction.None)
+                    {
+                        var condition = this.configService.AutoShutdownCondition;
+                        var allTorrents = this.torrentService?.GetAll()?.ToList() ?? new List<Torrent>();
+                        var hasActiveDownloads = allTorrents.Any(t => t.Status == TorrentStatus.Downloading);
+                        var hasActiveTorrents = allTorrents.Any(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
+
+                        bool trigger = false;
+                        if (string.Equals(condition, "WhenDownloadsComplete", StringComparison.OrdinalIgnoreCase))
+                        {
+                            trigger = !hasActiveDownloads && allTorrents.Any(t => t.Progress >= 1.0);
+                        }
+                        else if (string.Equals(condition, "WhenAllTorrentsComplete", StringComparison.OrdinalIgnoreCase))
+                        {
+                            trigger = !hasActiveTorrents && allTorrents.Count > 0;
+                        }
+
+                        if (trigger)
+                        {
+                            this.logger.Warn("Auto-shutdown condition met ({0}). Triggering power action: {1}", condition, powerAction);
+                            _ = this.powerManagementService.ExecutePowerActionAsync(powerAction);
+                        }
+                    }
                 }
 
                 // 3. RSS Sync every ~15 minutes (900 seconds)
