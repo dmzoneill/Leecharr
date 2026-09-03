@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
@@ -25,6 +26,7 @@ public class IndexerController : Controller
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly HttpClient httpClient;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
@@ -33,7 +35,8 @@ public class IndexerController : Controller
         IProwlarrSyncService prowlarrSyncService,
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        HttpClient httpClient = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
@@ -41,6 +44,7 @@ public class IndexerController : Controller
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
     }
 
     [HttpGet]
@@ -259,6 +263,120 @@ public class IndexerController : Controller
 
     private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer)
     {
+        if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            return this.Ok(new IndexerTestResult
+            {
+                Success = false,
+                Message = "Indexer URL is required.",
+            });
+        }
+
+        var isProwlarr = (!string.IsNullOrWhiteSpace(indexer.Implementation) && indexer.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(indexer.Url) && indexer.Url.Contains("9696", StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(indexer.Name) && indexer.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase));
+
+        if (isProwlarr)
+        {
+            try
+            {
+                var baseUri = indexer.Url.TrimEnd('/');
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/indexer");
+                if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+                {
+                    request.Headers.Add("X-Api-Key", indexer.ApiKey);
+                }
+
+                var response = await this.httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    try
+                    {
+                        var indexers = JsonSerializer.Deserialize<List<JsonElement>>(json);
+                        var count = indexers?.Count ?? 0;
+                        return this.Ok(new IndexerTestResult
+                        {
+                            Success = true,
+                            Message = $"Connected successfully to Prowlarr. Found {count} indexers.",
+                        });
+                    }
+                    catch
+                    {
+                        return this.Ok(new IndexerTestResult
+                        {
+                            Success = true,
+                            Message = "Connected successfully to Prowlarr.",
+                        });
+                    }
+                }
+
+                using var statusReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/system/status");
+                if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+                {
+                    statusReq.Headers.Add("X-Api-Key", indexer.ApiKey);
+                }
+
+                var statusResp = await this.httpClient.SendAsync(statusReq);
+                if (statusResp.IsSuccessStatusCode)
+                {
+                    return this.Ok(new IndexerTestResult
+                    {
+                        Success = true,
+                        Message = "Connected successfully to Prowlarr.",
+                    });
+                }
+
+                return this.Ok(new IndexerTestResult
+                {
+                    Success = false,
+                    Message = $"Prowlarr returned HTTP {(int)response.StatusCode} {response.StatusCode}.",
+                });
+            }
+            catch (Exception ex)
+            {
+                return this.Ok(new IndexerTestResult
+                {
+                    Success = false,
+                    Message = $"Connection failed: {ex.Message}",
+                });
+            }
+        }
+
+        // For Torznab/Newznab indexers: test with t=caps first, falling back to t=search
+        try
+        {
+            var uriBuilder = new UriBuilder(indexer.Url);
+            var query = "t=caps";
+            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+            {
+                query += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
+            }
+
+            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
+                ? query
+                : uriBuilder.Query.TrimStart('?') + "&" + query;
+
+            using var capsReq = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            var capsResp = await this.httpClient.SendAsync(capsReq);
+            if (capsResp.IsSuccessStatusCode)
+            {
+                var content = await capsResp.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(content) && content.Contains("<caps", StringComparison.OrdinalIgnoreCase) && !content.Contains("<error", StringComparison.OrdinalIgnoreCase))
+                {
+                    return this.Ok(new IndexerTestResult
+                    {
+                        Success = true,
+                        Message = $"Connected successfully to {indexer.Name} (capabilities verified).",
+                    });
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to t=search
+        }
+
         try
         {
             var results = await this.torznabClient.SearchAsync(indexer, string.Empty, limit: 1);
