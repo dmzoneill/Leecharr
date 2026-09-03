@@ -57,6 +57,20 @@ function SystemStatus() {
 
         {status && (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <Link
+              to="/system/resources"
+              className="btn btn-small"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                backgroundColor: "rgba(255, 209, 102, 0.15)",
+                color: "var(--accent, #ffd166)",
+                border: "1px solid rgba(255, 209, 102, 0.3)",
+              }}
+            >
+              <span>📊</span> Live Telemetry
+            </Link>
             <span
               className="badge badge-seeding"
               style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}

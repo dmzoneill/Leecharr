@@ -39,6 +39,12 @@ public interface IDownloadEngine
     IDownloadTask GetTask(int torrentId);
 
     IEnumerable<IDownloadTask> GetAllTasks();
+
+    TorrentEngineMetrics GetEngineMetrics() => new();
+
+    TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId) => null;
+
+    IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics() => System.Array.Empty<TorrentResourceMetrics>();
 }
 
 public interface IDownloadTask
@@ -68,6 +74,8 @@ public interface IDownloadTask
     int[] PieceAvailability { get; }
 
     IReadOnlyList<PeerInfo> GetPeers();
+
+    TorrentResourceMetrics GetResourceMetrics() => null;
 }
 
 public class PeerInfo
