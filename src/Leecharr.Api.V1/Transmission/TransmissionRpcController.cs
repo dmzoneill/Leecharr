@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -260,70 +261,7 @@ public class TransmissionRpcController : ControllerBase
                     });
 
                 case "torrent-add":
-                    Torrent addedTorrent = null;
-                    var isPaused = false;
-                    string downloadDir = null;
-                    string category = null;
-                    if (request.Arguments != null)
-                    {
-                        if (request.Arguments.TryGetValue("paused", out var pVal))
-                        {
-                            isPaused = pVal.GetBoolean();
-                        }
-
-                        if (request.Arguments.TryGetValue("download-dir", out var ddVal))
-                        {
-                            downloadDir = ddVal.GetString();
-                        }
-
-                        if (request.Arguments.TryGetValue("labels", out var lblsVal) && lblsVal.ValueKind == JsonValueKind.Array && lblsVal.GetArrayLength() > 0)
-                        {
-                            category = lblsVal[0].GetString();
-                        }
-
-                        if (request.Arguments.TryGetValue("metainfo", out var metaVal) && metaVal.ValueKind == JsonValueKind.String)
-                        {
-                            var b64 = metaVal.GetString();
-                            if (!string.IsNullOrWhiteSpace(b64))
-                            {
-                                var bytes = Convert.FromBase64String(b64);
-                                var parsed = this.torrentFileParser.Parse(bytes);
-                                addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
-                            }
-                        }
-                        else if (request.Arguments.TryGetValue("filename", out var fnVal) && fnVal.ValueKind == JsonValueKind.String)
-                        {
-                            var fn = fnVal.GetString();
-                            if (!string.IsNullOrWhiteSpace(fn))
-                            {
-                                if (fn.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    addedTorrent = await this.torrentService.AddFromMagnetAsync(fn, category, downloadDir, isPaused);
-                                }
-                                else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn);
-                                    var parsed = this.torrentFileParser.Parse(bytes);
-                                    addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
-                                }
-                            }
-                        }
-                    }
-
-                    if (addedTorrent != null)
-                    {
-                        return this.Ok(new TransmissionRpcResponse
-                        {
-                            Result = "success",
-                            Arguments = new Dictionary<string, object>
-                            {
-                                { "torrent-added", new { id = addedTorrent.Id, name = addedTorrent.Name, hashString = addedTorrent.InfoHash } },
-                            },
-                            Tag = tag,
-                        });
-                    }
-
-                    return this.Ok(new TransmissionRpcResponse { Result = "failed to add torrent", Tag = tag });
+                    return await this.HandleTorrentAddAsync(request, tag);
 
                 case "torrent-set":
                     var setIds = this.ExtractIds(request.Arguments);
@@ -597,6 +535,140 @@ public class TransmissionRpcController : ControllerBase
             this.logger.Error(ex, "Error handling Transmission RPC method: {0}", request.Method);
             return this.Ok(new TransmissionRpcResponse { Result = ex.Message, Tag = tag });
         }
+    }
+
+    private async Task<IActionResult> HandleTorrentAddAsync(TransmissionRpcRequest request, object tag)
+    {
+        Torrent addedTorrent = null;
+        var isDuplicate = false;
+        var isPaused = false;
+        string downloadDir = null;
+        string category = null;
+
+        if (request.Arguments != null)
+        {
+            if (request.Arguments.TryGetValue("paused", out var pVal))
+            {
+                isPaused = pVal.GetBoolean();
+            }
+
+            if (request.Arguments.TryGetValue("download-dir", out var ddVal))
+            {
+                downloadDir = ddVal.GetString();
+            }
+
+            if (request.Arguments.TryGetValue("labels", out var lblsVal) && lblsVal.ValueKind == JsonValueKind.Array && lblsVal.GetArrayLength() > 0)
+            {
+                category = lblsVal[0].GetString();
+            }
+
+            if (request.Arguments.TryGetValue("metainfo", out var metaVal) && metaVal.ValueKind == JsonValueKind.String)
+            {
+                var b64 = metaVal.GetString();
+                if (!string.IsNullOrWhiteSpace(b64))
+                {
+                    var bytes = Convert.FromBase64String(b64);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                        ? this.torrentService.GetByInfoHash(parsed.InfoHash)
+                        : null;
+
+                    if (existing != null)
+                    {
+                        isDuplicate = true;
+                        addedTorrent = existing;
+                    }
+                    else
+                    {
+                        addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                    }
+                }
+            }
+            else if (request.Arguments.TryGetValue("filename", out var fnVal) && fnVal.ValueKind == JsonValueKind.String)
+            {
+                var fn = fnVal.GetString();
+                if (!string.IsNullOrWhiteSpace(fn))
+                {
+                    if (fn.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var parsedMagnet = MagnetLinkParser.Parse(fn);
+                            if (!string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash))
+                            {
+                                var existing = this.torrentService.GetByInfoHash(parsedMagnet.InfoHash);
+                                if (existing != null)
+                                {
+                                    isDuplicate = true;
+                                    addedTorrent = existing;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore magnet parsing error, defer to AddFromMagnetAsync
+                        }
+
+                        if (addedTorrent == null)
+                        {
+                            addedTorrent = await this.torrentService.AddFromMagnetAsync(fn, category, downloadDir, isPaused);
+                        }
+                    }
+                    else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                            ? this.torrentService.GetByInfoHash(parsed.InfoHash)
+                            : null;
+
+                        if (existing != null)
+                        {
+                            isDuplicate = true;
+                            addedTorrent = existing;
+                        }
+                        else
+                        {
+                            addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                        }
+                    }
+                    else if (global::System.IO.File.Exists(fn))
+                    {
+                        var bytes = await global::System.IO.File.ReadAllBytesAsync(fn);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                            ? this.torrentService.GetByInfoHash(parsed.InfoHash)
+                            : null;
+
+                        if (existing != null)
+                        {
+                            isDuplicate = true;
+                            addedTorrent = existing;
+                        }
+                        else
+                        {
+                            addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (addedTorrent != null)
+        {
+            var responseKey = isDuplicate ? "torrent-duplicate" : "torrent-added";
+            return this.Ok(new TransmissionRpcResponse
+            {
+                Result = "success",
+                Arguments = new Dictionary<string, object>
+                {
+                    { responseKey, new { id = addedTorrent.Id, name = addedTorrent.Name, hashString = addedTorrent.InfoHash } },
+                },
+                Tag = tag,
+            });
+        }
+
+        return this.Ok(new TransmissionRpcResponse { Result = "failed to add torrent", Tag = tag });
     }
 
     private List<int> ExtractIds(Dictionary<string, JsonElement> arguments, bool applyAllIfEmpty = false)
