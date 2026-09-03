@@ -9,6 +9,7 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
 
@@ -76,6 +77,12 @@ public class WatchFolderServiceTest
     [TestCase("Game.of.Thrones.S08E06.2160p", "tv")]
     [TestCase("House.Complete.Series", "tv")]
     [TestCase("Loki.Season.2.1080p", "tv")]
+    [TestCase("[TGx] Breaking Bad S01", "tv")]
+    [TestCase("[EZTV] The Office", "tv")]
+    [TestCase("[EZTV] The Office S02E05", "tv")]
+    [TestCase("[YTS] Dune 2", "movies")]
+    [TestCase("[YTS] Dune.Part.Two.2024.1080p", "movies")]
+    [TestCase("[RARBG] The Matrix 1999 1080p BluRay", "movies")]
     [TestCase("[SubsPlease] Frieren - 28 (1080p) [12345678].mkv", "anime")]
     [TestCase("[Erai-raws] One Piece - 1100 [1080p]", "anime")]
     [TestCase("[HorribleSubs] Bleach - 366 [720p].mkv", "anime")]
@@ -223,6 +230,95 @@ public class WatchFolderServiceTest
         await this.service.ScanWatchFolderAsync();
 
         this.diskProvider.DidNotReceive().GetFiles(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    #endregion
+
+    #region IsFileReady Tests
+
+    [Test]
+    public void IsFileReady_WhenFileDoesNotExist_ReturnsFalse()
+    {
+        var nonExistent = Path.Combine(this.tempDirectory, "non_existent.torrent");
+
+        this.service.IsFileReady(nonExistent).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsFileReady_WhenFileIsEmpty_ReturnsFalse()
+    {
+        var emptyFile = Path.Combine(this.tempDirectory, "empty.torrent");
+        File.WriteAllBytes(emptyFile, Array.Empty<byte>());
+
+        this.service.IsFileReady(emptyFile).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsFileReady_WhenFileHasContentAndIsUnlocked_ReturnsTrue()
+    {
+        var readyFile = Path.Combine(this.tempDirectory, "ready.torrent");
+        File.WriteAllBytes(readyFile, new byte[] { 1, 2, 3 });
+
+        this.service.IsFileReady(readyFile).Should().BeTrue();
+    }
+
+    [Test]
+    public void IsFileReady_WhenFileIsLockedByAnotherProcess_ReturnsFalse()
+    {
+        var lockedFile = Path.Combine(this.tempDirectory, "locked.torrent");
+        File.WriteAllBytes(lockedFile, new byte[] { 1, 2, 3 });
+
+        using var lockStream = File.Open(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        this.service.IsFileReady(lockedFile).Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Quarantine Tests
+
+    [Test]
+    public async Task ScanWatchFolderAsync_WhenTorrentFailsParsingThreeTimes_QuarantinesToFailedDirectory()
+    {
+        var corruptFile = Path.Combine(this.tempDirectory, "corrupt.torrent");
+        await File.WriteAllBytesAsync(corruptFile, new byte[] { 0x64, 0x30, 0x65 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, false).Returns(new[] { corruptFile });
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidTorrentFileException("Corrupt Bencode"));
+
+        // Scan 1 - attempt 1: should not quarantine
+        await this.service.ScanWatchFolderAsync();
+        this.diskProvider.DidNotReceive().MoveFile(corruptFile, Arg.Any<string>(), Arg.Any<bool>());
+
+        // Scan 2 - attempt 2: should not quarantine
+        await this.service.ScanWatchFolderAsync();
+        this.diskProvider.DidNotReceive().MoveFile(corruptFile, Arg.Any<string>(), Arg.Any<bool>());
+
+        // Scan 3 - attempt 3: should quarantine to failed/
+        await this.service.ScanWatchFolderAsync();
+
+        var expectedFailedDir = Path.Combine(this.tempDirectory, "failed");
+        var expectedDest = Path.Combine(expectedFailedDir, "corrupt.torrent");
+
+        this.diskProvider.Received(1).EnsureFolder(expectedFailedDir);
+        this.diskProvider.Received(1).MoveFile(corruptFile, expectedDest, true);
+    }
+
+    #endregion
+
+    #region Category Cross-Referencing
+
+    [Test]
+    public void MatchCategoryFromReleaseName_WhenConfiguredCategoryMatches_ResolvesToConfiguredCategoryName()
+    {
+        this.categoryService.GetAll().Returns(new[]
+        {
+            new Category { Name = "TV Shows" },
+            new Category { Name = "Feature Films" },
+        });
+
+        var resultTv = this.service.MatchCategoryFromReleaseName("Breaking.Bad.S01E01.1080p");
+        resultTv.Should().Be("TV Shows");
     }
 
     #endregion
