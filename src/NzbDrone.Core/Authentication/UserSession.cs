@@ -15,6 +15,14 @@ public class UserSession : ModelBase
 
     public DateTime Expiry { get; set; }
 
+    public DateTime ExpiresAt
+    {
+        get => this.Expiry;
+        set => this.Expiry = value;
+    }
+
+    public bool IsRevoked { get; set; }
+
     public string IpAddress { get; set; }
 
     public string UserAgent { get; set; }
