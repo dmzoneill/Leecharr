@@ -52,6 +52,7 @@ public class Startup
         services.AddSignalR();
         services.AddDataProtection();
         services.AddHttpClient();
+        services.AddSingleton<Leecharr.Http.Terminal.IPtyTerminalService, Leecharr.Http.Terminal.PtyTerminalService>();
 
         var configFileProvider = this.container.Resolve<IConfigFileProvider>();
         if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
@@ -262,8 +263,20 @@ public class Startup
             c.InjectStylesheet("/swagger-custom.css");
         });
 
+        app.UseWebSockets(new Microsoft.AspNetCore.Builder.WebSocketOptions
+        {
+            KeepAliveInterval = TimeSpan.FromSeconds(30),
+        });
+
         app.MapControllers();
         app.MapHub<MessageHub>("/signalr/messages");
+
+        app.Map("/api/v1/terminal/ws", async context =>
+        {
+            var ptyService = context.RequestServices.GetRequiredService<Leecharr.Http.Terminal.IPtyTerminalService>();
+            var configService = context.RequestServices.GetRequiredService<IConfigService>();
+            await Leecharr.Http.Terminal.TerminalWebSocketHandler.HandleWebSocket(context, ptyService, configService);
+        });
 
         app.MapFallbackToFile("index.html");
     }
