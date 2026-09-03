@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,4 +23,8 @@ public interface IUserSessionRepository : IBasicRepository<UserSession>
     void DeleteByUserId(int userId);
 
     void RevokeSession(string token);
+
+    Task UpdateExpiryAndActivityAsync(string sessionToken, DateTime expiry, DateTime lastActivity);
+
+    Task UpdateLastActivityAsync(string sessionToken, DateTime lastActivity);
 }
