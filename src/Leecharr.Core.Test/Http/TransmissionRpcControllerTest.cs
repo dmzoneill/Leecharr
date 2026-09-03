@@ -42,8 +42,7 @@ public class TransmissionRpcControllerTest
             this.torrentFileService,
             this.torrentFileParser,
             this.configService,
-            null,
-            this.configFileProvider);
+            configFileProvider: this.configFileProvider);
     }
 
     [Test]

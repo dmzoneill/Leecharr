@@ -41,7 +41,7 @@ public class UTorrentWebUiControllerTest
             this.torrentFileParser,
             this.categoryService,
             this.configService,
-            this.configFileProvider);
+            configFileProvider: this.configFileProvider);
     }
 
     [TestCase("removedata")]
