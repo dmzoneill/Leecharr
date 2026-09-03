@@ -56,4 +56,8 @@ public interface ITrackerBoostService
     void LogActivity(string level, string category, string message, string trackerUrl = null, string infoHash = null);
 
     Task RunOptimizationCycleAsync();
+
+    void ClearScrapeCache();
+
+    int ScrapeCacheCount { get; }
 }
