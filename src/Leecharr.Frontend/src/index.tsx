@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./context/ToastContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { ConfirmProvider } from "./context/ConfirmContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./App.css";
@@ -29,9 +30,11 @@ root.render(
       <BrowserRouter>
         <ThemeProvider>
           <ToastProvider>
-            <ErrorBoundary title="Application Error">
-              <App />
-            </ErrorBoundary>
+            <ConfirmProvider>
+              <ErrorBoundary title="Application Error">
+                <App />
+              </ErrorBoundary>
+            </ConfirmProvider>
           </ToastProvider>
         </ThemeProvider>
       </BrowserRouter>
