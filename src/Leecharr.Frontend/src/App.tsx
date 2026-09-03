@@ -1,23 +1,13 @@
 import React, { useEffect, useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router";
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
 import { useIndexers, useGeneralConfig, useRefetchInterval } from "./api/hooks";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
-import {
-  DashboardIcon,
-  TorrentIcon,
-  SettingsIcon,
-  SystemIcon,
-} from "./components/icons/NavIcons";
+import { DashboardIcon, TorrentIcon, SettingsIcon, SystemIcon } from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
   ScheduleIcon,
@@ -53,14 +43,8 @@ import { AddTorrentModal } from "./components/AddTorrentModal";
 import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
-import {
-  GettingStartedModal,
-  STORAGE_KEY_HIDE_GUIDE,
-} from "./components/GettingStartedModal";
-import {
-  SETTINGS_GROUPS,
-  LEGACY_SETTINGS_MAP,
-} from "./pages/settings/settingsNavData";
+import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from "./components/GettingStartedModal";
+import { SETTINGS_GROUPS, LEGACY_SETTINGS_MAP } from "./pages/settings/settingsNavData";
 import "./App.css";
 
 const systemSubItems = [
@@ -82,9 +66,10 @@ export function App() {
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<
-    import("./api/types").CurrentUser | null
-  >(null);
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<import("./api/types").CurrentUser | null>(null);
+
+  const queryClient = useQueryClient();
 
   const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
@@ -93,9 +78,7 @@ export function App() {
     const applyTheme = () => {
       let theme = generalConfig?.themeStyle || "dark";
       if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
+        theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
       }
       const accent = generalConfig?.colorScheme || "auto";
       document.documentElement.setAttribute("data-theme", theme);
@@ -138,13 +121,10 @@ export function App() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
-  const [showGettingStartedModal, setShowGettingStartedModal] =
-    useState<boolean>(() => {
-      return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
-    });
-  const [openSettingsGroups, setOpenSettingsGroups] = useState<
-    Record<string, boolean>
-  >({});
+  const [showGettingStartedModal, setShowGettingStartedModal] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
+  });
+  const [openSettingsGroups, setOpenSettingsGroups] = useState<Record<string, boolean>>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_sidebar_collapsed") === "true";
   });
@@ -180,10 +160,7 @@ export function App() {
     activeNav = "schedule";
   } else if (pathname.startsWith("/statistics")) {
     activeNav = "statistics";
-  } else if (
-    pathname.startsWith("/indexers") ||
-    pathname.startsWith("/search")
-  ) {
+  } else if (pathname.startsWith("/indexers") || pathname.startsWith("/search")) {
     activeNav = "indexers";
   } else if (
     pathname.startsWith("/trackerboost") ||
@@ -220,10 +197,7 @@ export function App() {
 
   const loadData = async () => {
     try {
-      const [tList, cList] = await Promise.all([
-        api.getTorrents(),
-        api.getCategories(),
-      ]);
+      const [tList, cList] = await Promise.all([api.getTorrents(), api.getCategories()]);
       setTorrents(tList);
       setCategories(cList);
     } catch (err) {
@@ -236,8 +210,37 @@ export function App() {
 
   useEffect(() => {
     loadData();
-    signalRManager.start();
-    setConnected(true);
+
+    const unsubReconnecting = signalRManager.onReconnecting(() => {
+      setConnected(false);
+      setIsReconnecting(true);
+    });
+
+    const unsubReconnected = signalRManager.onReconnected(() => {
+      setConnected(true);
+      setIsReconnecting(false);
+      loadData();
+      queryClient.invalidateQueries();
+    });
+
+    const unsubClose = signalRManager.onClose(() => {
+      setConnected(false);
+      setIsReconnecting(true);
+    });
+
+    signalRManager
+      .start()
+      .then(() => {
+        if (signalRManager.isConnected()) {
+          setConnected(true);
+          setIsReconnecting(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("SignalR start error:", err);
+        setConnected(false);
+        setIsReconnecting(true);
+      });
 
     const timer = setInterval(() => {
       loadData();
@@ -253,12 +256,10 @@ export function App() {
               : typeof (msg.body as any).id === "number"
                 ? [msg.body]
                 : typeof msg.body === "object"
-                  ? Object.entries(msg.body).map(
-                      ([id, data]: [string, any]) => ({
-                        id: Number(id) || data?.id,
-                        ...(typeof data === "object" ? data : {}),
-                      }),
-                    )
+                  ? Object.entries(msg.body).map(([id, data]: [string, any]) => ({
+                      id: Number(id) || data?.id,
+                      ...(typeof data === "object" ? data : {}),
+                    }))
                   : [];
 
           if (updates.length > 0) {
@@ -277,8 +278,7 @@ export function App() {
                   return {
                     ...t,
                     uploadSpeed: u.uploadSpeed ?? u.upSpeed ?? t.uploadSpeed,
-                    downloadSpeed:
-                      u.downloadSpeed ?? u.downSpeed ?? t.downloadSpeed,
+                    downloadSpeed: u.downloadSpeed ?? u.downSpeed ?? t.downloadSpeed,
                     progress: u.progress ?? t.progress,
                     uploaded: u.uploaded ?? t.uploaded,
                     downloaded: u.downloaded ?? t.downloaded,
@@ -288,7 +288,7 @@ export function App() {
                     seeders: u.seeders ?? t.seeders,
                     leechers: u.leechers ?? t.leechers,
                   };
-                }),
+                })
               );
             }
           }
@@ -316,8 +316,11 @@ export function App() {
     return () => {
       clearInterval(timer);
       unsubscribe();
+      unsubReconnecting();
+      unsubReconnected();
+      unsubClose();
     };
-  }, [refreshIntervalMs]);
+  }, [refreshIntervalMs, queryClient]);
 
   const handlePause = async (id: number) => {
     try {
@@ -339,19 +342,13 @@ export function App() {
     }
   };
 
-  const handleDelete = async (
-    payload: { id: number; deleteFiles?: boolean } | number,
-  ) => {
+  const handleDelete = async (payload: { id: number; deleteFiles?: boolean } | number) => {
     const id = typeof payload === "number" ? payload : payload.id;
-    const deleteFiles =
-      typeof payload === "number" ? false : Boolean(payload.deleteFiles);
+    const deleteFiles = typeof payload === "number" ? false : Boolean(payload.deleteFiles);
 
     try {
       await api.deleteTorrent(id, deleteFiles);
-      showToast(
-        deleteFiles ? "Torrent and files deleted" : "Torrent removed",
-        "info",
-      );
+      showToast(deleteFiles ? "Torrent and files deleted" : "Torrent removed", "info");
       loadData();
     } catch (err: any) {
       showToast(err?.message || "Failed to delete torrent", "error");
@@ -370,9 +367,7 @@ export function App() {
   }
 
   return (
-    <div
-      className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
-    >
+    <div className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {/* Sidebar Navigation */}
       <aside className={`sidebar sidebar-${activeNav}`}>
         <div
@@ -536,9 +531,7 @@ export function App() {
           {activeNav === "settings" && (
             <div className="sidebar-settings-tree">
               {SETTINGS_GROUPS.map((group) => {
-                const isGroupActive = group.pages.some(
-                  (p) => p.id === activeSubNav,
-                );
+                const isGroupActive = group.pages.some((p) => p.id === activeSubNav);
                 const isOpen = openSettingsGroups[group.id] ?? isGroupActive;
                 return (
                   <div key={group.id} className="sidebar-group-container">
@@ -563,11 +556,7 @@ export function App() {
                         <span>{group.icon}</span>
                         <span>{group.shortLabel}</span>
                       </span>
-                      <span
-                        className={`sidebar-group-chevron ${isOpen ? "open" : ""}`}
-                      >
-                        ▶
-                      </span>
+                      <span className={`sidebar-group-chevron ${isOpen ? "open" : ""}`}>▶</span>
                     </div>
                     {isOpen &&
                       group.pages.map((page) => {
@@ -613,9 +602,7 @@ export function App() {
                                   backgroundColor: isPageActive
                                     ? "var(--accent)"
                                     : "rgba(255,255,255,0.06)",
-                                  color: isPageActive
-                                    ? "#10111a"
-                                    : "var(--text-muted)",
+                                  color: isPageActive ? "#10111a" : "var(--text-muted)",
                                 }}
                               >
                                 {page.badge}
@@ -662,23 +649,16 @@ export function App() {
               type="button"
               className="topbar-btn sidebar-toggle-btn"
               onClick={toggleSidebar}
-              title={
-                isSidebarCollapsed
-                  ? "Show Main Menu (Alt+M)"
-                  : "Hide Main Menu (Alt+M)"
-              }
+              title={isSidebarCollapsed ? "Show Main Menu (Alt+M)" : "Hide Main Menu (Alt+M)"}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 width: "28px",
                 height: "28px",
-                border:
-                  "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+                border: "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
                 borderRadius: "4px",
-                background: isSidebarCollapsed
-                  ? "var(--accent, #ffd166)"
-                  : "transparent",
+                background: isSidebarCollapsed ? "var(--accent, #ffd166)" : "transparent",
                 color: isSidebarCollapsed ? "#10111a" : "var(--text-secondary)",
                 cursor: "pointer",
                 fontSize: "0.95rem",
@@ -737,10 +717,7 @@ export function App() {
             >
               🚀 Setup Guide
             </button>
-            <button
-              className="btn btn-small btn-success"
-              onClick={() => setShowAddModal(true)}
-            >
+            <button className="btn btn-small btn-success" onClick={() => setShowAddModal(true)}>
               + Add Torrent
             </button>
 
@@ -796,6 +773,39 @@ export function App() {
           </div>
         </header>
 
+        {/* Reconnecting State Notification Banner */}
+        {isReconnecting && (
+          <div
+            className="reconnecting-banner"
+            role="status"
+            aria-live="polite"
+            style={{
+              backgroundColor: "rgba(224, 168, 46, 0.15)",
+              borderBottom: "1px solid rgba(224, 168, 46, 0.35)",
+              color: "#ffd166",
+              padding: "0.45rem 1rem",
+              fontSize: "0.85rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.6rem",
+              fontWeight: 500,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                backgroundColor: "#ffd166",
+                boxShadow: "0 0 6px #ffd166",
+              }}
+            />
+            <span>Connection lost. Reconnecting to Leecharr backend...</span>
+          </div>
+        )}
+
         {/* Declarative React Router Viewport */}
         <main className="app-main">
           <Routes>
@@ -826,10 +836,8 @@ export function App() {
                   onOpenAddModal={() => setShowAddModal(true)}
                   onOpenSearchModal={() => setShowSearchModal(true)}
                   onNavigateTab={(nav, subNav) => {
-                    if (nav === "settings")
-                      navigate(`/settings/${subNav || "general"}`);
-                    else if (nav === "system")
-                      navigate(`/system/${subNav || "status"}`);
+                    if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
+                    else if (nav === "system") navigate(`/system/${subNav || "status"}`);
                     else if (subNav) navigate(`/${nav}/${subNav}`);
                     else navigate(`/${nav}`);
                   }}
@@ -849,31 +857,16 @@ export function App() {
             />
 
             {/* Activity Hub */}
-            <Route
-              path="/activity"
-              element={<Navigate to="/activity/history" replace />}
-            />
-            <Route
-              path="/activity/torrents"
-              element={<Navigate to="/torrents" replace />}
-            />
-            <Route
-              path="/activity/add"
-              element={<Navigate to="/torrents/add" replace />}
-            />
+            <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
+            <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
+            <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
             <Route path="/activity/history" element={<DownloadHistory />} />
-            <Route
-              path="/history"
-              element={<Navigate to="/activity/history" replace />}
-            />
+            <Route path="/history" element={<Navigate to="/activity/history" replace />} />
             <Route path="/activity/metrics" element={<Activity />} />
 
             {/* Indexers */}
             <Route path="/indexers" element={<Indexers />} />
-            <Route
-              path="/search"
-              element={<Navigate to="/indexers" replace />}
-            />
+            <Route path="/search" element={<Navigate to="/indexers" replace />} />
 
             {/* Operational Visualizations */}
             <Route path="/peermap" element={<PeerMap />} />
@@ -882,33 +875,18 @@ export function App() {
 
             {/* Tracker Boost */}
             <Route path="/trackerboost" element={<TrackerBoost />} />
-            <Route
-              path="/boost"
-              element={<Navigate to="/trackerboost" replace />}
-            />
-            <Route
-              path="/downloadplusplus"
-              element={<Navigate to="/trackerboost" replace />}
-            />
+            <Route path="/boost" element={<Navigate to="/trackerboost" replace />} />
+            <Route path="/downloadplusplus" element={<Navigate to="/trackerboost" replace />} />
 
             {/* Settings */}
-            <Route
-              path="/settings"
-              element={<Navigate to="/settings/general" replace />}
-            />
+            <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
             <Route path="/settings/:section" element={<Settings />} />
 
             {/* System Diagnostics & Maintenance */}
-            <Route
-              path="/system"
-              element={<Navigate to="/system/status" replace />}
-            />
+            <Route path="/system" element={<Navigate to="/system/status" replace />} />
             <Route path="/system/status" element={<SystemStatus />} />
             <Route path="/system/resources" element={<SystemResources />} />
-            <Route
-              path="/system/telemetry"
-              element={<Navigate to="/system/resources" replace />}
-            />
+            <Route path="/system/telemetry" element={<Navigate to="/system/resources" replace />} />
             <Route path="/system/tasks" element={<SystemTasks />} />
             <Route path="/system/backup" element={<SystemBackup />} />
             <Route path="/system/updates" element={<SystemUpdates />} />
@@ -916,18 +894,9 @@ export function App() {
             <Route path="/system/logs" element={<SystemLogs />} />
             <Route path="/system/network" element={<SystemNetwork />} />
             <Route path="/system/api" element={<ApiDocsPage />} />
-            <Route
-              path="/system/api-docs"
-              element={<Navigate to="/system/api" replace />}
-            />
-            <Route
-              path="/system/swagger"
-              element={<Navigate to="/system/api" replace />}
-            />
-            <Route
-              path="/api-docs"
-              element={<Navigate to="/system/api" replace />}
-            />
+            <Route path="/system/api-docs" element={<Navigate to="/system/api" replace />} />
+            <Route path="/system/swagger" element={<Navigate to="/system/api" replace />} />
+            <Route path="/api-docs" element={<Navigate to="/system/api" replace />} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -935,7 +904,7 @@ export function App() {
         </main>
 
         {/* Bottom Status Bar */}
-        <StatusBar />
+        <StatusBar connected={connected} isReconnecting={isReconnecting} />
       </div>
 
       {/* Add Torrent Modal */}
@@ -952,10 +921,7 @@ export function App() {
 
       {/* Indexer Search Modal */}
       {showSearchModal && (
-        <IndexerSearchModal
-          onClose={() => setShowSearchModal(false)}
-          onTorrentAdded={loadData}
-        />
+        <IndexerSearchModal onClose={() => setShowSearchModal(false)} onTorrentAdded={loadData} />
       )}
 
       {/* Getting Started & Setup Guide Modal */}

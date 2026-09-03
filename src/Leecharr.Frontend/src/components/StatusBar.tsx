@@ -6,12 +6,7 @@ import {
   useSystemStatus,
   useHealthChecks,
 } from "../api/hooks";
-import {
-  formatBytes,
-  formatSpeed,
-  formatRatio,
-  formatUptime,
-} from "../utils/formatters";
+import { formatBytes, formatSpeed, formatRatio, formatUptime } from "../utils/formatters";
 import {
   SeedingIcon,
   UploadIcon,
@@ -23,7 +18,12 @@ import {
   ErrorIcon,
 } from "./icons/UIIcons";
 
-export function StatusBar() {
+export interface StatusBarProps {
+  connected?: boolean;
+  isReconnecting?: boolean;
+}
+
+export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
   const { data: stats } = useSeedingStats();
   const { data: network } = useNetworkStatus();
   const { data: torrents } = useTorrents();
@@ -48,14 +48,8 @@ export function StatusBar() {
       const timeDelta = (now - prev.timestamp) / 1000;
       if (timeDelta >= 1) {
         speedRef.current = {
-          uploadSpeed: Math.max(
-            0,
-            (stats.totalUploaded - prev.totalUploaded) / timeDelta,
-          ),
-          downloadSpeed: Math.max(
-            0,
-            (stats.totalDownloaded - prev.totalDownloaded) / timeDelta,
-          ),
+          uploadSpeed: Math.max(0, (stats.totalUploaded - prev.totalUploaded) / timeDelta),
+          downloadSpeed: Math.max(0, (stats.totalDownloaded - prev.totalDownloaded) / timeDelta),
         };
       }
     }
@@ -70,30 +64,21 @@ export function StatusBar() {
   const { uploadSpeed, downloadSpeed } = speedRef.current;
 
   // Aggregate real peer counts across all torrents
-  const totalSeeders = (torrents ?? []).reduce(
-    (sum, t) => sum + (t.seeders ?? 0),
-    0,
-  );
-  const totalLeechers = (torrents ?? []).reduce(
-    (sum, t) => sum + (t.leechers ?? 0),
-    0,
-  );
+  const totalSeeders = (torrents ?? []).reduce((sum, t) => sum + (t.seeders ?? 0), 0);
+  const totalLeechers = (torrents ?? []).reduce((sum, t) => sum + (t.leechers ?? 0), 0);
   const totalPeers = totalSeeders + totalLeechers;
 
   const hasIssues =
-    healthChecks &&
-    healthChecks.some((c) => c.type === "Warning" || c.type === "Error");
+    healthChecks && healthChecks.some((c) => c.type === "Warning" || c.type === "Error");
   const issuesCount = hasIssues
-    ? healthChecks.filter((c) => c.type === "Warning" || c.type === "Error")
-        .length
+    ? healthChecks.filter((c) => c.type === "Warning" || c.type === "Error").length
     : 0;
 
   return (
     <footer className="status-bar">
       <div className="status-bar-content">
         <span className="status-bar-item">
-          <InfoIcon size={14} />{" "}
-          {systemStatus?.version ? `v${systemStatus.version}` : "Loading..."}
+          <InfoIcon size={14} /> {systemStatus?.version ? `v${systemStatus.version}` : "Loading..."}
         </span>
         <span className="status-bar-item">
           <ActivityIcon size={14} /> Uptime:{" "}
@@ -104,11 +89,23 @@ export function StatusBar() {
           style={{ color: hasIssues ? "var(--danger)" : "var(--success)" }}
         >
           {hasIssues ? <ErrorIcon size={14} /> : <InfoIcon size={14} />}
-          Health:{" "}
-          {hasIssues
-            ? `${issuesCount} Issue${issuesCount !== 1 ? "s" : ""}`
-            : "OK"}
+          Health: {hasIssues ? `${issuesCount} Issue${issuesCount !== 1 ? "s" : ""}` : "OK"}
         </span>
+        {(connected !== undefined || isReconnecting !== undefined) && (
+          <span
+            className="status-bar-item"
+            style={{
+              color: isReconnecting
+                ? "var(--accent, #ffd166)"
+                : connected
+                  ? "var(--success)"
+                  : "var(--danger)",
+            }}
+          >
+            <WifiIcon size={14} />{" "}
+            {isReconnecting ? "Reconnecting..." : connected ? "Connected" : "Disconnected"}
+          </span>
+        )}
 
         <div className="status-bar-separator" style={{ flexGrow: 1 }} />
 
@@ -126,10 +123,7 @@ export function StatusBar() {
           {formatSpeed(
             uploadSpeed > 0
               ? uploadSpeed
-              : (torrents ?? []).reduce(
-                  (acc, t) => acc + (t.uploadSpeed || 0),
-                  0,
-                ),
+              : (torrents ?? []).reduce((acc, t) => acc + (t.uploadSpeed || 0), 0)
           )}
         </span>
         <span className="status-bar-item status-bar-download">
@@ -137,26 +131,19 @@ export function StatusBar() {
           {formatSpeed(
             downloadSpeed > 0
               ? downloadSpeed
-              : (torrents ?? []).reduce(
-                  (acc, t) => acc + (t.downloadSpeed || 0),
-                  0,
-                ),
+              : (torrents ?? []).reduce((acc, t) => acc + (t.downloadSpeed || 0), 0)
           )}
         </span>
         <span className="status-bar-item">
           <UsersIcon size={14} /> Peers: {totalSeeders} / {totalPeers}
         </span>
         <span className="status-bar-item">
-          <UploadIcon size={14} /> Total Up:{" "}
-          {formatBytes(stats?.totalUploaded ?? 0)}
+          <UploadIcon size={14} /> Total Up: {formatBytes(stats?.totalUploaded ?? 0)}
         </span>
         <span className="status-bar-item">
-          <DownloadIcon size={14} /> Total Down:{" "}
-          {formatBytes(stats?.totalDownloaded ?? 0)}
+          <DownloadIcon size={14} /> Total Down: {formatBytes(stats?.totalDownloaded ?? 0)}
         </span>
-        <span className="status-bar-item">
-          Ratio: {formatRatio(stats?.averageRatio ?? 0)}
-        </span>
+        <span className="status-bar-item">Ratio: {formatRatio(stats?.averageRatio ?? 0)}</span>
         <span className="status-bar-item">
           <WifiIcon size={14} /> IP: {network?.externalIp || "..."}
         </span>
