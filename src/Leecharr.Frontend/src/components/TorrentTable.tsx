@@ -187,8 +187,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const [sortKey, setSortKey] = useState<ColumnKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [visibleColumns, setVisibleColumns] =
-    useState<Set<string>>(loadVisibleColumns);
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(loadVisibleColumns);
   const [showColumnModal, setShowColumnModal] = useState(false);
 
   const { data: history } = useDownloadHistory();
@@ -244,8 +243,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     }
     if (trackerFilter && trackerFilter !== "All") {
       const matchesTracker =
-        (t.trackers &&
-          t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
+        (t.trackers && t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
         extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
       if (!matchesTracker) return false;
     }
@@ -261,24 +259,18 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     let valB: any = (b as any)[sortKey];
 
     if (sortKey === "#") {
-      valA =
-        a.queuePosition && a.queuePosition > 0 ? a.queuePosition : (a.id ?? 0);
-      valB =
-        b.queuePosition && b.queuePosition > 0 ? b.queuePosition : (b.id ?? 0);
+      valA = a.queuePosition && a.queuePosition > 0 ? a.queuePosition : (a.id ?? 0);
+      valB = b.queuePosition && b.queuePosition > 0 ? b.queuePosition : (b.id ?? 0);
     } else if (sortKey === "category") {
       valA = a.category ?? a.label ?? "";
       valB = b.category ?? b.label ?? "";
     } else if (sortKey === "eta") {
       valA =
         a.eta ??
-        (a.downloadSpeed > 0
-          ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed
-          : 9999999);
+        (a.downloadSpeed > 0 ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed : 9999999);
       valB =
         b.eta ??
-        (b.downloadSpeed > 0
-          ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed
-          : 9999999);
+        (b.downloadSpeed > 0 ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed : 9999999);
     }
 
     if (valA === valB) return 0;
@@ -301,8 +293,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   });
 
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.has(col.key));
-  const allSelected =
-    filteredTorrents.length > 0 && selectedIds.size === filteredTorrents.length;
+  const allSelected = filteredTorrents.length > 0 && selectedIds.size === filteredTorrents.length;
 
   if (filteredTorrents.length === 0) {
     return (
@@ -322,11 +313,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           boxShadow: "none",
         }}
       >
-        <div
-          style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}
-        >
-          📁
-        </div>
+        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",
@@ -345,8 +332,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             margin: 0,
           }}
         >
-          Add a torrent file, magnet URI, or search indexers to begin
-          downloading.
+          Add a torrent file, magnet URI, or search indexers to begin downloading.
         </p>
       </div>
     );
@@ -356,9 +342,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     switch (key) {
       case "#":
         return (
-          <span
-            style={{ color: "var(--text-muted, #7e8092)", fontSize: "0.75rem" }}
-          >
+          <span style={{ color: "var(--text-muted, #7e8092)", fontSize: "0.75rem" }}>
             {t.queuePosition && t.queuePosition > 0 ? t.queuePosition : idx + 1}
           </span>
         );
@@ -366,17 +350,13 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       case "name": {
         const historyMatch = history?.find(
           (h) =>
-            (t.infoHash &&
-              h.infoHash?.toLowerCase() === t.infoHash.toLowerCase()) ||
-            h.title?.toLowerCase() === t.name?.toLowerCase(),
+            (t.infoHash && h.infoHash?.toLowerCase() === t.infoHash.toLowerCase()) ||
+            h.title?.toLowerCase() === t.name?.toLowerCase()
         );
         const meta = historyMatch?.metadata;
-        const arrLink = historyMatch
-          ? getMediaDeepLink(historyMatch, arrConnections)
-          : null;
+        const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
         const badges = getTorrentBadges(t);
-        const posterSrc =
-          t.posterUrl || t.artworkUrl || t.bannerUrl || meta?.posterUrl;
+        const posterSrc = t.posterUrl || t.artworkUrl || t.bannerUrl || meta?.posterUrl;
 
         return (
           <div
@@ -432,9 +412,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 overflow: "hidden",
               }}
             >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 {t.isPrivate && (
                   <span
                     className="badge"
@@ -451,8 +429,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                       flexShrink: 0,
                     }}
                   >
-                    <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} />{" "}
-                    Private
+                    <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} /> Private
                   </span>
                 )}
                 <span
@@ -465,8 +442,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   }}
                   title={t.name}
                 >
-                  {meta?.title || t.mediaTitle || t.name}{" "}
-                  {meta?.year ? `(${meta.year})` : ""}
+                  {meta?.title || t.mediaTitle || t.name} {meta?.year ? `(${meta.year})` : ""}
                 </span>
                 {arrLink && (
                   <a
@@ -614,9 +590,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   width: `${pct}%`,
                   height: "100%",
                   backgroundColor:
-                    pct >= 100
-                      ? "var(--success, #22c55e)"
-                      : "var(--accent, #ffd166)",
+                    pct >= 100 ? "var(--success, #22c55e)" : "var(--accent, #ffd166)",
                   transition: "width 0.3s",
                 }}
               />
@@ -639,9 +613,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return <span>{formatBytes(t.totalSize)}</span>;
 
       case "downloaded":
-        return (
-          <span>{formatBytes(t.downloaded ?? t.totalSize * t.progress)}</span>
-        );
+        return <span>{formatBytes(t.downloaded ?? t.totalSize * t.progress)}</span>;
 
       case "uploaded":
         return <span>{formatBytes(t.uploaded ?? 0)}</span>;
@@ -650,10 +622,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return (
           <span
             style={{
-              color:
-                t.downloadSpeed > 0
-                  ? "var(--accent, #ffd166)"
-                  : "var(--text-muted, #7e8092)",
+              color: t.downloadSpeed > 0 ? "var(--accent, #ffd166)" : "var(--text-muted, #7e8092)",
               fontWeight: t.downloadSpeed > 0 ? 600 : 400,
             }}
           >
@@ -665,10 +634,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return (
           <span
             style={{
-              color:
-                t.uploadSpeed > 0
-                  ? "var(--success, #22c55e)"
-                  : "var(--text-muted, #7e8092)",
+              color: t.uploadSpeed > 0 ? "var(--success, #22c55e)" : "var(--text-muted, #7e8092)",
               fontWeight: t.uploadSpeed > 0 ? 600 : 400,
             }}
           >
@@ -682,9 +648,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             style={{
               fontWeight: 600,
               color:
-                (t.ratio || 0) >= 1.0
-                  ? "var(--success, #22c55e)"
-                  : "var(--text-primary, #f8f4ed)",
+                (t.ratio || 0) >= 1.0 ? "var(--success, #22c55e)" : "var(--text-primary, #f8f4ed)",
             }}
           >
             {formatRatio(t.ratio || 0)}
@@ -703,17 +667,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
       case "eta": {
         const remaining = t.totalSize * (1 - (t.progress || 0));
-        const etaSec =
-          t.downloadSpeed > 0 ? Math.floor(remaining / t.downloadSpeed) : 0;
-        return (
-          <span>
-            {t.progress >= 1.0
-              ? "Done"
-              : etaSec > 0
-                ? formatSeconds(etaSec)
-                : "∞"}
-          </span>
-        );
+        const etaSec = t.downloadSpeed > 0 ? Math.floor(remaining / t.downloadSpeed) : 0;
+        return <span>{t.progress >= 1.0 ? "Done" : etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>;
       }
 
       case "trackerUrl": {
@@ -770,8 +725,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             }}
             title="Private Torrent (BEP 27: Strict Swarm Isolation)"
           >
-            <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} />{" "}
-            Private
+            <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} /> Private
           </span>
         ) : (
           <span
@@ -786,8 +740,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             }}
             title="Public Swarm (DHT/PEX/LPD enabled)"
           >
-            <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} />{" "}
-            Public
+            <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} /> Public
           </span>
         );
 
@@ -884,10 +837,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
       {/* Main Table */}
       <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
-        <table
-          className="torrent-table"
-          style={{ width: "100%", borderCollapse: "collapse" }}
-        >
+        <table className="torrent-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr
               style={{
@@ -899,18 +849,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               }}
             >
               {onToggleSelect && onSelectAll && (
-                <th
-                  className="torrent-table-th"
-                  style={{ width: 36, textAlign: "center" }}
-                >
+                <th className="torrent-table-th" style={{ width: 36, textAlign: "center" }}>
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    onChange={() =>
-                      onSelectAll(
-                        allSelected ? [] : sourceTorrents.map((t) => t.id),
-                      )
-                    }
+                    onChange={() => onSelectAll(allSelected ? [] : sourceTorrents.map((t) => t.id))}
                   />
                 </th>
               )}
@@ -1014,9 +957,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           onUpdate={(tor) => updateTorrent.mutate(tor)}
           onAnnounce={(id) => announceTorrent.mutate(id)}
           onRecheck={(id) => recheckTorrent.mutate(id)}
-          onDelete={(payload) =>
-            onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
-          }
+          onDelete={(payload) => (onDelete ? onDelete(payload) : deleteTorrent.mutate(payload))}
           onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}

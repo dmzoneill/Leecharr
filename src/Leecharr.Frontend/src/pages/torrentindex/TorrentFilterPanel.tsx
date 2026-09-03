@@ -8,22 +8,11 @@ import {
 } from "../../components/icons/UIIcons";
 import { TrackerFavicon } from "../../components/TrackerFavicon";
 
-const STATE_FILTERS = [
-  "All",
-  "Downloading",
-  "Seeding",
-  "Paused",
-  "Queued",
-  "Error",
-] as const;
+const STATE_FILTERS = ["All", "Downloading", "Seeding", "Paused", "Queued", "Error"] as const;
 
 const STATE_FILTER_ICONS: Record<string, React.ReactNode> = {
   All: <AllIcon size={13} />,
-  Downloading: (
-    <span style={{ color: "var(--accent, #ffd166)", fontSize: "0.85rem" }}>
-      ⬇
-    </span>
-  ),
+  Downloading: <span style={{ color: "var(--accent, #ffd166)", fontSize: "0.85rem" }}>⬇</span>,
   Seeding: <SeedingIcon size={13} />,
   Paused: <StoppedIcon size={13} />,
   Queued: <QueuedIcon size={13} />,
@@ -101,9 +90,7 @@ export function TorrentFilterPanel({
               <span className="filter-panel-label">
                 {STATE_FILTER_ICONS[state]} {state}
               </span>
-              <span className="filter-panel-count">
-                {stateCounts[state] ?? 0}
-              </span>
+              <span className="filter-panel-count">{stateCounts[state] ?? 0}</span>
             </button>
           </li>
         ))}
@@ -139,12 +126,9 @@ export function TorrentFilterPanel({
                     color: "#f87171",
                   }}
                 >
-                  <i className="fas fa-lock" style={{ fontSize: "0.7rem" }} />{" "}
-                  Private (BEP 27)
+                  <i className="fas fa-lock" style={{ fontSize: "0.7rem" }} /> Private (BEP 27)
                 </span>
-                <span className="filter-panel-count">
-                  {privacyCounts.Private}
-                </span>
+                <span className="filter-panel-count">{privacyCounts.Private}</span>
               </button>
             </li>
             <li>
@@ -162,12 +146,9 @@ export function TorrentFilterPanel({
                     color: "#60a5fa",
                   }}
                 >
-                  <i className="fas fa-globe" style={{ fontSize: "0.7rem" }} />{" "}
-                  Public Swarm
+                  <i className="fas fa-globe" style={{ fontSize: "0.7rem" }} /> Public Swarm
                 </span>
-                <span className="filter-panel-count">
-                  {privacyCounts.Public}
-                </span>
+                <span className="filter-panel-count">{privacyCounts.Public}</span>
               </button>
             </li>
           </ul>
