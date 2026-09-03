@@ -38,16 +38,19 @@ public class NetworkSecurityService : INetworkSecurityService
     private readonly INetworkSettingsRepository repository;
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
+    private readonly Vpn.IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
 
     public NetworkSecurityService(
         INetworkSettingsRepository repository,
         IEventAggregator eventAggregator,
-        Configuration.IConfigService configService = null)
+        Configuration.IConfigService configService = null,
+        Vpn.IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.repository = repository;
         this.eventAggregator = eventAggregator;
         this.configService = configService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -89,6 +92,11 @@ public class NetworkSecurityService : INetworkSecurityService
 
     public bool CheckVpnKillSwitch()
     {
+        if (this.vpnKillSwitchService != null)
+        {
+            return this.vpnKillSwitchService.CheckVpnState();
+        }
+
         var settings = this.GetCurrentSettings();
         if (!settings.EnableVpnKillSwitch || string.IsNullOrWhiteSpace(settings.BindInterface))
         {
