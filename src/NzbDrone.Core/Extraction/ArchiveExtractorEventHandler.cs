@@ -73,6 +73,12 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                     if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
                     {
                         var fullPath = Path.Combine(savePath, file.Path);
+                        if (!TorrentPathValidator.IsStrictSubPath(savePath, fullPath))
+                        {
+                            this.logger.Warn("Refusing to auto-extract archive with path traversal outside savePath for torrent {0}: {1}", message.Torrent.Name, file.Path);
+                            continue;
+                        }
+
                         if (this.diskProvider.FileExists(fullPath))
                         {
                             this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);

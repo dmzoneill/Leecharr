@@ -714,6 +714,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         try
         {
             var destinationFullPath = Path.Combine(manager.SavePath, normalizedNew);
+            if (!TorrentPathValidator.IsStrictSubPath(manager.SavePath, destinationFullPath))
+            {
+                this.logger.Warn("Cannot rename file in torrent {0}: target '{1}' escapes save path '{2}'", torrentId, destinationFullPath, manager.SavePath);
+                return false;
+            }
+
             var destDir = Path.GetDirectoryName(destinationFullPath);
             if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
             {
@@ -765,6 +771,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             var subPath = currentPath[(normalizedOld.Length + 1)..];
             var newRelativePath = $"{normalizedNew}/{subPath}";
             var destinationFullPath = Path.Combine(manager.SavePath, newRelativePath);
+            if (!TorrentPathValidator.IsStrictSubPath(manager.SavePath, destinationFullPath))
+            {
+                this.logger.Warn("Cannot rename file '{0}' in torrent {1}: target '{2}' escapes save path '{3}'", currentPath, torrentId, destinationFullPath, manager.SavePath);
+                continue;
+            }
 
             var destDir = Path.GetDirectoryName(destinationFullPath);
             if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))

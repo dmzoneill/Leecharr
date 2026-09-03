@@ -426,12 +426,16 @@ public class TorrentService : ITorrentService
         {
         }
 
-        if (deleteFiles && !string.IsNullOrWhiteSpace(torrent.SavePath) && Directory.Exists(torrent.SavePath))
+        if (deleteFiles && !string.IsNullOrWhiteSpace(torrent.SavePath) && !string.IsNullOrWhiteSpace(torrent.Name) && Directory.Exists(torrent.SavePath))
         {
             try
             {
                 var torrentFolder = Path.Combine(torrent.SavePath, torrent.Name);
-                if (Directory.Exists(torrentFolder))
+                if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, torrentFolder))
+                {
+                    this.logger.Warn("Refusing to delete files for torrent {0}: target path '{1}' escapes or equals save path '{2}'", torrent.Name, torrentFolder, torrent.SavePath);
+                }
+                else if (Directory.Exists(torrentFolder))
                 {
                     Directory.Delete(torrentFolder, true);
                 }
@@ -606,8 +610,31 @@ public class TorrentService : ITorrentService
         return this.downloadEngine.GetTask(torrentId);
     }
 
+    public static bool IsStrictSubPath(string basePath, string targetPath)
+    {
+        return TorrentPathValidator.IsStrictSubPath(basePath, targetPath);
+    }
+
     public async Task<bool> RenameFileAsync(int torrentId, string oldPath, string newPath)
     {
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath) ||
+            !TorrentPathValidator.IsValidRelativePath(newPath) || !TorrentPathValidator.IsValidRelativePath(oldPath))
+        {
+            this.logger.Warn("Refusing to rename file in torrent {0}: invalid or unsafe path (old: '{1}', new: '{2}')", torrentId, oldPath, newPath);
+            return false;
+        }
+
+        var torrent = this.torrentRepository?.Get(torrentId);
+        if (torrent != null && !string.IsNullOrWhiteSpace(torrent.SavePath))
+        {
+            var targetFullPath = Path.Combine(torrent.SavePath, newPath.Replace('\\', '/').TrimStart('/'));
+            if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, targetFullPath))
+            {
+                this.logger.Warn("Refusing to rename file in torrent {0}: target path '{1}' escapes save path '{2}'", torrentId, newPath, torrent.SavePath);
+                return false;
+            }
+        }
+
         var result = await this.downloadEngine.RenameFileAsync(torrentId, oldPath, newPath);
         if (result && this.fileRepository != null)
         {
@@ -627,6 +654,24 @@ public class TorrentService : ITorrentService
 
     public async Task<bool> RenameFolderAsync(int torrentId, string oldPath, string newPath)
     {
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath) ||
+            !TorrentPathValidator.IsValidRelativePath(newPath) || !TorrentPathValidator.IsValidRelativePath(oldPath))
+        {
+            this.logger.Warn("Refusing to rename folder in torrent {0}: invalid or unsafe path (old: '{1}', new: '{2}')", torrentId, oldPath, newPath);
+            return false;
+        }
+
+        var torrent = this.torrentRepository?.Get(torrentId);
+        if (torrent != null && !string.IsNullOrWhiteSpace(torrent.SavePath))
+        {
+            var targetFullPath = Path.Combine(torrent.SavePath, newPath.Replace('\\', '/').Trim('/'));
+            if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, targetFullPath))
+            {
+                this.logger.Warn("Refusing to rename folder in torrent {0}: target path '{1}' escapes save path '{2}'", torrentId, newPath, torrent.SavePath);
+                return false;
+            }
+        }
+
         var result = await this.downloadEngine.RenameFolderAsync(torrentId, oldPath, newPath);
         if (result && this.fileRepository != null)
         {
