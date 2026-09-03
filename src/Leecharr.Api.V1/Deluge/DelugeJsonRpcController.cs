@@ -372,10 +372,23 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
+                    HashSet<string> uiKeys = null;
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
+                    {
+                        uiKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var elem in paramsElem[0].EnumerateArray())
+                        {
+                            if (elem.ValueKind == JsonValueKind.String)
+                            {
+                                uiKeys.Add(elem.GetString());
+                            }
+                        }
+                    }
+
                     var torrentDict = new Dictionary<string, Dictionary<string, object>>();
                     foreach (var t in filteredTorrents)
                     {
-                        torrentDict[t.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(t);
+                        torrentDict[t.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(t, uiKeys);
                     }
 
                     return this.DelugeResult(new
@@ -475,11 +488,35 @@ public class DelugeJsonRpcController : ControllerBase
                         }
                     }
 
+                    HashSet<string> requestedKeys = null;
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1 && paramsElem[1].ValueKind == JsonValueKind.Array)
+                    {
+                        requestedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var elem in paramsElem[1].EnumerateArray())
+                        {
+                            if (elem.ValueKind == JsonValueKind.String)
+                            {
+                                requestedKeys.Add(elem.GetString());
+                            }
+                        }
+                    }
+                    else if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
+                    {
+                        requestedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var elem in paramsElem[0].EnumerateArray())
+                        {
+                            if (elem.ValueKind == JsonValueKind.String)
+                            {
+                                requestedKeys.Add(elem.GetString());
+                            }
+                        }
+                    }
+
                     var resultDict = new Dictionary<string, Dictionary<string, object>>();
 
                     foreach (var torrent in torrents)
                     {
-                        resultDict[torrent.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(torrent);
+                        resultDict[torrent.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(torrent, requestedKeys);
                     }
 
                     return this.DelugeResult(new { result = resultDict, error = (object)null, id });
@@ -492,7 +529,20 @@ public class DelugeJsonRpcController : ControllerBase
                         return this.DelugeResult(new { result = (object)null, error = "Torrent not found", id });
                     }
 
-                    return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found), error = (object)null, id });
+                    HashSet<string> singleTorrentKeys = null;
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1 && paramsElem[1].ValueKind == JsonValueKind.Array)
+                    {
+                        singleTorrentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var elem in paramsElem[1].EnumerateArray())
+                        {
+                            if (elem.ValueKind == JsonValueKind.String)
+                            {
+                                singleTorrentKeys.Add(elem.GetString());
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found, singleTorrentKeys), error = (object)null, id });
 
                 case "core.add_torrent_file":
                     string addedHash = null;
@@ -930,7 +980,7 @@ public class DelugeJsonRpcController : ControllerBase
         return hashes;
     }
 
-    private Dictionary<string, object> MapTorrentToDelugeStatus(Torrent t)
+    private Dictionary<string, object> MapTorrentToDelugeStatus(Torrent t, ISet<string> requestedKeys = null)
     {
         var stateStr = t.Status switch
         {
@@ -943,19 +993,38 @@ public class DelugeJsonRpcController : ControllerBase
             _ => "Paused",
         };
 
-        var files = this.torrentFileService.GetFiles(t.Id);
-        var filesList = files.Select((f, idx) => new Dictionary<string, object>
+        var needsFiles = requestedKeys == null || requestedKeys.Count == 0 ||
+            requestedKeys.Contains("files") || requestedKeys.Contains("file_priorities") || requestedKeys.Contains("file_progress") || requestedKeys.Contains("num_files");
+
+        List<Dictionary<string, object>> filesList;
+        List<int> filePriorities;
+        List<double> fileProgress;
+        int numFiles;
+
+        if (needsFiles)
         {
-            { "index", idx },
-            { "path", f.Path },
-            { "size", f.Size },
-            { "offset", f.PieceOffset },
-        }).ToList();
+            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+            numFiles = files.Count;
+            filesList = files.Select((f, idx) => new Dictionary<string, object>
+            {
+                { "index", idx },
+                { "path", f.Path },
+                { "size", f.Size },
+                { "offset", f.PieceOffset },
+            }).ToList();
 
-        var filePriorities = files.Select(f => f.Priority).ToList();
-        var fileProgress = files.Select(f => f.Progress).ToList();
+            filePriorities = files.Select(f => f.Priority).ToList();
+            fileProgress = files.Select(f => f.Progress).ToList();
+        }
+        else
+        {
+            filesList = new List<Dictionary<string, object>>();
+            filePriorities = new List<int>();
+            fileProgress = new List<double>();
+            numFiles = 0;
+        }
 
-        return new Dictionary<string, object>
+        var status = new Dictionary<string, object>
         {
             { "name", t.Name },
             { "hash", t.InfoHash },
@@ -974,7 +1043,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "total_seeds", t.Seeders },
             { "num_peers", t.Leechers },
             { "total_peers", t.Leechers },
-            { "num_files", files.Count() },
+            { "num_files", numFiles },
             { "files", filesList },
             { "file_priorities", filePriorities },
             { "file_progress", fileProgress },
@@ -995,6 +1064,22 @@ public class DelugeJsonRpcController : ControllerBase
             { "private", t.IsPrivate },
             { "is_private", t.IsPrivate },
         };
+
+        if (requestedKeys != null && requestedKeys.Count > 0)
+        {
+            var filtered = new Dictionary<string, object>();
+            foreach (var key in requestedKeys)
+            {
+                if (status.TryGetValue(key, out var val))
+                {
+                    filtered[key] = val;
+                }
+            }
+
+            return filtered;
+        }
+
+        return status;
     }
 
     private static long GetDriveFreeSpace(string path)
