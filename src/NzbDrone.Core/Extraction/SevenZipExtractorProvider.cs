@@ -125,7 +125,12 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            await process.WaitForExitAsync(cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(60));
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
 
             if (process.ExitCode == 0)
             {
@@ -133,7 +138,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                 return true;
             }
 
-            var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
+            var stderr = await stderrTask;
             this.logger.Warn("7-Zip extraction finished with exit code {0}: {1}", process.ExitCode, stderr);
             return false;
         }

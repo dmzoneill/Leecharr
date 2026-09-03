@@ -92,8 +92,14 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            var stdout = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(60));
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+
+            var stdout = await stdoutTask;
 
             if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout))
             {
