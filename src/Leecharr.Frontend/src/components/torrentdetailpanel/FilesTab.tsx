@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useTorrentFiles, useSetFilePriority, useSetFilesPriority } from "../../api/hooks";
 import { formatBytes } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
@@ -344,6 +344,15 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
   const [filterQuery, setFilterQuery] = useState("");
   const [initializedTree, setInitializedTree] = useState(false);
+
+  useEffect(() => {
+    setInitializedTree(false);
+    setExpandedPaths(new Set());
+    setFilterQuery("");
+    setRenamingNode(null);
+    setRenameInput("");
+    setIsRenaming(false);
+  }, [effectiveId]);
 
   const handleStartRename = (node: TreeNode, e: React.MouseEvent) => {
     e.stopPropagation();
