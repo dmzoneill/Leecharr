@@ -40,3 +40,6 @@ Backups/
 
 # Secrets
 *.env
+
+# Worktrees
+.worktrees/
