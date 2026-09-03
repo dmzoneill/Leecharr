@@ -477,6 +477,8 @@ public interface IConfigService
 
     int TrackerRateLimitPerMinute { get; }
 
+    int TrackerMaxSwarms { get; }
+
     // Media Enrichment
     bool AutoEnrichEnabled { get; }
 
@@ -1081,6 +1083,8 @@ public class ConfigService : IConfigService
     public bool TrackerLogAnnounces => this.GetValueBoolean("TrackerLogAnnounces", false);
 
     public int TrackerRateLimitPerMinute => this.GetValueInt("TrackerRateLimitPerMinute", 60);
+
+    public int TrackerMaxSwarms => this.GetValueInt("TrackerMaxSwarms", 20000);
 
     // Media Enrichment
     public bool AutoEnrichEnabled => this.GetValueBoolean("AutoEnrichEnabled", true);
