@@ -2,11 +2,16 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaEnrichment.Providers;
@@ -405,6 +410,148 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
 
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Dynamic Metadata, Local Artwork, Servarr Auth & Cache Cleanup
+
+    [Test]
+    public async Task EnrichTorrentAsync_WhenDynamicMetadataServiceAvailable_QueriesAndAppliesMetadata()
+    {
+        var metadataService = Substitute.For<IMediaMetadataService>();
+        var dynamicResult = new MediaMetadata
+        {
+            Title = "Severance",
+            Year = 2022,
+            Overview = "Mark leads a team of office workers whose memories have been surgically divided.",
+            PosterUrl = "http://example.com/severance_poster.jpg",
+            BackdropUrl = "http://example.com/severance_backdrop.jpg",
+            Genres = "Drama, Sci-Fi, Thriller",
+            Rating = 8.7,
+            ImdbId = "tt11280740",
+            TmdbId = "95396",
+            TvdbId = "371980",
+            MediaType = "TV",
+        };
+
+        metadataService.GetMetadataAsync("Severance.S02E01.1080p.WEB-DL.x265", Arg.Any<string>(), Arg.Any<int?>())
+            .Returns(Task.FromResult(dynamicResult));
+
+        var handler = new TestHttpMessageHandler();
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            mediaMetadataService: metadataService,
+            httpClient: new HttpClient(handler));
+
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Severance.S02E01.1080p.WEB-DL.x265",
+            Category = "tv",
+        };
+
+        var result = await customService.EnrichTorrentAsync(torrent);
+
+        result.Should().NotBeNull();
+        result.Title.Should().Be("Severance");
+        result.Year.Should().Be(2022);
+        result.Overview.Should().Contain("surgically divided");
+        result.PosterUrl.Should().Be("http://example.com/severance_poster.jpg");
+        result.BackdropUrl.Should().Be("http://example.com/severance_backdrop.jpg");
+        result.Rating.Should().Be(8.7);
+        result.ImdbId.Should().Be("tt11280740");
+        result.TmdbId.Should().Be("95396");
+        result.TvdbId.Should().Be("371980");
+        result.ArrType.Should().Be("TV");
+
+        await metadataService.Received(1).GetMetadataAsync("Severance.S02E01.1080p.WEB-DL.x265", "tv", Arg.Any<int?>());
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenLocalFilePath_CopiesDirectlyViaFileCopy()
+    {
+        var localSource = Path.Combine(this.tempDirectory, "local_artwork.png");
+        await File.WriteAllBytesAsync(localSource, new byte[] { 10, 20, 30, 40 });
+
+        var cachedPath = await this.service.CacheArtworkAsync(localSource, 201, "poster");
+
+        cachedPath.Should().NotBeNull();
+        File.Exists(cachedPath).Should().BeTrue();
+        cachedPath.Should().EndWith(".png");
+        cachedPath.Should().Contain(Path.Combine("MediaCache", "201"));
+
+        var cachedBytes = await File.ReadAllBytesAsync(cachedPath);
+        cachedBytes.Should().Equal(new byte[] { 10, 20, 30, 40 });
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenServarrEndpoint_IncludesXApiKeyHeader()
+    {
+        var arrRepository = Substitute.For<IArrConnectionRepository>();
+        var arrConn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Url = "http://localhost:8989",
+            ApiKey = "servarr-secret-key-xyz",
+            ArrType = "Sonarr",
+        };
+        arrRepository.All().Returns(new[] { arrConn });
+
+        var handler = new TestHttpMessageHandler();
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            arrRepository: arrRepository,
+            httpClient: new HttpClient(handler));
+
+        var url = "http://localhost:8989/api/v3/mediacover/42/poster.jpg";
+        var result = await customService.CacheArtworkAsync(url, 202, "poster");
+
+        result.Should().NotBeNull();
+        File.Exists(result).Should().BeTrue();
+
+        handler.CapturedRequest.Should().NotBeNull();
+        handler.CapturedRequest.Headers.Contains("X-Api-Key").Should().BeTrue();
+        handler.CapturedRequest.Headers.GetValues("X-Api-Key").First().Should().Be("servarr-secret-key-xyz");
+    }
+
+    [Test]
+    public void CleanupTorrentCache_DeletesCacheFolderOnTorrentDeletion()
+    {
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "303");
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "poster.jpg"), "dummy data");
+
+        Directory.Exists(cacheDir).Should().BeTrue();
+
+        this.service.CleanupTorrentCache(303);
+
+        Directory.Exists(cacheDir).Should().BeFalse();
+    }
+
+    private class TestHttpMessageHandler : HttpMessageHandler
+    {
+        public HttpRequestMessage CapturedRequest { get; private set; }
+
+        public byte[] ResponseBytes { get; set; } = new byte[] { 1, 2, 3, 4 };
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            this.CapturedRequest = request;
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(this.ResponseBytes),
+            };
+            return Task.FromResult(response);
+        }
     }
 
     #endregion
