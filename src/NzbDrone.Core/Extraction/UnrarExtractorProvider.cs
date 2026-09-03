@@ -138,7 +138,12 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            await process.WaitForExitAsync(cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(60));
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
 
             // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
             if (process.ExitCode == 0 || process.ExitCode == 1)
@@ -147,7 +152,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                 return true;
             }
 
-            var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
+            var stderr = await stderrTask;
             this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
             return false;
         }
