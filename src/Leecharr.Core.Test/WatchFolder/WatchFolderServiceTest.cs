@@ -322,4 +322,73 @@ public class WatchFolderServiceTest
     }
 
     #endregion
+
+    #region FileSystemWatcher and Async Void Reliability Tests
+
+    [Test]
+    public async Task OnFileSystemWatcherCreated_WhenFileThrowsUnexpectedException_CatchesAndDoesNotCrashProcess()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "throwing.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x31, 0x30, 0x65 });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidOperationException("Fatal parser explosion"));
+
+        var action = () =>
+        {
+            this.service.OnFileSystemWatcherCreated(this, new FileSystemEventArgs(WatcherChangeTypes.Created, this.tempDirectory, "throwing.torrent"));
+        };
+
+        action.Should().NotThrow();
+
+        await Task.Delay(150);
+
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task OnFileSystemWatcherCreated_WhenValidTorrent_ProcessesSuccessfully()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "valid.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x32, 0x30, 0x65 });
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Valid.Movie.2024.1080p",
+            InfoHash = "1234567890123456789012345678901234567890",
+            TotalSize = 1024,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        this.service.OnFileSystemWatcherCreated(this, new FileSystemEventArgs(WatcherChangeTypes.Created, this.tempDirectory, "valid.torrent"));
+
+        await Task.Delay(150);
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: "movies",
+            savePath: null,
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public void StartWatcher_AndStopWatcher_DoNotThrowExceptions()
+    {
+        var startAction = () => this.service.StartWatcher();
+        startAction.Should().NotThrow();
+
+        var stopAction = () => this.service.StopWatcher();
+        stopAction.Should().NotThrow();
+
+        var disposeAction = () => this.service.Dispose();
+        disposeAction.Should().NotThrow();
+    }
+
+    #endregion
 }

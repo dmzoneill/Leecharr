@@ -1136,4 +1136,69 @@ public class MonoTorrentDownloadEngineTest
     }
 
     #endregion
+
+    #region Async Event Handler Reliability Tests
+
+    [Test]
+    public void OnTorrentCompleted_WhenCalledWithNullManager_DoesNotThrowUnhandledException()
+    {
+        var action = () =>
+        {
+            this.engine.OnTorrentCompleted(999, "0123456789012345678901234567890123456789", null);
+        };
+
+        action.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenMoveFilesFails_CatchesExceptionAndPublishesCompletedEvent()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_error_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 104,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_error_test.bin",
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        this.categoryService.GetSavePathForCategory("movies").Returns("/invalid_nonexistent_dest_dir");
+
+        var act = async () =>
+        {
+            await this.engine.OnTorrentCompletedAsync(104, torrent.InfoHash, task.Manager);
+        };
+
+        await act.Should().NotThrowAsync();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 104 &&
+            e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task MonoTorrentDownloadTask_UnhookEvents_DetachesWithoutExceptions()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("unhook_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 105,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "unhook_test.bin",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var act = () => task.UnhookEvents();
+
+        act.Should().NotThrow();
+    }
+
+    #endregion
 }
