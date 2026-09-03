@@ -18,6 +18,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
+using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Torrents;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 using MtTorrent = MonoTorrent.Torrent;
@@ -32,6 +33,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
     private readonly IDiskProvider diskProvider;
     private readonly IEventAggregator eventAggregator;
     private readonly IBlocklistService blocklistService;
+    private readonly INatPmpPortMapperService natPmpPortMapperService;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -133,7 +135,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         ICategoryService categoryService,
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator,
-        IBlocklistService blocklistService = null)
+        IBlocklistService blocklistService = null,
+        INatPmpPortMapperService natPmpPortMapperService = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -141,6 +144,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
         this.blocklistService = blocklistService;
+        this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService();
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -255,9 +259,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
             {
                 try
                 {
-                    var natPmp = new NzbDrone.Core.Network.PortMapping.NatPmpPortMapperService();
-                    await natPmp.MapPortAsync(port, NzbDrone.Core.Network.PortMapping.NatPmpProtocol.Tcp);
-                    await natPmp.MapPortAsync(port, NzbDrone.Core.Network.PortMapping.NatPmpProtocol.Udp);
+                    await this.natPmpPortMapperService.MapPortAsync(port, NatPmpProtocol.Tcp);
+                    await this.natPmpPortMapperService.MapPortAsync(port, NatPmpProtocol.Udp);
                 }
                 catch (Exception ex)
                 {
@@ -350,6 +353,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
         await this.engine.StopAllAsync();
         this.engine.Dispose();
         this.engine = null;
+
+        try
+        {
+            await this.natPmpPortMapperService.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error stopping NAT-PMP port mapper on engine stop.");
+        }
+
         this.logger.Info("MonoTorrent download engine stopped.");
     }
 
