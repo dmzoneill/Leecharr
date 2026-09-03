@@ -74,4 +74,20 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
             $"DELETE FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
             new { Token = token });
     }
+
+    public async Task UpdateExpiryAndActivityAsync(string sessionToken, DateTime expiry, DateTime lastActivity)
+    {
+        using var connection = this.database.OpenConnection();
+        await connection.ExecuteAsync(
+            $"UPDATE \"{this.table}\" SET \"Expiry\" = @Expiry, \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
+            new { Expiry = expiry, LastActivity = lastActivity, Token = sessionToken });
+    }
+
+    public async Task UpdateLastActivityAsync(string sessionToken, DateTime lastActivity)
+    {
+        using var connection = this.database.OpenConnection();
+        await connection.ExecuteAsync(
+            $"UPDATE \"{this.table}\" SET \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
+            new { LastActivity = lastActivity, Token = sessionToken });
+    }
 }
