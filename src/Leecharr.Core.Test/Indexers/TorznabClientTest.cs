@@ -169,5 +169,88 @@ public class TorznabClientTest
         results.Should().BeEmpty();
     }
 
+    [TestCase("1")]
+    [TestCase("true")]
+    [TestCase("TRUE")]
+    public void ParseTorznabFeedXml_WhenFreeleechAttributePresent_SetsDownloadVolumeFactorZero(string freeleechValue)
+    {
+        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Freeleech Item</title>
+      <torznab:attr name=""freeleech"" value=""{freeleechValue}""/>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(1);
+        results[0].DownloadVolumeFactor.Should().Be(0.0);
+        results[0].IsFreeleech.Should().BeTrue();
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenIntegerFieldsWrappedInWhitespaceOrCData_ParsesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Item with CDATA and whitespace</title>
+      <size><![CDATA[ 1048576 ]]></size>
+      <torznab:attr name=""seeders"" value=""
+        42
+      ""/>
+      <torznab:attr name=""peers"" value=""  15  ""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(1);
+        results[0].Size.Should().Be(1048576L);
+        results[0].Seeders.Should().Be(42);
+        results[0].Leechers.Should().Be(15);
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenXmlContainsInvalidControlCharacters_SanitizesAndParsesSuccessfully()
+    {
+        var badChars = "\x01\x02\x08\x0B\x0C\x1F";
+        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Item{badChars} With Bad Control Chars</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Item With Bad Control Chars");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenXmlContainsUnescapedAmpersand_ParsesSuccessfully()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Tom & Jerry The Movie 2021</title>
+      <torznab:attr name=""seeders"" value=""25""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Tom & Jerry The Movie 2021");
+    }
+
     #endregion
 }

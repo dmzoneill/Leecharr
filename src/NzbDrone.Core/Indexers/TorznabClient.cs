@@ -5,7 +5,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using NLog;
 
@@ -167,9 +170,21 @@ public class TorznabClient : ITorznabClient
             return results;
         }
 
+        var sanitizedXml = SanitizeXml(xml);
+
         try
         {
-            var doc = XDocument.Parse(xml);
+            XDocument doc;
+            try
+            {
+                doc = XDocument.Parse(sanitizedXml);
+            }
+            catch (XmlException)
+            {
+                var escaped = Regex.Replace(sanitizedXml, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;");
+                doc = XDocument.Parse(escaped);
+            }
+
             var channel = doc.Root?.Element("channel");
             if (channel == null)
             {
@@ -193,22 +208,35 @@ public class TorznabClient : ITorznabClient
                 }
 
                 long size = 0;
-                if (enclosure != null && long.TryParse(enclosure.Attribute("length")?.Value, out var len))
+                if (enclosure != null && !string.IsNullOrWhiteSpace(enclosure.Attribute("length")?.Value))
                 {
-                    size = len;
+                    size = ParseLong(enclosure.Attribute("length")?.Value);
                 }
-                else if (item.Element("size") != null && long.TryParse(item.Element("size")?.Value, out var sz))
+                else if (item.Element("size") != null)
                 {
-                    size = sz;
+                    size = ParseLong(item.Element("size")?.Value);
                 }
 
                 var seeders = 0;
                 var leechers = 0;
                 var downloadVolumeFactor = 1.0;
                 var uploadVolumeFactor = 1.0;
+                var isFreeleechAttr = false;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
                 var category = item.Element("category")?.Value ?? string.Empty;
+
+                var freeleechElem = item.Element("freeleech") ?? item.Element(TorznabNs + "freeleech");
+                if (freeleechElem != null)
+                {
+                    var flVal = freeleechElem.Value?.Trim();
+                    if (string.Equals(flVal, "1", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(flVal, "true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isFreeleechAttr = true;
+                        downloadVolumeFactor = 0.0;
+                    }
+                }
 
                 var attrElements = item.Elements(TorznabNs + "attr")
                     .Concat(item.Elements(NewznabNs + "attr"))
@@ -217,40 +245,54 @@ public class TorznabClient : ITorznabClient
                 foreach (var attr in attrElements.Distinct())
                 {
                     var name = attr.Attribute("name")?.Value?.ToLowerInvariant();
-                    var value = attr.Attribute("value")?.Value;
+                    var value = attr.Attribute("value")?.Value ?? attr.Value;
 
                     switch (name)
                     {
                         case "seeders":
-                            int.TryParse(value, out seeders);
+                            seeders = ParseInt(value, seeders);
                             break;
                         case "peers":
                         case "leechers":
-                            int.TryParse(value, out leechers);
+                            leechers = ParseInt(value, leechers);
+                            break;
+                        case "freeleech":
+                            var trimmedVal = value?.Trim();
+                            if (string.Equals(trimmedVal, "1", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(trimmedVal, "true", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isFreeleechAttr = true;
+                                downloadVolumeFactor = 0.0;
+                            }
+
                             break;
                         case "downloadvolumefactor":
-                            double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out downloadVolumeFactor);
+                            if (!isFreeleechAttr)
+                            {
+                                downloadVolumeFactor = ParseDouble(value, downloadVolumeFactor);
+                            }
+
                             break;
                         case "uploadvolumefactor":
-                            double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out uploadVolumeFactor);
+                            uploadVolumeFactor = ParseDouble(value, uploadVolumeFactor);
                             break;
                         case "infohash":
-                            infoHash = value ?? string.Empty;
+                            infoHash = value?.Trim() ?? string.Empty;
                             break;
                         case "magneturl":
-                            magnetUrl = value ?? string.Empty;
+                            magnetUrl = value?.Trim() ?? string.Empty;
                             break;
                         case "category":
                             if (string.IsNullOrWhiteSpace(category))
                             {
-                                category = value ?? string.Empty;
+                                category = value?.Trim() ?? string.Empty;
                             }
 
                             break;
                         case "size":
-                            if (size == 0 && long.TryParse(value, out var parsedSize))
+                            if (size == 0)
                             {
-                                size = parsedSize;
+                                size = ParseLong(value, size);
                             }
 
                             break;
@@ -294,5 +336,74 @@ public class TorznabClient : ITorznabClient
         }
 
         return results;
+    }
+
+    internal static string SanitizeXml(string xml)
+    {
+        if (string.IsNullOrEmpty(xml))
+        {
+            return xml;
+        }
+
+        var sb = new StringBuilder(xml.Length);
+        foreach (var c in xml)
+        {
+            if (c < 0x20 && c != '\t' && c != '\r' && c != '\n')
+            {
+                continue;
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString();
+    }
+
+    internal static int ParseInt(string value, int defaultValue = 0)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        var match = Regex.Match(value, @"-?\d+");
+        if (match.Success && int.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
+        {
+            return result;
+        }
+
+        return defaultValue;
+    }
+
+    internal static long ParseLong(string value, long defaultValue = 0)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        var match = Regex.Match(value, @"-?\d+");
+        if (match.Success && long.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
+        {
+            return result;
+        }
+
+        return defaultValue;
+    }
+
+    internal static double ParseDouble(string value, double defaultValue = 1.0)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        var match = Regex.Match(value, @"-?\d+(?:\.\d+)?");
+        if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
+        {
+            return result;
+        }
+
+        return defaultValue;
     }
 }

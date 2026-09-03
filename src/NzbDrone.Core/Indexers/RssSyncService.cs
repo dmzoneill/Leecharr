@@ -220,10 +220,16 @@ public class RssSyncService : IRssSyncService
         }
 
         // 7. CategoryId matching
-        if (rule.CategoryId > 0 && !string.IsNullOrWhiteSpace(release.Category))
+        if (rule.CategoryId > 0)
         {
+            if (string.IsNullOrWhiteSpace(release.Category))
+            {
+                return false;
+            }
+
             var catStr = rule.CategoryId.ToString();
-            if (!release.Category.Contains(catStr, StringComparison.OrdinalIgnoreCase))
+            var tokens = release.Category.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (!tokens.Any(t => string.Equals(t.Trim(), catStr, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
             }
