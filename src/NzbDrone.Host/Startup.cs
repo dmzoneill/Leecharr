@@ -191,7 +191,14 @@ public class Startup
                             return false;
                         }
 
-                        return uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1";
+                        var isLoopback = uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1";
+                        if (!isLoopback)
+                        {
+                            return false;
+                        }
+
+                        return uri.Port == configFileProvider.Port ||
+                               (configFileProvider.EnableSsl && uri.Port == configFileProvider.SslPort);
                     })
                     .AllowAnyMethod()
                     .AllowAnyHeader()
@@ -220,6 +227,8 @@ public class Startup
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
         });
+
+        app.UseMiddleware<SecurityHeadersMiddleware>();
 
         app.UseCors();
 
