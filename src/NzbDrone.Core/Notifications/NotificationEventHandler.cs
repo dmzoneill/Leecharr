@@ -24,7 +24,8 @@ public class NotificationEventHandler :
     IHandle<MediaEnrichedEvent>,
     IHandle<ArchiveExtractionCompletedEvent>,
     IHandle<VpnKillSwitchTriggeredEvent>,
-    IHandle<ApplicationUpdatedEvent>
+    IHandle<ApplicationUpdatedEvent>,
+    IHandle<HealthIssueEvent>
 {
     private readonly INotificationRepository notificationRepository;
     private readonly IWebhookDispatcher webhookDispatcher;
@@ -122,12 +123,13 @@ public class NotificationEventHandler :
             return;
         }
 
-        if (message.NewStatus == TorrentStatus.Error)
+        if (message.NewStatus is TorrentStatus.Error or TorrentStatus.Stalled)
         {
             this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", message.Torrent);
             this.Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
         }
-        else if (message.OldStatus == TorrentStatus.Error && message.NewStatus != TorrentStatus.Error)
+        else if ((message.OldStatus is TorrentStatus.Error or TorrentStatus.Stalled) &&
+                 message.NewStatus != TorrentStatus.Error && message.NewStatus != TorrentStatus.Stalled)
         {
             this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
         }
@@ -139,6 +141,24 @@ public class NotificationEventHandler :
             {
                 Task.Run(() => this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached"));
             }
+        }
+    }
+
+    public void Handle(HealthIssueEvent message)
+    {
+        var torrent = message.Torrent ?? (message.TorrentId > 0 ? this.torrentRepository?.Get(message.TorrentId) : null);
+        if (torrent == null)
+        {
+            return;
+        }
+
+        if (message.IsResolved)
+        {
+            this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", torrent);
+        }
+        else
+        {
+            this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", torrent);
         }
     }
 

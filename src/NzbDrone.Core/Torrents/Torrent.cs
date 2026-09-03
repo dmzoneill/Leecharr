@@ -54,6 +54,8 @@ public class Torrent : ModelBase
 
     public string TrackerUrl { get; set; }
 
+    public string ErrorMessage { get; set; }
+
     public int Priority { get; set; }
 
     public int QueuePosition { get; set; }

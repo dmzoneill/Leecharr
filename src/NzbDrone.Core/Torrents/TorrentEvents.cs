@@ -39,3 +39,33 @@ public class TorrentDownloadCompletedEvent : IEvent
         this.Torrent = torrent;
     }
 }
+
+public class HealthIssueEvent : IEvent
+{
+    public Torrent Torrent { get; }
+
+    public int TorrentId { get; }
+
+    public string Source { get; }
+
+    public string Message { get; }
+
+    public bool IsResolved { get; }
+
+    public HealthIssueEvent(Torrent torrent, string source, string message, bool isResolved = false)
+    {
+        this.Torrent = torrent;
+        this.TorrentId = torrent?.Id ?? 0;
+        this.Source = source;
+        this.Message = message;
+        this.IsResolved = isResolved;
+    }
+
+    public HealthIssueEvent(int torrentId, string source, string message, bool isResolved = false)
+    {
+        this.TorrentId = torrentId;
+        this.Source = source;
+        this.Message = message;
+        this.IsResolved = isResolved;
+    }
+}
