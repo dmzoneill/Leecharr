@@ -535,10 +535,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                                 try
                                 {
                                     var filePath = file.FullPath;
-                                    if (this.diskProvider.FileExists(filePath))
-                                    {
-                                        this.diskProvider.DeleteFile(filePath);
-                                    }
+                                    await this.DeleteFileWithRetryAsync(filePath);
                                 }
                                 catch (Exception ex)
                                 {
@@ -560,17 +557,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                                 var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
                                     string.Equals(
                                         Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                                  Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                                  StringComparison.OrdinalIgnoreCase);
+                                        Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                        StringComparison.OrdinalIgnoreCase);
                                 var isRootDownload = !string.IsNullOrWhiteSpace(downloadDir) &&
                                     string.Equals(
                                         Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                                  Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                                  StringComparison.OrdinalIgnoreCase);
+                                        Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                        StringComparison.OrdinalIgnoreCase);
 
                                 if (isMatchingName && !isRootIncomplete && !isRootDownload)
                                 {
-                                    this.diskProvider.DeleteFolder(containingDir, true);
+                                    await this.DeleteFolderWithRetryAsync(containingDir);
                                 }
                             }
                         }
@@ -580,6 +577,52 @@ public class MonoTorrentDownloadEngine : ITorrentEngine, IDisposable
                         this.logger.Error(ex, "Failed to delete files for torrent id {0}", torrentId);
                     }
                 }
+            }
+        }
+    }
+
+    private async Task DeleteFileWithRetryAsync(string filePath, int maxRetries = 3)
+    {
+        var delayMs = 150;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                if (this.diskProvider.FileExists(filePath))
+                {
+                    this.diskProvider.DeleteFile(filePath);
+                }
+
+                return;
+            }
+            catch (IOException ioEx) when (attempt < maxRetries)
+            {
+                this.logger.Debug(ioEx, "File '{0}' locked during deletion (attempt {1}/{2}). Retrying in {3}ms...", filePath, attempt, maxRetries, delayMs);
+                await Task.Delay(delayMs);
+                delayMs *= 2;
+            }
+        }
+    }
+
+    private async Task DeleteFolderWithRetryAsync(string folderPath, int maxRetries = 3)
+    {
+        var delayMs = 150;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                if (this.diskProvider.FolderExists(folderPath))
+                {
+                    this.diskProvider.DeleteFolder(folderPath, true);
+                }
+
+                return;
+            }
+            catch (IOException ioEx) when (attempt < maxRetries)
+            {
+                this.logger.Debug(ioEx, "Folder '{0}' locked during deletion (attempt {1}/{2}). Retrying in {3}ms...", folderPath, attempt, maxRetries, delayMs);
+                await Task.Delay(delayMs);
+                delayMs *= 2;
             }
         }
     }
