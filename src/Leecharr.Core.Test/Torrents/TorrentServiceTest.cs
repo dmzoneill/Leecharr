@@ -507,4 +507,60 @@ public class TorrentServiceTest
             e.IsResolved &&
             e.Source == "Tracker"));
     }
+
+    [Test]
+    public async Task SetLocationAsync_WhenMoveFilesIsTrue_InvokesEngineAndUpdatesSavePathAndPublishesEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentRepository.Get(1).Returns(torrent);
+
+        await this.service.SetLocationAsync(1, "/downloads/new", moveFiles: true);
+
+        await this.downloadEngine.Received(1).MoveTorrentFilesAsync(1, "/downloads/new");
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.SavePath == "/downloads/new"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 1 && e.Torrent.SavePath == "/downloads/new"));
+    }
+
+    [Test]
+    public async Task SetLocationAsync_WhenMoveFilesIsFalse_UpdatesSavePathWithoutInvokingEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 2,
+            Name = "Another Torrent",
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentRepository.Get(2).Returns(torrent);
+
+        await this.service.SetLocationAsync(2, "/downloads/new", moveFiles: false);
+
+        await this.downloadEngine.DidNotReceive().MoveTorrentFilesAsync(Arg.Any<int>(), Arg.Any<string>());
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.SavePath == "/downloads/new"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 2 && e.Torrent.SavePath == "/downloads/new"));
+    }
+
+    [Test]
+    public async Task SetLocationAsync_WhenSavePathIsSame_DoesNothing()
+    {
+        var torrent = new Torrent
+        {
+            Id = 3,
+            Name = "Same Path Torrent",
+            SavePath = "/downloads/same",
+        };
+
+        this.torrentRepository.Get(3).Returns(torrent);
+
+        await this.service.SetLocationAsync(3, "/downloads/same", moveFiles: true);
+
+        await this.downloadEngine.DidNotReceive().MoveTorrentFilesAsync(Arg.Any<int>(), Arg.Any<string>());
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
 }

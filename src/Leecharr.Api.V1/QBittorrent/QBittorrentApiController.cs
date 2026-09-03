@@ -1338,8 +1338,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var t = this.torrentService.GetByInfoHash(h);
                 if (t != null)
                 {
-                    t.SavePath = location;
-                    await this.torrentService.UpdateAsync(t);
+                    await this.torrentService.SetLocationAsync(t.Id, location, moveFiles: true);
                 }
             }
         }

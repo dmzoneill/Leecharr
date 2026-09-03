@@ -216,6 +216,12 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
         return Task.CompletedTask;
     }
 
+    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+    {
+        this.logger.Debug("Transmission: Move files for torrent {0} to '{1}'", torrentId, newSavePath);
+        return Task.CompletedTask;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);
