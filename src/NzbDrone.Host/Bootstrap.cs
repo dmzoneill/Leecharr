@@ -22,6 +22,7 @@ using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Security;
 
 namespace NzbDrone.Host;
@@ -51,6 +52,7 @@ public static class Bootstrap
         container.Register<ITorrentEngineManager, DynamicDownloadEngineProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.Register<INetworkBindingService, DynamicNetworkBindingProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.Register<INetworkBindingManager, DynamicNetworkBindingProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        container.Register<IVpnKillSwitchService, VpnKillSwitchService>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.Register<IMediaMetadataService, DynamicMediaMetadataProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.Register<IMediaMetadataManager, DynamicMediaMetadataProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.Register<IHttpTransportEngine, DynamicHttpTransportProxy>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
