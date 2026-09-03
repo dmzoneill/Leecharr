@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using MonoTorrent.BEncoding;
 using NLog;
 using NzbDrone.Core.Configuration;
@@ -40,17 +41,44 @@ public class SwarmState
     public ConcurrentDictionary<string, TrackerPeerState> Peers { get; } = new();
 
     public long DownloadedCount { get; set; }
+
+    public DateTime LastActivityUtc { get; set; } = DateTime.UtcNow;
+
+    public bool IsRegistered { get; set; }
 }
 
-public class EmbeddedTrackerService : IEmbeddedTrackerService
+public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 {
+    public const int DefaultMaxSwarms = 20_000;
+
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, SwarmState> swarms = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Timer cleanupTimer;
+    private int disposed;
 
-    public EmbeddedTrackerService(IConfigService configService = null)
+    public EmbeddedTrackerService(IConfigService configService = null, int? maxSwarms = null)
     {
         this.configService = configService;
+        this.MaxSwarms = maxSwarms ?? (configService != null && configService.TrackerMaxSwarms > 0
+            ? configService.TrackerMaxSwarms
+            : DefaultMaxSwarms);
+
+        this.cleanupTimer = new Timer(
+            _ =>
+            {
+                try
+                {
+                    this.PruneInactivePeers();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error occurred during background tracker peer pruning.");
+                }
+            },
+            null,
+            TimeSpan.FromMinutes(1),
+            TimeSpan.FromMinutes(1));
     }
 
     public bool IsEnabled => this.configService?.TrackerServerEnabled ?? true;
@@ -59,6 +87,8 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
 
     public int ActivePeersCount => this.swarms.Values.Sum(s => s.Peers.Count);
 
+    public int MaxSwarms { get; set; }
+
     public void RegisterSwarm(string infoHashHex)
     {
         if (string.IsNullOrWhiteSpace(infoHashHex))
@@ -66,17 +96,40 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
             return;
         }
 
-        this.swarms.GetOrAdd(infoHashHex.ToUpperInvariant(), key => new SwarmState
+        if (!TryValidateInfoHashHex(infoHashHex, out var normalizedHex, out var normalizedBytes, out var failureReason))
         {
-            InfoHash = ConvertHexToBytes(key),
+            this.logger.Warn("Failed to register swarm: {0}", failureReason);
+            return;
+        }
+
+        if (!this.TryAcquireSwarmSlot())
+        {
+            this.logger.Warn("Failed to register swarm: maximum number of swarms reached ({0}).", this.MaxSwarms);
+            return;
+        }
+
+        this.swarms.GetOrAdd(normalizedHex, _ => new SwarmState
+        {
+            InfoHash = normalizedBytes,
+            LastActivityUtc = DateTime.UtcNow,
+            IsRegistered = true,
         });
     }
 
     public void UnregisterSwarm(string infoHashHex)
     {
-        if (!string.IsNullOrWhiteSpace(infoHashHex))
+        if (string.IsNullOrWhiteSpace(infoHashHex))
         {
-            this.swarms.TryRemove(infoHashHex.ToUpperInvariant(), out _);
+            return;
+        }
+
+        if (TryValidateInfoHashHex(infoHashHex, out var normalizedHex, out _, out _))
+        {
+            this.swarms.TryRemove(normalizedHex, out _);
+        }
+        else
+        {
+            this.swarms.TryRemove(infoHashHex.Trim().ToUpperInvariant(), out _);
         }
     }
 
@@ -87,14 +140,15 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
             return FailureResponse("Embedded tracker is disabled.");
         }
 
-        if (request == null || (request.InfoHashBytes == null && string.IsNullOrWhiteSpace(request.InfoHashHex)))
+        if (request == null)
         {
-            return FailureResponse("Missing info_hash parameter.");
+            return FailureResponse("Missing request.");
         }
 
-        var hexKey = !string.IsNullOrWhiteSpace(request.InfoHashHex)
-            ? request.InfoHashHex.ToUpperInvariant()
-            : ConvertBytesToHex(request.InfoHashBytes);
+        if (!TryValidateInfoHash(request.InfoHashBytes, request.InfoHashHex, out var hexKey, out var validBytes, out var hashError))
+        {
+            return FailureResponse(hashError);
+        }
 
         var isPrivate = this.configService?.TrackerPrivateMode ?? false;
         if (isPrivate && !this.swarms.ContainsKey(hexKey))
@@ -102,40 +156,265 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
             return FailureResponse("Torrent not registered on this private tracker.");
         }
 
-        var swarm = this.swarms.GetOrAdd(hexKey, key => new SwarmState
-        {
-            InfoHash = request.InfoHashBytes ?? ConvertHexToBytes(key),
-        });
-
-        var peerKey = $"{request.RemoteIp}:{request.Port}";
         var isStopped = string.Equals(request.Event, "stopped", StringComparison.OrdinalIgnoreCase);
         var isCompleted = string.Equals(request.Event, "completed", StringComparison.OrdinalIgnoreCase);
+        var peerKey = $"{request.RemoteIp}:{request.Port}";
 
-        if (isStopped)
+        if (isStopped && !this.swarms.ContainsKey(hexKey))
         {
-            swarm.Peers.TryRemove(peerKey, out _);
+            return this.BuildAnnounceResponse(0, 0, Array.Empty<TrackerPeerState>(), request);
         }
-        else
+
+        SwarmState swarm;
+        while (true)
         {
-            if (isCompleted)
+            if (!this.swarms.TryGetValue(hexKey, out swarm))
             {
-                swarm.DownloadedCount++;
+                if (!this.TryAcquireSwarmSlot())
+                {
+                    return FailureResponse("Tracker swarm limit reached.");
+                }
+
+                var newSwarm = new SwarmState
+                {
+                    InfoHash = validBytes,
+                    LastActivityUtc = DateTime.UtcNow,
+                };
+
+                swarm = this.swarms.GetOrAdd(hexKey, newSwarm);
             }
 
-            var peer = swarm.Peers.GetOrAdd(peerKey, _ => new TrackerPeerState());
-            peer.PeerId = request.PeerIdBytes;
-            peer.Ip = request.RemoteIp;
-            peer.Port = request.Port;
-            peer.Uploaded = request.Uploaded;
-            peer.Downloaded = request.Downloaded;
-            peer.Left = request.Left;
-            peer.LastAnnounceUtc = DateTime.UtcNow;
+            lock (swarm)
+            {
+                if (this.swarms.TryGetValue(hexKey, out var current) && ReferenceEquals(current, swarm))
+                {
+                    swarm.LastActivityUtc = DateTime.UtcNow;
+
+                    if (isStopped)
+                    {
+                        swarm.Peers.TryRemove(peerKey, out _);
+
+                        if (swarm.Peers.IsEmpty)
+                        {
+                            if (!swarm.IsRegistered)
+                            {
+                                ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                                    new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (isCompleted)
+                        {
+                            swarm.DownloadedCount++;
+                        }
+
+                        var peer = swarm.Peers.GetOrAdd(peerKey, _ => new TrackerPeerState());
+                        peer.PeerId = request.PeerIdBytes;
+                        peer.Ip = request.RemoteIp;
+                        peer.Port = request.Port;
+                        peer.Uploaded = request.Uploaded;
+                        peer.Downloaded = request.Downloaded;
+                        peer.Left = request.Left;
+                        peer.LastAnnounceUtc = DateTime.UtcNow;
+                    }
+
+                    break;
+                }
+            }
         }
 
-        PruneStalePeers(swarm, TimeSpan.FromSeconds((this.configService?.TrackerAnnounceInterval ?? 1800) * 2));
+        var announceInterval = this.configService?.TrackerAnnounceInterval ?? 1800;
+        this.PruneStalePeers(swarm, TimeSpan.FromSeconds(announceInterval * 2), hexKey);
 
         var seeders = swarm.Peers.Values.Count(p => p.IsSeeder);
         var leechers = swarm.Peers.Values.Count(p => !p.IsSeeder);
+
+        var candidatePeers = swarm.Peers.Values
+            .Where(p => !Equals(p.Ip, request.RemoteIp) || p.Port != request.Port)
+            .Take(request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50))
+            .ToList();
+
+        return this.BuildAnnounceResponse(seeders, leechers, candidatePeers, request);
+    }
+
+    public byte[] ProcessScrape(List<byte[]> infoHashList)
+    {
+        if (!this.IsEnabled)
+        {
+            return FailureResponse("Embedded tracker is disabled.");
+        }
+
+        var filesDict = new BEncodedDictionary();
+
+        if (infoHashList != null && infoHashList.Count > 0)
+        {
+            foreach (var rawHash in infoHashList)
+            {
+                if (rawHash == null || rawHash.Length != 20 || IsAllZeros(rawHash))
+                {
+                    continue;
+                }
+
+                var hex = ConvertBytesToHex(rawHash);
+                if (this.swarms.TryGetValue(hex, out var swarm))
+                {
+                    filesDict[new BEncodedString(rawHash)] = new BEncodedDictionary
+                    {
+                        { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
+                        { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
+                        { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
+                    };
+                }
+            }
+        }
+        else
+        {
+            foreach (var swarm in this.swarms.Values)
+            {
+                var hashBytes = swarm.InfoHash ?? ConvertHexToBytes(ConvertBytesToHex(swarm.InfoHash));
+                filesDict[new BEncodedString(hashBytes)] = new BEncodedDictionary
+                {
+                    { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
+                    { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
+                    { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
+                };
+            }
+        }
+
+        var root = new BEncodedDictionary
+        {
+            { "files", filesDict },
+        };
+
+        return root.Encode();
+    }
+
+    public void PruneInactivePeers()
+    {
+        var interval = this.configService?.TrackerAnnounceInterval ?? 1800;
+        this.PruneInactivePeers(TimeSpan.FromSeconds(interval * 2));
+    }
+
+    public void PruneInactivePeers(TimeSpan timeout)
+    {
+        var cutoff = DateTime.UtcNow - timeout;
+        var isPrivate = this.configService?.TrackerPrivateMode ?? false;
+
+        foreach (var kvp in this.swarms)
+        {
+            var hexKey = kvp.Key;
+            var swarm = kvp.Value;
+
+            foreach (var peerKvp in swarm.Peers)
+            {
+                if (peerKvp.Value.LastAnnounceUtc < cutoff)
+                {
+                    swarm.Peers.TryRemove(peerKvp.Key, out _);
+                }
+            }
+
+            if (swarm.Peers.IsEmpty)
+            {
+                if (swarm.IsRegistered)
+                {
+                    continue;
+                }
+
+                lock (swarm)
+                {
+                    if (swarm.Peers.IsEmpty)
+                    {
+                        ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                            new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                    }
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) != 0)
+        {
+            return;
+        }
+
+        this.cleanupTimer?.Dispose();
+    }
+
+    private void PruneStalePeers(SwarmState swarm, TimeSpan timeout, string hexKey)
+    {
+        var cutoff = DateTime.UtcNow - timeout;
+        foreach (var kvp in swarm.Peers)
+        {
+            if (kvp.Value.LastAnnounceUtc < cutoff)
+            {
+                swarm.Peers.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        if (swarm.Peers.IsEmpty)
+        {
+            if (!swarm.IsRegistered)
+            {
+                lock (swarm)
+                {
+                    if (swarm.Peers.IsEmpty)
+                    {
+                        ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                            new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                    }
+                }
+            }
+        }
+    }
+
+    private bool TryAcquireSwarmSlot()
+    {
+        if (this.swarms.Count < this.MaxSwarms)
+        {
+            return true;
+        }
+
+        this.PruneInactivePeers();
+
+        if (this.swarms.Count < this.MaxSwarms)
+        {
+            return true;
+        }
+
+        var emptySwarms = this.swarms
+            .Where(kvp => kvp.Value.Peers.IsEmpty)
+            .OrderBy(kvp => kvp.Value.LastActivityUtc)
+            .ToList();
+
+        foreach (var kvp in emptySwarms)
+        {
+            var hexKey = kvp.Key;
+            var swarm = kvp.Value;
+
+            lock (swarm)
+            {
+                if (swarm.Peers.IsEmpty)
+                {
+                    ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                        new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                }
+            }
+
+            if (this.swarms.Count < this.MaxSwarms)
+            {
+                return true;
+            }
+        }
+
+        return this.swarms.Count < this.MaxSwarms;
+    }
+
+    private byte[] BuildAnnounceResponse(int seeders, int leechers, IReadOnlyCollection<TrackerPeerState> candidatePeers, TrackerAnnounceRequest request)
+    {
         var interval = this.configService?.TrackerAnnounceInterval ?? 1800;
 
         var dict = new BEncodedDictionary
@@ -145,11 +424,6 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
             { "complete", new BEncodedNumber(seeders) },
             { "incomplete", new BEncodedNumber(leechers) },
         };
-
-        var candidatePeers = swarm.Peers.Values
-            .Where(p => !Equals(p.Ip, request.RemoteIp) || p.Port != request.Port)
-            .Take(request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50))
-            .ToList();
 
         if (request.Compact)
         {
@@ -192,63 +466,135 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService
         return dict.Encode();
     }
 
-    public byte[] ProcessScrape(List<byte[]> infoHashList)
+    private static bool TryValidateInfoHash(
+        byte[] infoHashBytes,
+        string infoHashHex,
+        out string normalizedHex,
+        out byte[] normalizedBytes,
+        out string failureReason)
     {
-        if (!this.IsEnabled)
+        normalizedHex = null;
+        normalizedBytes = null;
+        failureReason = null;
+
+        var hasBytes = infoHashBytes != null;
+        var hasHex = !string.IsNullOrWhiteSpace(infoHashHex);
+
+        if (!hasBytes && !hasHex)
         {
-            return FailureResponse("Embedded tracker is disabled.");
+            failureReason = "Missing info_hash parameter.";
+            return false;
         }
 
-        var filesDict = new BEncodedDictionary();
-
-        if (infoHashList != null && infoHashList.Count > 0)
+        if (hasBytes)
         {
-            foreach (var rawHash in infoHashList)
+            if (infoHashBytes.Length != 20)
             {
-                var hex = ConvertBytesToHex(rawHash);
-                if (this.swarms.TryGetValue(hex, out var swarm))
+                failureReason = "Invalid info_hash: must be exactly 20 bytes.";
+                return false;
+            }
+
+            if (IsAllZeros(infoHashBytes))
+            {
+                failureReason = "Invalid info_hash: null hash (all zero bytes) is not allowed.";
+                return false;
+            }
+
+            var derivedHex = ConvertBytesToHex(infoHashBytes);
+
+            if (hasHex)
+            {
+                var trimmedHex = infoHashHex.Trim();
+                if (trimmedHex.Length != 40 || !IsValidHex(trimmedHex))
                 {
-                    filesDict[new BEncodedString(rawHash)] = new BEncodedDictionary
-                    {
-                        { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
-                        { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
-                        { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
-                    };
+                    failureReason = "Invalid info_hash: malformed hex string.";
+                    return false;
+                }
+
+                if (!string.Equals(derivedHex, trimmedHex, StringComparison.OrdinalIgnoreCase))
+                {
+                    failureReason = "Invalid info_hash: byte and hex representations do not match.";
+                    return false;
                 }
             }
-        }
-        else
-        {
-            foreach (var swarm in this.swarms.Values)
-            {
-                var hashBytes = swarm.InfoHash ?? ConvertHexToBytes(ConvertBytesToHex(swarm.InfoHash));
-                filesDict[new BEncodedString(hashBytes)] = new BEncodedDictionary
-                {
-                    { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
-                    { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
-                    { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
-                };
-            }
+
+            normalizedHex = derivedHex;
+            normalizedBytes = (byte[])infoHashBytes.Clone();
+            return true;
         }
 
-        var root = new BEncodedDictionary
+        var cleanHex = infoHashHex.Trim();
+        if (cleanHex.Length != 40)
         {
-            { "files", filesDict },
-        };
+            failureReason = "Invalid info_hash: hex string must be exactly 40 characters.";
+            return false;
+        }
 
-        return root.Encode();
+        if (!IsValidHex(cleanHex))
+        {
+            failureReason = "Invalid info_hash: malformed hex characters.";
+            return false;
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = ConvertHexToBytes(cleanHex);
+        }
+        catch
+        {
+            failureReason = "Invalid info_hash: failed to parse hex string.";
+            return false;
+        }
+
+        if (bytes.Length != 20 || IsAllZeros(bytes))
+        {
+            failureReason = "Invalid info_hash: null hash (all zero bytes) is not allowed.";
+            return false;
+        }
+
+        normalizedHex = cleanHex.ToUpperInvariant();
+        normalizedBytes = bytes;
+        return true;
     }
 
-    private static void PruneStalePeers(SwarmState swarm, TimeSpan timeout)
+    private static bool TryValidateInfoHashHex(
+        string infoHashHex,
+        out string normalizedHex,
+        out byte[] normalizedBytes,
+        out string failureReason)
     {
-        var cutoff = DateTime.UtcNow - timeout;
-        foreach (var kvp in swarm.Peers)
+        return TryValidateInfoHash(null, infoHashHex, out normalizedHex, out normalizedBytes, out failureReason);
+    }
+
+    private static bool IsAllZeros(byte[] bytes)
+    {
+        for (var i = 0; i < bytes.Length; i++)
         {
-            if (kvp.Value.LastAnnounceUtc < cutoff)
+            if (bytes[i] != 0)
             {
-                swarm.Peers.TryRemove(kvp.Key, out _);
+                return false;
             }
         }
+
+        return true;
+    }
+
+    private static bool IsValidHex(string hex)
+    {
+        for (var i = 0; i < hex.Length; i++)
+        {
+            var c = hex[i];
+            var isHex = (c >= '0' && c <= '9') ||
+                        (c >= 'a' && c <= 'f') ||
+                        (c >= 'A' && c <= 'F');
+            if (!isHex)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static byte[] FailureResponse(string reason)
