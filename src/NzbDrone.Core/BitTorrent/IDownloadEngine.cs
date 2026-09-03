@@ -46,6 +46,8 @@ public interface IDownloadEngine
 
     Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder) => Task.FromResult(false);
 
+    Task MoveTorrentFilesAsync(int torrentId, string newSavePath) => Task.CompletedTask;
+
     IDownloadTask GetTask(int torrentId);
 
     IEnumerable<IDownloadTask> GetAllTasks();

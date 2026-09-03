@@ -38,4 +38,6 @@ public interface ITorrentService
     Task<bool> RenameFolderAsync(int id, string oldPath, string newPath);
 
     Task SetSuperSeedingAsync(int id, bool enabled);
+
+    Task SetLocationAsync(int id, string newSavePath, bool moveFiles = true);
 }

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.QBittorrent;
 using Microsoft.AspNetCore.Mvc;
@@ -196,5 +197,37 @@ public class QBittorrentApiControllerTest
         deltaData!["full_update"].Should().Be(false);
         var removed = deltaData["torrents_removed"].Should().BeAssignableTo<IEnumerable<string>>().Subject;
         removed.Should().Contain("hash1");
+    }
+
+    [Test]
+    public async Task SetLocation_WithValidHashesAndLocation_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "QBit Torrent",
+            InfoHash = "hash1",
+        };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.SetLocation("hash1", "/downloads/moved");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/moved", moveFiles: true);
+    }
+
+    [Test]
+    public async Task SetLocation_WithMultipleHashes_InvokesSetLocationAsyncForEachTorrent()
+    {
+        var torrent1 = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        var torrent2 = new Torrent { Id = 20, Name = "Torrent 2", InfoHash = "hash2" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+        this.torrentService.GetByInfoHash("hash2").Returns(torrent2);
+
+        var result = await this.controller.SetLocation("hash1|hash2", "/downloads/moved");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/moved", moveFiles: true);
+        await this.torrentService.Received(1).SetLocationAsync(20, "/downloads/moved", moveFiles: true);
     }
 }
