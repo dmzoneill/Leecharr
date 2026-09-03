@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
@@ -18,6 +19,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Torrents;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 
@@ -1006,6 +1008,41 @@ public class MonoTorrentDownloadEngineTest
         this.engine.Capabilities.SupportsDht.Should().BeTrue();
         this.engine.Capabilities.SupportsPex.Should().BeTrue();
         this.engine.Capabilities.SupportsUtp.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task StartAsync_WithUpnpEnabled_CoordinatesWithNatPmpPortMapperService_AndStopsOnEngineStop()
+    {
+        this.configService.UpnpEnabled.Returns(true);
+        this.configService.ListeningPort.Returns(51413);
+
+        var mockNatPmp = Substitute.For<INatPmpPortMapperService>();
+        var customEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            natPmpPortMapperService: mockNatPmp);
+
+        try
+        {
+            await customEngine.StartAsync();
+
+            // Allow background task to invoke MapPortAsync
+            await Task.Delay(100);
+
+            await mockNatPmp.Received().MapPortAsync(51413, NatPmpProtocol.Tcp);
+            await mockNatPmp.Received().MapPortAsync(51413, NatPmpProtocol.Udp);
+
+            await customEngine.StopAsync();
+
+            await mockNatPmp.Received().StopAsync(Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            customEngine.Dispose();
+        }
     }
 
     #endregion
