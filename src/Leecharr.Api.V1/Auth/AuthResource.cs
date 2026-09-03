@@ -29,6 +29,8 @@ public class LoginRequestResource
     public string Password { get; set; } = string.Empty;
 
     public bool RememberMe { get; set; } = true;
+
+    public string ReturnUrl { get; set; } = "/";
 }
 
 public class CurrentUserResource : RestResource
@@ -46,4 +48,6 @@ public class CurrentUserResource : RestResource
     public string AvatarUrl { get; set; }
 
     public bool IsAuthenticated { get; set; }
+
+    public string ReturnUrl { get; set; } = "/";
 }
