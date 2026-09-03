@@ -89,6 +89,100 @@ public class TrackerBoostService : ITrackerBoostService
         this.EnsureDefaultTrackersBootstrapped();
     }
 
+    public static bool HasPasskey(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return HasPasskey(uri);
+    }
+
+    public static bool HasPasskey(Uri uri)
+    {
+        if (uri == null)
+        {
+            return false;
+        }
+
+        // Check user info (e.g. http://username:passkey@tracker.site/announce)
+        if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+        {
+            return true;
+        }
+
+        // Check query parameters for authentication tokens / passkeys
+        var query = uri.Query;
+        if (!string.IsNullOrEmpty(query))
+        {
+            var lowerQuery = query.ToLowerInvariant();
+            if (lowerQuery.Contains("passkey=") ||
+                lowerQuery.Contains("authkey=") ||
+                lowerQuery.Contains("torrentpass=") ||
+                lowerQuery.Contains("auth=") ||
+                lowerQuery.Contains("token=") ||
+                lowerQuery.Contains("pass=") ||
+                lowerQuery.Contains("key="))
+            {
+                return true;
+            }
+
+            var queryParams = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var param in queryParams)
+            {
+                var parts = param.Split('=', 2);
+                var val = parts.Length > 1 ? parts[1] : parts[0];
+                if (val.Length >= 16 && val.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Check path segments for authentication tokens / passkeys (Gazelle, UNIT3D, PTP, RED, etc.)
+        var path = uri.AbsolutePath;
+        if (!string.IsNullOrEmpty(path))
+        {
+            var lowerPath = path.ToLowerInvariant();
+            if (lowerPath.Contains("/passkey") ||
+                lowerPath.Contains("/authkey") ||
+                lowerPath.Contains("/torrentpass"))
+            {
+                return true;
+            }
+
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var segment in segments)
+            {
+                var segClean = Path.GetFileNameWithoutExtension(segment);
+                if (string.IsNullOrEmpty(segClean))
+                {
+                    continue;
+                }
+
+                // Hex string >= 12 characters (e.g. Gazelle / UNIT3D 32-char hex passkey or 12+ hex hashes)
+                if (segClean.Length >= 12 && IsHexString(segClean))
+                {
+                    return true;
+                }
+
+                // Alphanumeric / token >= 16 characters in path
+                if (segClean.Length >= 16 && segClean.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public static bool IsValidPublicTrackerUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -136,11 +230,19 @@ public class TrackerBoostService : ITrackerBoostService
             }
         }
 
-        var query = uri.Query;
-        if (!string.IsNullOrEmpty(query))
+        if (HasPasskey(uri))
         {
-            var lowerQuery = query.ToLowerInvariant();
-            if (lowerQuery.Contains("passkey=") || lowerQuery.Contains("authkey=") || lowerQuery.Contains("torrentpass="))
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsHexString(string s)
+    {
+        foreach (var c in s)
+        {
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
             {
                 return false;
             }
@@ -239,6 +341,11 @@ public class TrackerBoostService : ITrackerBoostService
 
     public TrackerBoostTracker AddTracker(string url, TrackerSourceType source = TrackerSourceType.Manual, string sourceName = "Manual")
     {
+        if (!IsValidPublicTrackerUrl(url))
+        {
+            throw new ArgumentException("Tracker URL is invalid or contains private passkey tokens.");
+        }
+
         return this.AddTrackerInternal(url, source, sourceName);
     }
 
@@ -278,9 +385,41 @@ public class TrackerBoostService : ITrackerBoostService
         var discovered = 0;
         try
         {
+            var torrentMap = new Dictionary<int, Torrent>();
+            try
+            {
+                var torrents = this.torrentService.GetAll()?.ToList() ?? new List<Torrent>();
+                foreach (var t in torrents)
+                {
+                    torrentMap[t.Id] = t;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to load torrent list for privacy check during harvesting");
+            }
+
             var torrentEntries = this.trackerEntryRepository.All();
             foreach (var entry in torrentEntries)
             {
+                // Verify whether parent torrent is private; skip harvesting any trackers from it
+                if (entry.TorrentId > 0)
+                {
+                    if (!torrentMap.TryGetValue(entry.TorrentId, out var torrent))
+                    {
+                        torrent = this.torrentService.Get(entry.TorrentId);
+                        if (torrent != null)
+                        {
+                            torrentMap[torrent.Id] = torrent;
+                        }
+                    }
+
+                    if (torrent != null && torrent.IsPrivate)
+                    {
+                        continue;
+                    }
+                }
+
                 if (IsValidPublicTrackerUrl(entry.Url))
                 {
                     var res = this.AddTrackerInternal(entry.Url, TrackerSourceType.ActiveTorrent, "Leecharr Active Download");
@@ -545,6 +684,7 @@ public class TrackerBoostService : ITrackerBoostService
         var maxToAdd = settings.MaxTrackersPerTorrent;
 
         var candidateDetections = inspection.Detections
+            .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
             .Where(d => !existingTrackers.Contains(d.TrackerUrl.Trim().ToLowerInvariant()))
             .Where(d => !onlyVerified || d.IsVerified)
             .Take(maxToAdd)
@@ -668,6 +808,7 @@ public class TrackerBoostService : ITrackerBoostService
         var maxToAdd = settings.MaxTrackersPerTorrent;
 
         var candidateDetections = inspection.Detections
+            .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
             .Where(d => !onlyVerified || d.IsVerified)
             .Take(maxToAdd)
             .ToList();
@@ -706,6 +847,18 @@ public class TrackerBoostService : ITrackerBoostService
                 IsPrivate = true,
                 Boosted = false,
                 Message = "Skipped: Private torrents are protected. Set force=true to override.",
+            };
+        }
+
+        if (!IsValidPublicTrackerUrl(trackerUrl))
+        {
+            return new SwarmBoostResult
+            {
+                TorrentId = torrentId,
+                TorrentName = torrent.Name,
+                InfoHash = torrent.InfoHash,
+                Boosted = false,
+                Message = "Rejected: Tracker URL is invalid or contains private passkey tokens.",
             };
         }
 
@@ -761,6 +914,18 @@ public class TrackerBoostService : ITrackerBoostService
         if (torrent != null)
         {
             return await this.InjectTrackerToTorrentAsync(torrent.Id, trackerUrl, force);
+        }
+
+        if (!IsValidPublicTrackerUrl(trackerUrl))
+        {
+            return new SwarmBoostResult
+            {
+                TorrentId = 0,
+                TorrentName = infoHash,
+                InfoHash = infoHash,
+                Boosted = false,
+                Message = "Rejected: Tracker URL is invalid or contains private passkey tokens.",
+            };
         }
 
         var injected = this.InjectIntoDownloadClients(infoHash, new[] { trackerUrl.Trim() });
@@ -943,6 +1108,12 @@ public class TrackerBoostService : ITrackerBoostService
         }
 
         var cleanUrl = url.Trim();
+        if (!IsValidPublicTrackerUrl(cleanUrl))
+        {
+            this.logger.Warn("Refusing to add private or invalid tracker URL: {0}", cleanUrl);
+            return null;
+        }
+
         var existing = this.trackerRepository.FindByUrl(cleanUrl);
         if (existing != null)
         {
