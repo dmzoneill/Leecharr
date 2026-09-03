@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
@@ -17,6 +19,8 @@ public interface IWatchFolderService
     Task ScanWatchFolderAsync();
 
     string MatchCategoryFromReleaseName(string releaseName);
+
+    bool IsFileReady(string path);
 }
 
 public class WatchFolderService : IWatchFolderService
@@ -28,10 +32,27 @@ public class WatchFolderService : IWatchFolderService
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger;
 
-    private static readonly Regex TvPattern = new(@"(\bS\d{1,2}(E\d{1,2})?\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex AnimePattern = new(@"(\[[^\]]+\]|\b(SubsPlease|Erai-raws|HorribleSubs|Judas)\b|(\b(Batch|Complete)\b.*\b(1080p|720p)\b.*(Subs?|Dual|FLAC)))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex MoviePattern = new(@"\b(19\d{2}|20\d{2})\b.*\b(2160p|1080p|720p|UHD|BluRay|WEB-DL|Remux)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex MusicPattern = new(@"\b(FLAC|MP3|320kbps|Vinyl|Lossless|CD|Album|Discography)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private readonly ConcurrentDictionary<string, int> failedAttempts = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Regex AnimeGroupPattern = new(
+        @"\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex TvPattern = new(
+        @"(\bS\d{1,2}(E\d{1,2})?\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b|\b(EZTV|ETTV)\b)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex MoviePattern = new(
+        @"(\b(19\d{2}|20\d{2})\b.*\b(2160p|1080p|720p|UHD|BluRay|WEB-DL|Remux)\b|\b(2160p|1080p|720p|UHD|BluRay|WEB-DL|Remux)\b.*\b(19\d{2}|20\d{2})\b|\b(YTS|YIFY)\b)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex AnimePattern = new(
+        @"(\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER)\b|(\b(Batch|Complete)\b.*\b(1080p|720p)\b.*(Subs?|Dual|FLAC)))",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex MusicPattern = new(
+        @"\b(FLAC|MP3|320kbps|Vinyl|Lossless|CD|Album|Discography)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public WatchFolderService(
         IConfigService configService,
@@ -46,6 +67,32 @@ public class WatchFolderService : IWatchFolderService
         this.categoryService = categoryService;
         this.diskProvider = diskProvider;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public virtual bool IsFileReady(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            return stream.Length > 0;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public async Task ScanWatchFolderAsync()
@@ -71,6 +118,12 @@ public class WatchFolderService : IWatchFolderService
                 continue;
             }
 
+            if (!this.IsFileReady(file))
+            {
+                this.logger.Debug("Watch folder file '{0}' is locked or still being written. Skipping this scan cycle.", file);
+                continue;
+            }
+
             try
             {
                 var bytes = await File.ReadAllBytesAsync(file);
@@ -84,6 +137,8 @@ public class WatchFolderService : IWatchFolderService
                     category: category,
                     startPaused: !this.configService.WatchFolderAutoStartTorrents,
                     rawBytes: bytes);
+
+                this.failedAttempts.TryRemove(file, out _);
 
                 if (this.configService.WatchFolderDeleteAddedTorrents)
                 {
@@ -99,7 +154,17 @@ public class WatchFolderService : IWatchFolderService
             }
             catch (Exception ex)
             {
-                this.logger.Error(ex, "Failed to process watch folder torrent: {0}", file);
+                var attempts = this.failedAttempts.AddOrUpdate(file, 1, (_, count) => count + 1);
+                if (attempts >= 3)
+                {
+                    this.logger.Warn(ex, "Watch folder torrent '{0}' failed after {1} attempts. Quarantining file.", file, attempts);
+                    this.failedAttempts.TryRemove(file, out _);
+                    this.QuarantineFile(folder, file);
+                }
+                else
+                {
+                    this.logger.Warn(ex, "Failed to process watch folder torrent '{0}' (attempt {1}/3). Will retry.", file, attempts);
+                }
             }
         }
     }
@@ -111,28 +176,102 @@ public class WatchFolderService : IWatchFolderService
             return this.configService.DefaultCategory;
         }
 
-        if (AnimePattern.IsMatch(releaseName))
+        string detected = null;
+
+        if (AnimeGroupPattern.IsMatch(releaseName))
         {
-            return "anime";
+            detected = "anime";
+        }
+        else if (TvPattern.IsMatch(releaseName))
+        {
+            detected = "tv";
+        }
+        else if (MoviePattern.IsMatch(releaseName))
+        {
+            detected = "movies";
+        }
+        else if (AnimePattern.IsMatch(releaseName))
+        {
+            detected = "anime";
+        }
+        else if (MusicPattern.IsMatch(releaseName))
+        {
+            detected = "music";
         }
 
-        if (TvPattern.IsMatch(releaseName))
+        if (detected != null)
         {
-            return "tv";
-        }
-
-        if (MoviePattern.IsMatch(releaseName))
-        {
-            return "movies";
-        }
-
-        if (MusicPattern.IsMatch(releaseName))
-        {
-            return "music";
+            return this.ResolveConfiguredCategory(detected);
         }
 
         return !string.IsNullOrEmpty(this.configService.DefaultCategory)
             ? this.configService.DefaultCategory
             : "other";
+    }
+
+    private void QuarantineFile(string watchFolder, string file)
+    {
+        try
+        {
+            var failedDir = Path.Combine(watchFolder, "failed");
+            this.diskProvider.EnsureFolder(failedDir);
+            var dest = Path.Combine(failedDir, Path.GetFileName(file));
+            this.diskProvider.MoveFile(file, dest, overwrite: true);
+            this.logger.Info("Quarantined corrupt watch folder file to '{0}'", dest);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to quarantine corrupt watch folder file: {0}", file);
+        }
+    }
+
+    private string ResolveConfiguredCategory(string detectedCategory)
+    {
+        if (this.categoryService == null)
+        {
+            return detectedCategory;
+        }
+
+        try
+        {
+            var categories = this.categoryService.GetAll()?.ToList();
+            if (categories == null || categories.Count == 0)
+            {
+                return detectedCategory;
+            }
+
+            var exactMatch = categories.FirstOrDefault(c =>
+                string.Equals(c.Name, detectedCategory, StringComparison.OrdinalIgnoreCase));
+            if (exactMatch != null)
+            {
+                return exactMatch.Name;
+            }
+
+            var synonyms = detectedCategory switch
+            {
+                "tv" => new[] { "tv", "shows", "television", "series" },
+                "movies" => new[] { "movies", "movie", "films", "film" },
+                "anime" => new[] { "anime", "animation" },
+                "music" => new[] { "music", "audio", "albums" },
+                _ => Array.Empty<string>(),
+            };
+
+            foreach (var synonym in synonyms)
+            {
+                var match = categories.FirstOrDefault(c =>
+                    string.Equals(c.Name, synonym, StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Contains(synonym, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                {
+                    return match.Name;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error cross-referencing category '{0}' with CategoryService", detectedCategory);
+        }
+
+        return detectedCategory;
     }
 }
