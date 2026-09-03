@@ -407,4 +407,103 @@ public class TorrentServiceTest
             }
         }
     }
+
+    [Test]
+    public void SyncWithEngine_WhenTaskIsStalled_UpdatesTorrentStatusToStalledAndDispatchesHealthIssueEvent()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Stalled);
+        task.ErrorMessage.Returns("Tracker failure: http://tracker.example.com/announce: Offline");
+        task.Progress.Returns(0.25);
+        task.DownloadedBytes.Returns(1024);
+        task.UploadedBytes.Returns(0);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(0);
+        task.ConnectedSeeders.Returns(0);
+        task.ConnectedLeechers.Returns(0);
+
+        var torrent = new Torrent
+        {
+            Id = 301,
+            Name = "Stalled ISO",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.25,
+            QueuePosition = 1,
+            InfoHash = "1122334455667788990011223344556677889900",
+        };
+
+        this.torrentRepository.Get(301).Returns(torrent);
+        this.downloadEngine.GetTask(301).Returns(task);
+
+        var result = this.service.Get(301);
+
+        result.Should().NotBeNull();
+        result.Status.Should().Be(TorrentStatus.Stalled);
+        result.ErrorMessage.Should().Be("Tracker failure: http://tracker.example.com/announce: Offline");
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 301 &&
+            t.Status == TorrentStatus.Stalled &&
+            t.ErrorMessage == "Tracker failure: http://tracker.example.com/announce: Offline"));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
+            e.Torrent.Id == 301 &&
+            e.OldStatus == TorrentStatus.Downloading &&
+            e.NewStatus == TorrentStatus.Stalled));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 301 &&
+            !e.IsResolved &&
+            e.Source == "Tracker"));
+    }
+
+    [Test]
+    public void SyncWithEngine_WhenTaskRecoversFromStalled_RestoresDownloadingAndDispatchesResolvedHealthIssueEvent()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.ErrorMessage.Returns((string)null);
+        task.Progress.Returns(0.30);
+        task.DownloadedBytes.Returns(2048);
+        task.UploadedBytes.Returns(0);
+        task.DownloadSpeed.Returns(50000);
+        task.UploadSpeed.Returns(0);
+        task.ConnectedSeeders.Returns(5);
+        task.ConnectedLeechers.Returns(2);
+
+        var torrent = new Torrent
+        {
+            Id = 302,
+            Name = "Recovered ISO",
+            Status = TorrentStatus.Stalled,
+            ErrorMessage = "Tracker failure: Offline",
+            Progress = 0.25,
+            QueuePosition = 1,
+            InfoHash = "2233445566778899001122334455667788990011",
+        };
+
+        this.torrentRepository.Get(302).Returns(torrent);
+        this.downloadEngine.GetTask(302).Returns(task);
+
+        var result = this.service.Get(302);
+
+        result.Should().NotBeNull();
+        result.Status.Should().Be(TorrentStatus.Downloading);
+        result.ErrorMessage.Should().BeNull();
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 302 &&
+            t.Status == TorrentStatus.Downloading &&
+            t.ErrorMessage == null));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
+            e.Torrent.Id == 302 &&
+            e.OldStatus == TorrentStatus.Stalled &&
+            e.NewStatus == TorrentStatus.Downloading));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Torrent.Id == 302 &&
+            e.IsResolved &&
+            e.Source == "Tracker"));
+    }
 }
