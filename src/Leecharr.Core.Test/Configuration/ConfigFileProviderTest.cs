@@ -81,12 +81,12 @@ public class ConfigFileProviderTest
                 "Config",
                 new XElement("Port", "8989"),
                 new XElement("BindAddress", "127.0.0.1"),
-                new XElement("ApiKey", "test-api-key-12345"),
+                new XElement("ApiKey", "test-key-123"),
                 new XElement("EnableSsl", "true"),
                 new XElement("SslPort", "9890"),
                 new XElement("SslCertPath", "/etc/ssl/cert.pfx"),
                 new XElement("SslKeyPath", "/etc/ssl/key.pem"),
-                new XElement("SslCertPassword", "secret123"),
+                new XElement("SslCertPassword", "certpass"),
                 new XElement("RedirectHttpToHttps", "true"),
                 new XElement("LogLevel", "debug"),
                 new XElement("UrlBase", "/leecharr"),
@@ -101,12 +101,12 @@ public class ConfigFileProviderTest
 
         provider.Port.Should().Be(8989);
         provider.BindAddress.Should().Be("127.0.0.1");
-        provider.ApiKey.Should().Be("test-api-key-12345");
+        provider.ApiKey.Should().Be("test-key-123");
         provider.EnableSsl.Should().BeTrue();
         provider.SslPort.Should().Be(9890);
         provider.SslCertPath.Should().Be("/etc/ssl/cert.pfx");
         provider.SslKeyPath.Should().Be("/etc/ssl/key.pem");
-        provider.SslCertPassword.Should().Be("secret123");
+        provider.SslCertPassword.Should().Be("certpass");
         provider.RedirectHttpToHttps.Should().BeTrue();
         provider.LogLevel.Should().Be("debug");
         provider.UrlBase.Should().Be("/leecharr");
