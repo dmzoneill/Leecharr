@@ -54,7 +54,7 @@ public class CompatibilityRpcAuthTest
             this.torrentFileParser,
             this.categoryService,
             this.configService,
-            this.configFileProvider);
+            configFileProvider: this.configFileProvider);
 
         var context = new DefaultHttpContext();
         controller.ControllerContext = new ControllerContext { HttpContext = context };

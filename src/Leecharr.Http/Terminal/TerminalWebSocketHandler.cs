@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using NzbDrone.Core.Configuration;
 
@@ -14,8 +15,37 @@ namespace Leecharr.Http.Terminal;
 
 public static class TerminalWebSocketHandler
 {
-    public static async Task HandleWebSocket(HttpContext context, IPtyTerminalService ptyService, IConfigService configService)
+    public static bool IsAuthorized(HttpContext context, IConfigFileProvider configFileProvider)
     {
+        if (configFileProvider == null || !configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (context.User?.Identity?.IsAuthenticated == true)
+        {
+            return true;
+        }
+
+        return RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
+    }
+
+    public static async Task HandleWebSocket(
+        HttpContext context,
+        IPtyTerminalService ptyService,
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
+    {
+        configFileProvider ??= context.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider;
+
+        if (!IsAuthorized(context, configFileProvider))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync("Authentication required for terminal access.");
+            await context.Response.CompleteAsync();
+            return;
+        }
+
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
