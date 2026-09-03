@@ -70,6 +70,7 @@ public class SystemTaskController : Controller
             new() { Id = 3, TypeName = "VpnKillSwitchCheckTask", Name = "VPN Kill Switch Check", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-10), NextExecution = now.AddSeconds(10) },
             new() { Id = 4, TypeName = "BackupTask", Name = "Backup Database", Interval = 1440, LastExecution = now.AddHours(-12), LastStartTime = now.AddHours(-12), NextExecution = now.AddHours(12) },
             new() { Id = 5, TypeName = "ProwlarrSyncTask", Name = "Prowlarr Indexer Sync", Interval = 60, LastExecution = now.AddMinutes(-20), LastStartTime = now.AddMinutes(-20), NextExecution = now.AddMinutes(40) },
+            new() { Id = 6, TypeName = "SessionCleanupTask", Name = "Session Cleanup", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5), NextExecution = now.AddMinutes(10) },
         };
 
         if (this.scheduledTaskRepository != null)
@@ -110,6 +111,7 @@ public class SystemTaskController : Controller
             [3] = "VpnKillSwitchCheck",
             [4] = "Backup",
             [5] = "ProwlarrSync",
+            [6] = "SessionCleanup",
         };
 
         var dbTask = this.scheduledTaskRepository?.Get(id);
