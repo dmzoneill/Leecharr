@@ -1,13 +1,16 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
@@ -16,11 +19,12 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Deluge;
 
-[AllowAnonymous]
 [ApiController]
 [Route("json")]
 public class DelugeJsonRpcController : ControllerBase
 {
+    private static readonly ConcurrentDictionary<string, DateTime> AuthenticatedSessions = new();
+
     private static readonly JsonSerializerOptions DelugeJsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
@@ -32,6 +36,7 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -39,13 +44,38 @@ public class DelugeJsonRpcController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
+    }
+
+    private bool IsDelugeAuthenticated()
+    {
+        if (this.configFileProvider != null && !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        if (this.Request.Cookies.TryGetValue("deluge-session", out var sid) && !string.IsNullOrWhiteSpace(sid))
+        {
+            if (AuthenticatedSessions.TryGetValue(sid, out var exp) && exp > DateTime.UtcNow)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private IActionResult DelugeResult(object value)
@@ -79,11 +109,69 @@ public class DelugeJsonRpcController : ControllerBase
 
         try
         {
-            switch (method.ToLowerInvariant())
+            var lowerMethod = method.ToLowerInvariant();
+
+            if (lowerMethod == "auth.login")
             {
-                case "auth.login":
-                case "auth.check_session":
-                case "auth.delete_session":
+                var providedPassword = string.Empty;
+                if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 &&
+                    paramsElem[0].ValueKind == JsonValueKind.String)
+                {
+                    providedPassword = paramsElem[0].GetString();
+                }
+
+                var loginSuccess = false;
+                if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
+                {
+                    loginSuccess = true;
+                }
+                else if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                         string.Equals(providedPassword, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                {
+                    loginSuccess = true;
+                }
+
+                if (loginSuccess)
+                {
+                    var sid = Guid.NewGuid().ToString("N");
+                    AuthenticatedSessions[sid] = DateTime.UtcNow.AddDays(7);
+                    this.Response.Cookies.Append("deluge-session", sid, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        SameSite = SameSiteMode.Lax,
+                        Path = "/",
+                    });
+
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
+                }
+
+                return this.DelugeResult(new { result = false, error = (object)null, id });
+            }
+
+            if (lowerMethod == "auth.check_session")
+            {
+                var isAuth = this.IsDelugeAuthenticated();
+                return this.DelugeResult(new { result = isAuth, error = (object)null, id });
+            }
+
+            if (lowerMethod == "auth.delete_session")
+            {
+                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid))
+                {
+                    AuthenticatedSessions.TryRemove(sid, out _);
+                    this.Response.Cookies.Delete("deluge-session");
+                }
+
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+            }
+
+            if (!this.IsDelugeAuthenticated())
+            {
+                return this.StatusCode(StatusCodes.Status401Unauthorized, new { result = (object)null, error = new { message = "Not authenticated", code = 1 }, id });
+            }
+
+            switch (lowerMethod)
+            {
                 case "web.connected":
                 case "web.connect":
                     return this.DelugeResult(new { result = true, error = (object)null, id });

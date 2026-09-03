@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -27,7 +28,6 @@ public class NzbgetRequest
     public object Id { get; set; } = 1;
 }
 
-[AllowAnonymous]
 [ApiController]
 public class NzbgetRpcController : ControllerBase
 {
@@ -35,18 +35,21 @@ public class NzbgetRpcController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpGet]
@@ -58,6 +61,24 @@ public class NzbgetRpcController : ControllerBase
     [Route("{user}:{pass}/xmlrpc")]
     public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] NzbgetRequest request = null)
     {
+        var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+        if (!isAuth && this.RouteData?.Values != null && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
+        {
+            var pass = this.RouteData.Values["pass"]?.ToString();
+            var user = this.RouteData.Values["user"]?.ToString();
+            if (string.Equals(pass, this.configFileProvider.ApiKey, StringComparison.Ordinal) ||
+                string.Equals(user, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            {
+                isAuth = true;
+            }
+        }
+
+        if (!isAuth)
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"NZBGet\"";
+            return this.Unauthorized();
+        }
+
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
         {
             return this.Ok(new { version = "1.1", result = "24.0", id = (object)1 });
