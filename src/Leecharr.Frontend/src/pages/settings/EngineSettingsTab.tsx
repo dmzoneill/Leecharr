@@ -7,14 +7,8 @@ import {
   useSwitchTorrentEngine,
   useProbeTorrentEngine,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  SelectInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, SelectInput, Toggle } from "./shared";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export function EngineSettingsTab() {
   const { data: config, isLoading } = useBitTorrentConfig();
@@ -49,21 +43,17 @@ export function EngineSettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
-  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<
-    string | null
-  >(null);
+  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<string | null>(null);
+  useEscapeKey(() => setSelectedEngineForSwitch(null), Boolean(selectedEngineForSwitch));
 
   useEffect(() => {
     if (config) {
       setForm({
         activeTorrentEngine: config.activeTorrentEngine || "MonoTorrent",
-        diskCacheMb: config.diskCacheBytes
-          ? Math.round(config.diskCacheBytes / (1024 * 1024))
-          : 64,
+        diskCacheMb: config.diskCacheBytes ? Math.round(config.diskCacheBytes / (1024 * 1024)) : 64,
         diskCachePolicy: config.diskCachePolicy || "ReadsAndWrites",
         fastResumeMode: config.fastResumeMode || "BestEffort",
-        autoSaveFastResumeIntervalSeconds:
-          config.autoSaveFastResumeIntervalSeconds ?? 300,
+        autoSaveFastResumeIntervalSeconds: config.autoSaveFastResumeIntervalSeconds ?? 300,
         piecePickerStrategy: config.piecePickerStrategy || "RarestFirst",
         endGamePickerEnabled: config.endGamePickerEnabled ?? true,
         staleRequestTimeoutSeconds: config.staleRequestTimeoutSeconds ?? 20,
@@ -84,10 +74,7 @@ export function EngineSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -101,8 +88,7 @@ export function EngineSettingsTab() {
         diskCacheBytes: form.diskCacheMb * 1024 * 1024,
         diskCachePolicy: form.diskCachePolicy,
         fastResumeMode: form.fastResumeMode,
-        autoSaveFastResumeIntervalSeconds:
-          form.autoSaveFastResumeIntervalSeconds,
+        autoSaveFastResumeIntervalSeconds: form.autoSaveFastResumeIntervalSeconds,
         piecePickerStrategy: form.piecePickerStrategy,
         endGamePickerEnabled: form.endGamePickerEnabled,
         staleRequestTimeoutSeconds: form.staleRequestTimeoutSeconds,
@@ -121,7 +107,7 @@ export function EngineSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      },
+      }
     );
   };
 
@@ -134,7 +120,7 @@ export function EngineSettingsTab() {
             setSelectedEngineForSwitch(null);
             update("activeTorrentEngine", selectedEngineForSwitch);
           },
-        },
+        }
       );
     }
   };
@@ -186,12 +172,8 @@ export function EngineSettingsTab() {
                 style={{
                   padding: "1rem",
                   borderRadius: "8px",
-                  backgroundColor: isActive
-                    ? "var(--bg-card-hover)"
-                    : "var(--bg-primary)",
-                  border: isActive
-                    ? "2px solid var(--accent)"
-                    : "1px solid var(--border)",
+                  backgroundColor: isActive ? "var(--bg-card-hover)" : "var(--bg-primary)",
+                  border: isActive ? "2px solid var(--accent)" : "1px solid var(--border)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -461,15 +443,8 @@ export function EngineSettingsTab() {
 
       {/* Hot-Swap Modal */}
       {selectedEngineForSwitch && (
-        <div
-          className="modal-overlay"
-          onClick={() => setSelectedEngineForSwitch(null)}
-        >
-          <div
-            className="modal"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 460 }}
-          >
+        <div className="modal-overlay" onClick={() => setSelectedEngineForSwitch(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
             <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
               Switch Active BitTorrent Engine
             </h2>
@@ -490,8 +465,8 @@ export function EngineSettingsTab() {
                 lineHeight: 1.4,
               }}
             >
-              All in-flight download bitfields and statistics will be atomically
-              checkpointed and migrated without interrupting disk payloads.
+              All in-flight download bitfields and statistics will be atomically checkpointed and
+              migrated without interrupting disk payloads.
             </p>
             <div
               style={{
@@ -514,9 +489,7 @@ export function EngineSettingsTab() {
                 onClick={handleSwitchConfirm}
                 disabled={switchMutation.isPending}
               >
-                {switchMutation.isPending
-                  ? "Switching Engine..."
-                  : "Confirm Switch"}
+                {switchMutation.isPending ? "Switching Engine..." : "Confirm Switch"}
               </button>
             </div>
           </div>

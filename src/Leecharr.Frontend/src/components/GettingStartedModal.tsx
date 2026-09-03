@@ -14,6 +14,7 @@ import type {
 import { TextInput, SelectInput, Toggle } from "../pages/settings/shared";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 
 export const STORAGE_KEY_HIDE_GUIDE = "leecharr_hide_getting_started";
 
@@ -75,6 +76,8 @@ export function GettingStartedModal({
   onNavigateTorrents,
   onNavigateIndexers,
 }: GettingStartedModalProps) {
+  useEscapeKey(onClose, isOpen);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [mode, setMode] = useState<GuideMode>("readonly");
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
@@ -93,8 +96,7 @@ export function GettingStartedModal({
     enableRss: true,
     enableSearch: true,
   });
-  const [indexerTestResult, setIndexerTestResult] =
-    useState<IndexerTestResult | null>(null);
+  const [indexerTestResult, setIndexerTestResult] = useState<IndexerTestResult | null>(null);
 
   // Sonarr Form State (Full Real Form)
   const [sonarrForm, setSonarrForm] = useState<Partial<ArrConnection>>({
@@ -108,8 +110,7 @@ export function GettingStartedModal({
     webhookEnabled: true,
     webhookHost: "leecharr",
   });
-  const [sonarrTestResult, setSonarrTestResult] =
-    useState<ArrTestResult | null>(null);
+  const [sonarrTestResult, setSonarrTestResult] = useState<ArrTestResult | null>(null);
 
   // Radarr Form State (Full Real Form)
   const [radarrForm, setRadarrForm] = useState<Partial<ArrConnection>>({
@@ -123,8 +124,7 @@ export function GettingStartedModal({
     webhookEnabled: true,
     webhookHost: "leecharr",
   });
-  const [radarrTestResult, setRadarrTestResult] =
-    useState<ArrTestResult | null>(null);
+  const [radarrTestResult, setRadarrTestResult] = useState<ArrTestResult | null>(null);
 
   // Lidarr Form State (Full Real Form)
   const [lidarrForm, setLidarrForm] = useState<Partial<ArrConnection>>({
@@ -138,8 +138,7 @@ export function GettingStartedModal({
     webhookEnabled: true,
     webhookHost: "leecharr",
   });
-  const [lidarrTestResult, setLidarrTestResult] =
-    useState<ArrTestResult | null>(null);
+  const [lidarrTestResult, setLidarrTestResult] = useState<ArrTestResult | null>(null);
 
   // API Mutations
   const testIndexerMutation = useTestDirectIndexer();
@@ -198,8 +197,7 @@ export function GettingStartedModal({
     setIndexerTestResult(null);
     testIndexerMutation.mutate(indexerForm, {
       onSuccess: (data) => setIndexerTestResult(data),
-      onError: (err) =>
-        setIndexerTestResult({ success: false, message: err.message }),
+      onError: (err) => setIndexerTestResult({ success: false, message: err.message }),
     });
   };
 
@@ -215,13 +213,13 @@ export function GettingStartedModal({
         onSuccess: () => {
           handleNext();
         },
-      },
+      }
     );
   };
 
   const handleTestArr = (
     form: Partial<ArrConnection>,
-    setResult: (res: ArrTestResult | null) => void,
+    setResult: (res: ArrTestResult | null) => void
   ) => {
     setResult(null);
     testArrMutation.mutate(form, {
@@ -242,7 +240,7 @@ export function GettingStartedModal({
         onSuccess: () => {
           handleNext();
         },
-      },
+      }
     );
   };
 
@@ -292,14 +290,10 @@ export function GettingStartedModal({
             backgroundColor: "rgba(0, 0, 0, 0.2)",
           }}
         >
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <LeecharrLogo size={32} />
             <div>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <LeecharrText width={90} />
                 <span
                   style={{
@@ -326,9 +320,7 @@ export function GettingStartedModal({
             </div>
           </div>
 
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             {/* Mode Switcher */}
             {currentStep > 0 && currentStep < STEPS.length - 1 && (
               <div
@@ -350,12 +342,8 @@ export function GettingStartedModal({
                     fontSize: "0.75rem",
                     fontWeight: 600,
                     cursor: "pointer",
-                    backgroundColor: isReadOnly
-                      ? "var(--bg-card-hover, #23284b)"
-                      : "transparent",
-                    color: isReadOnly
-                      ? "var(--accent, #ffd166)"
-                      : "var(--text-muted)",
+                    backgroundColor: isReadOnly ? "var(--bg-card-hover, #23284b)" : "transparent",
+                    color: isReadOnly ? "var(--accent, #ffd166)" : "var(--text-muted)",
                     transition: "all 0.2s",
                   }}
                 >
@@ -371,9 +359,7 @@ export function GettingStartedModal({
                     fontSize: "0.75rem",
                     fontWeight: 600,
                     cursor: "pointer",
-                    backgroundColor: !isReadOnly
-                      ? "var(--accent, #ffd166)"
-                      : "transparent",
+                    backgroundColor: !isReadOnly ? "var(--accent, #ffd166)" : "transparent",
                     color: !isReadOnly ? "#0d0e17" : "var(--text-muted)",
                     transition: "all 0.2s",
                   }}
@@ -434,9 +420,7 @@ export function GettingStartedModal({
                     : isCompleted
                       ? "2px solid var(--success, #28a745)"
                       : "2px solid transparent",
-                  backgroundColor: isActive
-                    ? "rgba(255, 209, 102, 0.05)"
-                    : "transparent",
+                  backgroundColor: isActive ? "rgba(255, 209, 102, 0.05)" : "transparent",
                   transition: "all 0.2s",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -500,10 +484,9 @@ export function GettingStartedModal({
                     lineHeight: 1.5,
                   }}
                 >
-                  Leecharr is a high-performance BitTorrent and media downloader
-                  purpose-built for the Servarr (<code>*arr</code>) ecosystem
-                  with deep media library enrichment, 4K/HDR stream inspection,
-                  and multi-client drop-in compatibility.
+                  Leecharr is a high-performance BitTorrent and media downloader purpose-built for
+                  the Servarr (<code>*arr</code>) ecosystem with deep media library enrichment,
+                  4K/HDR stream inspection, and multi-client drop-in compatibility.
                 </p>
               </div>
 
@@ -523,9 +506,7 @@ export function GettingStartedModal({
                     border: "1px solid var(--border-light, #1c203b)",
                   }}
                 >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    ⚡
-                  </div>
+                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>⚡</div>
                   <div
                     style={{
                       fontWeight: 700,
@@ -542,8 +523,8 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Pure C# BitTorrent engine running with simultaneous
-                    qBittorrent, Deluge, and Transmission API endpoints.
+                    Pure C# BitTorrent engine running with simultaneous qBittorrent, Deluge, and
+                    Transmission API endpoints.
                   </div>
                 </div>
 
@@ -556,9 +537,7 @@ export function GettingStartedModal({
                     border: "1px solid var(--border-light, #1c203b)",
                   }}
                 >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    🎬
-                  </div>
+                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>🎬</div>
                   <div
                     style={{
                       fontWeight: 700,
@@ -575,8 +554,8 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Correlates active downloads with high-res posters, banners,
-                    and 4K stream specs directly from your library.
+                    Correlates active downloads with high-res posters, banners, and 4K stream specs
+                    directly from your library.
                   </div>
                 </div>
 
@@ -589,9 +568,7 @@ export function GettingStartedModal({
                     border: "1px solid var(--border-light, #1c203b)",
                   }}
                 >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    🔍
-                  </div>
+                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>🔍</div>
                   <div
                     style={{
                       fontWeight: 700,
@@ -608,8 +585,8 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Synchronize Torznab indexers directly from Prowlarr for
-                    search and one-click grab.
+                    Synchronize Torznab indexers directly from Prowlarr for search and one-click
+                    grab.
                   </div>
                 </div>
               </div>
@@ -624,10 +601,9 @@ export function GettingStartedModal({
                   color: "var(--text-secondary)",
                 }}
               >
-                💡 <strong>Getting Started:</strong> Follow these steps to
-                connect <strong>Prowlarr</strong>, <strong>Sonarr</strong>,{" "}
-                <strong>Radarr</strong>, and <strong>Lidarr</strong> so
-                downloads and media cards populate seamlessly.
+                💡 <strong>Getting Started:</strong> Follow these steps to connect{" "}
+                <strong>Prowlarr</strong>, <strong>Sonarr</strong>, <strong>Radarr</strong>, and{" "}
+                <strong>Lidarr</strong> so downloads and media cards populate seamlessly.
               </div>
             </div>
           )}
@@ -650,9 +626,8 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Prowlarr to automatically import all your configured
-                    BitTorrent indexers into Leecharr for integrated search,
-                    Freeleech filtering, and RSS rules.
+                    Connect Prowlarr to automatically import all your configured BitTorrent indexers
+                    into Leecharr for integrated search, Freeleech filtering, and RSS rules.
                   </div>
 
                   <div
@@ -685,8 +660,7 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Prowlarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
+                        In Prowlarr, go to <strong>Settings → General → Security</strong> and copy
                         your <strong>API Key</strong>.
                       </li>
                       <li>
@@ -694,15 +668,12 @@ export function GettingStartedModal({
                         <strong>Settings → Indexers</strong>).
                       </li>
                       <li>
-                        Enter your Prowlarr Server URL (e.g.{" "}
-                        <code>http://localhost:9696</code> or{" "}
-                        <code>http://prowlarr:9696</code>) and paste your API
-                        Key.
+                        Enter your Prowlarr Server URL (e.g. <code>http://localhost:9696</code> or{" "}
+                        <code>http://prowlarr:9696</code>) and paste your API Key.
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong> — Leecharr will
-                        automatically import and sync all indexers!
+                        Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>{" "}
+                        — Leecharr will automatically import and sync all indexers!
                       </li>
                     </ol>
                   </div>
@@ -840,18 +811,14 @@ export function GettingStartedModal({
                       onClick={handleTestIndexer}
                       disabled={testIndexerMutation.isPending}
                     >
-                      {testIndexerMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                      {testIndexerMutation.isPending ? "Testing..." : "Test Connection"}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={handleSaveIndexer}
                       disabled={createIndexerMutation.isPending}
                     >
-                      {createIndexerMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                      {createIndexerMutation.isPending ? "Saving..." : "Save & Continue"}
                     </button>
                   </div>
                 </div>
@@ -877,8 +844,8 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Sonarr to Leecharr for 1:1 TV episode correlation,
-                    high-res season banners, and episode stills.
+                    Connect Sonarr to Leecharr for 1:1 TV episode correlation, high-res season
+                    banners, and episode stills.
                   </div>
 
                   <div
@@ -911,8 +878,7 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Sonarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
+                        In Sonarr, go to <strong>Settings → General → Security</strong> and copy
                         your <strong>API Key</strong>.
                       </li>
                       <li>
@@ -920,18 +886,15 @@ export function GettingStartedModal({
                         <strong>Settings → Connections</strong>).
                       </li>
                       <li>
-                        Enter Sonarr URL (e.g.{" "}
-                        <code>http://localhost:8989</code> or{" "}
+                        Enter Sonarr URL (e.g. <code>http://localhost:8989</code> or{" "}
                         <code>http://sonarr:8989</code>) and paste your API Key.
                       </li>
                       <li>
-                        Keep <strong>Sync Enabled</strong> and{" "}
-                        <strong>Webhook</strong> active.
+                        Keep <strong>Sync Enabled</strong> and <strong>Webhook</strong> active.
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong> — media cards will
-                        enrich instantly!
+                        Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>{" "}
+                        — media cards will enrich instantly!
                       </li>
                     </ol>
                   </div>
@@ -1068,23 +1031,17 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(sonarrForm, setSonarrTestResult)
-                      }
+                      onClick={() => handleTestArr(sonarrForm, setSonarrTestResult)}
                       disabled={testArrMutation.isPending}
                     >
-                      {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                      {testArrMutation.isPending ? "Testing..." : "Test Connection"}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={() => handleSaveArr(sonarrForm)}
                       disabled={createArrMutation.isPending}
                     >
-                      {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                      {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
                     </button>
                   </div>
                 </div>
@@ -1110,9 +1067,8 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Radarr to Leecharr for high-res movie backdrops,
-                    posters, cast overviews, and 4K/HDR10+/Dolby Vision stream
-                    metadata.
+                    Connect Radarr to Leecharr for high-res movie backdrops, posters, cast
+                    overviews, and 4K/HDR10+/Dolby Vision stream metadata.
                   </div>
 
                   <div
@@ -1145,8 +1101,7 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Radarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
+                        In Radarr, go to <strong>Settings → General → Security</strong> and copy
                         your <strong>API Key</strong>.
                       </li>
                       <li>
@@ -1154,13 +1109,11 @@ export function GettingStartedModal({
                         <strong>Settings → Connections</strong>).
                       </li>
                       <li>
-                        Enter Radarr URL (e.g.{" "}
-                        <code>http://localhost:7878</code> or{" "}
+                        Enter Radarr URL (e.g. <code>http://localhost:7878</code> or{" "}
                         <code>http://radarr:7878</code>) and paste your API Key.
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong>.
+                        Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.
                       </li>
                     </ol>
                   </div>
@@ -1297,23 +1250,17 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(radarrForm, setRadarrTestResult)
-                      }
+                      onClick={() => handleTestArr(radarrForm, setRadarrTestResult)}
                       disabled={testArrMutation.isPending}
                     >
-                      {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                      {testArrMutation.isPending ? "Testing..." : "Test Connection"}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={() => handleSaveArr(radarrForm)}
                       disabled={createArrMutation.isPending}
                     >
-                      {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                      {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
                     </button>
                   </div>
                 </div>
@@ -1339,9 +1286,8 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Lidarr to Leecharr for album artwork, artist
-                    backdrops, track lists, and FLAC/lossless audio stream
-                    specs.
+                    Connect Lidarr to Leecharr for album artwork, artist backdrops, track lists, and
+                    FLAC/lossless audio stream specs.
                   </div>
 
                   <div
@@ -1374,8 +1320,7 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Lidarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
+                        In Lidarr, go to <strong>Settings → General → Security</strong> and copy
                         your <strong>API Key</strong>.
                       </li>
                       <li>
@@ -1383,13 +1328,11 @@ export function GettingStartedModal({
                         <strong>Settings → Connections</strong>).
                       </li>
                       <li>
-                        Enter Lidarr URL (e.g.{" "}
-                        <code>http://localhost:8686</code> or{" "}
+                        Enter Lidarr URL (e.g. <code>http://localhost:8686</code> or{" "}
                         <code>http://lidarr:8686</code>) and paste your API Key.
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong>.
+                        Click <strong>Test Connection</strong> and <strong>Save & Continue</strong>.
                       </li>
                     </ol>
                   </div>
@@ -1526,23 +1469,17 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(lidarrForm, setLidarrTestResult)
-                      }
+                      onClick={() => handleTestArr(lidarrForm, setLidarrTestResult)}
                       disabled={testArrMutation.isPending}
                     >
-                      {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                      {testArrMutation.isPending ? "Testing..." : "Test Connection"}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={() => handleSaveArr(lidarrForm)}
                       disabled={createArrMutation.isPending}
                     >
-                      {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                      {createArrMutation.isPending ? "Saving..." : "Save & Continue"}
                     </button>
                   </div>
                 </div>
@@ -1580,10 +1517,9 @@ export function GettingStartedModal({
                   lineHeight: 1.5,
                 }}
               >
-                Leecharr is now configured and actively serving on port{" "}
-                <code>7889</code>. You can grab torrents directly from
-                integrated search or push them automatically from Sonarr and
-                Radarr.
+                Leecharr is now configured and actively serving on port <code>7889</code>. You can
+                grab torrents directly from integrated search or push them automatically from Sonarr
+                and Radarr.
               </p>
 
               <div
@@ -1666,10 +1602,7 @@ export function GettingStartedModal({
 
           <div style={{ display: "flex", gap: "0.75rem" }}>
             {currentStep > 0 && (
-              <button
-                className="btn btn-secondary btn-small"
-                onClick={handlePrev}
-              >
+              <button className="btn btn-secondary btn-small" onClick={handlePrev}>
                 ← Previous
               </button>
             )}
