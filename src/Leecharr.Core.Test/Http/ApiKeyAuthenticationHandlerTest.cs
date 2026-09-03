@@ -68,8 +68,8 @@ public class ApiKeyAuthenticationHandlerTest
     public async Task AuthenticateAsync_WithValidApiKeyInQuery_ReturnsSuccess()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
-        this.configFileProvider.ApiKey.Returns("secret-api-key-123");
-        this.httpContext.Request.QueryString = new QueryString("?apikey=secret-api-key-123");
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
+        this.httpContext.Request.QueryString = new QueryString("?apikey=test-secret-key");
 
         var result = await this.handler.AuthenticateAsync();
 
@@ -80,7 +80,7 @@ public class ApiKeyAuthenticationHandlerTest
     public async Task AuthenticateAsync_WithInvalidApiKey_ReturnsFail()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
-        this.configFileProvider.ApiKey.Returns("secret-api-key-123");
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
         this.httpContext.Request.Headers["X-Api-Key"] = "wrong-key";
 
         var result = await this.handler.AuthenticateAsync();
@@ -92,7 +92,7 @@ public class ApiKeyAuthenticationHandlerTest
     public async Task AuthenticateAsync_WithNoApiKey_ReturnsNoResult()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
-        this.configFileProvider.ApiKey.Returns("secret-api-key-123");
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
 
         var result = await this.handler.AuthenticateAsync();
 

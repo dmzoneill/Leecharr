@@ -450,8 +450,8 @@ public class DiskProviderTest
         var folderModified = this.diskProvider.FolderGetLastWrite(this.tempDir);
         var fileModified = this.diskProvider.FileGetLastWrite(testFile);
 
-        folderCreated.Should().BeBefore(DateTime.Now.AddMinutes(1));
-        folderModified.Should().BeBefore(DateTime.Now.AddMinutes(1));
-        fileModified.Should().BeBefore(DateTime.Now.AddMinutes(1));
+        (folderCreated <= DateTime.Now.AddMinutes(1)).Should().BeTrue();
+        (folderModified <= DateTime.Now.AddMinutes(1)).Should().BeTrue();
+        (fileModified <= DateTime.Now.AddMinutes(1)).Should().BeTrue();
     }
 }
