@@ -428,6 +428,7 @@ public class TorrentService : ITorrentService
             this.fileRepository.DeleteByTorrentId(id);
             this.trackerEntryRepository?.DeleteByTorrentId(id);
             this.mediaEnrichmentService.DeleteMetadata(id);
+            this.mediaEnrichmentService.CleanupTorrentCache(id);
             this.torrentRepository.Delete(id);
 
             try
