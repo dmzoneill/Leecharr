@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import { extractTrackerDomain } from "../utils/formatters";
+import { useConfirm } from "../context/ConfirmContext";
 
 interface TorrentGridProps {
   torrents: Torrent[];
@@ -28,6 +29,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   onResume,
   onDelete,
 }) => {
+  const confirm = useConfirm();
   const formatSize = (bytes: number) => {
     if (!bytes) return "0 B";
     const gb = bytes / (1024 * 1024 * 1024);
@@ -386,8 +388,14 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 )}
                 <button
                   className="btn btn-small btn-danger"
-                  onClick={() => {
-                    if (confirm(`Remove "${t.name}"?`)) {
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Remove Torrent",
+                      message: `Remove "${t.name}"?`,
+                      danger: true,
+                      confirmText: "Remove",
+                    });
+                    if (ok) {
                       onDelete({ id: t.id, deleteFiles: false });
                     }
                   }}

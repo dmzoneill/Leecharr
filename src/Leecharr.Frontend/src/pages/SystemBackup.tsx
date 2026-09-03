@@ -1,11 +1,7 @@
 import { useState } from "react";
-import {
-  useBackups,
-  useCreateBackup,
-  useDeleteBackup,
-  useRestoreBackup,
-} from "../api/hooks";
+import { useBackups, useCreateBackup, useDeleteBackup, useRestoreBackup } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { formatBytes, formatDate } from "../utils/formatters";
 
 function BackupIcon() {
@@ -92,6 +88,9 @@ function SystemBackup() {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
 
+  useEscapeKey(() => setConfirmDelete(null), confirmDelete !== null);
+  useEscapeKey(() => setConfirmRestore(null), confirmRestore !== null);
+
   const handleCreateBackup = () => {
     createBackup.mutate(undefined, {
       onSuccess: () => showToast("Backup created successfully", "success"),
@@ -132,9 +131,7 @@ function SystemBackup() {
         }}
       >
         <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Backups
             </h1>
@@ -147,8 +144,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            Create, download, and restore Leecharr configuration and database
-            snapshots
+            Create, download, and restore Leecharr configuration and database snapshots
           </div>
         </div>
 
@@ -163,16 +159,12 @@ function SystemBackup() {
           }}
         >
           <BackupIcon />
-          <span>
-            {createBackup.isPending ? "Creating Backup..." : "Backup Now"}
-          </span>
+          <span>{createBackup.isPending ? "Creating Backup..." : "Backup Now"}</span>
         </button>
       </div>
 
       {isLoading && <p className="loading">Loading backups...</p>}
-      {!isLoading && isError && (
-        <p className="error">Failed to load backups.</p>
-      )}
+      {!isLoading && isError && <p className="error">Failed to load backups.</p>}
 
       {/* Backups List Card */}
       <div
@@ -180,8 +172,7 @@ function SystemBackup() {
         style={{
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -221,10 +212,7 @@ function SystemBackup() {
                   <th className="torrent-table-th">Archive Name</th>
                   <th className="torrent-table-th">File Size</th>
                   <th className="torrent-table-th">Creation Date</th>
-                  <th
-                    className="torrent-table-th"
-                    style={{ textAlign: "right" }}
-                  >
+                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
                     Actions
                   </th>
                 </tr>
@@ -233,8 +221,7 @@ function SystemBackup() {
                 {backups.length === 0 && (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      No backups found. Click &quot;Backup Now&quot; to create a
-                      snapshot.
+                      No backups found. Click &quot;Backup Now&quot; to create a snapshot.
                     </td>
                   </tr>
                 )}
@@ -301,10 +288,7 @@ function SystemBackup() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <h3
-              className="modal-title"
-              style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
-            >
+            <h3 className="modal-title" style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}>
               Delete Backup Snapshot
             </h3>
             <p
@@ -315,8 +299,8 @@ function SystemBackup() {
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to permanently delete this backup archive?
-              This action cannot be undone.
+              Are you sure you want to permanently delete this backup archive? This action cannot be
+              undone.
             </p>
             <div
               className="modal-actions"
@@ -326,10 +310,7 @@ function SystemBackup() {
                 gap: "0.5rem",
               }}
             >
-              <button
-                className="btn btn-outline btn-small"
-                onClick={() => setConfirmDelete(null)}
-              >
+              <button className="btn btn-outline btn-small" onClick={() => setConfirmDelete(null)}>
                 Cancel
               </button>
               <button
@@ -357,10 +338,7 @@ function SystemBackup() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <h3
-              className="modal-title"
-              style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
-            >
+            <h3 className="modal-title" style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}>
               Restore Backup Snapshot
             </h3>
             <div
@@ -375,9 +353,8 @@ function SystemBackup() {
                 lineHeight: 1.4,
               }}
             >
-              ⚠️ Warning: Restoring will replace your current database and
-              configuration. An application restart will be required immediately
-              afterwards.
+              ⚠️ Warning: Restoring will replace your current database and configuration. An
+              application restart will be required immediately afterwards.
             </div>
             <p
               style={{
@@ -398,10 +375,7 @@ function SystemBackup() {
                 gap: "0.5rem",
               }}
             >
-              <button
-                className="btn btn-outline btn-small"
-                onClick={() => setConfirmRestore(null)}
-              >
+              <button className="btn btn-outline btn-small" onClick={() => setConfirmRestore(null)}>
                 Cancel
               </button>
               <button

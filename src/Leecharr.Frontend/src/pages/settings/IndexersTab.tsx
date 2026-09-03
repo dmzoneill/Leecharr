@@ -10,6 +10,8 @@ import {
 import type { IndexerDefinition, IndexerTestResult } from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
 import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export function IndexersTab() {
   const { showToast } = useToast();
@@ -19,14 +21,11 @@ export function IndexersTab() {
   const deleteMutation = useDeleteIndexer();
   const testMutation = useTestIndexer();
   const testDirectMutation = useTestDirectIndexer();
-  const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(
-    null,
-  );
-  const [testResults, setTestResults] = useState<
-    Record<number, boolean | null>
-  >({});
-  const [modalTestResult, setModalTestResult] =
-    useState<IndexerTestResult | null>(null);
+  const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(null);
+  const confirm = useConfirm();
+  useEscapeKey(() => setEditing(null), Boolean(editing));
+  const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
+  const [modalTestResult, setModalTestResult] = useState<IndexerTestResult | null>(null);
 
   const defaultIndexer: Partial<IndexerDefinition> = {
     name: "Prowlarr",
@@ -71,8 +70,7 @@ export function IndexersTab() {
   const handleTest = (id: number) => {
     setTestResults((prev) => ({ ...prev, [id]: null }));
     testMutation.mutate(id, {
-      onSuccess: (data) =>
-        setTestResults((prev) => ({ ...prev, [id]: data.success })),
+      onSuccess: (data) => setTestResults((prev) => ({ ...prev, [id]: data.success })),
       onError: () => setTestResults((prev) => ({ ...prev, [id]: false })),
     });
   };
@@ -138,23 +136,21 @@ export function IndexersTab() {
                 <button
                   className="provider-card-action provider-card-action-danger"
                   title="Delete Indexer"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    if (
-                      window.confirm(
-                        `Are you sure you want to delete the indexer "${idx.name}"?`,
-                      )
-                    ) {
-                      deleteMutation.mutate(idx.id, {
-                        onSuccess: () =>
-                          showToast(`Indexer "${idx.name}" deleted`, "info"),
-                        onError: (err: any) =>
-                          showToast(
-                            err?.message || "Failed to delete indexer",
-                            "error",
-                          ),
-                      });
-                    }
+                    const ok = await confirm({
+                      title: "Delete Indexer",
+                      message: `Are you sure you want to delete the indexer "${idx.name}"?`,
+                      danger: true,
+                      confirmText: "Delete",
+                    });
+                    if (!ok) return;
+
+                    deleteMutation.mutate(idx.id, {
+                      onSuccess: () => showToast(`Indexer "${idx.name}" deleted`, "info"),
+                      onError: (err: any) =>
+                        showToast(err?.message || "Failed to delete indexer", "error"),
+                    });
                   }}
                 >
                   &#x2715;
@@ -166,21 +162,15 @@ export function IndexersTab() {
                   {idx.indexerType}
                 </span>
                 {idx.enableRss && (
-                  <span className="provider-card-badge provider-card-badge-blue">
-                    RSS
-                  </span>
+                  <span className="provider-card-badge provider-card-badge-blue">RSS</span>
                 )}
                 {idx.enableSearch && (
-                  <span className="provider-card-badge provider-card-badge-blue">
-                    Search
-                  </span>
+                  <span className="provider-card-badge provider-card-badge-blue">Search</span>
                 )}
               </div>
               <div className="provider-card-info">{idx.url}</div>
               {testResults[idx.id] === true && (
-                <div className="provider-card-test provider-card-test-ok">
-                  ✓ Connection passed
-                </div>
+                <div className="provider-card-test provider-card-test-ok">✓ Connection passed</div>
               )}
               {testResults[idx.id] === false && (
                 <div className="provider-card-test provider-card-test-fail">
@@ -188,9 +178,7 @@ export function IndexersTab() {
                 </div>
               )}
               {testResults[idx.id] === null && (
-                <div className="provider-card-test provider-card-test-pending">
-                  Testing...
-                </div>
+                <div className="provider-card-test provider-card-test-pending">Testing...</div>
               )}
             </div>
           ))}
@@ -225,10 +213,7 @@ export function IndexersTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div
-              className="modal-title"
-              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
-            >
+            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
               {editing.id ? "Edit Indexer" : "Add Indexer"}
             </div>
             <TextInput
@@ -360,9 +345,7 @@ export function IndexersTab() {
                     ? "var(--success, #28a745)"
                     : "var(--danger, #dc3545)",
                   border: `1px solid ${
-                    modalTestResult.success
-                      ? "rgba(40, 167, 69, 0.35)"
-                      : "rgba(220, 53, 69, 0.35)"
+                    modalTestResult.success ? "rgba(40, 167, 69, 0.35)" : "rgba(220, 53, 69, 0.35)"
                   }`,
                 }}
               >
@@ -377,9 +360,7 @@ export function IndexersTab() {
                 </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
-                    {modalTestResult.success
-                      ? "Connection Successful"
-                      : "Connection Failed"}
+                    {modalTestResult.success ? "Connection Successful" : "Connection Failed"}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -416,9 +397,7 @@ export function IndexersTab() {
                 onClick={handleModalTest}
                 disabled={testDirectMutation.isPending}
               >
-                {testDirectMutation.isPending
-                  ? "Testing..."
-                  : "Test Connection"}
+                {testDirectMutation.isPending ? "Testing..." : "Test Connection"}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -433,13 +412,9 @@ export function IndexersTab() {
                 <button
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
+                  disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? "Saving..."
-                    : "Save"}
+                  {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
