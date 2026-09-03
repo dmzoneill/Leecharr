@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
@@ -453,6 +454,111 @@ public class PiecePickerTest
 
         Action act4 = () => picker.MarkPieceCorrupt(100);
         act4.Should().NotThrow();
+    }
+
+    #endregion
+
+    #region In-Flight Request Timeout & Malformed Bitfield Tests
+
+    [Test]
+    public async Task PickBlocks_WhenBlockRequestTimesOut_AllowsReassigningBlockToAnotherPeer()
+    {
+        // 50 pieces, 16KB each, with a short timeout of 50ms
+        var picker = new PiecePicker(50, 16384, 819200, requestTimeout: TimeSpan.FromMilliseconds(50));
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        // Peer A requests 1 block
+        var requestA = picker.PickBlocks(fullBitfield, 1);
+        requestA.Should().HaveCount(1);
+        var pIdx = requestA[0].PieceIndex;
+
+        // Immediately, Peer B attempts to pick: block is in flight, so it skips block pIdx
+        var nextReq = picker.PickBlocks(fullBitfield, 1);
+        nextReq.Should().HaveCount(1);
+        nextReq[0].PieceIndex.Should().NotBe(pIdx);
+
+        // Wait for request to time out
+        await Task.Delay(75);
+
+        // After timeout, block pIdx can be re-picked by Peer B
+        var retryReq = picker.PickBlocks(fullBitfield, 1);
+        retryReq.Should().HaveCount(1);
+        retryReq[0].PieceIndex.Should().Be(pIdx);
+    }
+
+    [Test]
+    public async Task PruneTimedOutRequests_RemovesExpiredEntries()
+    {
+        var picker = new PiecePicker(50, 16384, 819200, requestTimeout: TimeSpan.FromMilliseconds(50));
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        picker.PickBlocks(fullBitfield, 3);
+        picker.InFlightBlockCount.Should().Be(3);
+
+        // Immediately call prune: none should be expired yet
+        picker.PruneTimedOutRequests().Should().Be(0);
+        picker.InFlightBlockCount.Should().Be(3);
+
+        // Wait for timeout to expire
+        await Task.Delay(75);
+
+        // Call prune: all 3 entries should be removed
+        picker.PruneTimedOutRequests().Should().Be(3);
+        picker.InFlightBlockCount.Should().Be(0);
+    }
+
+    [Test]
+    public void UpdatePeerAvailability_WithInvalidBitfieldLengthOrSpareBits_SafelyIgnored()
+    {
+        var picker = new PiecePicker(10, 16384, 163840);
+
+        // 1. Shorter than piece count (5 < 10)
+        picker.UpdatePeerAvailability(new bool[5], isAdd: true);
+        picker.GetAvailability().All(a => a == 0).Should().BeTrue();
+
+        // 2. Excessively long (100 > 16)
+        picker.UpdatePeerAvailability(new bool[100], isAdd: true);
+        picker.GetAvailability().All(a => a == 0).Should().BeTrue();
+
+        // 3. Byte-aligned length 16, but spare bit 10 is set to true
+        var malformedWithSpareBit = new bool[16];
+        malformedWithSpareBit[10] = true;
+        picker.UpdatePeerAvailability(malformedWithSpareBit, isAdd: true);
+        picker.GetAvailability().All(a => a == 0).Should().BeTrue();
+
+        // 4. Valid bitfield updates availability
+        var validBitfield = new bool[10];
+        validBitfield[0] = true;
+        picker.UpdatePeerAvailability(validBitfield, isAdd: true);
+        picker.GetAvailability()[0].Should().Be(1);
+    }
+
+    [Test]
+    public void PickBlocks_WithInvalidBitfieldLengthOrSpareBits_ReturnsEmptyList()
+    {
+        var picker = new PiecePicker(10, 16384, 163840);
+
+        // 1. Null
+        picker.PickBlocks(null!, 5).Should().BeEmpty();
+
+        // 2. Shorter than piece count
+        picker.PickBlocks(new bool[5], 5).Should().BeEmpty();
+
+        // 3. Excessively long
+        picker.PickBlocks(new bool[100], 5).Should().BeEmpty();
+
+        // 4. Spare bit set
+        var malformedWithSpareBit = new bool[16];
+        malformedWithSpareBit[0] = true;
+        malformedWithSpareBit[12] = true;
+        picker.PickBlocks(malformedWithSpareBit, 5).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Constructor_WithNegativePieceCount_ThrowsArgumentOutOfRangeException()
+    {
+        Action act = () => new PiecePicker(-1, 16384, 163840);
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     #endregion
