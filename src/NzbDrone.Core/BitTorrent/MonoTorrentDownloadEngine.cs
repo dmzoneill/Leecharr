@@ -901,6 +901,32 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return anyMoved;
     }
 
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+    {
+        if (string.IsNullOrWhiteSpace(newSavePath))
+        {
+            throw new ArgumentException("New save path must not be empty.", nameof(newSavePath));
+        }
+
+        if (!this.tasks.TryGetValue(torrentId, out var task) || task.Manager == null)
+        {
+            this.logger.Warn("Cannot move torrent files: torrent id {0} not found in active engine tasks", torrentId);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(newSavePath);
+            await task.Manager.MoveFilesAsync(newSavePath, true).ConfigureAwait(false);
+            this.logger.Info("Successfully moved files for torrent {0} to '{1}'", torrentId, newSavePath);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to move files for torrent {0} to '{1}'", torrentId, newSavePath);
+            throw;
+        }
+    }
+
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
     {
         if (this.engine != null)
