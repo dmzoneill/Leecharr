@@ -21,6 +21,28 @@ namespace Leecharr.Api.V1.UTorrent;
 public class UTorrentWebUiController : ControllerBase
 {
     private const string UtorrentToken = "LEECHARR_UTORRENT_AUTH_TOKEN";
+    private static readonly HashSet<string> MutatingActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "add-url",
+        "add-file",
+        "start",
+        "unpause",
+        "forcestart",
+        "stop",
+        "pause",
+        "remove",
+        "removedata",
+        "removedatatorrent",
+        "recheck",
+        "setprio",
+        "setprops",
+        "queueup",
+        "queuedown",
+        "queuetop",
+        "queuebottom",
+        "setsetting",
+    };
+
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -67,6 +89,11 @@ public class UTorrentWebUiController : ControllerBase
     {
         if (!string.IsNullOrWhiteSpace(action))
         {
+            if (MutatingActions.Contains(action) && !HttpMethods.IsPost(this.Request.Method))
+            {
+                return this.StatusCode(StatusCodes.Status405MethodNotAllowed, "State-mutating actions must be performed using HTTP POST.");
+            }
+
             var targetCategory = label ?? (this.Request.HasFormContentType ? this.Request.Form["label"].ToString() : null);
             var targetDir = download_dir ?? path ?? (this.Request.HasFormContentType ? (this.Request.Form["download_dir"].ToString() ?? this.Request.Form["path"].ToString()) : null);
 
