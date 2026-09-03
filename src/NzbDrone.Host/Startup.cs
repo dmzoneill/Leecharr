@@ -53,6 +53,9 @@ public class Startup
         services.AddDataProtection();
         services.AddHttpClient();
         services.AddSingleton<Leecharr.Http.Terminal.IPtyTerminalService, Leecharr.Http.Terminal.PtyTerminalService>();
+        services.AddScoped<Leecharr.Http.Authentication.ICookieSessionManager, Leecharr.Http.Authentication.CookieSessionManager>();
+        services.AddScoped<Leecharr.Http.Authentication.CookieSessionAuthenticationEvents>();
+        services.AddSingleton<NzbDrone.Core.Authentication.ISessionCleanupTask, NzbDrone.Core.Authentication.SessionCleanupTask>();
 
         var configFileProvider = this.container.Resolve<IConfigFileProvider>();
         if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
@@ -114,6 +117,15 @@ public class Startup
             options.SlidingExpiration = true;
             options.LoginPath = "/login";
             options.AccessDeniedPath = "/login?accessDenied=true";
+            options.EventsType = typeof(Leecharr.Http.Authentication.CookieSessionAuthenticationEvents);
+            options.Events.OnValidatePrincipal = async ctx =>
+            {
+                var manager = ctx.HttpContext.RequestServices.GetService<Leecharr.Http.Authentication.ICookieSessionManager>();
+                if (manager != null)
+                {
+                    await manager.ValidatePrincipal(ctx);
+                }
+            };
             options.Events.OnRedirectToLogin = ctx =>
             {
                 if (ctx.Request.Path.StartsWithSegments("/api") ||
