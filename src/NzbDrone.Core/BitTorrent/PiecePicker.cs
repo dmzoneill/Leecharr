@@ -50,9 +50,19 @@ public class PiecePicker
 
     public PiecePicker(int pieceCount, int pieceLength, long totalSize, TimeSpan? requestTimeout = null)
     {
-        if (pieceCount < 0)
+        if (pieceCount <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(pieceCount), "Piece count cannot be negative.");
+            throw new ArgumentOutOfRangeException(nameof(pieceCount), "Piece count must be a positive integer.");
+        }
+
+        if (pieceLength <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pieceLength), "Piece length must be a positive integer.");
+        }
+
+        if (totalSize < 0)
+        {
+            throw new ArgumentException("Total size cannot be negative.", nameof(totalSize));
         }
 
         this.pieceCount = pieceCount;
@@ -69,6 +79,11 @@ public class PiecePicker
         for (var i = 0; i < pieceCount; i++)
         {
             var len = (i == pieceCount - 1) ? (int)(totalSize - ((long)i * pieceLength)) : pieceLength;
+            if (len <= 0)
+            {
+                throw new ArgumentException($"Computed piece length for piece {i} must be positive, but was {len}.");
+            }
+
             var totalBlocks = (int)Math.Ceiling((double)len / DefaultBlockSize);
 
             this.pieces[i] = new PieceState
