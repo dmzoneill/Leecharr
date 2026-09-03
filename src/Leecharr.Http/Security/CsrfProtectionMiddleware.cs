@@ -30,14 +30,16 @@ public class CsrfProtectionMiddleware
                 !HttpMethods.IsOptions(method) &&
                 !HttpMethods.IsTrace(method))
             {
-                // API keys and automated RPC clients bypass CSRF check
-                var hasApiKey = context.Request.Headers.ContainsKey("X-Api-Key") ||
-                                context.Request.Query.ContainsKey("apikey");
-                var isBasicAuth = context.Request.Headers.ContainsKey("Authorization") &&
-                                  context.Request.Headers["Authorization"].ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase);
-                var isTransmissionRpc = context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
+                // Explicit authorization headers and automated RPC clients bypass CSRF check
+                var hasExplicitAuthHeader =
+                    context.Request.Headers.ContainsKey("X-Api-Key") ||
+                    context.Request.Headers.ContainsKey("ApiKey") ||
+                    (context.Request.Headers.TryGetValue("Authorization", out var authHeader) &&
+                     (authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                      authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
+                    context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
 
-                if (!hasApiKey && !isBasicAuth && !isTransmissionRpc)
+                if (!hasExplicitAuthHeader)
                 {
                     // 1. Check Sec-Fetch-Site (Modern browser defense)
                     if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
@@ -50,9 +52,22 @@ public class CsrfProtectionMiddleware
                         return;
                     }
 
-                    // 2. Check Origin header
-                    if (context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
-                        !string.IsNullOrWhiteSpace(originHeader))
+                    // 2. Check Origin and Referer headers
+                    var hasOrigin = context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
+                                    !string.IsNullOrWhiteSpace(originHeader);
+                    var hasReferer = context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
+                                     !string.IsNullOrWhiteSpace(refererHeader);
+
+                    if (!hasOrigin && !hasReferer)
+                    {
+                        this.logger.Warn("CSRF blocked: missing both Origin and Referer headers on {0} {1}", method, context.Request.Path);
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.ContentType = "text/plain";
+                        await context.Response.WriteAsync("CSRF check failed: missing Origin and Referer.");
+                        return;
+                    }
+
+                    if (hasOrigin)
                     {
                         if (!IsOriginAllowed(originHeader.ToString(), context.Request.Host))
                         {
@@ -63,8 +78,7 @@ public class CsrfProtectionMiddleware
                             return;
                         }
                     }
-                    else if (context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
-                             !string.IsNullOrWhiteSpace(refererHeader))
+                    else if (hasReferer)
                     {
                         if (!IsOriginAllowed(refererHeader.ToString(), context.Request.Host))
                         {
@@ -89,6 +103,14 @@ public class CsrfProtectionMiddleware
             return false;
         }
 
+        int effectiveRequestPort = requestHost.Port ?? (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+        int effectiveOriginPort = uri.Port > 0 ? uri.Port : (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+
+        if (effectiveOriginPort != effectiveRequestPort)
+        {
+            return false;
+        }
+
         // If origin host matches request host
         if (string.Equals(uri.Host, requestHost.Host, StringComparison.OrdinalIgnoreCase))
         {
@@ -96,12 +118,22 @@ public class CsrfProtectionMiddleware
         }
 
         // Loopback / localhost match
-        if ((uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1") &&
-            (requestHost.Host == "localhost" || requestHost.Host == "127.0.0.1" || requestHost.Host == "::1"))
+        var isOriginLoopback = IsLoopbackHost(uri.Host);
+        var isRequestLoopback = IsLoopbackHost(requestHost.Host);
+
+        if (isOriginLoopback && isRequestLoopback)
         {
             return true;
         }
 
         return false;
+    }
+
+    private static bool IsLoopbackHost(string host)
+    {
+        return host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+               host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+               host.Equals("::1", StringComparison.OrdinalIgnoreCase) ||
+               host.Equals("[::1]", StringComparison.OrdinalIgnoreCase);
     }
 }
