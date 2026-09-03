@@ -72,7 +72,17 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
 
     public void Execute()
     {
-        _ = Task.Run(async () => await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Unhandled exception in TrackerBoost optimization task");
+            }
+        });
     }
 
     public void Dispose()
