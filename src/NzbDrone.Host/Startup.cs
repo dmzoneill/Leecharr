@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 using DryIoc;
 using Leecharr.Http.Authentication;
 using Leecharr.Http.Security;
+using Leecharr.Http.Terminal;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -302,12 +304,59 @@ public class Startup
         app.MapControllers();
         app.MapHub<MessageHub>("/signalr/messages");
 
-        app.Map("/api/v1/terminal/ws", async context =>
+        app.Use(async (context, next) =>
         {
-            var ptyService = context.RequestServices.GetRequiredService<Leecharr.Http.Terminal.IPtyTerminalService>();
-            var configService = context.RequestServices.GetRequiredService<IConfigService>();
-            await Leecharr.Http.Terminal.TerminalWebSocketHandler.HandleWebSocket(context, ptyService, configService);
+            if ((context.Request.Path == "/ws/terminal" || context.Request.Path == "/api/v1/terminal/ws") &&
+                context.WebSockets.IsWebSocketRequest)
+            {
+                var configFileProvider = context.RequestServices.GetRequiredService<IConfigFileProvider>();
+                if (configFileProvider.AuthenticationEnabled)
+                {
+                    var isAuthenticated = (context.User?.Identity?.IsAuthenticated == true) ||
+                                          RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
+
+                    if (!isAuthenticated)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("Authentication required for terminal access.");
+                        await context.Response.CompleteAsync();
+                        return;
+                    }
+                }
+
+                var ptyService = context.RequestServices.GetRequiredService<IPtyTerminalService>();
+                var configService = context.RequestServices.GetRequiredService<IConfigService>();
+                await TerminalWebSocketHandler.HandleWebSocket(context, ptyService, configService, configFileProvider);
+                return;
+            }
+
+            await next();
         });
+
+        var terminalHandler = async (HttpContext context) =>
+        {
+            var configFileProvider = context.RequestServices.GetRequiredService<IConfigFileProvider>();
+            if (configFileProvider.AuthenticationEnabled)
+            {
+                var isAuthenticated = (context.User?.Identity?.IsAuthenticated == true) ||
+                                      RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
+
+                if (!isAuthenticated)
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Authentication required for terminal access.");
+                    await context.Response.CompleteAsync();
+                    return;
+                }
+            }
+
+            var ptyService = context.RequestServices.GetRequiredService<IPtyTerminalService>();
+            var configService = context.RequestServices.GetRequiredService<IConfigService>();
+            await TerminalWebSocketHandler.HandleWebSocket(context, ptyService, configService, configFileProvider);
+        };
+
+        app.Map("/ws/terminal", terminalHandler);
+        app.Map("/api/v1/terminal/ws", terminalHandler);
 
         app.MapFallbackToFile("index.html");
     }
