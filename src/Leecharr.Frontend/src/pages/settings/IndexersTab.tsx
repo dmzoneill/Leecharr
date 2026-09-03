@@ -13,6 +13,44 @@ import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
+export function normalizeIndexerPayload(editing: Partial<IndexerDefinition>): IndexerDefinition {
+  let categories: number[] = [];
+  if (Array.isArray(editing.categories)) {
+    categories = (editing.categories as (number | string)[])
+      .map((c) => Number(c))
+      .filter((n) => !isNaN(n));
+  } else if (typeof editing.categories === "string" && (editing.categories as string).trim()) {
+    categories = (editing.categories as string)
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => !isNaN(n));
+  } else if (typeof editing.categories === "number") {
+    categories = [editing.categories];
+  }
+
+  let url = editing.url?.trim() || "";
+  if (editing.apiPath && !url.includes(editing.apiPath)) {
+    const baseUrl = url.replace(/\/+$/, "");
+    const path = editing.apiPath.replace(/^\/+/, "");
+    if (path) {
+      url = `${baseUrl}/${path}`;
+    }
+  }
+
+  const name = editing.name?.trim() || editing.indexerType || "Indexer";
+  const implementation = editing.implementation || `${editing.indexerType || "Prowlarr"}Indexer`;
+
+  return {
+    ...editing,
+    name,
+    url,
+    implementation,
+    configContract: editing.configContract || "IndexerDefinition",
+    categories,
+    enable: editing.enable ?? true,
+  } as IndexerDefinition;
+}
+
 export function IndexersTab() {
   const { showToast } = useToast();
   const { data: indexers, isLoading } = useIndexers();
@@ -42,16 +80,9 @@ export function IndexersTab() {
 
   const handleSave = () => {
     if (!editing) return;
-    const name = editing.name?.trim() || editing.indexerType || "Indexer";
-    const payload = {
-      ...editing,
-      name,
-      enable: editing.enable ?? true,
-      implementation: `${editing.indexerType || "Prowlarr"}Indexer`,
-      configContract: "IndexerDefinition",
-    };
+    const payload = normalizeIndexerPayload(editing);
     if (editing.id) {
-      updateMutation.mutate(payload as IndexerDefinition, {
+      updateMutation.mutate(payload, {
         onSuccess: () => {
           setEditing(null);
           setModalTestResult(null);
@@ -78,7 +109,8 @@ export function IndexersTab() {
   const handleModalTest = () => {
     if (!editing) return;
     setModalTestResult(null);
-    testDirectMutation.mutate(editing, {
+    const payload = normalizeIndexerPayload(editing);
+    testDirectMutation.mutate(payload, {
       onSuccess: (res) => {
         setModalTestResult(res);
       },
@@ -276,7 +308,11 @@ export function IndexersTab() {
             />
             <TextInput
               label="Categories"
-              value={editing.categories || ""}
+              value={
+                Array.isArray(editing.categories)
+                  ? editing.categories.join(",")
+                  : editing.categories || ""
+              }
               onChange={(v) => {
                 setEditing({ ...editing, categories: v });
                 setModalTestResult(null);
