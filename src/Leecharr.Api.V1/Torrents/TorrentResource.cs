@@ -54,6 +54,8 @@ public class TorrentResource : RestResource
 
     public string TrackerUrl { get; set; }
 
+    public string ErrorMessage { get; set; }
+
     public List<string> Trackers { get; set; } = new List<string>();
 
     public int? Priority { get; set; }
