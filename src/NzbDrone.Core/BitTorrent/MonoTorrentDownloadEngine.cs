@@ -974,7 +974,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return this.tasks.Values;
     }
 
-    private async void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
+    private void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.HandleTorrentStateChangedAsync(e).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error handling torrent state change");
+            }
+        });
+    }
+
+    public async Task HandleTorrentStateChangedAsync(TorrentStateChangedEventArgs e)
     {
         try
         {
@@ -994,74 +1009,101 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             AllowDht = false,
                             AllowPeerExchange = false,
                         }.ToSettings();
-                        _ = manager.UpdateSettingsAsync(strictSettings);
+                        await manager.UpdateSettingsAsync(strictSettings).ConfigureAwait(false);
                         this.logger.Info("Enforced BEP 27 restrictions for private torrent {0} after metadata received (DHT/PEX disabled)", infoHash);
                     }
                 }
 
                 if (e.NewState == TorrentState.Seeding)
                 {
-                    this.tasks.TryGetValue(torrentId, out var existingTask);
-                    var category = existingTask?.Category;
-                    var completedDir = !string.IsNullOrWhiteSpace(category)
-                        ? this.categoryService.GetSavePathForCategory(category)
-                        : (this.configService.DownloadDir ?? "/downloads");
-
-                    try
-                    {
-                        if (!string.IsNullOrWhiteSpace(completedDir) && !string.Equals(manager.SavePath, completedDir, StringComparison.OrdinalIgnoreCase))
-                        {
-                            Directory.CreateDirectory(completedDir);
-                            await manager.MoveFilesAsync(completedDir, true);
-                            this.logger.Info("Moved completed torrent files for {0} to {1}", infoHash, completedDir);
-                        }
-
-                        var targetPath = Path.Combine(manager.SavePath ?? completedDir, manager.Torrent?.Name ?? string.Empty);
-                        this.storagePathService.StripIncompleteExtensions(targetPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to move or finalize completed torrent files for {0}", infoHash);
-                    }
-
-                    var savePath = manager.SavePath ?? completedDir;
-                    this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
-                    {
-                        Id = torrentId,
-                        InfoHash = infoHash,
-                        Name = manager.Torrent?.Name ?? infoHash,
-                        Status = TorrentStatus.Seeding,
-                        Category = category,
-                        SavePath = savePath,
-                    }));
+                    await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
                 }
             }
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Error handling torrent state change");
+            this.logger.Error(ex, "Error handling torrent state change for {0}", e?.TorrentManager?.InfoHashes?.V1OrV2?.ToHex());
         }
+    }
+
+    public void OnTorrentCompleted(int torrentId, string infoHash, TorrentManager manager)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error handling torrent completion for {0}", infoHash);
+            }
+        });
+    }
+
+    public async Task OnTorrentCompletedAsync(int torrentId, string infoHash, TorrentManager manager)
+    {
+        this.tasks.TryGetValue(torrentId, out var existingTask);
+        var category = existingTask?.Category;
+        var completedDir = !string.IsNullOrWhiteSpace(category)
+            ? this.categoryService.GetSavePathForCategory(category)
+            : (this.configService.DownloadDir ?? "/downloads");
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(completedDir) && !string.Equals(manager.SavePath, completedDir, StringComparison.OrdinalIgnoreCase))
+            {
+                Directory.CreateDirectory(completedDir);
+                await manager.MoveFilesAsync(completedDir, true).ConfigureAwait(false);
+                this.logger.Info("Moved completed torrent files for {0} to {1}", infoHash, completedDir);
+            }
+
+            var targetPath = Path.Combine(manager.SavePath ?? completedDir, manager.Torrent?.Name ?? string.Empty);
+            this.storagePathService.StripIncompleteExtensions(targetPath);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to move or finalize completed torrent files for {0}", infoHash);
+        }
+
+        var savePath = manager.SavePath ?? completedDir;
+        this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
+        {
+            Id = torrentId,
+            InfoHash = infoHash,
+            Name = manager.Torrent?.Name ?? infoHash,
+            Status = TorrentStatus.Seeding,
+            Category = category,
+            SavePath = savePath,
+        }));
     }
 
     private void OnPieceHashed(object sender, PieceHashedEventArgs e)
     {
-        var manager = e.TorrentManager;
-        var infoHash = manager.InfoHashes.V1OrV2.ToHex();
-
-        Interlocked.Increment(ref this.totalPiecesHashed);
-
-        if (e.HashPassed)
+        try
         {
-            this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
-            if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
+            var manager = e.TorrentManager;
+            var infoHash = manager.InfoHashes.V1OrV2.ToHex();
+
+            Interlocked.Increment(ref this.totalPiecesHashed);
+
+            if (e.HashPassed)
             {
-                this.eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
+                this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
+                if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
+                {
+                    this.eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
+                }
+            }
+            else
+            {
+                Interlocked.Increment(ref this.totalHashFails);
+                this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
             }
         }
-        else
+        catch (Exception ex)
         {
-            Interlocked.Increment(ref this.totalHashFails);
-            this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+            this.logger.Error(ex, "Error handling piece hashed event");
         }
     }
 
@@ -1491,6 +1533,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly Action onPeerBlocked;
     private readonly MtTorrent initialTorrent;
     private readonly object peerLock = new();
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     private bool isTrackerStalled;
     private string errorMessage;
@@ -1515,24 +1558,24 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
 
-        var t = manager?.Torrent ?? initialTorrent;
-        if (t != null && t.PieceCount > 0)
+        if (manager != null)
         {
-            this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
-            if (manager?.Bitfield != null)
+            if (manager.Torrent != null)
             {
-                for (var i = 0; i < Math.Min(manager.Bitfield.Length, t.PieceCount); i++)
+                var t = manager.Torrent;
+                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
+                if (manager.Bitfield != null)
                 {
-                    if (manager.Bitfield[i])
+                    for (var i = 0; i < Math.Min(manager.Bitfield.Length, t.PieceCount); i++)
                     {
-                        this.Picker.MarkPieceVerified(i);
+                        if (manager.Bitfield[i])
+                        {
+                            this.Picker.MarkPieceVerified(i);
+                        }
                     }
                 }
             }
-        }
 
-        if (manager != null)
-        {
             manager.TorrentStateChanged += this.OnTorrentStateChanged;
             manager.PeerConnected += this.OnPeerConnected;
             manager.PeerDisconnected += this.OnPeerDisconnected;
@@ -1553,83 +1596,111 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     private void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
     {
-        if (this.Manager?.Torrent != null && this.Picker == null)
+        try
         {
-            var t = this.Manager.Torrent;
-            this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
-            if (this.Manager.Bitfield != null)
+            if (this.Manager?.Torrent != null && this.Picker == null)
             {
-                for (var i = 0; i < Math.Min(this.Manager.Bitfield.Length, t.PieceCount); i++)
+                var t = this.Manager.Torrent;
+                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
+                if (this.Manager.Bitfield != null)
                 {
-                    if (this.Manager.Bitfield[i])
+                    for (var i = 0; i < Math.Min(this.Manager.Bitfield.Length, t.PieceCount); i++)
                     {
-                        this.Picker.MarkPieceVerified(i);
+                        if (this.Manager.Bitfield[i])
+                        {
+                            this.Picker.MarkPieceVerified(i);
+                        }
                     }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error in task OnTorrentStateChanged for torrent {0}", this.TorrentId);
         }
     }
 
     private void OnPeerConnected(object sender, PeerConnectedEventArgs e)
     {
-        var peerIp = e.Peer?.Uri?.Host;
-        if (!string.IsNullOrEmpty(peerIp) && this.blocklistService != null && this.blocklistService.IsIpBlocked(peerIp))
+        try
         {
-            this.onPeerBlocked?.Invoke();
-            try
+            var peerIp = e.Peer?.Uri?.Host;
+            if (!string.IsNullOrEmpty(peerIp) && this.blocklistService != null && this.blocklistService.IsIpBlocked(peerIp))
             {
-                (e.Peer as IDisposable)?.Dispose();
-                var connProp = e.Peer?.GetType().GetProperty("Connection", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (connProp?.GetValue(e.Peer) is IDisposable connDisp)
+                this.onPeerBlocked?.Invoke();
+                try
                 {
-                    connDisp.Dispose();
+                    (e.Peer as IDisposable)?.Dispose();
+                    var connProp = e.Peer?.GetType().GetProperty("Connection", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (connProp?.GetValue(e.Peer) is IDisposable connDisp)
+                    {
+                        connDisp.Dispose();
+                    }
                 }
-            }
-            catch
-            {
+                catch
+                {
+                }
+
+                return;
             }
 
-            return;
+            if (this.Picker != null && e.Peer?.BitField != null)
+            {
+                var bf = new bool[e.Peer.BitField.Length];
+                for (var i = 0; i < bf.Length; i++)
+                {
+                    bf[i] = e.Peer.BitField[i];
+                }
+
+                this.Picker.UpdatePeerAvailability(bf, true);
+            }
         }
-
-        if (this.Picker != null && e.Peer?.BitField != null)
+        catch (Exception ex)
         {
-            var bf = new bool[e.Peer.BitField.Length];
-            for (var i = 0; i < bf.Length; i++)
-            {
-                bf[i] = e.Peer.BitField[i];
-            }
-
-            this.Picker.UpdatePeerAvailability(bf, true);
+            this.logger.Error(ex, "Error in task OnPeerConnected for torrent {0}", this.TorrentId);
         }
     }
 
     private void OnPeerDisconnected(object sender, PeerDisconnectedEventArgs e)
     {
-        if (this.Picker != null && e.Peer?.BitField != null)
+        try
         {
-            var bf = new bool[e.Peer.BitField.Length];
-            for (var i = 0; i < bf.Length; i++)
+            if (this.Picker != null && e.Peer?.BitField != null)
             {
-                bf[i] = e.Peer.BitField[i];
-            }
+                var bf = new bool[e.Peer.BitField.Length];
+                for (var i = 0; i < bf.Length; i++)
+                {
+                    bf[i] = e.Peer.BitField[i];
+                }
 
-            this.Picker.UpdatePeerAvailability(bf, false);
+                this.Picker.UpdatePeerAvailability(bf, false);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error in task OnPeerDisconnected for torrent {0}", this.TorrentId);
         }
     }
 
     private void OnPieceHashed(object sender, PieceHashedEventArgs e)
     {
-        if (this.Picker != null)
+        try
         {
-            if (e.HashPassed)
+            if (this.Picker != null)
             {
-                this.Picker.MarkPieceVerified(e.PieceIndex);
+                if (e.HashPassed)
+                {
+                    this.Picker.MarkPieceVerified(e.PieceIndex);
+                }
+                else
+                {
+                    this.Picker.MarkPieceCorrupt(e.PieceIndex);
+                }
             }
-            else
-            {
-                this.Picker.MarkPieceCorrupt(e.PieceIndex);
-            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error in task OnPieceHashed for torrent {0}", this.TorrentId);
         }
     }
 
