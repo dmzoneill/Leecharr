@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Transmission;
@@ -51,6 +52,7 @@ public class TransmissionRpcController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
     private readonly IDiskSpaceService diskSpaceService;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public TransmissionRpcController(
@@ -58,13 +60,15 @@ public class TransmissionRpcController : ControllerBase
         ITorrentFileService torrentFileService,
         ITorrentFileParser torrentFileParser,
         IConfigService configService,
-        IDiskSpaceService diskSpaceService = null)
+        IDiskSpaceService diskSpaceService = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
         this.torrentFileParser = torrentFileParser;
         this.configService = configService;
         this.diskSpaceService = diskSpaceService;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -270,8 +274,7 @@ public class TransmissionRpcController : ControllerBase
                                 }
                                 else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                                    var bytes = await httpClient.GetByteArrayAsync(fn);
+                                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn);
                                     var parsed = this.torrentFileParser.Parse(bytes);
                                     addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
                                 }
