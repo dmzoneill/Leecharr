@@ -90,5 +90,7 @@ public class TorrentEngineMetrics
 
     public int TcpConnectionsCount { get; set; }
 
+    public long BlockedPeersCount { get; set; }
+
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

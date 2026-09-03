@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using DryIoc;
 using Leecharr.Http.Authentication;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -220,6 +221,9 @@ public class Startup
         });
 
         app.UseCors();
+
+        app.UseMiddleware<HostHeaderValidationMiddleware>();
+        app.UseMiddleware<CsrfProtectionMiddleware>();
 
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions

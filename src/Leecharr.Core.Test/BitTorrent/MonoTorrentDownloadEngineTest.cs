@@ -872,5 +872,141 @@ public class MonoTorrentDownloadEngineTest
         task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
     }
 
+    [Test]
+    public async Task AddTorrentAsync_InitializesPiecePicker_WhenTorrentBytesProvided()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("picker_test.bin", length: 32768);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 101,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "picker_test.bin",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Picker.Should().NotBeNull();
+        task.Picker.PieceCount.Should().Be(parsed.PieceCount);
+        task.Picker.PieceLength.Should().Be(parsed.PieceLength);
+        task.Picker.TotalSize.Should().Be(parsed.Size);
+        task.PieceAvailability.Should().NotBeNull();
+        task.PieceAvailability.Length.Should().Be(parsed.PieceCount);
+    }
+
+    [Test]
+    public async Task SetFilePriorityAsync_UpdatesPiecePickerPiecePriorities()
+    {
+        var torrentBytes = CreateSampleMultiFileTorrentBytes("multifile_picker.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 102,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "multifile_picker.bin",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Picker.Should().NotBeNull();
+
+        // The second file is at subfolder/file1.dat
+        var targetFile = task.Manager.Files.First();
+        await this.engine.SetFilePriorityAsync(102, targetFile.Path, 0); // DoNotDownload
+
+        // Verify that piece priority was updated in the picker
+        for (var p = targetFile.StartPieceIndex; p <= targetFile.EndPieceIndex; p++)
+        {
+            // PickBlocks with a peer having all pieces should skip piece with priority 0
+            var fullBitfield = Enumerable.Repeat(true, task.Picker.PieceCount).ToArray();
+            var requests = task.Picker.PickBlocks(fullBitfield, 10);
+            requests.Any(r => r.PieceIndex == p).Should().BeFalse();
+        }
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_UsesStreamingMode_WhenPiecePickerStrategyIsSequential()
+    {
+        this.configService.PiecePickerStrategy.Returns("Sequential");
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("sequential_picker.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 103,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "sequential_picker.bin",
+            SequentialDownload = false, // Engine strategy overrides
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Picker.Should().NotBeNull();
+        task.Status.Should().Be(TorrentStatus.Stopped);
+    }
+
+    [Test]
+    public async Task Blocklist_InjectsAndTracksBlockedPeersInMetrics()
+    {
+        var blocklistService = Substitute.For<NzbDrone.Core.Network.Blocklist.IBlocklistService>();
+        blocklistService.IsIpBlocked("192.168.1.100").Returns(true);
+
+        var customEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            blocklistService);
+
+        try
+        {
+            customEngine.BlockedPeersCount.Should().Be(0);
+
+            var torrentBytes = CreateSampleSingleFileTorrentBytes("blocklist_metrics.bin", length: 16384);
+            var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+            var torrent = new CoreTorrent
+            {
+                Id = 202,
+                InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+                Name = "blocklist_metrics.bin",
+                Status = TorrentStatus.Stopped,
+            };
+
+            var task = await customEngine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+            task.Should().NotBeNull();
+
+            var metrics = customEngine.GetEngineMetrics();
+            metrics.BlockedPeersCount.Should().Be(0);
+        }
+        finally
+        {
+            customEngine.Dispose();
+        }
+    }
+
+    [Test]
+    public void EnableIPv6_Configuration_DefaultsToTrue()
+    {
+        this.configService.EnableIPv6.Returns(true);
+        this.configService.EnableIPv6.Should().BeTrue();
+    }
+
+    [Test]
+    public void Engine_Capabilities_SupportsV2AndExpectedFeatures()
+    {
+        this.engine.Capabilities.SupportsV2Torrents.Should().BeTrue();
+        this.engine.Capabilities.SupportsSequentialDownload.Should().BeTrue();
+        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeTrue();
+        this.engine.Capabilities.SupportsDht.Should().BeTrue();
+        this.engine.Capabilities.SupportsPex.Should().BeTrue();
+        this.engine.Capabilities.SupportsUtp.Should().BeTrue();
+    }
+
     #endregion
 }

@@ -11,6 +11,8 @@ public class NetworkConfigResource : RestResource
 
     public bool UpnpEnabled { get; set; }
 
+    public bool EnableIPv6 { get; set; } = true;
+
     public string BindInterface { get; set; }
 
     public bool EnableVpnKillSwitch { get; set; }
@@ -52,6 +54,7 @@ public static class NetworkConfigResourceMapper
         {
             ListeningPort = model.ListeningPort,
             UpnpEnabled = model.UpnpEnabled,
+            EnableIPv6 = model.EnableIPv6,
             BindInterface = model.BindInterface,
             EnableVpnKillSwitch = model.EnableVpnKillSwitch,
             MaxGlobalConnections = model.MaxGlobalConnections,

@@ -46,6 +46,12 @@ public class GeneralConfigResource : RestResource
     public string SslCertPassword { get; set; }
 
     public bool RedirectHttpToHttps { get; set; }
+
+    public bool CsrfProtectionEnabled { get; set; } = true;
+
+    public bool HostHeaderValidationEnabled { get; set; } = false;
+
+    public string AllowedHosts { get; set; } = string.Empty;
 }
 
 public static class GeneralConfigResourceMapper
@@ -76,6 +82,9 @@ public static class GeneralConfigResourceMapper
             SslKeyPath = fileProvider.SslKeyPath,
             SslCertPassword = string.IsNullOrEmpty(fileProvider.SslCertPassword) ? string.Empty : "********",
             RedirectHttpToHttps = fileProvider.RedirectHttpToHttps,
+            CsrfProtectionEnabled = config.CsrfProtectionEnabled,
+            HostHeaderValidationEnabled = config.HostHeaderValidationEnabled,
+            AllowedHosts = config.AllowedHosts,
         };
     }
 }

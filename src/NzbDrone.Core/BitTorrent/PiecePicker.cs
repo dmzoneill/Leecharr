@@ -323,4 +323,14 @@ public class PiecePicker
             return (double)verifiedCount / this.pieceCount;
         }
     }
+
+    public int[] GetAvailability()
+    {
+        lock (this.syncLock)
+        {
+            var result = new int[this.pieceCount];
+            Array.Copy(this.swarmAvailability, result, this.pieceCount);
+            return result;
+        }
+    }
 }
