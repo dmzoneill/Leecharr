@@ -274,6 +274,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
         => Volatile.Read(ref this.activeEngine).SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
 
+    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+        => Volatile.Read(ref this.activeEngine).MoveTorrentFilesAsync(torrentId, newSavePath);
+
     public IDownloadTask GetTask(int torrentId)
         => Volatile.Read(ref this.activeEngine).GetTask(torrentId);
 

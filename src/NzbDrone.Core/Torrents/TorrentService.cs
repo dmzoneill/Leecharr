@@ -899,4 +899,44 @@ public class TorrentService : ITorrentService
             this.logger.Info("Set super seeding for torrent {0} ({1}): {2}", id, torrent.Name, enabled);
         }
     }
+
+    public async Task SetLocationAsync(int id, string newSavePath, bool moveFiles = true)
+    {
+        if (string.IsNullOrWhiteSpace(newSavePath))
+        {
+            throw new ArgumentException("New save path must not be empty.", nameof(newSavePath));
+        }
+
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent == null)
+        {
+            this.logger.Warn("Cannot set location for torrent id {0}: torrent not found", id);
+            return;
+        }
+
+        var oldSavePath = torrent.SavePath;
+        if (string.Equals(oldSavePath, newSavePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (moveFiles && this.downloadEngine != null)
+        {
+            this.logger.Info("Moving files for torrent {0} ({1}) from '{2}' to '{3}'", torrent.Id, torrent.Name, oldSavePath, newSavePath);
+            try
+            {
+                await this.downloadEngine.MoveTorrentFilesAsync(id, newSavePath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to move files in download engine for torrent {0} to '{1}'", torrent.Id, newSavePath);
+                throw;
+            }
+        }
+
+        torrent.SavePath = newSavePath;
+        this.torrentRepository.Update(torrent);
+        this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        this.logger.Info("Updated save path for torrent {0} ({1}) to '{2}' (moved={3})", torrent.Id, torrent.Name, newSavePath, moveFiles);
+    }
 }
