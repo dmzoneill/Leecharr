@@ -238,6 +238,8 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
     }
 
+    public bool IsHaltedByKillSwitch => Volatile.Read(ref this.activeEngine)?.IsHaltedByKillSwitch ?? false;
+
     public Task StartAsync() => Volatile.Read(ref this.activeEngine).StartAsync();
 
     public Task StopAsync() => Volatile.Read(ref this.activeEngine).StopAsync();
