@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
@@ -14,7 +16,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Synology;
 
-[AllowAnonymous]
 [ApiController]
 public class SynologyDownloadStationController : ControllerBase
 {
@@ -23,20 +24,50 @@ public class SynologyDownloadStationController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SynologyDownloadStationController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
     }
 
+    private bool IsSynologyAuthenticated()
+    {
+        if (this.configFileProvider != null && !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        var sid = this.Request.Query["_sid"].ToString();
+        if (string.IsNullOrEmpty(sid))
+        {
+            sid = this.Request.Cookies["id"];
+        }
+
+        if (!string.IsNullOrEmpty(sid) && string.Equals(sid, SynologySid, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    [AllowAnonymous]
     [HttpGet]
     [HttpPost]
     [Route("webapi/query.cgi")]
@@ -60,18 +91,33 @@ public class SynologyDownloadStationController : ControllerBase
         });
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [HttpPost]
     [Route("webapi/auth.cgi")]
     [Route("webapi/auth")]
-    public IActionResult Auth([FromQuery] string api, [FromQuery] string method)
+    public IActionResult Auth([FromQuery] string api, [FromQuery] string method, [FromQuery] string account = null, [FromQuery] string passwd = null)
     {
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
+        {
+            var masterKey = this.configFileProvider.ApiKey;
+            var isAuth = (!string.IsNullOrWhiteSpace(masterKey) &&
+                          (string.Equals(passwd, masterKey, StringComparison.Ordinal) ||
+                           string.Equals(account, masterKey, StringComparison.Ordinal))) ||
+                         RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+
+            if (!isAuth)
+            {
+                return this.Ok(new { success = false, error = new { code = 400 } });
+            }
+        }
+
         return this.Ok(new
         {
             success = true,
             data = new
             {
-                sid = SynologySid
+                sid = SynologySid,
             },
         });
     }
@@ -81,6 +127,11 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/DownloadStation/info.cgi")]
     public IActionResult Info([FromQuery] string method)
     {
+        if (!this.IsSynologyAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         return this.Ok(new
         {
             success = true,
@@ -88,7 +139,7 @@ public class SynologyDownloadStationController : ControllerBase
             {
                 version = 3890,
                 version_string = "3.8-3890",
-                is_manager = true
+                is_manager = true,
             },
         });
     }
@@ -98,6 +149,11 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/DownloadStation/statistic.cgi")]
     public IActionResult Statistic([FromQuery] string method)
     {
+        if (!this.IsSynologyAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         var all = this.torrentService.GetAll().ToList();
         return this.Ok(new
         {
@@ -107,7 +163,7 @@ public class SynologyDownloadStationController : ControllerBase
                 speed_download = all.Sum(t => t.DownloadSpeed),
                 speed_upload = all.Sum(t => t.UploadSpeed),
                 emule_speed_download = 0,
-                emule_speed_upload = 0
+                emule_speed_upload = 0,
             },
         });
     }
@@ -124,6 +180,11 @@ public class SynologyDownloadStationController : ControllerBase
         [FromQuery] string url,
         [FromQuery] string destination)
     {
+        if (!this.IsSynologyAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
         if (string.Equals(api, "SYNO.DSM.Info", StringComparison.OrdinalIgnoreCase))
         {
             return this.Ok(new

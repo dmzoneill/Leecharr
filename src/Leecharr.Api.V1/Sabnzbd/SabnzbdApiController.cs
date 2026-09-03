@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
@@ -14,7 +16,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Sabnzbd;
 
-[AllowAnonymous]
 [ApiController]
 public class SabnzbdApiController : ControllerBase
 {
@@ -22,18 +23,21 @@ public class SabnzbdApiController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SabnzbdApiController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
-        IConfigService configService)
+        IConfigService configService,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpGet]
@@ -55,6 +59,14 @@ public class SabnzbdApiController : ControllerBase
         var formCat = this.Request.HasFormContentType ? this.Request.Form["cat"].ToString() : string.Empty;
 
         var effectiveMode = (!string.IsNullOrWhiteSpace(mode) ? mode : formMode).ToLowerInvariant();
+
+        if (effectiveMode != "version")
+        {
+            if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+            {
+                return this.StatusCode(StatusCodes.Status401Unauthorized, new { status = false, error = "API Key Incorrect" });
+            }
+        }
 
         switch (effectiveMode)
         {

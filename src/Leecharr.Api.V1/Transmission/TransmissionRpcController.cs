@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -41,7 +42,6 @@ public class TransmissionRpcResponse
     public object Tag { get; set; }
 }
 
-[AllowAnonymous]
 [ApiController]
 [Route("transmission/rpc")]
 public class TransmissionRpcController : ControllerBase
@@ -53,6 +53,7 @@ public class TransmissionRpcController : ControllerBase
     private readonly IConfigService configService;
     private readonly IDiskSpaceService diskSpaceService;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public TransmissionRpcController(
@@ -61,7 +62,8 @@ public class TransmissionRpcController : ControllerBase
         ITorrentFileParser torrentFileParser,
         IConfigService configService,
         IDiskSpaceService diskSpaceService = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -69,11 +71,18 @@ public class TransmissionRpcController : ControllerBase
         this.configService = configService;
         this.diskSpaceService = diskSpaceService;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpGet]
     public IActionResult HandleGet()
     {
+        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Transmission\"";
+            return this.Unauthorized();
+        }
+
         if (!this.Request.Headers.TryGetValue(SessionHeaderName, out var sessionVal) || string.IsNullOrEmpty(sessionVal))
         {
             var newSessionId = Guid.NewGuid().ToString("N");
@@ -96,6 +105,12 @@ public class TransmissionRpcController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] TransmissionRpcRequest request = null)
     {
+        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Transmission\"";
+            return this.Unauthorized();
+        }
+
         // 1. Transmission CSRF token check
         if (!this.Request.Headers.TryGetValue(SessionHeaderName, out var sessionVal) || string.IsNullOrEmpty(sessionVal))
         {

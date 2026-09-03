@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.UTorrent;
 
-[AllowAnonymous]
 [ApiController]
 public class UTorrentWebUiController : ControllerBase
 {
@@ -50,6 +50,7 @@ public class UTorrentWebUiController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public UTorrentWebUiController(
@@ -58,7 +59,8 @@ public class UTorrentWebUiController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -66,12 +68,19 @@ public class UTorrentWebUiController : ControllerBase
         this.categoryService = categoryService;
         this.configService = configService;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.configFileProvider = configFileProvider;
     }
 
     [HttpGet]
     [Route("gui/token.html")]
     public IActionResult GetToken()
     {
+        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"uTorrent\"";
+            return this.Unauthorized();
+        }
+
         this.Response.Cookies.Append("GUID", "leecharr-guid-cookie", new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
         var html = $"<html><div id=\"token\">{UtorrentToken}</div></html>";
         return this.Content(html, "text/html", Encoding.UTF8);
@@ -91,6 +100,12 @@ public class UTorrentWebUiController : ControllerBase
         [FromQuery] string download_dir,
         [FromQuery] string token)
     {
+        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"uTorrent\"";
+            return this.Unauthorized();
+        }
+
         if (!string.IsNullOrWhiteSpace(action))
         {
             if (MutatingActions.Contains(action) && !HttpMethods.IsPost(this.Request.Method))
