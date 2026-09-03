@@ -21,6 +21,7 @@ public class UTorrentWebUiControllerTest
     private ITorrentFileParser torrentFileParser = null!;
     private ICategoryService categoryService = null!;
     private IConfigService configService = null!;
+    private IConfigFileProvider configFileProvider = null!;
     private UTorrentWebUiController controller = null!;
 
     [SetUp]
@@ -31,13 +32,16 @@ public class UTorrentWebUiControllerTest
         this.torrentFileParser = Substitute.For<ITorrentFileParser>();
         this.categoryService = Substitute.For<ICategoryService>();
         this.configService = Substitute.For<IConfigService>();
+        this.configFileProvider = Substitute.For<IConfigFileProvider>();
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
 
         this.controller = new UTorrentWebUiController(
             this.torrentService,
             this.torrentFileService,
             this.torrentFileParser,
             this.categoryService,
-            this.configService);
+            this.configService,
+            this.configFileProvider);
     }
 
     [TestCase("removedata")]

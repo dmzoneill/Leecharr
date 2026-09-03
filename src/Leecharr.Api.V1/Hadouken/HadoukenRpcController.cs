@@ -1,12 +1,15 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
@@ -26,26 +29,55 @@ public class HadoukenRpcRequest
     public object Id { get; set; } = 1;
 }
 
-[AllowAnonymous]
 [ApiController]
 public class HadoukenRpcController : ControllerBase
 {
+    private static readonly ConcurrentDictionary<string, DateTime> AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ITorrentFileService torrentFileService;
     private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public HadoukenRpcController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         IConfigService configService,
-        ITorrentFileService torrentFileService = null)
+        ITorrentFileService torrentFileService = null,
+        IConfigFileProvider configFileProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.configService = configService;
         this.torrentFileService = torrentFileService;
+        this.configFileProvider = configFileProvider;
+    }
+
+    private bool IsHadoukenAuthenticated()
+    {
+        if (this.configFileProvider != null && !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        var token = this.Request.Headers["X-Hadouken-Token"].ToString();
+        if (string.IsNullOrEmpty(token))
+        {
+            token = this.Request.Query["token"].ToString();
+        }
+
+        if (!string.IsNullOrEmpty(token) && AuthenticatedSessions.TryGetValue(token, out var exp) && exp > DateTime.UtcNow)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     [HttpPost]
@@ -65,7 +97,44 @@ public class HadoukenRpcController : ControllerBase
 
         try
         {
-            switch (request.Method.ToLowerInvariant())
+            var lowerMethod = request.Method.ToLowerInvariant();
+
+            if (lowerMethod == "auth.generate_token" || lowerMethod == "auth.login")
+            {
+                var password = string.Empty;
+                if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0 &&
+                    request.Params[0].ValueKind == JsonValueKind.String)
+                {
+                    password = request.Params[0].GetString();
+                }
+
+                var success = false;
+                if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
+                {
+                    success = true;
+                }
+                else if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                         string.Equals(password, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                {
+                    success = true;
+                }
+
+                if (success)
+                {
+                    var token = Guid.NewGuid().ToString("N");
+                    AuthenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
+                    return this.Ok(new { result = token, error = (object)null, id });
+                }
+
+                return this.Ok(new { result = (object)null, error = "Invalid credentials", id });
+            }
+
+            if (!this.IsHadoukenAuthenticated())
+            {
+                return this.StatusCode(StatusCodes.Status401Unauthorized, new { result = (object)null, error = "Unauthorized", id });
+            }
+
+            switch (lowerMethod)
             {
                 case "core.getsysteminfo":
                 case "core.get_system_info":
