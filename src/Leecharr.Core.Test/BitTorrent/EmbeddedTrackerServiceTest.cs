@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
 using NSubstitute;
@@ -27,6 +29,12 @@ public class EmbeddedTrackerServiceTest
         this.configService.TrackerPrivateMode.Returns(false);
 
         this.trackerService = new EmbeddedTrackerService(this.configService);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        this.trackerService?.Dispose();
     }
 
     [Test]
@@ -78,7 +86,7 @@ public class EmbeddedTrackerServiceTest
     }
 
     [Test]
-    public void ProcessAnnounce_StoppedEvent_RemovesPeerFromSwarm()
+    public void ProcessAnnounce_StoppedEvent_RemovesPeerAndPrunesEmptySwarm()
     {
         var infoHash = new byte[20];
         infoHash[0] = 42;
@@ -92,6 +100,7 @@ public class EmbeddedTrackerServiceTest
         };
         this.trackerService.ProcessAnnounce(startReq);
         this.trackerService.ActivePeersCount.Should().Be(1);
+        this.trackerService.ActiveSwarmsCount.Should().Be(1);
 
         var stopReq = new TrackerAnnounceRequest
         {
@@ -102,6 +111,7 @@ public class EmbeddedTrackerServiceTest
         };
         this.trackerService.ProcessAnnounce(stopReq);
         this.trackerService.ActivePeersCount.Should().Be(0);
+        this.trackerService.ActiveSwarmsCount.Should().Be(0);
     }
 
     [Test]
@@ -137,9 +147,12 @@ public class EmbeddedTrackerServiceTest
     {
         this.configService.TrackerPrivateMode.Returns(true);
 
+        var infoHash = new byte[20];
+        infoHash[0] = 1;
+
         var req = new TrackerAnnounceRequest
         {
-            InfoHashBytes = new byte[20],
+            InfoHashBytes = infoHash,
             RemoteIp = IPAddress.Loopback,
             Port = 6881,
         };
@@ -147,5 +160,278 @@ public class EmbeddedTrackerServiceTest
         var bytes = this.trackerService.ProcessAnnounce(req);
         var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
         dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Be("Torrent not registered on this private tracker.");
+    }
+
+    [Test]
+    public void ProcessAnnounce_InvalidInfoHash_MissingHash_ReturnsFailure()
+    {
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = null,
+            InfoHashHex = null,
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("Missing info_hash");
+    }
+
+    [TestCase(0)]
+    [TestCase(10)]
+    [TestCase(19)]
+    [TestCase(21)]
+    [TestCase(32)]
+    public void ProcessAnnounce_InvalidInfoHash_InvalidByteLength_ReturnsFailure(int byteLength)
+    {
+        var infoHash = new byte[byteLength];
+        if (byteLength > 0)
+        {
+            infoHash[0] = 0xAA;
+        }
+
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 20 bytes");
+    }
+
+    [TestCase("1234")]
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 38 chars
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 42 chars
+    public void ProcessAnnounce_InvalidInfoHash_InvalidHexLength_ReturnsFailure(string invalidHex)
+    {
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = invalidHex,
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 40 characters");
+    }
+
+    [Test]
+    public void ProcessAnnounce_InvalidInfoHash_MalformedHexCharacters_ReturnsFailure()
+    {
+        // 40 characters containing invalid non-hex characters 'Z'
+        var invalidHex = new string('Z', 40);
+
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = invalidHex,
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("malformed hex");
+    }
+
+    [Test]
+    public void ProcessAnnounce_InvalidInfoHash_AllZeroBytes_ReturnsFailure()
+    {
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = new byte[20], // 20 null bytes
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("null hash");
+    }
+
+    [Test]
+    public void ProcessAnnounce_InvalidInfoHash_AllZeroHex_ReturnsFailure()
+    {
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = new string('0', 40),
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("null hash");
+    }
+
+    [Test]
+    public void ProcessAnnounce_InvalidInfoHash_MismatchedBytesAndHex_ReturnsFailure()
+    {
+        var hash1 = new byte[20];
+        hash1[0] = 1;
+        var hash2 = new byte[20];
+        hash2[0] = 2;
+
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = hash1,
+            InfoHashHex = Convert.ToHexString(hash2),
+            RemoteIp = IPAddress.Loopback,
+            Port = 6881,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("do not match");
+    }
+
+    [Test]
+    public void PruneInactivePeers_RemovesExpiredPeersAndEmptySwarms()
+    {
+        var hash1 = new byte[20];
+        hash1[0] = 1;
+
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = hash1,
+            RemoteIp = IPAddress.Parse("10.10.10.10"),
+            Port = 6881,
+            Left = 100,
+        };
+
+        this.trackerService.ProcessAnnounce(req);
+        this.trackerService.ActiveSwarmsCount.Should().Be(1);
+        this.trackerService.ActivePeersCount.Should().Be(1);
+
+        // Pruning with zero timeout forces immediate expiration of all peers
+        this.trackerService.PruneInactivePeers(TimeSpan.Zero);
+
+        this.trackerService.ActivePeersCount.Should().Be(0);
+        this.trackerService.ActiveSwarmsCount.Should().Be(0);
+    }
+
+    [Test]
+    public void ProcessAnnounce_SwarmLimitReached_PrunesLeastRecentlyActiveEmptySwarm()
+    {
+        this.trackerService.MaxSwarms = 2;
+
+        var hex1 = "1111111111111111111111111111111111111111";
+        var hex2 = "2222222222222222222222222222222222222222";
+        var hex3 = "3333333333333333333333333333333333333333";
+
+        // Register swarm 1 first (older)
+        this.trackerService.RegisterSwarm(hex1);
+        Thread.Sleep(20);
+
+        // Register swarm 2 second (newer)
+        this.trackerService.RegisterSwarm(hex2);
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+
+        // Now announce to swarm 3 (new swarm). Capacity is full (2/2), but empty swarms exist.
+        // Swarm 1 is least-recently active, so it should be pruned to make room for swarm 3.
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex3,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 0,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeFalse();
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+
+        // Verify scrape contains hex2 and hex3, but not hex1
+        var scrape = this.trackerService.ProcessScrape(new List<byte[]>
+        {
+            Convert.FromHexString(hex1),
+            Convert.FromHexString(hex2),
+            Convert.FromHexString(hex3),
+        });
+        var scrapeDict = (BEncodedDictionary)BEncodedValue.Decode(scrape);
+        var files = (BEncodedDictionary)scrapeDict["files"];
+        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex1))).Should().BeFalse();
+        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex2))).Should().BeTrue();
+        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex3))).Should().BeTrue();
+    }
+
+    [Test]
+    public void ProcessAnnounce_SwarmLimitReached_AllSwarmsActive_RejectsNewSwarm()
+    {
+        this.trackerService.MaxSwarms = 2;
+
+        var hash1 = new byte[20];
+        hash1[0] = 1;
+        var hash2 = new byte[20];
+        hash2[0] = 2;
+        var hash3 = new byte[20];
+        hash3[0] = 3;
+
+        // Swarm 1 has active peer
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = hash1,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 100,
+        });
+
+        // Swarm 2 has active peer
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = hash2,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            Left = 100,
+        });
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+        this.trackerService.ActivePeersCount.Should().Be(2);
+
+        // Attempting to announce to a 3rd swarm when capacity is 2 and all are active
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = hash3,
+            RemoteIp = IPAddress.Parse("10.0.0.3"),
+            Port = 6883,
+            Left = 100,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Be("Tracker swarm limit reached.");
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+    }
+
+    [Test]
+    public void RegisterSwarm_RejectsMalformedAndNullHashes()
+    {
+        this.trackerService.RegisterSwarm(null);
+        this.trackerService.RegisterSwarm(string.Empty);
+        this.trackerService.RegisterSwarm("not_a_hex");
+        this.trackerService.RegisterSwarm(new string('0', 40)); // null hash
+        this.trackerService.RegisterSwarm(new string('A', 38)); // too short
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(0);
+
+        // Valid hash works
+        this.trackerService.RegisterSwarm("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        this.trackerService.ActiveSwarmsCount.Should().Be(1);
     }
 }
