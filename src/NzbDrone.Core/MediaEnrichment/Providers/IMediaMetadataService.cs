@@ -11,4 +11,6 @@ public interface IMediaMetadataService
     string ActiveProviderId { get; }
 
     Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null);
+
+    Task<MediaMetadata> GetMetadataAsync(string title, string category = null, int? year = null) => FetchMetadataAsync(title, category, year);
 }
