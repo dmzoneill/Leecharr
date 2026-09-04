@@ -4,15 +4,36 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class TorrentResourceMetrics
 {
+    private string infoHash = string.Empty;
+    private string name = string.Empty;
+    private string category = string.Empty;
+    private string status = "Stopped";
+
     public int TorrentId { get; set; }
 
-    public string InfoHash { get; set; } = string.Empty;
+    public string InfoHash
+    {
+        get => this.infoHash;
+        set => this.infoHash = value ?? string.Empty;
+    }
 
-    public string Name { get; set; } = string.Empty;
+    public string Name
+    {
+        get => this.name;
+        set => this.name = value ?? string.Empty;
+    }
 
-    public string Category { get; set; } = string.Empty;
+    public string Category
+    {
+        get => this.category;
+        set => this.category = value ?? string.Empty;
+    }
 
-    public string Status { get; set; } = "Stopped";
+    public string Status
+    {
+        get => this.status;
+        set => this.status = value ?? "Stopped";
+    }
 
     public double Progress { get; set; }
 
