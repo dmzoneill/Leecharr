@@ -47,6 +47,27 @@ function timeToHour(time: string): number {
   return h + (m || 0) / 60;
 }
 
+export function isHourInSchedule(s: SpeedScheduleEntry, hour: number, dayValue: number): boolean {
+  if (!s.isEnabled) return false;
+  const startH = timeToHour(s.startTime);
+  const endH = timeToHour(s.endTime);
+
+  if (startH <= endH) {
+    return (s.days & dayValue) !== 0 && startH <= hour && endH > hour;
+  }
+
+  // Overnight schedule spanning midnight:
+  // 1) Evening portion on current day (>= startH)
+  if (hour >= startH && (s.days & dayValue) !== 0) return true;
+  // 2) Morning portion from previous day (< endH)
+  // Days bitflags: Sunday=1, Monday=2, Tuesday=4, Wednesday=8, Thursday=16, Friday=32, Saturday=64
+  // Previous day of Sunday (1) is Saturday (64). For other days, dayValue >> 1.
+  const prevDayValue = dayValue === 1 ? 64 : dayValue >> 1;
+  if (hour < endH && (s.days & prevDayValue) !== 0) return true;
+
+  return false;
+}
+
 const EMPTY_SCHEDULE: Omit<SpeedScheduleEntry, "id"> = {
   name: "",
   days: 127,
@@ -380,13 +401,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
               {String(hour).padStart(2, "0")}:00
             </div>
             {DAY_FLAGS.map((day) => {
-              const active = schedules.filter(
-                (s) =>
-                  s.isEnabled &&
-                  s.days & day.value &&
-                  timeToHour(s.startTime) <= hour &&
-                  timeToHour(s.endTime) > hour
-              );
+              const active = schedules.filter((s) => isHourInSchedule(s, hour, day.value));
               const top = active[0];
               return (
                 <div
