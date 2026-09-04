@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Synology;
@@ -25,6 +26,7 @@ public class SynologyDownloadStationController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SynologyDownloadStationController(
@@ -32,13 +34,15 @@ public class SynologyDownloadStationController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     private bool IsSynologyAuthenticated()
@@ -289,8 +293,7 @@ public class SynologyDownloadStationController : ControllerBase
                     }
                     else
                     {
-                        using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                        var bytes = await client.GetByteArrayAsync(targetUri);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUri, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                     }
