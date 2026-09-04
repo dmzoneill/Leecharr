@@ -570,7 +570,7 @@ public class NotificationEventHandler :
         return genericPayload;
     }
 
-    private static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload)
+    public static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
