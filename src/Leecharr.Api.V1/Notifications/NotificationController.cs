@@ -195,6 +195,26 @@ public class NotificationController : Controller
                 Message = success ? "Script executed successfully." : "Script execution failed.",
             });
         }
+        else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                NotificationEventHandler.SendEmailNotification(notif.Settings, "Test", null, null, payload);
+                return this.Ok(new NotificationTestResult
+                {
+                    Success = true,
+                    Message = "Email test notification sent successfully.",
+                });
+            }
+            catch (Exception ex)
+            {
+                return this.Ok(new NotificationTestResult
+                {
+                    Success = false,
+                    Message = $"Failed to send email test notification: {ex.Message}",
+                });
+            }
+        }
         else
         {
             var targetUrl = NotificationEventHandler.ResolveTargetUrl(notif.Implementation, notif.Settings);
