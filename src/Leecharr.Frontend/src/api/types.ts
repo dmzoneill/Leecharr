@@ -288,12 +288,15 @@ export interface Peer {
 }
 
 export interface TrackerServerStats {
-  totalTorrents: number;
-  internalTorrents: number;
-  totalPeers: number;
-  totalAnnounces: number;
-  totalScrapes: number;
-  uptime: number;
+  totalTorrents?: number;
+  activeSwarms?: number;
+  internalTorrents?: number;
+  totalPeers?: number;
+  activePeers?: number;
+  totalAnnounces?: number;
+  totalScrapes?: number;
+  uptime?: number;
+  enabled?: boolean;
 }
 
 export interface GeneralConfig {
