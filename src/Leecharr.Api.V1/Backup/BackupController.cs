@@ -8,6 +8,7 @@ using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
@@ -111,12 +112,39 @@ public class BackupController : Controller
             var zipName = $"Leecharr_backup_{timestamp}.zip";
             var zipPath = Path.Combine(targetDir, zipName);
 
+            var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
+            var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
+
+            if (global::System.IO.File.Exists(dbPath))
+            {
+                try
+                {
+                    using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+                    {
+                        conn.Open();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    SqliteConnection.ClearAllPools();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to execute SQLite WAL checkpoint on {0}", dbPath);
+                }
+            }
+
             using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
             {
-                var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
                 if (global::System.IO.File.Exists(dbPath))
                 {
                     zip.CreateEntryFromFile(dbPath, "leecharr.db");
+                }
+
+                if (global::System.IO.File.Exists(walPath))
+                {
+                    zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
                 }
 
                 var configPath = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
@@ -188,17 +216,68 @@ public class BackupController : Controller
 
         try
         {
+            // Clear active SQLite connection pools to release file locks before file replacement
+            SqliteConnection.ClearAllPools();
+
+            // Before extracting restored files, cleanly delete existing stale WAL and shared memory files
+            // so they do not conflict with the restored main database header salt.
+            var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
+            var shmPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-shm");
+
+            if (global::System.IO.File.Exists(walPath))
+            {
+                global::System.IO.File.Delete(walPath);
+            }
+
+            if (global::System.IO.File.Exists(shmPath))
+            {
+                global::System.IO.File.Delete(shmPath);
+            }
+
             using (var zip = ZipFile.OpenRead(backup.Path))
             {
                 foreach (var entry in zip.Entries)
                 {
                     var fileName = Path.GetFileName(entry.FullName);
                     if (string.Equals(fileName, "leecharr.db", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(fileName, "leecharr.db-wal", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
                     {
                         var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
                         entry.ExtractToFile(destPath, overwrite: true);
                     }
+                }
+            }
+
+            // Execute an integrity check on the restored SQLite database to verify validity
+            var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
+            if (global::System.IO.File.Exists(dbPath))
+            {
+                try
+                {
+                    using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+                    {
+                        conn.Open();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "PRAGMA integrity_check;";
+                        var checkResult = cmd.ExecuteScalar()?.ToString();
+                        if (string.Equals(checkResult, "ok", StringComparison.OrdinalIgnoreCase))
+                        {
+                            this.logger.Info("SQLite database integrity check passed for restored database at {0}", dbPath);
+                        }
+                        else
+                        {
+                            this.logger.Warn("SQLite database integrity check returned non-ok result for {0}: {1}", dbPath, checkResult);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to verify SQLite integrity check for {0}", dbPath);
+                }
+                finally
+                {
+                    SqliteConnection.ClearAllPools();
                 }
             }
 
