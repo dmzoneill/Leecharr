@@ -37,6 +37,7 @@ export interface TorrentStoreState {
   toggleSelectedId: (id: number) => void;
   selectAllIds: (ids: number[]) => void;
   clearSelection: () => void;
+  removeTorrent: (id: number) => void;
 }
 
 export const useTorrentStore = create<TorrentStoreState>((set) => ({
@@ -108,6 +109,21 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
     }),
   selectAllIds: (ids) => set({ selectedIds: new Set(ids) }),
   clearSelection: () => set({ selectedIds: new Set(), selectedTorrentId: null }),
+  removeTorrent: (id: number) =>
+    set((state) => {
+      const nextSelected = new Set(state.selectedIds);
+      nextSelected.delete(id);
+      const nextTelemetry = { ...state.telemetry };
+      delete nextTelemetry[id];
+      const nextPieceMaps = { ...state.pieceMaps };
+      delete nextPieceMaps[id];
+      return {
+        selectedIds: nextSelected,
+        selectedTorrentId: state.selectedTorrentId === id ? null : state.selectedTorrentId,
+        telemetry: nextTelemetry,
+        pieceMaps: nextPieceMaps,
+      };
+    }),
 }));
 
 export function applyTelemetry(torrent: Torrent, telemetry?: TorrentTelemetry): Torrent {

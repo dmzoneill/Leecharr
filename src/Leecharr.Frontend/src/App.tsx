@@ -292,6 +292,24 @@ export function App() {
         msg.name === "category" ||
         msg.name === "subsystemSwitched"
       ) {
+        if (msg.name === "torrentDeleted") {
+          const body = msg.body as any;
+          if (Array.isArray(body)) {
+            for (const item of body) {
+              const tid = Number(
+                typeof item === "object" && item !== null ? (item.id ?? item.torrentId) : item
+              );
+              if (!Number.isNaN(tid) && tid > 0) {
+                useTorrentStore.getState().removeTorrent(tid);
+              }
+            }
+          } else if (body !== undefined && body !== null) {
+            const tid = Number(typeof body === "object" ? (body.id ?? body.torrentId) : body);
+            if (!Number.isNaN(tid) && tid > 0) {
+              useTorrentStore.getState().removeTorrent(tid);
+            }
+          }
+        }
         refreshServerData();
       }
     });
@@ -330,6 +348,7 @@ export function App() {
 
     try {
       await api.deleteTorrent(id, deleteFiles);
+      useTorrentStore.getState().removeTorrent(id);
       showToast(deleteFiles ? "Torrent and files deleted" : "Torrent removed", "info");
       refreshServerData();
     } catch (err: any) {
