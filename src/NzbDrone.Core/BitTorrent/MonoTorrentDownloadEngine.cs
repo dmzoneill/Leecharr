@@ -1852,7 +1852,13 @@ public class MonoTorrentDownloadTask : IDownloadTask
                         !string.IsNullOrWhiteSpace(t.FailureMessage))
             .ToList();
 
-        if (failingTrackers.Count == allTrackers.Count || allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok))
+        var hasPendingTrackers = allTrackers.Any(t =>
+            t.Status is MonoTorrent.Trackers.TrackerState.Connecting
+            or MonoTorrent.Trackers.TrackerState.Unknown);
+
+        if (!hasPendingTrackers &&
+            (failingTrackers.Count == allTrackers.Count ||
+             allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok)))
         {
             var failDetails = failingTrackers
                 .Select(t => $"{t.Uri}: {(!string.IsNullOrWhiteSpace(t.FailureMessage) ? t.FailureMessage : t.Status.ToString())}")
