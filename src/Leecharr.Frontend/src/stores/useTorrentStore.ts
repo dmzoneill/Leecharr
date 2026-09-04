@@ -8,10 +8,15 @@ export interface TorrentTelemetry {
   uploaded?: number;
   downloaded?: number;
   ratio?: number;
-  eta?: string | number;
+  eta?: number;
   status?: string;
   seeders?: number;
   leechers?: number;
+}
+
+export interface PieceMapData {
+  verifiedIndices: Set<number>;
+  lastUpdated: number;
 }
 
 export interface TorrentStoreState {
@@ -19,6 +24,10 @@ export interface TorrentStoreState {
   telemetry: Record<number, TorrentTelemetry>;
   updateTelemetry: (updates: Array<{ id: number; [key: string]: any }>) => void;
   clearTelemetry: () => void;
+
+  // Real-time piece map updates per torrent ID (from pieceMapUpdated SignalR events)
+  pieceMaps: Record<number, PieceMapData>;
+  updatePieceMap: (torrentId: number, data: any) => void;
 
   // Active Selection State
   selectedTorrentId: number | null;
@@ -32,6 +41,28 @@ export interface TorrentStoreState {
 
 export const useTorrentStore = create<TorrentStoreState>((set) => ({
   telemetry: {},
+  pieceMaps: {},
+  updatePieceMap: (torrentId, data) =>
+    set((state) => {
+      const existing = state.pieceMaps[torrentId]?.verifiedIndices;
+      const verified = existing ? new Set(existing) : new Set<number>();
+      if (Array.isArray(data?.pieceIndices)) {
+        for (const idx of data.pieceIndices) {
+          verified.add(idx);
+        }
+      } else if (typeof data?.pieceIndex === "number") {
+        verified.add(data.pieceIndex);
+      }
+      return {
+        pieceMaps: {
+          ...state.pieceMaps,
+          [torrentId]: {
+            verifiedIndices: verified,
+            lastUpdated: Date.now(),
+          },
+        },
+      };
+    }),
   updateTelemetry: (updates) =>
     set((state) => {
       let changed = false;
@@ -89,7 +120,12 @@ export function applyTelemetry(torrent: Torrent, telemetry?: TorrentTelemetry): 
     uploaded: telemetry.uploaded ?? torrent.uploaded,
     downloaded: telemetry.downloaded ?? torrent.downloaded,
     ratio: telemetry.ratio ?? torrent.ratio,
-    eta: telemetry.eta ?? torrent.eta,
+    eta:
+      typeof telemetry.eta === "number"
+        ? telemetry.eta
+        : telemetry.eta
+          ? Number(telemetry.eta)
+          : torrent.eta,
     status: telemetry.status ?? torrent.status,
     seeders: telemetry.seeders ?? torrent.seeders,
     leechers: telemetry.leechers ?? torrent.leechers,

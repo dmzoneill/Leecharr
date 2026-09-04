@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Leecharr.Http.REST;
 
 namespace Leecharr.Api.V1.Torrents;
@@ -118,4 +119,16 @@ public class TorrentResource : RestResource
     public string HdrFormat { get; set; }
 
     public double? MediaRating { get; set; }
+
+    [JsonPropertyName("year")]
+    public int? Year => this.MediaYear;
+
+    [JsonPropertyName("overview")]
+    public string Overview => this.MediaOverview;
+
+    [JsonPropertyName("rating")]
+    public double? Rating => this.MediaRating;
+
+    [JsonPropertyName("fanartUrl")]
+    public string FanartUrl => this.BackdropUrl;
 }

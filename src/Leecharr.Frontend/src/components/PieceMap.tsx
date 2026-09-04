@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { formatBytes } from "../utils/formatters";
+import { useTorrentStore } from "../stores/useTorrentStore";
 
-interface PieceMapProps {
+export interface PieceMapProps {
+  torrentId?: number;
   pieceCount: number;
   pieceLength: number;
   progress: number; // 0.0 - 1.0
@@ -10,6 +12,7 @@ interface PieceMapProps {
 }
 
 export function PieceMap({
+  torrentId,
   pieceCount,
   pieceLength,
   progress,
@@ -18,6 +21,15 @@ export function PieceMap({
 }: PieceMapProps) {
   const [viewMode, setViewMode] = useState<"bar" | "grid">("bar");
   const [hoveredPiece, setHoveredPiece] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Subscribe to live SignalR piece map bitmap updates
+  const livePieceData = useTorrentStore((state) =>
+    torrentId ? state.pieceMaps[torrentId] : undefined
+  );
 
   const totalPieces = Math.max(1, pieceCount);
   const completedPieces = Math.floor(progress * totalPieces);
@@ -35,22 +47,26 @@ export function PieceMap({
 
     for (let i = 0; i < numBlocks; i++) {
       const startIdx = Math.floor(i * piecesPerBlock);
-      const endIdx = Math.min(
-        totalPieces - 1,
-        Math.floor((i + 1) * piecesPerBlock) - 1,
-      );
+      const endIdx = Math.min(totalPieces - 1, Math.floor((i + 1) * piecesPerBlock) - 1);
       const blockProgress = (i + 0.5) / numBlocks;
       let status: "complete" | "missing" | "active" = "missing";
 
-      if (progress >= 1.0 || isSeeding) {
+      // Check if any pieces in this block range are verified via live SignalR updates
+      let hasLiveVerified = false;
+      if (livePieceData?.verifiedIndices) {
+        for (let p = startIdx; p <= endIdx; p++) {
+          if (livePieceData.verifiedIndices.has(p)) {
+            hasLiveVerified = true;
+            break;
+          }
+        }
+      }
+
+      if (progress >= 1.0 || isSeeding || hasLiveVerified) {
         status = "complete";
       } else if (blockProgress <= progress) {
         status = "complete";
-      } else if (
-        blockProgress <= progress + 0.05 &&
-        progress > 0 &&
-        progress < 1
-      ) {
+      } else if (blockProgress <= progress + 0.05 && progress > 0 && progress < 1) {
         status = "active";
       }
 
@@ -62,7 +78,132 @@ export function PieceMap({
     }
 
     return blocks;
-  }, [progress, isSeeding, totalPieces]);
+  }, [progress, isSeeding, totalPieces, livePieceData]);
+
+  const blockSize = 14;
+  const gap = 3;
+
+  // Render canvas via requestAnimationFrame with DPI scaling
+  useEffect(() => {
+    if (viewMode !== "grid") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let animId: number;
+
+    const render = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const availWidth = Math.max(200, container.clientWidth - 24);
+      const cols = Math.max(1, Math.floor((availWidth + gap) / (blockSize + gap)));
+      const rows = Math.ceil(displayBlocks.length / cols);
+      const width = cols * (blockSize + gap) - gap;
+      const height = rows * (blockSize + gap) - gap;
+
+      const dpr = window.devicePixelRatio || 1;
+      if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < displayBlocks.length; i++) {
+        const b = displayBlocks[i];
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = col * (blockSize + gap);
+        const y = row * (blockSize + gap);
+
+        const isHovered = hoveredIndex === i;
+
+        if (b.status === "complete") {
+          ctx.fillStyle = isHovered ? "#2ecc71" : "#27ae60";
+          ctx.strokeStyle = "#2ecc71";
+        } else if (b.status === "active") {
+          ctx.fillStyle = isHovered ? "#60a5fa" : "#3b82f6";
+          ctx.strokeStyle = "#60a5fa";
+        } else {
+          ctx.fillStyle = isHovered ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.05)";
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+        }
+
+        const radius = 2;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === "function") {
+          (ctx as any).roundRect(x, y, blockSize, blockSize, radius);
+        } else {
+          ctx.rect(x, y, blockSize, blockSize);
+        }
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        if (isHovered) {
+          ctx.strokeStyle = "#ffd166";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === "function") {
+            (ctx as any).roundRect(x - 1, y - 1, blockSize + 2, blockSize + 2, 3);
+          } else {
+            ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
+          }
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    };
+
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [viewMode, displayBlocks, hoveredIndex]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const availWidth = Math.max(200, container.clientWidth - 24);
+    const cols = Math.max(1, Math.floor((availWidth + gap) / (blockSize + gap)));
+
+    const col = Math.floor(x / (blockSize + gap));
+    const row = Math.floor(y / (blockSize + gap));
+    const withinBlockX = x % (blockSize + gap) <= blockSize;
+    const withinBlockY = y % (blockSize + gap) <= blockSize;
+
+    if (col >= 0 && col < cols && withinBlockX && withinBlockY) {
+      const idx = row * cols + col;
+      if (idx >= 0 && idx < displayBlocks.length) {
+        setHoveredIndex(idx);
+        const b = displayBlocks[idx];
+        setHoveredPiece(b.startIndex);
+        return;
+      }
+    }
+    setHoveredIndex(null);
+    setHoveredPiece(null);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(null);
+    setHoveredPiece(null);
+  };
+
+  const hoveredBlock =
+    hoveredIndex !== null && displayBlocks[hoveredIndex] ? displayBlocks[hoveredIndex] : null;
 
   return (
     <div
@@ -88,9 +229,7 @@ export function PieceMap({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-            🧩 BitTorrent Piece Map
-          </span>
+          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>🧩 BitTorrent Piece Map</span>
           <span
             className={`badge ${progress >= 1.0 ? "badge-success" : "badge-primary"}`}
             style={{ fontSize: "0.72rem" }}
@@ -132,9 +271,7 @@ export function PieceMap({
 
       {/* Bar Mode */}
       {viewMode === "bar" ? (
-        <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
           <div
             style={{
               position: "relative",
@@ -173,12 +310,11 @@ export function PieceMap({
           </div>
         </div>
       ) : (
-        /* Matrix Grid Mode */
+        /* Matrix Grid Canvas Mode */
         <div
+          ref={containerRef}
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(13px, 1fr))",
-            gap: "3px",
+            position: "relative",
             padding: "0.6rem",
             backgroundColor: "rgba(0, 0, 0, 0.35)",
             borderRadius: "6px",
@@ -186,46 +322,19 @@ export function PieceMap({
             minHeight: "140px",
             maxHeight: "320px",
             overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
           }}
         >
-          {displayBlocks.map((b, i) => {
-            const isSingle = b.startIndex === b.endIndex;
-            const pieceLabel = isSingle
-              ? `Piece #${b.startIndex}`
-              : `Pieces #${b.startIndex} - #${b.endIndex}`;
-            return (
-              <div
-                key={i}
-                onMouseEnter={() => setHoveredPiece(b.startIndex)}
-                onMouseLeave={() => setHoveredPiece(null)}
-                style={{
-                  height: "14px",
-                  borderRadius: "2px",
-                  backgroundColor:
-                    b.status === "complete"
-                      ? "#27ae60"
-                      : b.status === "active"
-                        ? "#3b82f6"
-                        : "rgba(255, 255, 255, 0.05)",
-                  border:
-                    b.status === "complete"
-                      ? "1px solid #2ecc71"
-                      : b.status === "active"
-                        ? "1px solid #60a5fa"
-                        : "1px solid rgba(255, 255, 255, 0.12)",
-                  boxShadow:
-                    b.status === "complete"
-                      ? "0 0 3px rgba(39, 174, 96, 0.35)"
-                      : b.status === "active"
-                        ? "0 0 5px rgba(59, 130, 246, 0.6)"
-                        : "none",
-                  cursor: "pointer",
-                  transition: "transform 0.1s ease",
-                }}
-                title={`${pieceLabel} (${formatBytes(pieceLength * (b.endIndex - b.startIndex + 1))}) - ${b.status === "complete" ? "Verified / Seeded" : b.status === "active" ? "Downloading" : "Missing"}`}
-              />
-            );
-          })}
+          <canvas
+            ref={canvasRef}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              display: "block",
+              cursor: "pointer",
+            }}
+          />
         </div>
       )}
 
@@ -295,9 +404,17 @@ export function PieceMap({
             {totalPieces - completedPieces} Missing
           </span>
         </div>
-        {hoveredPiece !== null && (
-          <span style={{ fontFamily: "monospace", color: "var(--accent)" }}>
-            Hovering: Piece #{hoveredPiece}
+        {hoveredBlock && (
+          <span style={{ fontFamily: "monospace", color: "var(--accent, #ffd166)" }}>
+            {hoveredBlock.startIndex === hoveredBlock.endIndex
+              ? `Piece #${hoveredBlock.startIndex}`
+              : `Pieces #${hoveredBlock.startIndex} - #${hoveredBlock.endIndex}`}{" "}
+            ({formatBytes(pieceLength * (hoveredBlock.endIndex - hoveredBlock.startIndex + 1))}) -{" "}
+            {hoveredBlock.status === "complete"
+              ? "Verified / Seeded"
+              : hoveredBlock.status === "active"
+                ? "Downloading"
+                : "Missing"}
           </span>
         )}
       </div>

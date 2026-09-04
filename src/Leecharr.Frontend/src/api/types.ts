@@ -50,11 +50,15 @@ export interface Torrent {
   audioChannels?: string | null;
   artworkUrl?: string | null;
   posterUrl?: string | null;
+  backdropUrl?: string | null;
   fanartUrl?: string | null;
   bannerUrl?: string | null;
   mediaTitle?: string | null;
+  mediaYear?: number | null;
   year?: number | null;
+  mediaOverview?: string | null;
   overview?: string | null;
+  mediaRating?: number | null;
   rating?: number | null;
   genres?: string[];
   trackers?: string[];
