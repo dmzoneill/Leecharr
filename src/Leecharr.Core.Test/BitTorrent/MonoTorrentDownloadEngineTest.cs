@@ -672,8 +672,13 @@ public class MonoTorrentDownloadEngineTest
             SetTierAnnounceSucceeded(tierItem, false);
         }
 
+        trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
         SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Offline);
         SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.Connecting);
+        foreach (var tierItem in task.Manager.TrackerManager.Tiers)
+        {
+            SetTierAnnounceSucceeded(tierItem, false);
+        }
 
         var isStalledConnecting = task.CheckTrackerHealth(this.eventAggregator);
 
@@ -682,7 +687,13 @@ public class MonoTorrentDownloadEngineTest
         task.Status.Should().Be(TorrentStatus.Downloading);
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
 
+        trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
+        SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Offline);
         SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.Unknown);
+        foreach (var tierItem in task.Manager.TrackerManager.Tiers)
+        {
+            SetTierAnnounceSucceeded(tierItem, false);
+        }
 
         var isStalledUnknown = task.CheckTrackerHealth(this.eventAggregator);
 
@@ -691,6 +702,8 @@ public class MonoTorrentDownloadEngineTest
         task.Status.Should().Be(TorrentStatus.Downloading);
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
 
+        trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
+        SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Offline);
         SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.InvalidResponse);
 
         foreach (var tierItem in task.Manager.TrackerManager.Tiers)
@@ -713,8 +726,10 @@ public class MonoTorrentDownloadEngineTest
     private static void SetTrackerStatus(MonoTorrent.Trackers.ITracker tracker, MonoTorrent.Trackers.TrackerState state)
     {
         var prop = tracker.GetType().GetProperty("StatusOverride", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        prop.Should().NotBeNull();
-        prop!.SetValue(tracker, (MonoTorrent.Trackers.TrackerState?)state);
+        prop?.SetValue(tracker, (MonoTorrent.Trackers.TrackerState?)state);
+
+        var field = tracker.GetType().GetField("<Status>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+        field?.SetValue(tracker, state);
     }
 
     private static void SetTierAnnounceSucceeded(object tier, bool succeeded)
