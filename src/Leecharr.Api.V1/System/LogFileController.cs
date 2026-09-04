@@ -46,6 +46,7 @@ public class LogFileController : ControllerBase
     }
 
     [HttpGet("{filename}")]
+    [HttpGet("/api/v1/log/file/{filename}")]
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "Filename is sanitized via Path.GetFileName and validated against the log directory")]
     public ActionResult GetLogFile(string filename)
     {
