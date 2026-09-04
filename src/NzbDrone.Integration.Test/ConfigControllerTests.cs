@@ -34,6 +34,19 @@ public class ConfigControllerTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task GetApiKey_returns_200_with_apiKey()
+    {
+        var response = await this.Client.GetAsync("/api/v1/config/general/api-key");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        var resource = Deserialize<Dictionary<string, object>>(json);
+
+        resource.Should().ContainKey("apiKey");
+        resource["apiKey"].ToString().Should().NotBeNullOrEmpty();
+    }
+
+    [Test]
     public async Task PutAdvancedConfig_returns_202()
     {
         var body = new { id = 1, uiRefreshRateSec = 99 };

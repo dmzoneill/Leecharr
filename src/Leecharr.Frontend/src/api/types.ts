@@ -329,6 +329,10 @@ export interface GeneralConfig {
   allowedHosts?: string;
 }
 
+export interface ApiKeyResource {
+  apiKey: string;
+}
+
 export interface SslTestRequest {
   enableSsl?: boolean;
   sslPort: number;

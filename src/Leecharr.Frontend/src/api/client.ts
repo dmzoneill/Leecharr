@@ -254,6 +254,8 @@ export const api = {
         body: JSON.stringify(request),
       }
     ),
+  getApiKey: () =>
+    fetchJson<import("./types").ApiKeyResource>(`${BASE_URL}/config/general/api-key`),
   getSystemResources: () =>
     fetchJson<import("./types").SystemResourceTelemetrySnapshot>(`${BASE_URL}/system/resources`),
   getHostResources: () =>
@@ -318,4 +320,8 @@ export const api = {
     }
     return response;
   },
+};
+
+export const configApi = {
+  getApiKey: () => api.getApiKey(),
 };

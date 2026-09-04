@@ -113,6 +113,9 @@ export function SecuritySettingsTab() {
   const [copied, setCopied] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null);
+  const [loadingApiKey, setLoadingApiKey] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -124,6 +127,8 @@ export function SecuritySettingsTab() {
         allowedHosts: config.allowedHosts ?? "",
       });
       setDirty(false);
+      setRevealedApiKey(null);
+      setShowApiKey(false);
     }
   }, [config]);
 
@@ -154,26 +159,62 @@ export function SecuritySettingsTab() {
     for (let i = 0; i < 32; i++) {
       key += chars[Math.floor(Math.random() * chars.length)];
     }
+    setRevealedApiKey(key);
+    setShowApiKey(true);
     update("apiKey", key);
   };
 
-  const handleCopyApiKey = () => {
-    if (!form.apiKey) return;
+  const handleToggleShowApiKey = async () => {
+    if (showApiKey) {
+      setShowApiKey(false);
+      return;
+    }
+
+    if (revealedApiKey || !form.apiKey.includes("*")) {
+      setShowApiKey(true);
+      return;
+    }
+
+    try {
+      setLoadingApiKey(true);
+      const res = await api.getApiKey();
+      setRevealedApiKey(res.apiKey);
+      setShowApiKey(true);
+    } catch (_err) {
+      toast?.showToast("Failed to retrieve unmasked API key", "error");
+    } finally {
+      setLoadingApiKey(false);
+    }
+  };
+
+  const handleCopyApiKey = async () => {
     if (!navigator.clipboard?.writeText) {
-      // Fallback or show error toast
       toast?.showToast("Clipboard API not available in this browser context", "error");
       return;
     }
-    navigator.clipboard
-      .writeText(form.apiKey)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        toast?.showToast("API key copied to clipboard", "success");
-      })
-      .catch((_err) => {
-        toast?.showToast("Failed to copy API key to clipboard", "error");
-      });
+
+    try {
+      let keyToCopy = form.apiKey;
+      if (revealedApiKey && form.apiKey.includes("*")) {
+        keyToCopy = revealedApiKey;
+      } else if (!keyToCopy || keyToCopy.includes("*")) {
+        const res = await api.getApiKey();
+        keyToCopy = res.apiKey;
+        setRevealedApiKey(res.apiKey);
+      }
+
+      if (!keyToCopy) {
+        toast?.showToast("No API key available", "error");
+        return;
+      }
+
+      await navigator.clipboard.writeText(keyToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast?.showToast("API key copied to clipboard", "success");
+    } catch (_err) {
+      toast?.showToast("Failed to copy API key to clipboard", "error");
+    }
   };
 
   const handleSave = () => {
@@ -540,9 +581,30 @@ export function SecuritySettingsTab() {
             <div style={{ flex: 1 }}>
               <TextInput
                 label="API Key (X-Api-Key)"
-                value={form.apiKey}
-                onChange={(v) => update("apiKey", v)}
+                type={showApiKey ? "text" : form.apiKey.includes("*") ? "text" : "password"}
+                value={
+                  showApiKey && revealedApiKey && form.apiKey.includes("*")
+                    ? revealedApiKey
+                    : form.apiKey
+                }
+                onChange={(v) => {
+                  setRevealedApiKey(null);
+                  update("apiKey", v);
+                }}
                 hint="Pass this key in the X-Api-Key HTTP header for programmatic REST API access"
+                rightElement={
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={handleToggleShowApiKey}
+                    style={{ whiteSpace: "nowrap", height: "36px", padding: "0 0.75rem" }}
+                    title={showApiKey ? "Hide API key" : "Show unmasked API key"}
+                    aria-label={showApiKey ? "Hide API key" : "Show unmasked API key"}
+                    disabled={loadingApiKey}
+                  >
+                    {loadingApiKey ? "..." : showApiKey ? "🙈 Hide" : "👁️ Show"}
+                  </button>
+                }
               />
             </div>
             <button

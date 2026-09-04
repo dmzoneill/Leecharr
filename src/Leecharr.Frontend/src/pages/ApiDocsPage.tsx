@@ -1,23 +1,38 @@
 import React, { useState } from "react";
 import { useGeneralConfig } from "../api/hooks";
+import { api } from "../api/client";
+import { useToast } from "../context/ToastContext";
 
 export function ApiDocsPage() {
   const { data: config } = useGeneralConfig();
+  const toast = useToast();
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copyingKey, setCopyingKey] = useState(false);
 
-  const handleCopyKey = () => {
-    if (config?.apiKey) {
-      navigator.clipboard.writeText(config.apiKey);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
+  const handleCopyKey = async () => {
+    try {
+      setCopyingKey(true);
+      let keyToCopy = config?.apiKey;
+      if (!keyToCopy || keyToCopy.includes("*")) {
+        const res = await api.getApiKey();
+        keyToCopy = res.apiKey;
+      }
+
+      if (keyToCopy) {
+        await navigator.clipboard.writeText(keyToCopy);
+        setCopiedKey(true);
+        setTimeout(() => setCopiedKey(false), 2000);
+        toast.showToast("API key copied to clipboard", "success");
+      }
+    } catch {
+      toast.showToast("Failed to copy API key to clipboard", "error");
+    } finally {
+      setCopyingKey(false);
     }
   };
 
   return (
-    <div
-      className="content-area"
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-    >
+    <div className="content-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Header Banner */}
       <div
         className="card"
@@ -50,8 +65,8 @@ export function ApiDocsPage() {
               fontSize: "0.85rem",
             }}
           >
-            Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API
-            v1. Test endpoints, inspect JSON schemas, and automate downloads.
+            Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API v1. Test endpoints,
+            inspect JSON schemas, and automate downloads.
           </p>
         </div>
 
@@ -67,9 +82,10 @@ export function ApiDocsPage() {
             <button
               className="btn btn-outline btn-small"
               onClick={handleCopyKey}
+              disabled={copyingKey}
               title="Copy API Key to clipboard for Swagger Authorize header"
             >
-              {copiedKey ? "✓ API Key Copied" : "📋 Copy API Key"}
+              {copiedKey ? "✓ API Key Copied" : copyingKey ? "⏳ Copying..." : "📋 Copy API Key"}
             </button>
           )}
 
