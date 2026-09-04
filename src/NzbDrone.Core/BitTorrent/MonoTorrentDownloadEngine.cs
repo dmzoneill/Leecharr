@@ -1856,6 +1856,17 @@ public class MonoTorrentDownloadTask : IDownloadTask
             t.Status is MonoTorrent.Trackers.TrackerState.Connecting
             or MonoTorrent.Trackers.TrackerState.Unknown);
 
+        if (hasPendingTrackers)
+        {
+            if (this.isTrackerStalled)
+            {
+                this.isTrackerStalled = false;
+                this.errorMessage = null;
+            }
+
+            return false;
+        }
+
         if (!hasPendingTrackers &&
             (failingTrackers.Count == allTrackers.Count ||
              allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok)))
