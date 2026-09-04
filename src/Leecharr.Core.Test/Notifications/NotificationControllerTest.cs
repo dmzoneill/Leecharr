@@ -113,4 +113,55 @@ public class NotificationControllerTest
             "https://discord.com/api/webhooks/999/token",
             Arg.Any<object>());
     }
+
+    [Test]
+    public async Task Test_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 3,
+            Name = "Email Alerts",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"port\":587}",
+        };
+
+        this.notificationRepository.Get(3).Returns(notif);
+
+        var actionResult = await this.controller.Test(3);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+        testResult!.Message.Should().Be("Email test notification sent successfully.");
+
+        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+    }
+
+    [Test]
+    public async Task TestDirect_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    {
+        var resource = new NotificationResource
+        {
+            Name = "Email Alerts Direct",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"port\":587}",
+        };
+
+        var actionResult = await this.controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+        testResult!.Message.Should().Be("Email test notification sent successfully.");
+
+        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+    }
 }
