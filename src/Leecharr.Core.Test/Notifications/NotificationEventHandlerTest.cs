@@ -319,4 +319,98 @@ public class NotificationEventHandlerTest
 
         act.Should().NotThrow();
     }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenStoppedAndCompleted_DoesNotFireSeedGoalReached()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 7,
+            Name = "Seed Goal Notification",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/seedgoal",
+            OnSeedGoalReached = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+        this.configService.OnSeedGoalReachedScript.Returns("/scripts/seed_goal.sh");
+
+        var torrent = new Torrent
+        {
+            Id = 30,
+            Name = "Manually Paused Seeding Torrent",
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+            Ratio = 0.5,
+        };
+
+        this.handler.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = torrent,
+            OldStatus = TorrentStatus.Seeding,
+            NewStatus = TorrentStatus.Stopped,
+        });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.DidNotReceive().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+
+        await this.customScriptService.DidNotReceive().ExecuteScriptAsync(
+            Arg.Any<string>(),
+            Arg.Any<Torrent>(),
+            Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task Handle_TorrentSeedGoalReachedEvent_FiresSeedGoalReachedNotificationAndScript()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 8,
+            Name = "Seed Goal Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/seedgoal",
+            OnSeedGoalReached = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+        this.configService.OnSeedGoalReachedScript.Returns("/scripts/seed_goal.sh");
+
+        var torrent = new Torrent
+        {
+            Id = 31,
+            Name = "Seed Goal Torrent",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            Ratio = 2.1,
+            TargetRatio = 2.0,
+        };
+
+        this.handler.Handle(new TorrentSeedGoalReachedEvent(torrent));
+
+        await Task.Delay(150);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://test/seedgoal",
+            Arg.Any<object>());
+
+        await this.customScriptService.Received().ExecuteScriptAsync(
+            "/scripts/seed_goal.sh",
+            torrent,
+            "OnSeedGoalReached");
+    }
+
+    [Test]
+    public void Handle_TorrentSeedGoalReachedEvent_WhenMessageOrTorrentIsNull_DoesNotThrow()
+    {
+        var act1 = () => this.handler.Handle((TorrentSeedGoalReachedEvent)null!);
+        var act2 = () => this.handler.Handle(new TorrentSeedGoalReachedEvent(null!));
+
+        act1.Should().NotThrow();
+        act2.Should().NotThrow();
+    }
 }
