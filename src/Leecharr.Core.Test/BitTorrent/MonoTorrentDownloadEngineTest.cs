@@ -57,6 +57,7 @@ public class MonoTorrentDownloadEngineTest
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns(this.testDownloadDir);
 
         this.categoryService = Substitute.For<ICategoryService>();
         this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns(this.testDownloadDir);
@@ -1167,6 +1168,7 @@ public class MonoTorrentDownloadEngineTest
 
         var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
         this.categoryService.GetSavePathForCategory("movies").Returns("/invalid_nonexistent_dest_dir");
+        this.storagePathService.GetCompletedDirectory("movies").Returns("/invalid_nonexistent_dest_dir");
 
         var act = async () =>
         {
@@ -1177,6 +1179,109 @@ public class MonoTorrentDownloadEngineTest
 
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
             e.Torrent.Id == 104 &&
+            e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenCategoryHasCustomSavePath_MovesFilesToCategorySavePath()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_custom_category.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var customPath = Path.Combine(Path.GetTempPath(), "leecharr_custom_tv_" + Guid.NewGuid().ToString("N"));
+        this.categoryService.GetSavePathForCategory("tv").Returns(customPath);
+        this.storagePathService.GetCompletedDirectory("tv").Returns(customPath);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 110,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_custom_category.bin",
+            Status = TorrentStatus.Stopped,
+            Category = "tv",
+        };
+
+        try
+        {
+            var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+            await this.engine.OnTorrentCompletedAsync(110, torrent.InfoHash, task.Manager);
+
+            this.storagePathService.Received(1).GetCompletedDirectory("tv");
+            task.Manager.SavePath.Should().Be(customPath);
+            this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+                e.Torrent.Id == 110 &&
+                e.Torrent.Category == "tv" &&
+                e.Torrent.SavePath == customPath &&
+                e.Torrent.Status == TorrentStatus.Seeding));
+        }
+        finally
+        {
+            if (Directory.Exists(customPath))
+            {
+                Directory.Delete(customPath, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenCategorySavePathIsEmpty_FallsBackToGlobalDownloadDir()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_empty_category.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        this.categoryService.GetSavePathForCategory("movies").Returns(string.Empty);
+        this.storagePathService.GetCompletedDirectory("movies").Returns(this.testDownloadDir);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 111,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_empty_category.bin",
+            Status = TorrentStatus.Stopped,
+            Category = "movies",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        await this.engine.OnTorrentCompletedAsync(111, torrent.InfoHash, task.Manager);
+
+        this.storagePathService.Received(1).GetCompletedDirectory("movies");
+        task.Manager.SavePath.Should().Be(this.testDownloadDir);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 111 &&
+            e.Torrent.Category == "movies" &&
+            e.Torrent.SavePath == this.testDownloadDir &&
+            e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenTorrentHasNoCategory_FallsBackToGlobalDownloadDir()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_no_category.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        this.storagePathService.GetCompletedDirectory(null).Returns(this.testDownloadDir);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 112,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_no_category.bin",
+            Status = TorrentStatus.Stopped,
+            Category = null,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        await this.engine.OnTorrentCompletedAsync(112, torrent.InfoHash, task.Manager);
+
+        this.storagePathService.Received(1).GetCompletedDirectory(null);
+        task.Manager.SavePath.Should().Be(this.testDownloadDir);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 112 &&
+            e.Torrent.Category == null &&
+            e.Torrent.SavePath == this.testDownloadDir &&
             e.Torrent.Status == TorrentStatus.Seeding));
     }
 
