@@ -9,8 +9,11 @@ import {
 } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, SelectInput, Toggle } from "./shared";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useToast } from "../../context/ToastContext";
+import type { EngineProbeResult } from "../../api/types";
 
 export function EngineSettingsTab() {
+  const { showToast } = useToast();
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
 
@@ -18,6 +21,9 @@ export function EngineSettingsTab() {
   const { data: activeEngineData } = useActiveTorrentEngine();
   const switchMutation = useSwitchTorrentEngine();
   const probeMutation = useProbeTorrentEngine();
+
+  const [probeResult, setProbeResult] = useState<EngineProbeResult | null>(null);
+  const [probingEngineId, setProbingEngineId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     activeTorrentEngine: "MonoTorrent",
@@ -45,6 +51,7 @@ export function EngineSettingsTab() {
   const [dirty, setDirty] = useState(false);
   const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<string | null>(null);
   useEscapeKey(() => setSelectedEngineForSwitch(null), Boolean(selectedEngineForSwitch));
+  useEscapeKey(() => setProbeResult(null), Boolean(probeResult));
 
   useEffect(() => {
     if (config) {
@@ -122,6 +129,23 @@ export function EngineSettingsTab() {
           },
         }
       );
+    }
+  };
+
+  const handleProbe = async (engineId: string) => {
+    setProbingEngineId(engineId);
+    try {
+      const res = await probeMutation.mutateAsync(engineId);
+      setProbeResult(res);
+      if (res.isHealthy) {
+        showToast(res.statusMessage || `${engineId} is healthy and operational.`, "success");
+      } else {
+        showToast(res.statusMessage || `${engineId} health check reported issues.`, "error");
+      }
+    } catch (err: any) {
+      showToast(`Probe failed for ${engineId}: ${err?.message || "Unknown error"}`, "error");
+    } finally {
+      setProbingEngineId(null);
     }
   };
 
@@ -249,11 +273,11 @@ export function EngineSettingsTab() {
                   <button
                     type="button"
                     className="btn btn-outline btn-small"
-                    onClick={() => probeMutation.mutate(engineId)}
-                    disabled={probeMutation.isPending}
+                    onClick={() => handleProbe(engineId)}
+                    disabled={probingEngineId !== null}
                     style={{ flex: 1, fontSize: "0.75rem" }}
                   >
-                    🔍 Probe Health
+                    {probingEngineId === engineId ? "⏳ Probing..." : "🔍 Probe Health"}
                   </button>
                   {!isActive && (
                     <button
@@ -490,6 +514,151 @@ export function EngineSettingsTab() {
                 disabled={switchMutation.isPending}
               >
                 {switchMutation.isPending ? "Switching Engine..." : "Confirm Switch"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Probe Diagnostic Results Modal */}
+      {probeResult && (
+        <div className="modal-overlay" onClick={() => setProbeResult(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)" }}>
+                Probe Results: {probeResult.engineId}
+              </h2>
+              <span
+                style={{
+                  backgroundColor: probeResult.isHealthy ? "#27ae60" : "#e74c3c",
+                  color: "#ffffff",
+                  padding: "0.2rem 0.55rem",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {probeResult.isHealthy ? "HEALTHY / READY" : "WARNING / UNHEALTHY"}
+              </span>
+            </div>
+
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                borderRadius: "6px",
+                marginBottom: "1rem",
+                backgroundColor: probeResult.isHealthy
+                  ? "rgba(39, 174, 96, 0.15)"
+                  : "rgba(231, 76, 60, 0.15)",
+                border: `1px solid ${probeResult.isHealthy ? "#27ae60" : "#e74c3c"}`,
+                color: probeResult.isHealthy ? "#2ecc71" : "#e74c3c",
+                fontSize: "0.9rem",
+                lineHeight: 1.4,
+              }}
+            >
+              <strong>Status:</strong>{" "}
+              {probeResult.statusMessage ||
+                (probeResult.isHealthy ? "Operational" : "Health check reported issues.")}
+            </div>
+
+            {probeResult.dependencyChecks && probeResult.dependencyChecks.length > 0 && (
+              <div style={{ marginBottom: "1rem" }}>
+                <h4
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    margin: "0 0 0.4rem 0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Dependency Checks
+                </h4>
+                <ul
+                  style={{
+                    margin: "0.35rem 0 0 0",
+                    paddingLeft: "1.2rem",
+                    fontSize: "0.83rem",
+                    color: "var(--text-secondary)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {probeResult.dependencyChecks.map((check, idx) => {
+                    if (typeof check === "object" && check !== null) {
+                      return (
+                        <li
+                          key={idx}
+                          style={{
+                            color: check.passed ? "#2ecc71" : "#e74c3c",
+                          }}
+                        >
+                          {check.passed ? "✅" : "❌"} <strong>{check.name}</strong>:{" "}
+                          {check.message || (check.passed ? "Passed" : "Failed")}
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={idx} style={{ color: "#2ecc71" }}>
+                        ✅ {check}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {probeResult.warnings && probeResult.warnings.length > 0 && (
+              <div style={{ marginBottom: "1rem" }}>
+                <h4
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "#f39c12",
+                    margin: "0 0 0.4rem 0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Warnings & Diagnostics
+                </h4>
+                <ul
+                  style={{
+                    margin: "0.35rem 0 0 0",
+                    paddingLeft: "1.2rem",
+                    fontSize: "0.83rem",
+                    color: "#f39c12",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {probeResult.warnings.map((warning, idx) => (
+                    <li key={idx}>⚠️ {warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginTop: "1.25rem",
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={() => setProbeResult(null)}
+              >
+                Close
               </button>
             </div>
           </div>

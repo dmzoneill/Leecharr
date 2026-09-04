@@ -6,12 +6,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.BitTorrent;
 
 [V1ApiController("torrentengine")]
+[Route("api/v1/config/engine")]
 public class TorrentEngineController : Controller
 {
     private readonly ITorrentEngineManager engineManager;
@@ -107,6 +109,7 @@ public class TorrentEngineController : Controller
     }
 
     [HttpPost("{engineId}/probe")]
+    [HttpPost("probe/{engineId}")]
     public async Task<ActionResult<EngineProbeResultResource>> ProbeEngine(string engineId)
     {
         var probe = await this.engineManager.ProbeEngineAsync(engineId);
@@ -118,5 +121,30 @@ public class TorrentEngineController : Controller
             DependencyChecks = probe.DependencyChecks,
             Warnings = probe.Warnings,
         });
+    }
+
+    [HttpPost("probe")]
+    public async Task<ActionResult<EngineProbeResultResource>> ProbeEnginePost(
+        [FromQuery] string engineId = null,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] EngineProbeRequest request = null)
+    {
+        var targetEngine = !string.IsNullOrWhiteSpace(engineId)
+            ? engineId
+            : (!string.IsNullOrWhiteSpace(request?.EngineId)
+                ? request.EngineId
+                : (this.engineManager.ActiveEngineId ?? "MonoTorrent"));
+
+        return await this.ProbeEngine(targetEngine);
+    }
+
+    [HttpGet("probe")]
+    public async Task<ActionResult<EngineProbeResultResource>> ProbeEngineGet(
+        [FromQuery] string engineId = null)
+    {
+        var targetEngine = !string.IsNullOrWhiteSpace(engineId)
+            ? engineId
+            : (this.engineManager.ActiveEngineId ?? "MonoTorrent");
+
+        return await this.ProbeEngine(targetEngine);
     }
 }

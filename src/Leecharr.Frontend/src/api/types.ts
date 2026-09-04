@@ -1148,12 +1148,18 @@ export interface SwitchEngineResult {
   error?: string;
 }
 
+export interface EngineProbeDependencyCheck {
+  name: string;
+  passed: boolean;
+  message?: string;
+}
+
 export interface EngineProbeResult {
   engineId: string;
   isHealthy: boolean;
   statusMessage: string;
-  dependencyChecks: string[];
-  warnings: string[];
+  dependencyChecks?: (string | EngineProbeDependencyCheck)[];
+  warnings?: string[];
 }
 
 export interface SubsystemProvider {
