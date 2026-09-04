@@ -31,6 +31,10 @@ public interface ITorznabClient
     Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50);
 
     List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer);
+
+    Task<TorznabCapabilities> FetchCapabilitiesAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default);
+
+    TorznabCapabilities ParseCapabilitiesXml(string xml);
 }
 
 public class TorznabClient : ITorznabClient
@@ -405,5 +409,181 @@ public class TorznabClient : ITorznabClient
         }
 
         return defaultValue;
+    }
+
+    public async Task<TorznabCapabilities> FetchCapabilitiesAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default)
+    {
+        if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            return new TorznabCapabilities();
+        }
+
+        try
+        {
+            var uriBuilder = new UriBuilder(indexer.Url);
+            var query = "t=caps";
+            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+            {
+                query += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
+            }
+
+            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
+                ? query
+                : uriBuilder.Query.TrimStart('?') + "&" + query;
+
+            this.logger.Debug("Fetching Torznab capabilities: {0}", uriBuilder.Uri);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            using var response = await this.httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                this.logger.Warn("Failed to fetch capabilities from {0}: HTTP {1}", indexer.Name, response.StatusCode);
+                return new TorznabCapabilities();
+            }
+
+            var xml = await response.Content.ReadAsStringAsync(cancellationToken);
+            return this.ParseCapabilitiesXml(xml);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error fetching Torznab capabilities for: {0}", indexer.Name);
+            return new TorznabCapabilities();
+        }
+    }
+
+    public TorznabCapabilities ParseCapabilitiesXml(string xml)
+    {
+        var capabilities = new TorznabCapabilities();
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return capabilities;
+        }
+
+        try
+        {
+            xml = SanitizeXml(xml);
+            XDocument doc;
+            try
+            {
+                doc = XDocument.Parse(xml);
+            }
+            catch (XmlException)
+            {
+                var fixedXml = Regex.Replace(xml, @"&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)", "&amp;");
+                doc = XDocument.Parse(fixedXml);
+            }
+
+            var capsElem = doc.Root;
+            if (capsElem == null)
+            {
+                return capabilities;
+            }
+
+            // Limits
+            var limitsElem = capsElem.Element("limits") ?? capsElem.Element("server");
+            if (limitsElem != null)
+            {
+                var defaultAttr = limitsElem.Attribute("default")?.Value;
+                var maxAttr = limitsElem.Attribute("max")?.Value;
+                if (!string.IsNullOrEmpty(defaultAttr))
+                {
+                    capabilities.DefaultPageSize = ParseInt(defaultAttr, capabilities.DefaultPageSize);
+                }
+
+                if (!string.IsNullOrEmpty(maxAttr))
+                {
+                    capabilities.MaxPageSize = ParseInt(maxAttr, capabilities.MaxPageSize);
+                }
+            }
+
+            // Searching modes
+            var searchingElem = capsElem.Element("searching");
+            if (searchingElem != null)
+            {
+                var searchMode = searchingElem.Element("search");
+                if (searchMode != null)
+                {
+                    capabilities.SupportsSearch = string.Equals(searchMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
+                }
+
+                var tvMode = searchingElem.Element("tv-search");
+                if (tvMode != null)
+                {
+                    capabilities.SupportsTvSearch = string.Equals(tvMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
+                    var tvParams = tvMode.Attribute("supportedParams")?.Value;
+                    if (!string.IsNullOrEmpty(tvParams))
+                    {
+                        capabilities.SupportedTvParams = tvParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                    }
+                }
+
+                var movieMode = searchingElem.Element("movie-search");
+                if (movieMode != null)
+                {
+                    capabilities.SupportsMovieSearch = string.Equals(movieMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
+                    var movieParams = movieMode.Attribute("supportedParams")?.Value;
+                    if (!string.IsNullOrEmpty(movieParams))
+                    {
+                        capabilities.SupportedMovieParams = movieParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                    }
+                }
+
+                var musicMode = searchingElem.Element("music-search");
+                if (musicMode != null)
+                {
+                    capabilities.SupportsMusicSearch = string.Equals(musicMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
+                    var musicParams = musicMode.Attribute("supportedParams")?.Value;
+                    if (!string.IsNullOrEmpty(musicParams))
+                    {
+                        capabilities.SupportedMusicParams = musicParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                    }
+                }
+            }
+
+            // Categories
+            var categoriesElem = capsElem.Element("categories");
+            if (categoriesElem != null)
+            {
+                foreach (var catElem in categoriesElem.Elements("category"))
+                {
+                    var idStr = catElem.Attribute("id")?.Value;
+                    var name = catElem.Attribute("name")?.Value ?? string.Empty;
+                    var id = ParseInt(idStr, -1);
+                    if (id < 0)
+                    {
+                        continue;
+                    }
+
+                    var cat = new TorznabCategory
+                    {
+                        Id = id,
+                        Name = name,
+                    };
+
+                    foreach (var subcatElem in catElem.Elements("subcat"))
+                    {
+                        var subIdStr = subcatElem.Attribute("id")?.Value;
+                        var subName = subcatElem.Attribute("name")?.Value ?? string.Empty;
+                        var subId = ParseInt(subIdStr, -1);
+                        if (subId >= 0)
+                        {
+                            cat.SubCategories.Add(new TorznabCategory
+                            {
+                                Id = subId,
+                                Name = subName,
+                            });
+                        }
+                    }
+
+                    capabilities.Categories.Add(cat);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to parse Torznab capabilities XML.");
+        }
+
+        return capabilities;
     }
 }
