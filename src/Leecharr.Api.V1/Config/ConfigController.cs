@@ -79,6 +79,13 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         return base.SaveConfig(resource);
     }
 
+    [HttpGet("api-key")]
+    [Produces("application/json")]
+    public ActionResult<ApiKeyResource> GetApiKey()
+    {
+        return this.Ok(new ApiKeyResource { ApiKey = this.configFileProvider.ApiKey ?? string.Empty });
+    }
+
     [HttpPost("test-ssl")]
     public async Task<ActionResult<SslCertificateValidationResult>> TestSsl([FromBody] SslTestRequest request)
     {
