@@ -21,6 +21,7 @@ function getAttachedTrackerIndicator(
   icon: string;
   badgeClass: string;
 } {
+  const isQueued = status === "Queued" || status === "Pending";
   const isWorking =
     status === "Working" ||
     status === "Announcing" ||
@@ -34,6 +35,12 @@ function getAttachedTrackerIndicator(
     det?.healthStatus === 3;
   const isSlow = det?.healthStatus === "Slow" || det?.healthStatus === 2;
 
+  if (isQueued) {
+    return {
+      icon: "⏳",
+      badgeClass: "badge-queued",
+    };
+  }
   if (isWorking) {
     return {
       icon: "🟢",
@@ -186,17 +193,30 @@ export function TrackersTab({
 
     setIsAddingBatch(true);
     let addedCount = 0;
+    const errors: string[] = [];
     for (const url of Array.from(selectedUrls)) {
       try {
         await addTracker.mutateAsync({ torrentId: effectiveId, url });
         addedCount++;
-      } catch {
-        // continue
+      } catch (err: any) {
+        const rawMsg =
+          err?.response?.data?.message ||
+          (typeof err?.response?.data === "string" && err.response.data.trim()
+            ? err.response.data.trim()
+            : null) ||
+          err?.message ||
+          "Failed to add tracker";
+        errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
       }
     }
     setIsAddingBatch(false);
     setSelectedUrls(new Set());
-    showToast(`Added ${addedCount} tracker(s) to torrent and triggered announce`, "success");
+    if (addedCount > 0) {
+      showToast(`Added ${addedCount} tracker(s) to torrent and queued announce`, "success");
+    }
+    if (errors.length > 0) {
+      errors.forEach((e) => showToast(e, "error"));
+    }
     refetch();
   };
 
