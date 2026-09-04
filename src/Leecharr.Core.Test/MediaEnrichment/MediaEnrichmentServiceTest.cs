@@ -449,6 +449,7 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     {
         TmdbMetadataProvider.CleanTitle(raw).Should().Be(expected);
         ServarrSyncMetadataProvider.CleanTitle(raw).Should().Be(expected);
+        LocalNfoMetadataProvider.CleanTitle(raw).Should().Be(expected);
     }
 
     #endregion
