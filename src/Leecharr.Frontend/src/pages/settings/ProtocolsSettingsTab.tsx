@@ -8,8 +8,10 @@ import {
   useSavePeerProtocolConfig,
 } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
+import { useToast } from "../../context/ToastContext";
 
 export function ProtocolsSettingsTab() {
+  const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
 
@@ -81,49 +83,85 @@ export function ProtocolsSettingsTab() {
     saveBtMutation.isPending || saveProtoMutation.isPending || savePeerMutation.isPending;
   const isError = saveBtMutation.isError || saveProtoMutation.isError || savePeerMutation.isError;
   const isSuccess =
-    saveBtMutation.isSuccess && saveProtoMutation.isSuccess && savePeerMutation.isSuccess;
+    (!btConfig || saveBtMutation.isSuccess) &&
+    (!protoConfig || saveProtoMutation.isSuccess) &&
+    (!peerConfig || savePeerMutation.isSuccess) &&
+    (saveBtMutation.isSuccess || saveProtoMutation.isSuccess || savePeerMutation.isSuccess);
   const error = (saveBtMutation.error ||
     saveProtoMutation.error ||
     savePeerMutation.error) as Error | null;
 
   const handleSave = () => {
+    let pending = (btConfig ? 1 : 0) + (protoConfig ? 1 : 0) + (peerConfig ? 1 : 0);
+    if (pending === 0) return;
+    let hasError = false;
+
+    const handleSuccess = () => {
+      pending--;
+      if (pending === 0 && !hasError) {
+        setDirty(false);
+      }
+    };
+
+    const handleError = (err: any) => {
+      hasError = true;
+      showToast(err?.message || "Failed to save protocol settings", "error");
+    };
+
     if (btConfig) {
-      saveBtMutation.mutate({
-        ...btConfig,
-        encryptionMode: form.encryptionMode,
-        enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
-      });
+      saveBtMutation.mutate(
+        {
+          ...btConfig,
+          encryptionMode: form.encryptionMode,
+          enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (protoConfig) {
-      saveProtoMutation.mutate({
-        ...protoConfig,
-        extensionUtMetadata: form.extensionUtMetadata,
-        extensionUtPex: form.extensionUtPex,
-        extensionLtDontHave: form.extensionLtDontHave,
-        extensionFastExtension: form.extensionFastExtension,
-        enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
-        utpEnabled: form.utpEnabled,
-        tcpFallback: form.tcpFallback,
-        transportConnectionTimeoutSeconds: form.transportConnectionTimeoutSeconds,
-        multiTrackerEnabled: form.multiTrackerEnabled,
-        multiTrackerFailoverEnabled: form.multiTrackerFailoverEnabled,
-        announceToAllTiers: form.announceToAllTiers,
-        announceToAllInTier: form.announceToAllInTier,
-        failoverMaxConsecutiveFailures: form.failoverMaxConsecutiveFailures,
-        failoverBackoffBaseSeconds: form.failoverBackoffBaseSeconds,
-        failoverMaxBackoffSeconds: form.failoverMaxBackoffSeconds,
-      });
+      saveProtoMutation.mutate(
+        {
+          ...protoConfig,
+          extensionUtMetadata: form.extensionUtMetadata,
+          extensionUtPex: form.extensionUtPex,
+          extensionLtDontHave: form.extensionLtDontHave,
+          extensionFastExtension: form.extensionFastExtension,
+          enableBep27PrivateTorrents: form.enableBep27PrivateTorrents,
+          utpEnabled: form.utpEnabled,
+          tcpFallback: form.tcpFallback,
+          transportConnectionTimeoutSeconds: form.transportConnectionTimeoutSeconds,
+          multiTrackerEnabled: form.multiTrackerEnabled,
+          multiTrackerFailoverEnabled: form.multiTrackerFailoverEnabled,
+          announceToAllTiers: form.announceToAllTiers,
+          announceToAllInTier: form.announceToAllInTier,
+          failoverMaxConsecutiveFailures: form.failoverMaxConsecutiveFailures,
+          failoverBackoffBaseSeconds: form.failoverBackoffBaseSeconds,
+          failoverMaxBackoffSeconds: form.failoverMaxBackoffSeconds,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (peerConfig) {
-      savePeerMutation.mutate({
-        ...peerConfig,
-        handshakeTimeoutSeconds: form.handshakeTimeoutSeconds,
-        messageReadTimeoutSeconds: form.messageReadTimeoutSeconds,
-        keepAliveIntervalSeconds: form.keepAliveIntervalSeconds,
-        peerContactIntervalSeconds: form.peerContactIntervalSeconds,
-      });
+      savePeerMutation.mutate(
+        {
+          ...peerConfig,
+          handshakeTimeoutSeconds: form.handshakeTimeoutSeconds,
+          messageReadTimeoutSeconds: form.messageReadTimeoutSeconds,
+          keepAliveIntervalSeconds: form.keepAliveIntervalSeconds,
+          peerContactIntervalSeconds: form.peerContactIntervalSeconds,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
-    setDirty(false);
   };
 
   if (btLoading || protoLoading || peerLoading) {
