@@ -509,7 +509,9 @@ export function TrackerMultiSelectModal({
                 fontSize: "0.85rem",
               }}
             >
-              No candidate trackers found matching "{searchTerm}".
+              No candidate trackers found matching {'"'}
+              {searchTerm}
+              {'"'}.
             </div>
           )}
         </div>
