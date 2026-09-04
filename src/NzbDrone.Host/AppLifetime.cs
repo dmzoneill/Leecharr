@@ -251,6 +251,8 @@ public class AppLifetime : IHostedService, IDisposable
 
                                     if (ratioReached || timeReached)
                                     {
+                                        this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+
                                         var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction)
                                             ? torrent.ShareLimitAction
                                             : this.configService.GlobalShareLimitAction;
