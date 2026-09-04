@@ -6,7 +6,7 @@ interface ScheduledTask {
   interval: number;
   lastExecution: string | null;
   lastStartTime: string | null;
-  lastDuration: string | null;
+  lastDuration?: string | null;
   nextExecution: string | null;
 }
 
@@ -14,18 +14,20 @@ interface CommandItem {
   id: number;
   name: string;
   status: string;
-  queuedAt: string;
-  startedAt: string | null;
-  endedAt: string | null;
+  queuedAt?: string;
+  queued?: string;
+  startedAt?: string | null;
+  started?: string | null;
+  endedAt?: string | null;
+  ended?: string | null;
   duration: string | null;
-  message: string | null;
+  message?: string | null;
+  result?: string | null;
 }
 
 function formatTaskName(typeName: string): string {
   if (!typeName) return "";
-  const shortName = typeName.includes(".")
-    ? typeName.split(".").pop() || typeName
-    : typeName;
+  const shortName = typeName.includes(".") ? typeName.split(".").pop() || typeName : typeName;
   return shortName.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
@@ -44,7 +46,7 @@ function formatInterval(minutes: number): string {
   return `${hours}h ${minutes % 60}m`;
 }
 
-function formatRelativeTime(dateStr: string | null): string {
+function formatRelativeTime(dateStr?: string | null): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
   const now = new Date();
@@ -72,7 +74,7 @@ function formatRelativeTime(dateStr: string | null): string {
   return isFuture ? `in ${text}` : `${text} ago`;
 }
 
-function formatDuration(durationStr: string | null): string {
+function formatDuration(durationStr?: string | null): string {
   if (!durationStr) return "-";
   const match = durationStr.match(/^(\d+):(\d+):(\d+)/);
   if (!match) return durationStr;
@@ -85,15 +87,16 @@ function formatDuration(durationStr: string | null): string {
   return `${seconds}s`;
 }
 
-function formatDateTime(dateStr: string | null): string {
+function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleString();
 }
 
 function statusIcon(status: string): string {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "queued":
       return "⌚";
+    case "running":
     case "started":
       return "⏳";
     case "completed":
@@ -108,9 +111,10 @@ function statusIcon(status: string): string {
 }
 
 function statusClass(status: string): string {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "queued":
       return "badge badge-queued";
+    case "running":
     case "started":
       return "badge badge-seeding";
     case "completed":
@@ -160,9 +164,7 @@ function SystemTasks() {
         }}
       >
         <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Tasks
             </h1>
@@ -175,8 +177,8 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Scheduled background maintenance jobs, integration sync intervals,
-            and command execution queue
+            Scheduled background maintenance jobs, integration sync intervals, and command execution
+            queue
           </div>
         </div>
 
@@ -197,8 +199,7 @@ function SystemTasks() {
           marginBottom: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -226,8 +227,7 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Periodic routines maintaining torrent swarm state, webhook sync, and
-            system cleanup
+            Periodic routines maintaining torrent swarm state, webhook sync, and system cleanup
           </div>
         </div>
 
@@ -271,7 +271,7 @@ function SystemTasks() {
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>
-                        {formatDuration(task.lastDuration)}
+                        {task.lastDuration ? formatDuration(task.lastDuration) : "-"}
                       </code>
                     </td>
                     <td
@@ -302,8 +302,7 @@ function SystemTasks() {
         style={{
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -361,10 +360,7 @@ function SystemTasks() {
                 {commands.map((cmd) => (
                   <tr key={cmd.id} className="torrent-table-row">
                     <td>
-                      <span
-                        className={statusClass(cmd.status)}
-                        style={{ marginRight: "0.5rem" }}
-                      >
+                      <span className={statusClass(cmd.status)} style={{ marginRight: "0.5rem" }}>
                         {statusIcon(cmd.status)} {cmd.status}
                       </span>
                       <strong style={{ color: "var(--text-primary)" }}>
@@ -379,19 +375,17 @@ function SystemTasks() {
                         </span>
                       )}
                     </td>
-                    <td title={formatDateTime(cmd.queuedAt)}>
-                      {formatRelativeTime(cmd.queuedAt)}
+                    <td title={formatDateTime(cmd.queued || cmd.queuedAt)}>
+                      {formatRelativeTime(cmd.queued || cmd.queuedAt)}
                     </td>
-                    <td title={formatDateTime(cmd.startedAt)}>
-                      {formatRelativeTime(cmd.startedAt)}
+                    <td title={formatDateTime(cmd.started || cmd.startedAt)}>
+                      {formatRelativeTime(cmd.started || cmd.startedAt)}
                     </td>
-                    <td title={formatDateTime(cmd.endedAt)}>
-                      {formatRelativeTime(cmd.endedAt)}
+                    <td title={formatDateTime(cmd.ended || cmd.endedAt)}>
+                      {formatRelativeTime(cmd.ended || cmd.endedAt)}
                     </td>
                     <td>
-                      <code style={{ fontSize: "0.8rem" }}>
-                        {formatDuration(cmd.duration)}
-                      </code>
+                      <code style={{ fontSize: "0.8rem" }}>{formatDuration(cmd.duration)}</code>
                     </td>
                   </tr>
                 ))}
