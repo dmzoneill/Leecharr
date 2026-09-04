@@ -33,5 +33,4 @@ jobs:
       VALIDATE_BASH: "false"
       VALIDATE_SHELL_SHFMT: "false"
       VALIDATE_CSS: "false"
-      VALIDATE_CSS_PRETTIER: "false"
       VALIDATE_GITLEAKS: "false"
