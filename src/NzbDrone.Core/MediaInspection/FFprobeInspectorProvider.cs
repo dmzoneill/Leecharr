@@ -17,6 +17,19 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 {
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly TagLibInspectorProvider fallbackProvider = new();
+    private readonly string customBinaryPath;
+    private readonly TimeSpan executionTimeout;
+
+    public FFprobeInspectorProvider()
+        : this(null, TimeSpan.FromSeconds(60))
+    {
+    }
+
+    internal FFprobeInspectorProvider(string customBinaryPath, TimeSpan? executionTimeout = null)
+    {
+        this.customBinaryPath = customBinaryPath;
+        this.executionTimeout = executionTimeout ?? TimeSpan.FromSeconds(60);
+    }
 
     public string ProviderId => "FFprobe";
 
@@ -26,7 +39,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
     public string Description => "FFmpeg multimedia analyzer extracting precise frame dimensions, HDR color metadata, multi-channel layouts, and stream indexes.";
 
-    public bool IsAvailable => FindBinary() != null;
+    public bool IsAvailable => this.FindBinary() != null;
 
     public MediaInspectorCapabilities Capabilities { get; } = new()
     {
@@ -45,7 +58,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
     public Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
     {
-        var binary = FindBinary();
+        var binary = this.FindBinary();
         if (binary != null)
         {
             return Task.FromResult(new MediaInspectorHealthCheckResult
@@ -71,7 +84,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             return null;
         }
 
-        var binary = FindBinary();
+        var binary = this.FindBinary();
         if (binary == null)
         {
             return this.fallbackProvider.InspectFile(mediaPath);
@@ -93,13 +106,40 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             process.Start();
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(60));
+            cts.CancelAfter(this.executionTimeout);
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
             var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
-            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+
+            try
+            {
+                await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // Suppress process kill errors
+                }
+
+                this.logger.Warn("FFprobe execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);
+                throw;
+            }
 
             var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (!string.IsNullOrWhiteSpace(stderr) && process.ExitCode != 0)
+            {
+                this.logger.Warn("FFprobe reported errors on stderr: {0}", stderr);
+            }
 
             if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout))
             {
@@ -121,7 +161,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
     public MediaContainerInfo InspectFile(string filePath)
     {
-        return this.InspectMediaAsync(filePath).GetAwaiter().GetResult();
+        return Task.Run(() => this.InspectMediaAsync(filePath)).GetAwaiter().GetResult();
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
@@ -362,8 +402,13 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
     }
 
-    private static string FindBinary()
+    private string FindBinary()
     {
+        if (!string.IsNullOrWhiteSpace(this.customBinaryPath))
+        {
+            return this.customBinaryPath;
+        }
+
         return CliProcessDiscovery.FindExecutable("ffprobe", "FFPROBE_PATH", new[] { "/usr/bin/ffprobe", "/usr/local/bin/ffprobe" });
     }
 }
