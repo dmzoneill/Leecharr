@@ -178,10 +178,18 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            var remainingBlocks = this.pieces.Where(p => p.Priority > 0 && !p.IsComplete)
-                .Sum(p => p.TotalBlocks - p.ReceivedBlocks);
+            var activePieces = this.pieces.Where(p => p.Priority > 0 && !p.IsComplete).ToList();
+            var remainingBlocks = activePieces.Sum(p => p.TotalBlocks - p.ReceivedBlocks);
+            if (remainingBlocks <= 0)
+            {
+                return false;
+            }
 
-            return remainingBlocks > 0 && remainingBlocks <= 30;
+            var totalActiveBlocks = this.pieces.Where(p => p.Priority > 0).Sum(p => p.TotalBlocks);
+            // Only enter endgame if torrent had more than 30 blocks initially and is near completion,
+            // or if all remaining blocks are already in flight.
+            return (totalActiveBlocks > 30 && remainingBlocks <= 30) ||
+                   (this.inFlightBlocks.Count >= remainingBlocks);
         }
     }
 
