@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Torrents;
@@ -26,6 +27,8 @@ public class TransmissionRpcControllerTest
     private ITorrentFileParser torrentFileParser = null!;
     private IConfigService configService = null!;
     private IConfigFileProvider configFileProvider = null!;
+    private IDiskSpaceService diskSpaceService = null!;
+    private IDiskProvider diskProvider = null!;
     private TransmissionRpcController controller = null!;
 
     [SetUp]
@@ -36,6 +39,8 @@ public class TransmissionRpcControllerTest
         this.torrentFileParser = Substitute.For<ITorrentFileParser>();
         this.configService = Substitute.For<IConfigService>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
+        this.diskSpaceService = Substitute.For<IDiskSpaceService>();
+        this.diskProvider = Substitute.For<IDiskProvider>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("secret_api_key_123");
@@ -45,7 +50,9 @@ public class TransmissionRpcControllerTest
             this.torrentFileService,
             this.torrentFileParser,
             this.configService,
-            configFileProvider: this.configFileProvider);
+            diskSpaceService: this.diskSpaceService,
+            configFileProvider: this.configFileProvider,
+            diskProvider: this.diskProvider);
     }
 
     [Test]
@@ -421,5 +428,175 @@ public class TransmissionRpcControllerTest
         argsDict.Should().NotBeNull();
         argsDict!.ContainsKey("torrent-added").Should().BeTrue();
         argsDict.ContainsKey("torrent-duplicate").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task HandleRpc_FreeSpace_WithCustomPath_QueriesDiskProviderForPath()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var queriedPath = "/data/downloads";
+        this.diskProvider.GetAvailableSpace(queriedPath).Returns(123456789L);
+        this.diskProvider.GetTotalSize(queriedPath).Returns(987654321L);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse($"\"{queriedPath}\"");
+        args["path"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "free-space",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!["path"].Should().Be(queriedPath);
+        argsDict["size-bytes"].Should().Be(123456789L);
+        argsDict["total_size"].Should().Be(987654321L);
+
+        this.diskProvider.Received(1).GetAvailableSpace(queriedPath);
+        this.diskProvider.Received(1).GetTotalSize(queriedPath);
+    }
+
+    [Test]
+    public async Task HandleRpc_FreeSpace_WhenDiskProviderReturnsNull_FallsBackToDiskSpaceService()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var queriedPath = "/nonexistent/path";
+        this.diskProvider.GetAvailableSpace(queriedPath).Returns((long?)null);
+        this.diskProvider.GetTotalSize(queriedPath).Returns((long?)null);
+
+        this.diskSpaceService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo
+            {
+                Path = "/",
+                Label = "Root",
+                FreeSpace = 555555555L,
+                TotalSpace = 999999999L,
+            },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse($"\"{queriedPath}\"");
+        args["path"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "free-space",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!["path"].Should().Be(queriedPath);
+        argsDict["size-bytes"].Should().Be(555555555L);
+        argsDict["total_size"].Should().Be(999999999L);
+
+        this.diskProvider.Received(1).GetAvailableSpace(queriedPath);
+        this.diskProvider.Received(1).GetTotalSize(queriedPath);
+        this.diskSpaceService.Received().GetDiskSpace();
+    }
+
+    [Test]
+    public async Task HandleRpc_FreeSpace_WhenDiskProviderThrows_FallsBackToDiskSpaceService()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var queriedPath = "/error/path";
+        this.diskProvider.GetAvailableSpace(queriedPath).Returns(_ => throw new IOException("Disk error"));
+
+        this.diskSpaceService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo
+            {
+                Path = "/",
+                Label = "Root",
+                FreeSpace = 444444444L,
+                TotalSpace = 888888888L,
+            },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse($"\"{queriedPath}\"");
+        args["path"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "free-space",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!["path"].Should().Be(queriedPath);
+        argsDict["size-bytes"].Should().Be(444444444L);
+        argsDict["total_size"].Should().Be(888888888L);
+    }
+
+    [Test]
+    public async Task HandleRpc_FreeSpace_WithoutPath_UsesDownloadDir()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/configured/downloads");
+        this.diskProvider.GetAvailableSpace("/configured/downloads").Returns(777777777L);
+        this.diskProvider.GetTotalSize("/configured/downloads").Returns(888888888L);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "free-space",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!["path"].Should().Be("/configured/downloads");
+        argsDict["size-bytes"].Should().Be(777777777L);
+        argsDict["total_size"].Should().Be(888888888L);
+
+        this.diskProvider.Received(1).GetAvailableSpace("/configured/downloads");
+        this.diskProvider.Received(1).GetTotalSize("/configured/downloads");
     }
 }
