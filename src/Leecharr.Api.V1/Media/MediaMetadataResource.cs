@@ -1,5 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
+using System.Linq;
 using Leecharr.Http.REST;
 using NzbDrone.Core.MediaEnrichment;
 
@@ -29,7 +31,7 @@ public class MediaMetadataResource : RestResource
 
     public string MediaInfoJson { get; set; }
 
-    public string Genres { get; set; }
+    public List<string> Genres { get; set; }
 
     public double Rating { get; set; }
 
@@ -63,7 +65,9 @@ public static class MediaMetadataResourceMapper
             BackdropUrl = model.BackdropUrl,
             BackdropLocalPath = model.BackdropLocalPath,
             MediaInfoJson = model.MediaInfoJson,
-            Genres = model.Genres,
+            Genres = string.IsNullOrWhiteSpace(model.Genres)
+                ? new List<string>()
+                : model.Genres.Split(',').Select(g => g.Trim()).Where(g => g.Length > 0).ToList(),
             Rating = model.Rating,
             ImdbId = model.ImdbId,
             TmdbId = model.TmdbId,

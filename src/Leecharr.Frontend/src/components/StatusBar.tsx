@@ -125,20 +125,20 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
             }).length ??
             0}
         </span>
-        <span className="status-bar-item status-bar-upload">
-          <UploadIcon size={14} />{" "}
-          {formatSpeed(
-            uploadSpeed > 0
-              ? uploadSpeed
-              : (torrents ?? []).reduce((acc, t) => acc + (t.uploadSpeed || 0), 0)
-          )}
-        </span>
         <span className="status-bar-item status-bar-download">
           <DownloadIcon size={14} />{" "}
           {formatSpeed(
             downloadSpeed > 0
               ? downloadSpeed
               : (torrents ?? []).reduce((acc, t) => acc + (t.downloadSpeed || 0), 0)
+          )}
+        </span>
+        <span className="status-bar-item status-bar-upload">
+          <UploadIcon size={14} />{" "}
+          {formatSpeed(
+            uploadSpeed > 0
+              ? uploadSpeed
+              : (torrents ?? []).reduce((acc, t) => acc + (t.uploadSpeed || 0), 0)
           )}
         </span>
         <span className="status-bar-item">

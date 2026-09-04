@@ -428,7 +428,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                     marginBottom: "0.25rem",
                   }}
                 >
-                  No releases found for "{activeSearchTerm}"
+                  No releases found for {'"'}
+                  {activeSearchTerm}
+                  {'"'}
                 </div>
                 <p
                   style={{
