@@ -45,6 +45,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const toggleSelectedId = useTorrentStore((state) => state.toggleSelectedId);
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
   const clearSelection = useTorrentStore((state) => state.clearSelection);
+  const removeTorrent = useTorrentStore((state) => state.removeTorrent);
 
   const [bulkPending, setBulkPending] = useState<boolean>(false);
   const confirm = useConfirm();
@@ -174,10 +175,22 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     selectAllIds(ids);
   };
 
+  const handleDelete = (payload: { id: number; deleteFiles?: boolean }) => {
+    removeTorrent(payload.id);
+    onDelete(payload);
+  };
+
   const handleBulkStart = async () => {
+    const activeIds = new Set(torrents.map((t) => t.id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    for (const id of selectedIds) {
+      if (!activeIds.has(id)) {
+        removeTorrent(id);
+      }
+    }
     setBulkPending(true);
     try {
-      selectedIds.forEach((id) => onResume(id));
+      validSelectedIds.forEach((id) => onResume(id));
       clearSelection();
     } finally {
       setBulkPending(false);
@@ -185,9 +198,16 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   };
 
   const handleBulkStop = async () => {
+    const activeIds = new Set(torrents.map((t) => t.id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    for (const id of selectedIds) {
+      if (!activeIds.has(id)) {
+        removeTorrent(id);
+      }
+    }
     setBulkPending(true);
     try {
-      selectedIds.forEach((id) => onPause(id));
+      validSelectedIds.forEach((id) => onPause(id));
       clearSelection();
     } finally {
       setBulkPending(false);
@@ -195,9 +215,21 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   };
 
   const handleBulkDelete = async () => {
+    const activeIds = new Set(torrents.map((t) => t.id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    for (const id of selectedIds) {
+      if (!activeIds.has(id)) {
+        removeTorrent(id);
+      }
+    }
+    if (validSelectedIds.length === 0) {
+      clearSelection();
+      return;
+    }
+
     const ok = await confirm({
       title: "Delete Selected Torrents",
-      message: `Delete ${selectedIds.size} selected torrent(s)?`,
+      message: `Delete ${validSelectedIds.length} selected torrent(s)?`,
       danger: true,
       confirmText: "Delete",
     });
@@ -205,7 +237,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
     setBulkPending(true);
     try {
-      selectedIds.forEach((id) => onDelete({ id, deleteFiles: false }));
+      validSelectedIds.forEach((id) => {
+        removeTorrent(id);
+        onDelete({ id, deleteFiles: false });
+      });
       clearSelection();
     } finally {
       setBulkPending(false);
@@ -280,7 +315,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
-                  onDelete={onDelete}
+                  onDelete={handleDelete}
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
                   onSelectAll={handleSelectAll}
@@ -298,7 +333,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
-                  onDelete={onDelete}
+                  onDelete={handleDelete}
                 />
               )}
             </div>
