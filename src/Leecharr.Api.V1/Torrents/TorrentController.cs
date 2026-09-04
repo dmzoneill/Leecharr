@@ -187,20 +187,18 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpGet("{id:int}/files")]
     public ActionResult<List<TorrentFileResource>> GetFiles(int id)
     {
-        var files = this.torrentFileService.GetFiles(id);
-        var resources = files.Select(f => new TorrentFileResource
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
         {
-            Id = f.Id,
-            TorrentId = f.TorrentId,
-            Path = f.Path,
-            Size = f.Size,
-            PieceOffset = f.PieceOffset,
-            PieceCount = f.PieceCount,
-            Priority = f.Priority,
-            Progress = f.Progress,
-        }).ToList();
+            return this.NotFound();
+        }
 
-        return this.Ok(resources);
+        var files = this.torrentFileService.GetFiles(id).ToList();
+        var downloadTask = this.torrentService.GetDownloadTask(id) ?? this.downloadEngine?.GetTask(id);
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, downloadTask);
+
+        return this.Ok(files.ToResource());
     }
 
     [HttpPut("{id:int}/files/{fileId:int}/priority")]

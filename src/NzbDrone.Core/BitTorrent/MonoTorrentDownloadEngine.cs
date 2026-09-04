@@ -1934,6 +1934,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public bool IsSuperSeeding => this.Manager?.IsInitialSeeding ?? false;
 
+    public int PieceLength => this.Manager?.Torrent?.PieceLength ?? this.Picker?.PieceLength ?? 0;
+
     public bool[] PieceBitfield
     {
         get

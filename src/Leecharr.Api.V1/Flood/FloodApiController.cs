@@ -424,6 +424,8 @@ public class FloodApiController : ControllerBase
         }
 
         var files = this.torrentFileService.GetFiles(t.Id).ToList();
+        var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+        TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
         var result = files.Select((f, idx) => new
         {
             index = idx,

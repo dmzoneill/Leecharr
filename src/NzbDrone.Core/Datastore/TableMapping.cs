@@ -58,7 +58,7 @@ public static class TableMapping
     {
         return PropertyCache.GetOrAdd(type, static t =>
             t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.Name != "Id" && p.CanRead && p.CanWrite && IsColumnType(p.PropertyType))
+                .Where(p => p.Name != "Id" && p.CanRead && p.CanWrite && IsColumnType(p.PropertyType) && p.GetCustomAttribute<IgnoreAttribute>() == null)
                 .ToArray());
     }
 

@@ -769,7 +769,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
-        var files = this.torrentFileService.GetFiles(torrent.Id);
+        var files = this.torrentFileService.GetFiles(torrent.Id).ToList();
+        var downloadTask = this.torrentService.GetDownloadTask(torrent.Id);
+        TorrentFileProgressEnricher.Enrich(torrent, files, downloadTask);
         var result = files.Select((f, index) => new Dictionary<string, object>
         {
             ["index"] = index,
