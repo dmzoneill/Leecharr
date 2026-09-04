@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useLogFiles, useClearLogFiles, useSystemStatus } from "../api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useToast } from "../context/ToastContext";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 function DownloadIcon() {
   return (
@@ -93,15 +95,20 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const logPath = status?.appDataPath
-    ? `${status.appDataPath}/logs`
-    : "{appData}/logs";
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+
+  const logPath = status?.appDataPath ? `${status.appDataPath}/logs` : "{appData}/logs";
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["logfiles"] });
   };
 
   const handleClear = () => {
+    setShowConfirmClear(true);
+  };
+
+  const handleConfirmClear = () => {
+    setShowConfirmClear(false);
     clearLogFiles.mutate(undefined, {
       onSuccess: () => {
         toast?.showToast("Disk log files successfully cleared.", "success");
@@ -125,9 +132,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           }}
         >
           <div className="page-header-group">
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <h1 className="page-heading" style={{ margin: 0 }}>
                 System: Log Files
               </h1>
@@ -140,8 +145,8 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 marginTop: "0.2rem",
               }}
             >
-              Rotating plain text log files stored on disk for offline debugging
-              and diagnostic exports
+              Rotating plain text log files stored on disk for offline debugging and diagnostic
+              exports
             </div>
           </div>
 
@@ -162,6 +167,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               className="btn btn-danger btn-small"
               onClick={handleClear}
               disabled={clearLogFiles.isPending}
+              title="Clear All Files"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -169,9 +175,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               }}
             >
               <TrashIcon />
-              <span>
-                {clearLogFiles.isPending ? "Clearing..." : "Clear Logs"}
-              </span>
+              <span>{clearLogFiles.isPending ? "Clearing..." : "Clear All Files"}</span>
             </button>
           </div>
         </div>
@@ -242,8 +246,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
         style={{
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -256,10 +259,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                   <th className="torrent-table-th">Log Filename</th>
                   <th className="torrent-table-th">Last Modified</th>
                   <th className="torrent-table-th">File Size</th>
-                  <th
-                    className="torrent-table-th"
-                    style={{ textAlign: "right" }}
-                  >
+                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
                     Download
                   </th>
                 </tr>
@@ -289,7 +289,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                     <td>{formatFileSize(file.size)}</td>
                     <td style={{ textAlign: "right" }}>
                       <a
-                        href={`/api/v1/log/file/${file.filename}`}
+                        href={`/api/v1/logfile/${file.filename}`}
                         className="btn btn-outline btn-small"
                         download
                         style={{
@@ -310,6 +310,17 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmClear}
+        title="Clear All Files"
+        message="Are you sure you want to delete all disk log files? This action cannot be undone."
+        confirmText="Clear All Files"
+        cancelText="Cancel"
+        danger={true}
+        onConfirm={handleConfirmClear}
+        onCancel={() => setShowConfirmClear(false)}
+      />
     </>
   );
 
