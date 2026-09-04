@@ -56,4 +56,6 @@ public interface IQBittorrentSearchService
     List<object> GetPlugins();
 
     List<string> GetCategories();
+
+    int PruneExpiredJobs();
 }

@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -88,5 +89,94 @@ public class QBittorrentSearchServiceTest
         this.searchService.StopSearch(id).Should().BeTrue();
         this.searchService.DeleteSearch(id).Should().BeTrue();
         this.searchService.GetStatus(id).Should().BeNull();
+    }
+
+    [Test]
+    public async Task StartSearch_WhenExpiredJobsExist_AutomaticallyPrunesExpiredJobs()
+    {
+        using var shortTtlService = new QBittorrentSearchService(this.indexerRepository, this.torznabClient, maxJobs: 100, jobTtl: TimeSpan.FromMilliseconds(50));
+        var id1 = shortTtlService.StartSearch("query1");
+        var job1 = shortTtlService.GetJob(id1);
+        job1.Should().NotBeNull();
+
+        // Wait for TTL to expire
+        await Task.Delay(100);
+
+        // Starting a new search should trigger pruning of expired job1
+        var id2 = shortTtlService.StartSearch("query2");
+
+        shortTtlService.GetStatus(id1).Should().BeNull();
+        shortTtlService.GetStatus(id2).Should().NotBeNull();
+
+        // Verify job1 CTS was properly disposed
+        Action act = () => _ = job1.Cts.Token;
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Test]
+    public void StartSearch_WhenMaxCapacityExceeded_EvictsOldestCompletedJob()
+    {
+        using var smallCapacityService = new QBittorrentSearchService(this.indexerRepository, this.torznabClient, maxJobs: 2);
+        var id1 = smallCapacityService.StartSearch("query1");
+        smallCapacityService.StopSearch(id1);
+
+        var id2 = smallCapacityService.StartSearch("query2");
+        smallCapacityService.StopSearch(id2);
+
+        // Starting job 3 with maxJobs=2 should evict the oldest completed job (id1)
+        var id3 = smallCapacityService.StartSearch("query3");
+
+        smallCapacityService.GetStatus(id1).Should().BeNull();
+        smallCapacityService.GetStatus(id2).Should().NotBeNull();
+        smallCapacityService.GetStatus(id3).Should().NotBeNull();
+    }
+
+    [Test]
+    public void DeleteSearch_ProperlyDisposesCancellationTokenSource()
+    {
+        var id = this.searchService.StartSearch("query");
+        var job = this.searchService.GetJob(id);
+        job.Should().NotBeNull();
+        job.Cts.Should().NotBeNull();
+
+        this.searchService.DeleteSearch(id).Should().BeTrue();
+
+        Action act = () => _ = job.Cts.Token;
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Test]
+    public void StopSearch_ProperlyDisposesCancellationTokenSource()
+    {
+        var id = this.searchService.StartSearch("query");
+        var job = this.searchService.GetJob(id);
+        job.Should().NotBeNull();
+        job.Cts.Should().NotBeNull();
+
+        this.searchService.StopSearch(id).Should().BeTrue();
+
+        Action act = () => _ = job.Cts.Token;
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Test]
+    public void Dispose_DisposesAllRemainingJobsAndCancellationTokenSources()
+    {
+        var service = new QBittorrentSearchService(this.indexerRepository, this.torznabClient);
+        var id1 = service.StartSearch("query1");
+        var id2 = service.StartSearch("query2");
+
+        var job1 = service.GetJob(id1);
+        var job2 = service.GetJob(id2);
+
+        service.Dispose();
+
+        Action act1 = () => _ = job1.Cts.Token;
+        act1.Should().Throw<ObjectDisposedException>();
+
+        Action act2 = () => _ = job2.Cts.Token;
+        act2.Should().Throw<ObjectDisposedException>();
+
+        service.GetAllStatuses().Should().BeEmpty();
     }
 }
