@@ -76,6 +76,19 @@ public class StoragePathServiceTest
         path.Should().Be(Path.Combine("/storage/downloads", "movies"));
     }
 
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void GetCompletedDirectory_WhenCategoryIsNullOrWhiteSpace_ReturnsBaseDownloadDir(string category)
+    {
+        this.configService.DownloadDir.Returns("/storage/downloads");
+        this.diskProvider.FolderExists("/storage/downloads").Returns(true);
+
+        var path = this.storagePathService.GetCompletedDirectory(category);
+
+        path.Should().Be("/storage/downloads");
+    }
+
     [Test]
     public void GetWorkingPath_CombinesIncompleteDirAndTorrentName()
     {

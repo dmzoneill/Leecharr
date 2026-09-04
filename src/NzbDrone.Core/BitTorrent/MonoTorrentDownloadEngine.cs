@@ -1071,9 +1071,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         this.tasks.TryGetValue(torrentId, out var existingTask);
         var category = existingTask?.Category;
-        var completedDir = !string.IsNullOrWhiteSpace(category)
-            ? this.categoryService.GetSavePathForCategory(category)
-            : (this.configService.DownloadDir ?? "/downloads");
+        var completedDir = this.storagePathService.GetCompletedDirectory(category);
 
         try
         {
