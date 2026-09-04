@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Indexers;
@@ -26,6 +27,7 @@ public class RssSyncService : IRssSyncService
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly HttpClient httpClient;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
 
@@ -35,7 +37,8 @@ public class RssSyncService : IRssSyncService
         ITorznabClient torznabClient,
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser = null,
-        HttpClient httpClient = null)
+        HttpClient httpClient = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -43,6 +46,7 @@ public class RssSyncService : IRssSyncService
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -92,7 +96,7 @@ public class RssSyncService : IRssSyncService
                             {
                                 try
                                 {
-                                    var torrentBytes = await this.httpClient.GetByteArrayAsync(release.DownloadUrl);
+                                    var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
                                     var parsed = this.torrentFileParser.Parse(torrentBytes);
                                     await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
                                     grabbed = true;

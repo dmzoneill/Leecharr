@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Freebox;
@@ -31,18 +32,21 @@ public class FreeboxDownloadController : ControllerBase
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FreeboxDownloadController(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     private bool IsFreeboxAuthenticated()
@@ -195,8 +199,7 @@ public class FreeboxDownloadController : ControllerBase
             }
             else
             {
-                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var bytes = await client.GetByteArrayAsync(download_url);
+                var bytes = await this.safeHttpClientService.DownloadBytesAsync(download_url, maxSizeBytes: 10 * 1024 * 1024);
                 var parsed = this.torrentFileParser.Parse(bytes);
                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, download_dir, false, bytes);
                 addedId = added?.Id ?? 0;

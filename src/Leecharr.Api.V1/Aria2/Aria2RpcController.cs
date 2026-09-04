@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Aria2;
@@ -45,6 +46,7 @@ public class Aria2RpcController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public Aria2RpcController(
@@ -53,7 +55,8 @@ public class Aria2RpcController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -61,6 +64,7 @@ public class Aria2RpcController : ControllerBase
         this.categoryService = categoryService;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -90,7 +94,15 @@ public class Aria2RpcController : ControllerBase
 
                         var xmlDoc = global::System.Xml.Linq.XDocument.Parse(rawBody);
                         var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
-                        return await this.HandleXmlRpcAsync(xmlMethodName, xmlDoc);
+                        try
+                        {
+                            return await this.HandleXmlRpcAsync(xmlMethodName, xmlDoc);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Error handling Aria2 XML-RPC method: {0}", xmlMethodName);
+                            return this.BuildXmlRpcFault(1, ex.Message);
+                        }
                     }
 
                     using var doc = JsonDocument.Parse(rawBody);
@@ -322,8 +334,7 @@ public class Aria2RpcController : ControllerBase
                             }
                             else
                             {
-                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                                var bytes = await client.GetByteArrayAsync(uri);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
                                 return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
@@ -736,8 +747,7 @@ public class Aria2RpcController : ControllerBase
                     }
                     else
                     {
-                        using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                        var bytes = await client.GetByteArrayAsync(uri);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
                         return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
@@ -877,6 +887,29 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement(
                         "param",
                         new global::System.Xml.Linq.XElement("value", valueContent)))));
+
+        return this.Content(doc.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting), "text/xml", global::System.Text.Encoding.UTF8);
+    }
+
+    private IActionResult BuildXmlRpcFault(int faultCode, string faultString)
+    {
+        var doc = new global::System.Xml.Linq.XDocument(
+            new global::System.Xml.Linq.XElement(
+                "methodResponse",
+                new global::System.Xml.Linq.XElement(
+                    "fault",
+                    new global::System.Xml.Linq.XElement(
+                        "value",
+                        new global::System.Xml.Linq.XElement(
+                            "struct",
+                            new global::System.Xml.Linq.XElement(
+                                "member",
+                                new global::System.Xml.Linq.XElement("name", "faultCode"),
+                                new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("int", faultCode))),
+                            new global::System.Xml.Linq.XElement(
+                                "member",
+                                new global::System.Xml.Linq.XElement("name", "faultString"),
+                                new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", faultString))))))));
 
         return this.Content(doc.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting), "text/xml", global::System.Text.Encoding.UTF8);
     }

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.RTorrent;
@@ -26,6 +27,7 @@ public class RTorrentController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public RTorrentController(
@@ -34,7 +36,8 @@ public class RTorrentController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         ITorrentFileService torrentFileService = null,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -42,6 +45,7 @@ public class RTorrentController : ControllerBase
         this.configService = configService;
         this.torrentFileService = torrentFileService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpPost]
@@ -319,8 +323,7 @@ public class RTorrentController : ControllerBase
                         }
                         else
                         {
-                            using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                            var bytes = await client.GetByteArrayAsync(uriStr);
+                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(uriStr, maxSizeBytes: 10 * 1024 * 1024);
                             var parsed = this.torrentFileParser.Parse(bytes);
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)

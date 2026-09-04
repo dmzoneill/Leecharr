@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.NzbVortex;
@@ -26,6 +27,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbVortexApiController(
@@ -34,7 +36,8 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -42,6 +45,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         this.categoryService = categoryService;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [NonAction]
@@ -276,8 +280,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
                 else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
-                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                    var bytes = await httpClient.GetByteArrayAsync(url);
+                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: 10 * 1024 * 1024);
                     var parsed = this.torrentFileParser.Parse(bytes);
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
                     addedId = added?.Id ?? addedId;
