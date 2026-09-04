@@ -59,10 +59,31 @@ public class VpnKillSwitchService : IVpnKillSwitchService
         }
 
         // 2. Heartbeat safety timer
-        this.heartbeatTimer = new Timer(_ => this.CheckVpnState(), null, TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(1500));
+        this.heartbeatTimer = new Timer(
+            _ =>
+            {
+                try
+                {
+                    this.CheckVpnState();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Exception during VPN heartbeat timer check");
+                }
+            },
+            null,
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromMilliseconds(1500));
 
         // 3. Initial check
-        this.CheckVpnState();
+        try
+        {
+            this.CheckVpnState();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Exception during initial VPN state check");
+        }
     }
 
     public bool IsKillSwitchEnabled
@@ -232,7 +253,17 @@ public class VpnKillSwitchService : IVpnKillSwitchService
 
     private NetworkSettings GetNetworkSettings()
     {
-        var settings = this.repository.GetSettings() ?? new NetworkSettings();
+        NetworkSettings settings = null;
+        try
+        {
+            settings = this.repository.GetSettings();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to retrieve network settings from database; using defaults");
+        }
+
+        settings ??= new NetworkSettings();
         if (this.configService != null)
         {
             if (!string.IsNullOrWhiteSpace(this.configService.BindInterface))
