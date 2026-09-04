@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Torrents;
 using Microsoft.AspNetCore.Mvc;
@@ -69,5 +70,122 @@ public class TorrentControllerTest
 
         // Verify individual GetMetadata was never called (avoiding N+1 queries)
         this.mediaEnrichmentService.DidNotReceive().GetMetadata(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task Update_PersistsForceStartTargetRatioSeedTimeShareLimitActionCategoryAndLabel()
+    {
+        var existing = new Torrent
+        {
+            Id = 10,
+            Name = "Initial Torrent",
+            ForceStart = false,
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+            ShareLimitAction = "Pause",
+            Category = "initial-cat",
+            Label = "initial-label",
+        };
+
+        this.torrentService.Get(10).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 10,
+            Name = "Initial Torrent",
+            ForceStart = true,
+            TargetRatio = 3.5,
+            TargetSeedTimeMinutes = 120,
+            ShareLimitAction = "SuperSeeding",
+            Category = "movies",
+            Label = "4k",
+        };
+
+        var response = await this.controller.Update(10, resource);
+
+        existing.ForceStart.Should().BeTrue();
+        existing.TargetRatio.Should().Be(3.5);
+        existing.TargetSeedTimeMinutes.Should().Be(120);
+        existing.ShareLimitAction.Should().Be("SuperSeeding");
+        existing.Category.Should().Be("movies");
+        existing.Label.Should().Be("4k");
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resultResource.ForceStart.Should().Be(true);
+        resultResource.TargetRatio.Should().Be(3.5);
+        resultResource.TargetSeedTimeMinutes.Should().Be(120);
+        resultResource.ShareLimitAction.Should().Be("SuperSeeding");
+        resultResource.Category.Should().Be("movies");
+        resultResource.Label.Should().Be("4k");
+    }
+
+    [Test]
+    public async Task Update_CanClearCategoryAndLabel_WhenEmptyStringsProvided()
+    {
+        var existing = new Torrent
+        {
+            Id = 11,
+            Name = "Categorized Torrent",
+            Category = "movies",
+            Label = "action",
+        };
+
+        this.torrentService.Get(11).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 11,
+            Category = string.Empty,
+            Label = string.Empty,
+        };
+
+        var response = await this.controller.Update(11, resource);
+
+        existing.Category.Should().BeEmpty();
+        existing.Label.Should().BeEmpty();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resultResource.Category.Should().BeEmpty();
+        resultResource.Label.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Update_DoesNotOverwriteCategoryAndLabel_WhenNullProvided()
+    {
+        var existing = new Torrent
+        {
+            Id = 12,
+            Name = "Preserved Torrent",
+            Category = "series",
+            Label = "drama",
+            TargetRatio = 1.5,
+        };
+
+        this.torrentService.Get(12).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 12,
+            Category = null,
+            Label = null,
+            TargetRatio = 4.0,
+        };
+
+        var response = await this.controller.Update(12, resource);
+
+        existing.Category.Should().Be("series");
+        existing.Label.Should().Be("drama");
+        existing.TargetRatio.Should().Be(4.0);
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resultResource.Category.Should().Be("series");
+        resultResource.Label.Should().Be("drama");
+        resultResource.TargetRatio.Should().Be(4.0);
     }
 }
