@@ -27,6 +27,7 @@ public class IndexerController : Controller
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
+    private readonly IDownloadHistoryService downloadHistoryService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
@@ -36,7 +37,8 @@ public class IndexerController : Controller
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ISafeHttpClientService safeHttpClientService = null,
-        HttpClient httpClient = null)
+        HttpClient httpClient = null,
+        IDownloadHistoryService downloadHistoryService = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
@@ -45,6 +47,7 @@ public class IndexerController : Controller
         this.torrentFileParser = torrentFileParser;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        this.downloadHistoryService = downloadHistoryService;
     }
 
     [HttpGet]
@@ -256,6 +259,23 @@ public class IndexerController : Controller
         if (torrent == null)
         {
             return this.BadRequest("Failed to grab release.");
+        }
+
+        if (this.downloadHistoryService != null)
+        {
+            var indexerName = request.IndexerName;
+            if (string.IsNullOrWhiteSpace(indexerName) && request.IndexerId.HasValue)
+            {
+                var indexer = this.indexerRepository?.Get(request.IndexerId.Value);
+                indexerName = indexer?.Name;
+            }
+
+            this.downloadHistoryService.RecordTorrentAdded(
+                torrent,
+                source: !string.IsNullOrWhiteSpace(indexerName) ? indexerName : "Indexer",
+                magnetUrl: request.MagnetUrl,
+                downloadUrl: request.DownloadUrl,
+                indexerName: indexerName);
         }
 
         return this.Ok(TorrentResourceMapper.ToResource(torrent));
