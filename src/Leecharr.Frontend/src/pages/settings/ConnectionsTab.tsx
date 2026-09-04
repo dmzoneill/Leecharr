@@ -120,11 +120,26 @@ export function ConnectionsTab() {
             )}
             {syncMutation.isSuccess && syncMutation.data && (
               <span style={{ color: "var(--success)", fontSize: "0.85rem" }}>
-                ✓ Sync complete: {syncMutation.data.added} added, {syncMutation.data.skipped}{" "}
-                skipped
-                {syncMutation.data.failed > 0 && (
-                  <span style={{ color: "var(--danger)", marginLeft: "0.35rem" }}>
-                    ({syncMutation.data.failed} failed)
+                {syncMutation.data.syncedCount !== undefined ? (
+                  <span>
+                    ✓{" "}
+                    {syncMutation.data.message ||
+                      `Sync complete: ${syncMutation.data.syncedCount}/${syncMutation.data.totalCount ?? syncMutation.data.syncedCount} connected`}
+                  </span>
+                ) : (
+                  <span>
+                    ✓ Sync complete: {syncMutation.data.added ?? 0} added,{" "}
+                    {syncMutation.data.skipped ?? 0} skipped
+                    {(syncMutation.data.failed ?? 0) > 0 && (
+                      <span
+                        style={{
+                          color: "var(--danger)",
+                          marginLeft: "0.35rem",
+                        }}
+                      >
+                        ({syncMutation.data.failed} failed)
+                      </span>
+                    )}
                   </span>
                 )}
               </span>

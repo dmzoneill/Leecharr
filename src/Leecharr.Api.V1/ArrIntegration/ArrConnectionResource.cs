@@ -55,5 +55,15 @@ public class SyncResultResource
 
     public int SyncedCount { get; set; }
 
+    public int TotalCount { get; set; }
+
+    public int FailedCount { get; set; }
+
+    public int Added { get; set; }
+
+    public int Skipped { get; set; }
+
+    public int Failed { get; set; }
+
     public string Message { get; set; }
 }
