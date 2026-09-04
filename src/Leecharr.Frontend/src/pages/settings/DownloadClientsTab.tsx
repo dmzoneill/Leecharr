@@ -8,6 +8,7 @@ import {
   useTestDirectDownloadClient,
   useDownloadClientSync,
 } from "../../api/hooks";
+import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import type { DownloadClientDefinition, DownloadClientTestResult } from "../../api/types";
@@ -15,6 +16,7 @@ import { TextInput, SelectInput, Toggle, NumberInput, SectionCard } from "./shar
 
 export function DownloadClientsTab() {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { data: clients, isLoading } = useDownloadClients();
   const createMutation = useCreateDownloadClient();
   const updateMutation = useUpdateDownloadClient();
@@ -156,9 +158,22 @@ export function DownloadClientsTab() {
                 <button
                   className="provider-card-action provider-card-action-danger"
                   title="Delete Client"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    deleteMutation.mutate(client.id);
+                    const ok = await confirm({
+                      title: "Delete Download Client",
+                      message: `Are you sure you want to delete the download client "${client.name}"?`,
+                      danger: true,
+                      confirmText: "Delete",
+                    });
+                    if (!ok) return;
+
+                    deleteMutation.mutate(client.id, {
+                      onSuccess: () =>
+                        showToast(`Download client "${client.name}" deleted`, "info"),
+                      onError: (err: any) =>
+                        showToast(err?.message || "Failed to delete download client", "error"),
+                    });
                   }}
                 >
                   &#x2715;
