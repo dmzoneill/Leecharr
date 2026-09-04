@@ -25,22 +25,76 @@ public class QBittorrentSearchJob
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class QBittorrentSearchService : IQBittorrentSearchService
+public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 {
+    public const int DefaultMaxJobs = 100;
+    public static readonly TimeSpan DefaultJobTtl = TimeSpan.FromMinutes(30);
+
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
+    private readonly int maxJobs;
+    private readonly TimeSpan jobTtl;
     private int nextJobId = 1;
+    private bool disposed;
 
-    public QBittorrentSearchService(IIndexerRepository indexerRepository = null, ITorznabClient torznabClient = null)
+    public QBittorrentSearchService(
+        IIndexerRepository indexerRepository = null,
+        ITorznabClient torznabClient = null,
+        int maxJobs = DefaultMaxJobs,
+        TimeSpan? jobTtl = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient ?? new TorznabClient();
+        this.maxJobs = maxJobs > 0 ? maxJobs : DefaultMaxJobs;
+        this.jobTtl = jobTtl ?? DefaultJobTtl;
+    }
+
+    public int PruneExpiredJobs()
+    {
+        var now = DateTime.UtcNow;
+        var expiredJobIds = this.activeJobs.Values
+            .Where(j => now - j.CreatedAt > this.jobTtl)
+            .Select(j => j.Id)
+            .ToList();
+
+        var prunedCount = 0;
+        foreach (var id in expiredJobIds)
+        {
+            if (this.activeJobs.TryRemove(id, out var job))
+            {
+                SafeDisposeJob(job);
+                prunedCount++;
+            }
+        }
+
+        return prunedCount;
     }
 
     public int StartSearch(string pattern, string plugins = null, string category = null)
     {
+        this.PruneExpiredJobs();
+
+        while (this.activeJobs.Count >= this.maxJobs)
+        {
+            var oldestCompleted = this.activeJobs.Values
+                .Where(j => j.Status != "Running")
+                .OrderBy(j => j.CreatedAt)
+                .FirstOrDefault();
+
+            var target = oldestCompleted ?? this.activeJobs.Values.OrderBy(j => j.CreatedAt).FirstOrDefault();
+            if (target == null)
+            {
+                break;
+            }
+
+            if (this.activeJobs.TryRemove(target.Id, out var removed))
+            {
+                SafeDisposeJob(removed);
+            }
+        }
+
         var id = Interlocked.Increment(ref this.nextJobId);
         var cts = new CancellationTokenSource();
         var job = new QBittorrentSearchJob
@@ -84,7 +138,15 @@ public class QBittorrentSearchService : IQBittorrentSearchService
                     });
 
                     var aggregated = await Task.WhenAll(tasks);
-                    if (cts.IsCancellationRequested)
+                    try
+                    {
+                        if (cts.IsCancellationRequested)
+                        {
+                            job.Status = "Stopped";
+                            return;
+                        }
+                    }
+                    catch (ObjectDisposedException)
                     {
                         job.Status = "Stopped";
                         return;
@@ -118,8 +180,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService
                 {
                     job.Status = "Stopped";
                 }
-            },
-            cts.Token);
+            });
 
         return id;
     }
@@ -128,8 +189,8 @@ public class QBittorrentSearchService : IQBittorrentSearchService
     {
         if (this.activeJobs.TryGetValue(id, out var job))
         {
-            job.Cts?.Cancel();
             job.Status = "Stopped";
+            SafeDisposeJob(job);
             return true;
         }
 
@@ -140,7 +201,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService
     {
         if (this.activeJobs.TryRemove(id, out var job))
         {
-            job.Cts?.Cancel();
+            SafeDisposeJob(job);
             return true;
         }
 
@@ -263,5 +324,60 @@ public class QBittorrentSearchService : IQBittorrentSearchService
             "software",
             "books",
         };
+    }
+
+    public void Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    internal QBittorrentSearchJob GetJob(int id)
+    {
+        this.activeJobs.TryGetValue(id, out var job);
+        return job;
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!this.disposed)
+        {
+            if (disposing)
+            {
+                foreach (var job in this.activeJobs.Values)
+                {
+                    SafeDisposeJob(job);
+                }
+
+                this.activeJobs.Clear();
+            }
+
+            this.disposed = true;
+        }
+    }
+
+    private static void SafeDisposeJob(QBittorrentSearchJob job)
+    {
+        if (job?.Cts != null)
+        {
+            try
+            {
+                if (!job.Cts.IsCancellationRequested)
+                {
+                    job.Cts.Cancel();
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                job.Cts.Dispose();
+            }
+            catch (Exception)
+            {
+            }
+        }
     }
 }
