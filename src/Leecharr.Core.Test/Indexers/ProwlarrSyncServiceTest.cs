@@ -118,6 +118,89 @@ public class ProwlarrSyncServiceTest
             i.Priority == 10));
     }
 
+    [Test]
+    public async Task SyncFromProwlarrAsync_ExtractsCategoriesFromFields_AssignsToIndexerDefinition()
+    {
+        var json = @"[
+          {
+            ""id"": 10,
+            ""name"": ""Category Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 5,
+            ""protocol"": ""torrent"",
+            ""fields"": [
+              {
+                ""name"": ""categories"",
+                ""value"": [2000, 5000, 5040]
+              }
+            ]
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Category Tracker" &&
+            i.Categories != null &&
+            i.Categories.Count == 3 &&
+            i.Categories.Contains(2000) &&
+            i.Categories.Contains(5000) &&
+            i.Categories.Contains(5040)));
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_ExtractsCategoriesFromCapabilities_AssignsToIndexerDefinition()
+    {
+        var json = @"[
+          {
+            ""id"": 11,
+            ""name"": ""Capabilities Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 5,
+            ""protocol"": ""torrent"",
+            ""capabilities"": {
+              ""categories"": [
+                { ""id"": 2000, ""name"": ""Movies"" },
+                { ""id"": 5000, ""name"": ""TV"" }
+              ]
+            }
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Capabilities Tracker" &&
+            i.Categories != null &&
+            i.Categories.Count == 2 &&
+            i.Categories.Contains(2000) &&
+            i.Categories.Contains(5000)));
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
