@@ -30,6 +30,8 @@ public class SeedingStatsResource
     public long TotalUploaded { get; set; }
 
     public double GlobalRatio { get; set; }
+
+    public double AverageRatio { get; set; }
 }
 
 public class SpeedSnapshotResource
@@ -39,6 +41,12 @@ public class SpeedSnapshotResource
     public long DownloadSpeed { get; set; }
 
     public long UploadSpeed { get; set; }
+
+    public int ActiveTorrents { get; set; }
+
+    public int TotalPeers { get; set; }
+
+    public double AverageRatio { get; set; }
 }
 
 public class TorrentSpeedSnapshotResource
@@ -73,6 +81,8 @@ public class SeedingController : Controller
         var torrents = this.torrentService.GetAll().ToList();
         var totalDown = torrents.Sum(t => t.Downloaded);
         var totalUp = torrents.Sum(t => t.Uploaded);
+        var globalRatio = totalDown > 0 ? (double)totalUp / totalDown : 0.0;
+        var avgRatio = totalDown > 0 ? (double)totalUp / totalDown : (torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0);
 
         RecordSample(torrents);
 
@@ -86,7 +96,8 @@ public class SeedingController : Controller
             UploadSpeed = torrents.Sum(t => t.UploadSpeed),
             TotalDownloaded = totalDown,
             TotalUploaded = totalUp,
-            GlobalRatio = totalDown > 0 ? (double)totalUp / totalDown : 0.0,
+            GlobalRatio = globalRatio,
+            AverageRatio = avgRatio,
         });
     }
 
@@ -175,12 +186,20 @@ public class SeedingController : Controller
 
             var totalDown = torrents.Sum(t => t.DownloadSpeed);
             var totalUp = torrents.Sum(t => t.UploadSpeed);
+            var activeCount = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
+            var totalPeers = torrents.Sum(t => t.Seeders + t.Leechers);
+            var totalBytesDown = torrents.Sum(t => t.Downloaded);
+            var totalBytesUp = torrents.Sum(t => t.Uploaded);
+            var avgRatio = totalBytesDown > 0 ? (double)totalBytesUp / totalBytesDown : (torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0);
 
             GlobalHistory.Enqueue(new SpeedSnapshotResource
             {
                 Timestamp = now,
                 DownloadSpeed = totalDown,
                 UploadSpeed = totalUp,
+                ActiveTorrents = activeCount,
+                TotalPeers = totalPeers,
+                AverageRatio = avgRatio,
             });
 
             while (GlobalHistory.Count > 120)
@@ -204,6 +223,16 @@ public class SeedingController : Controller
                     q.TryDequeue(out _);
                 }
             }
+        }
+    }
+
+    public static void ResetHistory()
+    {
+        lock (SyncLock)
+        {
+            GlobalHistory.Clear();
+            TorrentHistories.Clear();
+            lastSampleTime = DateTime.MinValue;
         }
     }
 }
