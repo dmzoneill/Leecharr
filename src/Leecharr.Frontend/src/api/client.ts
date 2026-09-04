@@ -256,26 +256,46 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     }),
-  renameTorrentFile: (hash: string, oldPath: string, newPath: string) => {
+  renameTorrentFile: async (hash: string, oldPath: string, newPath: string) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    return fetch(`/api/v2/torrents/renameFile`, {
+    const headers: HeadersInit = { "Content-Type": "application/x-www-form-urlencoded" };
+    const key = apiClient.getApiKey();
+    if (key) {
+      (headers as Record<string, string>)["X-Api-Key"] = key;
+    }
+    const response = await fetch(`/api/v2/torrents/renameFile`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers,
       body: params.toString(),
     });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Failed to rename (${response.status})`);
+    }
+    return response;
   },
-  renameTorrentFolder: (hash: string, oldPath: string, newPath: string) => {
+  renameTorrentFolder: async (hash: string, oldPath: string, newPath: string) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    return fetch(`/api/v2/torrents/renameFolder`, {
+    const headers: HeadersInit = { "Content-Type": "application/x-www-form-urlencoded" };
+    const key = apiClient.getApiKey();
+    if (key) {
+      (headers as Record<string, string>)["X-Api-Key"] = key;
+    }
+    const response = await fetch(`/api/v2/torrents/renameFolder`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers,
       body: params.toString(),
     });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Failed to rename (${response.status})`);
+    }
+    return response;
   },
 };
