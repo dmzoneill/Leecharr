@@ -25,7 +25,8 @@ public class NotificationEventHandler :
     IHandle<ArchiveExtractionCompletedEvent>,
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<ApplicationUpdatedEvent>,
-    IHandle<HealthIssueEvent>
+    IHandle<HealthIssueEvent>,
+    IHandle<TorrentSeedGoalReachedEvent>
 {
     private readonly INotificationRepository notificationRepository;
     private readonly IWebhookDispatcher webhookDispatcher;
@@ -133,24 +134,30 @@ public class NotificationEventHandler :
         {
             this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
         }
-        else if (message.NewStatus == TorrentStatus.Stopped && message.Torrent.Progress >= 1.0)
-        {
-            this.Dispatch(n => n.OnSeedGoalReached, "OnSeedGoalReached", message.Torrent);
+    }
 
-            if (!string.IsNullOrWhiteSpace(this.configService?.OnSeedGoalReachedScript))
+    public void Handle(TorrentSeedGoalReachedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        this.Dispatch(n => n.OnSeedGoalReached, "OnSeedGoalReached", message.Torrent);
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.OnSeedGoalReachedScript))
+        {
+            Task.Run(async () =>
             {
-                Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error executing OnSeedGoalReached script");
-                    }
-                });
-            }
+                    await this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error executing OnSeedGoalReached script");
+                }
+            });
         }
     }
 
