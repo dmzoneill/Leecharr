@@ -2,10 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Trackers;
 
@@ -18,6 +21,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IDownloadEngine downloadEngine;
     private readonly IEventAggregator eventAggregator;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger;
 
     public DownloadHistoryService(
@@ -25,13 +29,15 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         ITorrentRepository torrentRepository,
         ITrackerEntryRepository trackerEntryRepository,
         IDownloadEngine downloadEngine,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.historyRepository = historyRepository;
         this.torrentRepository = torrentRepository;
         this.trackerEntryRepository = trackerEntryRepository;
         this.downloadEngine = downloadEngine;
         this.eventAggregator = eventAggregator;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -86,24 +92,29 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             existing.Status = "Active";
             existing.DateRemoved = null;
 
-            if (!string.IsNullOrEmpty(source))
+            if (!string.IsNullOrWhiteSpace(source))
             {
                 existing.Source = source;
             }
 
-            if (!string.IsNullOrEmpty(magnetUrl))
+            if (!string.IsNullOrWhiteSpace(magnetUrl))
             {
                 existing.MagnetUrl = magnetUrl;
             }
 
-            if (!string.IsNullOrEmpty(downloadUrl))
+            if (!string.IsNullOrWhiteSpace(downloadUrl))
             {
                 existing.DownloadUrl = downloadUrl;
             }
 
-            if (!string.IsNullOrEmpty(indexerName))
+            if (!string.IsNullOrWhiteSpace(indexerName))
             {
                 existing.IndexerName = indexerName;
+            }
+
+            if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
+            {
+                existing.PrimaryTracker = this.trackerEntryRepository?.GetByTorrentId(torrent.Id).FirstOrDefault()?.Url;
             }
 
             this.historyRepository.Update(existing);
@@ -238,6 +249,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             Downloaded = entry.Downloaded,
             Ratio = entry.Ratio,
             Category = entry.Source,
+            TrackerUrl = entry.PrimaryTracker,
         };
 
         var all = this.torrentRepository.All().ToList();
@@ -261,9 +273,97 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         entry.DateRemoved = null;
         this.historyRepository.Update(entry);
 
+        byte[] torrentBytes = null;
+        var magnetUri = entry.MagnetUrl;
+
+        if (string.IsNullOrWhiteSpace(magnetUri))
+        {
+            if (!string.IsNullOrWhiteSpace(entry.DownloadUrl))
+            {
+                if (entry.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                {
+                    magnetUri = entry.DownloadUrl;
+                }
+                else
+                {
+                    try
+                    {
+                        torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(entry.DownloadUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to download .torrent from {0} for re-added historical torrent {1}", entry.DownloadUrl, added.Id);
+                    }
+                }
+            }
+
+            if ((torrentBytes == null || torrentBytes.Length == 0) && string.IsNullOrWhiteSpace(magnetUri) && !string.IsNullOrWhiteSpace(added.InfoHash))
+            {
+                try
+                {
+                    var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    var filePath = Path.Combine(appData, "Torrents", $"{added.InfoHash.ToLowerInvariant()}.torrent");
+                    if (File.Exists(filePath))
+                    {
+                        torrentBytes = await File.ReadAllBytesAsync(filePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to read cached .torrent file for {0}", added.InfoHash);
+                }
+            }
+
+            if ((torrentBytes == null || torrentBytes.Length == 0) && string.IsNullOrWhiteSpace(magnetUri))
+            {
+                if (!string.IsNullOrWhiteSpace(entry.InfoHash))
+                {
+                    var magnetBuilder = new StringBuilder($"magnet:?xt=urn:btih:{entry.InfoHash}");
+                    if (!string.IsNullOrWhiteSpace(entry.Title))
+                    {
+                        magnetBuilder.Append($"&dn={Uri.EscapeDataString(entry.Title)}");
+                    }
+
+                    var trackers = (this.trackerEntryRepository?.GetByTorrentId(added.Id) ?? Enumerable.Empty<TrackerEntry>())
+                        .Select(t => t.Url)
+                        .Where(u => !string.IsNullOrWhiteSpace(u))
+                        .Distinct()
+                        .ToList();
+
+                    if (trackers.Count == 0 && !string.IsNullOrWhiteSpace(entry.PrimaryTracker))
+                    {
+                        trackers.Add(entry.PrimaryTracker);
+                    }
+
+                    foreach (var tracker in trackers)
+                    {
+                        magnetBuilder.Append($"&tr={Uri.EscapeDataString(tracker)}");
+                    }
+
+                    magnetUri = magnetBuilder.ToString();
+                }
+            }
+        }
+
+        if (torrentBytes != null && torrentBytes.Length > 0 && !string.IsNullOrWhiteSpace(added.InfoHash))
+        {
+            try
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var torrentsDir = Path.Combine(appData, "Torrents");
+                Directory.CreateDirectory(torrentsDir);
+                var filePath = Path.Combine(torrentsDir, $"{added.InfoHash.ToLowerInvariant()}.torrent");
+                await File.WriteAllBytesAsync(filePath, torrentBytes);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to save re-added .torrent file for {0}", added.InfoHash);
+            }
+        }
+
         try
         {
-            await this.downloadEngine.AddTorrentAsync(added, null, entry.MagnetUrl);
+            await this.downloadEngine.AddTorrentAsync(added, torrentBytes, magnetUri);
         }
         catch (Exception ex)
         {

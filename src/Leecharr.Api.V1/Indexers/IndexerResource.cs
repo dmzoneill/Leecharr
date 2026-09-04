@@ -169,6 +169,10 @@ public class DownloadReleaseRequest
     public string SavePath { get; set; }
 
     public bool StartPaused { get; set; }
+
+    public int? IndexerId { get; set; }
+
+    public string IndexerName { get; set; }
 }
 
 public class ReleaseInfoResource
