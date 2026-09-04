@@ -94,7 +94,11 @@ public class MonoTorrentDownloadEngineTest
         }
     }
 
-    private static byte[] CreateSampleSingleFileTorrentBytes(string name = "testfile.bin", int length = 16384, bool isPrivate = false)
+    private static byte[] CreateSampleSingleFileTorrentBytes(
+        string name = "testfile.bin",
+        int length = 16384,
+        bool isPrivate = false,
+        IList<string> trackerUrls = null)
     {
         var pieceLength = 16384;
         var pieceCount = Math.Max(1, (int)Math.Ceiling((double)length / pieceLength));
@@ -117,11 +121,26 @@ public class MonoTorrentDownloadEngineTest
             infoDict.Add("private", new BEncodedNumber(1));
         }
 
+        var primaryAnnounce = trackerUrls != null && trackerUrls.Count > 0
+            ? trackerUrls[0]
+            : "http://tracker.example.com/announce";
+
         var rootDict = new BEncodedDictionary
         {
-            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "announce", new BEncodedString(primaryAnnounce) },
             { "info", infoDict },
         };
+
+        if (trackerUrls != null && trackerUrls.Count > 0)
+        {
+            var announceList = new BEncodedList();
+            foreach (var url in trackerUrls)
+            {
+                announceList.Add(new BEncodedList { new BEncodedString(url) });
+            }
+
+            rootDict.Add("announce-list", announceList);
+        }
 
         return rootDict.Encode();
     }
@@ -511,6 +530,196 @@ public class MonoTorrentDownloadEngineTest
         task.Should().NotBeNull();
 
         this.engine.CheckTrackerHealth();
+    }
+
+    [Test]
+    public async Task CheckTrackerHealth_WhenTrackersInConnectingState_DoesNotStallOrPublishHealthIssue()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_connecting.iso", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 50,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_connecting.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().Be(TorrentState.Downloading);
+
+        var trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
+        trackers.Should().NotBeEmpty();
+
+        SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Connecting);
+
+        var isStalled = task.CheckTrackerHealth(this.eventAggregator);
+
+        isStalled.Should().BeFalse();
+        task.IsStalled.Should().BeFalse();
+        task.Status.Should().Be(TorrentStatus.Downloading);
+        task.ErrorMessage.Should().BeNull();
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
+
+        SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Unknown);
+        task.CheckTrackerHealth(this.eventAggregator).Should().BeFalse();
+        task.IsStalled.Should().BeFalse();
+
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
+    }
+
+    [Test]
+    [TestCase(MonoTorrent.Trackers.TrackerState.Offline)]
+    [TestCase(MonoTorrent.Trackers.TrackerState.InvalidResponse)]
+    public async Task CheckTrackerHealth_WhenTrackersDefinitivelyFailed_TriggersStalledStatusAndPublishesHealthIssue(MonoTorrent.Trackers.TrackerState failedState)
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes($"private_failed_{failedState}.iso", isPrivate: true);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 51,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = $"private_failed_{failedState}.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().Be(TorrentState.Downloading);
+
+        var trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
+        trackers.Should().NotBeEmpty();
+
+        foreach (var tierItem in task.Manager.TrackerManager.Tiers)
+        {
+            SetTierAnnounceSucceeded(tierItem, false);
+        }
+
+        foreach (var tracker in trackers)
+        {
+            SetTrackerStatus(tracker, failedState);
+        }
+
+        var isStalled = task.CheckTrackerHealth(this.eventAggregator);
+
+        isStalled.Should().BeTrue();
+        task.IsStalled.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Stalled);
+        task.ErrorMessage.Should().NotBeNullOrEmpty();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 51 &&
+            !e.IsResolved &&
+            e.Source == "Tracker"));
+    }
+
+    [Test]
+    public async Task CheckTrackerHealth_WhenMixedStates_DoesNotStallUntilAllTrackersHaveResolved()
+    {
+        var trackerUrls = new List<string>
+        {
+            "http://tracker1.example.com/announce",
+            "http://tracker2.example.com/announce",
+        };
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("private_mixed.iso", isPrivate: true, trackerUrls: trackerUrls);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 52,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "private_mixed.iso",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().Be(TorrentState.Downloading);
+
+        var trackers = task.Manager.TrackerManager.Tiers.SelectMany(t => t.Trackers).ToList();
+        trackers.Count.Should().Be(2);
+
+        foreach (var tierItem in task.Manager.TrackerManager.Tiers)
+        {
+            SetTierAnnounceSucceeded(tierItem, false);
+        }
+
+        SetTrackerStatus(trackers[0], MonoTorrent.Trackers.TrackerState.Offline);
+        SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.Connecting);
+
+        var isStalledConnecting = task.CheckTrackerHealth(this.eventAggregator);
+
+        isStalledConnecting.Should().BeFalse();
+        task.IsStalled.Should().BeFalse();
+        task.Status.Should().Be(TorrentStatus.Downloading);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
+
+        SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.Unknown);
+
+        var isStalledUnknown = task.CheckTrackerHealth(this.eventAggregator);
+
+        isStalledUnknown.Should().BeFalse();
+        task.IsStalled.Should().BeFalse();
+        task.Status.Should().Be(TorrentStatus.Downloading);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
+
+        SetTrackerStatus(trackers[1], MonoTorrent.Trackers.TrackerState.InvalidResponse);
+
+        foreach (var tierItem in task.Manager.TrackerManager.Tiers)
+        {
+            SetTierAnnounceSucceeded(tierItem, false);
+        }
+
+        var isStalledAfterResolved = task.CheckTrackerHealth(this.eventAggregator);
+
+        isStalledAfterResolved.Should().BeTrue();
+        task.IsStalled.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Stalled);
+        task.ErrorMessage.Should().NotBeNullOrEmpty();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 52 &&
+            !e.IsResolved &&
+            e.Source == "Tracker"));
+    }
+
+    private static void SetTrackerStatus(MonoTorrent.Trackers.ITracker tracker, MonoTorrent.Trackers.TrackerState state)
+    {
+        var prop = tracker.GetType().GetProperty("StatusOverride", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        prop.Should().NotBeNull();
+        prop!.SetValue(tracker, (MonoTorrent.Trackers.TrackerState?)state);
+    }
+
+    private static void SetTierAnnounceSucceeded(object tier, bool succeeded)
+    {
+        var field = tier.GetType().GetField("<LastAnnounceSucceeded>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+        field?.SetValue(tier, succeeded);
     }
 
     #endregion
