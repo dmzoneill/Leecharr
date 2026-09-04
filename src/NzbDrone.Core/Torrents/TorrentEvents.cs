@@ -40,6 +40,16 @@ public class TorrentDownloadCompletedEvent : IEvent
     }
 }
 
+public class TorrentSeedGoalReachedEvent : IEvent
+{
+    public Torrent Torrent { get; }
+
+    public TorrentSeedGoalReachedEvent(Torrent torrent)
+    {
+        this.Torrent = torrent;
+    }
+}
+
 public class HealthIssueEvent : IEvent
 {
     public Torrent Torrent { get; }
