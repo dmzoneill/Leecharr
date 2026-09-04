@@ -364,6 +364,34 @@ public class IndexerController : Controller
                 var content = await capsResp.Content.ReadAsStringAsync();
                 if (!string.IsNullOrWhiteSpace(content) && content.Contains("<caps", StringComparison.OrdinalIgnoreCase) && !content.Contains("<error", StringComparison.OrdinalIgnoreCase))
                 {
+                    TorznabCapabilities caps = null;
+                    try
+                    {
+                        caps = this.torznabClient?.ParseCapabilitiesXml(content);
+                    }
+                    catch
+                    {
+                    }
+
+                    if (caps?.Categories != null && caps.Categories.Count > 0 && (indexer.Categories == null || indexer.Categories.Count == 0))
+                    {
+                        var catIds = new HashSet<int>();
+                        foreach (var cat in caps.Categories)
+                        {
+                            catIds.Add(cat.Id);
+                            foreach (var sub in cat.SubCategories)
+                            {
+                                catIds.Add(sub.Id);
+                            }
+                        }
+
+                        indexer.Categories = catIds.OrderBy(c => c).ToList();
+                        if (indexer.Id > 0)
+                        {
+                            this.indexerRepository.Update(indexer);
+                        }
+                    }
+
                     return this.Ok(new IndexerTestResult
                     {
                         Success = true,
