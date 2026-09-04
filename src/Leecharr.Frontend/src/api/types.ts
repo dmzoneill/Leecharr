@@ -741,6 +741,12 @@ export interface Backup {
   time: string;
 }
 
+export interface RestoreBackupRequest {
+  backupId?: number;
+  fileName?: string;
+  path?: string;
+}
+
 export interface PeerGraphNode {
   id: string;
   label: string;

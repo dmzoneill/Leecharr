@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Backup } from "../api/types";
 import { useBackups, useCreateBackup, useDeleteBackup, useRestoreBackup } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -86,7 +87,7 @@ function SystemBackup() {
   const { showToast } = useToast();
 
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-  const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<Backup | null>(null);
 
   useEscapeKey(() => setConfirmDelete(null), confirmDelete !== null);
   useEscapeKey(() => setConfirmRestore(null), confirmRestore !== null);
@@ -108,14 +109,14 @@ function SystemBackup() {
     });
   };
 
-  const handleRestoreBackup = (fileName: string) => {
-    restoreBackup.mutate(fileName, {
-      onSuccess: () => {
-        showToast("Backup restored. Restart required.", "info");
-        setConfirmRestore(null);
-      },
-      onError: () => showToast("Failed to restore backup", "error"),
-    });
+  const handleRestoreBackup = async (backup: Backup) => {
+    try {
+      await restoreBackup.mutateAsync({ backupId: backup.id, fileName: backup.name });
+      showToast("Backup restored. Restart required.", "info");
+      setConfirmRestore(null);
+    } catch {
+      showToast("Failed to restore backup", "error");
+    }
   };
 
   return (
@@ -251,7 +252,7 @@ function SystemBackup() {
                       >
                         <button
                           className="btn btn-small btn-outline"
-                          onClick={() => setConfirmRestore(backup.name)}
+                          onClick={() => setConfirmRestore(backup)}
                           title="Restore Snapshot"
                           disabled={restoreBackup.isPending}
                         >
@@ -365,7 +366,7 @@ function SystemBackup() {
               }}
             >
               Are you sure you want to restore from &quot;
-              <strong>{confirmRestore}</strong>&quot;?
+              <strong>{confirmRestore.name}</strong>&quot;?
             </p>
             <div
               className="modal-actions"
