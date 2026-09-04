@@ -118,7 +118,7 @@ export function AddTorrentForm({
     }
   }, [searchQuery, activeSearchTerm]);
 
-  // Pre-select default category if none chosen
+  // Preselect default category if none chosen
   useEffect(() => {
     if (!selectedCategory && categories && categories.length > 0) {
       const defaultCat = categories.find((c) => c.isDefault);
