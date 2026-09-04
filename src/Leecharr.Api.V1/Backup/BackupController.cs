@@ -29,7 +29,9 @@ public class BackupResource : RestResource
 
 public class RestoreBackupRequest
 {
-    public int BackupId { get; set; }
+    public int? BackupId { get; set; }
+
+    public string FileName { get; set; }
 
     public string Path { get; set; }
 }
@@ -81,6 +83,20 @@ public class BackupController : Controller
     public ActionResult<List<BackupResource>> GetAll()
     {
         return this.Ok(this.GetBackupsInternal());
+    }
+
+    [HttpGet("{id:int}/download")]
+    public ActionResult Download(int id)
+    {
+        var backups = this.GetBackupsInternal();
+        var backup = backups.FirstOrDefault(b => b.Id == id);
+        if (backup == null || !global::System.IO.File.Exists(backup.Path))
+        {
+            return this.NotFound();
+        }
+
+        var stream = global::System.IO.File.OpenRead(backup.Path);
+        return this.File(stream, "application/zip", backup.Name);
     }
 
     [HttpPost]
@@ -161,7 +177,10 @@ public class BackupController : Controller
         }
 
         var backups = this.GetBackupsInternal();
-        var backup = backups.FirstOrDefault(b => b.Id == request.BackupId || (!string.IsNullOrWhiteSpace(request.Path) && string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase)));
+        var backup = backups.FirstOrDefault(b =>
+            (request.BackupId.HasValue && request.BackupId.Value > 0 && b.Id == request.BackupId.Value) ||
+            (!string.IsNullOrWhiteSpace(request.Path) && string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(request.FileName) && (string.Equals(b.Name, request.FileName, StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetFileName(b.Path), request.FileName, StringComparison.OrdinalIgnoreCase))));
         if (backup == null || !global::System.IO.File.Exists(backup.Path))
         {
             return this.BadRequest(new { success = false, message = "Backup not found." });
