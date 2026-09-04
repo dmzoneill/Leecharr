@@ -7,6 +7,7 @@ import type {
   NetworkStatus,
   NetworkDiagnostics,
   Backup,
+  RestoreBackupRequest,
   UpdateEntry,
   AiStatus,
   AiParsedRelease,
@@ -95,7 +96,7 @@ export function useDeleteBackup() {
 
 export function useRestoreBackup() {
   return useMutation({
-    mutationFn: (fileName: string) => apiClient.post("/backup/restore", { fileName }),
+    mutationFn: (request: RestoreBackupRequest) => apiClient.post("/backup/restore", request),
   });
 }
 
