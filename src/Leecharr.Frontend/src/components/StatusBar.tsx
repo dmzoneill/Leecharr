@@ -82,7 +82,14 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
         </span>
         <span className="status-bar-item">
           <ActivityIcon size={14} /> Uptime:{" "}
-          {systemStatus ? formatUptime(systemStatus.uptimeSeconds) : "..."}
+          {systemStatus
+            ? formatUptime(
+                systemStatus.uptimeSeconds ??
+                  (systemStatus.startTime
+                    ? Math.floor((Date.now() - new Date(systemStatus.startTime).getTime()) / 1000)
+                    : 0)
+              )
+            : "..."}
         </span>
         <span
           className="status-bar-item"
