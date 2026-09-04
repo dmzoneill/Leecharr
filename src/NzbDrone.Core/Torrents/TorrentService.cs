@@ -757,6 +757,7 @@ public class TorrentService : ITorrentService
             torrent.UploadSpeed = task.UploadSpeed;
             torrent.Seeders = task.ConnectedSeeders;
             torrent.Leechers = task.ConnectedLeechers;
+            torrent.Ratio = task.DownloadedBytes > 0 ? (double)task.UploadedBytes / task.DownloadedBytes : 0.0;
 
             if (oldStatus != torrent.Status)
             {

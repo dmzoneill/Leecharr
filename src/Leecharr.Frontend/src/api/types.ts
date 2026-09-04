@@ -200,6 +200,7 @@ export interface SeedingStats {
   totalUploaded: number;
   totalDownloaded: number;
   averageRatio: number;
+  globalRatio?: number;
   overallRatio?: number;
   uploadSpeed?: number;
   downloadSpeed?: number;
@@ -212,8 +213,8 @@ export interface SpeedSnapshot {
   activeTorrents: number;
   totalPeers: number;
   averageRatio: number;
-  totalUploaded: number;
-  totalDownloaded: number;
+  totalUploaded?: number;
+  totalDownloaded?: number;
 }
 
 export interface TorrentSpeedSnapshot {
