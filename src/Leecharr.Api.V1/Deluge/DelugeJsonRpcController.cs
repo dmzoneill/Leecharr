@@ -223,6 +223,7 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.remove_torrents",
                             "core.force_recheck",
                             "core.set_torrent_options",
+                            "core.move_storage",
                             "core.get_filter_tree",
                             "core.get_enabled_plugins",
                             "core.get_available_plugins",
@@ -756,6 +757,51 @@ public class DelugeJsonRpcController : ControllerBase
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
 
+                case "core.move_storage":
+                    List<string> moveHashes = null;
+                    string dest = null;
+
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+                    {
+                        moveHashes = ExtractHashes(paramsElem[0]);
+                        dest = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
+                    }
+                    else if (paramsElem.ValueKind == JsonValueKind.Object)
+                    {
+                        if (paramsElem.TryGetProperty("torrent_ids", out var tids))
+                        {
+                            moveHashes = ExtractHashes(tids);
+                        }
+                        else if (paramsElem.TryGetProperty("torrent_id", out var tid))
+                        {
+                            moveHashes = ExtractHashes(tid);
+                        }
+
+                        if (paramsElem.TryGetProperty("dest", out var dProp) && dProp.ValueKind == JsonValueKind.String)
+                        {
+                            dest = dProp.GetString();
+                        }
+                        else if (paramsElem.TryGetProperty("destination", out var destProp) && destProp.ValueKind == JsonValueKind.String)
+                        {
+                            dest = destProp.GetString();
+                        }
+                    }
+
+                    if (moveHashes != null && !string.IsNullOrWhiteSpace(dest))
+                    {
+                        foreach (var hash in moveHashes)
+                        {
+                            var t = this.torrentService.GetByInfoHash(hash) ??
+                                (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                            if (t != null)
+                            {
+                                await this.torrentService.SetLocationAsync(t.Id, dest, moveFiles: true);
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
+
                 case "core.set_torrent_options":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                     {
@@ -763,26 +809,44 @@ public class DelugeJsonRpcController : ControllerBase
                         var opts = paramsElem[1];
                         foreach (var hash in optHashes)
                         {
-                            var t = this.torrentService.GetByInfoHash(hash);
+                            var t = this.torrentService.GetByInfoHash(hash) ??
+                                (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
                             if (t != null)
                             {
+                                string newPath = null;
                                 if (opts.TryGetProperty("download_location", out var dl))
                                 {
-                                    t.SavePath = dl.GetString();
+                                    newPath = dl.GetString();
                                 }
                                 else if (opts.TryGetProperty("move_completed_path", out var mcp))
                                 {
-                                    t.SavePath = mcp.GetString();
+                                    newPath = mcp.GetString();
                                 }
+
+                                if (!string.IsNullOrWhiteSpace(newPath))
+                                {
+                                    await this.torrentService.SetLocationAsync(t.Id, newPath, moveFiles: true);
+                                    t.SavePath = newPath;
+                                }
+
+                                var hasOtherUpdates = false;
 
                                 if (opts.TryGetProperty("max_download_speed", out var mds))
                                 {
                                     t.DownloadLimit = (int)(mds.GetInt64() * 1024);
+                                    hasOtherUpdates = true;
                                 }
 
                                 if (opts.TryGetProperty("max_upload_speed", out var mus))
                                 {
                                     t.UploadLimit = (int)(mus.GetInt64() * 1024);
+                                    hasOtherUpdates = true;
+                                }
+
+                                if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
+                                {
+                                    t.TargetRatio = sr.GetDouble();
+                                    hasOtherUpdates = true;
                                 }
 
                                 if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array)
@@ -800,7 +864,10 @@ public class DelugeJsonRpcController : ControllerBase
                                     }
                                 }
 
-                                await this.torrentService.UpdateAsync(t);
+                                if (hasOtherUpdates)
+                                {
+                                    await this.torrentService.UpdateAsync(t);
+                                }
                             }
                         }
                     }
@@ -963,6 +1030,10 @@ public class DelugeJsonRpcController : ControllerBase
                 {
                     hashes.Add(item.GetString());
                 }
+                else if (item.ValueKind == JsonValueKind.Number)
+                {
+                    hashes.Add(item.ToString());
+                }
                 else if (item.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var sub in item.EnumerateArray())
@@ -971,6 +1042,10 @@ public class DelugeJsonRpcController : ControllerBase
                         {
                             hashes.Add(sub.GetString());
                         }
+                        else if (sub.ValueKind == JsonValueKind.Number)
+                        {
+                            hashes.Add(sub.ToString());
+                        }
                     }
                 }
             }
@@ -978,6 +1053,10 @@ public class DelugeJsonRpcController : ControllerBase
         else if (parameters.ValueKind == JsonValueKind.String)
         {
             hashes.Add(parameters.GetString());
+        }
+        else if (parameters.ValueKind == JsonValueKind.Number)
+        {
+            hashes.Add(parameters.ToString());
         }
 
         return hashes;

@@ -131,6 +131,8 @@ public class RTorrentController : ControllerBase
                     new XElement("value", new XElement("string", "d.open")),
                     new XElement("value", new XElement("string", "d.check_hash")),
                     new XElement("value", new XElement("string", "d.custom1.set")),
+                    new XElement("value", new XElement("string", "d.directory.set")),
+                    new XElement("value", new XElement("string", "d.directory_base.set")),
                     new XElement("value", new XElement("string", "get_directory")),
                     new XElement("value", new XElement("string", "get_down_rate")),
                     new XElement("value", new XElement("string", "get_up_rate"))));
@@ -431,6 +433,34 @@ public class RTorrentController : ControllerBase
 
                 return new XElement("string", targetCat);
 
+            case "d.directory.set":
+            case "d.directory_base.set":
+                if (paramValues.Count >= 2 && paramValues[0] != null)
+                {
+                    Torrent t = null;
+                    if (paramValues[0] is int idNum)
+                    {
+                        t = this.torrentService.Get(idNum);
+                    }
+                    else
+                    {
+                        var target = paramValues[0].ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(target))
+                        {
+                            t = this.torrentService.GetByInfoHash(target) ??
+                                (int.TryParse(target, out var parsedId) ? this.torrentService.Get(parsedId) : null);
+                        }
+                    }
+
+                    var newDir = paramValues[1]?.ToString();
+                    if (t != null && !string.IsNullOrWhiteSpace(newDir))
+                    {
+                        await this.torrentService.SetLocationAsync(t.Id, newDir, moveFiles: true);
+                    }
+                }
+
+                return new XElement("i4", 0);
+
             case "d.priority.set":
                 if (paramValues.Count >= 2 && paramValues[0] is string prioHash)
                 {
@@ -542,6 +572,8 @@ public class RTorrentController : ControllerBase
             case "d.get_base_path":
             case "d.directory":
             case "d.get_directory":
+            case "d.directory_base":
+            case "d.get_directory_base":
                 return new XElement("string", torrent.SavePath ?? (this.configService.DownloadDir ?? "/downloads"));
 
             case "d.bytes_done":
