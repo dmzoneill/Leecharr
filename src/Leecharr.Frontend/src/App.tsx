@@ -52,6 +52,7 @@ import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
 import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from "./components/GettingStartedModal";
 import { SETTINGS_GROUPS, LEGACY_SETTINGS_MAP } from "./pages/settings/settingsNavData";
+import { useSettingsDirty } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./App.css";
 
@@ -209,6 +210,14 @@ export function App() {
   }, [queryClient]);
 
   const { showToast } = useToast();
+  const { confirmIfDirty } = useSettingsDirty();
+
+  const guardedNavigate = useCallback(
+    (to: string) => {
+      confirmIfDirty(() => navigate(to));
+    },
+    [confirmIfDirty, navigate]
+  );
 
   useEffect(() => {
     const unsubReconnecting = signalRManager.onReconnecting(() => {
@@ -347,7 +356,7 @@ export function App() {
       <aside className={`sidebar sidebar-${activeNav}`}>
         <div
           className="sidebar-logo"
-          onClick={() => navigate("/")}
+          onClick={() => guardedNavigate("/")}
           style={{ cursor: "pointer", position: "relative" }}
         >
           <button
@@ -369,7 +378,7 @@ export function App() {
           {/* Dashboard */}
           <div
             className={`sidebar-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
-            onClick={() => navigate("/")}
+            onClick={() => guardedNavigate("/")}
             style={{ cursor: "pointer" }}
           >
             <DashboardIcon size={16} />
@@ -379,7 +388,7 @@ export function App() {
           {/* Torrents (Primary Client / Transfers) */}
           <div
             className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
-            onClick={() => navigate("/torrents")}
+            onClick={() => guardedNavigate("/torrents")}
             style={{ cursor: "pointer" }}
           >
             <TorrentIcon size={16} />
@@ -389,14 +398,14 @@ export function App() {
             <>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
-                onClick={() => navigate("/torrents")}
+                onClick={() => guardedNavigate("/torrents")}
                 style={{ cursor: "pointer" }}
               >
                 <DashboardIcon size={14} /> <span>All Transfers</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
-                onClick={() => navigate("/torrents/add")}
+                onClick={() => guardedNavigate("/torrents/add")}
                 style={{ cursor: "pointer" }}
               >
                 <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
@@ -408,7 +417,7 @@ export function App() {
           {/* Activity (History & Real-time Metrics) */}
           <div
             className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
-            onClick={() => navigate("/activity/history")}
+            onClick={() => guardedNavigate("/activity/history")}
             style={{ cursor: "pointer" }}
           >
             <ActivityIcon size={16} />
@@ -418,14 +427,14 @@ export function App() {
             <>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
-                onClick={() => navigate("/activity/history")}
+                onClick={() => guardedNavigate("/activity/history")}
                 style={{ cursor: "pointer" }}
               >
                 <HistoryIcon /> <span>History</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
-                onClick={() => navigate("/activity/metrics")}
+                onClick={() => guardedNavigate("/activity/metrics")}
                 style={{ cursor: "pointer" }}
               >
                 <StatsIcon size={14} /> <span>Metrics</span>
@@ -436,7 +445,7 @@ export function App() {
           {/* Indexer Search & Discovery */}
           <div
             className={`sidebar-nav-item ${activeNav === "indexers" ? "active" : ""}`}
-            onClick={() => navigate("/indexers")}
+            onClick={() => guardedNavigate("/indexers")}
             style={{ cursor: "pointer" }}
           >
             <SearchIcon size={16} />
@@ -446,7 +455,7 @@ export function App() {
           {/* Peer Map */}
           <div
             className={`sidebar-nav-item ${activeNav === "peermap" ? "active" : ""}`}
-            onClick={() => navigate("/peermap")}
+            onClick={() => guardedNavigate("/peermap")}
             style={{ cursor: "pointer" }}
           >
             <PeerMapIcon size={16} />
@@ -456,7 +465,7 @@ export function App() {
           {/* Schedule */}
           <div
             className={`sidebar-nav-item ${activeNav === "schedule" ? "active" : ""}`}
-            onClick={() => navigate("/schedule")}
+            onClick={() => guardedNavigate("/schedule")}
             style={{ cursor: "pointer" }}
           >
             <ScheduleIcon size={16} />
@@ -466,7 +475,7 @@ export function App() {
           {/* Statistics */}
           <div
             className={`sidebar-nav-item ${activeNav === "statistics" ? "active" : ""}`}
-            onClick={() => navigate("/statistics")}
+            onClick={() => guardedNavigate("/statistics")}
             style={{ cursor: "pointer" }}
           >
             <StatsIcon size={16} />
@@ -476,7 +485,7 @@ export function App() {
           {/* Tracker Boost */}
           <div
             className={`sidebar-nav-item ${activeNav === "trackerboost" ? "active" : ""}`}
-            onClick={() => navigate("/trackerboost")}
+            onClick={() => guardedNavigate("/trackerboost")}
             style={{ cursor: "pointer" }}
             title="Tracker Boost Swarm Optimization & Discovery"
           >
@@ -497,7 +506,7 @@ export function App() {
           {/* Settings */}
           <div
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
-            onClick={() => navigate("/settings/host")}
+            onClick={() => guardedNavigate("/settings/host")}
             style={{ cursor: "pointer" }}
           >
             <SettingsIcon size={16} />
@@ -540,7 +549,7 @@ export function App() {
                           <div
                             key={page.id}
                             className={`sidebar-settings-subitem ${isPageActive ? "active" : ""}`}
-                            onClick={() => navigate(`/settings/${page.id}`)}
+                            onClick={() => guardedNavigate(`/settings/${page.id}`)}
                             title={page.description}
                           >
                             <span
@@ -595,7 +604,7 @@ export function App() {
           {/* System */}
           <div
             className={`sidebar-nav-item ${activeNav === "system" ? "active" : ""}`}
-            onClick={() => navigate("/system/status")}
+            onClick={() => guardedNavigate("/system/status")}
             style={{ cursor: "pointer" }}
           >
             <SystemIcon size={16} />
@@ -606,7 +615,7 @@ export function App() {
               <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
-                onClick={() => navigate(`/system/${item.id}`)}
+                onClick={() => guardedNavigate(`/system/${item.id}`)}
                 style={{ cursor: "pointer" }}
               >
                 <span>{item.label}</span>
@@ -793,8 +802,8 @@ export function App() {
                     <div className="content-area">
                       <Dashboard
                         torrents={torrents}
-                        onNavigateTorrents={() => navigate("/torrents")}
-                        onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
+                        onNavigateTorrents={() => guardedNavigate("/torrents")}
+                        onNavigateSettings={(tab) => guardedNavigate(`/settings/${tab}`)}
                       />
                     </div>
                   </ErrorBoundary>
@@ -815,10 +824,10 @@ export function App() {
                       onOpenAddModal={() => setShowAddModal(true)}
                       onOpenSearchModal={() => setShowSearchModal(true)}
                       onNavigateTab={(nav, subNav) => {
-                        if (nav === "settings") navigate(`/settings/${subNav || "general"}`);
-                        else if (nav === "system") navigate(`/system/${subNav || "status"}`);
-                        else if (subNav) navigate(`/${nav}/${subNav}`);
-                        else navigate(`/${nav}`);
+                        if (nav === "settings") guardedNavigate(`/settings/${subNav || "general"}`);
+                        else if (nav === "system") guardedNavigate(`/system/${subNav || "status"}`);
+                        else if (subNav) guardedNavigate(`/${nav}/${subNav}`);
+                        else guardedNavigate(`/${nav}`);
                       }}
                     />
                   </ErrorBoundary>
@@ -1041,9 +1050,9 @@ export function App() {
         <GettingStartedModal
           isOpen={showGettingStartedModal}
           onClose={() => setShowGettingStartedModal(false)}
-          onNavigateSettings={(tab) => navigate(`/settings/${tab}`)}
-          onNavigateTorrents={() => navigate("/torrents")}
-          onNavigateIndexers={() => navigate("/indexers")}
+          onNavigateSettings={(tab) => guardedNavigate(`/settings/${tab}`)}
+          onNavigateTorrents={() => guardedNavigate("/torrents")}
+          onNavigateIndexers={() => guardedNavigate("/indexers")}
         />
       </ErrorBoundary>
 

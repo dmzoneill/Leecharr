@@ -6,8 +6,10 @@ import {
   useSaveProtocolsConfig,
 } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
+import { useToast } from "../../context/ToastContext";
 
 export function DhtSettingsTab() {
+  const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
 
@@ -64,49 +66,75 @@ export function DhtSettingsTab() {
     }
   }, [btConfig, protoConfig]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
   const isPending = saveBtMutation.isPending || saveProtoMutation.isPending;
   const isError = saveBtMutation.isError || saveProtoMutation.isError;
-  const isSuccess = saveBtMutation.isSuccess && saveProtoMutation.isSuccess;
-  const error = (saveBtMutation.error ||
-    saveProtoMutation.error) as Error | null;
+  const isSuccess =
+    (!btConfig || saveBtMutation.isSuccess) &&
+    (!protoConfig || saveProtoMutation.isSuccess) &&
+    (saveBtMutation.isSuccess || saveProtoMutation.isSuccess);
+  const error = (saveBtMutation.error || saveProtoMutation.error) as Error | null;
 
   const handleSave = () => {
+    let pending = (btConfig ? 1 : 0) + (protoConfig ? 1 : 0);
+    if (pending === 0) return;
+    let hasError = false;
+
+    const handleSuccess = () => {
+      pending--;
+      if (pending === 0 && !hasError) {
+        setDirty(false);
+      }
+    };
+
+    const handleError = (err: any) => {
+      hasError = true;
+      showToast(err?.message || "Failed to save DHT discovery settings", "error");
+    };
+
     if (btConfig) {
-      saveBtMutation.mutate({
-        ...btConfig,
-        enableDht: form.enableDht,
-        enablePex: form.enablePex,
-        enableLpd: form.enableLpd,
-        dhtBootstrapNodes: form.dhtBootstrapNodes,
-        defaultTrackers: form.defaultTrackers,
-      });
+      saveBtMutation.mutate(
+        {
+          ...btConfig,
+          enableDht: form.enableDht,
+          enablePex: form.enablePex,
+          enableLpd: form.enableLpd,
+          dhtBootstrapNodes: form.dhtBootstrapNodes,
+          defaultTrackers: form.defaultTrackers,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (protoConfig) {
-      saveProtoMutation.mutate({
-        ...protoConfig,
-        dhtRoutingTableSize: form.dhtRoutingTableSize,
-        dhtAnnouncementInterval: form.dhtAnnouncementInterval,
-        dhtBootstrapTimeout: form.dhtBootstrapTimeout,
-        dhtQueryTimeout: form.dhtQueryTimeout,
-        dhtMaxNodes: form.dhtMaxNodes,
-        dhtBucketSize: form.dhtBucketSize,
-        dhtConcurrentQueries: form.dhtConcurrentQueries,
-        dhtAutoBootstrap: form.dhtAutoBootstrap,
-        dhtRateLimitEnabled: form.dhtRateLimitEnabled,
-        dhtMaxQueriesPerSecond: form.dhtMaxQueriesPerSecond,
-        pexInterval: form.pexInterval,
-        pexMaxPeersPerMessage: form.pexMaxPeersPerMessage,
-      });
+      saveProtoMutation.mutate(
+        {
+          ...protoConfig,
+          dhtRoutingTableSize: form.dhtRoutingTableSize,
+          dhtAnnouncementInterval: form.dhtAnnouncementInterval,
+          dhtBootstrapTimeout: form.dhtBootstrapTimeout,
+          dhtQueryTimeout: form.dhtQueryTimeout,
+          dhtMaxNodes: form.dhtMaxNodes,
+          dhtBucketSize: form.dhtBucketSize,
+          dhtConcurrentQueries: form.dhtConcurrentQueries,
+          dhtAutoBootstrap: form.dhtAutoBootstrap,
+          dhtRateLimitEnabled: form.dhtRateLimitEnabled,
+          dhtMaxQueriesPerSecond: form.dhtMaxQueriesPerSecond,
+          pexInterval: form.pexInterval,
+          pexMaxPeersPerMessage: form.pexMaxPeersPerMessage,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
-    setDirty(false);
   };
 
   if (btLoading || protoLoading) {

@@ -7,16 +7,11 @@ import {
   usePeerProtocolConfig,
   useSavePeerProtocolConfig,
 } from "../../api/hooks";
-import {
-  SaveBar,
-  SectionCard,
-  NumberInput,
-  TextInput,
-  SelectInput,
-  Toggle,
-} from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, SelectInput, Toggle } from "./shared";
+import { useToast } from "../../context/ToastContext";
 
 export function ClientEmulationSettingsTab() {
+  const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
 
@@ -55,8 +50,7 @@ export function ClientEmulationSettingsTab() {
   useEffect(() => {
     if (btConfig || simConfig || peerConfig) {
       setForm({
-        clientBehaviorEngineEnabled:
-          simConfig?.clientBehaviorEngineEnabled ?? true,
+        clientBehaviorEngineEnabled: simConfig?.clientBehaviorEngineEnabled ?? true,
         primaryClient: simConfig?.primaryClient || "qBittorrent",
         bitTorrentUserAgent: btConfig?.bitTorrentUserAgent || "Leecharr/1.0",
         peerIdPrefix: btConfig?.peerIdPrefix || "-LC1000-",
@@ -69,12 +63,10 @@ export function ClientEmulationSettingsTab() {
         swarmIntelligenceEnabled: simConfig?.swarmIntelligenceEnabled ?? true,
         swarmAdaptationRate: simConfig?.swarmAdaptationRate ?? 0.1,
         swarmPeerAnalysisDepth: simConfig?.swarmPeerAnalysisDepth ?? 10,
-        seederUploadActivityProbability:
-          peerConfig?.seederUploadActivityProbability ?? 0.7,
+        seederUploadActivityProbability: peerConfig?.seederUploadActivityProbability ?? 0.7,
         peerIdleChance: peerConfig?.peerIdleChance ?? 0.1,
         peerDropoutProbability: peerConfig?.peerDropoutProbability ?? 0.05,
-        connectionRotationPercentage:
-          peerConfig?.connectionRotationPercentage ?? 0.2,
+        connectionRotationPercentage: peerConfig?.connectionRotationPercentage ?? 0.2,
         announceIntervalSeconds: btConfig?.announceIntervalSeconds ?? 1800,
         minAnnounceIntervalSeconds: btConfig?.minAnnounceIntervalSeconds ?? 300,
         scrapeIntervalSeconds: btConfig?.scrapeIntervalSeconds ?? 900,
@@ -84,68 +76,94 @@ export function ClientEmulationSettingsTab() {
     }
   }, [btConfig, simConfig, peerConfig]);
 
-  const update = <K extends keyof typeof form>(
-    key: K,
-    val: (typeof form)[K],
-  ) => {
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
   const isPending =
-    saveBtMutation.isPending ||
-    saveSimMutation.isPending ||
-    savePeerMutation.isPending;
-  const isError =
-    saveBtMutation.isError ||
-    saveSimMutation.isError ||
-    savePeerMutation.isError;
+    saveBtMutation.isPending || saveSimMutation.isPending || savePeerMutation.isPending;
+  const isError = saveBtMutation.isError || saveSimMutation.isError || savePeerMutation.isError;
   const isSuccess =
-    saveBtMutation.isSuccess &&
-    saveSimMutation.isSuccess &&
-    savePeerMutation.isSuccess;
+    (!btConfig || saveBtMutation.isSuccess) &&
+    (!simConfig || saveSimMutation.isSuccess) &&
+    (!peerConfig || savePeerMutation.isSuccess) &&
+    (saveBtMutation.isSuccess || saveSimMutation.isSuccess || savePeerMutation.isSuccess);
   const error = (saveBtMutation.error ||
     saveSimMutation.error ||
     savePeerMutation.error) as Error | null;
 
   const handleSave = () => {
+    let pending = (btConfig ? 1 : 0) + (simConfig ? 1 : 0) + (peerConfig ? 1 : 0);
+    if (pending === 0) return;
+    let hasError = false;
+
+    const handleSuccess = () => {
+      pending--;
+      if (pending === 0 && !hasError) {
+        setDirty(false);
+      }
+    };
+
+    const handleError = (err: any) => {
+      hasError = true;
+      showToast(err?.message || "Failed to save client emulation settings", "error");
+    };
+
     if (btConfig) {
-      saveBtMutation.mutate({
-        ...btConfig,
-        bitTorrentUserAgent: form.bitTorrentUserAgent,
-        peerIdPrefix: form.peerIdPrefix,
-        announceIntervalSeconds: form.announceIntervalSeconds,
-        minAnnounceIntervalSeconds: form.minAnnounceIntervalSeconds,
-        scrapeIntervalSeconds: form.scrapeIntervalSeconds,
-      });
+      saveBtMutation.mutate(
+        {
+          ...btConfig,
+          bitTorrentUserAgent: form.bitTorrentUserAgent,
+          peerIdPrefix: form.peerIdPrefix,
+          announceIntervalSeconds: form.announceIntervalSeconds,
+          minAnnounceIntervalSeconds: form.minAnnounceIntervalSeconds,
+          scrapeIntervalSeconds: form.scrapeIntervalSeconds,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (simConfig) {
-      saveSimMutation.mutate({
-        ...simConfig,
-        clientBehaviorEngineEnabled: form.clientBehaviorEngineEnabled,
-        primaryClient: form.primaryClient,
-        behaviorVariation: form.behaviorVariation,
-        clientProfileSwitching: form.clientProfileSwitching,
-        switchClientProbability: form.switchClientProbability,
-        trafficPatternProfile: form.trafficPatternProfile,
-        realisticVariations: form.realisticVariations,
-        timeBasedPatterns: form.timeBasedPatterns,
-        swarmIntelligenceEnabled: form.swarmIntelligenceEnabled,
-        swarmAdaptationRate: form.swarmAdaptationRate,
-        swarmPeerAnalysisDepth: form.swarmPeerAnalysisDepth,
-      });
+      saveSimMutation.mutate(
+        {
+          ...simConfig,
+          clientBehaviorEngineEnabled: form.clientBehaviorEngineEnabled,
+          primaryClient: form.primaryClient,
+          behaviorVariation: form.behaviorVariation,
+          clientProfileSwitching: form.clientProfileSwitching,
+          switchClientProbability: form.switchClientProbability,
+          trafficPatternProfile: form.trafficPatternProfile,
+          realisticVariations: form.realisticVariations,
+          timeBasedPatterns: form.timeBasedPatterns,
+          swarmIntelligenceEnabled: form.swarmIntelligenceEnabled,
+          swarmAdaptationRate: form.swarmAdaptationRate,
+          swarmPeerAnalysisDepth: form.swarmPeerAnalysisDepth,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (peerConfig) {
-      savePeerMutation.mutate({
-        ...peerConfig,
-        seederUploadActivityProbability: form.seederUploadActivityProbability,
-        peerIdleChance: form.peerIdleChance,
-        peerDropoutProbability: form.peerDropoutProbability,
-        connectionRotationPercentage: form.connectionRotationPercentage,
-        peerRequestCount: form.peerRequestCount,
-      });
+      savePeerMutation.mutate(
+        {
+          ...peerConfig,
+          seederUploadActivityProbability: form.seederUploadActivityProbability,
+          peerIdleChance: form.peerIdleChance,
+          peerDropoutProbability: form.peerDropoutProbability,
+          connectionRotationPercentage: form.connectionRotationPercentage,
+          peerRequestCount: form.peerRequestCount,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
-    setDirty(false);
   };
 
   if (btLoading || simLoading || peerLoading) {

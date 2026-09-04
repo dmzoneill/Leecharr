@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   SETTINGS_GROUPS,
@@ -6,6 +6,12 @@ import {
   SettingsGroupId,
   SettingsPageDefinition,
 } from "./settings/settingsNavData";
+import {
+  useSettingsDirty,
+  SettingsDirtyContext,
+  SettingsDirtyProvider,
+  defaultSettingsDirtyContext,
+} from "./settings/SettingsDirtyContext";
 import { HostSettingsTab } from "./settings/HostSettingsTab";
 import { WebUiSettingsTab } from "./settings/WebUiSettingsTab";
 import { SecuritySettingsTab } from "./settings/SecuritySettingsTab";
@@ -31,7 +37,21 @@ import { AiTab } from "./settings/AiTab";
 import { LoggingTab } from "./settings/LoggingTab";
 import { SearchIcon } from "../components/icons/AppIcons";
 
+export { useSettingsDirty, SettingsDirtyContext, SettingsDirtyProvider };
+
 export function Settings() {
+  const dirtyCtx = useContext(SettingsDirtyContext);
+  if (dirtyCtx === defaultSettingsDirtyContext) {
+    return (
+      <SettingsDirtyProvider>
+        <SettingsContent />
+      </SettingsDirtyProvider>
+    );
+  }
+  return <SettingsContent />;
+}
+
+function SettingsContent() {
   const params = useParams<{ section?: string }>();
   const navigate = useNavigate();
   const rawSection = (params.section || "host").toLowerCase();
@@ -54,17 +74,13 @@ export function Settings() {
   }, [rawSection]);
 
   const activeGroup = useMemo(
-    () =>
-      SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) ||
-      SETTINGS_GROUPS[0],
-    [resolved.groupId],
+    () => SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) || SETTINGS_GROUPS[0],
+    [resolved.groupId]
   );
 
   const activePage = useMemo(
-    () =>
-      activeGroup.pages.find((p) => p.id === resolved.pageId) ||
-      activeGroup.pages[0],
-    [activeGroup, resolved.pageId],
+    () => activeGroup.pages.find((p) => p.id === resolved.pageId) || activeGroup.pages[0],
+    [activeGroup, resolved.pageId]
   );
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -109,16 +125,33 @@ export function Settings() {
     return results;
   }, [searchQuery]);
 
+  const { isDirty, confirmIfDirty } = useSettingsDirty();
+
+  // Guard browser refresh or close when settings are dirty
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
   const handleSelectPage = (pageId: string) => {
-    setSearchQuery("");
-    navigate(`/settings/${pageId}`);
+    confirmIfDirty(() => {
+      setSearchQuery("");
+      navigate(`/settings/${pageId}`);
+    });
   };
 
   const handleSelectGroup = (groupId: SettingsGroupId) => {
     const targetGroup = SETTINGS_GROUPS.find((g) => g.id === groupId);
     if (targetGroup) {
-      setSearchQuery("");
-      navigate(`/settings/${targetGroup.pages[0].id}`);
+      confirmIfDirty(() => {
+        setSearchQuery("");
+        navigate(`/settings/${targetGroup.pages[0].id}`);
+      });
     }
   };
 
@@ -177,10 +210,7 @@ export function Settings() {
   };
 
   return (
-    <div
-      className="content-area"
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-    >
+    <div className="content-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* 1. Header Banner & Quick Filter Search */}
       <div
         className="card"
@@ -213,9 +243,7 @@ export function Settings() {
               {activeGroup.title}
             </span>
             <span>&rsaquo;</span>
-            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
-              {activePage.shortLabel}
-            </span>
+            <span style={{ color: "var(--accent)", fontWeight: 700 }}>{activePage.shortLabel}</span>
           </div>
           <h1
             className="page-heading"
@@ -330,8 +358,7 @@ export function Settings() {
                 color: "var(--text-primary)",
               }}
             >
-              Search Results for &ldquo;{searchQuery}&rdquo; (
-              {searchResults.length}{" "}
+              Search Results for &ldquo;{searchQuery}&rdquo; ({searchResults.length}{" "}
               {searchResults.length === 1 ? "page" : "pages"} found)
             </span>
             <button
@@ -352,8 +379,8 @@ export function Settings() {
                 color: "var(--text-muted)",
               }}
             >
-              No settings match your query. Try keywords like <em>port</em>,{" "}
-              <em>vpn</em>, <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
+              No settings match your query. Try keywords like <em>port</em>, <em>vpn</em>,{" "}
+              <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
             </div>
           ) : (
             <div
@@ -380,12 +407,10 @@ export function Settings() {
                     transition: "border-color 0.15s ease",
                   }}
                   onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLElement).style.borderColor =
-                      "var(--accent)")
+                    ((e.currentTarget as HTMLElement).style.borderColor = "var(--accent)")
                   }
                   onMouseLeave={(e) =>
-                    ((e.currentTarget as HTMLElement).style.borderColor =
-                      "var(--border)")
+                    ((e.currentTarget as HTMLElement).style.borderColor = "var(--border)")
                   }
                 >
                   <div>
