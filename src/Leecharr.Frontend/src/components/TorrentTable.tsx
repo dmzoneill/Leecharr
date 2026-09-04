@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
   useStartSeeding,
@@ -163,6 +163,7 @@ export interface TorrentTableProps {
 interface TorrentTableRowProps {
   torrent: Torrent;
   index: number;
+  virtualRow?: VirtualItem;
   columns: ColumnDef[];
   isSelected: boolean;
   isChecked: boolean;
@@ -170,12 +171,14 @@ interface TorrentTableRowProps {
   onToggleSelect?: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
   renderCell: (t: Torrent, key: ColumnKey, idx: number) => React.ReactNode;
+  measureElement?: (node: HTMLElement | null) => void;
 }
 
 const TorrentTableRow = React.memo<TorrentTableRowProps>(
   ({
     torrent: t,
     index: idx,
+    virtualRow,
     columns,
     isSelected,
     isChecked,
@@ -183,12 +186,16 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
     onToggleSelect,
     onContextMenu,
     renderCell,
+    measureElement,
   }) => {
     const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
     const mergedTorrent = useMemo(() => applyTelemetry(t, telemetry), [t, telemetry]);
+    const rowIndex = virtualRow?.index ?? idx;
 
     return (
       <tr
+        ref={measureElement}
+        data-index={virtualRow?.index ?? idx}
         className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
         onClick={() => onSelect?.(mergedTorrent)}
         onContextMenu={(e) => onContextMenu(e, mergedTorrent)}
@@ -220,7 +227,7 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
               whiteSpace: "nowrap",
             }}
           >
-            {renderCell(mergedTorrent, c.key, idx)}
+            {renderCell(mergedTorrent, c.key, rowIndex)}
           </td>
         ))}
       </tr>
@@ -871,6 +878,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 44,
     overscan: 10,
+    measureElement: (element) => element?.getBoundingClientRect().height,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
@@ -1051,6 +1059,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   key={t.id}
                   torrent={t}
                   index={virtualRow.index}
+                  virtualRow={virtualRow}
                   columns={columns}
                   isSelected={t.id === selectedId}
                   isChecked={selectedIds.has(t.id)}
@@ -1058,6 +1067,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   onToggleSelect={onToggleSelect}
                   onContextMenu={handleContextMenu}
                   renderCell={renderCell}
+                  measureElement={rowVirtualizer.measureElement}
                 />
               );
             })}
