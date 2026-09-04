@@ -300,4 +300,23 @@ public class NotificationEventHandlerTest
             "https://api.pushover.net/1/messages.json",
             Arg.Any<object>());
     }
+
+    [Test]
+    public void SendEmailNotification_WithNullOrEmptySettings_DoesNotThrow()
+    {
+        var act1 = () => NotificationEventHandler.SendEmailNotification(null, "Test", null, null, new { Message = "Test" });
+        var act2 = () => NotificationEventHandler.SendEmailNotification(string.Empty, "Test", null, null, new { Message = "Test" });
+
+        act1.Should().NotThrow();
+        act2.Should().NotThrow();
+    }
+
+    [Test]
+    public void SendEmailNotification_WithoutRecipient_DoesNotThrow()
+    {
+        var settings = "{\"server\":\"smtp.example.com\",\"port\":587}";
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" });
+
+        act.Should().NotThrow();
+    }
 }
