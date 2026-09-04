@@ -59,4 +59,40 @@ public class CategoryControllerTests : IntegrationTestBase
         var getDeletedResponse = await this.GetAsync($"/api/v1/categories/{created.Id}");
         getDeletedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Test]
+    public async Task CategoryCreate_WhenNameEmpty_ReturnsBadRequest()
+    {
+        var invalid = new CategoryResource { Name = "   " };
+        var response = await this.PostJsonAsync("/api/v1/categories", invalid);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task CategoryCreate_WhenDuplicateName_ReturnsBadRequest()
+    {
+        var cat1 = new CategoryResource { Name = "duplicate-test-1", SavePath = "/path1" };
+        var res1 = await this.PostJsonAsync("/api/v1/categories", cat1);
+        res1.StatusCode.Should().Be(HttpStatusCode.OK);
+        var created = Deserialize<CategoryResource>(await res1.Content.ReadAsStringAsync());
+
+        try
+        {
+            var catDuplicate = new CategoryResource { Name = "DUPLICATE-TEST-1", SavePath = "/path2" };
+            var res2 = await this.PostJsonAsync("/api/v1/categories", catDuplicate);
+            res2.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally
+        {
+            await this.DeleteAsync($"/api/v1/categories/{created.Id}");
+        }
+    }
+
+    [Test]
+    public async Task CategoryUpdate_WhenNotFound_ReturnsNotFound()
+    {
+        var missing = new CategoryResource { Name = "nonexistent", SavePath = "/path" };
+        var res = await this.PutJsonAsync("/api/v1/categories/999999", missing);
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

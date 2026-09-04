@@ -18,6 +18,7 @@ import { SecuritySettingsTab } from "./settings/SecuritySettingsTab";
 import { WatchFolderSettingsTab } from "./settings/WatchFolderSettingsTab";
 import { StorageSettingsTab } from "./settings/StorageSettingsTab";
 import { QueueSettingsTab } from "./settings/QueueSettingsTab";
+import { CategorySettingsTab } from "./settings/CategorySettingsTab";
 import { CustomScriptsTab } from "./settings/CustomScriptsTab";
 import { EngineSettingsTab } from "./settings/EngineSettingsTab";
 import { ProtocolsSettingsTab } from "./settings/ProtocolsSettingsTab";
@@ -170,6 +171,8 @@ function SettingsContent() {
         return <StorageSettingsTab />;
       case "queue":
         return <QueueSettingsTab />;
+      case "categories":
+        return <CategorySettingsTab />;
       case "custom-scripts":
         return <CustomScriptsTab />;
       case "engine":

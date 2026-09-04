@@ -52,6 +52,14 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
             return this.BadRequest("Category name is required.");
         }
 
+        var trimmedName = resource.Name.Trim();
+        var existing = this.categoryService.GetByName(trimmedName);
+        if (existing != null)
+        {
+            return this.BadRequest($"A category with name '{trimmedName}' already exists.");
+        }
+
+        resource.Name = trimmedName;
         var model = CategoryResourceMapper.ToModel(resource);
         var inserted = this.categoryService.Add(model);
         return this.Ok(CategoryResourceMapper.ToResource(inserted));
@@ -60,11 +68,25 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
     [HttpPut("{id:int}")]
     public ActionResult<CategoryResource> Update(int id, [FromBody] CategoryResource resource)
     {
-        if (resource == null)
+        if (resource == null || string.IsNullOrWhiteSpace(resource.Name))
         {
-            return this.BadRequest();
+            return this.BadRequest("Category name is required.");
         }
 
+        var current = this.categoryService.Get(id);
+        if (current == null)
+        {
+            return this.NotFound();
+        }
+
+        var trimmedName = resource.Name.Trim();
+        var existingWithName = this.categoryService.GetByName(trimmedName);
+        if (existingWithName != null && existingWithName.Id != id)
+        {
+            return this.BadRequest($"A category with name '{trimmedName}' already exists.");
+        }
+
+        resource.Name = trimmedName;
         var model = CategoryResourceMapper.ToModel(resource);
         model.Id = id;
         var updated = this.categoryService.Update(model);

@@ -164,6 +164,32 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
           "stalled",
           "ratio limit",
           "seed time",
+          "category",
+          "categories",
+          "save path",
+          "label",
+        ],
+      },
+      {
+        id: "categories",
+        groupId: "storage-queues",
+        title: "Categories & Path Routing",
+        shortLabel: "Categories",
+        description:
+          "Manage torrent categories, per-category download save paths, upload/download limits, and auto-stop ratio rules",
+        icon: "🏷️",
+        badge: "Paths",
+        keywords: [
+          "category",
+          "categories",
+          "save path",
+          "label",
+          "labels",
+          "download path",
+          "custom path",
+          "path routing",
+          "rate limits",
+          "ratio limit",
         ],
       },
       {
@@ -395,15 +421,7 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
         description:
           "Connect Prowlarr, Jackett, and standalone Torznab providers for automated multi-indexer searching",
         icon: "🔍",
-        keywords: [
-          "indexers",
-          "prowlarr",
-          "jackett",
-          "torznab",
-          "newznab",
-          "search",
-          "rss sync",
-        ],
+        keywords: ["indexers", "prowlarr", "jackett", "torznab", "newznab", "search", "rss sync"],
       },
       {
         id: "connections",
@@ -536,10 +554,7 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
 ];
 
 // Helper: Resolve legacy URLs and aliases to exact (groupId, pageId)
-export const LEGACY_SETTINGS_MAP: Record<
-  string,
-  { groupId: SettingsGroupId; pageId: string }
-> = {
+export const LEGACY_SETTINGS_MAP: Record<string, { groupId: SettingsGroupId; pageId: string }> = {
   general: { groupId: "general-security", pageId: "host" },
   host: { groupId: "general-security", pageId: "host" },
   webui: { groupId: "general-security", pageId: "webui" },
@@ -553,7 +568,10 @@ export const LEGACY_SETTINGS_MAP: Record<
   staging: { groupId: "storage-queues", pageId: "storage" },
   seeding: { groupId: "storage-queues", pageId: "queue" },
   queue: { groupId: "storage-queues", pageId: "queue" },
-  categories: { groupId: "storage-queues", pageId: "queue" },
+  categories: { groupId: "storage-queues", pageId: "categories" },
+  category: { groupId: "storage-queues", pageId: "categories" },
+  label: { groupId: "storage-queues", pageId: "categories" },
+  labels: { groupId: "storage-queues", pageId: "categories" },
   "custom-scripts": { groupId: "storage-queues", pageId: "custom-scripts" },
   scripts: { groupId: "storage-queues", pageId: "custom-scripts" },
 
