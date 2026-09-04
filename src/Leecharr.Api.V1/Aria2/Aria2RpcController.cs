@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -293,7 +294,7 @@ public class Aria2RpcController : ControllerBase
                         var bytes = Convert.FromBase64String(b64);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
-                        return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
+                        return GetGidFromInfoHash(added?.InfoHash);
                     }
                 }
 
@@ -330,14 +331,14 @@ public class Aria2RpcController : ControllerBase
                             if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
                                 var added = await this.torrentService.AddFromMagnetAsync(uri, null, savePath, isPaused);
-                                return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
+                                return GetGidFromInfoHash(added?.InfoHash);
                             }
                             else
                             {
                                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
-                                return added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16];
+                                return GetGidFromInfoHash(added?.InfoHash);
                             }
                         }
                     }
@@ -731,7 +732,7 @@ public class Aria2RpcController : ControllerBase
                     var bytes = Convert.FromBase64String(b64);
                     var parsed = this.torrentFileParser.Parse(bytes);
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
-                    return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                    return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
                 }
 
                 return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]));
@@ -743,14 +744,14 @@ public class Aria2RpcController : ControllerBase
                     if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
                         var added = await this.torrentService.AddFromMagnetAsync(uri, null, customDir, false);
-                        return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                        return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
                     }
                     else
                     {
                         var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
-                        return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", added?.InfoHash ?? Guid.NewGuid().ToString("N")[..16]));
+                        return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
                     }
                 }
 
@@ -797,7 +798,7 @@ public class Aria2RpcController : ControllerBase
 
     private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir, ITorrentFileService torrentFileService)
     {
-        var gid = t.InfoHash.Length >= 16 ? t.InfoHash[..16] : t.InfoHash;
+        var gid = GetGidFromInfoHash(t.InfoHash);
         var status = t.Status switch
         {
             TorrentStatus.Downloading => "active",
@@ -926,9 +927,14 @@ public class Aria2RpcController : ControllerBase
         return all.FirstOrDefault(t => t.InfoHash.StartsWith(clean, StringComparison.OrdinalIgnoreCase) || t.InfoHash.Equals(clean, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static string GetGidFromInfoHash(string infoHash) =>
+        infoHash != null && infoHash.Length >= 16
+            ? infoHash[..16]
+            : (infoHash ?? Guid.NewGuid().ToString("N")[..16]);
+
     private Dictionary<string, object> MapTorrentToAria2(Torrent t)
     {
-        var gid = t.InfoHash.Length >= 16 ? t.InfoHash[..16] : t.InfoHash;
+        var gid = GetGidFromInfoHash(t.InfoHash);
         var status = t.Status switch
         {
             TorrentStatus.Downloading => "active",
