@@ -83,9 +83,7 @@ public class StoragePathService : IStoragePathService
             baseDir = Path.Combine(appData, "Leecharr", "downloads");
         }
 
-        var target = string.IsNullOrWhiteSpace(category)
-            ? baseDir
-            : Path.Combine(baseDir, category);
+        var target = baseDir;
 
         if (!this.diskProvider.FolderExists(target))
         {

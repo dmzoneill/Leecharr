@@ -1,10 +1,9 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.DiskSpace;
 
@@ -16,11 +15,13 @@ public interface IDiskSpaceService
 public class DiskSpaceService : IDiskSpaceService
 {
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public DiskSpaceService(IAppFolderInfo appFolderInfo)
+    public DiskSpaceService(IAppFolderInfo appFolderInfo, IConfigService configService = null)
     {
         this.appFolderInfo = appFolderInfo;
+        this.configService = configService;
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
@@ -28,8 +29,17 @@ public class DiskSpaceService : IDiskSpaceService
         var result = new List<DiskSpaceInfo>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        this.AddDriveInfo(result, seen, this.appFolderInfo.AppDataFolder, "AppData");
-        this.AddDriveInfo(result, seen, this.appFolderInfo.StartUpFolder, "Startup");
+        var downloadDir = this.configService?.DownloadDir;
+        if (string.IsNullOrWhiteSpace(downloadDir))
+        {
+            downloadDir = Directory.Exists("/downloads")
+                ? "/downloads"
+                : Path.Combine(this.appFolderInfo?.AppDataFolder ?? string.Empty, "downloads");
+        }
+
+        this.AddDriveInfo(result, seen, downloadDir, "Downloads");
+        this.AddDriveInfo(result, seen, this.appFolderInfo?.AppDataFolder, "AppData");
+        this.AddDriveInfo(result, seen, this.appFolderInfo?.StartUpFolder, "Startup");
 
         try
         {
@@ -80,18 +90,34 @@ public class DiskSpaceService : IDiskSpaceService
                 return;
             }
 
-            var root = Path.GetPathRoot(path);
-            if (string.IsNullOrEmpty(root) || !seen.Add(root))
+            var driveTarget = path;
+            while (!string.IsNullOrEmpty(driveTarget) && !Directory.Exists(driveTarget))
+            {
+                var parent = Path.GetDirectoryName(driveTarget);
+                if (string.IsNullOrEmpty(parent) || parent == driveTarget)
+                {
+                    break;
+                }
+
+                driveTarget = parent;
+            }
+
+            if (string.IsNullOrEmpty(driveTarget))
+            {
+                driveTarget = Path.GetPathRoot(path) ?? "/";
+            }
+
+            if (!seen.Add(path))
             {
                 return;
             }
 
-            var drive = new DriveInfo(root);
+            var drive = new DriveInfo(driveTarget);
             if (drive.IsReady && drive.TotalSize > 0)
             {
                 result.Add(new DiskSpaceInfo
                 {
-                    Path = root,
+                    Path = path,
                     Label = label,
                     FreeSpace = drive.AvailableFreeSpace,
                     TotalSpace = drive.TotalSize,

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Leecharr.Api.V1.Media;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
@@ -188,7 +189,7 @@ public class DownloadHistoryController : Controller
             DownloadUrl = model.DownloadUrl,
             Status = model.Status,
             RemovalReason = model.RemovalReason,
-            Metadata = metadata,
+            Metadata = MediaMetadataResourceMapper.ToResource(metadata),
         };
     }
 }
