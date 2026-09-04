@@ -253,4 +253,76 @@ public class TorznabClientTest
     }
 
     #endregion
+
+    #region Torznab Capabilities Parsing (t=caps)
+
+    [Test]
+    public void ParseCapabilitiesXml_ValidXml_ExtractsCategoriesSearchModesAndLimits()
+    {
+        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+  <server version=""1.0"" title=""TestTracker"" />
+  <limits default=""50"" max=""100"" />
+  <searching>
+    <search available=""yes"" supportedParams=""q"" />
+    <tv-search available=""yes"" supportedParams=""q,season,ep,imdbid,tvdbid"" />
+    <movie-search available=""yes"" supportedParams=""q,imdbid,tmdbid"" />
+    <music-search available=""no"" supportedParams=""q"" />
+  </searching>
+  <categories>
+    <category id=""2000"" name=""Movies"">
+      <subcat id=""2010"" name=""Movies/Foreign"" />
+      <subcat id=""2040"" name=""Movies/HD"" />
+      <subcat id=""2045"" name=""Movies/UHD"" />
+    </category>
+    <category id=""5000"" name=""TV"">
+      <subcat id=""5030"" name=""TV/SD"" />
+      <subcat id=""5040"" name=""TV/HD"" />
+    </category>
+    <category id=""3000"" name=""Audio"" />
+  </categories>
+</caps>";
+
+        var caps = this.client.ParseCapabilitiesXml(capsXml);
+
+        caps.Should().NotBeNull();
+        caps.DefaultPageSize.Should().Be(50);
+        caps.MaxPageSize.Should().Be(100);
+
+        caps.SupportsSearch.Should().BeTrue();
+        caps.SupportsTvSearch.Should().BeTrue();
+        caps.SupportedTvParams.Should().Contain(new[] { "q", "season", "ep", "imdbid", "tvdbid" });
+        caps.SupportsMovieSearch.Should().BeTrue();
+        caps.SupportedMovieParams.Should().Contain(new[] { "q", "imdbid", "tmdbid" });
+        caps.SupportsMusicSearch.Should().BeFalse();
+
+        caps.Categories.Should().HaveCount(3);
+        caps.Categories[0].Id.Should().Be(2000);
+        caps.Categories[0].Name.Should().Be("Movies");
+        caps.Categories[0].SubCategories.Should().HaveCount(3);
+        caps.Categories[0].SubCategories[0].Id.Should().Be(2010);
+        caps.Categories[0].SubCategories[0].Name.Should().Be("Movies/Foreign");
+
+        caps.Categories[1].Id.Should().Be(5000);
+        caps.Categories[1].Name.Should().Be("TV");
+        caps.Categories[1].SubCategories.Should().HaveCount(2);
+
+        caps.Categories[2].Id.Should().Be(3000);
+        caps.Categories[2].Name.Should().Be("Audio");
+        caps.Categories[2].SubCategories.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ParseCapabilitiesXml_WhenXmlEmptyOrMalformed_ReturnsDefaultCapabilitiesGracefully()
+    {
+        var emptyCaps = this.client.ParseCapabilitiesXml(string.Empty);
+        emptyCaps.Should().NotBeNull();
+        emptyCaps.Categories.Should().BeEmpty();
+
+        var malformedCaps = this.client.ParseCapabilitiesXml("<caps><unclosed>");
+        malformedCaps.Should().NotBeNull();
+        malformedCaps.Categories.Should().BeEmpty();
+    }
+
+    #endregion
 }
