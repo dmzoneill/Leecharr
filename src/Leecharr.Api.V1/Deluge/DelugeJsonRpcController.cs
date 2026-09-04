@@ -1086,6 +1086,8 @@ public class DelugeJsonRpcController : ControllerBase
         if (needsFiles)
         {
             var files = this.torrentFileService.GetFiles(t.Id).ToList();
+            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+            TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
             numFiles = files.Count;
             filesList = files.Select((f, idx) => new Dictionary<string, object>
             {

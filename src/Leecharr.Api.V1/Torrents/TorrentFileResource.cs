@@ -19,4 +19,6 @@ public class TorrentFileResource : RestResource
     public int Priority { get; set; }
 
     public double Progress { get; set; }
+
+    public long BytesCompleted { get; set; }
 }

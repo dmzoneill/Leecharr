@@ -100,6 +100,8 @@ public interface IDownloadTask
     string ErrorMessage => null;
 
     bool IsStalled => false;
+
+    int PieceLength => 0;
 }
 
 public class PeerInfo

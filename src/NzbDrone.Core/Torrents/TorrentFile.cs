@@ -19,4 +19,7 @@ public class TorrentFile : ModelBase
     public int Priority { get; set; }
 
     public double Progress { get; set; }
+
+    [Ignore]
+    public long BytesCompleted { get; set; }
 }

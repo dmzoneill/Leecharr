@@ -230,4 +230,47 @@ public class QBittorrentApiControllerTest
         await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/moved", moveFiles: true);
         await this.torrentService.Received(1).SetLocationAsync(20, "/downloads/moved", moveFiles: true);
     }
+
+    [Test]
+    public void GetFiles_ReturnsEnrichedProgressAndIsSeed()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            InfoHash = "qbhash",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 512,
+            PieceCount = 4,
+            TotalSize = 2048,
+        };
+
+        var task = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, true, false, false });
+        task.PieceLength.Returns(512);
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 5, Path = "file1.dat", Size = 1024, PieceOffset = 0, PieceCount = 2, Progress = 0.0 },
+            new() { Id = 2, TorrentId = 5, Path = "file2.dat", Size = 1024, PieceOffset = 2, PieceCount = 2, Progress = 0.0 },
+        };
+
+        this.torrentService.GetByInfoHash("qbhash").Returns(torrent);
+        this.torrentService.GetDownloadTask(5).Returns(task);
+        this.torrentFileService.GetFiles(5).Returns(files);
+
+        var response = this.controller.GetFiles("qbhash");
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(2);
+
+        list[0]["name"].Should().Be("file1.dat");
+        list[0]["progress"].Should().Be(1.0);
+        list[0]["is_seed"].Should().Be(true);
+
+        list[1]["name"].Should().Be("file2.dat");
+        list[1]["progress"].Should().Be(0.0);
+        list[1]["is_seed"].Should().Be(false);
+    }
 }
