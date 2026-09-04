@@ -114,7 +114,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         magnetUrl: result.magnetUrl || undefined,
         infoHash: result.infoHash || undefined,
         indexerId: result.indexerId,
-        indexerName: result.indexer,
+        indexerName: result.indexerName || result.indexer || "",
       },
       {
         onSuccess: () => {
@@ -143,6 +143,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     if (minSeedersFilter > 0 && (r.seeders ?? 0) < minSeedersFilter) return false;
     if (freeleechOnly) {
       const isFl =
+        Boolean(r.isFreeleech) ||
+        r.downloadVolumeFactor === 0 ||
+        (r.category || "").toLowerCase().includes("freeleech") ||
         (r.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
         (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
         (r.magnetUrl || "").toLowerCase().includes("freeleech");
@@ -511,6 +514,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 const itemKey = r.guid || r.infoHash || r.title;
                 const isGrabbing = downloadingKey === itemKey;
                 const isFl =
+                  Boolean(r.isFreeleech) ||
+                  r.downloadVolumeFactor === 0 ||
+                  (r.category || "").toLowerCase().includes("freeleech") ||
                   (r.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
                   (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
                   (r.magnetUrl || "").toLowerCase().includes("freeleech");
@@ -524,10 +530,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       </div>
                       <div className="result-meta">
                         <span className="meta-item">
-                          <strong>Indexer:</strong> {r.indexer || "Torznab"}
+                          <strong>Indexer:</strong> {r.indexerName || r.indexer || "Torznab"}
                         </span>
                         <span className="meta-item">
-                          <strong>Category:</strong> {(r.categories || []).join(", ") || "General"}
+                          <strong>Category:</strong>{" "}
+                          {(r.categories && r.categories.length > 0
+                            ? r.categories.join(", ")
+                            : r.category) || "General"}
                         </span>
                         <span className="meta-item">
                           <strong>Size:</strong> {formatBytes(r.size)}

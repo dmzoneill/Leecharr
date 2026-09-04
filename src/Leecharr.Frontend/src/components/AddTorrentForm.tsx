@@ -232,7 +232,7 @@ export function AddTorrentForm({
         magnetUrl: release.magnetUrl || undefined,
         infoHash: release.infoHash || undefined,
         indexerId: release.indexerId,
-        indexerName: release.indexer,
+        indexerName: release.indexerName || release.indexer || "",
         category: selectedCategory,
       },
       {
@@ -1004,6 +1004,24 @@ export function AddTorrentForm({
                       {searchResults.data?.map((rel) => {
                         const itemKey = rel.guid || rel.infoHash || rel.title;
                         const isDownloading = downloadingGuid === itemKey;
+                        const isFl =
+                          Boolean(rel.isFreeleech) ||
+                          rel.downloadVolumeFactor === 0 ||
+                          (rel.category || "").toLowerCase().includes("freeleech") ||
+                          (rel.categories || []).some((c) =>
+                            c.toLowerCase().includes("freeleech")
+                          ) ||
+                          (rel.downloadUrl || "").toLowerCase().includes("freeleech") ||
+                          (rel.magnetUrl || "").toLowerCase().includes("freeleech");
+                        const catList =
+                          rel.categories && rel.categories.length > 0
+                            ? rel.categories
+                            : rel.category
+                              ? rel.category
+                                  .split(",")
+                                  .map((c) => c.trim())
+                                  .filter(Boolean)
+                              : [];
 
                         return (
                           <tr
@@ -1021,8 +1039,24 @@ export function AddTorrentForm({
                                 }}
                               >
                                 {rel.title}
+                                {isFl && (
+                                  <span
+                                    className="badge"
+                                    style={{
+                                      marginLeft: "0.5rem",
+                                      fontSize: "0.65rem",
+                                      padding: "0.1rem 0.4rem",
+                                      borderRadius: "3px",
+                                      backgroundColor: "rgba(34, 197, 94, 0.15)",
+                                      color: "var(--success, #22c55e)",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    FREELEECH
+                                  </span>
+                                )}
                               </div>
-                              {rel.categories && rel.categories.length > 0 && (
+                              {catList.length > 0 && (
                                 <div
                                   style={{
                                     display: "flex",
@@ -1030,7 +1064,7 @@ export function AddTorrentForm({
                                     marginTop: "0.25rem",
                                   }}
                                 >
-                                  {rel.categories.slice(0, 3).map((c, i) => (
+                                  {catList.slice(0, 3).map((c, i) => (
                                     <span
                                       key={i}
                                       className="badge badge-secondary"
@@ -1058,7 +1092,7 @@ export function AddTorrentForm({
                                   color: "var(--accent, #ffd166)",
                                 }}
                               >
-                                {rel.indexer || "Indexer"}
+                                {rel.indexerName || rel.indexer || "Indexer"}
                               </span>
                             </td>
 
