@@ -1505,7 +1505,7 @@ export function GettingStartedModal({
                   color: "var(--text-primary)",
                 }}
               >
-                You're Ready to Download!
+                You&apos;re Ready to Download!
               </h2>
               <p
                 style={{
@@ -1596,7 +1596,7 @@ export function GettingStartedModal({
               checked={dontShowAgain}
               onChange={(e) => handleDontShowChange(e.target.checked)}
             />
-            Don't show this guide on startup
+            Don&apos;t show this guide on startup
           </label>
 
           <div style={{ display: "flex", gap: "0.75rem" }}>

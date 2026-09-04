@@ -1071,34 +1071,59 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         this.tasks.TryGetValue(torrentId, out var existingTask);
         var category = existingTask?.Category;
-        var completedDir = this.storagePathService.GetCompletedDirectory(category);
+        var torrentName = manager.Torrent?.Name ?? infoHash;
+
+        // Source is where MonoTorrent saved the files during download (the incomplete dir).
+        var sourcePath = manager.ContainingDirectory
+            ?? Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName);
+
+        string finalDestination = null;
 
         try
         {
-            if (!string.IsNullOrWhiteSpace(completedDir) && !string.Equals(manager.SavePath, completedDir, StringComparison.OrdinalIgnoreCase))
-            {
-                Directory.CreateDirectory(completedDir);
-                await manager.MoveFilesAsync(completedDir, true).ConfigureAwait(false);
-                this.logger.Info("Moved completed torrent files for {0} to {1}", infoHash, completedDir);
-            }
+            // MoveToCompleted builds finalDestination = completedDir/torrentName,
+            // handles cross-volume copy+delete fallback, and strips incomplete extensions.
+            var moved = this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
 
-            var targetPath = Path.Combine(manager.SavePath ?? completedDir, manager.Torrent?.Name ?? string.Empty);
-            this.storagePathService.StripIncompleteExtensions(targetPath);
+            if (moved && !string.IsNullOrWhiteSpace(finalDestination))
+            {
+                this.logger.Info("Moved completed torrent '{0}' from '{1}' to '{2}'", torrentName, sourcePath, finalDestination);
+
+                // Tell MonoTorrent the new save path so it continues seeding from the correct location.
+                if (!string.Equals(manager.SavePath, finalDestination, StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(finalDestination);
+                        await manager.MoveFilesAsync(finalDestination, true).ConfigureAwait(false);
+                        this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", finalDestination, infoHash);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to update MonoTorrent seeding path to '{0}' for {1}; files were already moved by StoragePathService", finalDestination, infoHash);
+                    }
+                }
+            }
+            else
+            {
+                this.logger.Warn("MoveToCompleted returned false for torrent '{0}' (source: '{1}'). Files may remain in incomplete dir.", torrentName, sourcePath);
+                finalDestination = sourcePath;
+            }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to move or finalize completed torrent files for {0}", infoHash);
+            this.logger.Error(ex, "Failed to move completed torrent files for {0}", infoHash);
+            finalDestination = sourcePath;
         }
 
-        var savePath = manager.SavePath ?? completedDir;
         this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
         {
             Id = torrentId,
             InfoHash = infoHash,
-            Name = manager.Torrent?.Name ?? infoHash,
+            Name = torrentName,
             Status = TorrentStatus.Seeding,
             Category = category,
-            SavePath = savePath,
+            SavePath = finalDestination ?? manager.SavePath,
         }));
     }
 

@@ -44,8 +44,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     }
   }, [initialQuery]);
 
-  if (isOpen !== undefined && !isOpen) return null;
-
+  // All hooks must be called before any conditional return (Rules of Hooks).
   const { showToast } = useToast();
   const { data: aiConfig } = useAiConfig();
   const isAiSearchEnabled = aiConfig?.enableNaturalSearch !== false;
@@ -68,6 +67,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   useEffect(() => {
     localStorage.setItem("leecharr_ai_search_expanded", isAiExpanded ? "true" : "false");
   }, [isAiExpanded]);
+
+  // Safe to return early now — all hooks have been called above.
+  if (isOpen !== undefined && !isOpen) return null;
 
   const handleAiNaturalParse = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -259,7 +261,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   >
                     Describe what you want in natural language (e.g.{" "}
                     <em style={{ color: "var(--accent-gold, #FFD166)" }}>
-                      "Find Dune Part 2 in 4k bluray freeleech with at least 20 seeders"
+                      {'"'}Find Dune Part 2 in 4k bluray freeleech with at least 20 seeders{'"'}
                     </em>
                     ). AI extracts resolution, codec, category, and seeder threshold.
                   </p>

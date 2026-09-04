@@ -934,7 +934,9 @@ export function AddTorrentForm({
                         color: "var(--text-muted, #7e8092)",
                       }}
                     >
-                      No releases found for "{activeSearchTerm}". Try different keywords or indexer.
+                      No releases found for {'"'}
+                      {activeSearchTerm}
+                      {'"'}. Try different keywords or indexer.
                     </div>
                   )}
 

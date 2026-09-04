@@ -134,6 +134,40 @@ function saveVisibleColumns(cols: Set<string>) {
   localStorage.setItem(PREF_VISIBLE_COLS_STORAGE, JSON.stringify([...cols]));
 }
 
+const PREF_COL_ORDER_STORAGE = "leecharr_col_order_v1";
+const PREF_COL_WIDTHS_STORAGE = "leecharr_col_widths_v1";
+
+function loadColumnOrder(): ColumnKey[] {
+  try {
+    const stored = localStorage.getItem(PREF_COL_ORDER_STORAGE);
+    if (stored) {
+      const parsed = JSON.parse(stored) as ColumnKey[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return ALL_COLUMNS.map((c) => c.key);
+}
+
+function saveColumnOrder(order: ColumnKey[]) {
+  localStorage.setItem(PREF_COL_ORDER_STORAGE, JSON.stringify(order));
+}
+
+function loadColumnWidths(): Record<string, number> {
+  try {
+    const stored = localStorage.getItem(PREF_COL_WIDTHS_STORAGE);
+    if (stored) return JSON.parse(stored) as Record<string, number>;
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function saveColumnWidths(widths: Record<string, number>) {
+  localStorage.setItem(PREF_COL_WIDTHS_STORAGE, JSON.stringify(widths));
+}
+
 interface ContextMenuState {
   x: number;
   y: number;
@@ -268,6 +302,21 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(loadVisibleColumns);
   const [showColumnModal, setShowColumnModal] = useState(false);
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(loadColumnOrder);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(loadColumnWidths);
+
+  // Drag-to-reorder state
+  const dragColRef = useRef<ColumnKey | null>(null);
+  const dragOverColRef = useRef<ColumnKey | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<ColumnKey | null>(null);
+
+  // Column resize state
+  const resizeStateRef = useRef<{
+    key: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
   useEscapeKey(() => setShowColumnModal(false), showColumnModal);
 
   const { data: history } = useDownloadHistory();
@@ -303,6 +352,84 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       return next;
     });
   };
+
+  // --- Column drag-to-reorder ---
+  const handleColDragStart = useCallback((key: ColumnKey) => {
+    dragColRef.current = key;
+  }, []);
+
+  const handleColDragOver = useCallback((e: React.DragEvent, key: ColumnKey) => {
+    e.preventDefault();
+    dragOverColRef.current = key;
+    setDragOverKey(key);
+  }, []);
+
+  const handleColDrop = useCallback((e: React.DragEvent, targetKey: ColumnKey) => {
+    e.preventDefault();
+    const fromKey = dragColRef.current;
+    if (!fromKey || fromKey === targetKey) {
+      dragColRef.current = null;
+      dragOverColRef.current = null;
+      setDragOverKey(null);
+      return;
+    }
+    setColumnOrder((prev) => {
+      // Ensure all keys are present (merge any missing from ALL_COLUMNS)
+      const allKeys = ALL_COLUMNS.map((c) => c.key);
+      const base = [...new Set([...prev, ...allKeys])];
+      const fromIdx = base.indexOf(fromKey);
+      const toIdx = base.indexOf(targetKey);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...base];
+      next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, fromKey);
+      saveColumnOrder(next);
+      return next;
+    });
+    dragColRef.current = null;
+    dragOverColRef.current = null;
+    setDragOverKey(null);
+  }, []);
+
+  const handleColDragEnd = useCallback(() => {
+    dragColRef.current = null;
+    dragOverColRef.current = null;
+    setDragOverKey(null);
+  }, []);
+
+  // --- Column resize ---
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent, key: string, thEl: HTMLElement) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startWidth = thEl.getBoundingClientRect().width;
+      resizeStateRef.current = { key, startX: e.clientX, startWidth };
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!resizeStateRef.current) return;
+        const delta = ev.clientX - resizeStateRef.current.startX;
+        const newWidth = Math.max(48, resizeStateRef.current.startWidth + delta);
+        setColumnWidths((prev) => ({ ...prev, [resizeStateRef.current!.key]: newWidth }));
+      };
+
+      const onMouseUp = () => {
+        if (resizeStateRef.current) {
+          // Persist final widths
+          setColumnWidths((prev) => {
+            saveColumnWidths(prev);
+            return prev;
+          });
+          resizeStateRef.current = null;
+        }
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    []
+  );
 
   const handleContextMenu = (e: React.MouseEvent, torrent: Torrent | null) => {
     e.preventDefault();
@@ -388,7 +515,20 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     return sortAsc ? valA - valB : valB - valA;
   });
 
-  const columns = ALL_COLUMNS.filter((col) => visibleColumns.has(col.key));
+  // Build ordered, visible column list using the user's saved column order.
+  const colDefMap = useMemo(() => new Map(ALL_COLUMNS.map((c) => [c.key, c])), []);
+  const columns = useMemo(() => {
+    const ordered = columnOrder
+      .map((k) => colDefMap.get(k))
+      .filter((c): c is ColumnDef => c !== undefined && visibleColumns.has(c.key));
+    // Append any visible columns not yet in the saved order (e.g. newly added)
+    const inOrder = new Set(ordered.map((c) => c.key));
+    for (const c of ALL_COLUMNS) {
+      if (visibleColumns.has(c.key) && !inOrder.has(c.key)) ordered.push(c);
+    }
+    return ordered;
+  }, [columnOrder, visibleColumns, colDefMap]);
+
   const allSelected =
     filteredTorrents.length > 0 && filteredTorrents.every((t) => selectedIds.has(t.id));
   const someSelected =
@@ -396,8 +536,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     filteredTorrents.some((t) => selectedIds.has(t.id)) &&
     !allSelected;
 
-  if (filteredTorrents.length === 0) {
-    return (
+  // NOTE: Do NOT add an early return here. All hooks (useCallback, useRef, useVirtualizer)
+  // must be called unconditionally before any conditional return (Rules of Hooks).
+  // The empty-state JSX is stored in a variable and returned after all hooks have run.
+  const emptyState =
+    filteredTorrents.length === 0 ? (
       <div
         style={{
           display: "flex",
@@ -436,8 +579,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           Add a torrent file, magnet URI, or search indexers to begin downloading.
         </p>
       </div>
-    );
-  }
+    ) : null;
 
   const renderCell = useCallback(
     (t: Torrent, key: ColumnKey, idx: number) => {
@@ -728,7 +870,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             <span
               style={{
                 color:
-                  t.downloadSpeed > 0 ? "var(--accent, #ffd166)" : "var(--text-muted, #7e8092)",
+                  t.downloadSpeed > 0 ? "var(--success, #22c55e)" : "var(--text-muted, #7e8092)",
                 fontWeight: t.downloadSpeed > 0 ? 600 : 400,
               }}
             >
@@ -740,7 +882,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           return (
             <span
               style={{
-                color: t.uploadSpeed > 0 ? "var(--success, #22c55e)" : "var(--text-muted, #7e8092)",
+                color: t.uploadSpeed > 0 ? "var(--accent, #ffd166)" : "var(--text-muted, #7e8092)",
                 fontWeight: t.uploadSpeed > 0 ? 600 : 400,
               }}
             >
@@ -893,6 +1035,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     virtualRows.length > 0 ? totalHeight - virtualRows[virtualRows.length - 1].end : 0;
   const totalCols = columns.length + (onToggleSelect ? 1 : 0);
 
+  // All hooks have been called above — safe to return early now.
+  if (emptyState) {
+    return emptyState;
+  }
+
   return (
     <div
       className="torrent-table-wrapper"
@@ -1033,17 +1180,33 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 <th
                   key={c.key}
                   className="torrent-table-th"
+                  draggable
+                  onDragStart={() => handleColDragStart(c.key)}
+                  onDragOver={(e) => handleColDragOver(e, c.key)}
+                  onDrop={(e) => handleColDrop(e, c.key)}
+                  onDragEnd={handleColDragEnd}
                   onClick={() => c.sortable && handleSort(c.key)}
                   style={{
                     cursor: c.sortable ? "pointer" : "default",
                     userSelect: "none",
                     whiteSpace: "nowrap",
-                    padding: "0.6rem 0.75rem",
+                    padding: "0.6rem 0.5rem 0.6rem 0.75rem",
                     fontSize: "0.78rem",
+                    position: "relative",
+                    width: columnWidths[c.key] ? `${columnWidths[c.key]}px` : undefined,
+                    minWidth: columnWidths[c.key] ? `${columnWidths[c.key]}px` : undefined,
+                    maxWidth: columnWidths[c.key] ? `${columnWidths[c.key]}px` : undefined,
                     color:
                       sortKey === c.key
                         ? "var(--accent, #ffd166)"
                         : "var(--text-secondary, #c7c5d3)",
+                    backgroundColor:
+                      dragOverKey === c.key ? "rgba(255, 209, 102, 0.12)" : undefined,
+                    borderLeft:
+                      dragOverKey === c.key
+                        ? "2px solid var(--accent, #ffd166)"
+                        : "2px solid transparent",
+                    transition: "background-color 0.1s, border-color 0.1s",
                   }}
                 >
                   <div
@@ -1051,11 +1214,47 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
+                      overflow: "hidden",
                     }}
                   >
-                    <span>{c.label}</span>
-                    {sortKey === c.key && <span>{sortAsc ? "▲" : "▼"}</span>}
+                    {/* Drag gripper */}
+                    <span
+                      title="Drag to reorder"
+                      style={{
+                        cursor: "grab",
+                        opacity: 0.35,
+                        fontSize: "0.7rem",
+                        flexShrink: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ⠿
+                    </span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{c.label}</span>
+                    {sortKey === c.key && (
+                      <span style={{ flexShrink: 0 }}>{sortAsc ? "▲" : "▼"}</span>
+                    )}
                   </div>
+
+                  {/* Resize handle — right edge */}
+                  <div
+                    onMouseDown={(e) => {
+                      const th = e.currentTarget.parentElement as HTMLElement;
+                      handleResizeMouseDown(e, c.key, th);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    title="Drag to resize column"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      right: 0,
+                      width: "5px",
+                      height: "100%",
+                      cursor: "col-resize",
+                      zIndex: 1,
+                      userSelect: "none",
+                    }}
+                  />
                 </th>
               ))}
             </tr>
