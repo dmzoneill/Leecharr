@@ -888,6 +888,7 @@ export interface ReleaseInfo {
   title: string;
   indexerId?: number;
   indexer?: string;
+  indexerName?: string;
   size: number;
   seeders?: number | null;
   leechers?: number | null;
@@ -895,10 +896,14 @@ export interface ReleaseInfo {
   downloadUrl?: string | null;
   magnetUrl?: string | null;
   infoHash?: string | null;
+  category?: string;
   categories?: string[];
   protocol?: string;
   isFreeleech?: boolean;
   downloadVolumeFactor?: number;
+  uploadVolumeFactor?: number;
+  link?: string;
+  comments?: string;
 }
 
 export interface DownloadReleaseRequest {
