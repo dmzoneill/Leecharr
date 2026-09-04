@@ -1416,8 +1416,11 @@ public class MonoTorrentDownloadEngineTest
         string tvMovedDest;
         this.storagePathService
             .MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out tvMovedDest)
-            .Returns(x => { x[3] = customPath;
-                return true; });
+            .Returns(x =>
+            {
+                x[3] = customPath;
+                return true;
+            });
 
         var torrent = new CoreTorrent
         {
@@ -1461,8 +1464,11 @@ public class MonoTorrentDownloadEngineTest
         string moviesMovedDest;
         this.storagePathService
             .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out moviesMovedDest)
-            .Returns(x => { x[3] = this.testDownloadDir;
-                return true; });
+            .Returns(x =>
+            {
+                x[3] = this.testDownloadDir;
+                return true;
+            });
 
         var torrent = new CoreTorrent
         {
@@ -1496,8 +1502,11 @@ public class MonoTorrentDownloadEngineTest
         string noCatMovedDest;
         this.storagePathService
             .MoveToCompleted(Arg.Any<string>(), null, Arg.Any<string>(), out noCatMovedDest)
-            .Returns(x => { x[3] = this.testDownloadDir;
-                return true; });
+            .Returns(x =>
+            {
+                x[3] = this.testDownloadDir;
+                return true;
+            });
 
         var torrent = new CoreTorrent
         {
