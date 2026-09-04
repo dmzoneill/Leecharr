@@ -811,10 +811,15 @@ export interface SpeedScheduleEntry {
 }
 
 export interface SpeedLimits {
-  maxUploadSpeed: number;
-  maxDownloadSpeed: number;
-  isScheduleActive: boolean;
-  activeScheduleName: string;
+  maxDownloadSpeedKbps: number;
+  maxUploadSpeedKbps: number;
+  isThrottled: boolean;
+  isPaused: boolean;
+  // Backward-compatible optional accessors
+  maxUploadSpeed?: number;
+  maxDownloadSpeed?: number;
+  isScheduleActive?: boolean;
+  activeScheduleName?: string;
 }
 
 export interface Tag {

@@ -40,6 +40,29 @@ public class SpeedScheduleTest
     #region 24x7 Matrix & Day Bitmask Tests
 
     [Test]
+    public void DayOfWeek_BitmaskAlignment_MatchesFrontendAndBackendFlags()
+    {
+        // Assert DayOfWeek bitmask values: 1 << (int)DayOfWeek
+        (1 << (int)DayOfWeek.Sunday).Should().Be(1);
+        (1 << (int)DayOfWeek.Monday).Should().Be(2);
+        (1 << (int)DayOfWeek.Tuesday).Should().Be(4);
+        (1 << (int)DayOfWeek.Wednesday).Should().Be(8);
+        (1 << (int)DayOfWeek.Thursday).Should().Be(16);
+        (1 << (int)DayOfWeek.Friday).Should().Be(32);
+        (1 << (int)DayOfWeek.Saturday).Should().Be(64);
+
+        // Presets
+        var weekdays = (1 << (int)DayOfWeek.Monday) | (1 << (int)DayOfWeek.Tuesday) | (1 << (int)DayOfWeek.Wednesday) | (1 << (int)DayOfWeek.Thursday) | (1 << (int)DayOfWeek.Friday);
+        weekdays.Should().Be(62);
+
+        var weekends = (1 << (int)DayOfWeek.Saturday) | (1 << (int)DayOfWeek.Sunday);
+        weekends.Should().Be(65);
+
+        var everyday = weekdays | weekends;
+        everyday.Should().Be(127);
+    }
+
+    [Test]
     public void GetCurrentLimits_WeekdaySchedule_MatchesOnlyMondayThroughFriday()
     {
         // Weekdays bitmask: Mon(2) + Tue(4) + Wed(8) + Thu(16) + Fri(32) = 62
