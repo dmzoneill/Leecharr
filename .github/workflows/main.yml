@@ -3,12 +3,12 @@ name: CICD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   repository_dispatch:
-    types: [ refresh ]
-    
+    types: [refresh]
+
 permissions: write-all
 
 jobs:
@@ -17,4 +17,20 @@ jobs:
     uses: dmzoneill/dmzoneill/.github/workflows/dispatch.yaml@main
     with:
       basic: "true"
+      test-ready: "true"
+      dotnet: "true"
+      dotnet-version: "10.0.x"
+      docker-build: "true"
+      container-file: "Containerfile"
       VALIDATE_JSCPD: "false"
+      VALIDATE_BIOME_FORMAT: "false"
+      VALIDATE_BIOME_LINT: "false"
+      VALIDATE_GITHUB_ACTIONS_ZIZMOR: "false"
+      VALIDATE_TSX: "false"
+      VALIDATE_TYPESCRIPT_ES: "false"
+      VALIDATE_MARKDOWN: "false"
+      VALIDATE_NATURAL_LANGUAGE: "false"
+      VALIDATE_BASH: "false"
+      VALIDATE_SHELL_SHFMT: "false"
+      VALIDATE_CSS: "false"
+      VALIDATE_GITLEAKS: "false"
