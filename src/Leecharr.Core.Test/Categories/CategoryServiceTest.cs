@@ -112,6 +112,37 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Add_WhenIsDefault_ClearsExistingDefaultCategories()
+    {
+        var existingDefault = new Category { Id = 1, Name = "old-default", IsDefault = true };
+        this.repository.All().Returns(new List<Category> { existingDefault });
+
+        var newCategory = new Category { Id = 2, Name = "new-default", IsDefault = true };
+        this.repository.Insert(newCategory).Returns(newCategory);
+
+        this.service.Add(newCategory);
+
+        existingDefault.IsDefault.Should().BeFalse();
+        this.repository.Received(1).Update(existingDefault);
+        this.repository.Received(1).Insert(newCategory);
+    }
+
+    [Test]
+    public void Update_WhenIsDefault_ClearsOtherDefaultCategories()
+    {
+        var otherDefault = new Category { Id = 1, Name = "old-default", IsDefault = true };
+        var categoryToUpdate = new Category { Id = 2, Name = "updated", IsDefault = true };
+        this.repository.All().Returns(new List<Category> { otherDefault, categoryToUpdate });
+        this.repository.Update(categoryToUpdate).Returns(categoryToUpdate);
+
+        this.service.Update(categoryToUpdate);
+
+        otherDefault.IsDefault.Should().BeFalse();
+        this.repository.Received(1).Update(otherDefault);
+        this.repository.Received(1).Update(categoryToUpdate);
+    }
+
+    [Test]
     public void GetSavePathForCategory_WhenCategoryExists_ReturnsCategorySavePath()
     {
         this.repository.GetByName("tv").Returns(new Category { Name = "tv", SavePath = "/custom/tv/path" });

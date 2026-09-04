@@ -118,6 +118,16 @@ export function AddTorrentForm({
     }
   }, [searchQuery, activeSearchTerm]);
 
+  // Pre-select default category if none chosen
+  useEffect(() => {
+    if (!selectedCategory && categories && categories.length > 0) {
+      const defaultCat = categories.find((c) => c.isDefault);
+      if (defaultCat) {
+        setSelectedCategory(defaultCat.name);
+      }
+    }
+  }, [categories, selectedCategory]);
+
   const addFiles = useCallback((incoming: FileList | File[]) => {
     const torrentFiles = Array.from(incoming).filter((f) => f.name.endsWith(".torrent"));
     if (torrentFiles.length === 0) return;
@@ -1517,38 +1527,42 @@ export function AddTorrentForm({
             flexShrink: 0,
           }}
         >
-          {categories && categories.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <label
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--text-secondary, #c7c5d3)",
-                }}
-              >
-                Category:
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="form-input"
-                style={{
-                  padding: "0.3rem 0.6rem",
-                  fontSize: "0.85rem",
-                  borderRadius: "4px",
-                  backgroundColor: "var(--bg-primary, #10111a)",
-                  color: "inherit",
-                  border: "1px solid var(--border-light, #1c203b)",
-                }}
-              >
-                <option value="">(None)</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name} ({c.savePath})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="torrentCategorySelect"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+              }}
+            >
+              Category:
+            </label>
+            <select
+              id="torrentCategorySelect"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light, #1c203b)",
+              }}
+            >
+              <option value="">
+                {categories && categories.length > 0 ? "(None)" : "(No categories configured)"}
+              </option>
+              {categories?.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                  {c.savePath ? ` (${c.savePath})` : ""}
+                  {c.isDefault ? " [Default]" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
             <input
