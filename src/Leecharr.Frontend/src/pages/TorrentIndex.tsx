@@ -46,6 +46,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
   const clearSelection = useTorrentStore((state) => state.clearSelection);
   const removeTorrent = useTorrentStore((state) => state.removeTorrent);
+  const telemetry = useTorrentStore((state) => state.telemetry);
 
   const [bulkPending, setBulkPending] = useState<boolean>(false);
   const confirm = useConfirm();
@@ -149,11 +150,12 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     let ul = 0;
     let dl = 0;
     for (const t of torrents) {
-      ul += t.uploadSpeed ?? 0;
-      dl += t.downloadSpeed ?? 0;
+      const tel = telemetry[t.id];
+      ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+      dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
     }
     return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
-  }, [torrents]);
+  }, [torrents, telemetry]);
 
   const handleStartAll = () => {
     torrents

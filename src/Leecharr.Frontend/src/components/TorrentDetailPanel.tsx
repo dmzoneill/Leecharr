@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
   useTorrent,
   useStartSeeding,
@@ -119,7 +120,11 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
 }) => {
   const targetId = initialTorrent?.id ?? initialTorrentId ?? 0;
   const { data: fetchedTorrent, isLoading, isError } = useTorrent(targetId);
-  const currentTorrent = fetchedTorrent || initialTorrent;
+  const telemetry = useTorrentStore((state) => (targetId ? state.telemetry[targetId] : undefined));
+  const currentTorrent = useMemo(() => {
+    const base = fetchedTorrent || initialTorrent;
+    return base ? applyTelemetry(base, telemetry) : null;
+  }, [fetchedTorrent, initialTorrent, telemetry]);
 
   const startSeeding = useStartSeeding();
   const stopSeeding = useStopSeeding();
