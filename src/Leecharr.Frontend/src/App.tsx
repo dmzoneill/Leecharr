@@ -265,7 +265,13 @@ export function App() {
       }
 
       if (msg.name === "pieceMapUpdated") {
-        // High-frequency piece map events are handled by dedicated components; do not reload full data
+        if (msg.body) {
+          const body = msg.body as any;
+          const tid = Number(body.torrentId || body.id);
+          if (tid) {
+            useTorrentStore.getState().updatePieceMap(tid, body);
+          }
+        }
         return;
       }
 

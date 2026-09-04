@@ -283,6 +283,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
           )}
           {tab === "piecemap" && (
             <PieceMap
+              torrentId={currentTorrent.id}
               pieceCount={currentTorrent.pieceCount}
               pieceLength={currentTorrent.pieceLength}
               progress={currentTorrent.progress}
