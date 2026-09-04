@@ -389,7 +389,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   });
 
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.has(col.key));
-  const allSelected = filteredTorrents.length > 0 && selectedIds.size === filteredTorrents.length;
+  const allSelected =
+    filteredTorrents.length > 0 && filteredTorrents.every((t) => selectedIds.has(t.id));
+  const someSelected =
+    filteredTorrents.length > 0 &&
+    filteredTorrents.some((t) => selectedIds.has(t.id)) &&
+    !allSelected;
 
   if (filteredTorrents.length === 0) {
     return (
@@ -1007,7 +1012,19 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    onChange={() => onSelectAll(allSelected ? [] : sourceTorrents.map((t) => t.id))}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={() => {
+                      if (allSelected) {
+                        const filteredIdSet = new Set(filteredTorrents.map((t) => t.id));
+                        onSelectAll([...selectedIds].filter((id) => !filteredIdSet.has(id)));
+                      } else {
+                        const next = new Set(selectedIds);
+                        filteredTorrents.forEach((t) => next.add(t.id));
+                        onSelectAll(Array.from(next));
+                      }
+                    }}
                   />
                 </th>
               )}
