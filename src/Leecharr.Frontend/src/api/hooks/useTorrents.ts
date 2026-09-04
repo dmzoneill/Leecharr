@@ -159,6 +159,36 @@ export function useCategories() {
   });
 }
 
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation<Category, Error, Partial<Category>>({
+    mutationFn: (data: Partial<Category>) => apiClient.post("/categories", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation<Category, Error, { id: number; data: Partial<Category> }>({
+    mutationFn: ({ id, data }) => apiClient.put(`/categories/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (id: number) => apiClient.delete(`/categories/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
 export function useAddTorrentTracker() {
   const queryClient = useQueryClient();
   return useMutation<TrackerEntry, Error, { torrentId: number; url: string; tier?: number }>({

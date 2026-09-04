@@ -7,6 +7,7 @@ import {
 } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
+import { CategorySettingsTab } from "./CategorySettingsTab";
 
 export function QueueSettingsTab() {
   const { showToast } = useToast();
@@ -277,6 +278,8 @@ export function QueueSettingsTab() {
           />
         </div>
       </SectionCard>
+
+      <CategorySettingsTab embedded />
     </div>
   );
 }

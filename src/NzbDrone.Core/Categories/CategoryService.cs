@@ -71,6 +71,11 @@ public class CategoryService : ICategoryService
         }
 
         this.logger.Info("Adding category: {0}", category.Name);
+        if (category.IsDefault)
+        {
+            this.ClearExistingDefaults(0);
+        }
+
         var inserted = this.repository.Insert(category);
         this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = inserted });
         return inserted;
@@ -84,9 +89,24 @@ public class CategoryService : ICategoryService
         }
 
         this.logger.Info("Updating category: {0}", category.Name);
+        if (category.IsDefault)
+        {
+            this.ClearExistingDefaults(category.Id);
+        }
+
         var updated = this.repository.Update(category);
         this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = updated });
         return updated;
+    }
+
+    private void ClearExistingDefaults(int currentCategoryId)
+    {
+        var existingDefaults = this.repository.All().Where(c => c.IsDefault && c.Id != currentCategoryId);
+        foreach (var existing in existingDefaults)
+        {
+            existing.IsDefault = false;
+            this.repository.Update(existing);
+        }
     }
 
     public void Delete(int id)
