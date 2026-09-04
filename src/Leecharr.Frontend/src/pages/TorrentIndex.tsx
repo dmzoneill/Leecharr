@@ -9,6 +9,7 @@ import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDr
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
+import { useTorrentStore } from "../stores/useTorrentStore";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -37,8 +38,14 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>("All");
   const [filter, setFilter] = useState<string>("");
-  const [selectedTorrent, setSelectedTorrent] = useState<Torrent | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
+  const setSelectedTorrentId = useTorrentStore((state) => state.setSelectedTorrentId);
+  const selectedIds = useTorrentStore((state) => state.selectedIds);
+  const toggleSelectedId = useTorrentStore((state) => state.toggleSelectedId);
+  const selectAllIds = useTorrentStore((state) => state.selectAllIds);
+  const clearSelection = useTorrentStore((state) => state.clearSelection);
+
   const [bulkPending, setBulkPending] = useState<boolean>(false);
   const confirm = useConfirm();
   const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
@@ -160,23 +167,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   };
 
   const handleToggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    toggleSelectedId(id);
   };
 
   const handleSelectAll = (ids: number[]) => {
-    setSelectedIds(new Set(ids));
+    selectAllIds(ids);
   };
 
   const handleBulkStart = async () => {
     setBulkPending(true);
     try {
       selectedIds.forEach((id) => onResume(id));
-      setSelectedIds(new Set());
+      clearSelection();
     } finally {
       setBulkPending(false);
     }
@@ -186,7 +188,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       selectedIds.forEach((id) => onPause(id));
-      setSelectedIds(new Set());
+      clearSelection();
     } finally {
       setBulkPending(false);
     }
@@ -204,16 +206,16 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       selectedIds.forEach((id) => onDelete({ id, deleteFiles: false }));
-      setSelectedIds(new Set());
+      clearSelection();
     } finally {
       setBulkPending(false);
     }
   };
 
   const currentSelectedTorrent = useMemo(() => {
-    if (!selectedTorrent) return null;
-    return torrents.find((t) => t.id === selectedTorrent.id) || selectedTorrent;
-  }, [torrents, selectedTorrent]);
+    if (!selectedTorrentId) return null;
+    return torrents.find((t) => t.id === selectedTorrentId) || null;
+  }, [torrents, selectedTorrentId]);
 
   return (
     <div className="torrent-index-page">
@@ -234,7 +236,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onBulkStart={handleBulkStart}
         onBulkStop={handleBulkStop}
         onBulkDelete={handleBulkDelete}
-        onBulkClear={() => setSelectedIds(new Set())}
+        onBulkClear={clearSelection}
         showQuickSettings={showQuickSettings}
         onToggleQuickSettings={handleToggleQuickSettings}
         isFilterCollapsed={isFilterCollapsed}
@@ -275,7 +277,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   trackerFilter={selectedTracker}
                   privacyFilter={selectedPrivacy}
                   selectedId={currentSelectedTorrent?.id ?? null}
-                  onSelect={setSelectedTorrent}
+                  onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
                   onDelete={onDelete}
@@ -293,7 +295,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   trackerFilter={selectedTracker}
                   privacyFilter={selectedPrivacy}
                   selectedId={currentSelectedTorrent?.id ?? null}
-                  onSelect={setSelectedTorrent}
+                  onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
                   onDelete={onDelete}
@@ -304,7 +306,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
               <TorrentDetailPanel
                 torrent={currentSelectedTorrent}
                 torrentId={currentSelectedTorrent.id}
-                onClose={() => setSelectedTorrent(null)}
+                onClose={() => setSelectedTorrentId(null)}
               />
             )}
           </div>

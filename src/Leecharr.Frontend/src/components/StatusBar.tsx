@@ -36,7 +36,7 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
     totalDownloaded: number;
     timestamp: number;
   } | null>(null);
-  const speedRef = useRef({ uploadSpeed: 0, downloadSpeed: 0 });
+  const [speeds, setSpeeds] = useState({ uploadSpeed: 0, downloadSpeed: 0 });
 
   useEffect(() => {
     if (!stats) return;
@@ -47,10 +47,10 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
     if (prev) {
       const timeDelta = (now - prev.timestamp) / 1000;
       if (timeDelta >= 1) {
-        speedRef.current = {
+        setSpeeds({
           uploadSpeed: Math.max(0, (stats.totalUploaded - prev.totalUploaded) / timeDelta),
           downloadSpeed: Math.max(0, (stats.totalDownloaded - prev.totalDownloaded) / timeDelta),
-        };
+        });
       }
     }
 
@@ -61,7 +61,7 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
     };
   }, [stats]);
 
-  const { uploadSpeed, downloadSpeed } = speedRef.current;
+  const { uploadSpeed, downloadSpeed } = speeds;
 
   // Aggregate real peer counts across all torrents
   const totalSeeders = (torrents ?? []).reduce((sum, t) => sum + (t.seeders ?? 0), 0);
