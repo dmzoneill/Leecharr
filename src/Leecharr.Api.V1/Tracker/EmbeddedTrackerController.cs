@@ -43,15 +43,28 @@ public class EmbeddedTrackerController : ControllerBase
         return this.File(responseBytes, "text/plain");
     }
 
-    [HttpGet("api/v1/tracker/stats")]
+    [HttpGet("/api/v1/trackerserver/stats")]
+    [HttpGet("/api/v1/tracker/stats")]
     public ActionResult GetStats()
     {
         return this.Ok(new
         {
             enabled = this.trackerService.IsEnabled,
             activeSwarms = this.trackerService.ActiveSwarmsCount,
+            totalTorrents = this.trackerService.ActiveSwarmsCount,
             activePeers = this.trackerService.ActivePeersCount,
+            totalPeers = this.trackerService.ActivePeersCount,
+            totalAnnounces = 0,
+            totalScrapes = 0,
+            uptime = 0,
         });
+    }
+
+    [HttpGet("/api/v1/trackerserver/torrents")]
+    [HttpGet("/api/v1/tracker/torrents")]
+    public ActionResult GetTorrents()
+    {
+        return this.Ok(Array.Empty<object>());
     }
 
     private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)

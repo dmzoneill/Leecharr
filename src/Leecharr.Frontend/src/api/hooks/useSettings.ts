@@ -121,7 +121,7 @@ export function useTrackerServerStats() {
   const interval = useRefetchInterval();
   return useQuery<TrackerServerStats>({
     queryKey: ["trackerserver", "stats"],
-    queryFn: () => apiClient.get("/trackerserver/stats"),
+    queryFn: () => apiClient.get("/tracker/stats"),
     refetchInterval: interval,
   });
 }
