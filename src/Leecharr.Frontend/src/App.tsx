@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router";
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
-import { useIndexers, useGeneralConfig, useRefetchInterval } from "./api/hooks";
+import {
+  useIndexers,
+  useGeneralConfig,
+  useRefetchInterval,
+  useTorrents,
+  useCategories,
+} from "./api/hooks";
+import { useTorrentStore } from "./stores/useTorrentStore";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
 import { DashboardIcon, TorrentIcon, SettingsIcon, SystemIcon } from "./components/icons/NavIcons";
@@ -64,8 +71,8 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [torrents, setTorrents] = useState<Torrent[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { data: torrents = [] } = useTorrents();
+  const { data: categories = [] } = useCategories();
   const [connected, setConnected] = useState<boolean>(false);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<import("./api/types").CurrentUser | null>(null);
@@ -196,22 +203,14 @@ export function App() {
     activeSubNav = parts[2] || "status";
   }
 
-  const loadData = async () => {
-    try {
-      const [tList, cList] = await Promise.all([api.getTorrents(), api.getCategories()]);
-      setTorrents(tList);
-      setCategories(cList);
-    } catch (err) {
-      console.error("Failed to load initial data:", err);
-    }
-  };
+  const refreshServerData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+  }, [queryClient]);
 
   const { showToast } = useToast();
-  const refreshIntervalMs = useRefetchInterval();
 
   useEffect(() => {
-    loadData();
-
     const unsubReconnecting = signalRManager.onReconnecting(() => {
       setConnected(false);
       setIsReconnecting(true);
@@ -220,8 +219,7 @@ export function App() {
     const unsubReconnected = signalRManager.onReconnected(() => {
       setConnected(true);
       setIsReconnecting(false);
-      loadData();
-      queryClient.invalidateQueries();
+      refreshServerData();
     });
 
     const unsubClose = signalRManager.onClose(() => {
@@ -243,10 +241,6 @@ export function App() {
         setIsReconnecting(true);
       });
 
-    const timer = setInterval(() => {
-      loadData();
-    }, refreshIntervalMs || 2000);
-
     const unsubscribe = signalRManager.subscribe((msg) => {
       if (msg.name === "speedPulse") {
         if (msg.body) {
@@ -264,34 +258,7 @@ export function App() {
                   : [];
 
           if (updates.length > 0) {
-            const updateMap = new Map<number, any>();
-            for (const u of updates) {
-              if (u && typeof u.id === "number") {
-                updateMap.set(u.id, u);
-              }
-            }
-
-            if (updateMap.size > 0) {
-              setTorrents((prevTorrents) =>
-                prevTorrents.map((t) => {
-                  const u = updateMap.get(t.id);
-                  if (!u) return t;
-                  return {
-                    ...t,
-                    uploadSpeed: u.uploadSpeed ?? u.upSpeed ?? t.uploadSpeed,
-                    downloadSpeed: u.downloadSpeed ?? u.downSpeed ?? t.downloadSpeed,
-                    progress: u.progress ?? t.progress,
-                    uploaded: u.uploaded ?? t.uploaded,
-                    downloaded: u.downloaded ?? t.downloaded,
-                    ratio: u.ratio ?? t.ratio,
-                    eta: u.eta ?? t.eta,
-                    status: u.status ?? t.status,
-                    seeders: u.seeders ?? t.seeders,
-                    leechers: u.leechers ?? t.leechers,
-                  };
-                })
-              );
-            }
+            useTorrentStore.getState().updateTelemetry(updates);
           }
         }
         return;
@@ -310,24 +277,23 @@ export function App() {
         msg.name === "category" ||
         msg.name === "subsystemSwitched"
       ) {
-        loadData();
+        refreshServerData();
       }
     });
 
     return () => {
-      clearInterval(timer);
       unsubscribe();
       unsubReconnecting();
       unsubReconnected();
       unsubClose();
     };
-  }, [refreshIntervalMs, queryClient]);
+  }, [refreshServerData]);
 
   const handlePause = async (id: number) => {
     try {
       await api.pauseTorrent(id);
       showToast("Torrent paused", "info");
-      loadData();
+      refreshServerData();
     } catch (err: any) {
       showToast(err?.message || "Failed to pause torrent", "error");
     }
@@ -337,7 +303,7 @@ export function App() {
     try {
       await api.resumeTorrent(id);
       showToast("Torrent resumed", "success");
-      loadData();
+      refreshServerData();
     } catch (err: any) {
       showToast(err?.message || "Failed to resume torrent", "error");
     }
@@ -350,7 +316,7 @@ export function App() {
     try {
       await api.deleteTorrent(id, deleteFiles);
       showToast(deleteFiles ? "Torrent and files deleted" : "Torrent removed", "info");
-      loadData();
+      refreshServerData();
     } catch (err: any) {
       showToast(err?.message || "Failed to delete torrent", "error");
     }
@@ -859,7 +825,7 @@ export function App() {
                     <AddTorrentPage
                       onSuccess={() => {
                         navigate("/torrents");
-                        loadData();
+                        refreshServerData();
                       }}
                     />
                   </ErrorBoundary>
@@ -1048,7 +1014,7 @@ export function App() {
             onClose={() => setShowAddModal(false)}
             onSuccess={() => {
               setShowAddModal(false);
-              loadData();
+              refreshServerData();
             }}
           />
         </ErrorBoundary>
@@ -1057,7 +1023,10 @@ export function App() {
       {/* Indexer Search Modal */}
       {showSearchModal && (
         <ErrorBoundary title="Search Modal Error">
-          <IndexerSearchModal onClose={() => setShowSearchModal(false)} onTorrentAdded={loadData} />
+          <IndexerSearchModal
+            onClose={() => setShowSearchModal(false)}
+            onTorrentAdded={refreshServerData}
+          />
         </ErrorBoundary>
       )}
 
