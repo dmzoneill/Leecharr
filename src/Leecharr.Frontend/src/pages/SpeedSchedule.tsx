@@ -13,14 +13,20 @@ import { useConfirm } from "../context/ConfirmContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
 const DAY_FLAGS = [
-  { label: "Mon", value: 1 },
-  { label: "Tue", value: 2 },
-  { label: "Wed", value: 4 },
-  { label: "Thu", value: 8 },
-  { label: "Fri", value: 16 },
-  { label: "Sat", value: 32 },
-  { label: "Sun", value: 64 },
+  { label: "Sun", value: 1 },
+  { label: "Mon", value: 2 },
+  { label: "Tue", value: 4 },
+  { label: "Wed", value: 8 },
+  { label: "Thu", value: 16 },
+  { label: "Fri", value: 32 },
+  { label: "Sat", value: 64 },
 ];
+
+const PRESETS = {
+  everyday: 127,
+  weekdays: 62,
+  weekends: 65,
+};
 
 const BLOCK_COLORS = [
   "var(--accent, #ffd166)",
@@ -32,11 +38,11 @@ const BLOCK_COLORS = [
 ];
 
 function daysToLabels(days: number): string {
-  if (days === 127) return "Every day";
-  if (days === 31) return "Weekdays";
-  if (days === 96) return "Weekends";
+  if (days === PRESETS.everyday) return "Every day";
+  if (days === PRESETS.weekdays) return "Weekdays";
+  if (days === PRESETS.weekends) return "Weekends";
   return (
-    DAY_FLAGS.filter((d) => days & d.value)
+    DAY_FLAGS.filter((d) => (days & d.value) !== 0)
       .map((d) => d.label)
       .join(", ") || "None"
   );
@@ -136,17 +142,50 @@ function ScheduleModal({
           </label>
 
           <div>
-            <span
-              className="status-label"
+            <div
               style={{
-                display: "block",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
                 marginBottom: "0.4rem",
-                fontWeight: 600,
-                fontSize: "0.82rem",
               }}
             >
-              Active Days
-            </span>
+              <span
+                className="status-label"
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.82rem",
+                }}
+              >
+                Active Days
+              </span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className={`btn btn-small ${form.days === PRESETS.everyday ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setForm({ ...form, days: PRESETS.everyday })}
+                  style={{ fontSize: "0.72rem", padding: "2px 6px" }}
+                >
+                  All Days
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-small ${form.days === PRESETS.weekdays ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setForm({ ...form, days: PRESETS.weekdays })}
+                  style={{ fontSize: "0.72rem", padding: "2px 6px" }}
+                >
+                  Weekdays
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-small ${form.days === PRESETS.weekends ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setForm({ ...form, days: PRESETS.weekends })}
+                  style={{ fontSize: "0.72rem", padding: "2px 6px" }}
+                >
+                  Weekends
+                </button>
+              </div>
+            </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {DAY_FLAGS.map((d) => (
                 <button
@@ -222,13 +261,14 @@ function ScheduleModal({
                 className="form-input"
                 type="number"
                 min={0}
-                value={form.maxUploadSpeed / 1024}
+                value={form.maxUploadSpeed || ""}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    maxUploadSpeed: Math.round(Number(e.target.value) * 1024),
+                    maxUploadSpeed: Math.max(0, parseInt(e.target.value, 10) || 0),
                   })
                 }
+                placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
               />
             </label>
@@ -248,13 +288,14 @@ function ScheduleModal({
                 className="form-input"
                 type="number"
                 min={0}
-                value={form.maxDownloadSpeed / 1024}
+                value={form.maxDownloadSpeed || ""}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    maxDownloadSpeed: Math.round(Number(e.target.value) * 1024),
+                    maxDownloadSpeed: Math.max(0, parseInt(e.target.value, 10) || 0),
                   })
                 }
+                placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
               />
             </label>
@@ -418,7 +459,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                   }}
                   title={
                     top
-                      ? `${top.name}: ${formatSpeed(top.maxUploadSpeed)} up / ${formatSpeed(top.maxDownloadSpeed)} down`
+                      ? `${top.name}: ${top.maxUploadSpeed > 0 ? formatSpeed(top.maxUploadSpeed * 1024) : top.maxUploadSpeed < 0 ? "Paused" : "Unlimited"} up / ${top.maxDownloadSpeed > 0 ? formatSpeed(top.maxDownloadSpeed * 1024) : top.maxDownloadSpeed < 0 ? "Paused" : "Unlimited"} down`
                       : "Unthrottled"
                   }
                 />
@@ -502,6 +543,24 @@ export function SpeedSchedule() {
     });
   }
 
+  const isThrottled = Boolean(activeLimits?.isThrottled ?? activeLimits?.isScheduleActive);
+  const isPaused = Boolean(activeLimits?.isPaused);
+  const now = new Date();
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const currentDayFlag = 1 << now.getDay();
+  const activeSchedule = schedules?.find((s) => isHourInSchedule(s, currentHour, currentDayFlag));
+  const activeScheduleName =
+    activeLimits?.activeScheduleName ||
+    activeSchedule?.name ||
+    (isThrottled ? "Scheduled Limit" : "");
+
+  const activeUploadKbps =
+    activeLimits?.maxUploadSpeedKbps ??
+    (activeLimits?.maxUploadSpeed ? Math.round(activeLimits.maxUploadSpeed / 1024) : 0);
+  const activeDownloadKbps =
+    activeLimits?.maxDownloadSpeedKbps ??
+    (activeLimits?.maxDownloadSpeed ? Math.round(activeLimits.maxDownloadSpeed / 1024) : 0);
+
   const scheduleCount = schedules?.length ?? 0;
 
   return (
@@ -584,9 +643,13 @@ export function SpeedSchedule() {
               gap: "0.5rem",
             }}
           >
-            {activeLimits?.isScheduleActive ? (
+            {isPaused ? (
+              <span className="badge badge-danger" style={{ fontSize: "0.85rem" }}>
+                ⏸️ Paused
+              </span>
+            ) : isThrottled ? (
               <span className="badge badge-primary" style={{ fontSize: "0.85rem" }}>
-                ⚡ {activeLimits.activeScheduleName}
+                ⚡ {activeScheduleName}
               </span>
             ) : (
               <span style={{ color: "var(--text-muted)", fontSize: "1.05rem" }}>
@@ -595,9 +658,11 @@ export function SpeedSchedule() {
             )}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            {activeLimits?.isScheduleActive
-              ? "Time-based scheduled rate is enforced"
-              : "Standard global rate configuration"}
+            {isPaused
+              ? "All BitTorrent transfers paused by schedule"
+              : isThrottled
+                ? "Time-based scheduled rate is enforced"
+                : "Standard global rate configuration"}
           </div>
         </div>
 
@@ -632,14 +697,18 @@ export function SpeedSchedule() {
               margin: "0.35rem 0",
             }}
           >
-            {activeLimits && activeLimits.maxUploadSpeed > 0
-              ? formatSpeed(activeLimits.maxUploadSpeed)
-              : "Unlimited"}
+            {isPaused
+              ? "Paused (0 KB/s)"
+              : activeUploadKbps > 0
+                ? formatSpeed(activeUploadKbps * 1024)
+                : "Unlimited"}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            {activeLimits && activeLimits.maxUploadSpeed > 0
-              ? "Enforced rate throttle across active torrents"
-              : "No upload bandwidth restriction"}
+            {isPaused
+              ? "Upload traffic halted"
+              : activeUploadKbps > 0
+                ? "Enforced rate throttle across active torrents"
+                : "No upload bandwidth restriction"}
           </div>
         </div>
 
@@ -674,14 +743,18 @@ export function SpeedSchedule() {
               margin: "0.35rem 0",
             }}
           >
-            {activeLimits && activeLimits.maxDownloadSpeed > 0
-              ? formatSpeed(activeLimits.maxDownloadSpeed)
-              : "Unlimited"}
+            {isPaused
+              ? "Paused (0 KB/s)"
+              : activeDownloadKbps > 0
+                ? formatSpeed(activeDownloadKbps * 1024)
+                : "Unlimited"}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            {activeLimits && activeLimits.maxDownloadSpeed > 0
-              ? "Enforced rate throttle across downloads"
-              : "No download bandwidth restriction"}
+            {isPaused
+              ? "Download traffic halted"
+              : activeDownloadKbps > 0
+                ? "Enforced rate throttle across downloads"
+                : "No download bandwidth restriction"}
           </div>
         </div>
       </div>
@@ -798,7 +871,11 @@ export function SpeedSchedule() {
                           fontWeight: 600,
                         }}
                       >
-                        {s.maxUploadSpeed > 0 ? formatSpeed(s.maxUploadSpeed) : "Unlimited"}
+                        {s.maxUploadSpeed > 0
+                          ? formatSpeed(s.maxUploadSpeed * 1024)
+                          : s.maxUploadSpeed < 0
+                            ? "Paused"
+                            : "Unlimited"}
                       </td>
                       <td
                         style={{
@@ -806,7 +883,11 @@ export function SpeedSchedule() {
                           fontWeight: 600,
                         }}
                       >
-                        {s.maxDownloadSpeed > 0 ? formatSpeed(s.maxDownloadSpeed) : "Unlimited"}
+                        {s.maxDownloadSpeed > 0
+                          ? formatSpeed(s.maxDownloadSpeed * 1024)
+                          : s.maxDownloadSpeed < 0
+                            ? "Paused"
+                            : "Unlimited"}
                       </td>
                       <td>
                         <span
