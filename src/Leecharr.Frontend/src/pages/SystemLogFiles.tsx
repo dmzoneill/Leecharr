@@ -97,7 +97,8 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
 
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
-  const logPath = status?.appDataPath ? `${status.appDataPath}/logs` : "{appData}/logs";
+  const appData = status?.appDataPath || status?.appDataFolder;
+  const logPath = appData ? `${appData}/logs` : "{appData}/logs";
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["logfiles"] });
