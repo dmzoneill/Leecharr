@@ -20,7 +20,7 @@ public class CategoryRepository : BasicRepository<Category>, ICategoryRepository
     {
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<Category>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Name\" = @Name",
+            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Name\") = LOWER(@Name)",
             new { Name = name });
     }
 

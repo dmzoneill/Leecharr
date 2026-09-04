@@ -193,6 +193,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(category),
     }),
+  updateCategory: (id: number, category: Partial<Category>) =>
+    fetchJson<Category>(`${BASE_URL}/categories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(category),
+    }),
   deleteCategory: (id: number) =>
     fetchJson<void>(`${BASE_URL}/categories/${id}`, { method: "DELETE" }),
 
