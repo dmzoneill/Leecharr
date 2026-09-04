@@ -643,12 +643,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound();
         }
 
-        if (!string.IsNullOrWhiteSpace(resource.Category))
+        if (resource.Category != null)
         {
             existing.Category = resource.Category;
         }
 
-        if (!string.IsNullOrWhiteSpace(resource.Label))
+        if (resource.Label != null)
         {
             existing.Label = resource.Label;
         }
@@ -676,6 +676,26 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (resource.InitialSeeding.HasValue)
         {
             existing.InitialSeeding = resource.InitialSeeding.Value;
+        }
+
+        if (resource.ForceStart.HasValue)
+        {
+            existing.ForceStart = resource.ForceStart.Value;
+        }
+
+        if (resource.TargetRatio.HasValue)
+        {
+            existing.TargetRatio = resource.TargetRatio.Value;
+        }
+
+        if (resource.TargetSeedTimeMinutes.HasValue)
+        {
+            existing.TargetSeedTimeMinutes = resource.TargetSeedTimeMinutes.Value;
+        }
+
+        if (resource.ShareLimitAction != null)
+        {
+            existing.ShareLimitAction = resource.ShareLimitAction;
         }
 
         if (!string.IsNullOrWhiteSpace(resource.Name))

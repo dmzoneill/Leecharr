@@ -77,7 +77,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         sequentialDownload,
         isPrivate,
         active,
-        label: label || null,
+        label: label ?? "",
         announceInterval,
         nextUpdate,
         threshold,

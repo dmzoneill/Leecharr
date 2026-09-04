@@ -469,8 +469,8 @@ export function TorrentContextMenu({
                     const trimmed = l.trim();
                     onUpdate({
                       ...ct,
-                      category: trimmed || null,
-                      label: trimmed || null,
+                      category: trimmed,
+                      label: trimmed,
                     });
                     onClose();
                   },

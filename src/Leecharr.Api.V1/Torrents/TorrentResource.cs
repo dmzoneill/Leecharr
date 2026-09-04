@@ -83,9 +83,9 @@ public class TorrentResource : RestResource
 
     public bool? Active { get; set; } = true;
 
-    public double TargetRatio { get; set; }
+    public double? TargetRatio { get; set; }
 
-    public int TargetSeedTimeMinutes { get; set; }
+    public int? TargetSeedTimeMinutes { get; set; }
 
     public string ShareLimitAction { get; set; }
 
