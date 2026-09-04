@@ -12,6 +12,7 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Http;
@@ -55,6 +56,7 @@ public class TransmissionRpcController : ControllerBase
     private readonly IDiskSpaceService diskSpaceService;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public TransmissionRpcController(
@@ -64,7 +66,8 @@ public class TransmissionRpcController : ControllerBase
         IConfigService configService,
         IDiskSpaceService diskSpaceService = null,
         ISafeHttpClientService safeHttpClientService = null,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -73,6 +76,7 @@ public class TransmissionRpcController : ControllerBase
         this.diskSpaceService = diskSpaceService;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.configFileProvider = configFileProvider;
+        this.diskProvider = diskProvider;
     }
 
     [HttpGet]
@@ -419,8 +423,25 @@ public class TransmissionRpcController : ControllerBase
                     var freePath = request.Arguments != null && request.Arguments.TryGetValue("path", out var pElem)
                         ? pElem.GetString()
                         : (this.configService.DownloadDir ?? "/downloads");
-                    var freeBytes = this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? (100L * 1024 * 1024 * 1024);
-                    var totalBytes = this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? (500L * 1024 * 1024 * 1024);
+
+                    long? freeBytes = null;
+                    long? totalBytes = null;
+
+                    if (!string.IsNullOrWhiteSpace(freePath) && this.diskProvider != null)
+                    {
+                        try
+                        {
+                            freeBytes = this.diskProvider.GetAvailableSpace(freePath);
+                            totalBytes = this.diskProvider.GetTotalSize(freePath);
+                        }
+                        catch
+                        {
+                            // Fall through to fallback
+                        }
+                    }
+
+                    freeBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? (100L * 1024 * 1024 * 1024);
+                    totalBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? (500L * 1024 * 1024 * 1024);
 
                     return this.Ok(new TransmissionRpcResponse
                     {
