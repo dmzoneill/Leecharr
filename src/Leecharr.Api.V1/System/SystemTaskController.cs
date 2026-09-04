@@ -23,6 +23,8 @@ public class ScheduledTaskResource : RestResource
 
     public DateTime? LastStartTime { get; set; }
 
+    public string? LastDuration { get; set; }
+
     public DateTime NextExecution { get; set; }
 }
 
@@ -36,11 +38,17 @@ public class CommandResource : RestResource
 
     public string Result { get; set; } = "Successful";
 
-    public DateTime Queued { get; set; } = DateTime.UtcNow;
+    public DateTime? Queued { get; set; } = DateTime.UtcNow;
 
-    public DateTime Started { get; set; } = DateTime.UtcNow;
+    public DateTime? Started { get; set; } = DateTime.UtcNow;
 
-    public DateTime Ended { get; set; } = DateTime.UtcNow;
+    public DateTime? Ended { get; set; } = DateTime.UtcNow;
+
+    public string? QueuedAt => this.Queued?.ToString("o");
+
+    public string? StartedAt => this.Started?.ToString("o");
+
+    public string? EndedAt => this.Ended?.ToString("o");
 
     public string Duration { get; set; } = "00:00:01";
 }
@@ -65,12 +73,12 @@ public class SystemTaskController : Controller
         var now = DateTime.UtcNow;
         var defaultTasks = new List<ScheduledTaskResource>
         {
-            new() { Id = 1, TypeName = "WatchFolderScanTask", Name = "Watch Folder Scan", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-10), NextExecution = now.AddSeconds(10) },
-            new() { Id = 2, TypeName = "RssSyncTask", Name = "RSS Sync", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5), NextExecution = now.AddMinutes(10) },
-            new() { Id = 3, TypeName = "VpnKillSwitchCheckTask", Name = "VPN Kill Switch Check", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-10), NextExecution = now.AddSeconds(10) },
-            new() { Id = 4, TypeName = "BackupTask", Name = "Backup Database", Interval = 1440, LastExecution = now.AddHours(-12), LastStartTime = now.AddHours(-12), NextExecution = now.AddHours(12) },
-            new() { Id = 5, TypeName = "ProwlarrSyncTask", Name = "Prowlarr Indexer Sync", Interval = 60, LastExecution = now.AddMinutes(-20), LastStartTime = now.AddMinutes(-20), NextExecution = now.AddMinutes(40) },
-            new() { Id = 6, TypeName = "SessionCleanupTask", Name = "Session Cleanup", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5), NextExecution = now.AddMinutes(10) },
+            new() { Id = 1, TypeName = "WatchFolderScanTask", Name = "Watch Folder Scan", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-12), LastDuration = "00:00:02", NextExecution = now.AddSeconds(10) },
+            new() { Id = 2, TypeName = "RssSyncTask", Name = "RSS Sync", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5).AddSeconds(-1), LastDuration = "00:00:01", NextExecution = now.AddMinutes(10) },
+            new() { Id = 3, TypeName = "VpnKillSwitchCheckTask", Name = "VPN Kill Switch Check", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-11), LastDuration = "00:00:01", NextExecution = now.AddSeconds(10) },
+            new() { Id = 4, TypeName = "BackupTask", Name = "Backup Database", Interval = 1440, LastExecution = now.AddHours(-12), LastStartTime = now.AddHours(-12).AddSeconds(-5), LastDuration = "00:00:05", NextExecution = now.AddHours(12) },
+            new() { Id = 5, TypeName = "ProwlarrSyncTask", Name = "Prowlarr Indexer Sync", Interval = 60, LastExecution = now.AddMinutes(-20), LastStartTime = now.AddMinutes(-20).AddSeconds(-3), LastDuration = "00:00:03", NextExecution = now.AddMinutes(40) },
+            new() { Id = 6, TypeName = "SessionCleanupTask", Name = "Session Cleanup", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5).AddSeconds(-1), LastDuration = "00:00:01", NextExecution = now.AddMinutes(10) },
         };
 
         if (this.scheduledTaskRepository != null)
@@ -81,6 +89,15 @@ public class SystemTaskController : Controller
                 var list = new List<ScheduledTaskResource>();
                 foreach (var t in dbTasks)
                 {
+                    string lastDuration = null;
+                    if (t.LastExecution != default && t.LastStartTime.HasValue)
+                    {
+                        var diff = t.LastExecution >= t.LastStartTime.Value
+                            ? t.LastExecution - t.LastStartTime.Value
+                            : TimeSpan.Zero;
+                        lastDuration = diff.ToString(@"hh\:mm\:ss");
+                    }
+
                     list.Add(new ScheduledTaskResource
                     {
                         Id = t.Id,
@@ -89,6 +106,7 @@ public class SystemTaskController : Controller
                         Interval = t.Interval,
                         LastExecution = t.LastExecution,
                         LastStartTime = t.LastStartTime,
+                        LastDuration = lastDuration,
                         NextExecution = t.LastExecution.AddMinutes(t.Interval > 0 ? t.Interval : 15),
                     });
                 }
@@ -155,8 +173,8 @@ public class SystemCommandController : Controller
                 Status = c.Status.ToString(),
                 Result = result,
                 Queued = c.QueuedAt,
-                Started = c.StartedAt ?? c.QueuedAt,
-                Ended = c.EndedAt ?? c.QueuedAt,
+                Started = c.StartedAt,
+                Ended = c.EndedAt,
                 Duration = duration.ToString(@"hh\:mm\:ss"),
             };
         }).ToList();
@@ -192,8 +210,8 @@ public class SystemCommandController : Controller
                 Status = model.Status.ToString(),
                 Result = result,
                 Queued = model.QueuedAt,
-                Started = model.StartedAt ?? model.QueuedAt,
-                Ended = model.EndedAt ?? model.QueuedAt,
+                Started = model.StartedAt,
+                Ended = model.EndedAt,
                 Duration = duration.ToString(@"hh\:mm\:ss"),
             });
         }
