@@ -52,6 +52,51 @@ public class TorrentEngineControllerTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task ProbeEngine_via_config_engine_routes_returns_200()
+    {
+        // 1. POST /api/v1/config/engine/probe (active engine default)
+        var responseDefault = await this.Client.PostAsync("/api/v1/config/engine/probe", null);
+        responseDefault.StatusCode.Should().Be(HttpStatusCode.OK);
+        var jsonDefault = await responseDefault.Content.ReadAsStringAsync();
+        var probeDefault = Deserialize<JsonElement>(jsonDefault);
+        probeDefault.GetProperty("isHealthy").GetBoolean().Should().BeTrue();
+        probeDefault.GetProperty("engineId").GetString().Should().NotBeNullOrEmpty();
+        probeDefault.GetProperty("statusMessage").GetString().Should().NotBeNullOrEmpty();
+
+        // 2. POST /api/v1/config/engine/probe?engineId=MonoTorrent
+        var responseQuery = await this.Client.PostAsync("/api/v1/config/engine/probe?engineId=MonoTorrent", null);
+        responseQuery.StatusCode.Should().Be(HttpStatusCode.OK);
+        var jsonQuery = await responseQuery.Content.ReadAsStringAsync();
+        var probeQuery = Deserialize<JsonElement>(jsonQuery);
+        probeQuery.GetProperty("isHealthy").GetBoolean().Should().BeTrue();
+        probeQuery.GetProperty("engineId").GetString().Should().Be("MonoTorrent");
+
+        // 3. POST /api/v1/config/engine/probe with JSON body
+        var responseBody = await this.PostJsonAsync("/api/v1/config/engine/probe", new { engineId = "MonoTorrent" });
+        responseBody.StatusCode.Should().Be(HttpStatusCode.OK);
+        var jsonBody = await responseBody.Content.ReadAsStringAsync();
+        var probeBody = Deserialize<JsonElement>(jsonBody);
+        probeBody.GetProperty("isHealthy").GetBoolean().Should().BeTrue();
+        probeBody.GetProperty("engineId").GetString().Should().Be("MonoTorrent");
+
+        // 4. POST /api/v1/config/engine/MonoTorrent/probe
+        var responsePath = await this.Client.PostAsync("/api/v1/config/engine/MonoTorrent/probe", null);
+        responsePath.StatusCode.Should().Be(HttpStatusCode.OK);
+        var jsonPath = await responsePath.Content.ReadAsStringAsync();
+        var probePath = Deserialize<JsonElement>(jsonPath);
+        probePath.GetProperty("isHealthy").GetBoolean().Should().BeTrue();
+        probePath.GetProperty("engineId").GetString().Should().Be("MonoTorrent");
+
+        // 5. GET /api/v1/config/engine/probe
+        var responseGet = await this.Client.GetAsync("/api/v1/config/engine/probe?engineId=MonoTorrent");
+        responseGet.StatusCode.Should().Be(HttpStatusCode.OK);
+        var jsonGet = await responseGet.Content.ReadAsStringAsync();
+        var probeGet = Deserialize<JsonElement>(jsonGet);
+        probeGet.GetProperty("isHealthy").GetBoolean().Should().BeTrue();
+        probeGet.GetProperty("engineId").GetString().Should().Be("MonoTorrent");
+    }
+
+    [Test]
     public async Task SwitchEngine_to_LibTorrent_and_back_to_MonoTorrent()
     {
         // 1. Switch to LibTorrent

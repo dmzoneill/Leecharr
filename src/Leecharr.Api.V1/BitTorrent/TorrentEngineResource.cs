@@ -80,3 +80,8 @@ public class EngineProbeResultResource
 
     public List<string> Warnings { get; set; } = new();
 }
+
+public class EngineProbeRequest
+{
+    public string EngineId { get; set; }
+}
