@@ -226,22 +226,24 @@ export interface SystemStatus {
   appName: string;
   version: string;
   instanceUuid?: string;
-  buildTime: string;
-  isDebug: boolean;
-  isProduction: boolean;
+  buildTime?: string;
+  isDebug?: boolean;
+  isProduction?: boolean;
   startTime: string;
   osName: string;
   osVersion: string;
   runtimeVersion: string;
   runtimeName: string;
   isDocker: boolean;
-  branch: string;
+  branch?: string;
   startupPath: string;
   AppDataPath?: string;
   appDataPath: string;
-  databaseVersion: string;
-  databaseMigration: string;
-  uptimeSeconds: number;
+  appDataFolder?: string;
+  databaseType?: string;
+  databaseVersion?: string;
+  databaseMigration?: string;
+  uptimeSeconds?: number;
 }
 
 export interface DiskSpaceInfo {

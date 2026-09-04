@@ -23,7 +23,7 @@ public class ScheduledTaskResource : RestResource
 
     public DateTime? LastStartTime { get; set; }
 
-    public string? LastDuration { get; set; }
+    public string LastDuration { get; set; }
 
     public DateTime NextExecution { get; set; }
 }
@@ -44,11 +44,11 @@ public class CommandResource : RestResource
 
     public DateTime? Ended { get; set; } = DateTime.UtcNow;
 
-    public string? QueuedAt => this.Queued?.ToString("o");
+    public string QueuedAt => this.Queued?.ToString("o");
 
-    public string? StartedAt => this.Started?.ToString("o");
+    public string StartedAt => this.Started?.ToString("o");
 
-    public string? EndedAt => this.Ended?.ToString("o");
+    public string EndedAt => this.Ended?.ToString("o");
 
     public string Duration { get; set; } = "00:00:01";
 }
