@@ -25,6 +25,7 @@ export function PieceMap({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
 
   // Subscribe to live SignalR piece map bitmap updates
   const livePieceData = useTorrentStore((state) =>
@@ -101,6 +102,8 @@ export function PieceMap({
       const width = cols * (blockSize + gap) - gap;
       const height = rows * (blockSize + gap) - gap;
 
+      layoutRef.current = { cols, blockSize, gap };
+
       const dpr = window.devicePixelRatio || 1;
       if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
         canvas.width = Math.floor(width * dpr);
@@ -164,7 +167,20 @@ export function PieceMap({
     };
 
     animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
+
+    const container = containerRef.current;
+    let resizeObserver: ResizeObserver | undefined;
+    if (container && typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        requestAnimationFrame(render);
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      cancelAnimationFrame(animId);
+      resizeObserver?.disconnect();
+    };
   }, [viewMode, displayBlocks, hoveredIndex]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -176,8 +192,8 @@ export function PieceMap({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const availWidth = Math.max(200, container.clientWidth - 24);
-    const cols = Math.max(1, Math.floor((availWidth + gap) / (blockSize + gap)));
+    const { cols, blockSize, gap } = layoutRef.current;
+    if (cols <= 0) return;
 
     const col = Math.floor(x / (blockSize + gap));
     const row = Math.floor(y / (blockSize + gap));
