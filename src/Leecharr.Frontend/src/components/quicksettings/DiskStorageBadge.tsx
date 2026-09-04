@@ -37,30 +37,33 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
     );
   }
 
-  // Primary download storage volume (first disk space entry)
-  const primary = diskSpaces[0];
+  // Primary download storage volume (prioritize downloads path/label, otherwise fallback to first entry)
+  const primary =
+    diskSpaces.find(
+      (d) =>
+        (d.path && d.path.toLowerCase().includes("download")) ||
+        (d.label && d.label.toLowerCase().includes("download"))
+    ) ?? diskSpaces[0];
   const freeBytes = primary.freeSpace ?? 0;
   const totalBytes = primary.totalSpace ?? 1;
   const usedBytes = Math.max(0, totalBytes - freeBytes);
-  const usedPct = Math.min(
-    100,
-    Math.max(0, Math.round((usedBytes / totalBytes) * 100)),
-  );
+  const usedPct = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100)));
   const isLowSpace = freeBytes < 20 * 1024 * 1024 * 1024 || usedPct >= 90; // < 20GB or > 90% full
+
+  const displayPath =
+    primary.path && primary.path !== "/" ? primary.path : primary.label || "/downloads";
 
   return (
     <div
       className={`disk-storage-badge ${isLowSpace ? "low-space" : ""} ${className}`}
       onClick={onClick}
-      title={`Storage volume: ${primary.path || "/"}\nFree: ${formatBytes(freeBytes)} / Total: ${formatBytes(totalBytes)} (${100 - usedPct}% free)`}
+      title={`Storage volume: ${displayPath}\nFree: ${formatBytes(freeBytes)} / Total: ${formatBytes(totalBytes)} (${100 - usedPct}% free)`}
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: "6px",
         padding: compact ? "2px 8px" : "4px 10px",
-        backgroundColor: isLowSpace
-          ? "rgba(235, 87, 87, 0.15)"
-          : "rgba(255, 255, 255, 0.05)",
+        backgroundColor: isLowSpace ? "rgba(235, 87, 87, 0.15)" : "rgba(255, 255, 255, 0.05)",
         border: isLowSpace
           ? "1px solid rgba(235, 87, 87, 0.4)"
           : "1px solid rgba(255, 255, 255, 0.08)",
@@ -79,7 +82,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
           color: isLowSpace ? "#ff6b6b" : "var(--text-primary, #f8f4ed)",
         }}
       >
-        {formatBytes(freeBytes)} Free
+        {displayPath}: {formatBytes(freeBytes)} Free
       </span>
       <div
         style={{

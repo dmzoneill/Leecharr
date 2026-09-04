@@ -75,3 +75,15 @@ export function extractTrackerDomain(url: string | null | undefined): string {
   }
   return "Unknown";
 }
+
+export function normalizeGenres(genres: string[] | string | undefined | null): string[] {
+  if (!genres) return [];
+  if (Array.isArray(genres)) return genres;
+  if (typeof genres === "string") {
+    return genres
+      .split(",")
+      .map((g) => g.trim())
+      .filter((g) => g.length > 0);
+  }
+  return [];
+}

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using Leecharr.Api.V1.Media;
 using NzbDrone.Core.MediaEnrichment;
 
 namespace Leecharr.Api.V1.Torrents;
@@ -45,5 +46,5 @@ public class DownloadHistoryResource
 
     public string RemovalReason { get; set; }
 
-    public TorrentMediaMetadata Metadata { get; set; }
+    public MediaMetadataResource Metadata { get; set; }
 }

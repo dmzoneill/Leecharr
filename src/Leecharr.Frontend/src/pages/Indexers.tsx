@@ -208,6 +208,44 @@ export const Indexers: React.FC<IndexersProps> = ({
         </div>
       </div>
 
+      {/* No Indexers Warning Banner */}
+      {!isIndexersLoading && (!indexers || indexers.length === 0) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0.85rem 1.25rem",
+            backgroundColor: "rgba(255, 209, 102, 0.12)",
+            border: "1px solid var(--accent, #ffd166)",
+            borderRadius: "6px",
+            marginBottom: "1rem",
+            color: "var(--text-primary, #f8f4ed)",
+            fontSize: "0.9rem",
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <strong>⚠️ No indexers configured.</strong> You need to add a Torznab indexer or sync
+            with Prowlarr in Settings &gt; Indexers to search for releases.
+          </div>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => onNavigateSettings && onNavigateSettings("indexers")}
+            style={{
+              backgroundColor: "var(--accent, #ffd166)",
+              color: "#10111a",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              marginLeft: "1rem",
+            }}
+          >
+            Configure Indexers
+          </button>
+        </div>
+      )}
+
       {/* Indexer Filter Pills / Chips when in All View */}
       {isAll && enabledIndexers.length > 0 && (
         <div
@@ -439,8 +477,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                     fontSize: "0.85rem",
                   }}
                 >
-                  Try adjusting your search query, unchecking Freeleech filter, or adding more
-                  indexers in Settings.
+                  {!indexers || indexers.length === 0
+                    ? "No indexers are currently configured. Add a Torznab indexer or sync with Prowlarr in Settings > Indexers to enable search."
+                    : "Try adjusting your search query, unchecking Freeleech filter, or adding more indexers in Settings."}
                 </p>
               </div>
             )}

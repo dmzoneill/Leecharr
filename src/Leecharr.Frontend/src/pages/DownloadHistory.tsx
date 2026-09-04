@@ -10,7 +10,7 @@ import {
   useArrConnections,
   useIndexers,
 } from "../api/hooks";
-import { formatBytes, formatRatio, formatDate } from "../utils/formatters";
+import { formatBytes, formatRatio, formatDate, normalizeGenres } from "../utils/formatters";
 import {
   getMediaDeepLink,
   getImdbUrl,
@@ -628,37 +628,40 @@ export default function DownloadHistory() {
                   </div>
 
                   {/* Genres (Clickable to Filter) */}
-                  {meta?.genres && meta.genres.length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "0.3rem",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {meta.genres.slice(0, 2).map((g, i) => (
-                        <span
-                          key={i}
-                          className="badge badge-secondary"
-                          style={{
-                            fontSize: "0.65rem",
-                            padding: "0.1rem 0.35rem",
-                            backgroundColor: "rgba(255,255,255,0.06)",
-                            color: "var(--text-muted)",
-                            borderRadius: "3px",
-                            cursor: "pointer",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSearchTerm(g);
-                          }}
-                          title={`Filter downloads by genre "${g}"`}
-                        >
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const genresList = normalizeGenres(meta?.genres);
+                    return genresList.length > 0 ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "0.3rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {genresList.slice(0, 2).map((g, i) => (
+                          <span
+                            key={i}
+                            className="badge badge-secondary"
+                            style={{
+                              fontSize: "0.65rem",
+                              padding: "0.1rem 0.35rem",
+                              backgroundColor: "rgba(255,255,255,0.06)",
+                              color: "var(--text-muted)",
+                              borderRadius: "3px",
+                              cursor: "pointer",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSearchTerm(g);
+                            }}
+                            title={`Filter downloads by genre "${g}"`}
+                          >
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
 
                   {/* Stats Bar */}
                   <div
@@ -1399,31 +1402,34 @@ export default function DownloadHistory() {
                     </strong>
                   </div>
                 )}
-                {selectedDetailItem.metadata?.genres && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "0.35rem",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {selectedDetailItem.metadata.genres.map((g, i) => (
-                      <span
-                        key={i}
-                        className="badge badge-secondary"
-                        style={{
-                          fontSize: "0.7rem",
-                          padding: "0.15rem 0.45rem",
-                          backgroundColor: "rgba(255,255,255,0.08)",
-                          color: "var(--text-primary)",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const genresList = normalizeGenres(selectedDetailItem.metadata?.genres);
+                  return genresList.length > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.35rem",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {genresList.map((g, i) => (
+                        <span
+                          key={i}
+                          className="badge badge-secondary"
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.15rem 0.45rem",
+                            backgroundColor: "rgba(255,255,255,0.08)",
+                            color: "var(--text-primary)",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Synopsis / Overview */}

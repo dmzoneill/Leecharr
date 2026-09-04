@@ -65,15 +65,15 @@ public class StoragePathServiceTest
     }
 
     [Test]
-    public void GetCompletedDirectory_WhenCategoryPathEmpty_AppendsCategoryToDownloadDir()
+    public void GetCompletedDirectory_WhenCategoryPathEmpty_ReturnsBaseDownloadDir()
     {
         this.categoryService.GetSavePathForCategory("movies").Returns(string.Empty);
         this.configService.DownloadDir.Returns("/storage/downloads");
-        this.diskProvider.FolderExists("/storage/downloads/movies").Returns(true);
+        this.diskProvider.FolderExists("/storage/downloads").Returns(true);
 
         var path = this.storagePathService.GetCompletedDirectory("movies");
 
-        path.Should().Be(Path.Combine("/storage/downloads", "movies"));
+        path.Should().Be("/storage/downloads");
     }
 
     [TestCase(null)]
