@@ -149,8 +149,7 @@ public class IndexerController : Controller
     }
 
     [HttpGet("search")]
-    [HttpPost("search")]
-    public async Task<ActionResult<List<ReleaseInfoResource>>> Search(
+    public async Task<ActionResult<List<ReleaseInfoResource>>> SearchGet(
         [FromQuery] string query = null,
         [FromQuery] string category = null,
         [FromQuery] int? indexerId = null,
@@ -161,33 +160,80 @@ public class IndexerController : Controller
         [FromQuery] string tmdbId = null,
         [FromQuery] int offset = 0,
         [FromQuery] int limit = 50,
-        [FromQuery] string type = null,
-        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] IndexerSearchRequest request = null)
+        [FromQuery] string type = null)
     {
-        var effectiveQuery = !string.IsNullOrEmpty(request?.Query) ? request.Query : query;
-        var effectiveCategory = !string.IsNullOrEmpty(request?.Category) ? request.Category : category;
-        var effectiveIndexerId = request?.IndexerId ?? indexerId;
-        var effectiveFreeleech = request?.FreeleechOnly ?? freeleechOnly;
-        var effectiveSeason = request?.Season ?? season;
-        var effectiveEp = request?.Ep ?? ep;
-        var effectiveImdb = !string.IsNullOrEmpty(request?.ImdbId) ? request.ImdbId : imdbId;
-        var effectiveTmdb = !string.IsNullOrEmpty(request?.TmdbId) ? request.TmdbId : tmdbId;
-        var effectiveOffset = request != null && request.Offset > 0 ? request.Offset : offset;
-        var effectiveLimit = request != null && request.Limit > 0 ? request.Limit : limit;
-        var effectiveType = !string.IsNullOrEmpty(request?.Type) ? request.Type : type;
+        return await this.ExecuteSearch(
+            query,
+            category,
+            indexerId,
+            freeleechOnly,
+            season,
+            ep,
+            imdbId,
+            tmdbId,
+            offset,
+            limit,
+            type);
+    }
 
-        var indexers = effectiveIndexerId.HasValue
-            ? new List<IndexerDefinition> { this.indexerRepository.Get(effectiveIndexerId.Value) }.Where(i => i != null).ToList()
-            : this.indexerRepository.GetSearchEnabled().ToList();
+    [HttpPost("search")]
+    public async Task<ActionResult<List<ReleaseInfoResource>>> SearchPost(
+        [FromBody] IndexerSearchRequest request = null)
+    {
+        return await this.ExecuteSearch(
+            request?.Query,
+            request?.Category,
+            request?.IndexerId,
+            request?.FreeleechOnly ?? false,
+            request?.Season,
+            request?.Ep,
+            request?.ImdbId,
+            request?.TmdbId,
+            request?.Offset ?? 0,
+            request?.Limit ?? 50,
+            request?.Type);
+    }
 
-        var catId = int.TryParse(effectiveCategory, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
+    private async Task<ActionResult<List<ReleaseInfoResource>>> ExecuteSearch(
+        string query,
+        string category,
+        int? indexerId,
+        bool freeleechOnly,
+        int? season,
+        int? ep,
+        string imdbId,
+        string tmdbId,
+        int offset,
+        int limit,
+        string type)
+    {
+        var effectiveOffset = offset > 0 ? offset : 0;
+        var effectiveLimit = limit > 0 ? limit : 50;
+
+        var searchEnabled = this.indexerRepository.GetSearchEnabled().ToList();
+        var indexers = indexerId.HasValue
+            ? new List<IndexerDefinition> { this.indexerRepository.Get(indexerId.Value) }.Where(i => i != null).ToList()
+            : (searchEnabled.Count > 0 ? searchEnabled : this.indexerRepository.GetEnabled().ToList());
+
+        if (indexers.Count == 0)
+        {
+            this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", query);
+            if (this.Response?.Headers != null)
+            {
+                this.Response.Headers["X-Leecharr-Indexers-Configured"] = "0";
+            }
+
+            return this.Ok(new List<ReleaseInfoResource>());
+        }
+
+        var catId = int.TryParse(category, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
 
         var allResults = new List<ReleaseInfoResource>();
         var searchTasks = indexers.Select(async idx =>
         {
             try
             {
-                var results = await this.torznabClient.SearchAsync(idx, effectiveQuery ?? string.Empty, catId, effectiveLimit, effectiveOffset, effectiveSeason, effectiveEp, effectiveImdb, effectiveTmdb, effectiveType);
+                var results = await this.torznabClient.SearchAsync(idx, query ?? string.Empty, catId, effectiveLimit, effectiveOffset, season, ep, imdbId, tmdbId, type);
                 return results.Select(r => new ReleaseInfoResource
                 {
                     Title = r.Title,
