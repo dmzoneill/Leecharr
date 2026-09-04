@@ -326,12 +326,14 @@ public class UTorrentWebUiController : ControllerBase
                         var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
                         {
-                            var files = this.torrentFileService.GetFiles(t.Id);
+                            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+                            TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
                             var fileRows = files.Select(f => new object[]
                             {
                                 f.Path,
                                 f.Size,
-                                (long)(f.Size * f.Progress),
+                                f.BytesCompleted,
                                 f.Priority,
                             }).ToList();
 

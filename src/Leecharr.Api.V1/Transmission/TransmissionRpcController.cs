@@ -762,17 +762,20 @@ public class TransmissionRpcController : ControllerBase
         if (needsFiles)
         {
             var files = this.torrentFileService.GetFiles(t.Id).ToList();
+            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+            TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
+
             fileCount = files.Count;
             filesList = files.Select(f => new Dictionary<string, object>
             {
                 { "name", f.Path },
-                { "bytesCompleted", (long)(f.Size * f.Progress) },
+                { "bytesCompleted", f.BytesCompleted },
                 { "length", f.Size },
             }).ToList();
 
             fileStats = files.Select(f => new Dictionary<string, object>
             {
-                { "bytesCompleted", (long)(f.Size * f.Progress) },
+                { "bytesCompleted", f.BytesCompleted },
                 { "wanted", f.Priority > 0 },
                 { "priority", f.Priority },
             }).ToList();

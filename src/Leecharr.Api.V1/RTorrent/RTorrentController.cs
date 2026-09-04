@@ -163,6 +163,8 @@ public class RTorrentController : ControllerBase
                     if (t != null && this.torrentFileService != null)
                     {
                         var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                        var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+                        TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
                         var fFields = paramValues.Skip(2).OfType<string>().ToList();
                         foreach (var file in files)
                         {

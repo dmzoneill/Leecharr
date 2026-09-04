@@ -12,4 +12,5 @@ public enum TorrentStatus
     Stopped = 5,
     Error = 6,
     Stalled = 7,
+    Completed = 8,
 }

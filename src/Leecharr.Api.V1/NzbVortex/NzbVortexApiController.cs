@@ -342,13 +342,20 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [Route("api/v1/file/{id}")]
     public IActionResult GetFiles(int id)
     {
+        var torrent = this.torrentService.Get(id);
         var files = this.torrentFileService.GetFiles(id).ToList();
+        if (torrent != null)
+        {
+            var downloadTask = this.torrentService.GetDownloadTask(id);
+            TorrentFileProgressEnricher.Enrich(torrent, files, downloadTask);
+        }
+
         var result = files.Select(f => new
         {
             id = f.Id,
             fileName = f.Path,
             fileSize = f.Size,
-            downloaded = (long)(f.Size * f.Progress),
+            downloaded = f.BytesCompleted,
             isIgnored = f.Priority == 0,
         }).ToList();
 
