@@ -53,6 +53,19 @@ public class MainDatabase : IMainDatabase
 
         try
         {
+            var walPath = dbPath + "-wal";
+            var shmPath = dbPath + "-shm";
+
+            if (File.Exists(walPath))
+            {
+                File.Delete(walPath);
+            }
+
+            if (File.Exists(shmPath))
+            {
+                File.Delete(shmPath);
+            }
+
             File.Move(dbRestorePath, dbPath, overwrite: true);
             this.logger.Info("Database restore applied successfully from {0}", dbRestorePath);
         }
