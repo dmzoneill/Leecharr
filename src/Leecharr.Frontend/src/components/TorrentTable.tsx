@@ -24,6 +24,7 @@ import { SkeletonTableRow } from "./Skeleton";
 import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
+import useEscapeKey from "../hooks/useEscapeKey";
 import type { Torrent } from "../api/types";
 
 export type ColumnKey =
@@ -189,6 +190,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(loadVisibleColumns);
   const [showColumnModal, setShowColumnModal] = useState(false);
+  useEscapeKey(() => setShowColumnModal(false), showColumnModal);
 
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
@@ -786,53 +788,68 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
       {/* Column Chooser Modal Dropdown */}
       {showColumnModal && (
-        <div
-          className="card"
-          style={{
-            position: "absolute",
-            top: "40px",
-            right: "10px",
-            zIndex: 100,
-            padding: "1rem",
-            backgroundColor: "var(--bg-card, #171b35)",
-            border: "1px solid var(--border, #23284b)",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-            borderRadius: "8px",
-            maxHeight: "350px",
-            overflowY: "auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: "0.4rem 1.5rem",
-            fontSize: "0.8rem",
-          }}
-        >
-          {ALL_COLUMNS.map((c) => (
-            <label
-              key={c.key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={visibleColumns.has(c.key)}
-                onChange={() => toggleColumn(c.key)}
-              />
-              <span
+        <>
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99,
+            }}
+            onClick={() => setShowColumnModal(false)}
+          />
+          <div
+            className="card"
+            style={{
+              position: "absolute",
+              top: "40px",
+              right: "10px",
+              zIndex: 100,
+              padding: "1rem",
+              backgroundColor: "var(--bg-card, #171b35)",
+              border: "1px solid var(--border, #23284b)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              borderRadius: "8px",
+              maxHeight: "350px",
+              overflowY: "auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+              maxWidth: "min(380px, 90vw)",
+              minWidth: "240px",
+              gap: "0.4rem 1.2rem",
+              fontSize: "0.8rem",
+            }}
+          >
+            {ALL_COLUMNS.map((c) => (
+              <label
+                key={c.key}
                 style={{
-                  color: visibleColumns.has(c.key)
-                    ? "var(--text-primary, #f8f4ed)"
-                    : "var(--text-muted, #7e8092)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
                 }}
               >
-                {c.label}
-              </span>
-            </label>
-          ))}
-        </div>
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.has(c.key)}
+                  onChange={() => toggleColumn(c.key)}
+                />
+                <span
+                  style={{
+                    color: visibleColumns.has(c.key)
+                      ? "var(--text-primary, #f8f4ed)"
+                      : "var(--text-muted, #7e8092)",
+                  }}
+                >
+                  {c.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Main Table */}
