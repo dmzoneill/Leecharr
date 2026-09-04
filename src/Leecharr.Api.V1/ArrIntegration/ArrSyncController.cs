@@ -59,10 +59,16 @@ public class ArrSyncController : Controller
             }
         }
 
+        var failedCount = connections.Count - syncedCount;
         return this.Ok(new SyncResultResource
         {
             Success = true,
             SyncedCount = syncedCount,
+            TotalCount = connections.Count,
+            FailedCount = failedCount,
+            Added = syncedCount,
+            Skipped = 0,
+            Failed = failedCount,
             Message = $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected).",
         });
     }
