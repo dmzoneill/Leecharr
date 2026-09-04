@@ -1,27 +1,16 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router";
 import { useSystemResources } from "../api/hooks";
-import {
-  formatBytes,
-  formatSpeed,
-  formatUptime,
-  formatSeconds,
-} from "../utils/formatters";
+import { formatBytes, formatSpeed, formatUptime, formatSeconds } from "../utils/formatters";
 import type { TorrentResourceMetrics } from "../api/types";
 
 export function SystemResources() {
   const [refreshInterval, setRefreshInterval] = useState<number | false>(2000);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedTorrent, setSelectedTorrent] =
-    useState<TorrentResourceMetrics | null>(null);
+  const [selectedTorrent, setSelectedTorrent] = useState<TorrentResourceMetrics | null>(null);
 
-  const {
-    data: snapshot,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useSystemResources(refreshInterval);
+  const { data: snapshot, isLoading, isFetching, refetch } = useSystemResources(refreshInterval);
 
   const host = snapshot?.host;
   const engine = snapshot?.torrentEngine;
@@ -32,21 +21,20 @@ export function SystemResources() {
     return perTorrent.filter((t) => {
       const matchesSearch =
         !searchQuery ||
-        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.infoHash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchQuery.toLowerCase());
+        (t.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.infoHash || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.category || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "all" ||
-        t.status.toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === "all" || (t.status || "").toLowerCase() === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
   }, [perTorrent, searchQuery, statusFilter]);
 
   // Status color mapper
-  const getStatusBadge = (status: string) => {
-    const s = status.toLowerCase();
+  const getStatusBadge = (status?: string | null) => {
+    const s = (status || "").toLowerCase();
     if (s === "downloading") return "badge-downloading";
     if (s === "seeding") return "badge-seeding";
     if (s === "paused") return "badge-paused";
@@ -70,9 +58,7 @@ export function SystemResources() {
         }}
       >
         <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Resources & Telemetry
             </h1>
@@ -114,8 +100,8 @@ export function SystemResources() {
               marginTop: "0.2rem",
             }}
           >
-            Real-time hardware utilization, BitTorrent engine telemetry,
-            subsystem load, and per-torrent resource metrics
+            Real-time hardware utilization, BitTorrent engine telemetry, subsystem load, and
+            per-torrent resource metrics
           </div>
         </div>
 
@@ -185,8 +171,7 @@ export function SystemResources() {
             padding: "1.1rem",
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
           }}
         >
@@ -243,9 +228,7 @@ export function SystemResources() {
             >
               {(host?.cpuProcessPercent ?? 0).toFixed(1)}%
             </span>
-            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              process load
-            </span>
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>process load</span>
           </div>
           <div
             style={{
@@ -282,15 +265,11 @@ export function SystemResources() {
           >
             <div>
               Threads:{" "}
-              <strong style={{ color: "var(--text-primary)" }}>
-                {host?.threadCount ?? 0}
-              </strong>
+              <strong style={{ color: "var(--text-primary)" }}>{host?.threadCount ?? 0}</strong>
             </div>
             <div>
               Handles:{" "}
-              <strong style={{ color: "var(--text-primary)" }}>
-                {host?.handleCount ?? 0}
-              </strong>
+              <strong style={{ color: "var(--text-primary)" }}>{host?.handleCount ?? 0}</strong>
             </div>
             <div>
               ThreadPool Active:{" "}
@@ -314,8 +293,7 @@ export function SystemResources() {
             padding: "1.1rem",
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
           }}
         >
@@ -367,9 +345,7 @@ export function SystemResources() {
             >
               {formatBytes(host?.workingSetBytes ?? 0)}
             </span>
-            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              working set
-            </span>
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>working set</span>
           </div>
           <div
             style={{
@@ -433,8 +409,7 @@ export function SystemResources() {
             padding: "1.1rem",
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
           }}
         >
@@ -553,8 +528,7 @@ export function SystemResources() {
             padding: "1.1rem",
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow:
-              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
           }}
         >
@@ -641,8 +615,7 @@ export function SystemResources() {
             <div>
               TCP / uTP:{" "}
               <strong style={{ color: "var(--text-primary)" }}>
-                {engine?.tcpConnectionsCount ?? 0} /{" "}
-                {engine?.utpConnectionsCount ?? 0}
+                {engine?.tcpConnectionsCount ?? 0} / {engine?.utpConnectionsCount ?? 0}
               </strong>
             </div>
             <div>
@@ -674,8 +647,7 @@ export function SystemResources() {
           padding: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           marginBottom: "1.25rem",
         }}
       >
@@ -705,15 +677,11 @@ export function SystemResources() {
                 marginTop: "0.2rem",
               }}
             >
-              9 active modular subsystems managing BitTorrent, extraction, media
-              inspection, networking, and intelligence
+              9 active modular subsystems managing BitTorrent, extraction, media inspection,
+              networking, and intelligence
             </div>
           </div>
-          <Link
-            to="/settings/host"
-            className="btn btn-small"
-            style={{ fontSize: "0.75rem" }}
-          >
+          <Link to="/settings/host" className="btn btn-small" style={{ fontSize: "0.75rem" }}>
             Configure Subsystems ⚙️
           </Link>
         </div>
@@ -759,10 +727,7 @@ export function SystemResources() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    Provider:{" "}
-                    <span style={{ color: "var(--accent)" }}>
-                      {sub.activeProvider}
-                    </span>
+                    Provider: <span style={{ color: "var(--accent)" }}>{sub.activeProvider}</span>
                   </div>
                 </div>
                 <span
@@ -808,8 +773,7 @@ export function SystemResources() {
                         ? v
                           ? "Yes"
                           : "No"
-                        : typeof v === "number" &&
-                            k.toLowerCase().includes("speed")
+                        : typeof v === "number" && k.toLowerCase().includes("speed")
                           ? formatSpeed(v)
                           : String(v)}
                     </strong>
@@ -828,8 +792,7 @@ export function SystemResources() {
           padding: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
         }}
       >
         <div
@@ -860,8 +823,8 @@ export function SystemResources() {
                 marginTop: "0.2rem",
               }}
             >
-              Non-blocking session telemetry per swarm (I/O, cache buffer,
-              crypto, piece verification)
+              Non-blocking session telemetry per swarm (I/O, cache buffer, crypto, piece
+              verification)
             </div>
           </div>
 
@@ -913,10 +876,7 @@ export function SystemResources() {
               ))}
             </div>
 
-            <span
-              className="badge badge-primary"
-              style={{ fontSize: "0.75rem" }}
-            >
+            <span className="badge badge-primary" style={{ fontSize: "0.75rem" }}>
               {filteredTorrents.length} Swarms
             </span>
           </div>
@@ -931,8 +891,8 @@ export function SystemResources() {
               color: "var(--text-muted)",
             }}
           >
-            No active torrents match the criteria. Torrents added to Leecharr
-            will appear here with full non-blocking engine telemetry.
+            No active torrents match the criteria. Torrents added to Leecharr will appear here with
+            full non-blocking engine telemetry.
           </div>
         ) : (
           <div className="table-responsive">
@@ -979,13 +939,11 @@ export function SystemResources() {
                         }}
                       >
                         {t.category ? (
-                          <span className="badge badge-small">
-                            {t.category}
-                          </span>
+                          <span className="badge badge-small">{t.category}</span>
                         ) : null}
                         <span>{formatBytes(t.totalBytes)}</span>
                         <span>•</span>
-                        <span>{(t.progress * 100).toFixed(1)}%</span>
+                        <span>{((t.progress ?? 0) * 100).toFixed(1)}%</span>
                       </div>
                     </td>
                     <td>
@@ -1088,10 +1046,7 @@ export function SystemResources() {
                       <div
                         style={{
                           fontSize: "0.72rem",
-                          color:
-                            t.encryptedPeers > 0
-                              ? "#9b59b6"
-                              : "var(--text-muted)",
+                          color: t.encryptedPeers > 0 ? "#9b59b6" : "var(--text-muted)",
                         }}
                       >
                         🔒 {t.encryptedPeers} encrypted
@@ -1109,8 +1064,7 @@ export function SystemResources() {
                       <div
                         style={{
                           fontSize: "0.7rem",
-                          color:
-                            t.hashFails > 0 ? "#e74c3c" : "var(--text-muted)",
+                          color: t.hashFails > 0 ? "#e74c3c" : "var(--text-muted)",
                         }}
                       >
                         {t.hashFails > 0
@@ -1131,9 +1085,7 @@ export function SystemResources() {
                                 : "var(--text-muted)",
                         }}
                       >
-                        {t.swarmAvailability > 0
-                          ? `${t.swarmAvailability.toFixed(1)}x`
-                          : "-"}
+                        {t.swarmAvailability > 0 ? `${t.swarmAvailability.toFixed(1)}x` : "-"}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -1241,9 +1193,7 @@ export function SystemResources() {
                   borderRadius: "6px",
                 }}
               >
-                <div
-                  style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
-                >
+                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
                   Download Payload
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
@@ -1266,9 +1216,7 @@ export function SystemResources() {
                   borderRadius: "6px",
                 }}
               >
-                <div
-                  style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
-                >
+                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
                   Protocol Overhead
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
@@ -1291,9 +1239,7 @@ export function SystemResources() {
                   borderRadius: "6px",
                 }}
               >
-                <div
-                  style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
-                >
+                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
                   Memory Buffer / Piece Cache
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
@@ -1317,9 +1263,7 @@ export function SystemResources() {
                   borderRadius: "6px",
                 }}
               >
-                <div
-                  style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
-                >
+                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
                   Swarm Crypto & Network
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
@@ -1331,9 +1275,8 @@ export function SystemResources() {
                     fontSize: "0.72rem",
                   }}
                 >
-                  {selectedTorrent.encryptedPeers} encrypted •{" "}
-                  {selectedTorrent.utpPeers} uTP • {selectedTorrent.tcpPeers}{" "}
-                  TCP
+                  {selectedTorrent.encryptedPeers} encrypted • {selectedTorrent.utpPeers} uTP •{" "}
+                  {selectedTorrent.tcpPeers} TCP
                 </div>
               </div>
             </div>

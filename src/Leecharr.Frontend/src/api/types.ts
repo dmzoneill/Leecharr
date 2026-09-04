@@ -1479,9 +1479,9 @@ export interface TorrentResourceMetrics {
   torrentId: number;
   infoHash: string;
   name: string;
-  category: string;
-  status: string;
-  progress: number;
+  category?: string | null;
+  status?: string | null;
+  progress?: number | null;
   totalBytes: number;
   payloadDownloadSpeed: number;
   payloadUploadSpeed: number;

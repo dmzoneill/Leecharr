@@ -2126,7 +2126,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
             return new TorrentResourceMetrics
             {
                 TorrentId = this.TorrentId,
-                InfoHash = this.InfoHash,
+                InfoHash = this.InfoHash ?? string.Empty,
+                Name = this.initialTorrent?.Name ?? this.InfoHash ?? string.Empty,
                 Category = this.Category ?? string.Empty,
                 Status = "Stopped",
             };
@@ -2218,10 +2219,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
         return new TorrentResourceMetrics
         {
             TorrentId = this.TorrentId,
-            InfoHash = this.InfoHash,
-            Name = this.Manager.Torrent?.Name ?? this.InfoHash,
+            InfoHash = this.InfoHash ?? string.Empty,
+            Name = this.Manager.Torrent?.Name ?? this.initialTorrent?.Name ?? this.InfoHash ?? string.Empty,
             Category = this.Category ?? string.Empty,
-            Status = this.Status.ToString(),
+            Status = this.Status.ToString() ?? "Stopped",
             Progress = this.Progress,
             TotalBytes = totalSize,
             PayloadDownloadSpeed = downSpeed,

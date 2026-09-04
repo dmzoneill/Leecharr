@@ -134,7 +134,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
             await this.StartAsync();
         }
 
-        var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize);
+        var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
 
@@ -295,6 +295,8 @@ public class TransmissionDownloadTask : IDownloadTask
 
     public string Name { get; }
 
+    public string Category { get; set; } = string.Empty;
+
     public long TotalSize { get; }
 
     public TorrentStatus Status { get; set; } = TorrentStatus.Downloading;
@@ -320,9 +322,10 @@ public class TransmissionDownloadTask : IDownloadTask
     public TorrentResourceMetrics GetResourceMetrics() => new()
     {
         TorrentId = this.TorrentId,
-        InfoHash = this.InfoHash,
-        Name = this.Name,
-        Status = this.Status.ToString(),
+        InfoHash = this.InfoHash ?? string.Empty,
+        Name = this.Name ?? string.Empty,
+        Category = this.Category ?? string.Empty,
+        Status = this.Status.ToString() ?? "Stopped",
         Progress = this.Progress,
         TotalBytes = this.TotalSize,
         DownloadedPayload = this.DownloadedBytes,
@@ -334,12 +337,13 @@ public class TransmissionDownloadTask : IDownloadTask
         ConnectedPeers = this.ConnectedSeeders + this.ConnectedLeechers,
     };
 
-    public TransmissionDownloadTask(int torrentId, string infoHash, string name, long totalSize)
+    public TransmissionDownloadTask(int torrentId, string infoHash, string name, long totalSize, string category = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
         this.Name = name;
         this.TotalSize = totalSize;
+        this.Category = category ?? string.Empty;
     }
 
     public IReadOnlyList<PeerInfo> GetPeers()

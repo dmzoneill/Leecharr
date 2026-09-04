@@ -69,6 +69,8 @@ public interface IDownloadTask
 
     string InfoHash { get; }
 
+    string Category => string.Empty;
+
     TorrentStatus Status { get; }
 
     long DownloadedBytes { get; }
