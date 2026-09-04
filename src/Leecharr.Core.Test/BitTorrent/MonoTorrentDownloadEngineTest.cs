@@ -1501,7 +1501,7 @@ public class MonoTorrentDownloadEngineTest
 
         string noCatMovedDest;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), null, Arg.Any<string>(), out noCatMovedDest)
+            .MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out noCatMovedDest)
             .Returns(x =>
             {
                 x[3] = this.testDownloadDir;
@@ -1522,7 +1522,7 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.OnTorrentCompletedAsync(112, torrent.InfoHash, task.Manager);
 
         string noCatAssertDest;
-        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), null, Arg.Any<string>(), out noCatAssertDest);
+        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out noCatAssertDest);
         task.Manager.SavePath.Should().Be(this.testDownloadDir);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
             e.Torrent.Id == 112 &&
