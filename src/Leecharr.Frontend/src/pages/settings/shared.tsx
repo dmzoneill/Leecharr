@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useSettingsDirty } from "./SettingsDirtyContext";
 
 export function SaveFeedback({
   isPending: _isPending,
@@ -95,28 +96,28 @@ export function PendingChangesModal({
 }
 
 export function useUnsavedGuard(dirty: boolean) {
-  const location = useLocation();
-  const [pendingNav, setPendingNav] = useState(false);
-  const prevPathRef = useRef(location.pathname);
+  const { setDirty } = useSettingsDirty();
+
+  useEffect(() => {
+    setDirty(dirty);
+    return () => {
+      setDirty(false);
+    };
+  }, [dirty, setDirty]);
 
   useEffect(() => {
     if (!dirty) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
+      e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  useEffect(() => {
-    if (dirty && location.pathname !== prevPathRef.current) {
-      setPendingNav(true);
-    }
-  }, [dirty, location.pathname]);
-
   return {
-    blocked: pendingNav,
-    dismiss: () => setPendingNav(false),
+    blocked: false,
+    dismiss: () => {},
   };
 }
 

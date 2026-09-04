@@ -5,9 +5,11 @@ import {
   useSeedingConfig,
   useSaveSeedingConfig,
 } from "../../api/hooks";
+import { useToast } from "../../context/ToastContext";
 import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
 
 export function QueueSettingsTab() {
+  const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
 
@@ -52,30 +54,60 @@ export function QueueSettingsTab() {
 
   const isPending = saveBtMutation.isPending || saveSeedMutation.isPending;
   const isError = saveBtMutation.isError || saveSeedMutation.isError;
-  const isSuccess = saveBtMutation.isSuccess && saveSeedMutation.isSuccess;
+  const isSuccess =
+    (!btConfig || saveBtMutation.isSuccess) &&
+    (!seedConfig || saveSeedMutation.isSuccess) &&
+    (saveBtMutation.isSuccess || saveSeedMutation.isSuccess);
   const error = (saveBtMutation.error || saveSeedMutation.error) as Error | null;
 
   const handleSave = () => {
+    let pending = (btConfig ? 1 : 0) + (seedConfig ? 1 : 0);
+    if (pending === 0) return;
+    let hasError = false;
+
+    const handleSuccess = () => {
+      pending--;
+      if (pending === 0 && !hasError) {
+        setDirty(false);
+      }
+    };
+
+    const handleError = (err: any) => {
+      hasError = true;
+      showToast(err?.message || "Failed to save queue settings", "error");
+    };
+
     if (btConfig) {
-      saveBtMutation.mutate({
-        ...btConfig,
-        downloadQueueSize: form.downloadQueueSize,
-        seedQueueSize: form.seedQueueSize,
-        queueStalledEnabled: form.queueStalledEnabled,
-        queueStalledMinutes: form.queueStalledMinutes,
-        idleSeedingLimitMinutes: form.idleSeedingLimitMinutes,
-        globalShareLimitAction: form.globalShareLimitAction,
-        autoShutdownAction: form.autoShutdownAction,
-        autoShutdownCondition: form.autoShutdownCondition,
-      });
+      saveBtMutation.mutate(
+        {
+          ...btConfig,
+          downloadQueueSize: form.downloadQueueSize,
+          seedQueueSize: form.seedQueueSize,
+          queueStalledEnabled: form.queueStalledEnabled,
+          queueStalledMinutes: form.queueStalledMinutes,
+          idleSeedingLimitMinutes: form.idleSeedingLimitMinutes,
+          globalShareLimitAction: form.globalShareLimitAction,
+          autoShutdownAction: form.autoShutdownAction,
+          autoShutdownCondition: form.autoShutdownCondition,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
     if (seedConfig) {
-      saveSeedMutation.mutate({
-        ...seedConfig,
-        globalSeedRatioLimit: form.globalSeedRatioLimit,
-      });
+      saveSeedMutation.mutate(
+        {
+          ...seedConfig,
+          globalSeedRatioLimit: form.globalSeedRatioLimit,
+        },
+        {
+          onSuccess: handleSuccess,
+          onError: handleError,
+        }
+      );
     }
-    setDirty(false);
   };
 
   if (btLoading || seedLoading) {
