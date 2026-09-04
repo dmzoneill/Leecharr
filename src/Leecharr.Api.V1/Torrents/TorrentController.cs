@@ -281,23 +281,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var now = DateTime.UtcNow;
         var resources = dbTrackers.Select(t =>
         {
-            // If LastAnnounce was not yet set in database or Status is uninitialized,
-            // record a fixed timestamp (when torrent was added) and set Status=1 ("Working")
-            if (!t.LastAnnounce.HasValue || t.Status == 0)
-            {
-                t.LastAnnounce ??= torrent.DateAdded;
-                t.Status = (t.Status == 0 && string.IsNullOrWhiteSpace(t.ErrorMessage)) ? 1 : t.Status;
-                t.AnnounceInterval = t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800;
-                t.NextAnnounce ??= t.LastAnnounce.Value.AddSeconds(t.AnnounceInterval);
-                t.TotalAnnounces = Math.Max(1, t.TotalAnnounces);
-                t.SuccessfulAnnounces = Math.Max(1, t.SuccessfulAnnounces);
-                this.trackerEntryRepository.Update(t);
-            }
-
             var isError = t.Status == 2 || !string.IsNullOrWhiteSpace(t.ErrorMessage);
-            var statusStr = isError ? "Error" : (!t.Enabled ? "Disabled" : (torrent.Status == TorrentStatus.Paused ? "Paused" : "Working"));
+            var isQueued = t.Status == 0;
+            var statusStr = isError ? "Error" : (isQueued ? "Queued" : (!t.Enabled ? "Disabled" : (torrent.Status == TorrentStatus.Paused ? "Paused" : "Working")));
 
-            var nextAnnounce = t.NextAnnounce ?? t.LastAnnounce.Value.AddSeconds(t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800);
+            var nextAnnounce = t.NextAnnounce ?? (t.LastAnnounce.HasValue
+                ? t.LastAnnounce.Value.AddSeconds(t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800)
+                : now.AddSeconds(t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800));
             var nextAnnounceSec = Math.Max(0, (int)(nextAnnounce - now).TotalSeconds);
 
             return new TrackerResource
@@ -309,13 +299,15 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Seeders = t.Seeders > 0 ? t.Seeders : torrent.Seeders,
                 Leechers = t.Leechers > 0 ? t.Leechers : torrent.Leechers,
                 Downloaded = t.Downloaded,
-                TotalAnnounces = Math.Max(1, t.TotalAnnounces),
-                SuccessfulAnnounces = Math.Max(1, t.SuccessfulAnnounces),
+                TotalAnnounces = t.TotalAnnounces,
+                SuccessfulAnnounces = t.SuccessfulAnnounces,
                 AnnounceInterval = t.AnnounceInterval > 0 ? t.AnnounceInterval : 1800,
-                LastAnnounce = t.LastAnnounce.Value,
+                LastAnnounce = t.LastAnnounce,
                 NextAnnounce = nextAnnounce,
                 NextAnnounceSeconds = nextAnnounceSec,
-                Message = isError ? (!string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "Tracker error") : "OK",
+                Message = isError
+                    ? (!string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : "Tracker error")
+                    : (isQueued ? "Queued for announce" : "OK"),
             };
         }).ToList();
 
@@ -323,46 +315,74 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpPost("{id:int}/trackers")]
-    public ActionResult<TrackerResource> AddTracker(int id, [FromBody] AddTrackerRequest request)
+    public async Task<ActionResult<TrackerResource>> AddTracker(int id, [FromBody] AddTrackerRequest request)
     {
+        var url = request?.Url?.Trim();
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return this.BadRequest("Tracker URL is required");
+        }
+
         var torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
             return this.NotFound();
         }
 
+        if (torrent.IsPrivate)
+        {
+            return this.BadRequest("Cannot add public trackers to private torrents");
+        }
+
+        var existingTrackers = this.trackerEntryRepository?.GetByTorrentId(id);
+        if (existingTrackers != null && existingTrackers.Any(t => string.Equals(t.Url?.Trim(), url, StringComparison.OrdinalIgnoreCase)))
+        {
+            return this.Conflict("Tracker already exists for this torrent");
+        }
+
+        var now = DateTime.UtcNow;
         var entry = new TrackerEntry
         {
             TorrentId = id,
-            Url = request?.Url ?? string.Empty,
+            Url = url,
             Tier = 0,
             Enabled = true,
-            Status = 1,
+            Status = 0,
             Seeders = 0,
             Leechers = 0,
+            Downloaded = 0,
+            TotalAnnounces = 0,
+            SuccessfulAnnounces = 0,
             AnnounceInterval = 1800,
-            LastAnnounce = DateTime.UtcNow,
-            NextAnnounce = DateTime.UtcNow.AddSeconds(1800),
-            TotalAnnounces = 1,
-            SuccessfulAnnounces = 1,
+            LastAnnounce = null,
+            NextAnnounce = now.AddSeconds(1800),
         };
-        var created = this.trackerEntryRepository.Insert(entry);
+
+        var created = this.trackerEntryRepository != null
+            ? (this.trackerEntryRepository.Insert(entry) ?? entry)
+            : entry;
+
+        if (this.downloadEngine != null)
+        {
+            await this.downloadEngine.AddTrackersAsync(id, new[] { url });
+        }
+
         return this.Ok(new TrackerResource
         {
             Id = created.Id,
             Url = created.Url,
             Tier = created.Tier,
-            Status = "Working",
+            Status = "Queued",
             Seeders = 0,
             Leechers = 0,
             Downloaded = 0,
-            TotalAnnounces = 1,
-            SuccessfulAnnounces = 1,
+            TotalAnnounces = 0,
+            SuccessfulAnnounces = 0,
             AnnounceInterval = 1800,
-            LastAnnounce = created.LastAnnounce,
+            LastAnnounce = null,
             NextAnnounce = created.NextAnnounce,
             NextAnnounceSeconds = 1800,
-            Message = "OK",
+            Message = "Queued for announce",
         });
     }
 

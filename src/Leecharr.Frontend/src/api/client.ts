@@ -40,7 +40,27 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
+      let message = `API error: ${response.status} ${response.statusText}`;
+      let data: any = null;
+      try {
+        const text = await response.text();
+        if (text) {
+          data = text;
+          try {
+            const json = JSON.parse(text);
+            data = json;
+            message = json.message || json.title || text;
+          } catch {
+            message = text;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      const error: any = new Error(message);
+      error.status = response.status;
+      error.response = { status: response.status, statusText: response.statusText, data };
+      throw error;
     }
 
     if (response.status === 204 || response.headers.get("content-length") === "0") {
