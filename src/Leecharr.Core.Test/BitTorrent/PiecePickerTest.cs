@@ -261,10 +261,28 @@ public class PiecePickerTest
     }
 
     [Test]
+    public void IsEndgameMode_ReturnsFalse_OnCreationForSmallTorrent()
+    {
+        // 2 pieces of 16KB = 2 blocks (<= 30 blocks total / <= 480KB)
+        var picker = new PiecePicker(2, 16384, 32768);
+        picker.IsEndgameMode().Should().BeFalse();
+
+        // Boundary test: exactly 30 blocks total does not enter endgame mode on creation
+        var picker30 = new PiecePicker(30, 16384, 491520);
+        picker30.IsEndgameMode().Should().BeFalse();
+    }
+
+    [Test]
     public void IsEndgameMode_ReturnsTrue_WhenRemainingBlocksUnderThreshold()
     {
-        // 20 pieces of 16KB = 20 blocks <= 30
-        var picker = new PiecePicker(20, 16384, 327680);
+        // 50 pieces of 16KB = 50 blocks (> 30 initially), 30 completed so 20 remaining (<= 30)
+        var picker = new PiecePicker(50, 16384, 819200);
+
+        for (var i = 0; i < 30; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
 
         picker.IsEndgameMode().Should().BeTrue();
     }
@@ -307,17 +325,92 @@ public class PiecePickerTest
     }
 
     [Test]
-    public void PickBlocks_InEndgameMode_AllowsDuplicateRequestsToFinishRapidly()
+    public void PickBlocks_SmallPayload_DoesNotIssueDuplicateInFlightRequestsAcrossPeers()
     {
-        // 2 pieces of 16KB = 2 blocks (<= 30, so endgame mode!)
+        // 2 pieces of 16KB = 2 blocks total
         var picker = new PiecePicker(2, 16384, 32768);
         var fullBitfield = new[] { true, true };
 
-        picker.IsEndgameMode().Should().BeTrue();
+        picker.IsEndgameMode().Should().BeFalse();
 
-        // Peer A requests all blocks
+        // Peer 1 requests 1 block
+        var requestsPeer1 = picker.PickBlocks(fullBitfield, 1);
+        requestsPeer1.Should().HaveCount(1);
+        requestsPeer1[0].PieceIndex.Should().Be(0);
+
+        // Peer 2 requests 2 blocks: should only receive piece 1, not duplicate in-flight piece 0
+        var requestsPeer2 = picker.PickBlocks(fullBitfield, 2);
+        requestsPeer2.Should().HaveCount(1);
+        requestsPeer2[0].PieceIndex.Should().Be(1);
+
+        // Piece 0 was not duplicated to Peer 2
+        requestsPeer2.Select(r => r.PieceIndex).Should().NotContain(requestsPeer1[0].PieceIndex);
+    }
+
+    [Test]
+    public async Task PickBlocks_TwoBlockTorrent_DoesNotIssueDuplicateInFlightRequestsAcrossPeersUntilTimeoutOrComplete()
+    {
+        // 2 pieces of 16KB = 2 blocks total
+        var picker = new PiecePicker(2, 16384, 32768, requestTimeout: TimeSpan.FromMilliseconds(50));
+        var fullBitfield = new[] { true, true };
+
+        picker.IsEndgameMode().Should().BeFalse();
+
+        // Peer 1 requests 1 block -> gets piece 0
+        var requestsPeer1 = picker.PickBlocks(fullBitfield, 1);
+        requestsPeer1.Should().HaveCount(1);
+        requestsPeer1[0].PieceIndex.Should().Be(0);
+
+        // Torrent is still not in endgame mode (1 in-flight < 2 remaining)
+        picker.IsEndgameMode().Should().BeFalse();
+
+        // Peer 2 requests 2 blocks -> should not receive piece 0 because it is in flight and not timed out; receives piece 1 only
+        var requestsPeer2 = picker.PickBlocks(fullBitfield, 2);
+        requestsPeer2.Should().HaveCount(1);
+        requestsPeer2[0].PieceIndex.Should().Be(1);
+
+        // No duplicate in-flight requests were issued across the two peers
+        requestsPeer1[0].PieceIndex.Should().NotBe(requestsPeer2[0].PieceIndex);
+
+        // Now both piece 0 and piece 1 are in-flight.
+        // Complete piece 0.
+        picker.MarkBlockReceived(0, 0, 16384);
+        picker.MarkPieceVerified(0);
+
+        // Piece 0 is complete, piece 1 is in-flight.
+        // Wait for piece 1 to time out.
+        await Task.Delay(75);
+
+        // Now that piece 1 timed out, calling PickBlocks can re-request piece 1.
+        var retryRequests = picker.PickBlocks(fullBitfield, 1);
+        retryRequests.Should().HaveCount(1);
+        retryRequests[0].PieceIndex.Should().Be(1);
+
+        // Complete piece 1 as well.
+        picker.MarkBlockReceived(1, 0, 16384);
+        picker.MarkPieceVerified(1);
+
+        // All pieces complete, no further requests issued and endgame mode is false.
+        picker.PickBlocks(fullBitfield, 1).Should().BeEmpty();
+        picker.IsEndgameMode().Should().BeFalse();
+    }
+
+    [Test]
+    public void PickBlocks_InEndgameMode_AllowsDuplicateRequestsToFinishRapidly()
+    {
+        // 2 pieces of 16KB = 2 blocks
+        var picker = new PiecePicker(2, 16384, 32768);
+        var fullBitfield = new[] { true, true };
+
+        // Before any requests, endgame mode is false
+        picker.IsEndgameMode().Should().BeFalse();
+
+        // Peer A requests all blocks so they are in flight
         var requestsPeerA = picker.PickBlocks(fullBitfield, 2);
         requestsPeerA.Should().HaveCount(2);
+
+        // Once all remaining blocks are in flight, endgame mode is entered
+        picker.IsEndgameMode().Should().BeTrue();
 
         // In endgame mode, Peer B can also request the in-flight blocks!
         var requestsPeerB = picker.PickBlocks(fullBitfield, 2);
