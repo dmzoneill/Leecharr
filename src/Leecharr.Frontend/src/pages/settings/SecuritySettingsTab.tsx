@@ -81,7 +81,8 @@ const PROVIDER_TEMPLATES: Record<string, Partial<IdentityProviderDefinition>> = 
 
 export function SecuritySettingsTab() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const toast = useToast();
+  const { showToast } = toast;
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
 
@@ -98,7 +99,10 @@ export function SecuritySettingsTab() {
   const [editingProvider, setEditingProvider] =
     useState<Partial<IdentityProviderDefinition> | null>(null);
   const confirm = useConfirm();
-  useEscapeKey(() => setEditingProvider(null), Boolean(editingProvider));
+  useEscapeKey(() => {
+    setEditingProvider(null);
+    setShowSecret(false);
+  }, Boolean(editingProvider));
   const [isNewProvider, setIsNewProvider] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -108,6 +112,7 @@ export function SecuritySettingsTab() {
 
   const [copied, setCopied] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -153,11 +158,22 @@ export function SecuritySettingsTab() {
   };
 
   const handleCopyApiKey = () => {
-    if (form.apiKey) {
-      navigator.clipboard.writeText(form.apiKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    if (!form.apiKey) return;
+    if (!navigator.clipboard?.writeText) {
+      // Fallback or show error toast
+      toast?.showToast("Clipboard API not available in this browser context", "error");
+      return;
     }
+    navigator.clipboard
+      .writeText(form.apiKey)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast?.showToast("API key copied to clipboard", "success");
+      })
+      .catch((_err) => {
+        toast?.showToast("Failed to copy API key to clipboard", "error");
+      });
   };
 
   const handleSave = () => {
@@ -187,12 +203,14 @@ export function SecuritySettingsTab() {
     });
     setIsNewProvider(true);
     setTestResult(null);
+    setShowSecret(false);
   };
 
   const handleOpenEdit = (p: IdentityProviderDefinition) => {
     setEditingProvider({ ...p });
     setIsNewProvider(false);
     setTestResult(null);
+    setShowSecret(false);
   };
 
   const handleSaveProvider = async () => {
@@ -205,6 +223,7 @@ export function SecuritySettingsTab() {
         await api.updateIdProvider(editingProvider.id, editingProvider);
       }
       setEditingProvider(null);
+      setShowSecret(false);
       await loadProviders();
       showToast("Identity provider saved successfully", "success");
     } catch (err: any) {
@@ -648,6 +667,7 @@ export function SecuritySettingsTab() {
 
                   <TextInput
                     label="Client Secret"
+                    type={showSecret ? "text" : "password"}
                     value={editingProvider.clientSecret || ""}
                     onChange={(v) =>
                       setEditingProvider((prev) => ({
@@ -656,6 +676,18 @@ export function SecuritySettingsTab() {
                       }))
                     }
                     hint="Leave blank or masked to keep current secret"
+                    rightElement={
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setShowSecret((prev) => !prev)}
+                        style={{ whiteSpace: "nowrap", height: "36px", padding: "0 0.75rem" }}
+                        title={showSecret ? "Hide client secret" : "Show client secret"}
+                        aria-label={showSecret ? "Hide client secret" : "Show client secret"}
+                      >
+                        {showSecret ? "🙈 Hide" : "👁️ Show"}
+                      </button>
+                    }
                   />
 
                   <TextInput
@@ -735,7 +767,10 @@ export function SecuritySettingsTab() {
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => setEditingProvider(null)}
+                  onClick={() => {
+                    setEditingProvider(null);
+                    setShowSecret(false);
+                  }}
                 >
                   Cancel
                 </button>
