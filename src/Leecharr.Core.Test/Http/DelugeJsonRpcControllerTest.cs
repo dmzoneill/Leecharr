@@ -158,4 +158,110 @@ public class DelugeJsonRpcControllerTest
         result.Should().BeOfType<JsonResult>();
         this.torrentFileService.Received(1).GetFiles(42);
     }
+
+    [Test]
+    public async Task HandleRpc_CoreMoveStorage_WithArrayHashes_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.move_storage\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"], \"/downloads/new_dest\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/new_dest", moveFiles: true);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreMoveStorage_WithStringHash_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.move_storage\",\"params\":[\"aabbccddeeff00112233445566778899aabbccdd\", \"/downloads/new_dest\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/new_dest", moveFiles: true);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithDownloadLocation_InvokesSetLocationAsync()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_options\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"], {\"download_location\": \"/downloads/relocated\"}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/relocated", moveFiles: true);
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithMoveCompletedPath_InvokesSetLocationAsync()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_options\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"], {\"move_completed_path\": \"/downloads/completed\"}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/completed", moveFiles: true);
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
 }
