@@ -46,7 +46,24 @@ public class TorznabClient : ITorznabClient
 
     public TorznabClient(HttpClient httpClient = null)
     {
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        if (httpClient != null)
+        {
+            this.httpClient = httpClient;
+        }
+        else
+        {
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+            };
+            this.httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(25) };
+        }
+
+        if (!this.httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+        {
+            this.httpClient.DefaultRequestHeaders.Add("User-Agent", "Leecharr/1.0 (Torznab Client)");
+        }
+
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -189,21 +206,35 @@ public class TorznabClient : ITorznabClient
                 doc = XDocument.Parse(escaped);
             }
 
-            var channel = doc.Root?.Element("channel");
-            if (channel == null)
+            var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
+            if (errorElem != null)
             {
+                this.logger.Warn(
+                    "Torznab indexer '{0}' returned error code {1}: {2}",
+                    indexer?.Name ?? "Unknown",
+                    errorElem.Attribute("code")?.Value ?? "unknown",
+                    errorElem.Attribute("description")?.Value ?? errorElem.Value);
                 return results;
             }
 
-            foreach (var item in channel.Elements("item"))
+            var channel = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("channel", StringComparison.OrdinalIgnoreCase));
+            var items = channel != null
+                ? channel.Elements().Where(e => e.Name.LocalName.Equals("item", StringComparison.OrdinalIgnoreCase))
+                : doc.Descendants().Where(e => e.Name.LocalName.Equals("entry", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("item", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var item in items)
             {
-                var title = item.Element("title")?.Value ?? string.Empty;
-                var guid = item.Element("guid")?.Value ?? string.Empty;
-                var link = item.Element("link")?.Value ?? string.Empty;
-                var enclosure = item.Element("enclosure");
+                var title = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("title", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var guid = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("guid", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("id", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var link = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase))?.Value
+                    ?? item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase))?.Attribute("href")?.Value
+                    ?? string.Empty;
+                var enclosure = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("enclosure", StringComparison.OrdinalIgnoreCase));
                 var downloadUrl = enclosure?.Attribute("url")?.Value ?? link;
 
-                var pubDateStr = item.Element("pubDate")?.Value ?? item.Element("published")?.Value ?? item.Element("updated")?.Value;
+                var pubDateStr = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("pubDate", StringComparison.OrdinalIgnoreCase)
+                    || e.Name.LocalName.Equals("published", StringComparison.OrdinalIgnoreCase)
+                    || e.Name.LocalName.Equals("updated", StringComparison.OrdinalIgnoreCase))?.Value;
                 var publishDate = DateTime.UtcNow;
                 if (!string.IsNullOrWhiteSpace(pubDateStr) &&
                     DateTime.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsedPubDate))
@@ -216,9 +247,13 @@ public class TorznabClient : ITorznabClient
                 {
                     size = ParseLong(enclosure.Attribute("length")?.Value);
                 }
-                else if (item.Element("size") != null)
+                else
                 {
-                    size = ParseLong(item.Element("size")?.Value);
+                    var sizeElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("size", StringComparison.OrdinalIgnoreCase));
+                    if (sizeElem != null)
+                    {
+                        size = ParseLong(sizeElem.Value);
+                    }
                 }
 
                 var seeders = 0;
@@ -228,9 +263,9 @@ public class TorznabClient : ITorznabClient
                 var isFreeleechAttr = false;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
-                var category = item.Element("category")?.Value ?? string.Empty;
+                var category = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
 
-                var freeleechElem = item.Element("freeleech") ?? item.Element(TorznabNs + "freeleech");
+                var freeleechElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("freeleech", StringComparison.OrdinalIgnoreCase)) ?? item.Element(TorznabNs + "freeleech");
                 if (freeleechElem != null)
                 {
                     var flVal = freeleechElem.Value?.Trim();

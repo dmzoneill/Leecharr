@@ -1,5 +1,5 @@
 import { useDownloadHistory, useArrConnections, useIndexers } from "../../api/hooks";
-import { formatBytes, formatDate } from "../../utils/formatters";
+import { formatBytes, formatDate, normalizeGenres } from "../../utils/formatters";
 import { getMediaDeepLink, getImdbUrl, getTmdbUrl, getProwlarrUrl } from "../../utils/arrLinks";
 import { getTorrentBadges, calculateHnrStatus } from "../../utils/milestones";
 import type { Torrent } from "../../api/types";
@@ -78,16 +78,19 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
               <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
                 {meta?.title || torrent.name} {meta?.year ? `(${meta.year})` : ""}
               </div>
-              {meta?.genres && (
-                <div
-                  style={{
-                    fontSize: "0.7rem",
-                    color: "var(--text-muted, #888)",
-                  }}
-                >
-                  {meta.genres.slice(0, 3).join(", ")}
-                </div>
-              )}
+              {(() => {
+                const genresList = normalizeGenres(meta?.genres);
+                return genresList.length > 0 ? (
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--text-muted, #888)",
+                    }}
+                  >
+                    {genresList.slice(0, 3).join(", ")}
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
 
