@@ -821,10 +821,14 @@ export interface TorrentEventLogEntry {
 }
 
 export interface SyncResult {
-  added: number;
-  skipped: number;
-  failed: number;
+  added?: number;
+  skipped?: number;
+  failed?: number;
   syncedCount?: number;
+  totalCount?: number;
+  failedCount?: number;
+  success?: boolean;
+  message?: string;
 }
 
 export interface MediaActor {
