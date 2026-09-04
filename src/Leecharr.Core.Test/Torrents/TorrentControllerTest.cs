@@ -320,4 +320,191 @@ public class TorrentControllerTest
         this.trackerEntryRepository.DidNotReceive().Insert(Arg.Any<TrackerEntry>());
         await this.downloadEngine.DidNotReceive().AddTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>());
     }
+
+    [Test]
+    public void GetFiles_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(404).Returns((Torrent)null);
+
+        var result = this.controller.GetFiles(404);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [TestCase(TorrentStatus.Completed)]
+    [TestCase(TorrentStatus.Seeding)]
+    public void GetFiles_WhenTorrentCompletedOrSeeding_ReturnsFilesWithFullProgressAndCompletedBytes(TorrentStatus status)
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Completed Torrent",
+            Status = status,
+            Progress = 1.0,
+            TotalSize = 3000,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 101, TorrentId = 1, Path = "video.mkv", Size = 2500, PieceOffset = 0, PieceCount = 5, Progress = 0.0, BytesCompleted = 0 },
+            new() { Id = 102, TorrentId = 1, Path = "sample.mkv", Size = 500, PieceOffset = 5, PieceCount = 1, Progress = 0.0, BytesCompleted = 0 },
+        };
+
+        this.torrentService.Get(1).Returns(torrent);
+        this.torrentFileService.GetFiles(1).Returns(files);
+
+        var result = this.controller.GetFiles(1);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<TorrentFileResource>>().Subject;
+        resources.Should().HaveCount(2);
+
+        resources[0].Progress.Should().Be(1.0);
+        resources[0].BytesCompleted.Should().Be(2500);
+
+        resources[1].Progress.Should().Be(1.0);
+        resources[1].BytesCompleted.Should().Be(500);
+    }
+
+    [Test]
+    public void GetFiles_WhenTorrentProgressIs100PercentEvenIfStatusIsNotCompleted_ReturnsFilesWithFullProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 2,
+            Name = "100% Torrent",
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+            TotalSize = 1000,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 201, TorrentId = 2, Path = "file.iso", Size = 1000, PieceOffset = 0, PieceCount = 2, Progress = 0.0, BytesCompleted = 0 },
+        };
+
+        this.torrentService.Get(2).Returns(torrent);
+        this.torrentFileService.GetFiles(2).Returns(files);
+
+        var result = this.controller.GetFiles(2);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<TorrentFileResource>>().Subject;
+        resources[0].Progress.Should().Be(1.0);
+        resources[0].BytesCompleted.Should().Be(1000);
+    }
+
+    [Test]
+    public void GetFiles_WhenDownloading_EnrichesFilesWithPieceBitfieldProgressAndBytesCompleted()
+    {
+        var torrent = new Torrent
+        {
+            Id = 3,
+            Name = "Downloading Torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 500,
+            PieceCount = 4,
+            TotalSize = 2000,
+        };
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns(new[] { true, true, false, false });
+        downloadTask.PieceLength.Returns(500);
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 301, TorrentId = 3, Path = "file1.bin", Size = 1000, PieceOffset = 0, PieceCount = 2, Progress = 0.0, BytesCompleted = 0 },
+            new() { Id = 302, TorrentId = 3, Path = "file2.bin", Size = 1000, PieceOffset = 2, PieceCount = 2, Progress = 0.0, BytesCompleted = 0 },
+        };
+
+        this.torrentService.Get(3).Returns(torrent);
+        this.torrentService.GetDownloadTask(3).Returns(downloadTask);
+        this.torrentFileService.GetFiles(3).Returns(files);
+
+        var result = this.controller.GetFiles(3);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<TorrentFileResource>>().Subject;
+        resources.Should().HaveCount(2);
+
+        // File 1 has both pieces completed -> 100%
+        resources[0].Progress.Should().Be(1.0);
+        resources[0].BytesCompleted.Should().Be(1000);
+
+        // File 2 has 0 pieces completed -> 0%
+        resources[1].Progress.Should().Be(0.0);
+        resources[1].BytesCompleted.Should().Be(0);
+    }
+
+    [Test]
+    public void GetFiles_WhenDownloadingWithPartialPieces_ComputesPartialBytesCompleted()
+    {
+        var torrent = new Torrent
+        {
+            Id = 4,
+            Name = "Partial Downloading Torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.25,
+            PieceLength = 1000,
+            PieceCount = 4,
+            TotalSize = 4000,
+        };
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns(new[] { true, false, false, false });
+        downloadTask.PieceLength.Returns(1000);
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 401, TorrentId = 4, Path = "file1.bin", Size = 2000, PieceOffset = 0, PieceCount = 2, Progress = 0.0, BytesCompleted = 0 },
+        };
+
+        this.torrentService.Get(4).Returns(torrent);
+        this.torrentService.GetDownloadTask(4).Returns(downloadTask);
+        this.torrentFileService.GetFiles(4).Returns(files);
+
+        var result = this.controller.GetFiles(4);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<TorrentFileResource>>().Subject;
+
+        // 1 of 2 pieces completed -> 1000 bytes, 50% progress
+        resources[0].BytesCompleted.Should().Be(1000);
+        resources[0].Progress.Should().Be(0.5);
+    }
+
+    [Test]
+    public void GetFiles_WhenDownloadingWithoutTask_ProratesFileProgressFromTorrentProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Prorated Torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.4,
+            TotalSize = 2000,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 501, TorrentId = 5, Path = "file1.bin", Size = 1000, PieceOffset = 0, PieceCount = 0, Progress = 0.0, BytesCompleted = 0 },
+            new() { Id = 502, TorrentId = 5, Path = "file2.bin", Size = 1000, PieceOffset = 0, PieceCount = 0, Progress = 0.0, BytesCompleted = 0 },
+        };
+
+        this.torrentService.Get(5).Returns(torrent);
+        this.torrentService.GetDownloadTask(5).Returns((IDownloadTask)null);
+        this.torrentFileService.GetFiles(5).Returns(files);
+
+        var result = this.controller.GetFiles(5);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<TorrentFileResource>>().Subject;
+
+        resources[0].BytesCompleted.Should().Be(400);
+        resources[0].Progress.Should().Be(0.4);
+
+        resources[1].BytesCompleted.Should().Be(400);
+        resources[1].Progress.Should().Be(0.4);
+    }
 }

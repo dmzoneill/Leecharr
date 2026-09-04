@@ -176,6 +176,68 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentGet_WithFiles_ReturnsEnrichedBytesCompleted()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Transmission.Test",
+            InfoHash = "1122334455667788990011223344556677889900",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 500,
+            PieceCount = 4,
+            TotalSize = 2000,
+        };
+
+        var task = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, true, false, false });
+        task.PieceLength.Returns(500);
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 42, Path = "file1.bin", Size = 1000, PieceOffset = 0, PieceCount = 2 },
+            new() { Id = 2, TorrentId = 42, Path = "file2.bin", Size = 1000, PieceOffset = 2, PieceCount = 2 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentService.GetDownloadTask(42).Returns(task);
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("[\"id\", \"name\", \"files\", \"fileStats\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<TransmissionRpcResponse>().Subject;
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        var torrentsList = argsDict!["torrents"] as List<Dictionary<string, object>>;
+        torrentsList.Should().HaveCount(1);
+
+        var returnedFiles = torrentsList![0]["files"] as List<Dictionary<string, object>>;
+        returnedFiles.Should().HaveCount(2);
+        returnedFiles![0]["bytesCompleted"].Should().Be(1000L);
+        returnedFiles[1]["bytesCompleted"].Should().Be(0L);
+
+        var returnedStats = torrentsList[0]["fileStats"] as List<Dictionary<string, object>>;
+        returnedStats.Should().HaveCount(2);
+        returnedStats![0]["bytesCompleted"].Should().Be(1000L);
+        returnedStats[1]["bytesCompleted"].Should().Be(0L);
+    }
+
+    [Test]
     public async Task HandleRpc_TorrentSetLocation_WithMoveTrue_InvokesSetLocationAsyncWithMoveTrue()
     {
         var context = new DefaultHttpContext();

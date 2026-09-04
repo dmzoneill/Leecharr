@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -263,5 +264,47 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"result\":true");
         await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/completed", moveFiles: true);
         await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentStatus_WithFiles_ReturnsEnrichedFileProgress()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Deluge.Test",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 500,
+            PieceCount = 4,
+            TotalSize = 2000,
+        };
+
+        var task = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, true, false, false });
+        task.PieceLength.Returns(500);
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 42, Path = "file1.bin", Size = 1000, PieceOffset = 0, PieceCount = 2 },
+            new() { Id = 2, TorrentId = 42, Path = "file2.bin", Size = 1000, PieceOffset = 2, PieceCount = 2 },
+        };
+
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+        this.torrentService.GetDownloadTask(42).Returns(task);
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrent_status\",\"params\":[\"aabbccddeeff00112233445566778899aabbccdd\", [\"files\", \"file_progress\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"file_progress\":[1,0]");
     }
 }
