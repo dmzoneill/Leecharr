@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Sabnzbd;
@@ -24,6 +25,7 @@ public class SabnzbdApiController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SabnzbdApiController(
@@ -31,13 +33,15 @@ public class SabnzbdApiController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -389,8 +393,7 @@ public class SabnzbdApiController : ControllerBase
                     }
                     else
                     {
-                        using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                        var bytes = await client.GetByteArrayAsync(targetUrl);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
                         if (added != null)

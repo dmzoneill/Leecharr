@@ -13,6 +13,7 @@ using NLog;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Flood;
@@ -67,6 +68,7 @@ public class FloodApiController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IUserService userService;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FloodApiController(
@@ -76,7 +78,8 @@ public class FloodApiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
-        IUserService userService = null)
+        IUserService userService = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -85,6 +88,7 @@ public class FloodApiController : ControllerBase
         this.configService = configService;
         this.configFileProvider = configFileProvider;
         this.userService = userService;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     private bool IsFloodAuthenticated()
@@ -254,8 +258,7 @@ public class FloodApiController : ControllerBase
                 }
                 else
                 {
-                    using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                    var bytes = await client.GetByteArrayAsync(url);
+                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: 10 * 1024 * 1024);
                     var parsed = this.torrentFileParser.Parse(bytes);
                     await this.torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
                 }

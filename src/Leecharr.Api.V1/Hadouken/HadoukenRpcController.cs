@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Hadouken;
@@ -38,6 +39,7 @@ public class HadoukenRpcController : ControllerBase
     private readonly ITorrentFileService torrentFileService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public HadoukenRpcController(
@@ -45,13 +47,15 @@ public class HadoukenRpcController : ControllerBase
         ITorrentFileParser torrentFileParser,
         IConfigService configService,
         ITorrentFileService torrentFileService = null,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.configService = configService;
         this.torrentFileService = torrentFileService;
         this.configFileProvider = configFileProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     private bool IsHadoukenAuthenticated()
@@ -297,8 +301,7 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                                var bytes = await client.GetByteArrayAsync(data);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(data, maxSizeBytes: 10 * 1024 * 1024);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
@@ -426,8 +429,7 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                using var client = new global::System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                                var bytes = await client.GetByteArrayAsync(uri);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
