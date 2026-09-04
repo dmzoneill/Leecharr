@@ -36,12 +36,6 @@ function Activity() {
 
   const seededRef = useRef(false);
 
-  const prevRef = useRef<{
-    totalUploaded: number;
-    totalDownloaded: number;
-    timestamp: number;
-  } | null>(null);
-
   useEffect(() => {
     if (!serverHistory || seededRef.current) return;
     seededRef.current = true;
@@ -52,9 +46,7 @@ function Activity() {
     const act = recent.map((s) => sanitizeNumber(s.activeTorrents));
     const peers = recent.map((s) => sanitizeNumber(s.totalPeers));
     const rat = recent.map((s) => sanitizeNumber(s.averageRatio));
-    const net = recent.map(
-      (s) => sanitizeNumber(s.uploadSpeed) + sanitizeNumber(s.downloadSpeed),
-    );
+    const net = recent.map((s) => sanitizeNumber(s.uploadSpeed) + sanitizeNumber(s.downloadSpeed));
 
     setHistory({
       uploadSpeed: up,
@@ -64,95 +56,54 @@ function Activity() {
       ratio: rat,
       networkActivity: net,
     });
-
-    if (serverHistory.length > 0) {
-      const last = serverHistory[serverHistory.length - 1];
-      prevRef.current = {
-        totalUploaded: sanitizeNumber(last.totalUploaded),
-        totalDownloaded: sanitizeNumber(last.totalDownloaded),
-        timestamp: new Date(last.timestamp).getTime(),
-      };
-    }
   }, [serverHistory]);
 
   useEffect(() => {
     if (!stats) return;
 
-    const now = Date.now();
-    const prev = prevRef.current;
+    const upSpeed = sanitizeNumber(stats.uploadSpeed);
+    const downSpeed = sanitizeNumber(stats.downloadSpeed);
 
-    if (prev) {
-      const timeDelta = (now - prev.timestamp) / 1000;
-      if (timeDelta >= 0.8) {
-        const statsUp = sanitizeNumber(stats.totalUploaded);
-        const statsDown = sanitizeNumber(stats.totalDownloaded);
+    const totalPeers = (torrents ?? []).reduce(
+      (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
+      0
+    );
 
-        const upSpeed =
-          statsUp >= prev.totalUploaded
-            ? Math.max(0, (statsUp - prev.totalUploaded) / timeDelta)
-            : 0;
-        const downSpeed =
-          statsDown >= prev.totalDownloaded
-            ? Math.max(0, (statsDown - prev.totalDownloaded) / timeDelta)
-            : 0;
-
-        const totalPeers = (torrents ?? []).reduce(
-          (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-          0,
-        );
-
-        const push = (arr: number[], val: number) => {
-          const next = [...arr, sanitizeNumber(val)];
-          if (next.length > MAX_POINTS) {
-            next.splice(0, next.length - MAX_POINTS);
-          }
-          return next;
-        };
-
-        setHistory((curr) => ({
-          uploadSpeed: push(curr.uploadSpeed, upSpeed),
-          downloadSpeed: push(curr.downloadSpeed, downSpeed),
-          activeTorrents: push(
-            curr.activeTorrents,
-            sanitizeNumber(stats.activeTorrents),
-          ),
-          peerConnections: push(
-            curr.peerConnections,
-            sanitizeNumber(totalPeers),
-          ),
-          ratio: push(curr.ratio, sanitizeNumber(stats.averageRatio)),
-          networkActivity: push(curr.networkActivity, upSpeed + downSpeed),
-        }));
-
-        prevRef.current = {
-          totalUploaded: statsUp,
-          totalDownloaded: statsDown,
-          timestamp: now,
-        };
+    const push = (arr: number[], val: number) => {
+      const next = [...arr, sanitizeNumber(val)];
+      if (next.length > MAX_POINTS) {
+        next.splice(0, next.length - MAX_POINTS);
       }
-    } else {
-      prevRef.current = {
-        totalUploaded: sanitizeNumber(stats.totalUploaded),
-        totalDownloaded: sanitizeNumber(stats.totalDownloaded),
-        timestamp: now,
-      };
-    }
+      return next;
+    };
+
+    setHistory((curr) => ({
+      uploadSpeed: push(curr.uploadSpeed, upSpeed),
+      downloadSpeed: push(curr.downloadSpeed, downSpeed),
+      activeTorrents: push(curr.activeTorrents, sanitizeNumber(stats.activeTorrents)),
+      peerConnections: push(curr.peerConnections, sanitizeNumber(totalPeers)),
+      ratio: push(curr.ratio, sanitizeNumber(stats.averageRatio ?? stats.globalRatio)),
+      networkActivity: push(curr.networkActivity, upSpeed + downSpeed),
+    }));
   }, [stats, torrents]);
 
   const currentUpload =
-    history.uploadSpeed.length > 0
-      ? history.uploadSpeed[history.uploadSpeed.length - 1]
-      : 0;
+    history.uploadSpeed.length > 0 ? history.uploadSpeed[history.uploadSpeed.length - 1] : 0;
   const currentDownload =
-    history.downloadSpeed.length > 0
-      ? history.downloadSpeed[history.downloadSpeed.length - 1]
-      : 0;
-  const currentActive = stats?.activeTorrents ?? 0;
+    history.downloadSpeed.length > 0 ? history.downloadSpeed[history.downloadSpeed.length - 1] : 0;
+  const currentActive =
+    stats?.activeTorrents ??
+    (history.activeTorrents.length > 0
+      ? history.activeTorrents[history.activeTorrents.length - 1]
+      : 0);
   const currentPeers = (torrents ?? []).reduce(
     (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-    0,
+    0
   );
-  const currentRatio = stats?.averageRatio ?? 0;
+  const currentRatio =
+    stats?.averageRatio ??
+    stats?.globalRatio ??
+    (history.ratio.length > 0 ? history.ratio[history.ratio.length - 1] : 0);
   const currentNetwork = currentUpload + currentDownload;
 
   return (
@@ -167,9 +118,7 @@ function Activity() {
         }}
       >
         <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <h1 className="page-heading" style={{ margin: 0 }}>
               Activity Metrics
             </h1>
