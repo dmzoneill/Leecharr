@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
   useStartSeeding,
   useStopSeeding,
@@ -25,7 +27,7 @@ import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import useEscapeKey from "../hooks/useEscapeKey";
-import type { Torrent } from "../api/types";
+import type { Torrent, DownloadHistoryEntry } from "../api/types";
 
 export type ColumnKey =
   | "#"
@@ -158,6 +160,75 @@ export interface TorrentTableProps {
   onNavigateTab?: (nav: string, subNav?: string) => void;
 }
 
+interface TorrentTableRowProps {
+  torrent: Torrent;
+  index: number;
+  columns: ColumnDef[];
+  isSelected: boolean;
+  isChecked: boolean;
+  onSelect?: (torrent: Torrent) => void;
+  onToggleSelect?: (id: number) => void;
+  onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
+  renderCell: (t: Torrent, key: ColumnKey, idx: number) => React.ReactNode;
+}
+
+const TorrentTableRow = React.memo<TorrentTableRowProps>(
+  ({
+    torrent: t,
+    index: idx,
+    columns,
+    isSelected,
+    isChecked,
+    onSelect,
+    onToggleSelect,
+    onContextMenu,
+    renderCell,
+  }) => {
+    const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
+    const mergedTorrent = useMemo(() => applyTelemetry(t, telemetry), [t, telemetry]);
+
+    return (
+      <tr
+        className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
+        onClick={() => onSelect?.(mergedTorrent)}
+        onContextMenu={(e) => onContextMenu(e, mergedTorrent)}
+        style={{
+          cursor: "pointer",
+          backgroundColor: isSelected
+            ? "var(--bg-card-hover, #23284b)"
+            : isChecked
+              ? "rgba(255, 209, 102, 0.05)"
+              : "transparent",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+          fontSize: "0.82rem",
+        }}
+      >
+        {onToggleSelect && (
+          <td
+            style={{ textAlign: "center", padding: "0.5rem" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input type="checkbox" checked={isChecked} onChange={() => onToggleSelect(t.id)} />
+          </td>
+        )}
+
+        {columns.map((c) => (
+          <td
+            key={c.key}
+            style={{
+              padding: "0.55rem 0.75rem",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {renderCell(mergedTorrent, c.key, idx)}
+          </td>
+        ))}
+      </tr>
+    );
+  }
+);
+TorrentTableRow.displayName = "TorrentTableRow";
+
 export const TorrentTable: React.FC<TorrentTableProps> = ({
   torrents: propTorrents,
   filter,
@@ -194,6 +265,22 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
+
+  const { historyByHash, historyByTitle } = useMemo(() => {
+    const byHash = new Map<string, DownloadHistoryEntry>();
+    const byTitle = new Map<string, DownloadHistoryEntry>();
+    if (history) {
+      for (const h of history) {
+        if (h.infoHash) {
+          byHash.set(h.infoHash.toLowerCase(), h);
+        }
+        if (h.title) {
+          byTitle.set(h.title.toLowerCase(), h);
+        }
+      }
+    }
+    return { historyByHash: byHash, historyByTitle: byTitle };
+  }, [history]);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
@@ -340,416 +427,458 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     );
   }
 
-  const renderCell = (t: Torrent, key: ColumnKey, idx: number) => {
-    switch (key) {
-      case "#":
-        return (
-          <span style={{ color: "var(--text-muted, #7e8092)", fontSize: "0.75rem" }}>
-            {t.queuePosition && t.queuePosition > 0 ? t.queuePosition : idx + 1}
-          </span>
-        );
+  const renderCell = useCallback(
+    (t: Torrent, key: ColumnKey, idx: number) => {
+      switch (key) {
+        case "#":
+          return (
+            <span
+              style={{
+                color: "var(--text-muted, #7e8092)",
+                fontSize: "0.75rem",
+              }}
+            >
+              {t.queuePosition && t.queuePosition > 0 ? t.queuePosition : idx + 1}
+            </span>
+          );
 
-      case "name": {
-        const historyMatch = history?.find(
-          (h) =>
-            (t.infoHash && h.infoHash?.toLowerCase() === t.infoHash.toLowerCase()) ||
-            h.title?.toLowerCase() === t.name?.toLowerCase()
-        );
-        const meta = historyMatch?.metadata;
-        const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
-        const badges = getTorrentBadges(t);
-        const posterSrc = t.posterUrl || t.artworkUrl || t.bannerUrl || meta?.posterUrl;
+        case "name": {
+          const historyMatch =
+            (t.infoHash ? historyByHash.get(t.infoHash.toLowerCase()) : undefined) ||
+            (t.name ? historyByTitle.get(t.name.toLowerCase()) : undefined);
+          const meta = historyMatch?.metadata;
+          const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
+          const badges = getTorrentBadges(t);
+          const posterSrc = t.posterUrl || t.artworkUrl || t.bannerUrl || meta?.posterUrl;
 
-        return (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              minWidth: 200,
-              maxWidth: 460,
-            }}
-          >
-            {posterSrc ? (
-              <img
-                src={posterSrc}
-                alt=""
-                style={{
-                  width: "22px",
-                  height: "32px",
-                  objectFit: "cover",
-                  borderRadius: "3px",
-                  flexShrink: 0,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "22px",
-                  height: "32px",
-                  borderRadius: "3px",
-                  backgroundColor: "rgba(255, 255, 255, 0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.75rem",
-                  flexShrink: 0,
-                  color: "var(--text-muted)",
-                }}
-              >
-                🎬
-              </div>
-            )}
-
+          return (
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                minWidth: 0,
-                overflow: "hidden",
+                alignItems: "center",
+                gap: "0.6rem",
+                minWidth: 200,
+                maxWidth: 460,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {t.isPrivate && (
-                  <span
-                    className="badge"
-                    title="Private Torrent (BEP 27: Strict Swarm Isolation, DHT/PEX Disabled)"
-                    style={{
-                      backgroundColor: "rgba(239, 68, 68, 0.2)",
-                      color: "#f87171",
-                      border: "1px solid rgba(239, 68, 68, 0.4)",
-                      fontSize: "0.65rem",
-                      padding: "0.05rem 0.35rem",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "3px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} /> Private
-                  </span>
-                )}
-                <span
+              {posterSrc ? (
+                <img
+                  src={posterSrc}
+                  alt=""
                   style={{
-                    fontWeight: 600,
-                    color: "var(--text-primary, #f8f4ed)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    width: "22px",
+                    height: "32px",
+                    objectFit: "cover",
+                    borderRadius: "3px",
+                    flexShrink: 0,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                   }}
-                  title={t.name}
-                >
-                  {meta?.title || t.mediaTitle || t.name} {meta?.year ? `(${meta.year})` : ""}
-                </span>
-                {arrLink && (
-                  <a
-                    href={arrLink.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      fontSize: "0.68rem",
-                      padding: "0.1rem 0.35rem",
-                      borderRadius: "3px",
-                      backgroundColor: "rgba(255, 209, 102, 0.15)",
-                      color: "var(--accent, #ffd166)",
-                      textDecoration: "none",
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {arrLink.label} ↗
-                  </a>
-                )}
-              </div>
-
-              {t.mediaTitle && t.mediaTitle !== t.name && (
-                <span
-                  style={{
-                    fontSize: "0.72rem",
-                    color: "var(--text-muted, #7e8092)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
                   }}
-                  title={t.name}
-                >
-                  {t.name}
-                </span>
-              )}
-
-              {badges.length > 0 && (
+                />
+              ) : (
                 <div
                   style={{
+                    width: "22px",
+                    height: "32px",
+                    borderRadius: "3px",
+                    backgroundColor: "rgba(255, 255, 255, 0.06)",
                     display: "flex",
-                    gap: "4px",
-                    flexWrap: "wrap",
-                    marginTop: "2px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.75rem",
+                    flexShrink: 0,
+                    color: "var(--text-muted)",
                   }}
                 >
-                  {badges.slice(0, 3).map((b, i) => (
-                    <span
-                      key={i}
-                      className="badge"
-                      title={b.title}
-                      style={{
-                        fontSize: "0.65rem",
-                        padding: "0.05rem 0.3rem",
-                        backgroundColor: `${b.color}22`,
-                        color: b.color,
-                        border: `1px solid ${b.color}44`,
-                      }}
-                    >
-                      {b.icon} {b.label}
-                    </span>
-                  ))}
+                  🎬
                 </div>
               )}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                  minWidth: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {t.isPrivate && (
+                    <span
+                      className="badge"
+                      title="Private Torrent (BEP 27: Strict Swarm Isolation, DHT/PEX Disabled)"
+                      style={{
+                        backgroundColor: "rgba(239, 68, 68, 0.2)",
+                        color: "#f87171",
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                        fontSize: "0.65rem",
+                        padding: "0.05rem 0.35rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} /> Private
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--text-primary, #f8f4ed)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={t.name}
+                  >
+                    {meta?.title || t.mediaTitle || t.name} {meta?.year ? `(${meta.year})` : ""}
+                  </span>
+                  {arrLink && (
+                    <a
+                      href={arrLink.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: "0.68rem",
+                        padding: "0.1rem 0.35rem",
+                        borderRadius: "3px",
+                        backgroundColor: "rgba(255, 209, 102, 0.15)",
+                        color: "var(--accent, #ffd166)",
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {arrLink.label} ↗
+                    </a>
+                  )}
+                </div>
+
+                {t.mediaTitle && t.mediaTitle !== t.name && (
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--text-muted, #7e8092)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={t.name}
+                  >
+                    {t.name}
+                  </span>
+                )}
+
+                {badges.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "4px",
+                      flexWrap: "wrap",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {badges.slice(0, 3).map((b, i) => (
+                      <span
+                        key={i}
+                        className="badge"
+                        title={b.title}
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.05rem 0.3rem",
+                          backgroundColor: `${b.color}22`,
+                          color: b.color,
+                          border: `1px solid ${b.color}44`,
+                        }}
+                      >
+                        {b.icon} {b.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      }
-
-      case "category": {
-        const cat = t.category || t.label || "NONE";
-        return (
-          <span
-            className="badge"
-            style={{
-              fontSize: "0.72rem",
-              padding: "0.15rem 0.45rem",
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              color: "var(--text-secondary, #c7c5d3)",
-              fontWeight: 600,
-              textTransform: "uppercase",
-            }}
-          >
-            {cat}
-          </span>
-        );
-      }
-
-      case "status": {
-        const st = (t.status || "idle").toLowerCase();
-        let color = "var(--text-muted, #7e8092)";
-        let bg = "rgba(126, 128, 146, 0.15)";
-
-        if (st === "downloading") {
-          color = "var(--accent, #ffd166)";
-          bg = "rgba(255, 209, 102, 0.15)";
-        } else if (st === "seeding" || st === "completed") {
-          color = "var(--success, #22c55e)";
-          bg = "rgba(34, 197, 94, 0.15)";
-        } else if (st === "checking" || st === "queued") {
-          color = "var(--info, #38bdf8)";
-          bg = "rgba(56, 189, 248, 0.15)";
+          );
         }
 
-        return (
-          <span
-            className="badge"
-            style={{
-              backgroundColor: bg,
-              color: color,
-              fontWeight: 600,
-              fontSize: "0.72rem",
-              padding: "0.15rem 0.5rem",
-              textTransform: "capitalize",
-            }}
-          >
-            {t.status || "Idle"}
-          </span>
-        );
-      }
+        case "category": {
+          const cat = t.category || t.label || "NONE";
+          return (
+            <span
+              className="badge"
+              style={{
+                fontSize: "0.72rem",
+                padding: "0.15rem 0.45rem",
+                backgroundColor: "rgba(255, 255, 255, 0.06)",
+                color: "var(--text-secondary, #c7c5d3)",
+                fontWeight: 600,
+                textTransform: "uppercase",
+              }}
+            >
+              {cat}
+            </span>
+          );
+        }
 
-      case "progress": {
-        const pct = Math.floor((t.progress || 0) * 100);
-        return (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              width: 120,
-            }}
-          >
+        case "status": {
+          const st = (t.status || "idle").toLowerCase();
+          let color = "var(--text-muted, #7e8092)";
+          let bg = "rgba(126, 128, 146, 0.15)";
+
+          if (st === "downloading") {
+            color = "var(--accent, #ffd166)";
+            bg = "rgba(255, 209, 102, 0.15)";
+          } else if (st === "seeding" || st === "completed") {
+            color = "var(--success, #22c55e)";
+            bg = "rgba(34, 197, 94, 0.15)";
+          } else if (st === "checking" || st === "queued") {
+            color = "var(--info, #38bdf8)";
+            bg = "rgba(56, 189, 248, 0.15)";
+          }
+
+          return (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: bg,
+                color: color,
+                fontWeight: 600,
+                fontSize: "0.72rem",
+                padding: "0.15rem 0.5rem",
+                textTransform: "capitalize",
+              }}
+            >
+              {t.status || "Idle"}
+            </span>
+          );
+        }
+
+        case "progress": {
+          const pct = Math.floor((t.progress || 0) * 100);
+          return (
             <div
               style={{
-                flex: 1,
-                height: 6,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                borderRadius: 3,
-                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: 120,
               }}
             >
               <div
                 style={{
-                  width: `${pct}%`,
-                  height: "100%",
-                  backgroundColor:
-                    pct >= 100 ? "var(--success, #22c55e)" : "var(--accent, #ffd166)",
-                  transition: "width 0.3s",
+                  flex: 1,
+                  height: 6,
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: 3,
+                  overflow: "hidden",
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    backgroundColor:
+                      pct >= 100 ? "var(--success, #22c55e)" : "var(--accent, #ffd166)",
+                    transition: "width 0.3s",
+                  }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  width: 34,
+                  textAlign: "right",
+                }}
+              >
+                {pct}%
+              </span>
             </div>
+          );
+        }
+
+        case "totalSize":
+          return <span>{formatBytes(t.totalSize)}</span>;
+
+        case "downloaded":
+          return <span>{formatBytes(t.downloaded ?? t.totalSize * t.progress)}</span>;
+
+        case "uploaded":
+          return <span>{formatBytes(t.uploaded ?? 0)}</span>;
+
+        case "downloadSpeed":
+          return (
             <span
               style={{
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                width: 34,
-                textAlign: "right",
+                color:
+                  t.downloadSpeed > 0 ? "var(--accent, #ffd166)" : "var(--text-muted, #7e8092)",
+                fontWeight: t.downloadSpeed > 0 ? 600 : 400,
               }}
             >
-              {pct}%
+              {formatSpeed(t.downloadSpeed)}
             </span>
-          </div>
-        );
+          );
+
+        case "uploadSpeed":
+          return (
+            <span
+              style={{
+                color: t.uploadSpeed > 0 ? "var(--success, #22c55e)" : "var(--text-muted, #7e8092)",
+                fontWeight: t.uploadSpeed > 0 ? 600 : 400,
+              }}
+            >
+              {formatSpeed(t.uploadSpeed)}
+            </span>
+          );
+
+        case "ratio":
+          return (
+            <span
+              style={{
+                fontWeight: 600,
+                color:
+                  (t.ratio || 0) >= 1.0
+                    ? "var(--success, #22c55e)"
+                    : "var(--text-primary, #f8f4ed)",
+              }}
+            >
+              {formatRatio(t.ratio || 0)}
+            </span>
+          );
+
+        case "seeders":
+          return (
+            <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
+              {t.seeders ?? 0}
+            </span>
+          );
+
+        case "leechers":
+          return <span>{t.leechers ?? 0}</span>;
+
+        case "eta": {
+          const remaining = t.totalSize * (1 - (t.progress || 0));
+          const etaSec = t.downloadSpeed > 0 ? Math.floor(remaining / t.downloadSpeed) : 0;
+          return (
+            <span>{t.progress >= 1.0 ? "Done" : etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>
+          );
+        }
+
+        case "trackerUrl": {
+          const domain = extractTrackerDomain(t.trackerUrl);
+          return (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <TrackerFavicon urlOrHost={domain} size={14} />
+              <span>{domain || "-"}</span>
+            </div>
+          );
+        }
+
+        case "priority":
+          return (
+            <span className="badge" style={{ fontSize: "0.7rem" }}>
+              {t.priority === 2 ? "High" : t.priority === 0 ? "Low" : "Normal"}
+            </span>
+          );
+
+        case "dateAdded":
+          return <span>{t.dateAdded ? formatDate(t.dateAdded) : "-"}</span>;
+
+        case "pieceCount":
+          return <span>{t.pieceCount ?? "-"}</span>;
+
+        case "pieceLength":
+          return <span>{t.pieceLength ? formatBytes(t.pieceLength) : "-"}</span>;
+
+        case "infoHash":
+          return (
+            <span style={{ fontFamily: "monospace", fontSize: "0.72rem" }}>
+              {t.infoHash?.substring(0, 10)}...
+            </span>
+          );
+
+        case "isPrivate":
+          return t.isPrivate ? (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                color: "#f87171",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                fontSize: "0.7rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Private Torrent (BEP 27: Strict Swarm Isolation)"
+            >
+              <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} /> Private
+            </span>
+          ) : (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: "rgba(59, 130, 246, 0.15)",
+                color: "#60a5fa",
+                fontSize: "0.7rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Public Swarm (DHT/PEX/LPD enabled)"
+            >
+              <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} /> Public
+            </span>
+          );
+
+        default:
+          return <span>{String((t as any)[key] ?? "-")}</span>;
       }
+    },
+    [
+      historyByHash,
+      historyByTitle,
+      arrConnections,
+      startSeeding,
+      stopSeeding,
+      deleteTorrent,
+      updateTorrent,
+      announceTorrent,
+      recheckTorrent,
+      moveTorrentQueue,
+      onPause,
+      onResume,
+      onSearchIndexers,
+      onNavigateTab,
+    ]
+  );
 
-      case "totalSize":
-        return <span>{formatBytes(t.totalSize)}</span>;
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
-      case "downloaded":
-        return <span>{formatBytes(t.downloaded ?? t.totalSize * t.progress)}</span>;
+  const rowVirtualizer = useVirtualizer({
+    count: sortedTorrents.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 44,
+    overscan: 10,
+  });
 
-      case "uploaded":
-        return <span>{formatBytes(t.uploaded ?? 0)}</span>;
-
-      case "downloadSpeed":
-        return (
-          <span
-            style={{
-              color: t.downloadSpeed > 0 ? "var(--accent, #ffd166)" : "var(--text-muted, #7e8092)",
-              fontWeight: t.downloadSpeed > 0 ? 600 : 400,
-            }}
-          >
-            {formatSpeed(t.downloadSpeed)}
-          </span>
-        );
-
-      case "uploadSpeed":
-        return (
-          <span
-            style={{
-              color: t.uploadSpeed > 0 ? "var(--success, #22c55e)" : "var(--text-muted, #7e8092)",
-              fontWeight: t.uploadSpeed > 0 ? 600 : 400,
-            }}
-          >
-            {formatSpeed(t.uploadSpeed)}
-          </span>
-        );
-
-      case "ratio":
-        return (
-          <span
-            style={{
-              fontWeight: 600,
-              color:
-                (t.ratio || 0) >= 1.0 ? "var(--success, #22c55e)" : "var(--text-primary, #f8f4ed)",
-            }}
-          >
-            {formatRatio(t.ratio || 0)}
-          </span>
-        );
-
-      case "seeders":
-        return (
-          <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
-            {t.seeders ?? 0}
-          </span>
-        );
-
-      case "leechers":
-        return <span>{t.leechers ?? 0}</span>;
-
-      case "eta": {
-        const remaining = t.totalSize * (1 - (t.progress || 0));
-        const etaSec = t.downloadSpeed > 0 ? Math.floor(remaining / t.downloadSpeed) : 0;
-        return <span>{t.progress >= 1.0 ? "Done" : etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>;
-      }
-
-      case "trackerUrl": {
-        const domain = extractTrackerDomain(t.trackerUrl);
-        return (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.4rem",
-            }}
-          >
-            <TrackerFavicon urlOrHost={domain} size={14} />
-            <span>{domain || "-"}</span>
-          </div>
-        );
-      }
-
-      case "priority":
-        return (
-          <span className="badge" style={{ fontSize: "0.7rem" }}>
-            {t.priority === 2 ? "High" : t.priority === 0 ? "Low" : "Normal"}
-          </span>
-        );
-
-      case "dateAdded":
-        return <span>{t.dateAdded ? formatDate(t.dateAdded) : "-"}</span>;
-
-      case "pieceCount":
-        return <span>{t.pieceCount ?? "-"}</span>;
-
-      case "pieceLength":
-        return <span>{t.pieceLength ? formatBytes(t.pieceLength) : "-"}</span>;
-
-      case "infoHash":
-        return (
-          <span style={{ fontFamily: "monospace", fontSize: "0.72rem" }}>
-            {t.infoHash?.substring(0, 10)}...
-          </span>
-        );
-
-      case "isPrivate":
-        return t.isPrivate ? (
-          <span
-            className="badge"
-            style={{
-              backgroundColor: "rgba(239, 68, 68, 0.2)",
-              color: "#f87171",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              fontSize: "0.7rem",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            title="Private Torrent (BEP 27: Strict Swarm Isolation)"
-          >
-            <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} /> Private
-          </span>
-        ) : (
-          <span
-            className="badge"
-            style={{
-              backgroundColor: "rgba(59, 130, 246, 0.15)",
-              color: "#60a5fa",
-              fontSize: "0.7rem",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            title="Public Swarm (DHT/PEX/LPD enabled)"
-          >
-            <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} /> Public
-          </span>
-        );
-
-      default:
-        return <span>{String((t as any)[key] ?? "-")}</span>;
-    }
-  };
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalHeight = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0 ? totalHeight - virtualRows[virtualRows.length - 1].end : 0;
+  const totalCols = columns.length + (onToggleSelect ? 1 : 0);
 
   return (
     <div
@@ -853,7 +982,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       )}
 
       {/* Main Table */}
-      <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
+      <div ref={tableContainerRef} style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
         <table className="torrent-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr
@@ -907,54 +1036,43 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {sortedTorrents.map((t, idx) => {
-              const isSelected = t.id === selectedId;
-              const isChecked = selectedIds.has(t.id);
-
+            {paddingTop > 0 && (
+              <tr>
+                <td
+                  colSpan={totalCols}
+                  style={{ height: `${paddingTop}px`, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
+            {virtualRows.map((virtualRow) => {
+              const t = sortedTorrents[virtualRow.index];
               return (
-                <tr
+                <TorrentTableRow
                   key={t.id}
-                  className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
-                  onClick={() => onSelect?.(t)}
-                  onContextMenu={(e) => handleContextMenu(e, t)}
-                  style={{
-                    cursor: "pointer",
-                    backgroundColor: isSelected
-                      ? "var(--bg-card-hover, #23284b)"
-                      : isChecked
-                        ? "rgba(255, 209, 102, 0.05)"
-                        : "transparent",
-                    borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-                    fontSize: "0.82rem",
-                  }}
-                >
-                  {onToggleSelect && (
-                    <td
-                      style={{ textAlign: "center", padding: "0.5rem" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => onToggleSelect(t.id)}
-                      />
-                    </td>
-                  )}
-
-                  {columns.map((c) => (
-                    <td
-                      key={c.key}
-                      style={{
-                        padding: "0.55rem 0.75rem",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {renderCell(t, c.key, idx)}
-                    </td>
-                  ))}
-                </tr>
+                  torrent={t}
+                  index={virtualRow.index}
+                  columns={columns}
+                  isSelected={t.id === selectedId}
+                  isChecked={selectedIds.has(t.id)}
+                  onSelect={onSelect}
+                  onToggleSelect={onToggleSelect}
+                  onContextMenu={handleContextMenu}
+                  renderCell={renderCell}
+                />
               );
             })}
+            {paddingBottom > 0 && (
+              <tr>
+                <td
+                  colSpan={totalCols}
+                  style={{
+                    height: `${paddingBottom}px`,
+                    padding: 0,
+                    border: 0,
+                  }}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
