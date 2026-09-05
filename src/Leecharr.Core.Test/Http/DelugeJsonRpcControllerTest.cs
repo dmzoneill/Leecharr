@@ -307,4 +307,78 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"file_progress\":[1,0]");
     }
+
+    [Test]
+    public async Task HandleRpc_BatchedCalls_ReturnsArrayOfResponses()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[{\"method\":\"web.connected\",\"params\":[],\"id\":1},{\"method\":\"daemon.info\",\"params\":[],\"id\":2}]");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"id\":1");
+        json.Should().Contain("\"id\":2");
+        json.Should().StartWith("[");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetConfigValues_ReturnsRequestedKeys()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/custom/downloads");
+        this.configService.MaxGlobalConnections.Returns(200);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config_values\",\"params\":[[\"download_location\",\"max_connections_global\",\"move_completed\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"download_location\":\"/custom/downloads\"");
+        json.Should().Contain("\"max_connections_global\":200");
+        json.Should().Contain("\"move_completed\":false");
+    }
+
+    [Test]
+    public async Task HandleRpc_UnhandledMethod_ReturnsJsonRpcError()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"nonexistent.method\",\"params\":[],\"id\":99}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":null");
+        json.Should().Contain("\"message\":\"Unknown method: nonexistent.method\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetFreeSpace_WithEmptyParam_UsesConfigDownloadDir()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/");
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space\",\"params\":[\"\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"error\":null");
+    }
 }
