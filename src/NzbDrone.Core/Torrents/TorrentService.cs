@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -31,6 +32,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IQueueManagerService queueManagerService;
     private readonly IStoragePathService storagePathService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     public TorrentService(
@@ -43,7 +45,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         IEventAggregator eventAggregator,
         ITrackerEntryRepository trackerEntryRepository = null,
         IQueueManagerService queueManagerService = null,
-        IStoragePathService storagePathService = null)
+        IStoragePathService storagePathService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -55,6 +58,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.trackerEntryRepository = trackerEntryRepository;
         this.queueManagerService = queueManagerService;
         this.storagePathService = storagePathService;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -245,7 +249,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             try
             {
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                    ? this.appFolderInfo.AppDataFolder
+                    : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 var torrentsDir = Path.Combine(appData, "Torrents");
                 Directory.CreateDirectory(torrentsDir);
                 var filePath = Path.Combine(torrentsDir, $"{inserted.InfoHash.ToLowerInvariant()}.torrent");
@@ -433,17 +439,31 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             try
             {
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                var file1 = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
-                if (File.Exists(file1))
+                var hash = torrent.InfoHash?.ToLowerInvariant();
+                if (!string.IsNullOrWhiteSpace(hash))
                 {
-                    File.Delete(file1);
-                }
+                    var pathsToTry = new List<string>();
 
-                var file2 = Path.Combine(appData, "Leecharr", "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
-                if (File.Exists(file2))
-                {
-                    File.Delete(file2);
+                    if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+                    {
+                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Leecharr", "Torrents", $"{hash}.torrent"));
+                    }
+
+                    var legacyAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    if (!string.IsNullOrWhiteSpace(legacyAppData))
+                    {
+                        pathsToTry.Add(Path.Combine(legacyAppData, "Torrents", $"{hash}.torrent"));
+                        pathsToTry.Add(Path.Combine(legacyAppData, "Leecharr", "Torrents", $"{hash}.torrent"));
+                    }
+
+                    foreach (var path in pathsToTry.Distinct())
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                        }
+                    }
                 }
             }
             catch
@@ -528,8 +548,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             if (string.IsNullOrWhiteSpace(incompleteDir))
             {
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                incompleteDir = Path.Combine(appData, "Leecharr", "downloads", "incomplete");
+                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                    ? this.appFolderInfo.AppDataFolder
+                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+                incompleteDir = Path.Combine(appData, "downloads", "incomplete");
             }
 
             if (string.IsNullOrWhiteSpace(incompleteDir) || !Directory.Exists(incompleteDir))

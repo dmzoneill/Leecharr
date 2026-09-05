@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 
@@ -33,16 +34,19 @@ public class StoragePathService : IStoragePathService
     private readonly IConfigService configService;
     private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     public StoragePathService(
         IConfigService configService,
         ICategoryService categoryService,
-        IDiskProvider diskProvider)
+        IDiskProvider diskProvider,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.configService = configService;
         this.categoryService = categoryService;
         this.diskProvider = diskProvider;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -51,8 +55,10 @@ public class StoragePathService : IStoragePathService
         var configured = this.configService.IncompleteDownloadDir;
         if (string.IsNullOrWhiteSpace(configured))
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            configured = Path.Combine(appData, "Leecharr", "downloads", "incomplete");
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            configured = Path.Combine(appData, "downloads", "incomplete");
         }
 
         if (!this.diskProvider.FolderExists(configured))
@@ -79,8 +85,10 @@ public class StoragePathService : IStoragePathService
         var baseDir = this.configService.DownloadDir;
         if (string.IsNullOrWhiteSpace(baseDir))
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            baseDir = Path.Combine(appData, "Leecharr", "downloads");
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            baseDir = Path.Combine(appData, "downloads");
         }
 
         var target = baseDir;
