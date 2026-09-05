@@ -220,6 +220,53 @@ public class CompatibilityRpcAuthTest
     }
 
     [Test]
+    public void Freebox_WhenHardcodedSessionTokenProvided_Returns401()
+    {
+        var controller = new FreeboxDownloadController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Fbx-App-Auth"] = "freebox-session-token";
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = controller.GetDownloads();
+        result.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Test]
+    public void Freebox_WhenAuthenticatedViaLogin_SessionTokenGrantsAccess()
+    {
+        var controller = new FreeboxDownloadController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        loginContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.LoginSession();
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)loginResult;
+        var resultProp = okResult.Value!.GetType().GetProperty("result")!.GetValue(okResult.Value)!;
+        var sessionToken = resultProp.GetType().GetProperty("session_token")!.GetValue(resultProp)!.ToString();
+        sessionToken.Should().NotBeNullOrWhiteSpace();
+        sessionToken.Should().NotBe("freebox-session-token");
+
+        var authedContext = new DefaultHttpContext();
+        authedContext.Request.Headers["X-Fbx-App-Auth"] = sessionToken;
+        controller.ControllerContext = new ControllerContext { HttpContext = authedContext };
+
+        var downloadsResult = controller.GetDownloads();
+        downloadsResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
     public void NzbVortex_WhenUnauthenticated_Returns401()
     {
         var controller = new NzbVortexApiController(
