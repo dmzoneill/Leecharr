@@ -301,9 +301,29 @@ public class IndexerController : Controller
             }
             else
             {
-                var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl);
-                var parsed = this.torrentFileParser.Parse(bytes);
-                torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
+                try
+                {
+                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to download or parse .torrent for '{0}' from {1}", request.Title, request.DownloadUrl);
+                }
+            }
+        }
+
+        if (torrent == null && !string.IsNullOrWhiteSpace(request.InfoHash))
+        {
+            var fallbackMagnet = $"magnet:?xt=urn:btih:{request.InfoHash.Trim()}&dn={Uri.EscapeDataString(request.Title ?? request.InfoHash.Trim())}";
+            try
+            {
+                torrent = await this.torrentService.AddFromMagnetAsync(fallbackMagnet, request.Category, request.SavePath, request.StartPaused);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to add release '{0}' via fallback magnet for infohash {1}", request.Title, request.InfoHash);
             }
         }
 
