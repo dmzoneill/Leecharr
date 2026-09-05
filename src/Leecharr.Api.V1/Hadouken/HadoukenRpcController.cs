@@ -373,6 +373,9 @@ public class HadoukenRpcController : ControllerBase
                             if (t != null)
                             {
                                 var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                                var downloadTask = this.torrentService.GetDownloadTask(t.Id);
+                                TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
+
                                 var fileRes = files.Select((f, idx) => new
                                 {
                                     index = idx,
