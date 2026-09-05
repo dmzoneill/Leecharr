@@ -24,7 +24,8 @@ fi
 # 2. Verify .NET build and unit tests
 if command -v dotnet > /dev/null 2>&1; then
   echo "🧪 [pre-push] Running .NET unit and integration tests..."
-  make test-all > /dev/null 2>&1 || {
+  make test-setup test-all > /tmp/pre-push.log 2>&1 || {
+    cat /tmp/pre-push.log
     echo "❌ [pre-push] Unit or Integration tests failed! Fix test failures before pushing."
     exit 1
   }
