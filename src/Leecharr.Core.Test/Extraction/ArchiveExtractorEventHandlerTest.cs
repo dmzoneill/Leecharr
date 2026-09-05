@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -152,6 +153,64 @@ public class ArchiveExtractorEventHandlerTest
         // Wait a short duration for the async task to execute
         Thread.Sleep(200);
 
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+    }
+
+    [Test]
+    public async Task Handle_WhenSingleFileTorrent_ExtractsToParentDirectoryAndPublishesEvent()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var singleFilePath = Path.Combine(Path.GetTempPath(), "downloads", "single-movie.rar");
+        var parentDir = Path.GetDirectoryName(Path.GetFullPath(singleFilePath))!;
+
+        var torrent = new Torrent { Id = 30, Name = "SingleFile.Movie", SavePath = singleFilePath };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 30, Path = "single-movie.rar", Size = 50000000 },
+        };
+
+        this.torrentFileService.GetFiles(30).Returns(files);
+        this.extractorService.IsArchiveFile("single-movie.rar").Returns(true);
+        this.diskProvider.FileExists(singleFilePath).Returns(true);
+        this.extractorService.ExtractArchiveAsync(singleFilePath, parentDir).Returns(Task.FromResult(true));
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(singleFilePath, parentDir);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e =>
+            e.Torrent.Id == 30 &&
+            e.ArchivePath == singleFilePath &&
+            e.DestinationDirectory == parentDir));
+    }
+
+    [Test]
+    public void Handle_WhenPathTraversalOutsideRootDir_RefusesExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var savePath = Path.Combine(Path.GetTempPath(), "downloads", "my-folder");
+        var torrent = new Torrent { Id = 40, Name = "Traversal.Movie", SavePath = savePath };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 40, Path = "../../../etc/evil.rar", Size = 50000 },
+        };
+
+        this.torrentFileService.GetFiles(40).Returns(files);
+        this.extractorService.IsArchiveFile("../../../etc/evil.rar").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        Thread.Sleep(200);
+
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>());
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
     }
 }

@@ -68,21 +68,29 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                     return;
                 }
 
+                var isSingleFile = this.diskProvider.FileExists(savePath);
+                var rootDir = isSingleFile
+                    ? Path.GetDirectoryName(Path.GetFullPath(savePath)) ?? savePath
+                    : savePath;
+
                 foreach (var file in files)
                 {
                     if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
                     {
-                        var fullPath = Path.Combine(savePath, file.Path);
-                        if (!TorrentPathValidator.IsStrictSubPath(savePath, fullPath))
+                        var fullPath = isSingleFile && string.Equals(Path.GetFileName(savePath), file.Path, StringComparison.OrdinalIgnoreCase)
+                            ? savePath
+                            : Path.Combine(savePath, file.Path);
+
+                        if (!TorrentPathValidator.IsStrictSubPath(rootDir, fullPath))
                         {
-                            this.logger.Warn("Refusing to auto-extract archive with path traversal outside savePath for torrent {0}: {1}", message.Torrent.Name, file.Path);
+                            this.logger.Warn("Refusing to auto-extract archive with path traversal outside rootDir for torrent {0}: {1}", message.Torrent.Name, file.Path);
                             continue;
                         }
 
                         if (this.diskProvider.FileExists(fullPath))
                         {
                             this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                            var destDir = Path.GetDirectoryName(fullPath);
+                            var destDir = Path.GetDirectoryName(fullPath) ?? rootDir;
                             var success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir);
                             if (success)
                             {
