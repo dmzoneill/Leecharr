@@ -710,6 +710,20 @@ export interface IndexerTestResult {
   responseTimeMs?: number;
 }
 
+export interface RssRule {
+  id: number;
+  name: string;
+  isEnabled: boolean;
+  mustContain: string;
+  mustNotContain: string;
+  minSeeders: number;
+  minSizeBytes: number;
+  maxSizeBytes: number;
+  freeleechOnly: boolean;
+  categoryId: number;
+  indexerIds: number[];
+}
+
 export interface TrackerEntry {
   id: number;
   torrentId: number;
