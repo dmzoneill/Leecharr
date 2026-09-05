@@ -154,11 +154,9 @@ export function SecuritySettingsTab() {
   };
 
   const generateApiKey = () => {
-    const chars = "abcdef0123456789";
-    let key = "";
-    for (let i = 0; i < 32; i++) {
-      key += chars[Math.floor(Math.random() * chars.length)];
-    }
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    const key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
     setRevealedApiKey(key);
     setShowApiKey(true);
     update("apiKey", key);
