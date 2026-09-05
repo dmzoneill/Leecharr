@@ -1169,3 +1169,7 @@ public class ConfigService : IConfigService
 public class ConfigSavedEvent : IEvent
 {
 }
+
+public class ConfigFileSavedEvent : IEvent
+{
+}
