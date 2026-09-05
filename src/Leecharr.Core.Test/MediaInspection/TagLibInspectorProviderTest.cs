@@ -73,6 +73,131 @@ public class TagLibInspectorProviderTest
         result.AudioChannels.Should().Be("2.0");
     }
 
+    [Test]
+    public void Inspect_NonFaststartMp4WithMdatContainingAv01_DoesNotFalselyDetectAv1AndFindsMoov()
+    {
+        // 1. ftyp box
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+
+        // 2. mdat box with high entropy payload containing "av01" substring bytes
+        var mdatPayload = new byte[70000];
+        Array.Fill(mdatPayload, (byte)0xCC);
+        var av01Bytes = Encoding.ASCII.GetBytes("av01");
+        Array.Copy(av01Bytes, 0, mdatPayload, 1000, av01Bytes.Length);
+        var mdat = CreateMp4Box("mdat", mdatPayload);
+
+        // 3. moov box at EOF with H.264 (avc1) and AAC (mp4a)
+        var videoEntry = CreateVisualSampleEntry("avc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("mp4a", 2, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(mdat, 0, mdat.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "movie.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("H.264");
+        result.VideoCodec.Should().NotBe("AV1");
+        result.AudioCodec.Should().Be("AAC");
+        result.Width.Should().Be(1920);
+        result.Height.Should().Be(1080);
+        result.Resolution.Should().Be("1080p");
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
+    public void Inspect_Mp4WithLargeSizeBox_CorrectlyParsedAndDetectsHevcDolbyVision()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var mdatPayload = new byte[5000];
+        var mdatLarge = CreateMp4LargeBox("mdat", mdatPayload);
+
+        var videoEntry = CreateVisualSampleEntry("hvc1", 3840, 2160, "dvcC");
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("ec-3", 6, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(mdatLarge, 0, mdatLarge.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("Dolby Vision");
+        result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+        result.Width.Should().Be(3840);
+        result.Height.Should().Be(2160);
+        result.Resolution.Should().Be("4K UHD (2160p)");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithMoovAtBeginning_IdentifiesAV1()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+
+        var videoEntry = CreateVisualSampleEntry("av01", 1280, 720);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("Opus", 2, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "clip.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("AV1");
+        result.AudioCodec.Should().Be("Opus");
+        result.Width.Should().Be(1280);
+        result.Height.Should().Be(720);
+        result.Resolution.Should().Be("720p");
+    }
+
+    [Test]
+    public void Inspect_Mp4StartingWithMoovBox_IdentifiesCorrectly()
+    {
+        var videoEntry = CreateVisualSampleEntry("vp09", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+        var moov = CreateMoovBox(videoTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "stream.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("VP9");
+        result.Width.Should().Be(1920);
+        result.Height.Should().Be(1080);
+    }
+
     private static byte[] CreateMatroskaHeader(string docType, string videoCodecId, int width, int height, string audioCodecId, int channels)
     {
         using var ms = new MemoryStream();
@@ -207,6 +332,112 @@ public class TagLibInspectorProviderTest
         WriteId(stream, id);
         WriteSize(stream, bytes.Length);
         stream.Write(bytes);
+    }
+
+    private static byte[] CreateMp4Box(string type, byte[] payload)
+    {
+        using var ms = new MemoryStream();
+        uint size = (uint)(payload.Length + 8);
+        ms.WriteByte((byte)(size >> 24));
+        ms.WriteByte((byte)((size >> 16) & 0xFF));
+        ms.WriteByte((byte)((size >> 8) & 0xFF));
+        ms.WriteByte((byte)(size & 0xFF));
+        var typeBytes = Encoding.ASCII.GetBytes(type);
+        ms.Write(typeBytes, 0, 4);
+        ms.Write(payload, 0, payload.Length);
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateMp4LargeBox(string type, byte[] payload)
+    {
+        using var ms = new MemoryStream();
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(1);
+        var typeBytes = Encoding.ASCII.GetBytes(type);
+        ms.Write(typeBytes, 0, 4);
+        ulong totalSize = (ulong)(payload.Length + 16);
+        for (int i = 7; i >= 0; i--)
+        {
+            ms.WriteByte((byte)((totalSize >> (i * 8)) & 0xFF));
+        }
+
+        ms.Write(payload, 0, payload.Length);
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateVisualSampleEntry(string format, ushort width, ushort height, string childBoxType = null)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[6], 0, 6);
+        ms.Write(new byte[] { 0, 1 }, 0, 2);
+        ms.Write(new byte[16], 0, 16);
+        ms.WriteByte((byte)(width >> 8));
+        ms.WriteByte((byte)(width & 0xFF));
+        ms.WriteByte((byte)(height >> 8));
+        ms.WriteByte((byte)(height & 0xFF));
+        ms.Write(new byte[] { 0x00, 0x48, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0, 0, 0, 0, 0, 1 }, 0, 14);
+        ms.Write(new byte[32], 0, 32);
+        ms.Write(new byte[] { 0x00, 0x18, 0xFF, 0xFF }, 0, 4);
+
+        if (!string.IsNullOrEmpty(childBoxType))
+        {
+            var child = CreateMp4Box(childBoxType, new byte[8]);
+            ms.Write(child, 0, child.Length);
+        }
+
+        var payload = ms.ToArray();
+        return CreateMp4Box(format, payload);
+    }
+
+    private static byte[] CreateAudioSampleEntry(string format, ushort channels, ushort sampleSize, uint sampleRate)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[6], 0, 6);
+        ms.Write(new byte[] { 0, 1 }, 0, 2);
+        ms.Write(new byte[8], 0, 8);
+        ms.WriteByte((byte)(channels >> 8));
+        ms.WriteByte((byte)(channels & 0xFF));
+        ms.WriteByte((byte)(sampleSize >> 8));
+        ms.WriteByte((byte)(sampleSize & 0xFF));
+        ms.Write(new byte[4], 0, 4);
+        uint srFixed = sampleRate << 16;
+        ms.WriteByte((byte)(srFixed >> 24));
+        ms.WriteByte((byte)((srFixed >> 16) & 0xFF));
+        ms.WriteByte((byte)((srFixed >> 8) & 0xFF));
+        ms.WriteByte((byte)(srFixed & 0xFF));
+
+        var payload = ms.ToArray();
+        return CreateMp4Box(format, payload);
+    }
+
+    private static byte[] CreateStsdBox(byte[] sampleEntry)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[4], 0, 4);
+        ms.Write(new byte[] { 0, 0, 0, 1 }, 0, 4);
+        ms.Write(sampleEntry, 0, sampleEntry.Length);
+        return CreateMp4Box("stsd", ms.ToArray());
+    }
+
+    private static byte[] CreateTrackBox(byte[] stsdBox)
+    {
+        var stbl = CreateMp4Box("stbl", stsdBox);
+        var minf = CreateMp4Box("minf", stbl);
+        var mdia = CreateMp4Box("mdia", minf);
+        return CreateMp4Box("trak", mdia);
+    }
+
+    private static byte[] CreateMoovBox(params byte[][] trackBoxes)
+    {
+        using var ms = new MemoryStream();
+        foreach (var trak in trackBoxes)
+        {
+            ms.Write(trak, 0, trak.Length);
+        }
+
+        return CreateMp4Box("moov", ms.ToArray());
     }
 
     private sealed class UnseekableStream : Stream
