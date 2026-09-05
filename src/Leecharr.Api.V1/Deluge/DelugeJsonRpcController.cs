@@ -472,7 +472,7 @@ public class DelugeJsonRpcController : ControllerBase
                             { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
                             { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
                             { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                            { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                            { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
                             { "compact_allocation", false },
                             { "prioritize_first_last_pieces", true },
                         },
@@ -491,7 +491,7 @@ public class DelugeJsonRpcController : ControllerBase
                         { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
                         { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
                         { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                        { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
                         { "compact_allocation", false },
                         { "prioritize_first_last_pieces", true },
                     };
@@ -523,7 +523,7 @@ public class DelugeJsonRpcController : ControllerBase
                         { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
                         { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
                         { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                        { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
                         { "compact_allocation", false },
                         { "prioritize_first_last_pieces", true },
                     };

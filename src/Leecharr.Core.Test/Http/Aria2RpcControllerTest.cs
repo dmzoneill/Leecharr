@@ -457,4 +457,3 @@ public class Aria2RpcControllerTest
         return doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("string")?.Value;
     }
 }
-

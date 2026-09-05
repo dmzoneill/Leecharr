@@ -282,7 +282,7 @@ public class Aria2RpcController : ControllerBase
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
+                DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.Never,
             });
             return this.Content($"{callback}({json});", "application/javascript", global::System.Text.Encoding.UTF8);
         }
@@ -885,13 +885,17 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement(
                         "member",
                         new global::System.Xml.Linq.XElement("name", "enabledFeatures"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement(
-                            "data",
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "BitTorrent")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "GZip")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "HTTPS")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "MessageDigest")),
-                            new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "Async DNS"))))))));
+                        new global::System.Xml.Linq.XElement(
+                            "value",
+                            new global::System.Xml.Linq.XElement(
+                                "array",
+                                new global::System.Xml.Linq.XElement(
+                                    "data",
+                                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "BitTorrent")),
+                                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "GZip")),
+                                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "HTTPS")),
+                                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "MessageDigest")),
+                                    new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "Async DNS")))))));
 
             case "aria2.getglobalstat":
                 var all = this.torrentService.GetAll().ToList();
@@ -916,7 +920,7 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement(
                         "member",
                         new global::System.Xml.Linq.XElement("name", "numStopped"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString())))));
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString()))));
 
             case "aria2.getglobaloption":
             case "aria2.getoption":
@@ -933,7 +937,7 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement(
                         "member",
                         new global::System.Xml.Linq.XElement("name", "max-overall-upload-limit"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0")))));
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0"))));
 
             case "aria2.tellactive":
                 var activeList = this.torrentService.GetAll()
@@ -1064,7 +1068,8 @@ public class Aria2RpcController : ControllerBase
                         if (!string.IsNullOrWhiteSpace(subMethod))
                         {
                             var subDoc = new global::System.Xml.Linq.XDocument(
-                                new global::System.Xml.Linq.XElement("methodCall",
+                                new global::System.Xml.Linq.XElement(
+                                    "methodCall",
                                     new global::System.Xml.Linq.XElement("methodName", subMethod)));
 
                             var syntheticParams = new global::System.Xml.Linq.XElement("params");
@@ -1082,13 +1087,18 @@ public class Aria2RpcController : ControllerBase
                                     syntheticParams.Add(new global::System.Xml.Linq.XElement("param", new global::System.Xml.Linq.XElement(subParamsElem)));
                                 }
                             }
+
                             subDoc.Root.Add(syntheticParams);
 
                             var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod, subDoc);
-                            multicallDataElem.Add(new global::System.Xml.Linq.XElement("value",
-                                new global::System.Xml.Linq.XElement("array",
-                                    new global::System.Xml.Linq.XElement("data",
-                                        new global::System.Xml.Linq.XElement("value", subResult)))));
+                            multicallDataElem.Add(
+                                new global::System.Xml.Linq.XElement(
+                                    "value",
+                                    new global::System.Xml.Linq.XElement(
+                                        "array",
+                                        new global::System.Xml.Linq.XElement(
+                                            "data",
+                                            new global::System.Xml.Linq.XElement("value", subResult)))));
                         }
                     }
                 }

@@ -43,18 +43,21 @@ public class TorrentCreationService : ITorrentCreationService
     private static readonly string[] SensitiveDirectoriesWindows = GetWindowsSensitiveDirectories();
 
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
-    private readonly List<string> allowedDirectories;
+    private readonly ICategoryService categoryService;
+    private readonly IConfigService configService;
+    private readonly IStoragePathService storagePathService;
+    private readonly List<string> staticAllowedDirectories;
 
     public TorrentCreationService()
-        : this(null)
+        : this((IEnumerable<string>)null)
     {
     }
 
     public TorrentCreationService(IEnumerable<string> allowedDirectories)
     {
-        this.allowedDirectories = allowedDirectories?
+        this.staticAllowedDirectories = allowedDirectories?
             .Where(d => !string.IsNullOrWhiteSpace(d))
-            .ToList() ?? new List<string>();
+            .ToList();
     }
 
     public TorrentCreationService(
@@ -62,56 +65,9 @@ public class TorrentCreationService : ITorrentCreationService
         IConfigService configService,
         IStoragePathService storagePathService = null)
     {
-        this.allowedDirectories = new List<string>();
-
-        if (configService != null)
-        {
-            if (!string.IsNullOrWhiteSpace(configService.DownloadDir))
-            {
-                this.allowedDirectories.Add(configService.DownloadDir);
-            }
-
-            if (!string.IsNullOrWhiteSpace(configService.IncompleteDownloadDir))
-            {
-                this.allowedDirectories.Add(configService.IncompleteDownloadDir);
-            }
-        }
-
-        if (categoryService != null)
-        {
-            try
-            {
-                var categories = categoryService.GetAll();
-                if (categories != null)
-                {
-                    foreach (var category in categories)
-                    {
-                        if (!string.IsNullOrWhiteSpace(category.SavePath))
-                        {
-                            this.allowedDirectories.Add(category.SavePath);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        if (storagePathService != null)
-        {
-            try
-            {
-                var inc = storagePathService.GetIncompleteDirectory();
-                if (!string.IsNullOrWhiteSpace(inc))
-                {
-                    this.allowedDirectories.Add(inc);
-                }
-            }
-            catch
-            {
-            }
-        }
+        this.categoryService = categoryService;
+        this.configService = configService;
+        this.storagePathService = storagePathService;
     }
 
     public async Task<TorrentCreationResult> CreateTorrentAsync(TorrentCreationRequest request, CancellationToken cancellationToken = default)
@@ -378,42 +334,115 @@ public class TorrentCreationService : ITorrentCreationService
             }
         }
 
-        // If allowed directories are specified, ensure the path resides inside at least one of them
-        if (this.allowedDirectories.Count > 0)
+        var allowedDirs = this.GetCurrentAllowedDirectories();
+
+        if (allowedDirs.Count == 0)
         {
-            bool isAllowed = false;
-            foreach (var allowed in this.allowedDirectories)
+            error = $"{paramName} resides outside of allowed storage directories: '{path}'.";
+            return false;
+        }
+
+        bool isAllowed = false;
+        foreach (var allowed in allowedDirs)
+        {
+            if (string.IsNullOrWhiteSpace(allowed))
             {
-                if (string.IsNullOrWhiteSpace(allowed))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var fullAllowed = Path.GetFullPath(allowed).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                    var fullTarget = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                    if (string.Equals(fullAllowed, fullTarget, comparison) ||
-                        fullTarget.StartsWith(fullAllowed + Path.DirectorySeparatorChar, comparison) ||
-                        fullTarget.StartsWith(fullAllowed + "/", comparison))
-                    {
-                        isAllowed = true;
-                        break;
-                    }
-                }
-                catch
-                {
-                }
+                continue;
             }
 
-            if (!isAllowed)
+            try
             {
-                error = $"{paramName} resides outside of allowed storage directories: '{path}'.";
-                return false;
+                var fullAllowed = Path.GetFullPath(allowed).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var fullTarget = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                if (string.Equals(fullAllowed, fullTarget, comparison) ||
+                    fullTarget.StartsWith(fullAllowed + Path.DirectorySeparatorChar, comparison) ||
+                    fullTarget.StartsWith(fullAllowed + "/", comparison))
+                {
+                    isAllowed = true;
+                    break;
+                }
+            }
+            catch
+            {
             }
         }
 
+        if (!isAllowed)
+        {
+            error = $"{paramName} resides outside of allowed storage directories: '{path}'.";
+            return false;
+        }
+
         return true;
+    }
+
+    private HashSet<string> GetCurrentAllowedDirectories()
+    {
+        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (this.staticAllowedDirectories != null)
+        {
+            foreach (var dir in this.staticAllowedDirectories)
+            {
+                if (!string.IsNullOrWhiteSpace(dir))
+                {
+                    dirs.Add(dir);
+                }
+            }
+        }
+
+        if (this.configService != null)
+        {
+            if (!string.IsNullOrWhiteSpace(this.configService.DownloadDir))
+            {
+                dirs.Add(this.configService.DownloadDir);
+            }
+
+            if (!string.IsNullOrWhiteSpace(this.configService.IncompleteDownloadDir))
+            {
+                dirs.Add(this.configService.IncompleteDownloadDir);
+            }
+        }
+
+        if (this.categoryService != null)
+        {
+            try
+            {
+                var categories = this.categoryService.GetAll();
+                if (categories != null)
+                {
+                    foreach (var category in categories)
+                    {
+                        if (!string.IsNullOrWhiteSpace(category?.SavePath))
+                        {
+                            dirs.Add(category.SavePath);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to retrieve categories for allowed directories validation.");
+            }
+        }
+
+        if (this.storagePathService != null)
+        {
+            try
+            {
+                var inc = this.storagePathService.GetIncompleteDirectory();
+                if (!string.IsNullOrWhiteSpace(inc))
+                {
+                    dirs.Add(inc);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to retrieve incomplete directory from storage path service.");
+            }
+        }
+
+        return dirs;
     }
 }
