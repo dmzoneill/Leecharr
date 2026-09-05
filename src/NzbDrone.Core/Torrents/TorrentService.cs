@@ -732,7 +732,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var torrent = this.torrentRepository.Get(id);
-        if (torrent != null && torrent.Status == TorrentStatus.Paused)
+        if (torrent != null && torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
         {
             var newStatus = torrent.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
             var old = torrent.Status;
