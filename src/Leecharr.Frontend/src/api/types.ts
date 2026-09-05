@@ -289,6 +289,9 @@ export interface Peer {
   downloaded: number;
   progress: number;
   flags: string;
+  countryCode?: string;
+  countryName?: string;
+  city?: string;
 }
 
 export interface TrackerServerStats {

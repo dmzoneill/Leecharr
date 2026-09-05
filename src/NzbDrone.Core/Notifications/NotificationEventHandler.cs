@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
@@ -215,7 +217,18 @@ public class NotificationEventHandler :
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
-                Task.Run(() => this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload));
+                var customHeaders = ResolveCustomHeaders(notif.Settings);
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error dispatching webhook notification for OnHealthIssue");
+                    }
+                });
             }
         }
     }
@@ -257,11 +270,12 @@ public class NotificationEventHandler :
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
+                var customHeaders = ResolveCustomHeaders(notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -355,11 +369,12 @@ public class NotificationEventHandler :
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
+                var customHeaders = ResolveCustomHeaders(notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -483,6 +498,70 @@ public class NotificationEventHandler :
         }
 
         return trimmed;
+    }
+
+    public static string ResolveCustomHeaders(string settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return null;
+        }
+
+        var trimmed = settings.Trim();
+
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+
+                var propertyNames = new[] { "headers", "Headers", "customHeaders", "CustomHeaders", "custom_headers" };
+                foreach (var propName in propertyNames)
+                {
+                    if (root.TryGetProperty(propName, out var prop))
+                    {
+                        if (prop.ValueKind == JsonValueKind.Object)
+                        {
+                            var raw = prop.GetRawText()?.Trim();
+                            return string.IsNullOrWhiteSpace(raw) || raw == "{}" ? null : raw;
+                        }
+
+                        if (prop.ValueKind == JsonValueKind.String)
+                        {
+                            var str = prop.GetString()?.Trim();
+                            return string.IsNullOrWhiteSpace(str) || str == "{}" ? null : str;
+                        }
+
+                        if (prop.ValueKind == JsonValueKind.Array)
+                        {
+                            var raw = prop.GetRawText()?.Trim();
+                            return string.IsNullOrWhiteSpace(raw) || raw == "[]" ? null : raw;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fall back to regex parsing
+            }
+        }
+
+        var matchKeys = new[] { "headers=", "customHeaders=", "custom_headers=" };
+        foreach (var key in matchKeys)
+        {
+            if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
+            {
+                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    var val = Uri.UnescapeDataString(match.Groups[1].Value).Trim();
+                    return string.IsNullOrWhiteSpace(val) || val == "{}" ? null : val;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static string EscapeMarkdown(string text)

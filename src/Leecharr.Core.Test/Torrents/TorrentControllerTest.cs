@@ -12,6 +12,7 @@ using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using NzbDrone.SignalR;
@@ -28,6 +29,7 @@ public class TorrentControllerTest
     private ITrackerEntryRepository trackerEntryRepository = null!;
     private IBroadcastSignalRMessage signalRBroadcaster = null!;
     private IDownloadEngine downloadEngine = null!;
+    private IGeoIpService geoIpService = null!;
     private TorrentController controller = null!;
 
     [SetUp]
@@ -40,6 +42,7 @@ public class TorrentControllerTest
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.signalRBroadcaster = Substitute.For<IBroadcastSignalRMessage>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.geoIpService = Substitute.For<IGeoIpService>();
 
         this.controller = new TorrentController(
             this.torrentService,
@@ -48,6 +51,7 @@ public class TorrentControllerTest
             this.mediaEnrichmentService,
             this.trackerEntryRepository,
             this.signalRBroadcaster,
+            geoIpService: this.geoIpService,
             downloadEngine: this.downloadEngine);
     }
 
@@ -506,5 +510,91 @@ public class TorrentControllerTest
 
         resources[1].BytesCompleted.Should().Be(400);
         resources[1].Progress.Should().Be(0.4);
+    }
+
+    [Test]
+    public void GetPeers_WhenTaskIsNull_ReturnsEmptyList()
+    {
+        this.torrentService.GetDownloadTask(1).Returns((IDownloadTask)null!);
+
+        var result = this.controller.GetPeers(1);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<PeerResource>>().Subject;
+        resources.Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetPeers_WhenPeersExist_MapsCountryCodeCountryNameCityAndPeerProperties()
+    {
+        var downloadTask = Substitute.For<IDownloadTask>();
+        var peers = new List<PeerInfo>
+        {
+            new()
+            {
+                Ip = "8.8.8.8",
+                Port = 51413,
+                Client = "qBittorrent/4.5.0",
+                UploadSpeed = 1024,
+                DownloadSpeed = 2048,
+                Uploaded = 10000,
+                Downloaded = 20000,
+                Progress = 0.75,
+                Flags = "uE",
+            },
+            new()
+            {
+                Ip = "192.168.1.100",
+                Port = 6881,
+                Client = "Transmission/3.00",
+                UploadSpeed = 0,
+                DownloadSpeed = 512,
+                Uploaded = 0,
+                Downloaded = 5000,
+                Progress = 0.25,
+                Flags = "d",
+            },
+        };
+
+        downloadTask.GetPeers().Returns(peers);
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        this.geoIpService.Lookup("8.8.8.8").Returns(new GeoLocationInfo
+        {
+            CountryCode = "US",
+            CountryName = "United States",
+            City = "Mountain View",
+        });
+        this.geoIpService.Lookup("192.168.1.100").Returns((GeoLocationInfo)null!);
+
+        var result = this.controller.GetPeers(1);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resources = okResult.Value.Should().BeAssignableTo<List<PeerResource>>().Subject;
+        resources.Should().HaveCount(2);
+
+        // Peer 1 with resolved GeoIP
+        resources[0].Id.Should().Be(1);
+        resources[0].Ip.Should().Be("8.8.8.8");
+        resources[0].Port.Should().Be(51413);
+        resources[0].Client.Should().Be("qBittorrent/4.5.0");
+        resources[0].UploadSpeed.Should().Be(1024);
+        resources[0].DownloadSpeed.Should().Be(2048);
+        resources[0].Uploaded.Should().Be(10000);
+        resources[0].Downloaded.Should().Be(20000);
+        resources[0].Progress.Should().Be(0.75);
+        resources[0].Flags.Should().Be("uE");
+        resources[0].CountryCode.Should().Be("US");
+        resources[0].CountryName.Should().Be("United States");
+        resources[0].City.Should().Be("Mountain View");
+
+        // Peer 2 with unresolvable/LAN GeoIP (null lookup fallback to empty string)
+        resources[1].Id.Should().Be(2);
+        resources[1].Ip.Should().Be("192.168.1.100");
+        resources[1].Port.Should().Be(6881);
+        resources[1].Client.Should().Be("Transmission/3.00");
+        resources[1].CountryCode.Should().Be(string.Empty);
+        resources[1].CountryName.Should().Be(string.Empty);
+        resources[1].City.Should().Be(string.Empty);
     }
 }
