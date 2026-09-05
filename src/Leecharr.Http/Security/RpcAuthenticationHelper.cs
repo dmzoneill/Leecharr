@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using NzbDrone.Core.Configuration;
@@ -9,6 +10,18 @@ namespace Leecharr.Http.Security;
 
 public static class RpcAuthenticationHelper
 {
+    public static bool FixedTimeEquals(string a, string b)
+    {
+        if (a == null || b == null)
+        {
+            return a == b;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(a),
+            Encoding.UTF8.GetBytes(b));
+    }
+
     public static bool IsAuthenticated(HttpContext context, IConfigFileProvider configFileProvider)
     {
         if (context == null)
@@ -35,7 +48,7 @@ public static class RpcAuthenticationHelper
         // 2. Check X-Api-Key or ApiKey header
         if (context.Request.Headers.TryGetValue("X-Api-Key", out var headerKey) && !string.IsNullOrWhiteSpace(headerKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(headerKey.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(headerKey.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -43,7 +56,7 @@ public static class RpcAuthenticationHelper
 
         if (context.Request.Headers.TryGetValue("ApiKey", out var customApiKey) && !string.IsNullOrWhiteSpace(customApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(customApiKey.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(customApiKey.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -52,7 +65,7 @@ public static class RpcAuthenticationHelper
         // 3. Check query parameters: apikey or api_key or token or access_token
         if (context.Request.Query.TryGetValue("apikey", out var queryApiKey) && !string.IsNullOrWhiteSpace(queryApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryApiKey.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -60,7 +73,7 @@ public static class RpcAuthenticationHelper
 
         if (context.Request.Query.TryGetValue("access_token", out var queryAccessToken) && !string.IsNullOrWhiteSpace(queryAccessToken))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryAccessToken.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryAccessToken.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -68,7 +81,7 @@ public static class RpcAuthenticationHelper
 
         if (context.Request.Query.TryGetValue("api_key", out var queryApiKey2) && !string.IsNullOrWhiteSpace(queryApiKey2))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryApiKey2.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -76,7 +89,7 @@ public static class RpcAuthenticationHelper
 
         if (context.Request.Query.TryGetValue("token", out var queryToken) && !string.IsNullOrWhiteSpace(queryToken))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryToken.ToString(), masterApiKey, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryToken.ToString(), masterApiKey))
             {
                 return true;
             }
@@ -96,8 +109,8 @@ public static class RpcAuthenticationHelper
                     var password = parts.Length > 1 ? parts[1] : string.Empty;
 
                     if (!string.IsNullOrWhiteSpace(masterApiKey) &&
-                        (string.Equals(password, masterApiKey, StringComparison.Ordinal) ||
-                         string.Equals(username, masterApiKey, StringComparison.Ordinal)))
+                        (FixedTimeEquals(password, masterApiKey) ||
+                         FixedTimeEquals(username, masterApiKey)))
                     {
                         return true;
                     }
@@ -110,7 +123,7 @@ public static class RpcAuthenticationHelper
             else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 var token = authHeader["Bearer ".Length..].Trim();
-                if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(token, masterApiKey, StringComparison.Ordinal))
+                if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(token, masterApiKey))
                 {
                     return true;
                 }
