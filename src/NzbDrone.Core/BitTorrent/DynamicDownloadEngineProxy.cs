@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
@@ -18,6 +20,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     private readonly IConfigService configService;
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
 
@@ -38,12 +41,14 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         IConfigService configService,
         ITorrentRepository torrentRepository,
         IEventAggregator eventAggregator,
-        ITorrentFileRepository torrentFileRepository = null)
+        ITorrentFileRepository torrentFileRepository = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.availableEngines = availableEngines;
         this.configService = configService;
         this.torrentRepository = torrentRepository;
         this.torrentFileRepository = torrentFileRepository;
+        this.appFolderInfo = appFolderInfo;
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
@@ -137,6 +142,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
 
         await this.switchLock.WaitAsync();
+        var previousEngine = Volatile.Read(ref this.activeEngine);
         try
         {
             var health = await targetEngine.ProbeHealthAsync();
@@ -145,14 +151,13 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 return new EngineSwitchResult
                 {
                     Success = false,
-                    PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
-                    ActiveEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                    PreviousEngine = previousEngine.EngineId,
+                    ActiveEngine = previousEngine.EngineId,
                     Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check failed ({health.StatusMessage}).",
                 };
             }
 
-            this.logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", Volatile.Read(ref this.activeEngine).EngineId, targetEngine.EngineId, preserveTransfers);
-            var previousEngine = Volatile.Read(ref this.activeEngine);
+            this.logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", previousEngine.EngineId, targetEngine.EngineId, preserveTransfers);
             var rehydrated = 0;
 
             // 1. Drain and stop previous engine
@@ -178,11 +183,49 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 {
                     try
                     {
+                        byte[] torrentBytes = null;
+                        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        {
+                            var hash = torrent.InfoHash.ToLowerInvariant();
+                            var pathsToTry = new List<string>();
+
+                            if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+                            {
+                                pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+                            }
+
+                            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                            if (!string.IsNullOrWhiteSpace(appData))
+                            {
+                                pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+                                pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+                            }
+
+                            foreach (var path in pathsToTry)
+                            {
+                                if (File.Exists(path))
+                                {
+                                    try
+                                    {
+                                        torrentBytes = await File.ReadAllBytesAsync(path);
+                                        if (torrentBytes != null && torrentBytes.Length > 0)
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // Fallback to next path or magnet
+                                    }
+                                }
+                            }
+                        }
+
                         var magnetUri = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
                             ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
                             : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
 
-                        await targetEngine.AddTorrentAsync(torrent, null, magnetUri);
+                        await targetEngine.AddTorrentAsync(torrent, torrentBytes, magnetUri);
 
                         if (this.torrentFileRepository != null)
                         {
@@ -235,12 +278,37 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Fatal error during engine hot-swap to {0}", targetEngineId);
+            this.logger.Error(ex, "Fatal error during engine hot-swap to {0}. Attempting rollback to {1}...", targetEngineId, previousEngine?.EngineId);
+
+            if (targetEngine != null)
+            {
+                try
+                {
+                    await targetEngine.StopAsync();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            if (previousEngine != null)
+            {
+                try
+                {
+                    await previousEngine.StartAsync();
+                }
+                catch (Exception rollbackEx)
+                {
+                    this.logger.Error(rollbackEx, "Failed to rollback and restart previous engine {0}", previousEngine.EngineId);
+                }
+            }
+
             return new EngineSwitchResult
             {
                 Success = false,
-                PreviousEngine = Volatile.Read(ref this.activeEngine)?.EngineId,
-                ActiveEngine = Volatile.Read(ref this.activeEngine)?.EngineId,
+                PreviousEngine = previousEngine?.EngineId,
+                ActiveEngine = previousEngine?.EngineId,
                 Error = $"Hot-swap failed: {ex.Message}",
             };
         }

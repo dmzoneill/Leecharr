@@ -1,11 +1,15 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
@@ -243,5 +247,72 @@ public class DynamicDownloadEngineProxyTest
 
         await this.proxy.RemoveTorrentAsync(10, true);
         await this.monoTorrentEngine.Received(1).RemoveTorrentAsync(10, true);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenTargetStartFails_RollsBackAndRestartsPreviousEngine()
+    {
+        this.libTorrentEngine.StartAsync().ThrowsAsync(new InvalidOperationException("Failed to bind port"));
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent");
+
+        result.Success.Should().BeFalse();
+        result.PreviousEngine.Should().Be("MonoTorrent");
+        result.ActiveEngine.Should().Be("MonoTorrent");
+        result.Error.Should().Contain("Hot-swap failed");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+
+        await this.monoTorrentEngine.Received(1).StopAsync();
+        await this.libTorrentEngine.Received(1).StartAsync();
+        await this.libTorrentEngine.Received(1).StopAsync();
+        await this.monoTorrentEngine.Received(1).StartAsync();
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_LoadsCachedTorrentBytesFromDisk()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr-test-" + Guid.NewGuid().ToString("N"));
+        var torrentsDir = Path.Combine(tempDir, "Torrents");
+        Directory.CreateDirectory(torrentsDir);
+
+        try
+        {
+            var expectedBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };
+            var hash = "0123456789abcdef0123456789abcdef01234567";
+            var filePath = Path.Combine(torrentsDir, $"{hash}.torrent");
+            await File.WriteAllBytesAsync(filePath, expectedBytes);
+
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            using var testProxy = new DynamicDownloadEngineProxy(
+                new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+                this.configService,
+                this.torrentRepository,
+                this.eventAggregator,
+                appFolderInfo: appFolderInfo);
+
+            var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+            result.Success.Should().BeTrue();
+            result.TorrentsMigrated.Should().Be(2);
+
+            await this.libTorrentEngine.Received(1).AddTorrentAsync(
+                Arg.Is<Torrent>(t => t.Id == 1),
+                Arg.Is<byte[]>(b => b != null && b.SequenceEqual(expectedBytes)),
+                Arg.Any<string>());
+
+            await this.libTorrentEngine.Received(1).AddTorrentAsync(
+                Arg.Is<Torrent>(t => t.Id == 2),
+                null,
+                Arg.Any<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 }
