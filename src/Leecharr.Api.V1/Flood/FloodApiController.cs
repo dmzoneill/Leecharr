@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -60,7 +61,7 @@ public class FloodActionRequest
 [ApiController]
 public class FloodApiController : ControllerBase
 {
-    private static readonly ConcurrentDictionary<string, DateTime> authenticatedSessions = new();
+    private static readonly RpcSessionStore authenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -105,10 +106,16 @@ public class FloodApiController : ControllerBase
 
         if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
         {
-            if (authenticatedSessions.TryGetValue(token, out var expiry) && expiry > DateTime.UtcNow)
+            if (authenticatedSessions.IsValid(token))
             {
                 return true;
             }
+        }
+
+        var headerToken = this.Request.Headers["X-Flood-Auth"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(headerToken) && authenticatedSessions.IsValid(headerToken))
+        {
+            return true;
         }
 
         var apiKey = this.Request.Headers["X-Api-Key"].FirstOrDefault();
@@ -162,7 +169,7 @@ public class FloodApiController : ControllerBase
         }
 
         var token = Guid.NewGuid().ToString("N");
-        authenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
+        authenticatedSessions.SetSession(token, DateTime.UtcNow.AddDays(7));
 
         this.Response.Cookies.Append("flood-auth", token, new CookieOptions
         {
@@ -171,6 +178,27 @@ public class FloodApiController : ControllerBase
             SameSite = SameSiteMode.Lax,
         });
 
+        return this.Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [HttpDelete]
+    [Route("api/auth/logout")]
+    [Route("auth/logout")]
+    public IActionResult Logout()
+    {
+        if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
+        {
+            authenticatedSessions.RemoveSession(token);
+        }
+
+        var headerToken = this.Request.Headers["X-Flood-Auth"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(headerToken))
+        {
+            authenticatedSessions.RemoveSession(headerToken);
+        }
+
+        this.Response.Cookies.Delete("flood-auth");
         return this.Ok(new { success = true });
     }
 
