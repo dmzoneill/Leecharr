@@ -47,10 +47,24 @@ public class CookieSessionAuthenticationEvents : CookieAuthenticationEvents
 
     public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> ctx)
     {
-        if (ctx.Request.Path.StartsWithSegments("/api") ||
-            ctx.Request.Path.StartsWithSegments("/signalr") ||
-            ctx.Request.Path.StartsWithSegments("/transmission") ||
-            ctx.Request.Path.StartsWithSegments("/json"))
+        var path = ctx.Request.Path;
+        if (path.StartsWithSegments("/api") ||
+            path.StartsWithSegments("/signalr") ||
+            path.StartsWithSegments("/transmission") ||
+            path.StartsWithSegments("/json") ||
+            path.StartsWithSegments("/gui") ||
+            path.StartsWithSegments("/rpc") ||
+            path.StartsWithSegments("/RPC2") ||
+            path.StartsWithSegments("/RPC1") ||
+            path.StartsWithSegments("/rutorrent") ||
+            path.StartsWithSegments("/plugins") ||
+            path.StartsWithSegments("/webapi") ||
+            path.StartsWithSegments("/jsonrpc") ||
+            path.StartsWithSegments("/nzbget") ||
+            path.StartsWithSegments("/hadouken") ||
+            path.StartsWithSegments("/sabnzbd") ||
+            path.StartsWithSegments("/aria2") ||
+            path.StartsWithSegments("/nzbvortex"))
         {
             ctx.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;

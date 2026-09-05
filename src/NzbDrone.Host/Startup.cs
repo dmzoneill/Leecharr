@@ -120,38 +120,6 @@ public class Startup
             options.LoginPath = "/login";
             options.AccessDeniedPath = "/login?accessDenied=true";
             options.EventsType = typeof(Leecharr.Http.Authentication.CookieSessionAuthenticationEvents);
-            options.Events.OnValidatePrincipal = async ctx =>
-            {
-                var manager = ctx.HttpContext.RequestServices.GetService<Leecharr.Http.Authentication.ICookieSessionManager>();
-                if (manager != null)
-                {
-                    await manager.ValidatePrincipal(ctx);
-                }
-            };
-            options.Events.OnRedirectToLogin = ctx =>
-            {
-                if (ctx.Request.Path.StartsWithSegments("/api") ||
-                    ctx.Request.Path.StartsWithSegments("/signalr") ||
-                    ctx.Request.Path.StartsWithSegments("/transmission") ||
-                    ctx.Request.Path.StartsWithSegments("/json") ||
-                    ctx.Request.Path.StartsWithSegments("/gui") ||
-                    ctx.Request.Path.StartsWithSegments("/rpc") ||
-                    ctx.Request.Path.StartsWithSegments("/RPC2") ||
-                    ctx.Request.Path.StartsWithSegments("/RPC1") ||
-                    ctx.Request.Path.StartsWithSegments("/webapi") ||
-                    ctx.Request.Path.StartsWithSegments("/jsonrpc") ||
-                    ctx.Request.Path.StartsWithSegments("/nzbget") ||
-                    ctx.Request.Path.StartsWithSegments("/hadouken") ||
-                    ctx.Request.Path.StartsWithSegments("/sabnzbd") ||
-                    ctx.Request.Path.StartsWithSegments("/aria2"))
-                {
-                    ctx.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
-                    return Task.CompletedTask;
-                }
-
-                ctx.Response.Redirect(ctx.RedirectUri);
-                return Task.CompletedTask;
-            };
         })
         .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
             ApiKeyAuthenticationOptions.DefaultScheme, _ => { })
