@@ -52,11 +52,7 @@ public class TorznabClient : ITorznabClient
         }
         else
         {
-            var handler = new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
-            };
-            this.httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(25) };
+            this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
         }
 
         if (!this.httpClient.DefaultRequestHeaders.Contains("User-Agent"))
