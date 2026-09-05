@@ -772,12 +772,23 @@ export function useDeleteTrackerBoostTracker() {
   });
 }
 
+export function useBulkImportTrackerBoostTrackers() {
+  const queryClient = useQueryClient();
+  return useMutation<{ success: boolean; importedCount: number }, Error, { trackersText: string }>({
+    mutationFn: (payload) => apiClient.post("/trackerboost/trackers/bulk", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+    },
+  });
+}
+
 // Aliases for backward compatibility
 export const useDownloadPlusPlusStatus = useTrackerBoostStatus;
 export const useDownloadPlusPlusTrackers = useTrackerBoostTrackers;
 export const useScanDownloadPlusPlusTrackers = useScanTrackerBoostTrackers;
 export const useAddDownloadPlusPlusTracker = useAddTrackerBoostTracker;
 export const useDeleteDownloadPlusPlusTracker = useDeleteTrackerBoostTracker;
+export const useBulkImportDownloadPlusPlusTrackers = useBulkImportTrackerBoostTrackers;
 
 export function useTrackerMetrics(refetchInterval: number | false = 4000) {
   return useQuery<TrackerMetric[]>({
