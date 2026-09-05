@@ -15,7 +15,7 @@ namespace NzbDrone.Core.MediaInspection;
 
 public class MediaInfoInspectorProvider : IMediaInspectorProvider
 {
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly TagLibInspectorProvider fallbackProvider = new();
     private readonly string customBinaryPath;
     private readonly TimeSpan executionTimeout;
@@ -129,7 +129,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     // Suppress process kill errors
                 }
 
-                this.logger.Warn("MediaInfo execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);
+                Logger.Warn("MediaInfo execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);
                 throw;
             }
 
@@ -138,7 +138,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
 
             if (!string.IsNullOrWhiteSpace(stderr) && process.ExitCode != 0)
             {
-                this.logger.Warn("MediaInfo reported errors on stderr: {0}", stderr);
+                Logger.Warn("MediaInfo reported errors on stderr: {0}", stderr);
             }
 
             if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout))
@@ -154,7 +154,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "MediaInfo failed to inspect media: {0}", mediaPath);
+            Logger.Error(ex, "MediaInfo failed to inspect media: {0}", mediaPath);
             return this.fallbackProvider.InspectFile(mediaPath);
         }
     }
@@ -202,7 +202,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     }
 
                     if (track.TryGetProperty("Duration", out var dur) &&
-                        double.TryParse(dur.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var durationSec))
+                        TryGetDouble(dur, out var durationSec))
                     {
                         info.DurationSeconds = durationSec;
                     }
@@ -214,12 +214,12 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                         info.VideoCodec = vFmt.GetString();
                     }
 
-                    if (track.TryGetProperty("Width", out var wProp) && int.TryParse(wProp.GetString(), out var width))
+                    if (track.TryGetProperty("Width", out var wProp) && TryGetInt(wProp, out var width))
                     {
                         info.Width = width;
                     }
 
-                    if (track.TryGetProperty("Height", out var hProp) && int.TryParse(hProp.GetString(), out var height))
+                    if (track.TryGetProperty("Height", out var hProp) && TryGetInt(hProp, out var height))
                     {
                         info.Height = height;
                     }
@@ -283,7 +283,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     }
 
                     if (string.IsNullOrEmpty(info.AudioChannels) && track.TryGetProperty("Channels", out var chanProp) &&
-                        int.TryParse(chanProp.GetString(), out var channels))
+                        TryGetInt(chanProp, out var channels))
                     {
                         info.AudioChannels = channels switch
                         {
@@ -296,13 +296,13 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     }
 
                     if (info.AudioSampleRate == 0 && track.TryGetProperty("SamplingRate", out var srProp) &&
-                        int.TryParse(srProp.GetString(), out var sampleRate))
+                        TryGetInt(srProp, out var sampleRate))
                     {
                         info.AudioSampleRate = sampleRate;
                     }
 
                     if (info.AudioBitDepth == 0 && track.TryGetProperty("BitDepth", out var bdProp) &&
-                        int.TryParse(bdProp.GetString(), out var bitDepth))
+                        TryGetInt(bdProp, out var bitDepth))
                     {
                         info.AudioBitDepth = bitDepth;
                     }
@@ -353,10 +353,45 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             TagLibInspectorProvider.ApplyFilenameHints(info, fileName);
             return info;
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Warn(ex, "Failed to parse MediaInfo JSON output: {0}", ex.Message);
             return null;
         }
+    }
+
+    private static bool TryGetInt(JsonElement element, out int value)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String &&
+            int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryGetDouble(JsonElement element, out double value)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String &&
+            double.TryParse(element.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
     }
 
     private string FindBinary()
