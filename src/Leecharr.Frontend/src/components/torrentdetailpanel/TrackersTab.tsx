@@ -84,9 +84,10 @@ export function TrackersTab({
   const [showPickerModal, setShowPickerModal] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [isAddingBatch, setIsAddingBatch] = useState(false);
+  const isPrivate = Boolean(torrent?.isPrivate || (inspection as any)?.isPrivate);
 
   const handleBoostSwarm = () => {
-    if (!effectiveId) return;
+    if (!effectiveId || isPrivate) return;
     boostTorrent.mutate(effectiveId, {
       onSuccess: (res) => {
         showToast(res.message, res.boosted ? "success" : "info");
@@ -189,7 +190,7 @@ export function TrackersTab({
   };
 
   const handleAddAndAnnounceSelected = async () => {
-    if (!effectiveId || selectedUrls.size === 0) return;
+    if (!effectiveId || isPrivate || selectedUrls.size === 0) return;
 
     setIsAddingBatch(true);
     let addedCount = 0;
@@ -429,10 +430,18 @@ export function TrackersTab({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            cursor: "pointer",
+            cursor: isPrivate ? "not-allowed" : "pointer",
+            opacity: isPrivate ? 0.6 : 1,
           }}
-          onClick={() => setShowPickerModal(true)}
-          title="Open tracker picker to select, search, and filter trackers"
+          onClick={() => {
+            if (!isPrivate) setShowPickerModal(true);
+          }}
+          disabled={isPrivate}
+          title={
+            isPrivate
+              ? "Adding public trackers is disabled on private swarms (BEP 27)"
+              : "Open tracker picker to select, search, and filter trackers"
+          }
         >
           <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
             <span>🎯</span>
@@ -465,12 +474,17 @@ export function TrackersTab({
           }}
           onClick={handleAddAndAnnounceSelected}
           disabled={
+            isPrivate ||
             isAddingBatch ||
             selectedUrls.size === 0 ||
             !availableTrackers ||
             availableTrackers.length === 0
           }
-          title="Add selected tracker(s) to this torrent and trigger announce"
+          title={
+            isPrivate
+              ? "Adding public trackers is disabled on private swarms (BEP 27)"
+              : "Add selected tracker(s) to this torrent and trigger announce"
+          }
         >
           {isAddingBatch
             ? "Adding..."
@@ -491,8 +505,12 @@ export function TrackersTab({
             fontWeight: 600,
           }}
           onClick={handleBoostSwarm}
-          disabled={boostTorrent.isPending || !effectiveId}
-          title="Automatically detect and inject verified public trackers into this torrent swarm"
+          disabled={isPrivate || boostTorrent.isPending || !effectiveId}
+          title={
+            isPrivate
+              ? "Swarm boost is disabled for private torrents (BEP 27)"
+              : "Automatically detect and inject verified public trackers into this torrent swarm"
+          }
         >
           {boostTorrent.isPending ? "⚡ Boosting..." : "⚡ Boost Swarm"}
         </button>
