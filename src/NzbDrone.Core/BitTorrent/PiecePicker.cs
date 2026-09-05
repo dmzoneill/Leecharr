@@ -306,10 +306,21 @@ public class PiecePicker
                 return false;
             }
 
+            if (blockOffset < 0 || blockOffset % DefaultBlockSize != 0)
+            {
+                return false;
+            }
+
             var piece = this.pieces[pieceIndex];
             var blockIdx = blockOffset / DefaultBlockSize;
 
             if (blockIdx >= piece.TotalBlocks)
+            {
+                return false;
+            }
+
+            var expectedLength = Math.Min(DefaultBlockSize, piece.Length - blockOffset);
+            if (length != expectedLength)
             {
                 return false;
             }
@@ -369,6 +380,11 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
+            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0 || blockOffset % DefaultBlockSize != 0)
+            {
+                return;
+            }
+
             var blockIdx = blockOffset / DefaultBlockSize;
             this.inFlightBlocks.Remove($"{pieceIndex}:{blockIdx}");
         }
