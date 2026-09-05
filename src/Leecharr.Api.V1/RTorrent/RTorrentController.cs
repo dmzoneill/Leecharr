@@ -187,8 +187,10 @@ public class RTorrentController : ControllerBase
                                 }
                                 else if (cleanField.Equals("f.get_completed_chunks", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.completed_chunks", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    var completed = file.Progress >= 1.0 ? file.PieceCount : (long)(file.Progress * file.PieceCount);
-                                    fRowData.Add(new XElement("value", new XElement("i8", completed)));
+                                    var pLen = t.PieceLength > 0 ? t.PieceLength : 1024 * 1024;
+                                    var fileChunks = Math.Max(1, (long)Math.Ceiling((double)file.Size / pLen));
+                                    var completedChunks = file.Progress >= 1.0 ? fileChunks : (long)(file.Progress * fileChunks);
+                                    fRowData.Add(new XElement("value", new XElement("i8", completedChunks)));
                                 }
                                 else if (cleanField.Equals("f.get_size_chunks", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.size_chunks", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -701,7 +703,7 @@ public class RTorrentController : ControllerBase
 
             case "d.complete":
             case "d.is_complete":
-                return new XElement("i4", (torrent.Progress >= 1.0 || torrent.Status == TorrentStatus.Seeding || torrent.Status == TorrentStatus.Stopped) ? 1 : 0);
+                return new XElement("i4", (torrent.Progress >= 1.0 || torrent.Status == TorrentStatus.Seeding) ? 1 : 0);
 
             case "d.state":
             case "d.get_state":
