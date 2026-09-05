@@ -34,7 +34,8 @@ public class TrackerBoostTrackerRepository : BasicRepository<TrackerBoostTracker
     {
         using var connection = this.database.OpenConnection();
         return connection.Query<TrackerBoostTracker>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Enabled\" = 1 AND (\"Status\" = 1 OR \"Status\" = 2) ORDER BY \"LatencyMs\" ASC")
+            $"SELECT * FROM \"{this.table}\" WHERE \"Enabled\" = @Enabled AND (\"Status\" = 1 OR \"Status\" = 2) ORDER BY \"LatencyMs\" ASC",
+            new { Enabled = true })
             .ToList();
     }
 
