@@ -1,6 +1,20 @@
-import { Torrent, TorrentFile, Category, SystemStatus } from "./types";
+declare global {
+  interface Window {
+    Leecharr?: {
+      urlBase?: string;
+      apiKey?: string;
+    };
+  }
+}
 
-const BASE_URL = "/api/v1";
+export function getUrlBase(): string {
+  if (typeof window !== "undefined" && window.Leecharr?.urlBase) {
+    return window.Leecharr.urlBase.replace(/\/+$/, "");
+  }
+  return "";
+}
+
+export const BASE_URL = `${getUrlBase()}/api/v1`;
 
 async function parseResponseBody<T>(response: Response): Promise<T> {
   if (response.status === 204 || response.headers.get("content-length") === "0") {

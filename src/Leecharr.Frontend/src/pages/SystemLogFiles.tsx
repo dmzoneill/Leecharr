@@ -290,7 +290,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                     <td>{formatFileSize(file.size)}</td>
                     <td style={{ textAlign: "right" }}>
                       <a
-                        href={`/api/v1/logfile/${file.filename}`}
+                        href={`${typeof window !== "undefined" && (window as any).Leecharr?.urlBase ? (window as any).Leecharr.urlBase.replace(/\/+$/, "") : ""}/api/v1/logfile/${file.filename}`}
                         className="btn btn-outline btn-small"
                         download
                         style={{

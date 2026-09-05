@@ -230,7 +230,7 @@ function SystemBackup() {
                   <tr key={backup.id} className="torrent-table-row">
                     <td>
                       <a
-                        href={`/api/v1/backup/${backup.id}/download`}
+                        href={`${typeof window !== "undefined" && (window as any).Leecharr?.urlBase ? (window as any).Leecharr.urlBase.replace(/\/+$/, "") : ""}/api/v1/backup/${backup.id}/download`}
                         className="torrent-link"
                         download
                         style={{

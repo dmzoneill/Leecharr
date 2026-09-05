@@ -24,11 +24,16 @@ if (!container) {
   throw new Error("Root element not found");
 }
 
+const urlBase =
+  typeof window !== "undefined" && (window as any).Leecharr?.urlBase
+    ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
+    : "";
+
 const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={urlBase || undefined}>
         <ThemeProvider>
           <ToastProvider>
             <ConfirmProvider>

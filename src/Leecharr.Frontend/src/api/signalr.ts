@@ -54,8 +54,13 @@ class SignalRManager {
 
   private ensureConnection(): signalR.HubConnection {
     if (!this.connection) {
+      const urlBase =
+        typeof window !== "undefined" && (window as any).Leecharr?.urlBase
+          ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
+          : "";
+
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl("/signalr/messages")
+        .withUrl(`${urlBase}/signalr/messages`)
         .withAutomaticReconnect(new ExponentialBackoffRetryPolicy())
         .build();
 

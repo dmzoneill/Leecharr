@@ -230,6 +230,44 @@ public class Startup
         app.UseMiddleware<HostHeaderValidationMiddleware>();
         app.UseMiddleware<CsrfProtectionMiddleware>();
 
+        var urlBase = configFileProvider.UrlBase?.Trim() ?? string.Empty;
+        if (!string.IsNullOrEmpty(urlBase) && !urlBase.StartsWith('/'))
+        {
+            urlBase = "/" + urlBase;
+        }
+
+        app.Use(async (context, next) =>
+        {
+            var path = context.Request.Path.Value ?? string.Empty;
+            if (path == "/" || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
+            {
+                var webRoot = app.Environment.WebRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+                var indexPath = Path.Combine(webRoot, "index.html");
+                if (File.Exists(indexPath))
+                {
+                    var html = await File.ReadAllTextAsync(indexPath);
+                    var effectiveUrlBase = context.Request.PathBase.HasValue ? context.Request.PathBase.Value : urlBase;
+                    var baseHref = string.IsNullOrEmpty(effectiveUrlBase) ? "/" : (effectiveUrlBase.EndsWith('/') ? effectiveUrlBase : effectiveUrlBase + "/");
+                    var injection = $"<base href=\"{baseHref}\" /><script>window.Leecharr = {{ urlBase: \"{effectiveUrlBase}\" }};</script>";
+                    if (html.Contains("<head>", StringComparison.OrdinalIgnoreCase))
+                    {
+                        html = html.Replace("<head>", $"<head>{injection}", StringComparison.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        html = injection + html;
+                    }
+
+                    context.Response.ContentType = "text/html; charset=utf-8";
+                    context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                    await context.Response.WriteAsync(html);
+                    return;
+                }
+            }
+
+            await next();
+        });
+
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions
         {
@@ -329,6 +367,33 @@ public class Startup
         app.Map("/ws/terminal", terminalHandler);
         app.Map("/api/v1/terminal/ws", terminalHandler);
 
-        app.MapFallbackToFile("index.html");
+        app.MapFallback(async context =>
+        {
+            var webRoot = app.Environment.WebRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            var indexPath = Path.Combine(webRoot, "index.html");
+            if (File.Exists(indexPath))
+            {
+                var html = await File.ReadAllTextAsync(indexPath);
+                var effectiveUrlBase = context.Request.PathBase.HasValue ? context.Request.PathBase.Value : urlBase;
+                var baseHref = string.IsNullOrEmpty(effectiveUrlBase) ? "/" : (effectiveUrlBase.EndsWith('/') ? effectiveUrlBase : effectiveUrlBase + "/");
+                var injection = $"<base href=\"{baseHref}\" /><script>window.Leecharr = {{ urlBase: \"{effectiveUrlBase}\" }};</script>";
+                if (html.Contains("<head>", StringComparison.OrdinalIgnoreCase))
+                {
+                    html = html.Replace("<head>", $"<head>{injection}", StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    html = injection + html;
+                }
+
+                context.Response.ContentType = "text/html; charset=utf-8";
+                context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                await context.Response.WriteAsync(html);
+            }
+            else
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+            }
+        });
     }
 }
