@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -42,6 +43,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly ITorrentCreationService torrentCreationService;
     private readonly IQBittorrentSearchService qbittorrentSearchService;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDownloadEngine downloadEngine;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -56,7 +58,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         IUserService userService = null,
         ITorrentCreationService torrentCreationService = null,
         IQBittorrentSearchService qbittorrentSearchService = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDownloadEngine downloadEngine = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -70,6 +73,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.torrentCreationService = torrentCreationService ?? new TorrentCreationService();
         this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.downloadEngine = downloadEngine;
     }
 
     [NonAction]
@@ -993,10 +997,28 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             foreach (var t in dbTrackers)
             {
+                int qbStatus;
+                if (!t.Enabled)
+                {
+                    qbStatus = 0;
+                }
+                else if (t.Status == 2 || !string.IsNullOrWhiteSpace(t.ErrorMessage))
+                {
+                    qbStatus = 4;
+                }
+                else if (t.Status == 0)
+                {
+                    qbStatus = 1;
+                }
+                else
+                {
+                    qbStatus = 2;
+                }
+
                 trackers.Add(new Dictionary<string, object>
                 {
                     ["url"] = t.Url ?? string.Empty,
-                    ["status"] = t.Status,
+                    ["status"] = qbStatus,
                     ["num_peers"] = t.Seeders + t.Leechers,
                     ["num_seeds"] = t.Seeders,
                     ["num_leeches"] = t.Leechers,
@@ -1023,27 +1045,58 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/addTrackers")]
-    public ActionResult AddTrackers([FromForm] string hash, [FromForm] string urls)
+    public async Task<ActionResult> AddTrackers([FromForm] string hash, [FromForm] string urls)
     {
         if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
         {
             var torrent = this.torrentService.GetByInfoHash(hash);
             if (torrent != null)
             {
+                if (torrent.IsPrivate)
+                {
+                    return this.BadRequest("Cannot add public trackers to private torrents");
+                }
+
+                var existingTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id) ?? Enumerable.Empty<TrackerEntry>();
+                var existingUrls = existingTrackers
+                    .Where(t => !string.IsNullOrWhiteSpace(t.Url))
+                    .Select(t => t.Url.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 var urlList = urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var validUrls = new List<string>();
+                var now = DateTime.UtcNow;
+
                 foreach (var url in urlList)
                 {
                     var trimmed = url.Trim();
-                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    if (!string.IsNullOrWhiteSpace(trimmed) && !existingUrls.Contains(trimmed))
                     {
+                        existingUrls.Add(trimmed);
+                        validUrls.Add(trimmed);
+
                         this.trackerEntryRepository.Insert(new TrackerEntry
                         {
                             TorrentId = torrent.Id,
                             Url = trimmed,
-                            Status = 1,
-                            LastAnnounce = DateTime.UtcNow,
+                            Tier = 0,
+                            Enabled = true,
+                            Status = 0,
+                            Seeders = 0,
+                            Leechers = 0,
+                            Downloaded = 0,
+                            TotalAnnounces = 0,
+                            SuccessfulAnnounces = 0,
+                            AnnounceInterval = 1800,
+                            LastAnnounce = null,
+                            NextAnnounce = now.AddSeconds(1800),
                         });
                     }
+                }
+
+                if (validUrls.Count > 0 && this.downloadEngine != null)
+                {
+                    await this.downloadEngine.AddTrackersAsync(torrent.Id, validUrls);
                 }
             }
         }
