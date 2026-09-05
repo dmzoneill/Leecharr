@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
 using Leecharr.Http.REST;
 
 namespace Leecharr.Api.V1.DownloadClients;
@@ -21,7 +23,22 @@ public class DownloadClientResource : RestResource
 
     public bool UseSsl { get; set; }
 
+    public string Category { get; set; }
+
     public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("enable")]
+    public bool? Enable
+    {
+        get => this.Enabled;
+        set
+        {
+            if (value.HasValue)
+            {
+                this.Enabled = value.Value;
+            }
+        }
+    }
 
     public int Priority { get; set; } = 1;
 }
@@ -54,7 +71,17 @@ public class DownloadClientRemoteItem
 
 public class ImportRequest
 {
+    [JsonPropertyName("infoHashes")]
+    public List<string> InfoHashes { get; set; } = new();
+
+    [JsonPropertyName("hashes")]
     public List<string> Hashes { get; set; } = new();
+
+    [JsonIgnore]
+    public IEnumerable<string> EffectiveHashes =>
+        (this.Hashes != null && this.Hashes.Count > 0)
+            ? this.Hashes
+            : (this.InfoHashes ?? Enumerable.Empty<string>());
 
     public string Category { get; set; }
 

@@ -284,7 +284,7 @@ export function useImportDownloadClientTorrents(clientId: number) {
   const queryClient = useQueryClient();
   return useMutation<SyncResult, Error, string[]>({
     mutationFn: (infoHashes) =>
-      apiClient.post(`/downloadclients/${clientId}/import`, { infoHashes }),
+      apiClient.post(`/downloadclients/${clientId}/import`, { infoHashes, hashes: infoHashes }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["downloadclients", clientId, "items"],
