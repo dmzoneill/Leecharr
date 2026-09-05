@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Linq;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Configuration;
 
@@ -15,15 +16,17 @@ public class ConfigFileProvider : IConfigFileProvider
 
     private readonly string configFile;
     private readonly Dictionary<string, string> config;
+    private readonly IEventAggregator eventAggregator;
     private static readonly object Mutex = new();
 
-    public ConfigFileProvider(IAppFolderInfo appFolderInfo)
+    public ConfigFileProvider(IAppFolderInfo appFolderInfo, IEventAggregator eventAggregator = null)
     {
         if (appFolderInfo == null)
         {
             throw new ArgumentNullException(nameof(appFolderInfo));
         }
 
+        this.eventAggregator = eventAggregator;
         this.configFile = Path.Combine(appFolderInfo.AppDataFolder, ConfigFileName);
         this.config = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -96,6 +99,7 @@ public class ConfigFileProvider : IConfigFileProvider
     {
         this.config[key] = value;
         this.SaveToFile();
+        this.eventAggregator?.PublishEvent(new ConfigFileSavedEvent());
     }
 
     public void SaveConfigDictionary(Dictionary<string, object> values)
@@ -117,6 +121,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
             this.SaveToFile();
         }
+
+        this.eventAggregator?.PublishEvent(new ConfigFileSavedEvent());
     }
 
     private void SaveToFile()

@@ -10,6 +10,7 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.WatchFolder;
@@ -29,9 +30,11 @@ public interface IWatchFolderService : IDisposable
     void StopWatcher();
 
     void OnFileSystemWatcherCreated(object sender, FileSystemEventArgs e);
+
+    void OnFileSystemWatcherRenamed(object sender, RenamedEventArgs e);
 }
 
-public class WatchFolderService : IWatchFolderService
+public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>, IHandle<ConfigFileSavedEvent>
 {
     private readonly IConfigService configService;
     private readonly ITorrentService torrentService;
@@ -88,7 +91,7 @@ public class WatchFolderService : IWatchFolderService
                 return false;
             }
 
-            using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
             return stream.Length > 0;
         }
         catch (IOException)
@@ -109,12 +112,14 @@ public class WatchFolderService : IWatchFolderService
     {
         if (!this.configService.WatchFolderEnabled)
         {
+            this.StopWatcher();
             return;
         }
 
         var folder = this.configService.WatchFolderPath;
         if (string.IsNullOrWhiteSpace(folder) || !this.diskProvider.FolderExists(folder))
         {
+            this.StopWatcher();
             return;
         }
 
@@ -127,6 +132,7 @@ public class WatchFolderService : IWatchFolderService
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
             };
             this.watcher.Created += this.OnFileSystemWatcherCreated;
+            this.watcher.Renamed += this.OnFileSystemWatcherRenamed;
         }
         catch (Exception ex)
         {
@@ -142,6 +148,7 @@ public class WatchFolderService : IWatchFolderService
             {
                 this.watcher.EnableRaisingEvents = false;
                 this.watcher.Created -= this.OnFileSystemWatcherCreated;
+                this.watcher.Renamed -= this.OnFileSystemWatcherRenamed;
                 this.watcher.Dispose();
             }
             catch (Exception ex)
@@ -158,6 +165,16 @@ public class WatchFolderService : IWatchFolderService
     public void Dispose()
     {
         this.StopWatcher();
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        this.RestartOrStopWatcher();
+    }
+
+    public void Handle(ConfigFileSavedEvent message)
+    {
+        this.RestartOrStopWatcher();
     }
 
     public void OnFileSystemWatcherCreated(object sender, FileSystemEventArgs e)
@@ -189,6 +206,49 @@ public class WatchFolderService : IWatchFolderService
 
         var folder = Path.GetDirectoryName(e.FullPath) ?? this.configService.WatchFolderPath;
         await this.ProcessFileAsync(e.FullPath, folder).ConfigureAwait(false);
+    }
+
+    public void OnFileSystemWatcherRenamed(object sender, RenamedEventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.HandleFileSystemWatcherRenamedAsync(e).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error processing renamed watch folder file: {0}", e?.FullPath);
+            }
+        });
+    }
+
+    public async Task HandleFileSystemWatcherRenamedAsync(RenamedEventArgs e)
+    {
+        if (e == null || string.IsNullOrWhiteSpace(e.FullPath))
+        {
+            return;
+        }
+
+        if (!e.FullPath.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var folder = Path.GetDirectoryName(e.FullPath) ?? this.configService.WatchFolderPath;
+        await this.ProcessFileAsync(e.FullPath, folder).ConfigureAwait(false);
+    }
+
+    private void RestartOrStopWatcher()
+    {
+        if (this.configService.WatchFolderEnabled)
+        {
+            this.StartWatcher();
+        }
+        else
+        {
+            this.StopWatcher();
+        }
     }
 
     public async Task<bool> ProcessFileAsync(string file, string folder = null)
