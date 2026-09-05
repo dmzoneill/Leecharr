@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
@@ -62,6 +64,12 @@ public class SpeedScheduleController : Controller
             return this.BadRequest();
         }
 
+        if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
+            !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
+        {
+            return this.BadRequest("StartTime and EndTime must be valid times.");
+        }
+
         var model = ToModel(resource);
         var created = this.speedScheduleRepository.Insert(model);
         await this.speedSchedulerService.ApplyCurrentLimitsAsync();
@@ -74,6 +82,12 @@ public class SpeedScheduleController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
+            !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
+        {
+            return this.BadRequest("StartTime and EndTime must be valid times.");
         }
 
         var existing = this.speedScheduleRepository.Get(id);
