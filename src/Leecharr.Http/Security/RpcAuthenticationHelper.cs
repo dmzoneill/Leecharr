@@ -49,10 +49,18 @@ public static class RpcAuthenticationHelper
             }
         }
 
-        // 3. Check query parameters: apikey or api_key or token
+        // 3. Check query parameters: apikey or api_key or token or access_token
         if (context.Request.Query.TryGetValue("apikey", out var queryApiKey) && !string.IsNullOrWhiteSpace(queryApiKey))
         {
             if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryApiKey.ToString(), masterApiKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        if (context.Request.Query.TryGetValue("access_token", out var queryAccessToken) && !string.IsNullOrWhiteSpace(queryAccessToken))
+        {
+            if (!string.IsNullOrWhiteSpace(masterApiKey) && string.Equals(queryAccessToken.ToString(), masterApiKey, StringComparison.Ordinal))
             {
                 return true;
             }

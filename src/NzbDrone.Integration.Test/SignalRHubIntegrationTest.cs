@@ -106,4 +106,45 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
         received.Should().NotBeNull();
         received.Name.Should().Be("testBroadcast");
     }
+
+    [Test]
+    public async Task Connect_WithAccessTokenQueryParam_SuccessfullyConnects()
+    {
+        var conn = new HubConnectionBuilder()
+            .WithUrl($"{GlobalSetup.Factory.BaseUrl}/signalr/messages", options =>
+            {
+                if (!string.IsNullOrEmpty(this.ApiKey))
+                {
+                    options.AccessTokenProvider = () => Task.FromResult(this.ApiKey);
+                }
+            })
+            .Build();
+
+        try
+        {
+            var tcs = new TaskCompletionSource<SignalRMessage>();
+            conn.On<SignalRMessage>("receiveMessage", msg =>
+            {
+                if (msg.Name == "version")
+                {
+                    tcs.TrySetResult(msg);
+                }
+            });
+
+            await conn.StartAsync();
+            conn.State.Should().Be(HubConnectionState.Connected);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            cts.Token.Register(() => tcs.TrySetCanceled());
+
+            var received = await tcs.Task;
+            received.Should().NotBeNull();
+            received.Name.Should().Be("version");
+        }
+        finally
+        {
+            await conn.StopAsync();
+            await conn.DisposeAsync();
+        }
+    }
 }
