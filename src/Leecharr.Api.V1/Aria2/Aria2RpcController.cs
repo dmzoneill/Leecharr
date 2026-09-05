@@ -122,6 +122,17 @@ public class Aria2RpcController : ControllerBase
 
                     using var doc = JsonDocument.Parse(rawBody);
                     var root = doc.RootElement;
+                    if (root.ValueKind == JsonValueKind.Array)
+                    {
+                        var batchResults = new List<object>();
+                        foreach (var item in root.EnumerateArray())
+                        {
+                            batchResults.Add(await this.ProcessSingleJsonRpcAsync(item));
+                        }
+
+                        return this.Ok(batchResults);
+                    }
+
                     if (root.TryGetProperty("method", out var mElem))
                     {
                         method = mElem.GetString();
@@ -214,6 +225,100 @@ public class Aria2RpcController : ControllerBase
                 id,
                 error = new { code = 1, message = ex.Message },
             });
+        }
+    }
+
+    private async Task<object> ProcessSingleJsonRpcAsync(JsonElement root)
+    {
+        object id = null;
+        string method = null;
+        JsonElement paramsElem = default;
+
+        if (root.TryGetProperty("method", out var mElem))
+        {
+            method = mElem.GetString();
+        }
+
+        if (root.TryGetProperty("params", out var pElem))
+        {
+            paramsElem = pElem.Clone();
+        }
+
+        if (root.TryGetProperty("id", out var idElem))
+        {
+            if (idElem.ValueKind == JsonValueKind.String)
+            {
+                id = idElem.GetString();
+            }
+            else if (idElem.ValueKind == JsonValueKind.Number)
+            {
+                id = idElem.GetInt64();
+            }
+        }
+
+        var aria2Secret = string.Empty;
+        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 &&
+            paramsElem[0].ValueKind == JsonValueKind.String)
+        {
+            var firstStr = paramsElem[0].GetString();
+            if (firstStr != null && firstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+            {
+                aria2Secret = firstStr["token:".Length..];
+            }
+        }
+
+        var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+        if (!isAuth && !string.IsNullOrWhiteSpace(aria2Secret) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
+        {
+            if (string.Equals(aria2Secret, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            {
+                isAuth = true;
+            }
+        }
+
+        if (!isAuth)
+        {
+            return new
+            {
+                jsonrpc = "2.0",
+                id,
+                error = new { code = 1, message = "Unauthorized" },
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(method))
+        {
+            return new
+            {
+                jsonrpc = "2.0",
+                id,
+                result = new
+                {
+                    version = "1.36.0",
+                    enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" },
+                },
+            };
+        }
+
+        try
+        {
+            var res = await this.ExecuteMethodAsync(method, paramsElem);
+            return new
+            {
+                jsonrpc = "2.0",
+                id,
+                result = res,
+            };
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error handling Aria2 RPC method: {0}", method);
+            return new
+            {
+                jsonrpc = "2.0",
+                id,
+                error = new { code = 1, message = ex.Message },
+            };
         }
     }
 
@@ -519,9 +624,9 @@ public class Aria2RpcController : ControllerBase
                 return "OK";
 
             case "system.multicall":
-                if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
+                if (cleanParams.Count > 0)
                 {
-                    var calls = parameters[0];
+                    var calls = cleanParams[0];
                     var results = new List<object>();
                     if (calls.ValueKind == JsonValueKind.Array)
                     {
@@ -676,6 +781,12 @@ public class Aria2RpcController : ControllerBase
 
     private async Task<IActionResult> HandleXmlRpcAsync(string method, global::System.Xml.Linq.XDocument xmlDoc)
     {
+        var resultElement = await this.ExecuteXmlRpcMethodAsync(method, xmlDoc);
+        return this.BuildXmlRpcResponse(resultElement);
+    }
+
+    private async Task<global::System.Xml.Linq.XElement> ExecuteXmlRpcMethodAsync(string method, global::System.Xml.Linq.XDocument xmlDoc)
+    {
         var stringParams = GetXmlRpcStringParams(xmlDoc);
         var downloadDir = this.configService.DownloadDir ?? "/downloads";
 
@@ -698,7 +809,7 @@ public class Aria2RpcController : ControllerBase
         switch (method.ToLowerInvariant())
         {
             case "aria2.getversion":
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement(
+                return new global::System.Xml.Linq.XElement(
                     "struct",
                     new global::System.Xml.Linq.XElement(
                         "member",
@@ -717,7 +828,7 @@ public class Aria2RpcController : ControllerBase
 
             case "aria2.getglobalstat":
                 var all = this.torrentService.GetAll().ToList();
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement(
+                return new global::System.Xml.Linq.XElement(
                     "struct",
                     new global::System.Xml.Linq.XElement(
                         "member",
@@ -742,7 +853,7 @@ public class Aria2RpcController : ControllerBase
 
             case "aria2.getglobaloption":
             case "aria2.getoption":
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement(
+                return new global::System.Xml.Linq.XElement(
                     "struct",
                     new global::System.Xml.Linq.XElement(
                         "member",
@@ -761,29 +872,29 @@ public class Aria2RpcController : ControllerBase
                 var activeList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
                     .ToList();
-                return this.BuildXmlRpcResponse(BuildXmlRpcTorrentArray(activeList, downloadDir, this.torrentFileService));
+                return BuildXmlRpcTorrentArray(activeList, downloadDir, this.torrentFileService);
 
             case "aria2.tellwaiting":
                 var waitingList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Queued)
                     .ToList();
-                return this.BuildXmlRpcResponse(BuildXmlRpcTorrentArray(waitingList, downloadDir, this.torrentFileService));
+                return BuildXmlRpcTorrentArray(waitingList, downloadDir, this.torrentFileService);
 
             case "aria2.tellstopped":
                 var stoppedList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
                     .ToList();
-                return this.BuildXmlRpcResponse(BuildXmlRpcTorrentArray(stoppedList, downloadDir, this.torrentFileService));
+                return BuildXmlRpcTorrentArray(stoppedList, downloadDir, this.torrentFileService);
 
             case "aria2.tellstatus":
                 var gid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
                 var found = this.FindByGid(gid);
                 if (found != null)
                 {
-                    return this.BuildXmlRpcResponse(BuildXmlRpcTorrentStruct(found, downloadDir, this.torrentFileService));
+                    return BuildXmlRpcTorrentStruct(found, downloadDir, this.torrentFileService);
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("struct"));
+                return new global::System.Xml.Linq.XElement("struct");
 
             case "aria2.addtorrent":
                 if (stringParams.Count > 0)
@@ -792,10 +903,10 @@ public class Aria2RpcController : ControllerBase
                     var bytes = Convert.FromBase64String(b64);
                     var parsed = this.torrentFileParser.Parse(bytes);
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
-                    return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
+                    return new XElement("string", GetGidFromInfoHash(added?.InfoHash));
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]));
+                return new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]);
 
             case "aria2.adduri":
                 if (stringParams.Count > 0)
@@ -804,18 +915,18 @@ public class Aria2RpcController : ControllerBase
                     if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
                         var added = await this.torrentService.AddFromMagnetAsync(uri, null, customDir, false);
-                        return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
+                        return new XElement("string", GetGidFromInfoHash(added?.InfoHash));
                     }
                     else
                     {
                         var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
-                        return this.BuildXmlRpcResponse(new XElement("string", GetGidFromInfoHash(added?.InfoHash)));
+                        return new XElement("string", GetGidFromInfoHash(added?.InfoHash));
                     }
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]));
+                return new global::System.Xml.Linq.XElement("string", Guid.NewGuid().ToString("N")[..16]);
 
             case "aria2.remove":
             case "aria2.forceremove":
@@ -827,7 +938,7 @@ public class Aria2RpcController : ControllerBase
                     await this.torrentService.DeleteAsync(toRemove.Id, false);
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", removeGid));
+                return new global::System.Xml.Linq.XElement("string", removeGid);
 
             case "aria2.pause":
             case "aria2.forcepause":
@@ -838,7 +949,7 @@ public class Aria2RpcController : ControllerBase
                     await this.torrentService.PauseAsync(toPause.Id);
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", pauseGid));
+                return new global::System.Xml.Linq.XElement("string", pauseGid);
 
             case "aria2.unpause":
             case "aria2.forceunpause":
@@ -849,10 +960,76 @@ public class Aria2RpcController : ControllerBase
                     await this.torrentService.ResumeAsync(toUnpause.Id);
                 }
 
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", unpauseGid));
+                return new global::System.Xml.Linq.XElement("string", unpauseGid);
+
+            case "system.multicall":
+                var multicallDataElem = new global::System.Xml.Linq.XElement("data");
+                var callsArray = xmlDoc?.Root?.Element("params")?.Elements("param")
+                    .Select(p => p.Element("value")?.Element("array")?.Element("data"))
+                    .FirstOrDefault(d => d != null);
+
+                if (callsArray != null)
+                {
+                    foreach (var callVal in callsArray.Elements("value"))
+                    {
+                        var callStruct = callVal.Element("struct");
+                        if (callStruct == null)
+                        {
+                            continue;
+                        }
+
+                        string subMethod = null;
+                        global::System.Xml.Linq.XElement subParamsElem = null;
+
+                        foreach (var member in callStruct.Elements("member"))
+                        {
+                            var memberName = member.Element("name")?.Value;
+                            if (string.Equals(memberName, "methodName", StringComparison.OrdinalIgnoreCase))
+                            {
+                                subMethod = member.Element("value")?.Element("string")?.Value ?? member.Element("value")?.Value;
+                            }
+                            else if (string.Equals(memberName, "params", StringComparison.OrdinalIgnoreCase))
+                            {
+                                subParamsElem = member.Element("value");
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(subMethod))
+                        {
+                            var subDoc = new global::System.Xml.Linq.XDocument(
+                                new global::System.Xml.Linq.XElement("methodCall",
+                                    new global::System.Xml.Linq.XElement("methodName", subMethod)));
+
+                            var syntheticParams = new global::System.Xml.Linq.XElement("params");
+                            if (subParamsElem != null)
+                            {
+                                if (subParamsElem.Element("array")?.Element("data") is global::System.Xml.Linq.XElement data)
+                                {
+                                    foreach (var v in data.Elements("value"))
+                                    {
+                                        syntheticParams.Add(new global::System.Xml.Linq.XElement("param", new global::System.Xml.Linq.XElement(v)));
+                                    }
+                                }
+                                else
+                                {
+                                    syntheticParams.Add(new global::System.Xml.Linq.XElement("param", new global::System.Xml.Linq.XElement(subParamsElem)));
+                                }
+                            }
+                            subDoc.Root.Add(syntheticParams);
+
+                            var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod, subDoc);
+                            multicallDataElem.Add(new global::System.Xml.Linq.XElement("value",
+                                new global::System.Xml.Linq.XElement("array",
+                                    new global::System.Xml.Linq.XElement("data",
+                                        new global::System.Xml.Linq.XElement("value", subResult)))));
+                        }
+                    }
+                }
+
+                return new global::System.Xml.Linq.XElement("array", multicallDataElem);
 
             default:
-                return this.BuildXmlRpcResponse(new global::System.Xml.Linq.XElement("string", "OK"));
+                return new global::System.Xml.Linq.XElement("string", "OK");
         }
     }
 
