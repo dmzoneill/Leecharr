@@ -56,6 +56,11 @@ public class PtyTerminalService : IPtyTerminalService
         int clampedCols = Math.Clamp(cols, 10, 500);
         int clampedRows = Math.Clamp(rows, 5, 200);
 
+        if (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3"))
+        {
+            return PtyProcessSession.Start(sanitizedCwd, clampedCols, clampedRows);
+        }
+
         return FallbackProcessSession.Start(sanitizedCwd, clampedCols, clampedRows);
     }
 
