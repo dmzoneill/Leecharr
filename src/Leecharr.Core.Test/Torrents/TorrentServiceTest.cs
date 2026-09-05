@@ -48,6 +48,16 @@ public class TorrentServiceTest
         this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns("/downloads");
         this.configService.DefaultCategory.Returns("default");
         this.configService.AutoEnrichEnabled.Returns(false);
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            if (t.Id == 0)
+            {
+                t.Id = 1;
+            }
+
+            return t;
+        });
 
         this.service = new TorrentService(
             this.torrentRepository,

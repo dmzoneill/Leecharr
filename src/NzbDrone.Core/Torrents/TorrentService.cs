@@ -156,7 +156,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
-        var inserted = this.torrentRepository.Insert(torrent);
+        var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
 
         // Insert torrent files
         if (parsed.Files != null)
@@ -333,7 +333,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
-        var inserted = this.torrentRepository.Insert(torrent);
+        var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
 
         // Insert trackers from magnet
         if (this.trackerEntryRepository != null && parsedMagnet.Trackers != null)

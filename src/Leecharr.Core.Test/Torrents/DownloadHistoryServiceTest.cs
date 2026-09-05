@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -538,7 +539,7 @@ public class DownloadHistoryServiceTest
                 this.downloadEngine,
                 this.eventAggregator,
                 this.safeHttpClientService,
-                appFolderInfo);
+                appFolderInfo: appFolderInfo);
 
             var entry = new DownloadHistory
             {
@@ -555,7 +556,7 @@ public class DownloadHistoryServiceTest
                 return t;
             });
 
-            var result = await customService.ReAddTorrentAsync(10);
+            var result = await customService.ReAddAsync(10);
 
             result.Should().NotBeNull();
             await this.downloadEngine.Received(1).AddTorrentAsync(Arg.Any<Torrent>(), Arg.Is<byte[]>(b => b.Length == 4), Arg.Any<string>());
@@ -569,4 +570,3 @@ public class DownloadHistoryServiceTest
         }
     }
 }
-
