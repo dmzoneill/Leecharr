@@ -1,9 +1,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Aria2;
+using Leecharr.Api.V1.Flood;
 using Leecharr.Api.V1.Freebox;
 using Leecharr.Api.V1.Hadouken;
 using Leecharr.Api.V1.Nzbget;
@@ -14,6 +17,9 @@ using Leecharr.Api.V1.Synology;
 using Leecharr.Api.V1.UTorrent;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Categories;
@@ -332,5 +338,246 @@ public class CompatibilityRpcAuthTest
 
         var appVersionResult = controller.GetAppVersion();
         appVersionResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    private static ActionExecutingContext CreateFloodActionExecutingContext(FloodApiController controller, HttpContext httpContext, string actionName)
+    {
+        var actionContext = new ActionContext(
+            httpContext,
+            new RouteData(new RouteValueDictionary { { "action", actionName } }),
+            new ControllerActionDescriptor { ActionName = actionName, ControllerName = "FloodApi" });
+
+        return new ActionExecutingContext(
+            actionContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+    }
+
+    [Test]
+    public void Flood_WhenUnauthenticated_GetTorrents_Returns401ViaActionFilter()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionExecutingContext = CreateFloodActionExecutingContext(controller, context, "GetTorrents");
+        controller.OnActionExecuting(actionExecutingContext);
+
+        actionExecutingContext.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)actionExecutingContext.Result!;
+        objResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Test]
+    public void Flood_WhenUnauthenticated_DeleteTorrents_Returns401ViaActionFilter()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionExecutingContext = CreateFloodActionExecutingContext(controller, context, "DeleteTorrents");
+        controller.OnActionExecuting(actionExecutingContext);
+
+        actionExecutingContext.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)actionExecutingContext.Result!;
+        objResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Test]
+    public void Flood_WhenUnauthenticated_AddUrls_Returns401ViaActionFilter()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionExecutingContext = CreateFloodActionExecutingContext(controller, context, "AddUrls");
+        controller.OnActionExecuting(actionExecutingContext);
+
+        actionExecutingContext.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)actionExecutingContext.Result!;
+        objResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Test]
+    public void Flood_WhenUnauthenticated_AuthenticateAndVerify_ActionFilterAllowsExecution()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var authContext = CreateFloodActionExecutingContext(controller, context, "Authenticate");
+        controller.OnActionExecuting(authContext);
+        authContext.Result.Should().BeNull();
+
+        var verifyContext = CreateFloodActionExecutingContext(controller, context, "Verify");
+        controller.OnActionExecuting(verifyContext);
+        verifyContext.Result.Should().BeNull();
+
+        var verifyResult = controller.Verify();
+        verifyResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)verifyResult;
+        var isAllowedProp = okResult.Value!.GetType().GetProperty("isAllowed")!.GetValue(okResult.Value);
+        isAllowedProp.Should().Be(false);
+    }
+
+    [Test]
+    public void Flood_WhenAuthenticatedViaApiKeyHeader_ActionFilterAllowsExecution()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionExecutingContext = CreateFloodActionExecutingContext(controller, context, "GetTorrents");
+        controller.OnActionExecuting(actionExecutingContext);
+        actionExecutingContext.Result.Should().BeNull();
+
+        var verifyResult = controller.Verify();
+        verifyResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)verifyResult;
+        var isAllowedProp = okResult.Value!.GetType().GetProperty("isAllowed")!.GetValue(okResult.Value);
+        isAllowedProp.Should().Be(true);
+    }
+
+    [Test]
+    public void Flood_WhenAuthenticatedViaLogin_SessionCookiesGrantAccess()
+    {
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.Authenticate(new FloodAuthRequest { Password = "master_api_key_xyz" });
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        loginContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookies = setCookieHeaders.ToArray();
+        string floodToken = null!;
+        foreach (var cookie in setCookies)
+        {
+            if (cookie.StartsWith("flood-auth="))
+            {
+                floodToken = cookie.Split(';')[0]["flood-auth=".Length..];
+                break;
+            }
+        }
+
+        floodToken.Should().NotBeNullOrWhiteSpace();
+
+        // 1. Verify access with flood-auth cookie
+        var floodAuthContext = new DefaultHttpContext();
+        floodAuthContext.Request.Headers["Cookie"] = $"flood-auth={floodToken}";
+        controller.ControllerContext = new ControllerContext { HttpContext = floodAuthContext };
+
+        var floodExecContext = CreateFloodActionExecutingContext(controller, floodAuthContext, "GetTorrents");
+        controller.OnActionExecuting(floodExecContext);
+        floodExecContext.Result.Should().BeNull();
+
+        // 2. Verify access with jwt cookie
+        var jwtAuthContext = new DefaultHttpContext();
+        jwtAuthContext.Request.Headers["Cookie"] = $"jwt={floodToken}";
+        controller.ControllerContext = new ControllerContext { HttpContext = jwtAuthContext };
+
+        var jwtExecContext = CreateFloodActionExecutingContext(controller, jwtAuthContext, "DeleteTorrents");
+        controller.OnActionExecuting(jwtExecContext);
+        jwtExecContext.Result.Should().BeNull();
+
+        // 3. Verify access with token cookie
+        var tokenAuthContext = new DefaultHttpContext();
+        tokenAuthContext.Request.Headers["Cookie"] = $"token={floodToken}";
+        controller.ControllerContext = new ControllerContext { HttpContext = tokenAuthContext };
+
+        var tokenExecContext = CreateFloodActionExecutingContext(controller, tokenAuthContext, "AddUrls");
+        controller.OnActionExecuting(tokenExecContext);
+        tokenExecContext.Result.Should().BeNull();
+
+        // 4. Verify access with X-Flood-Auth header
+        var headerAuthContext = new DefaultHttpContext();
+        headerAuthContext.Request.Headers["X-Flood-Auth"] = floodToken;
+        controller.ControllerContext = new ControllerContext { HttpContext = headerAuthContext };
+
+        var headerExecContext = CreateFloodActionExecutingContext(controller, headerAuthContext, "StartTorrents");
+        controller.OnActionExecuting(headerExecContext);
+        headerExecContext.Result.Should().BeNull();
+
+        // 5. Verify invalid token returns 401
+        var badContext = new DefaultHttpContext();
+        badContext.Request.Headers["Cookie"] = "flood-auth=invalid_session_token";
+        controller.ControllerContext = new ControllerContext { HttpContext = badContext };
+
+        var badExecContext = CreateFloodActionExecutingContext(controller, badContext, "GetTorrents");
+        controller.OnActionExecuting(badExecContext);
+        badExecContext.Result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)badExecContext.Result!).StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Test]
+    public void Flood_WhenAuthenticationDisabledGlobally_ActionFilterAllowsExecution()
+    {
+        var disabledConfigProvider = Substitute.For<IConfigFileProvider>();
+        disabledConfigProvider.AuthenticationEnabled.Returns(false);
+
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            disabledConfigProvider);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionExecutingContext = CreateFloodActionExecutingContext(controller, context, "DeleteTorrents");
+        controller.OnActionExecuting(actionExecutingContext);
+        actionExecutingContext.Result.Should().BeNull();
+
+        var verifyResult = controller.Verify();
+        verifyResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)verifyResult;
+        var isAllowedProp = okResult.Value!.GetType().GetProperty("isAllowed")!.GetValue(okResult.Value);
+        isAllowedProp.Should().Be(true);
     }
 }

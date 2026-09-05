@@ -10,6 +10,8 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
@@ -59,7 +61,7 @@ public class FloodActionRequest
 
 [AllowAnonymous]
 [ApiController]
-public class FloodApiController : ControllerBase
+public class FloodApiController : ControllerBase, IActionFilter
 {
     private static readonly RpcSessionStore authenticatedSessions = new();
     private readonly ITorrentService torrentService;
@@ -92,9 +94,47 @@ public class FloodApiController : ControllerBase
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
+    [NonAction]
+    public void OnActionExecuting(ActionExecutingContext context)
+    {
+        string actionName = null;
+        if (context.ActionDescriptor?.RouteValues != null &&
+            context.ActionDescriptor.RouteValues.TryGetValue("action", out var val))
+        {
+            actionName = val;
+        }
+
+        if (string.IsNullOrEmpty(actionName) &&
+            context.ActionDescriptor is ControllerActionDescriptor cad)
+        {
+            actionName = cad.ActionName;
+        }
+
+        if (string.Equals(actionName, nameof(this.Authenticate), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(actionName, nameof(this.Verify), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!this.IsFloodAuthenticated())
+        {
+            context.Result = this.StatusCode(StatusCodes.Status401Unauthorized, new { success = false, message = "Unauthorized" });
+        }
+    }
+
+    [NonAction]
+    public void OnActionExecuted(ActionExecutedContext context)
+    {
+    }
+
     private bool IsFloodAuthenticated()
     {
         if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
         {
             return true;
         }
@@ -104,22 +144,56 @@ public class FloodApiController : ControllerBase
             return true;
         }
 
-        if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
+        if (this.Request?.Cookies != null)
         {
-            if (authenticatedSessions.IsValid(token))
+            if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
+            {
+                if (authenticatedSessions.IsValid(token))
+                {
+                    return true;
+                }
+            }
+
+            if (this.Request.Cookies.TryGetValue("jwt", out var jwtToken) && !string.IsNullOrWhiteSpace(jwtToken))
+            {
+                if (authenticatedSessions.IsValid(jwtToken))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                    string.Equals(jwtToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            if (this.Request.Cookies.TryGetValue("token", out var tToken) && !string.IsNullOrWhiteSpace(tToken))
+            {
+                if (authenticatedSessions.IsValid(tToken))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                    string.Equals(tToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (this.Request?.Headers != null)
+        {
+            var headerToken = this.Request.Headers["X-Flood-Auth"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(headerToken) && authenticatedSessions.IsValid(headerToken))
             {
                 return true;
             }
         }
 
-        var headerToken = this.Request.Headers["X-Flood-Auth"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(headerToken) && authenticatedSessions.IsValid(headerToken))
-        {
-            return true;
-        }
-
-        var apiKey = this.Request.Headers["X-Api-Key"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("apikey", out var qKey))
+        var apiKey = this.Request?.Headers?["X-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request?.Query != null && this.Request.Query.TryGetValue("apikey", out var qKey))
         {
             apiKey = qKey.FirstOrDefault();
         }
@@ -178,6 +252,20 @@ public class FloodApiController : ControllerBase
             SameSite = SameSiteMode.Lax,
         });
 
+        this.Response.Cookies.Append("jwt", token, new CookieOptions
+        {
+            Path = "/",
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+        });
+
+        this.Response.Cookies.Append("token", token, new CookieOptions
+        {
+            Path = "/",
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+        });
+
         return this.Ok(new { success = true });
     }
 
@@ -192,6 +280,16 @@ public class FloodApiController : ControllerBase
             authenticatedSessions.RemoveSession(token);
         }
 
+        if (this.Request.Cookies.TryGetValue("jwt", out var jwtToken) && !string.IsNullOrWhiteSpace(jwtToken))
+        {
+            authenticatedSessions.RemoveSession(jwtToken);
+        }
+
+        if (this.Request.Cookies.TryGetValue("token", out var tToken) && !string.IsNullOrWhiteSpace(tToken))
+        {
+            authenticatedSessions.RemoveSession(tToken);
+        }
+
         var headerToken = this.Request.Headers["X-Flood-Auth"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(headerToken))
         {
@@ -199,6 +297,8 @@ public class FloodApiController : ControllerBase
         }
 
         this.Response.Cookies.Delete("flood-auth");
+        this.Response.Cookies.Delete("jwt");
+        this.Response.Cookies.Delete("token");
         return this.Ok(new { success = true });
     }
 
