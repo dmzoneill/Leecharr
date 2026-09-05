@@ -77,7 +77,7 @@ public class AllDownloadClientTests : IntegrationTestBase
         var tokenResponse = await this.Client.GetAsync("/gui/token.html");
         tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var tokenHtml = await tokenResponse.Content.ReadAsStringAsync();
-        tokenHtml.Should().Contain("LEECHARR_UTORRENT_AUTH_TOKEN");
+        tokenHtml.Should().Contain("<div id=\"token\">");
 
         var listResponse = await this.Client.GetAsync("/gui/?list=1");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
