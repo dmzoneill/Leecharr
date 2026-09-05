@@ -54,12 +54,15 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             var ignoreSlow = this.configService.IgnoreSlowTorrents;
             var slowDownThreshold = this.configService.SlowTorrentDownloadRateThreshold;
             var slowUpThreshold = this.configService.SlowTorrentUploadRateThreshold;
+            var slowDownThresholdBytes = slowDownThreshold * 1024L;
+            var slowUpThresholdBytes = slowUpThreshold * 1024L;
             var queueStalledEnabled = this.configService.QueueStalledEnabled;
             var queueStalledMinutes = this.configService.QueueStalledMinutes;
             var idleSeedingLimitMinutes = this.configService.IdleSeedingLimitMinutes;
 
             var allTorrents = this.torrentRepository.All()
-                .OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : t.Id)
+                .OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : int.MaxValue)
+                .ThenBy(t => t.Id)
                 .ToList();
 
             if (allTorrents.Count == 0)
@@ -97,7 +100,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         torrent.LastActive = DateTime.UtcNow;
                     }
 
-                    var isSlow = ignoreSlow && task != null && task.DownloadSpeed < slowDownThreshold;
+                    var isSlow = ignoreSlow &&
+                                 torrent.Status == TorrentStatus.Downloading &&
+                                 task != null &&
+                                 task.DownloadSpeed < slowDownThresholdBytes;
 
                     var isStalled = (task != null && task.IsStalled) ||
                                     (queueStalledEnabled &&
@@ -186,7 +192,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         torrent.LastActive = DateTime.UtcNow;
                     }
 
-                    var isSlow = ignoreSlow && task != null && task.UploadSpeed < slowUpThreshold;
+                    var isSlow = ignoreSlow &&
+                                 torrent.Status == TorrentStatus.Seeding &&
+                                 task != null &&
+                                 task.UploadSpeed < slowUpThresholdBytes;
 
                     var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
                                        uploadSpeed == 0 &&
