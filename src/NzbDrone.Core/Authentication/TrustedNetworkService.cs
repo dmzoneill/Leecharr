@@ -15,14 +15,14 @@ public class TrustedNetworkService : ITrustedNetworkService
             return false;
         }
 
-        if (IPAddress.IsLoopback(remoteIp))
-        {
-            return true;
-        }
-
         if (remoteIp.IsIPv4MappedToIPv6)
         {
             remoteIp = remoteIp.MapToIPv4();
+        }
+
+        if (IPAddress.IsLoopback(remoteIp))
+        {
+            return true;
         }
 
         if (remoteIp.AddressFamily == AddressFamily.InterNetwork)
@@ -82,6 +82,11 @@ public class TrustedNetworkService : ITrustedNetworkService
         if (remoteIp == null)
         {
             return false;
+        }
+
+        if (remoteIp.IsIPv4MappedToIPv6)
+        {
+            remoteIp = remoteIp.MapToIPv4();
         }
 
         // Loopback is always trusted
@@ -163,6 +168,16 @@ public class TrustedNetworkService : ITrustedNetworkService
             else
             {
                 var targetIp = IPAddress.Parse(cidr);
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                }
+
+                if (targetIp.IsIPv4MappedToIPv6)
+                {
+                    targetIp = targetIp.MapToIPv4();
+                }
+
                 return ip.Equals(targetIp);
             }
         }
