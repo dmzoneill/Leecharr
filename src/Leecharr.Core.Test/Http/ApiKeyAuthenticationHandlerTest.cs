@@ -77,6 +77,30 @@ public class ApiKeyAuthenticationHandlerTest
     }
 
     [Test]
+    public async Task AuthenticateAsync_WithValidAccessTokenInQuery_ReturnsSuccess()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
+        this.httpContext.Request.QueryString = new QueryString("?access_token=test-secret-key");
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WithValidApiKey2InQuery_ReturnsSuccess()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
+        this.httpContext.Request.QueryString = new QueryString("?api_key=test-secret-key");
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Test]
     public async Task AuthenticateAsync_WithInvalidApiKey_ReturnsFail()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
