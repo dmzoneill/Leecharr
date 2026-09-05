@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using NLog;
 using Polly;
 using Polly.Retry;
+using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Notifications;
 
@@ -25,13 +26,15 @@ public class WebhookDispatcher : IWebhookDispatcher
     private readonly AsyncRetryPolicy<HttpResponseMessage> retryPolicy;
     private readonly Logger logger;
 
-    public WebhookDispatcher()
-        : this(new HttpClient { Timeout = TimeSpan.FromSeconds(10) }, null)
+    public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null)
+        : this(
+            httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(10) } : new HttpClient { Timeout = TimeSpan.FromSeconds(10) }),
+            null)
     {
     }
 
     public WebhookDispatcher(HttpClient httpClient)
-        : this(httpClient, null)
+        : this(null, httpClient)
     {
     }
 
