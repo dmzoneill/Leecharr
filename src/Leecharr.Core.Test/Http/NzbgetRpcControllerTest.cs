@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -248,5 +250,99 @@ public class NzbgetRpcControllerTest
         using var resDoc = JsonDocument.Parse(json);
         resDoc.RootElement.TryGetProperty("error", out var errorElem).Should().BeTrue();
         errorElem.GetProperty("message").GetString().Should().Contain("HTTP 404 Not Found");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Version_ReturnsXmlRpcVersion()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>version</methodName></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.ContentType.Should().Be("text/xml; charset=utf-8");
+        contentResult.Content.Should().Contain("<value><string>24.0</string></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Status_ReturnsXmlRpcStatus()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>status</methodName></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.configService.DownloadDir.Returns("/downloads");
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(524288000000L);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.ContentType.Should().Be("text/xml; charset=utf-8");
+        contentResult.Content.Should().Contain("<name>FreeDiskSpaceMB</name>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Append_WithMagnet_CallsAddFromMagnetAsync()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Test";
+        var expectedTorrent = new Torrent { Id = 42, Name = "Test" };
+        this.torrentService.AddFromMagnetAsync(magnetUri, "tv", null, false).Returns(Task.FromResult(expectedTorrent));
+
+        var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>{magnetUri}</string></value></param><param><value><string></string></value></param><param><value><string>tv</string></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><int>42</int></value>");
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnetUri, "tv", null, false);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Append_WithBase64_CallsAddFromParsedTorrentAsync()
+    {
+        var rawBytes = new byte[] { 10, 20, 30 };
+        var base64 = Convert.ToBase64String(rawBytes);
+        var parsedTorrent = new ParsedTorrent { InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Base64Torrent" };
+        var expectedTorrent = new Torrent { Id = 77, Name = "Base64Torrent" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.Length == 3)).Returns(parsedTorrent);
+        this.torrentService.AddFromParsedTorrentAsync(parsedTorrent, "anime", null, true, Arg.Is<byte[]>(b => b.Length == 3)).Returns(Task.FromResult(expectedTorrent));
+
+        var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>file.nzb</string></value></param><param><value><string>{base64}</string></value></param><param><value><string>anime</string></value></param><param><value><int>0</int></value></param><param><value><boolean>0</boolean></value></param><param><value><boolean>1</boolean></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><int>77</int></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_Pause_CallsPauseAsync()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>grouppause</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>101</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
+        await this.torrentService.Received(1).PauseAsync(101);
     }
 }
