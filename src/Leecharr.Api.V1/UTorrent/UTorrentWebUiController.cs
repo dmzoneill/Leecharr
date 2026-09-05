@@ -108,47 +108,46 @@ public class UTorrentWebUiController : ControllerBase
         [FromQuery] string download_dir,
         [FromQuery] string token)
     {
+        var effAction = !string.IsNullOrWhiteSpace(action) ? action : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("action") ? this.Request.Form["action"].ToString() : null);
+        var effHash = !string.IsNullOrWhiteSpace(hash) ? hash : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("hash") ? this.Request.Form["hash"].ToString() : null);
+        var effS = !string.IsNullOrWhiteSpace(s) ? s : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("s") ? this.Request.Form["s"].ToString() : null);
+        var effV = !string.IsNullOrWhiteSpace(v) ? v : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("v") ? this.Request.Form["v"].ToString() : null);
+        var effLabel = !string.IsNullOrWhiteSpace(label) ? label : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("label") ? this.Request.Form["label"].ToString() : null);
+        var effPath = !string.IsNullOrWhiteSpace(path) ? path : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("path") ? this.Request.Form["path"].ToString() : null);
+        var effDownloadDir = !string.IsNullOrWhiteSpace(download_dir) ? download_dir : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("download_dir") ? this.Request.Form["download_dir"].ToString() : null);
+        var effToken = !string.IsNullOrWhiteSpace(token) ? token : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("token") ? this.Request.Form["token"].ToString() : null);
+        var effList = !string.IsNullOrWhiteSpace(list) ? list : (this.Request.HasFormContentType && this.Request.Form.ContainsKey("list") ? this.Request.Form["list"].ToString() : null);
+
         var isApiAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
-        var isTokenValid = this.ValidateToken(token);
+        var isTokenValid = this.ValidateToken(effToken);
 
         if (!isApiAuth && !isTokenValid)
         {
             return this.BadRequest("invalid request");
         }
 
-        if (!string.IsNullOrWhiteSpace(action))
+        if (!string.IsNullOrWhiteSpace(effAction))
         {
-            if (MutatingActions.Contains(action) && !HttpMethods.IsPost(this.Request.Method))
+            if (MutatingActions.Contains(effAction) && !HttpMethods.IsPost(this.Request.Method))
             {
                 return this.StatusCode(StatusCodes.Status405MethodNotAllowed, "State-mutating actions must be performed using HTTP POST.");
             }
 
-            var targetCategory = !string.IsNullOrWhiteSpace(label) ? label : (this.Request.HasFormContentType && this.Request.Form.TryGetValue("label", out var labelVal) && !string.IsNullOrWhiteSpace(labelVal.ToString()) ? labelVal.ToString() : null);
-            var targetDir = !string.IsNullOrWhiteSpace(download_dir) ? download_dir : (!string.IsNullOrWhiteSpace(path) ? path : null);
-            if (string.IsNullOrWhiteSpace(targetDir) && this.Request.HasFormContentType)
-            {
-                if (this.Request.Form.TryGetValue("download_dir", out var dirVal) && !string.IsNullOrWhiteSpace(dirVal.ToString()))
-                {
-                    targetDir = dirVal.ToString();
-                }
-                else if (this.Request.Form.TryGetValue("path", out var pathVal) && !string.IsNullOrWhiteSpace(pathVal.ToString()))
-                {
-                    targetDir = pathVal.ToString();
-                }
-            }
+            var targetCategory = !string.IsNullOrWhiteSpace(effLabel) ? effLabel : null;
+            var targetDir = !string.IsNullOrWhiteSpace(effDownloadDir) ? effDownloadDir : (!string.IsNullOrWhiteSpace(effPath) ? effPath : null);
 
-            switch (action.ToLowerInvariant())
+            switch (effAction.ToLowerInvariant())
             {
                 case "add-url":
-                    if (!string.IsNullOrWhiteSpace(s))
+                    if (!string.IsNullOrWhiteSpace(effS))
                     {
-                        if (s.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                        if (effS.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
-                            await this.torrentService.AddFromMagnetAsync(s, targetCategory, targetDir, false);
+                            await this.torrentService.AddFromMagnetAsync(effS, targetCategory, targetDir, false);
                         }
                         else
                         {
-                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(s);
+                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(effS);
                             var parsed = this.torrentFileParser.Parse(bytes);
                             await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                         }
@@ -172,9 +171,9 @@ public class UTorrentWebUiController : ControllerBase
                 case "start":
                 case "unpause":
                 case "forcestart":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -188,9 +187,9 @@ public class UTorrentWebUiController : ControllerBase
 
                 case "stop":
                 case "pause":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -203,9 +202,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "remove":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -219,9 +218,9 @@ public class UTorrentWebUiController : ControllerBase
 
                 case "removedata":
                 case "removedatatorrent":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -234,9 +233,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "recheck":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in hash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -249,9 +248,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "setprio":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var target = this.torrentService.GetByInfoHash(hash.Trim());
+                        var target = this.torrentService.GetByInfoHash(effHash.Trim());
                         var pVal = this.Request.Query["p"].ToString();
                         var fVal = this.Request.Query["f"].ToString();
                         if (string.IsNullOrEmpty(pVal) && this.Request.HasFormContentType)
@@ -277,28 +276,28 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "setprops":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
-                            if (string.Equals(s, "label", StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(effS, "label", StringComparison.OrdinalIgnoreCase))
                             {
-                                t.Category = v ?? string.Empty;
+                                t.Category = effV ?? string.Empty;
                             }
-                            else if (string.Equals(s, "seed_ratio", StringComparison.OrdinalIgnoreCase) && double.TryParse(v, out var rVal))
+                            else if (string.Equals(effS, "seed_ratio", StringComparison.OrdinalIgnoreCase) && double.TryParse(effV, out var rVal))
                             {
                                 t.TargetRatio = rVal / 1000.0;
                             }
-                            else if (string.Equals(s, "seed_time", StringComparison.OrdinalIgnoreCase) && long.TryParse(v, out var stVal))
+                            else if (string.Equals(effS, "seed_time", StringComparison.OrdinalIgnoreCase) && long.TryParse(effV, out var stVal))
                             {
                                 t.TargetSeedTimeMinutes = (int)(stVal / 60);
                             }
-                            else if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dlVal))
+                            else if ((string.Equals(effS, "dlrate", StringComparison.OrdinalIgnoreCase) || string.Equals(effS, "max_dl_rate", StringComparison.OrdinalIgnoreCase)) && int.TryParse(effV, out var dlVal))
                             {
                                 t.DownloadLimit = dlVal > 0 ? dlVal / 1024 : 0;
                             }
-                            else if (string.Equals(s, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var ulVal))
+                            else if ((string.Equals(effS, "ulrate", StringComparison.OrdinalIgnoreCase) || string.Equals(effS, "max_ul_rate", StringComparison.OrdinalIgnoreCase)) && int.TryParse(effV, out var ulVal))
                             {
                                 t.UploadLimit = ulVal > 0 ? ulVal / 1024 : 0;
                             }
@@ -310,9 +309,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "getprops":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             return this.Ok(new
@@ -342,9 +341,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.Ok(new { build = 45000, props = Array.Empty<object>() });
 
                 case "getfiles":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             var files = this.torrentFileService.GetFiles(t.Id).ToList();
@@ -369,9 +368,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.Ok(new { build = 45000, files = Array.Empty<object>() });
 
                 case "queueup":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "up");
@@ -381,9 +380,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "queuedown":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "down");
@@ -393,9 +392,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "queuetop":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "top");
@@ -405,9 +404,9 @@ public class UTorrentWebUiController : ControllerBase
                     return this.BuildTorrentListResponse();
 
                 case "queuebottom":
-                    if (!string.IsNullOrWhiteSpace(hash))
+                    if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
+                        var t = this.torrentService.GetByInfoHash(effHash);
                         if (t != null)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "bottom");
@@ -430,24 +429,24 @@ public class UTorrentWebUiController : ControllerBase
                     });
 
                 case "setsetting":
-                    if (!string.IsNullOrWhiteSpace(s))
+                    if (!string.IsNullOrWhiteSpace(effS))
                     {
                         var dict = new Dictionary<string, object>();
-                        if (string.Equals(s, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var dl))
+                        if (string.Equals(effS, "max_dl_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(effV, out var dl))
                         {
                             dict["MaxDownloadSpeedKbps"] = dl;
                         }
-                        else if (string.Equals(s, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(v, out var ul))
+                        else if (string.Equals(effS, "max_ul_rate", StringComparison.OrdinalIgnoreCase) && int.TryParse(effV, out var ul))
                         {
                             dict["MaxUploadSpeedKbps"] = ul;
                         }
-                        else if (string.Equals(s, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(effS, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
                         {
-                            dict["DownloadDir"] = v;
+                            dict["DownloadDir"] = effV;
                         }
-                        else if (string.Equals(s, "dir_active_download", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(effS, "dir_active_download", StringComparison.OrdinalIgnoreCase))
                         {
-                            dict["IncompleteDownloadDir"] = v;
+                            dict["IncompleteDownloadDir"] = effV;
                         }
 
                         if (dict.Count > 0)
