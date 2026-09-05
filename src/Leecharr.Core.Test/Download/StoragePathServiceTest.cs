@@ -324,4 +324,46 @@ public class StoragePathServiceTest
 
         result.Should().Be(Path.Combine("/config", "downloads"));
     }
+
+    [Test]
+    public void MoveToCompleted_WhenSourcePathIsRootIncompleteDirectory_ReturnsFalseWithoutMoving()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var success = this.storagePathService.MoveToCompleted(
+            "/downloads/incomplete",
+            "tv",
+            "SingleFileMovie.mkv",
+            out var finalDestination);
+
+        success.Should().BeFalse();
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenSourceIsFileWithIncompleteExtensionOnDisk_MovesAndStripsExtension()
+    {
+        var source = "/downloads/incomplete/Movie.mkv";
+        var sourceWithExt = "/downloads/incomplete/Movie.mkv.!mt";
+        var dest = "/downloads/tv/Movie.mkv";
+
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(sourceWithExt).Returns(true);
+
+        var success = this.storagePathService.MoveToCompleted(source, "tv", "Movie.mkv", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(dest);
+        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
+    }
 }

@@ -1548,6 +1548,7 @@ public class MonoTorrentDownloadEngineTest
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         var customPath = Path.Combine(Path.GetTempPath(), "leecharr_custom_tv_" + Guid.NewGuid().ToString("N"));
+        this.storagePathService.GetCompletedDirectory("tv").Returns(customPath);
         string tvMovedDest;
         this.storagePathService
             .MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out tvMovedDest)
@@ -1664,6 +1665,72 @@ public class MonoTorrentDownloadEngineTest
             e.Torrent.Category == null &&
             e.Torrent.SavePath == this.testDownloadDir &&
             e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_SingleFileTorrent_DoesNotPassIncompleteDirectoryAsSourcePath()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("SingleFileMovie.mkv");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        string expectedSourcePath = Path.Combine(this.testIncompleteDir, "SingleFileMovie.mkv");
+        string capturedSource = null;
+        string movedDest;
+
+        this.storagePathService
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "SingleFileMovie.mkv", out movedDest)
+            .Returns(x =>
+            {
+                x[3] = Path.Combine(this.testDownloadDir, "SingleFileMovie.mkv");
+                return true;
+            });
+
+        var torrent = new CoreTorrent
+        {
+            Id = 113,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "SingleFileMovie.mkv",
+            Status = TorrentStatus.Stopped,
+            Category = "movies",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.OnTorrentCompletedAsync(113, torrent.InfoHash, task.Manager);
+
+        capturedSource.Should().Be(expectedSourcePath);
+        capturedSource.Should().NotBe(this.testIncompleteDir);
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_MultiFileTorrent_PassesContainingDirectoryAsSourcePath()
+    {
+        var torrentBytes = CreateSampleMultiFileTorrentBytes("MultiSeasonFolder");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        string capturedSource = null;
+        string movedDest;
+
+        this.storagePathService
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "tv", "MultiSeasonFolder", out movedDest)
+            .Returns(x =>
+            {
+                x[3] = Path.Combine(this.testDownloadDir, "MultiSeasonFolder");
+                return true;
+            });
+
+        var torrent = new CoreTorrent
+        {
+            Id = 114,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "MultiSeasonFolder",
+            Status = TorrentStatus.Stopped,
+            Category = "tv",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.OnTorrentCompletedAsync(114, torrent.InfoHash, task.Manager);
+
+        capturedSource.Should().Be(Path.Combine(this.testIncompleteDir, "MultiSeasonFolder"));
     }
 
     [Test]
