@@ -294,7 +294,7 @@ public class NzbgetRpcControllerTest
         var expectedTorrent = new Torrent { Id = 42, Name = "Test" };
         this.torrentService.AddFromMagnetAsync(magnetUri, "tv", null, false).Returns(Task.FromResult(expectedTorrent));
 
-        var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>{magnetUri}</string></value></param><param><value><string></string></value></param><param><value><string>tv</string></value></param></params></methodCall>";
+        var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>{System.Security.SecurityElement.Escape(magnetUri)}</string></value></param><param><value><string></string></value></param><param><value><string>tv</string></value></param></params></methodCall>";
         var context = new DefaultHttpContext();
         context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
