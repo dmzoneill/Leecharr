@@ -162,7 +162,7 @@ public class DelugeJsonRpcController : ControllerBase
                     loginSuccess = true;
                 }
                 else if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-                         string.Equals(providedPassword, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                         RpcAuthenticationHelper.FixedTimeEquals(providedPassword, this.configFileProvider.ApiKey))
                 {
                     loginSuccess = true;
                 }
