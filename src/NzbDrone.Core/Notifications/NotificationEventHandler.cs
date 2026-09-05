@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -574,17 +575,56 @@ public class NotificationEventHandler :
         return text.Replace("_", "\\_").Replace("*", "\\*").Replace("[", "\\[").Replace("]", "\\]").Replace("`", "\\`");
     }
 
+    private static string ExtractMessage(object payload, string fallback)
+    {
+        if (payload == null)
+        {
+            return fallback;
+        }
+
+        if (payload is string s && !string.IsNullOrWhiteSpace(s))
+        {
+            return s;
+        }
+
+        if (payload is Dictionary<string, object> dict)
+        {
+            if (dict.TryGetValue("Message", out var m1) && m1 != null)
+            {
+                var str1 = m1.ToString();
+                if (!string.IsNullOrWhiteSpace(str1))
+                {
+                    return str1;
+                }
+            }
+
+            if (dict.TryGetValue("message", out var m2) && m2 != null)
+            {
+                var str2 = m2.ToString();
+                if (!string.IsNullOrWhiteSpace(str2))
+                {
+                    return str2;
+                }
+            }
+        }
+
+        var prop = payload.GetType().GetProperty("Message", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        var value = prop?.GetValue(payload)?.ToString();
+
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
     private static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
         var (chatId, token, user) = ExtractProviderSettings(settings);
-        var torrentName = torrent?.Name ?? (genericPayload as dynamic)?.Message ?? eventType;
+        var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
 
         if (string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
             var title = $"[{eventType}] {torrentName}";
             var desc = meta?.Overview ?? (torrent != null
                 ? $"Category: {torrent.Category ?? "None"} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : (genericPayload as dynamic)?.Message ?? $"Event: {eventType}");
+                : ExtractMessage(genericPayload, $"Event: {eventType}"));
 
             return new
             {
@@ -606,7 +646,7 @@ public class NotificationEventHandler :
         {
             var text = torrent != null
                 ? $"*Leecharr [{EscapeMarkdown(eventType)}]*\n*{EscapeMarkdown(torrent.Name)}*\nCategory: {EscapeMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}"
-                : $"*Leecharr [{EscapeMarkdown(eventType)}]*\n{EscapeMarkdown((genericPayload as dynamic)?.Message ?? eventType)}";
+                : $"*Leecharr [{EscapeMarkdown(eventType)}]*\n{EscapeMarkdown(ExtractMessage(genericPayload, eventType))}";
 
             var payloadDict = new Dictionary<string, object>
             {
@@ -627,7 +667,7 @@ public class NotificationEventHandler :
             return new
             {
                 title = $"Leecharr: {eventType}",
-                message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType),
+                message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType),
                 priority = 5,
             };
         }
@@ -637,7 +677,7 @@ public class NotificationEventHandler :
             var payloadDict = new Dictionary<string, object>
             {
                 ["title"] = $"Leecharr: {eventType}",
-                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ((genericPayload as dynamic)?.Message ?? eventType),
+                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType),
             };
 
             if (!string.IsNullOrEmpty(token))
@@ -725,11 +765,11 @@ public class NotificationEventHandler :
                 return;
             }
 
-            var torrentName = torrent?.Name ?? (genericPayload as dynamic)?.Message ?? eventType;
+            var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
             var subject = $"[Leecharr] [{eventType}] {torrentName}";
             var body = meta?.Overview ?? (torrent != null
                 ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : (genericPayload as dynamic)?.Message ?? $"Event: {eventType}");
+                : ExtractMessage(genericPayload, $"Event: {eventType}"));
 
             using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
             using var client = new System.Net.Mail.SmtpClient(host, port)
