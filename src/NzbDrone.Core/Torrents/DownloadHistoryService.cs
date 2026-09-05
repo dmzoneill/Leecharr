@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Categories;
+using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Trackers;
@@ -22,6 +25,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly IDownloadEngine downloadEngine;
     private readonly IEventAggregator eventAggregator;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly ICategoryService categoryService;
+    private readonly IStoragePathService storagePathService;
+    private readonly ITorrentFileParser torrentFileParser;
+    private readonly ITorrentFileRepository fileRepository;
+    private readonly IConfigService configService;
     private readonly Logger logger;
 
     public DownloadHistoryService(
@@ -30,7 +38,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         ITrackerEntryRepository trackerEntryRepository,
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        ICategoryService categoryService = null,
+        IStoragePathService storagePathService = null,
+        ITorrentFileParser torrentFileParser = null,
+        ITorrentFileRepository fileRepository = null,
+        IConfigService configService = null)
     {
         this.historyRepository = historyRepository;
         this.torrentRepository = torrentRepository;
@@ -38,6 +51,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         this.downloadEngine = downloadEngine;
         this.eventAggregator = eventAggregator;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.categoryService = categoryService;
+        this.storagePathService = storagePathService;
+        this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
+        this.fileRepository = fileRepository;
+        this.configService = configService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -238,40 +256,36 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             throw new InvalidOperationException($"Torrent with info hash {entry.InfoHash} is already in the active library");
         }
 
-        var torrent = new Torrent
+        // 1. Resolve effective category - do not blindly assign entry.Source (which is tracker/indexer attribution)
+        string effectiveCategory = null;
+        if (!string.IsNullOrWhiteSpace(entry.Source) && this.categoryService != null)
         {
-            Name = entry.Title,
-            InfoHash = entry.InfoHash,
-            TotalSize = entry.TotalSize,
-            Status = TorrentStatus.Queued,
-            DateAdded = DateTime.UtcNow,
-            Uploaded = entry.Uploaded,
-            Downloaded = entry.Downloaded,
-            Ratio = entry.Ratio,
-            Category = entry.Source,
-            TrackerUrl = entry.PrimaryTracker,
-        };
-
-        var all = this.torrentRepository.All().ToList();
-        torrent.Priority = all.Count > 0 ? all.Max(t => t.Priority) + 1 : 0;
-
-        var added = this.torrentRepository.Insert(torrent);
-
-        if (!string.IsNullOrWhiteSpace(entry.PrimaryTracker))
-        {
-            this.trackerEntryRepository.Insert(new TrackerEntry
+            var matchedCat = this.categoryService.GetByName(entry.Source);
+            if (matchedCat != null && string.Equals(matchedCat.Name, entry.Source, StringComparison.OrdinalIgnoreCase))
             {
-                TorrentId = added.Id,
-                Url = entry.PrimaryTracker,
-                Tier = 0,
-                Enabled = true,
-            });
+                effectiveCategory = matchedCat.Name;
+            }
         }
 
-        entry.TorrentId = added.Id;
-        entry.Status = "Active";
-        entry.DateRemoved = null;
-        this.historyRepository.Update(entry);
+        if (string.IsNullOrWhiteSpace(effectiveCategory))
+        {
+            effectiveCategory = this.configService?.DefaultCategory;
+            if (string.IsNullOrWhiteSpace(effectiveCategory) && this.categoryService != null)
+            {
+                effectiveCategory = this.categoryService.GetDefault()?.Name;
+            }
+        }
+
+        // 2. Resolve SavePath
+        var defaultDownloadDir = this.configService?.DownloadDir ?? "/downloads";
+        var effectiveSavePath = this.categoryService != null
+            ? this.categoryService.GetSavePathForCategory(effectiveCategory, defaultDownloadDir)
+            : defaultDownloadDir;
+
+        if (string.IsNullOrWhiteSpace(effectiveSavePath))
+        {
+            effectiveSavePath = defaultDownloadDir;
+        }
 
         byte[] torrentBytes = null;
         var magnetUri = entry.MagnetUrl;
@@ -292,17 +306,17 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Warn(ex, "Failed to download .torrent from {0} for re-added historical torrent {1}", entry.DownloadUrl, added.Id);
+                        this.logger.Warn(ex, "Failed to download .torrent from {0} for re-added historical torrent with info hash {1}", entry.DownloadUrl, entry.InfoHash);
                     }
                 }
             }
 
-            if ((torrentBytes == null || torrentBytes.Length == 0) && string.IsNullOrWhiteSpace(magnetUri) && !string.IsNullOrWhiteSpace(added.InfoHash))
+            if ((torrentBytes == null || torrentBytes.Length == 0) && string.IsNullOrWhiteSpace(magnetUri) && !string.IsNullOrWhiteSpace(entry.InfoHash))
             {
                 try
                 {
                     var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                    var filePath = Path.Combine(appData, "Torrents", $"{added.InfoHash.ToLowerInvariant()}.torrent");
+                    var filePath = Path.Combine(appData, "Torrents", $"{entry.InfoHash.ToLowerInvariant()}.torrent");
                     if (File.Exists(filePath))
                     {
                         torrentBytes = await File.ReadAllBytesAsync(filePath);
@@ -310,7 +324,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn(ex, "Failed to read cached .torrent file for {0}", added.InfoHash);
+                    this.logger.Warn(ex, "Failed to read cached .torrent file for {0}", entry.InfoHash);
                 }
             }
 
@@ -324,20 +338,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                         magnetBuilder.Append($"&dn={Uri.EscapeDataString(entry.Title)}");
                     }
 
-                    var trackers = (this.trackerEntryRepository?.GetByTorrentId(added.Id) ?? Enumerable.Empty<TrackerEntry>())
-                        .Select(t => t.Url)
-                        .Where(u => !string.IsNullOrWhiteSpace(u))
-                        .Distinct()
-                        .ToList();
-
-                    if (trackers.Count == 0 && !string.IsNullOrWhiteSpace(entry.PrimaryTracker))
+                    if (!string.IsNullOrWhiteSpace(entry.PrimaryTracker))
                     {
-                        trackers.Add(entry.PrimaryTracker);
-                    }
-
-                    foreach (var tracker in trackers)
-                    {
-                        magnetBuilder.Append($"&tr={Uri.EscapeDataString(tracker)}");
+                        magnetBuilder.Append($"&tr={Uri.EscapeDataString(entry.PrimaryTracker)}");
                     }
 
                     magnetUri = magnetBuilder.ToString();
@@ -345,6 +348,195 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             }
         }
 
+        // 3. Parse torrent bytes if available
+        ParsedTorrent parsed = null;
+        if (torrentBytes != null && torrentBytes.Length > 0 && this.torrentFileParser != null)
+        {
+            try
+            {
+                parsed = this.torrentFileParser.Parse(torrentBytes);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to parse .torrent bytes for {0}", entry.InfoHash);
+            }
+        }
+
+        // 4. Check if files already exist on disk or entry was completed
+        var filesExistOnDisk = false;
+        if (parsed?.Files != null && parsed.Files.Count > 0 && !string.IsNullOrWhiteSpace(effectiveSavePath))
+        {
+            try
+            {
+                filesExistOnDisk = parsed.Files.All(f =>
+                {
+                    var fullPath = Path.Combine(effectiveSavePath, f.Path);
+                    return File.Exists(fullPath) && (f.Size <= 0 || new FileInfo(fullPath).Length == f.Size);
+                });
+            }
+            catch
+            {
+                filesExistOnDisk = false;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(effectiveSavePath) && !string.IsNullOrWhiteSpace(entry.Title))
+        {
+            try
+            {
+                var directPath = Path.Combine(effectiveSavePath, entry.Title);
+                filesExistOnDisk = File.Exists(directPath) || Directory.Exists(directPath);
+            }
+            catch
+            {
+                filesExistOnDisk = false;
+            }
+        }
+
+        var isCompleted = string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase)
+            || entry.DateCompleted.HasValue
+            || (entry.TotalSize > 0 && entry.Downloaded >= entry.TotalSize)
+            || filesExistOnDisk;
+
+        var name = parsed?.Name ?? entry.Title ?? "Unknown Release";
+        var infoHash = (parsed?.InfoHash ?? entry.InfoHash ?? string.Empty).ToLowerInvariant();
+        var totalSize = parsed?.TotalSize > 0 ? parsed.TotalSize : entry.TotalSize;
+        var status = isCompleted ? TorrentStatus.Seeding : TorrentStatus.Downloading;
+        var progress = isCompleted ? 1.0 : (totalSize > 0 && entry.Downloaded > 0 ? Math.Min(1.0, (double)entry.Downloaded / totalSize) : 0.0);
+        var downloaded = isCompleted && entry.Downloaded <= 0 ? totalSize : entry.Downloaded;
+        var dateCompleted = isCompleted ? (entry.DateCompleted ?? DateTime.UtcNow) : null;
+
+        var torrent = new Torrent
+        {
+            Name = name,
+            InfoHash = infoHash,
+            TotalSize = totalSize,
+            PieceCount = parsed?.PieceCount ?? 0,
+            PieceLength = parsed?.PieceLength ?? 0,
+            Comment = parsed?.Comment,
+            CreatedBy = parsed?.CreatedBy,
+            CreationDate = parsed?.CreationDate,
+            IsPrivate = parsed?.IsPrivate ?? false,
+            Status = status,
+            Progress = progress,
+            DateAdded = DateTime.UtcNow,
+            DateCompleted = dateCompleted,
+            Uploaded = entry.Uploaded,
+            Downloaded = downloaded,
+            Ratio = entry.Ratio,
+            Category = effectiveCategory,
+            SavePath = effectiveSavePath,
+            TrackerUrl = parsed?.AnnounceUrl ?? entry.PrimaryTracker,
+            TagIds = new List<int>(),
+        };
+
+        var all = this.torrentRepository.All().ToList();
+        torrent.Priority = all.Count > 0 ? all.Max(t => t.Priority) + 1 : 0;
+        torrent.QueuePosition = all.Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1;
+
+        var added = this.torrentRepository.Insert(torrent);
+
+        // 5. Insert torrent file records if parsed
+        if (parsed?.Files != null && this.fileRepository != null)
+        {
+            var pieceLength = Math.Max(1, parsed.PieceLength);
+            long currentByteOffset = 0;
+            var torrentFiles = new List<TorrentFile>();
+            foreach (var file in parsed.Files)
+            {
+                var startPiece = (int)(currentByteOffset / pieceLength);
+                var endByte = currentByteOffset + file.Size - 1;
+                var endPiece = file.Size > 0 ? (int)(endByte / pieceLength) : startPiece;
+                var pieceCount = file.Size > 0 ? (endPiece - startPiece + 1) : 0;
+
+                var torrentFile = new TorrentFile
+                {
+                    TorrentId = added.Id,
+                    Path = file.Path,
+                    Size = file.Size,
+                    PieceOffset = startPiece,
+                    PieceCount = pieceCount,
+                    Priority = 1,
+                    Progress = isCompleted ? 1.0 : 0.0,
+                };
+                torrentFiles.Add(torrentFile);
+                currentByteOffset += file.Size;
+            }
+
+            if (torrentFiles.Count > 0)
+            {
+                this.fileRepository.InsertMany(torrentFiles);
+            }
+        }
+
+        // 6. Insert trackers
+        if (this.trackerEntryRepository != null)
+        {
+            if (parsed?.AnnounceList != null && parsed.AnnounceList.Count > 0)
+            {
+                var trackerEntries = new List<TrackerEntry>();
+                for (var tier = 0; tier < parsed.AnnounceList.Count; tier++)
+                {
+                    foreach (var url in parsed.AnnounceList[tier])
+                    {
+                        if (!string.IsNullOrWhiteSpace(url))
+                        {
+                            trackerEntries.Add(new TrackerEntry
+                            {
+                                TorrentId = added.Id,
+                                Url = url,
+                                Tier = tier,
+                                Enabled = true,
+                                Status = 1,
+                                AnnounceInterval = 1800,
+                                LastAnnounce = added.DateAdded,
+                                NextAnnounce = added.DateAdded.AddSeconds(1800),
+                                TotalAnnounces = 1,
+                                SuccessfulAnnounces = 1,
+                            });
+                        }
+                    }
+                }
+
+                if (trackerEntries.Count > 0)
+                {
+                    this.trackerEntryRepository.InsertMany(trackerEntries);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+            {
+                this.trackerEntryRepository.Insert(new TrackerEntry
+                {
+                    TorrentId = added.Id,
+                    Url = torrent.TrackerUrl,
+                    Tier = 0,
+                    Enabled = true,
+                    Status = 1,
+                    AnnounceInterval = 1800,
+                    LastAnnounce = added.DateAdded,
+                    NextAnnounce = added.DateAdded.AddSeconds(1800),
+                    TotalAnnounces = 1,
+                    SuccessfulAnnounces = 1,
+                });
+            }
+            else if (!string.IsNullOrWhiteSpace(entry.PrimaryTracker))
+            {
+                this.trackerEntryRepository.Insert(new TrackerEntry
+                {
+                    TorrentId = added.Id,
+                    Url = entry.PrimaryTracker,
+                    Tier = 0,
+                    Enabled = true,
+                    Status = 1,
+                    AnnounceInterval = 1800,
+                    LastAnnounce = added.DateAdded,
+                    NextAnnounce = added.DateAdded.AddSeconds(1800),
+                    TotalAnnounces = 1,
+                    SuccessfulAnnounces = 1,
+                });
+            }
+        }
+
+        // 7. Cache .torrent file
         if (torrentBytes != null && torrentBytes.Length > 0 && !string.IsNullOrWhiteSpace(added.InfoHash))
         {
             try
@@ -360,6 +552,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 this.logger.Warn(ex, "Failed to save re-added .torrent file for {0}", added.InfoHash);
             }
         }
+
+        entry.TorrentId = added.Id;
+        entry.Status = "Active";
+        entry.DateRemoved = null;
+        this.historyRepository.Update(entry);
 
         try
         {
