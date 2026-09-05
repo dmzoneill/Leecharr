@@ -622,7 +622,7 @@ public class Aria2RpcController : ControllerBase
                     var cpGid = cpParams[0].GetString();
                     var cpOffset = cpParams[1].GetInt32();
                     var cpHow = cpParams[2].GetString()?.ToLowerInvariant();
-                    var t = this.torrentService.GetByInfoHash(cpGid);
+                    var t = this.FindByGid(cpGid);
                     if (t != null)
                     {
                         var dir = "down";
@@ -654,7 +654,7 @@ public class Aria2RpcController : ControllerBase
 
                 if (!string.IsNullOrWhiteSpace(gidStr) && this.torrentService != null)
                 {
-                    var t = this.torrentService.GetByInfoHash(gidStr);
+                    var t = this.FindByGid(gidStr);
                     if (t != null && optDictElem.ValueKind == JsonValueKind.Object)
                     {
                         if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && int.TryParse(tdl.GetString(), out var tdlBps))
