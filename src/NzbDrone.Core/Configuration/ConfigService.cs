@@ -655,7 +655,6 @@ public class ConfigService : IConfigService
 
     public string ActiveMediaMetadataProvider => this.GetValue("ActiveMediaMetadataProvider", "ServarrSync");
 
-
     public string ActiveHttpTransportProvider => this.GetValue("ActiveHttpTransportProvider", "SocketsHttpHandler");
 
     public string ActiveGeoIpProvider => this.GetValue("ActiveGeoIpProvider", "MaxMind");
