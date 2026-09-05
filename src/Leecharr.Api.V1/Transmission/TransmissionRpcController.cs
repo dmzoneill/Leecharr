@@ -397,7 +397,12 @@ public class TransmissionRpcController : ControllerBase
 
                             if (request.Arguments.TryGetValue("location", out var locVal) && locVal.ValueKind == JsonValueKind.String)
                             {
-                                t.SavePath = locVal.GetString();
+                                var targetLocation = locVal.GetString();
+                                if (!string.IsNullOrWhiteSpace(targetLocation) && !string.Equals(t.SavePath, targetLocation, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    await this.torrentService.SetLocationAsync(t.Id, targetLocation, moveFiles: true);
+                                    t.SavePath = targetLocation;
+                                }
                             }
 
                             if (request.Arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
