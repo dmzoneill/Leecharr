@@ -696,6 +696,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/pause")]
+    [HttpPost("torrents/stop")]
     public async Task<ActionResult> PauseTorrents([FromForm] string hashes)
     {
         if (string.IsNullOrEmpty(hashes))
@@ -717,6 +718,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/resume")]
+    [HttpPost("torrents/start")]
     public async Task<ActionResult> ResumeTorrents([FromForm] string hashes)
     {
         if (string.IsNullOrEmpty(hashes))
@@ -1584,7 +1586,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             TorrentStatus.Downloading => "downloading",
             TorrentStatus.Seeding => "uploading",
             TorrentStatus.Paused => progress >= 1.0 ? "pausedUP" : "pausedDL",
-            TorrentStatus.Stopped => progress >= 1.0 ? "stoppedUP" : "stoppedDL",
+            TorrentStatus.Stopped => progress >= 1.0 ? "pausedUP" : "pausedDL",
+            TorrentStatus.Completed => progress >= 1.0 ? "pausedUP" : "pausedDL",
             TorrentStatus.Error => "error",
             TorrentStatus.Stalled => progress >= 1.0 ? "stalledUP" : "stalledDL",
             _ => "unknown",
