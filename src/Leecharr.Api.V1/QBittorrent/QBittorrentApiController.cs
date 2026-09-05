@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ namespace Leecharr.Api.V1.QBittorrent;
 [Route("api/v2")]
 public class QBittorrentApiController : ControllerBase, IActionFilter
 {
-    private static readonly ConcurrentDictionary<string, DateTime> authenticatedSessions = new();
+    private static readonly RpcSessionStore authenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -106,7 +107,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            if (authenticatedSessions.TryGetValue(sid, out var expiry) && expiry > DateTime.UtcNow)
+            if (authenticatedSessions.IsValid(sid))
             {
                 return true;
             }
@@ -159,7 +160,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var sid = Guid.NewGuid().ToString("N");
-        authenticatedSessions[sid] = DateTime.UtcNow.AddDays(7);
+        authenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
 
         this.Response.Cookies.Append("SID", sid, new CookieOptions
         {
@@ -174,9 +175,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("auth/logout")]
     public ActionResult Logout()
     {
-        if (this.Request.Cookies.TryGetValue("SID", out var sid))
+        if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            authenticatedSessions.TryRemove(sid, out _);
+            authenticatedSessions.RemoveSession(sid);
         }
 
         this.Response.Cookies.Delete("SID");
