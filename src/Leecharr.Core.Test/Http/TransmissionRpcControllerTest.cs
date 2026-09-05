@@ -661,4 +661,102 @@ public class TransmissionRpcControllerTest
         this.diskProvider.Received(1).GetAvailableSpace("/configured/downloads");
         this.diskProvider.Received(1).GetTotalSize("/configured/downloads");
     }
+
+    [Test]
+    public async Task HandleRpc_SessionGet_ReturnsAlternativeSpeedSettings()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.AlternativeSpeedEnabled.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(500);
+        this.configService.AltUploadSpeedKbps.Returns(100);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["alt-speed-enabled"].Should().Be(true);
+        args["alt-speed-down"].Should().Be(500);
+        args["alt-speed-up"].Should().Be(100);
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionSet_SavesAlternativeSpeedEnabled()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("true");
+        args["alt-speed-enabled"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("AlternativeSpeedEnabled") && (bool)d["AlternativeSpeedEnabled"]));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_WithRecentlyActive_ReturnsActiveAndRemoved()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var activeTorrent = new Torrent { Id = 10, Name = "ActiveTorrent", Status = TorrentStatus.Downloading, DownloadSpeed = 1000 };
+        var stoppedTorrent = new Torrent { Id = 20, Name = "StoppedTorrent", Status = TorrentStatus.Stopped };
+        this.torrentService.GetAll().Returns(new List<Torrent> { activeTorrent, stoppedTorrent });
+
+        TransmissionRpcController.RecordRemovedId(99);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("\"recently-active\"");
+        args["ids"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var responseArgs = response.Arguments as Dictionary<string, object>;
+        responseArgs.Should().NotBeNull();
+        responseArgs!.ContainsKey("removed").Should().BeTrue();
+        var removed = responseArgs["removed"] as List<int>;
+        removed.Should().Contain(99);
+
+        var torrents = responseArgs["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents!.Count.Should().Be(1);
+        torrents[0]["id"].Should().Be(10);
+    }
 }

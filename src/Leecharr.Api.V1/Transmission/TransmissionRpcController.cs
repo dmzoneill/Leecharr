@@ -49,6 +49,9 @@ public class TransmissionRpcResponse
 public class TransmissionRpcController : ControllerBase
 {
     private const string SessionHeaderName = "X-Transmission-Session-Id";
+    private static readonly object RemovedLock = new();
+    private static readonly List<(int Id, DateTime RemovedAt)> RecentlyRemovedList = new();
+
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -58,6 +61,53 @@ public class TransmissionRpcController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    public static void RecordRemovedId(int id)
+    {
+        lock (RemovedLock)
+        {
+            RecentlyRemovedList.Add((id, DateTime.UtcNow));
+            RecentlyRemovedList.RemoveAll(x => (DateTime.UtcNow - x.RemovedAt).TotalMinutes > 10);
+        }
+    }
+
+    public static List<int> GetRecentlyRemovedIds()
+    {
+        lock (RemovedLock)
+        {
+            RecentlyRemovedList.RemoveAll(x => (DateTime.UtcNow - x.RemovedAt).TotalMinutes > 10);
+            return RecentlyRemovedList.Select(x => x.Id).Distinct().ToList();
+        }
+    }
+
+    private static bool IsRecentlyActive(Dictionary<string, JsonElement> arguments)
+    {
+        if (arguments == null)
+        {
+            return false;
+        }
+
+        if (arguments.TryGetValue("ids", out var idsElem))
+        {
+            if (idsElem.ValueKind == JsonValueKind.String && string.Equals(idsElem.GetString(), "recently-active", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (idsElem.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in idsElem.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String && string.Equals(item.GetString(), "recently-active", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
 
     public TransmissionRpcController(
         ITorrentService torrentService,
@@ -151,6 +201,9 @@ public class TransmissionRpcController : ControllerBase
                             { "speed-limit-up", this.configService.MaxUploadSpeedKbps },
                             { "speed-limit-down-enabled", this.configService.MaxDownloadSpeedKbps > 0 },
                             { "speed-limit-up-enabled", this.configService.MaxUploadSpeedKbps > 0 },
+                            { "alt-speed-enabled", this.configService.AlternativeSpeedEnabled },
+                            { "alt-speed-down", this.configService.AltDownloadSpeedKbps },
+                            { "alt-speed-up", this.configService.AltUploadSpeedKbps },
                             { "peer-port", this.configService.ListeningPort },
                             { "script-torrent-done-filename", this.configService.ScriptTorrentDoneFilename ?? string.Empty },
                             { "script-torrent-done-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename) },
@@ -199,7 +252,7 @@ public class TransmissionRpcController : ControllerBase
 
                         if (request.Arguments.TryGetValue("alt-speed-enabled", out var altEn) && (altEn.ValueKind == JsonValueKind.True || altEn.ValueKind == JsonValueKind.False))
                         {
-                            updates["SchedulerEnabled"] = altEn.GetBoolean();
+                            updates["AlternativeSpeedEnabled"] = altEn.GetBoolean();
                         }
 
                         if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
@@ -253,12 +306,22 @@ public class TransmissionRpcController : ControllerBase
                     });
 
                 case "torrent-get":
+                    var isRecentlyActive = IsRecentlyActive(request.Arguments);
                     var torrents = this.torrentService.GetAll();
                     var targetIds = this.ExtractIds(request.Arguments);
                     if (targetIds.Count > 0)
                     {
                         var targetIdSet = targetIds.ToHashSet();
                         torrents = torrents.Where(t => targetIdSet.Contains(t.Id));
+                    }
+                    else if (isRecentlyActive)
+                    {
+                        torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading ||
+                                                       t.Status == TorrentStatus.Seeding ||
+                                                       t.Status == TorrentStatus.Checking ||
+                                                       t.DownloadSpeed > 0 ||
+                                                       t.UploadSpeed > 0 ||
+                                                       !string.IsNullOrWhiteSpace(t.ErrorMessage));
                     }
 
                     HashSet<string> requestedFields = null;
@@ -275,13 +338,20 @@ public class TransmissionRpcController : ControllerBase
                     }
 
                     var mappedTorrents = torrents.Select(t => this.MapTorrentToTransmission(t, requestedFields)).ToList();
+                    var responseArgs = new Dictionary<string, object>
+                    {
+                        { "torrents", mappedTorrents },
+                    };
+
+                    if (isRecentlyActive)
+                    {
+                        responseArgs["removed"] = GetRecentlyRemovedIds();
+                    }
+
                     return this.Ok(new TransmissionRpcResponse
                     {
                         Result = "success",
-                        Arguments = new Dictionary<string, object>
-                        {
-                            { "torrents", mappedTorrents },
-                        },
+                        Arguments = responseArgs,
                         Tag = tag,
                     });
 
@@ -570,6 +640,7 @@ public class TransmissionRpcController : ControllerBase
 
                     foreach (var id in removeIds)
                     {
+                        RecordRemovedId(id);
                         await this.torrentService.DeleteAsync(id, deleteLocalData);
                     }
 
@@ -745,6 +816,11 @@ public class TransmissionRpcController : ControllerBase
                     else if (item.ValueKind == JsonValueKind.String)
                     {
                         var str = item.GetString();
+                        if (string.Equals(str, "recently-active", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
                         if (int.TryParse(str, out var parsedId))
                         {
                             ids.Add(parsedId);
@@ -767,7 +843,11 @@ public class TransmissionRpcController : ControllerBase
             else if (idsElem.ValueKind == JsonValueKind.String)
             {
                 var str = idsElem.GetString();
-                if (int.TryParse(str, out var parsedId))
+                if (string.Equals(str, "recently-active", StringComparison.OrdinalIgnoreCase))
+                {
+                    // "recently-active" is a special selector, not an ID or info-hash
+                }
+                else if (int.TryParse(str, out var parsedId))
                 {
                     ids.Add(parsedId);
                 }
@@ -782,7 +862,7 @@ public class TransmissionRpcController : ControllerBase
             }
         }
 
-        if (ids.Count == 0 && applyAllIfEmpty)
+        if (ids.Count == 0 && applyAllIfEmpty && !IsRecentlyActive(arguments))
         {
             return this.torrentService.GetAll().Select(t => t.Id).ToList();
         }
