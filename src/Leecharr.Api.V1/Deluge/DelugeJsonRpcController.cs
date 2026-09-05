@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -39,6 +40,7 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -48,7 +50,8 @@ public class DelugeJsonRpcController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -57,6 +60,7 @@ public class DelugeJsonRpcController : ControllerBase
         this.configService = configService;
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.diskProvider = diskProvider;
     }
 
     private bool IsDelugeAuthenticated()
@@ -451,7 +455,7 @@ public class DelugeJsonRpcController : ControllerBase
                                 num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
                                 upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
                                 download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
-                                free_space = GetDriveFreeSpace(this.configService.DownloadDir)
+                                free_space = this.GetDriveFreeSpace(this.configService.DownloadDir)
                             },
                         },
                         error = (object)null,
@@ -552,7 +556,7 @@ public class DelugeJsonRpcController : ControllerBase
                 case "core.get_path_free_space":
                     var rawPath = GetFirstStringParam(paramsElem);
                     var targetPath = !string.IsNullOrWhiteSpace(rawPath) ? rawPath : (this.configService.DownloadDir ?? "/downloads");
-                    return this.DelugeResult(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
+                    return this.DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
@@ -1260,23 +1264,17 @@ public class DelugeJsonRpcController : ControllerBase
         return status;
     }
 
-    private static long GetDriveFreeSpace(string path)
+    private long GetDriveFreeSpace(string path)
     {
         try
         {
             var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            var root = global::System.IO.Path.GetPathRoot(fullPath);
-            if (!string.IsNullOrEmpty(root))
-            {
-                var drive = new global::System.IO.DriveInfo(root);
-                return drive.AvailableFreeSpace;
-            }
+            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
         }
         catch
         {
+            return 1099511627776L;
         }
-
-        return 1099511627776L;
     }
 }

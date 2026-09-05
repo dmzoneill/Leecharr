@@ -10,6 +10,7 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
@@ -36,6 +37,7 @@ public class NzbgetRpcController : ControllerBase
     private readonly ICategoryService categoryService;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
@@ -43,13 +45,15 @@ public class NzbgetRpcController : ControllerBase
         ITorrentFileParser torrentFileParser,
         ICategoryService categoryService,
         IConfigService configService,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.categoryService = categoryService;
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.diskProvider = diskProvider;
     }
 
     [HttpGet]
@@ -128,7 +132,7 @@ public class NzbgetRpcController : ControllerBase
 
                 case "status":
                     var all = this.torrentService.GetAll().ToList();
-                    var freeMb = (int)(GetDriveFreeSpace(this.configService.DownloadDir) / (1024 * 1024));
+                    var freeMb = (int)(this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024 * 1024));
                     return this.Ok(new
                     {
                         version = "1.1",
@@ -425,20 +429,13 @@ public class NzbgetRpcController : ControllerBase
         }
     }
 
-    private static long GetDriveFreeSpace(string path)
+    private long GetDriveFreeSpace(string path)
     {
         try
         {
             var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            var root = global::System.IO.Path.GetPathRoot(fullPath);
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                root = "/";
-            }
-
-            var driveInfo = new global::System.IO.DriveInfo(root);
-            return driveInfo.AvailableFreeSpace;
+            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
         }
         catch
         {

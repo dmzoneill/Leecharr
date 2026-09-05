@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -26,6 +27,7 @@ public class SabnzbdApiController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SabnzbdApiController(
@@ -34,7 +36,8 @@ public class SabnzbdApiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -42,6 +45,7 @@ public class SabnzbdApiController : ControllerBase
         this.configService = configService;
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.diskProvider = diskProvider;
     }
 
     [HttpGet]
@@ -285,10 +289,10 @@ public class SabnzbdApiController : ControllerBase
                         };
                     }).ToList();
 
-                var freeSpaceGb = (GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incFreeSpaceGb = (GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var totalSpaceGb = (GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incTotalSpaceGb = (GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var freeSpaceGb = (this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incFreeSpaceGb = (this.GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
 
                 return this.Ok(new
                 {
@@ -508,20 +512,13 @@ public class SabnzbdApiController : ControllerBase
         }
     }
 
-    private static long GetDriveFreeSpace(string path)
+    private long GetDriveFreeSpace(string path)
     {
         try
         {
             var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            var root = global::System.IO.Path.GetPathRoot(fullPath);
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                root = "/";
-            }
-
-            var driveInfo = new global::System.IO.DriveInfo(root);
-            return driveInfo.AvailableFreeSpace;
+            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
         }
         catch
         {
@@ -529,20 +526,13 @@ public class SabnzbdApiController : ControllerBase
         }
     }
 
-    private static long GetDriveTotalSpace(string path)
+    private long GetDriveTotalSpace(string path)
     {
         try
         {
             var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            var root = global::System.IO.Path.GetPathRoot(fullPath);
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                root = "/";
-            }
-
-            var driveInfo = new global::System.IO.DriveInfo(root);
-            return driveInfo.TotalSize;
+            return this.diskProvider?.GetTotalSize(fullPath) ?? 1099511627776L;
         }
         catch
         {
