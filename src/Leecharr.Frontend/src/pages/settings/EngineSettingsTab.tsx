@@ -113,19 +113,39 @@ export function EngineSettingsTab() {
         rpcWhitelist: form.rpcWhitelist,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => {
+          setDirty(false);
+          showToast("Engine settings saved successfully", "success");
+        },
+        onError: (err: any) => {
+          showToast(
+            err?.response?.data?.message || err?.message || "Failed to save engine settings",
+            "error"
+          );
+        },
       }
     );
   };
 
   const handleSwitchConfirm = () => {
     if (selectedEngineForSwitch) {
+      const targetEngine = selectedEngineForSwitch;
       switchMutation.mutate(
-        { engineId: selectedEngineForSwitch, preserveTransfers: true },
+        { engineId: targetEngine, preserveTransfers: true },
         {
-          onSuccess: () => {
+          onSuccess: (res: any) => {
             setSelectedEngineForSwitch(null);
-            update("activeTorrentEngine", selectedEngineForSwitch);
+            update("activeTorrentEngine", targetEngine);
+            showToast(
+              res?.message || `Switched active torrent engine to ${targetEngine}`,
+              "success"
+            );
+          },
+          onError: (err: any) => {
+            const errorMsg =
+              err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to switch torrent engine";
+            showToast(errorMsg, "error");
+            setSelectedEngineForSwitch(null);
           },
         }
       );
