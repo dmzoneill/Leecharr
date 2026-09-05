@@ -20,7 +20,8 @@ public class DownloadClientRepository : BasicRepository<DownloadClientDefinition
     {
         using var connection = this.database.OpenConnection();
         return connection.Query<DownloadClientDefinition>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = 1 ORDER BY \"Priority\"");
+            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
+            new { Enable = true });
     }
 
     public DownloadClientDefinition GetByType(string clientType)

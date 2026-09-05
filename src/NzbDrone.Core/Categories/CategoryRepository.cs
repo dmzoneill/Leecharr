@@ -28,6 +28,7 @@ public class CategoryRepository : BasicRepository<Category>, ICategoryRepository
     {
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<Category>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"IsDefault\" = 1");
+            $"SELECT * FROM \"{this.table}\" WHERE \"IsDefault\" = @IsDefault",
+            new { IsDefault = true });
     }
 }

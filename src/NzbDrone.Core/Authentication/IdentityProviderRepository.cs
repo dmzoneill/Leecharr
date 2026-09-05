@@ -20,7 +20,8 @@ public class IdentityProviderRepository : BasicRepository<IdentityProviderDefini
     {
         using var connection = this.database.OpenConnection();
         return connection.Query<IdentityProviderDefinition>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = 1 ORDER BY \"Id\"");
+            $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Id\"",
+            new { IsEnabled = true });
     }
 
     public IdentityProviderDefinition FindByProviderId(string providerId)
