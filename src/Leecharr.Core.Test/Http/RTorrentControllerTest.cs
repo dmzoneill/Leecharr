@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -296,5 +297,63 @@ public class RTorrentControllerTest
         var contentResult = (ContentResult)result;
         contentResult.Content.Should().Contain("<string>/data/downloads</string>");
         contentResult.Content.Should().Contain("<string>0.9.8</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_FMulticall_ReturnsChunkMetricsAndRangeFields()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            InfoHash = "4444444444444444444444444444444444444444",
+        };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile
+            {
+                Id = 1,
+                TorrentId = 10,
+                Path = "test.mkv",
+                Size = 10485760,
+                PieceOffset = 10,
+                PieceCount = 20,
+                Progress = 0.5,
+                Priority = 2,
+            },
+        };
+
+        this.torrentService.GetByInfoHash("4444444444444444444444444444444444444444").Returns(torrent);
+        this.torrentFileService.GetFiles(10).Returns(files);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>f.multicall</methodName>
+              <params>
+                <param><value><string>4444444444444444444444444444444444444444</string></value></param>
+                <param><value><string></string></value></param>
+                <param><value><string>f.get_path=</string></value></param>
+                <param><value><string>f.get_size_bytes=</string></value></param>
+                <param><value><string>f.get_completed_chunks=</string></value></param>
+                <param><value><string>f.get_size_chunks=</string></value></param>
+                <param><value><string>f.get_range_first=</string></value></param>
+                <param><value><string>f.get_range_second=</string></value></param>
+                <param><value><string>f.get_priority=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>test.mkv</string>");
+        contentResult.Content.Should().Contain("<i8>10485760</i8>");
+        contentResult.Content.Should().Contain("<i8>10</i8>");
+        contentResult.Content.Should().Contain("<i8>20</i8>");
+        contentResult.Content.Should().Contain("<i8>10</i8>");
+        contentResult.Content.Should().Contain("<i8>29</i8>");
+        contentResult.Content.Should().Contain("<i4>2</i4>");
     }
 }
