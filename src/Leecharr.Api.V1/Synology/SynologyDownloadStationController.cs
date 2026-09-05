@@ -282,8 +282,20 @@ public class SynologyDownloadStationController : ControllerBase
                 });
 
             case "create":
-                var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : (this.Request.HasFormContentType ? (this.Request.Form["uri"].ToString() ?? this.Request.Form["url"].ToString()) : string.Empty));
-                var targetDest = (destination ?? (this.Request.HasFormContentType ? this.Request.Form["destination"].ToString() : null))?.Trim('\"', '\'');
+                var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : string.Empty);
+                if (string.IsNullOrWhiteSpace(targetUri) && this.Request.HasFormContentType)
+                {
+                    if (this.Request.Form.TryGetValue("uri", out var formUriVal) && !string.IsNullOrWhiteSpace(formUriVal.ToString()))
+                    {
+                        targetUri = formUriVal.ToString();
+                    }
+                    else if (this.Request.Form.TryGetValue("url", out var formUrlVal) && !string.IsNullOrWhiteSpace(formUrlVal.ToString()))
+                    {
+                        targetUri = formUrlVal.ToString();
+                    }
+                }
+
+                var targetDest = (!string.IsNullOrWhiteSpace(destination) ? destination : (this.Request.HasFormContentType && this.Request.Form.TryGetValue("destination", out var formDestVal) && !string.IsNullOrWhiteSpace(formDestVal.ToString()) ? formDestVal.ToString() : null))?.Trim('\"', '\'');
 
                 if (!string.IsNullOrWhiteSpace(targetUri))
                 {
