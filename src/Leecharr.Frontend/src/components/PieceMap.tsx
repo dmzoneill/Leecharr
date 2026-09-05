@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { formatBytes } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 
@@ -8,6 +8,7 @@ export interface PieceMapProps {
   pieceLength: number;
   progress: number; // 0.0 - 1.0
   isSeeding?: boolean;
+  bitfield?: string | null;
   className?: string;
 }
 
@@ -15,12 +16,12 @@ export function PieceMap({
   torrentId,
   pieceCount,
   pieceLength,
-  progress,
-  isSeeding = true,
+  progress = 0,
+  isSeeding = false,
+  bitfield,
   className,
 }: PieceMapProps) {
   const [viewMode, setViewMode] = useState<"bar" | "grid">("bar");
-  const [hoveredPiece, setHoveredPiece] = useState<number | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -33,15 +34,50 @@ export function PieceMap({
   );
 
   const totalPieces = Math.max(1, pieceCount);
-  const completedPieces = Math.floor(progress * totalPieces);
 
-  // Generate a sampled representation of blocks for the grid visualizer
+  const bitfieldBytes = useMemo(() => {
+    if (!bitfield || typeof bitfield !== "string") return null;
+    try {
+      const binary = atob(bitfield);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    } catch {
+      return null;
+    }
+  }, [bitfield]);
+
+  const isPieceVerified = useCallback(
+    (pieceIdx: number): boolean => {
+      if (progress >= 1.0 || isSeeding) {
+        return true;
+      }
+      if (livePieceData?.verifiedIndices?.has(pieceIdx)) {
+        return true;
+      }
+      if (bitfieldBytes && bitfieldBytes.length > 0) {
+        const byteIdx = Math.floor(pieceIdx / 8);
+        if (byteIdx < bitfieldBytes.length) {
+          const bitOffset = 7 - (pieceIdx % 8);
+          return (bitfieldBytes[byteIdx] & (1 << bitOffset)) !== 0;
+        }
+      }
+      return false;
+    },
+    [progress, isSeeding, livePieceData, bitfieldBytes]
+  );
+
+  // Generate a sampled representation of blocks for visualizer
   const displayBlocks = useMemo(() => {
-    const numBlocks = Math.min(Math.max(totalPieces, 60), 480);
+    const numBlocks = Math.min(totalPieces, 480);
     const blocks: {
       startIndex: number;
       endIndex: number;
       status: "complete" | "missing" | "active";
+      completedCount: number;
+      totalInBlock: number;
     }[] = [];
 
     const piecesPerBlock = totalPieces / numBlocks;
@@ -49,25 +85,19 @@ export function PieceMap({
     for (let i = 0; i < numBlocks; i++) {
       const startIdx = Math.floor(i * piecesPerBlock);
       const endIdx = Math.min(totalPieces - 1, Math.floor((i + 1) * piecesPerBlock) - 1);
-      const blockProgress = (i + 0.5) / numBlocks;
-      let status: "complete" | "missing" | "active" = "missing";
+      const totalInBlock = Math.max(1, endIdx - startIdx + 1);
 
-      // Check if any pieces in this block range are verified via live SignalR updates
-      let hasLiveVerified = false;
-      if (livePieceData?.verifiedIndices) {
-        for (let p = startIdx; p <= endIdx; p++) {
-          if (livePieceData.verifiedIndices.has(p)) {
-            hasLiveVerified = true;
-            break;
-          }
+      let completedCount = 0;
+      for (let p = startIdx; p <= endIdx; p++) {
+        if (isPieceVerified(p)) {
+          completedCount++;
         }
       }
 
-      if (progress >= 1.0 || isSeeding || hasLiveVerified) {
+      let status: "complete" | "missing" | "active" = "missing";
+      if (progress >= 1.0 || isSeeding || completedCount === totalInBlock) {
         status = "complete";
-      } else if (blockProgress <= progress) {
-        status = "complete";
-      } else if (blockProgress <= progress + 0.05 && progress > 0 && progress < 1) {
+      } else if (completedCount > 0) {
         status = "active";
       }
 
@@ -75,11 +105,39 @@ export function PieceMap({
         startIndex: startIdx,
         endIndex: Math.max(startIdx, endIdx),
         status,
+        completedCount,
+        totalInBlock,
       });
     }
 
     return blocks;
-  }, [progress, isSeeding, totalPieces, livePieceData]);
+  }, [totalPieces, isPieceVerified, progress, isSeeding]);
+
+  const completedPieces = useMemo(() => {
+    if (progress >= 1.0 || isSeeding) {
+      return totalPieces;
+    }
+    let count = 0;
+    for (let p = 0; p < totalPieces; p++) {
+      if (isPieceVerified(p)) {
+        count++;
+      }
+    }
+    if (count === 0 && progress > 0) {
+      return Math.floor(progress * totalPieces);
+    }
+    return count;
+  }, [progress, isSeeding, totalPieces, isPieceVerified]);
+
+  const verifiedPercentage = useMemo(() => {
+    if (progress >= 1.0 || isSeeding) {
+      return 100;
+    }
+    if (totalPieces > 0 && completedPieces > 0) {
+      return (completedPieces / totalPieces) * 100;
+    }
+    return Math.min(100, Math.max(0, progress * 100));
+  }, [progress, isSeeding, totalPieces, completedPieces]);
 
   const blockSize = 14;
   const gap = 3;
@@ -204,18 +262,14 @@ export function PieceMap({
       const idx = row * cols + col;
       if (idx >= 0 && idx < displayBlocks.length) {
         setHoveredIndex(idx);
-        const b = displayBlocks[idx];
-        setHoveredPiece(b.startIndex);
         return;
       }
     }
     setHoveredIndex(null);
-    setHoveredPiece(null);
   };
 
   const handleMouseLeave = () => {
     setHoveredIndex(null);
-    setHoveredPiece(null);
   };
 
   const hoveredBlock =
@@ -247,10 +301,10 @@ export function PieceMap({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>🧩 BitTorrent Piece Map</span>
           <span
-            className={`badge ${progress >= 1.0 ? "badge-success" : "badge-primary"}`}
+            className={`badge ${verifiedPercentage >= 100 ? "badge-success" : "badge-primary"}`}
             style={{ fontSize: "0.72rem" }}
           >
-            {(progress * 100).toFixed(1)}% Verified
+            {verifiedPercentage.toFixed(1)}% Verified
           </span>
         </div>
 
@@ -266,6 +320,7 @@ export function PieceMap({
           </span>
           <div className="view-toggle" style={{ margin: 0 }}>
             <button
+              type="button"
               className={`view-toggle-btn ${viewMode === "bar" ? "active" : ""}`}
               onClick={() => setViewMode("bar")}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
@@ -274,6 +329,7 @@ export function PieceMap({
               Bar
             </button>
             <button
+              type="button"
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
@@ -297,32 +353,28 @@ export function PieceMap({
               borderRadius: "4px",
               overflow: "hidden",
               border: "1px solid var(--border-light)",
+              display: "flex",
             }}
           >
-            <div
-              style={{
-                width: `${Math.min(100, Math.max(0, progress * 100))}%`,
-                height: "100%",
-                background:
-                  progress >= 1.0
-                    ? "linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)"
-                    : "linear-gradient(90deg, #c8a84e 0%, #e67e22 100%)",
-                transition: "width 0.3s ease",
-              }}
-            />
-            {/* Hash Check Overlay tickmarks */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, transparent 0, transparent 19px, rgba(0, 0, 0, 0.25) 19px, rgba(0, 0, 0, 0.25) 20px)",
-                pointerEvents: "none",
-              }}
-            />
+            {displayBlocks.map((b, idx) => (
+              <div
+                key={idx}
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                style={{
+                  flex: 1,
+                  height: "100%",
+                  backgroundColor:
+                    b.status === "complete"
+                      ? "#27ae60"
+                      : b.status === "active"
+                        ? "#3b82f6"
+                        : "transparent",
+                  outline: hoveredIndex === idx ? "1px solid #ffd166" : "none",
+                  zIndex: hoveredIndex === idx ? 2 : 1,
+                }}
+              />
+            ))}
           </div>
         </div>
       ) : (
@@ -417,7 +469,7 @@ export function PieceMap({
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
             />
-            {totalPieces - completedPieces} Missing
+            {Math.max(0, totalPieces - completedPieces)} Missing
           </span>
         </div>
         {hoveredBlock && (
@@ -429,7 +481,7 @@ export function PieceMap({
             {hoveredBlock.status === "complete"
               ? "Verified / Seeded"
               : hoveredBlock.status === "active"
-                ? "Downloading"
+                ? `Partial (${hoveredBlock.completedCount}/${hoveredBlock.totalInBlock})`
                 : "Missing"}
           </span>
         )}
