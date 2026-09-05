@@ -377,6 +377,69 @@ public class Aria2RpcControllerTest
         this.SetXmlRequestBody(doc.ToString());
     }
 
+    [Test]
+    public async Task HandleRpc_GetRequest_WithBase64Params_ExecutesMethodWithDecodedParams()
+    {
+        var magnetUri = $"magnet:?xt=urn:btih:{FullInfoHash}&dn=TestTorrent";
+        var addedTorrent = new Torrent { Id = 5, Name = "TestTorrent", InfoHash = FullInfoHash };
+
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false)
+            .Returns(Task.FromResult(addedTorrent));
+
+        var jsonParams = $"[\"{magnetUri}\"]";
+        var base64Params = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonParams));
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "GET";
+        context.Request.QueryString = new QueryString($"?method=aria2.addUri&id=42&params={Uri.EscapeDataString(base64Params)}");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionResult = await this.controller.HandleRpc();
+        var gid = GetJsonRpcResultString(actionResult);
+
+        gid.Should().Be(ExpectedGid);
+    }
+
+    [Test]
+    public async Task HandleRpc_GetRequest_WithCallback_ReturnsJsonpFormattedResponse()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = "GET";
+        context.Request.QueryString = new QueryString("?method=aria2.getVersion&id=99&callback=myJsonpCallback");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+
+        var contentResult = (ContentResult)actionResult;
+        contentResult.ContentType.Should().Be("application/javascript");
+        contentResult.Content.Should().StartWith("myJsonpCallback(");
+        contentResult.Content.Should().EndWith(");");
+        contentResult.Content.Should().Contain("\"version\":\"1.36.0\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_GetRequest_WithTokenAuthInBase64Params_AuthenticatesSuccessfully()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-token-123");
+
+        var jsonParams = "[\"token:secret-token-123\"]";
+        var base64Params = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonParams));
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "GET";
+        context.Request.QueryString = new QueryString($"?method=aria2.getVersion&id=1&params={Uri.EscapeDataString(base64Params)}");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        json.Should().Contain("1.36.0");
+    }
+
     private static string GetJsonRpcResultString(IActionResult actionResult)
     {
         actionResult.Should().BeOfType<OkObjectResult>();
@@ -394,3 +457,4 @@ public class Aria2RpcControllerTest
         return doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("string")?.Value;
     }
 }
+

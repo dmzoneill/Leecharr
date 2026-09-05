@@ -76,7 +76,50 @@ public class Aria2RpcController : ControllerBase
         JsonElement paramsElem = default;
         object id = 1;
 
-        if (HttpMethods.IsPost(this.Request.Method))
+        if (HttpMethods.IsGet(this.Request.Method))
+        {
+            if (this.Request.Query.TryGetValue("method", out var qMethod) && !string.IsNullOrWhiteSpace(qMethod))
+            {
+                method = qMethod.ToString();
+            }
+
+            if (this.Request.Query.TryGetValue("id", out var idVal) && !string.IsNullOrWhiteSpace(idVal))
+            {
+                if (long.TryParse(idVal, out var numericId))
+                {
+                    id = numericId;
+                }
+                else
+                {
+                    id = idVal.ToString();
+                }
+            }
+
+            if (this.Request.Query.TryGetValue("params", out var rawParams) && !string.IsNullOrWhiteSpace(rawParams))
+            {
+                try
+                {
+                    var rawParamsStr = rawParams.ToString();
+                    byte[] jsonBytes;
+                    try
+                    {
+                        jsonBytes = Convert.FromBase64String(rawParamsStr);
+                    }
+                    catch
+                    {
+                        jsonBytes = global::System.Text.Encoding.UTF8.GetBytes(rawParamsStr);
+                    }
+
+                    using var doc = JsonDocument.Parse(jsonBytes);
+                    paramsElem = doc.RootElement.Clone();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to decode or parse base64 params for Aria2 GET RPC");
+                }
+            }
+        }
+        else if (HttpMethods.IsPost(this.Request.Method))
         {
             try
             {
@@ -185,22 +228,26 @@ public class Aria2RpcController : ControllerBase
         if (!isAuth)
         {
             this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Aria2\"";
-            return this.StatusCode(StatusCodes.Status401Unauthorized, new { id, jsonrpc = "2.0", error = new { code = 1, message = "Unauthorized" } });
+            return this.ReturnRpcResponse(new { id, jsonrpc = "2.0", error = new { code = 1, message = "Unauthorized" } }, StatusCodes.Status401Unauthorized);
         }
 
         if (string.IsNullOrWhiteSpace(method))
         {
-            method = this.Request.Query["method"].ToString();
+            if (this.Request.Query.TryGetValue("method", out var qMethod) && !string.IsNullOrWhiteSpace(qMethod))
+            {
+                method = qMethod.ToString();
+            }
+
             if (string.IsNullOrWhiteSpace(method))
             {
-                return this.Ok(new
+                return this.ReturnRpcResponse(new
                 {
                     jsonrpc = "2.0",
                     id,
                     result = new
                     {
                         version = "1.36.0",
-                        enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" }
+                        enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" },
                     },
                 });
             }
@@ -209,7 +256,7 @@ public class Aria2RpcController : ControllerBase
         try
         {
             var res = await this.ExecuteMethodAsync(method, paramsElem);
-            return this.Ok(new
+            return this.ReturnRpcResponse(new
             {
                 jsonrpc = "2.0",
                 id,
@@ -219,13 +266,33 @@ public class Aria2RpcController : ControllerBase
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error handling Aria2 RPC method: {0}", method);
-            return this.Ok(new
+            return this.ReturnRpcResponse(new
             {
                 jsonrpc = "2.0",
                 id,
                 error = new { code = 1, message = ex.Message },
             });
         }
+    }
+
+    private IActionResult ReturnRpcResponse(object payload, int statusCode = StatusCodes.Status200OK)
+    {
+        if (this.Request?.Query != null && this.Request.Query.TryGetValue("callback", out var callback) && !string.IsNullOrWhiteSpace(callback))
+        {
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
+            });
+            return this.Content($"{callback}({json});", "application/javascript", global::System.Text.Encoding.UTF8);
+        }
+
+        if (statusCode == StatusCodes.Status200OK)
+        {
+            return this.Ok(payload);
+        }
+
+        return this.StatusCode(statusCode, payload);
     }
 
     private async Task<object> ProcessSingleJsonRpcAsync(JsonElement root)
