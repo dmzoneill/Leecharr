@@ -1,9 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
@@ -21,7 +23,7 @@ namespace Leecharr.Api.V1.UTorrent;
 [ApiController]
 public class UTorrentWebUiController : ControllerBase
 {
-    private const string UtorrentToken = "LEECHARR_UTORRENT_AUTH_TOKEN";
+    private static readonly ConcurrentDictionary<string, (string Token, DateTime ExpiresAt)> TokenStore = new();
     private static readonly HashSet<string> MutatingActions = new(StringComparer.OrdinalIgnoreCase)
     {
         "add-url",
@@ -81,8 +83,14 @@ public class UTorrentWebUiController : ControllerBase
             return this.Unauthorized();
         }
 
-        this.Response.Cookies.Append("GUID", "leecharr-guid-cookie", new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
-        var html = $"<html><div id=\"token\">{UtorrentToken}</div></html>";
+        CleanExpiredTokens();
+
+        var guid = Guid.NewGuid().ToString("N");
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        TokenStore[guid] = (token, DateTime.UtcNow.AddHours(24));
+
+        this.Response.Cookies.Append("GUID", guid, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
+        var html = $"<html><div id=\"token\">{token}</div></html>";
         return this.Content(html, "text/html", Encoding.UTF8);
     }
 
@@ -100,10 +108,12 @@ public class UTorrentWebUiController : ControllerBase
         [FromQuery] string download_dir,
         [FromQuery] string token)
     {
-        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        var isApiAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+        var isTokenValid = this.ValidateToken(token);
+
+        if (!isApiAuth && !isTokenValid)
         {
-            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"uTorrent\"";
-            return this.Unauthorized();
+            return this.BadRequest("invalid request");
         }
 
         if (!string.IsNullOrWhiteSpace(action))
@@ -545,5 +555,60 @@ public class UTorrentWebUiController : ControllerBase
             rssfeeds = new object[] { },
             rssfilters = new object[] { },
         });
+    }
+
+    private static void CleanExpiredTokens()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var kvp in TokenStore)
+        {
+            if (kvp.Value.ExpiresAt <= now)
+            {
+                TokenStore.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        if (TokenStore.Count > 10000)
+        {
+            var toRemove = TokenStore.OrderBy(k => k.Value.ExpiresAt).Take(TokenStore.Count - 5000);
+            foreach (var item in toRemove)
+            {
+                TokenStore.TryRemove(item.Key, out _);
+            }
+        }
+    }
+
+    private bool ValidateToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        if (!this.Request.Cookies.TryGetValue("GUID", out var guid) || string.IsNullOrWhiteSpace(guid))
+        {
+            return false;
+        }
+
+        if (!TokenStore.TryGetValue(guid, out var entry))
+        {
+            return false;
+        }
+
+        if (entry.ExpiresAt <= DateTime.UtcNow)
+        {
+            TokenStore.TryRemove(guid, out _);
+            return false;
+        }
+
+        var expectedBytes = Encoding.UTF8.GetBytes(entry.Token);
+        var actualBytes = Encoding.UTF8.GetBytes(token);
+
+        if (expectedBytes.Length != actualBytes.Length)
+        {
+            return false;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
 }
