@@ -87,8 +87,13 @@ public class Startup
                     return ApiKeyAuthenticationOptions.DefaultScheme;
                 }
 
-                // 1. API Key present in header or query parameter
-                if (req.Headers.ContainsKey("X-Api-Key") || req.Query.ContainsKey("apikey"))
+                // 1. API Key present in header, query parameter, or Bearer token
+                if (req.Headers.ContainsKey("X-Api-Key") ||
+                    req.Headers.ContainsKey("ApiKey") ||
+                    req.Query.ContainsKey("apikey") ||
+                    req.Query.ContainsKey("access_token") ||
+                    req.Query.ContainsKey("api_key") ||
+                    (req.Headers.ContainsKey("Authorization") && req.Headers["Authorization"].ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)))
                 {
                     return ApiKeyAuthenticationOptions.DefaultScheme;
                 }
