@@ -910,8 +910,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            torrent.Category = category ?? string.Empty;
-            await this.torrentService.UpdateAsync(torrent);
+            await this.torrentService.SetCategoryAsync(torrent.Id, category);
         }
 
         return this.Content("Ok.", "text/plain");

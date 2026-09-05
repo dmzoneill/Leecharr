@@ -12,6 +12,7 @@ using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
@@ -40,6 +41,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IPowerManagementService powerManagementService;
     private readonly IUdpTrackerService udpTrackerService;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly ICategoryService categoryService;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -59,7 +61,8 @@ public class AppLifetime : IHostedService, IDisposable
         IQueueManagerService queueManagerService = null,
         IPowerManagementService powerManagementService = null,
         IUdpTrackerService udpTrackerService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        ICategoryService categoryService = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -75,6 +78,7 @@ public class AppLifetime : IHostedService, IDisposable
         this.powerManagementService = powerManagementService ?? new PowerManagementService();
         this.udpTrackerService = udpTrackerService;
         this.appFolderInfo = appFolderInfo;
+        this.categoryService = categoryService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -297,8 +301,12 @@ public class AppLifetime : IHostedService, IDisposable
                                 var torrent = this.torrentService.Get(torrentId);
                                 if (torrent != null && torrent.Status == TorrentStatus.Seeding)
                                 {
-                                    var ratioReached = torrent.TargetRatio > 0 && torrent.Ratio >= torrent.TargetRatio;
-                                    var timeReached = torrent.TargetSeedTimeMinutes > 0 && torrent.SeedTimeMinutes >= torrent.TargetSeedTimeMinutes;
+                                    var category = !string.IsNullOrWhiteSpace(torrent.Category) ? this.categoryService?.GetByName(torrent.Category) : null;
+                                    var effectiveRatio = torrent.TargetRatio > 0 ? torrent.TargetRatio : (category?.TargetRatio ?? 0);
+                                    var effectiveSeedTime = torrent.TargetSeedTimeMinutes > 0 ? torrent.TargetSeedTimeMinutes : (category?.TargetSeedTimeMinutes ?? 0);
+
+                                    var ratioReached = effectiveRatio > 0 && torrent.Ratio >= effectiveRatio;
+                                    var timeReached = effectiveSeedTime > 0 && torrent.SeedTimeMinutes >= effectiveSeedTime;
 
                                     if (ratioReached || timeReached)
                                     {
@@ -309,13 +317,13 @@ public class AppLifetime : IHostedService, IDisposable
                                         if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
                                         {
                                             this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                             await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: true);
                                         }
                                         else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
                                         {
                                             this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                             await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: false);
                                         }
                                         else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
@@ -326,13 +334,13 @@ public class AppLifetime : IHostedService, IDisposable
                                             }
 
                                             this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                             await this.torrentService.SetSuperSeedingAsync(torrent.Id, true);
                                         }
                                         else
                                         {
                                             this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
+                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
 
                                             var oldStatus = torrent.Status;
                                             await this.torrentService.PauseAsync(torrent.Id);
