@@ -19,7 +19,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".rar", ".cbr", ".r00", ".r01", ".r02", ".r03", ".part01.rar", ".part1.rar",
+        ".rar", ".cbr", ".r00", ".r01", ".r02", ".r03", ".part01.rar", ".part1.rar", ".001",
     };
 
     public string ProviderId => "Unrar";
@@ -87,7 +87,8 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         var fileName = Path.GetFileName(filePath).ToLowerInvariant();
         return fileName.EndsWith(".part01.rar", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith(".part1.rar", StringComparison.OrdinalIgnoreCase)
-            || fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+            || fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".rar.001", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
@@ -113,6 +114,8 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        Process process = null;
+
         try
         {
             var normalizedDest = targetDir.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
@@ -135,15 +138,35 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             startInfo.ArgumentList.Add(archivePath);
             startInfo.ArgumentList.Add(normalizedDest);
 
-            using var process = new Process { StartInfo = startInfo };
+            process = new Process { StartInfo = startInfo };
             process.Start();
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(60));
+            cts.CancelAfter(TimeSpan.FromMinutes(30));
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
             var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
-            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+
+            try
+            {
+                await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
+                }
+                catch
+                {
+                }
+
+                this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
+                throw;
+            }
 
             // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
             if (process.ExitCode == 0 || process.ExitCode == 1)
@@ -158,13 +181,30 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         }
         catch (OperationCanceledException)
         {
-            this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
             throw;
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
             return false;
+        }
+        finally
+        {
+            if (process != null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
+                }
+                catch
+                {
+                }
+
+                process.Dispose();
+            }
         }
     }
 
