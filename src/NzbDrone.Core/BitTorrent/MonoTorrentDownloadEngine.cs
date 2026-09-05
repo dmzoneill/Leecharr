@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
@@ -54,6 +55,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
+    private readonly SemaphoreSlim engineStateLock = new(1, 1);
 
     private ClientEngine engine;
     private Timer trackerHealthTimer;
@@ -173,16 +175,36 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
 
-        if (this.vpnKillSwitchService != null)
-        {
-            this.vpnKillSwitchService.VpnDropped += this.OnVpnDropped;
-            this.vpnKillSwitchService.VpnRestored += this.OnVpnRestored;
-        }
-
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
     }
 
     public async Task StartAsync()
+    {
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await this.StartEngineAsyncCore().ConfigureAwait(false);
+        }
+        finally
+        {
+            this.engineStateLock.Release();
+        }
+    }
+
+    public async Task StopAsync()
+    {
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await this.StopEngineAsyncCore().ConfigureAwait(false);
+        }
+        finally
+        {
+            this.engineStateLock.Release();
+        }
+    }
+
+    private async Task StartEngineAsyncCore()
     {
         if (this.engine != null)
         {
@@ -264,7 +286,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
 
             var resolvedIp = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress()
-                ?? this.ResolveInterfaceIp(iface, System.Net.Sockets.AddressFamily.InterNetwork);
+                ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetwork);
 
             if (resolvedIp != null)
             {
@@ -286,8 +308,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Warn("Failed to resolve IP for bound interface '{0}'. Defaulting to IPAddress.Any", iface);
             }
 
-            resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6)
-                ?? this.ResolveInterfaceIp(iface, System.Net.Sockets.AddressFamily.InterNetworkV6);
+            resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6)
+                ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetworkV6);
             if (resolvedIpv6 != null)
             {
                 listenIpv6 = resolvedIpv6;
@@ -306,7 +328,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             { "ipv4", new IPEndPoint(listenIp, port) },
         };
 
-        if (this.configService.EnableIPv6 && System.Net.Sockets.Socket.OSSupportsIPv6)
+        if (this.configService.EnableIPv6 && Socket.OSSupportsIPv6)
         {
             if (hasSpecificInterface)
             {
@@ -422,15 +444,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return client;
         });
 
+        factories = factories.WithSocketConnectorCreator(() => new BoundSocketConnector(
+            () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
+            () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6)));
+
         this.engine = new ClientEngine(engineSettings, factories);
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
 
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
 
-        await this.DrainPendingTorrentsAsync();
+        await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
     }
 
-    public async Task StopAsync()
+    private async Task StopEngineAsyncCore()
     {
         if (this.engine == null)
         {
@@ -1692,80 +1718,180 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task HaltAllTorrentsForKillSwitchAsync()
     {
-        foreach (var task in this.tasks.Values)
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
         {
-            if (task.Manager != null)
+            foreach (var task in this.tasks.Values)
             {
-                try
+                if (task.Manager != null)
                 {
-                    var state = task.Manager.State;
-                    if (state is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting or TorrentState.Metadata)
+                    try
                     {
-                        this.interruptedTorrentIds.Add(task.TorrentId);
+                        var state = task.Manager.State;
+                        if (state is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting or TorrentState.Metadata)
+                        {
+                            this.interruptedTorrentIds.Add(task.TorrentId);
+                        }
+
+                        // Immediately pause manager to stop all network requests
+                        await task.Manager.PauseAsync().ConfigureAwait(false);
+
+                        // Immediately abort active peer socket connections to prevent traffic leakage
+                        var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
+                        foreach (var peer in peers)
+                        {
+                            try
+                            {
+                                (peer as IDisposable)?.Dispose();
+                                var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                                (connProp?.GetValue(peer) as IDisposable)?.Dispose();
+                            }
+                            catch
+                            {
+                            }
+                        }
                     }
-
-                    // Immediately pause manager to stop all network requests
-                    await task.Manager.PauseAsync().ConfigureAwait(false);
-
-                    // Immediately abort active peer socket connections to prevent traffic leakage
-                    var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
-                    foreach (var peer in peers)
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            (peer as IDisposable)?.Dispose();
-                            var connProp = peer?.GetType().GetProperty("Connection", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                            (connProp?.GetValue(peer) as IDisposable)?.Dispose();
-                        }
-                        catch
-                        {
-                        }
+                        this.logger.Warn(ex, "Error pausing torrent {0} during VPN drop", task.TorrentId);
                     }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Error pausing torrent {0} during VPN drop", task.TorrentId);
                 }
             }
-        }
 
-        this.logger.Warn("VPN kill switch halt completed. {0} active torrents paused and peer connections aborted.", this.interruptedTorrentIds.Count);
+            this.logger.Warn("VPN kill switch halt completed. {0} active torrents paused and peer connections aborted.", this.interruptedTorrentIds.Count);
+        }
+        finally
+        {
+            this.engineStateLock.Release();
+        }
     }
 
     public async Task ResumeTorrentsAfterVpnRestoredAsync()
     {
-        if (this.engine == null)
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
         {
-            await this.StartAsync().ConfigureAwait(false);
-        }
-        else
-        {
-            await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
-        }
-
-        var toResume = this.interruptedTorrentIds.Distinct().ToList();
-        while (this.interruptedTorrentIds.TryTake(out _))
-        {
-        }
-
-        foreach (var torrentId in toResume)
-        {
-            if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+            if (this.engine == null)
             {
-                try
+                await this.StartEngineAsyncCore().ConfigureAwait(false);
+            }
+            else
+            {
+                await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
+                await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
+            }
+
+            var toResume = this.interruptedTorrentIds.Distinct().ToList();
+            while (this.interruptedTorrentIds.TryTake(out _))
+            {
+            }
+
+            foreach (var torrentId in toResume)
+            {
+                if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
                 {
-                    await task.Manager.StartAsync().ConfigureAwait(false);
-                    this.logger.Info("Resumed torrent id {0} following VPN interface recovery", torrentId);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to resume torrent id {0} after VPN interface recovery", torrentId);
+                    try
+                    {
+                        await task.Manager.StartAsync().ConfigureAwait(false);
+                        this.logger.Info("Resumed torrent id {0} following VPN interface recovery", torrentId);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to resume torrent id {0} after VPN interface recovery", torrentId);
+                    }
                 }
             }
         }
+        finally
+        {
+            this.engineStateLock.Release();
+        }
     }
 
-    private IPAddress ResolveInterfaceIp(string interfaceName, System.Net.Sockets.AddressFamily family)
+    private async Task UpdateEngineListenEndpointsAsync()
+    {
+        if (this.engine == null)
+        {
+            return;
+        }
+
+        var port = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
+
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(iface) &&
+            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+
+        var listenIp = IPAddress.Any;
+        IPAddress resolvedIpv6 = null;
+
+        if (hasSpecificInterface)
+        {
+            var resolvedIp = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress()
+                ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetwork);
+
+            if (resolvedIp != null)
+            {
+                listenIp = resolvedIp;
+                this.isHaltedByKillSwitch = false;
+                this.logger.Info("Re-resolved and updated MonoTorrent IPv4 listening socket to interface '{0}' ({1})", iface, listenIp);
+            }
+
+            resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6)
+                ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetworkV6);
+        }
+
+        var listenEndPoints = new Dictionary<string, IPEndPoint>
+        {
+            { "ipv4", new IPEndPoint(listenIp, port) },
+        };
+
+        if (this.configService.EnableIPv6 && Socket.OSSupportsIPv6)
+        {
+            if (hasSpecificInterface && resolvedIpv6 != null)
+            {
+                listenEndPoints["ipv6"] = new IPEndPoint(resolvedIpv6, port);
+            }
+            else if (!hasSpecificInterface)
+            {
+                listenEndPoints["ipv6"] = new IPEndPoint(IPAddress.IPv6Any, port);
+            }
+        }
+
+        var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
+        {
+            ListenEndPoints = listenEndPoints,
+            DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
+        };
+
+        await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
+        this.logger.Info("Updated MonoTorrent engine listening endpoints to {0}:{1}", listenIp, port);
+    }
+
+    private IPAddress GetBoundLocalIp(AddressFamily family)
+    {
+        var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
+
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(iface) &&
+            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasSpecificInterface)
+        {
+            return family == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
+        }
+
+        var resolved = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(family)
+            ?? this.ResolveInterfaceIp(iface, family);
+
+        return resolved ?? (family == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any);
+    }
+
+    private IPAddress ResolveInterfaceIp(string interfaceName, AddressFamily family)
     {
         try
         {
@@ -1802,12 +1928,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         this.disposed = true;
 
-        if (this.vpnKillSwitchService != null)
-        {
-            this.vpnKillSwitchService.VpnDropped -= this.OnVpnDropped;
-            this.vpnKillSwitchService.VpnRestored -= this.OnVpnRestored;
-        }
-
         this.trackerHealthTimer?.Dispose();
         this.trackerHealthTimer = null;
 
@@ -1816,7 +1936,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.pendingTorrents.Clear();
         }
 
-        this.StopAsync().GetAwaiter().GetResult();
+        try
+        {
+            this.StopAsync().GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error during StopAsync in Dispose");
+        }
+
+        this.engineStateLock.Dispose();
     }
 
     public void CheckTrackerHealth()
@@ -2686,5 +2815,83 @@ public class PieceVerifiedEvent : IEvent
     {
         this.TorrentId = torrentId;
         this.PieceIndex = pieceIndex;
+    }
+}
+
+public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
+{
+    private readonly Func<IPAddress> getLocalIpv4;
+    private readonly Func<IPAddress> getLocalIpv6;
+
+    public BoundSocketConnector(IPAddress localIpv4, IPAddress localIpv6 = null)
+        : this(() => localIpv4, () => localIpv6)
+    {
+    }
+
+    public BoundSocketConnector(Func<IPAddress> getLocalIpv4, Func<IPAddress> getLocalIpv6 = null)
+    {
+        this.getLocalIpv4 = getLocalIpv4 ?? (() => IPAddress.Any);
+        this.getLocalIpv6 = getLocalIpv6 ?? (() => IPAddress.IPv6Any);
+    }
+
+    public async ReusableTasks.ReusableTask<System.Net.Sockets.Socket> ConnectAsync(Uri uri, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+
+        IPAddress[] addresses;
+        if (IPAddress.TryParse(uri.Host, out var parsedIp))
+        {
+            addresses = [parsedIp];
+        }
+        else
+        {
+            addresses = await Dns.GetHostAddressesAsync(uri.Host, token).ConfigureAwait(false);
+        }
+
+        var localV4 = this.getLocalIpv4();
+        var localV6 = this.getLocalIpv6();
+
+        Exception lastException = null;
+        foreach (var address in addresses)
+        {
+            if (token.IsCancellationRequested)
+            {
+                break;
+            }
+
+            var socket = new System.Net.Sockets.Socket(address.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+            try
+            {
+                if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                    localV4 != null &&
+                    !localV4.Equals(IPAddress.Any) &&
+                    !localV4.Equals(IPAddress.None))
+                {
+                    socket.Bind(new IPEndPoint(localV4, 0));
+                }
+                else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 &&
+                         localV6 != null &&
+                         !localV6.Equals(IPAddress.IPv6Any) &&
+                         !localV6.Equals(IPAddress.None))
+                {
+                    socket.Bind(new IPEndPoint(localV6, 0));
+                }
+
+                await socket.ConnectAsync(new IPEndPoint(address, uri.Port), token).ConfigureAwait(false);
+                return socket;
+            }
+            catch (Exception ex)
+            {
+                socket.Dispose();
+                lastException = ex;
+            }
+        }
+
+        if (lastException != null)
+        {
+            throw lastException;
+        }
+
+        throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound);
     }
 }
