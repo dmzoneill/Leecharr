@@ -232,10 +232,11 @@ public class DynamicBlocklistProxyTest
             "2001:db8::1",
             "fe80::/10",
             "2001:db8:abcd::/48",
+            "Bad Swarm:2001:db8:1234::/64",
         };
 
         var loaded = await provider.LoadRulesAsync(rules);
-        loaded.Should().Be(3);
+        loaded.Should().Be(4);
 
         provider.IsIpBlocked("2001:db8::1").Should().BeTrue();
         provider.IsIpBlocked("2001:db8::2").Should().BeFalse();
@@ -243,6 +244,9 @@ public class DynamicBlocklistProxyTest
         provider.IsIpBlocked("fe80::1ff:fe00:1").Should().BeTrue();
         provider.IsIpBlocked("2001:db8:abcd:1234::1").Should().BeTrue();
         provider.IsIpBlocked("2001:db8:abce::1").Should().BeFalse();
+
+        provider.IsIpBlocked("2001:db8:1234::5").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1235::5").Should().BeFalse();
     }
 
     [Test]
