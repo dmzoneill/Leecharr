@@ -87,8 +87,6 @@ public interface IConfigService
 
     int DiskWriteCacheSizeMb { get; }
 
-    string DiskPreAllocationMode { get; }
-
     int DiskFlushIntervalSeconds { get; }
 
     int FastResumeIntervalMinutes { get; }
@@ -701,8 +699,6 @@ public class ConfigService : IConfigService
     public string IncompleteDownloadDir => this.GetValue("IncompleteDownloadDir", string.Empty);
 
     public int DiskWriteCacheSizeMb => this.GetValueInt("DiskWriteCacheSizeMb", 128);
-
-    public string DiskPreAllocationMode => this.GetValue("DiskPreAllocationMode", "sparse");
 
     public int DiskFlushIntervalSeconds => this.GetValueInt("DiskFlushIntervalSeconds", 30);
 

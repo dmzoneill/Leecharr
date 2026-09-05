@@ -594,6 +594,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         manager.TorrentStateChanged += this.OnTorrentStateChanged;
         manager.PieceHashed += this.OnPieceHashed;
 
+        if (parsedTorrent != null)
+        {
+            this.PreallocateFiles(manager, workingPath, parsedTorrent);
+        }
+
         if (this.isHaltedByKillSwitch)
         {
             await manager.PauseAsync();
@@ -1114,6 +1119,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         await manager.UpdateSettingsAsync(strictSettings).ConfigureAwait(false);
                         this.logger.Info("Enforced BEP 27 restrictions for private torrent {0} after metadata received (DHT/PEX disabled)", infoHash);
                     }
+                }
+
+                if (manager.Torrent != null && (e.OldState == TorrentState.Metadata || e.NewState == TorrentState.Downloading || e.NewState == TorrentState.Starting))
+                {
+                    this.PreallocateFiles(manager, manager.SavePath, manager.Torrent);
                 }
 
                 if (e.NewState == TorrentState.Seeding)
@@ -1690,6 +1700,78 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to apply custom Peer ID prefix '{0}' to MonoTorrent engine.", prefix);
+        }
+    }
+
+    private void PreallocateFiles(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
+    {
+        var mode = this.configService.PreallocationMode?.Trim();
+        if (string.IsNullOrEmpty(mode) || string.Equals(mode, "Off", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var isFull = string.Equals(mode, "Full", StringComparison.OrdinalIgnoreCase);
+        var isSparse = string.Equals(mode, "Sparse", StringComparison.OrdinalIgnoreCase);
+
+        if (!isFull && !isSparse)
+        {
+            return;
+        }
+
+        try
+        {
+            if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
+            {
+                foreach (var file in parsedTorrent.Files)
+                {
+                    var fullPath = Path.Combine(workingPath, file.Path);
+                    this.PreallocateSingleFile(fullPath, file.Length, isFull);
+                }
+            }
+            else if (manager?.Files != null && manager.Files.Count > 0)
+            {
+                foreach (var file in manager.Files)
+                {
+                    var fullPath = Path.Combine(workingPath, file.Path);
+                    this.PreallocateSingleFile(fullPath, file.Length, isFull);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to preallocate files with mode '{0}' in '{1}'", mode, workingPath);
+        }
+    }
+
+    private void PreallocateSingleFile(string fullPath, long expectedLength, bool isFull)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            if (File.Exists(fullPath))
+            {
+                var fileInfo = new FileInfo(fullPath);
+                if (fileInfo.Length >= expectedLength)
+                {
+                    return;
+                }
+            }
+
+            using var fs = new FileStream(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+            if (fs.Length < expectedLength)
+            {
+                fs.SetLength(expectedLength);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to preallocate file '{0}' (size {1} bytes)", fullPath, expectedLength);
         }
     }
 }

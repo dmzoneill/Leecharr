@@ -1618,4 +1618,105 @@ public class MonoTorrentDownloadEngineTest
     }
 
     #endregion
+
+    #region Preallocation Tests
+
+    [Test]
+    public async Task AddTorrentAsync_WhenPreallocationModeIsFull_PreallocatesFileToFullSize()
+    {
+        this.configService.PreallocationMode.Returns("Full");
+        var fileSize = 32768;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("prealloc_full.bin", fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 201,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "prealloc_full.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var expectedFilePath = Path.Combine(this.testIncompleteDir, "prealloc_full.bin");
+        File.Exists(expectedFilePath).Should().BeTrue();
+        new FileInfo(expectedFilePath).Length.Should().Be(fileSize);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenPreallocationModeIsSparse_PreallocatesFileToFullSize()
+    {
+        this.configService.PreallocationMode.Returns("Sparse");
+        var fileSize = 49152;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("prealloc_sparse.bin", fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 202,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "prealloc_sparse.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var expectedFilePath = Path.Combine(this.testIncompleteDir, "prealloc_sparse.bin");
+        File.Exists(expectedFilePath).Should().BeTrue();
+        new FileInfo(expectedFilePath).Length.Should().Be(fileSize);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenPreallocationModeIsOff_DoesNotPreallocateFile()
+    {
+        this.configService.PreallocationMode.Returns("Off");
+        var fileSize = 32768;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("prealloc_off.bin", fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 203,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "prealloc_off.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var expectedFilePath = Path.Combine(this.testIncompleteDir, "prealloc_off.bin");
+        File.Exists(expectedFilePath).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenPreallocationModeIsFull_PreallocatesMultiFileTorrent()
+    {
+        this.configService.PreallocationMode.Returns("Full");
+        var torrentBytes = CreateSampleMultiFileTorrentBytes("MultiPrealloc");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 204,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "MultiPrealloc",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        foreach (var file in parsed.Files)
+        {
+            var expectedFilePath = Path.Combine(this.testIncompleteDir, file.Path);
+            File.Exists(expectedFilePath).Should().BeTrue();
+            new FileInfo(expectedFilePath).Length.Should().Be(file.Length);
+        }
+    }
+
+    #endregion
 }
