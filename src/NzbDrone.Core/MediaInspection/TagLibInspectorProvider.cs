@@ -116,6 +116,26 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     {
                         info.AudioBitDepth = tagFile.Properties.BitsPerSample;
                     }
+
+                    if (tagFile.Properties.Codecs != null)
+                    {
+                        foreach (var codec in tagFile.Properties.Codecs)
+                        {
+                            if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Video) && string.IsNullOrEmpty(info.VideoCodec))
+                            {
+                                info.VideoCodec = codec.Description;
+                            }
+                            else if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Audio) && string.IsNullOrEmpty(info.AudioCodec))
+                            {
+                                info.AudioCodec = codec.Description;
+                            }
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(info.Resolution) && info.Width > 0)
+                    {
+                        ApplyResolution(info, info.Width, info.Height);
+                    }
                 }
             }
             catch (Exception ex)
@@ -178,10 +198,16 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return InspectMatroska(header, fileName);
         }
 
-        // 2. Check MP4 / MOV / M4V ('ftyp' at offset 4 or 'moov' at offset 4)
-        if (bytesRead >= 8 && header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p')
+        // 2. Check MP4 / MOV / M4V ('ftyp', 'moov', 'mdat', 'free', 'skip', 'wide' at offset 4)
+        if (bytesRead >= 8 && (
+            (header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p') ||
+            (header[4] == 'm' && header[5] == 'o' && header[6] == 'o' && header[7] == 'v') ||
+            (header[4] == 'm' && header[5] == 'd' && header[6] == 'a' && header[7] == 't') ||
+            (header[4] == 'f' && header[5] == 'r' && header[6] == 'e' && header[7] == 'e') ||
+            (header[4] == 's' && header[5] == 'k' && header[6] == 'i' && header[7] == 'p') ||
+            (header[4] == 'w' && header[5] == 'i' && header[6] == 'd' && header[7] == 'e')))
         {
-            return InspectMp4(header, fileName);
+            return InspectMp4(stream, header, fileName);
         }
 
         // 3. Check FLAC ('fLaC': 0x66 0x4C 0x61 0x43)
@@ -671,57 +697,457 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
     }
 
-    private static MediaContainerInfo InspectMp4(byte[] header, string fileName)
+    private static MediaContainerInfo InspectMp4(Stream stream, byte[] header, string fileName)
     {
         var info = new MediaContainerInfo
         {
             ContainerFormat = "MP4",
         };
 
-        var text = System.Text.Encoding.ASCII.GetString(header);
-
-        // Detect video codec from MP4 FourCC sample entries
-        if (text.Contains("hvc1") || text.Contains("hev1"))
+        if (stream != null && stream.CanSeek)
         {
-            info.VideoCodec = "HEVC (H.265)";
+            var originalPos = stream.Position;
+            try
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+                ParseMp4Stream(stream, info);
+            }
+            catch
+            {
+                // Fallback / ignore corrupted boxes
+            }
+            finally
+            {
+                stream.Seek(originalPos, SeekOrigin.Begin);
+            }
         }
-        else if (text.Contains("av01"))
+        else if (header != null && header.Length > 0)
         {
-            info.VideoCodec = "AV1";
-        }
-        else if (text.Contains("vp09"))
-        {
-            info.VideoCodec = "VP9";
-        }
-        else if (text.Contains("avc1") || text.Contains("avc3"))
-        {
-            info.VideoCodec = "H.264";
-        }
-
-        // Detect audio codec from MP4 FourCC sample entries
-        if (text.Contains("ec-3"))
-        {
-            info.AudioCodec = "E-AC3 / Dolby Digital Plus";
-            info.AudioChannels = "5.1";
-        }
-        else if (text.Contains("ac-3"))
-        {
-            info.AudioCodec = "AC3 / Dolby Digital";
-            info.AudioChannels = "5.1";
-        }
-        else if (text.Contains("alac"))
-        {
-            info.AudioCodec = "Apple Lossless (ALAC)";
-            info.AudioChannels = "2.0";
-        }
-        else if (text.Contains("mp4a"))
-        {
-            info.AudioCodec = "AAC";
-            info.AudioChannels = "2.0";
+            try
+            {
+                using var ms = new MemoryStream(header);
+                ParseMp4Stream(ms, info);
+            }
+            catch
+            {
+                // Fallback / ignore corrupted boxes
+            }
         }
 
         ApplyFilenameHints(info, fileName);
         return info;
+    }
+
+    private static void ParseMp4Stream(Stream stream, MediaContainerInfo info)
+    {
+        var headerBuf = new byte[16];
+        long streamLength = stream.Length;
+
+        while (stream.Position + 8 <= streamLength)
+        {
+            long boxStartPos = stream.Position;
+            int read = stream.Read(headerBuf, 0, 8);
+            if (read < 8)
+            {
+                break;
+            }
+
+            uint size32 = ((uint)headerBuf[0] << 24) | ((uint)headerBuf[1] << 16) | ((uint)headerBuf[2] << 8) | headerBuf[3];
+            string boxType = System.Text.Encoding.ASCII.GetString(headerBuf, 4, 4);
+
+            long boxSize;
+            long headerSize = 8;
+
+            if (size32 == 1)
+            {
+                if (stream.Position + 8 > streamLength)
+                {
+                    break;
+                }
+
+                int extRead = stream.Read(headerBuf, 8, 8);
+                if (extRead < 8)
+                {
+                    break;
+                }
+
+                ulong size64 = ((ulong)headerBuf[8] << 56) |
+                               ((ulong)headerBuf[9] << 48) |
+                               ((ulong)headerBuf[10] << 40) |
+                               ((ulong)headerBuf[11] << 32) |
+                               ((ulong)headerBuf[12] << 24) |
+                               ((ulong)headerBuf[13] << 16) |
+                               ((ulong)headerBuf[14] << 8) |
+                               headerBuf[15];
+
+                boxSize = (long)size64;
+                headerSize = 16;
+            }
+            else if (size32 == 0)
+            {
+                boxSize = streamLength - boxStartPos;
+            }
+            else
+            {
+                boxSize = size32;
+            }
+
+            if (boxSize < headerSize)
+            {
+                break;
+            }
+
+            long boxEndPos = boxStartPos + boxSize;
+
+            if (boxType == "moov")
+            {
+                long payloadSize = boxSize - headerSize;
+                int bytesToRead = (int)Math.Min(payloadSize, 32 * 1024 * 1024);
+                var moovData = new byte[bytesToRead];
+                int totalRead = 0;
+                while (totalRead < bytesToRead)
+                {
+                    int r = stream.Read(moovData, totalRead, bytesToRead - totalRead);
+                    if (r <= 0)
+                    {
+                        break;
+                    }
+
+                    totalRead += r;
+                }
+
+                ParseMp4Boxes(moovData, 0, totalRead, info);
+            }
+
+            if (boxEndPos > streamLength)
+            {
+                break;
+            }
+
+            if (stream.CanSeek)
+            {
+                stream.Seek(boxEndPos, SeekOrigin.Begin);
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    private static void ParseMp4Boxes(byte[] data, int offset, int limit, MediaContainerInfo info)
+    {
+        while (offset + 8 <= limit)
+        {
+            int boxStart = offset;
+            uint size32 = ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16) | ((uint)data[offset + 2] << 8) | data[offset + 3];
+            string boxType = System.Text.Encoding.ASCII.GetString(data, offset + 4, 4);
+
+            long boxSize;
+            int headerSize = 8;
+
+            if (size32 == 1)
+            {
+                if (offset + 16 > limit)
+                {
+                    break;
+                }
+
+                ulong size64 = ((ulong)data[offset + 8] << 56) |
+                               ((ulong)data[offset + 9] << 48) |
+                               ((ulong)data[offset + 10] << 40) |
+                               ((ulong)data[offset + 11] << 32) |
+                               ((ulong)data[offset + 12] << 24) |
+                               ((ulong)data[offset + 13] << 16) |
+                               ((ulong)data[offset + 14] << 8) |
+                               data[offset + 15];
+                boxSize = (long)size64;
+                headerSize = 16;
+            }
+            else if (size32 == 0)
+            {
+                boxSize = limit - boxStart;
+            }
+            else
+            {
+                boxSize = size32;
+            }
+
+            if (boxSize < headerSize)
+            {
+                break;
+            }
+
+            int boxEnd = (int)Math.Min(boxStart + boxSize, limit);
+            int payloadOffset = boxStart + headerSize;
+
+            switch (boxType)
+            {
+                case "moov":
+                case "trak":
+                case "mdia":
+                case "minf":
+                case "stbl":
+                    ParseMp4Boxes(data, payloadOffset, boxEnd, info);
+                    break;
+
+                case "tkhd":
+                    ParseTkhd(data, payloadOffset, boxEnd, info);
+                    break;
+
+                case "stsd":
+                    ParseStsd(data, payloadOffset, boxEnd, info);
+                    break;
+            }
+
+            offset = boxEnd;
+        }
+    }
+
+    private static void ParseTkhd(byte[] data, int payloadOffset, int boxEnd, MediaContainerInfo info)
+    {
+        if (payloadOffset + 4 > boxEnd)
+        {
+            return;
+        }
+
+        byte version = data[payloadOffset];
+        int widthOffset = version == 1 ? payloadOffset + 88 : payloadOffset + 76;
+        int heightOffset = widthOffset + 4;
+
+        if (heightOffset + 4 <= boxEnd)
+        {
+            uint wRaw = ((uint)data[widthOffset] << 24) | ((uint)data[widthOffset + 1] << 16) | ((uint)data[widthOffset + 2] << 8) | data[widthOffset + 3];
+            uint hRaw = ((uint)data[heightOffset] << 24) | ((uint)data[heightOffset + 1] << 16) | ((uint)data[heightOffset + 2] << 8) | data[heightOffset + 3];
+
+            int width = (int)(wRaw >> 16);
+            int height = (int)(hRaw >> 16);
+
+            if (width > 0 && height > 0 && info.Width == 0)
+            {
+                info.Width = width;
+                info.Height = height;
+                ApplyResolution(info, width, height);
+            }
+        }
+    }
+
+    private static void ParseStsd(byte[] data, int payloadOffset, int boxEnd, MediaContainerInfo info)
+    {
+        if (payloadOffset + 8 > boxEnd)
+        {
+            return;
+        }
+
+        uint entryCount = ((uint)data[payloadOffset + 4] << 24) | ((uint)data[payloadOffset + 5] << 16) | ((uint)data[payloadOffset + 6] << 8) | data[payloadOffset + 7];
+        int entryOffset = payloadOffset + 8;
+
+        for (int i = 0; i < entryCount && entryOffset + 8 <= boxEnd; i++)
+        {
+            uint entrySize = ((uint)data[entryOffset] << 24) | ((uint)data[entryOffset + 1] << 16) | ((uint)data[entryOffset + 2] << 8) | data[entryOffset + 3];
+            if (entrySize < 8 || entryOffset + entrySize > boxEnd)
+            {
+                break;
+            }
+
+            string format = System.Text.Encoding.ASCII.GetString(data, entryOffset + 4, 4);
+
+            switch (format)
+            {
+                case "hvc1":
+                case "hev1":
+                    info.VideoCodec = "HEVC (H.265)";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "dvh1":
+                case "dvhe":
+                    info.VideoCodec = "HEVC (H.265)";
+                    info.HdrFormat = "Dolby Vision";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "av01":
+                    info.VideoCodec = "AV1";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "vp09":
+                    info.VideoCodec = "VP9";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "vp08":
+                    info.VideoCodec = "VP8";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "avc1":
+                case "avc3":
+                    info.VideoCodec = "H.264";
+                    ExtractVisualSampleEntry(data, entryOffset, entrySize, info);
+                    break;
+
+                case "ec-3":
+                case "ec+3":
+                    info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "5.1");
+                    break;
+
+                case "ac-3":
+                case "ac+3":
+                    info.AudioCodec = "AC3 / Dolby Digital";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "5.1");
+                    break;
+
+                case "alac":
+                    info.AudioCodec = "Apple Lossless (ALAC)";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    break;
+
+                case "mp4a":
+                    info.AudioCodec = "AAC";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    break;
+
+                case "Opus":
+                case "opus":
+                    info.AudioCodec = "Opus";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    break;
+
+                case "fLaC":
+                case "flac":
+                    info.AudioCodec = "FLAC";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    break;
+
+                case "dtsc":
+                case "dtsh":
+                case "dtsl":
+                case "dtsx":
+                case "DTS ":
+                    info.AudioCodec = "DTS";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "5.1");
+                    break;
+
+                case "mlpa":
+                    info.AudioCodec = "Dolby TrueHD / Atmos";
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "7.1");
+                    break;
+
+                case "tx3g":
+                case "wvtt":
+                case "stpp":
+                case "c608":
+                case "c708":
+                    if (!info.SubtitleTracks.Contains(format))
+                    {
+                        info.SubtitleTracks.Add(format);
+                    }
+
+                    break;
+            }
+
+            entryOffset += (int)entrySize;
+        }
+    }
+
+    private static void ExtractVisualSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info)
+    {
+        if (entrySize >= 36 && entryOffset + 36 <= data.Length)
+        {
+            ushort width = (ushort)((data[entryOffset + 32] << 8) | data[entryOffset + 33]);
+            ushort height = (ushort)((data[entryOffset + 34] << 8) | data[entryOffset + 35]);
+
+            if (width > 0 && height > 0 && info.Width == 0)
+            {
+                info.Width = width;
+                info.Height = height;
+                ApplyResolution(info, width, height);
+            }
+        }
+
+        // Search child boxes for HDR / Dolby Vision indicators
+        int childOffset = entryOffset + 86;
+        int childLimit = entryOffset + (int)entrySize;
+        while (childOffset + 8 <= childLimit && childOffset + 8 <= data.Length)
+        {
+            uint cSize = ((uint)data[childOffset] << 24) | ((uint)data[childOffset + 1] << 16) | ((uint)data[childOffset + 2] << 8) | data[childOffset + 3];
+            if (cSize < 8 || childOffset + cSize > childLimit)
+            {
+                break;
+            }
+
+            string cType = System.Text.Encoding.ASCII.GetString(data, childOffset + 4, 4);
+            if (cType == "dvcC" || cType == "dvvC")
+            {
+                info.HdrFormat = "Dolby Vision";
+            }
+
+            childOffset += (int)cSize;
+        }
+    }
+
+    private static void ExtractAudioSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info, string defaultChannels)
+    {
+        if (entrySize >= 36 && entryOffset + 36 <= data.Length)
+        {
+            ushort channelCount = (ushort)((data[entryOffset + 24] << 8) | data[entryOffset + 25]);
+            ushort sampleSize = (ushort)((data[entryOffset + 26] << 8) | data[entryOffset + 27]);
+            uint sampleRateRaw = ((uint)data[entryOffset + 32] << 24) | ((uint)data[entryOffset + 33] << 16) | ((uint)data[entryOffset + 34] << 8) | data[entryOffset + 35];
+            int sampleRate = (int)(sampleRateRaw >> 16);
+
+            if (channelCount > 0 && string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = channelCount switch
+                {
+                    1 => "1.0",
+                    2 => "2.0",
+                    6 => "5.1",
+                    8 => "7.1",
+                    _ => $"{channelCount}.0",
+                };
+            }
+
+            if (sampleRate > 0 && info.AudioSampleRate == 0)
+            {
+                info.AudioSampleRate = sampleRate;
+            }
+
+            if (sampleSize > 0 && info.AudioBitDepth == 0)
+            {
+                info.AudioBitDepth = sampleSize;
+            }
+        }
+
+        if (string.IsNullOrEmpty(info.AudioChannels))
+        {
+            info.AudioChannels = defaultChannels;
+        }
+    }
+
+    private static void ApplyResolution(MediaContainerInfo info, int width, int height)
+    {
+        if (string.IsNullOrEmpty(info.Resolution))
+        {
+            if (width >= 3800 || height >= 2100)
+            {
+                info.Resolution = "4K UHD (2160p)";
+            }
+            else if (width >= 1900 || height >= 1000)
+            {
+                info.Resolution = "1080p";
+            }
+            else if (width >= 1200 || height >= 700)
+            {
+                info.Resolution = "720p";
+            }
+            else if (width >= 640 || height >= 400)
+            {
+                info.Resolution = "480p";
+            }
+        }
     }
 
     private static MediaContainerInfo InspectFlac(byte[] header)
