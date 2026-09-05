@@ -272,15 +272,15 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 TorrentId = id,
                 Url = torrent.TrackerUrl,
                 Tier = 0,
-                Status = 1,
+                Status = 0,
                 Enabled = true,
                 Seeders = torrent.Seeders,
                 Leechers = torrent.Leechers,
                 AnnounceInterval = 1800,
-                LastAnnounce = torrent.DateAdded,
+                LastAnnounce = null,
                 NextAnnounce = torrent.DateAdded.AddSeconds(1800),
-                TotalAnnounces = 1,
-                SuccessfulAnnounces = 1,
+                TotalAnnounces = 0,
+                SuccessfulAnnounces = 0,
             };
             this.trackerEntryRepository.Insert(fallback);
             dbTrackers.Add(fallback);
@@ -408,12 +408,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (tracker != null)
         {
             var now = DateTime.UtcNow;
-            tracker.Status = 1;
+            tracker.Status = 0;
             tracker.LastAnnounce = now;
             tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
             tracker.TotalAnnounces++;
-            tracker.SuccessfulAnnounces++;
-            tracker.ErrorMessage = null;
             this.trackerEntryRepository.Update(tracker);
         }
 
@@ -830,12 +828,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var now = DateTime.UtcNow;
             foreach (var tracker in trackers)
             {
-                tracker.Status = 1;
+                tracker.Status = 0;
                 tracker.LastAnnounce = now;
                 tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
                 tracker.TotalAnnounces++;
-                tracker.SuccessfulAnnounces++;
-                tracker.ErrorMessage = null;
                 this.trackerEntryRepository.Update(tracker);
             }
         }
