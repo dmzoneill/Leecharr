@@ -164,7 +164,7 @@ public class TorrentFileParser : ITorrentFileParser
             }
 
             var torrentName = nameStr.ToString();
-            ValidateTorrentName(torrentName);
+            var sanitizedTorrentName = SanitizeTorrentName(torrentName);
 
             var result = new ParsedTorrent
             {
@@ -249,11 +249,9 @@ public class TorrentFileParser : ITorrentFileParser
                     throw new InvalidTorrentFileException("File length cannot be negative.");
                 }
 
-                ValidateAndSanitizePathPart(result.Name);
-
                 result.Files.Add(new ParsedTorrentFile
                 {
-                    Path = result.Name,
+                    Path = sanitizedTorrentName,
                     Size = lengthNum.Value,
                 });
             }
@@ -307,7 +305,7 @@ public class TorrentFileParser : ITorrentFileParser
         }
     }
 
-    private static void ValidateTorrentName(string name)
+    private static string SanitizeTorrentName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -319,26 +317,21 @@ public class TorrentFileParser : ITorrentFileParser
             throw new InvalidTorrentFileException("Malformed torrent file: torrent name contains null byte.");
         }
 
-        if (name.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        var normalized = name.Replace('\\', '/');
+
+        if (normalized.StartsWith('/') ||
+            (normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':'))
         {
-            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name contains invalid path characters: '{name}'.");
+            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name cannot be an absolute path: '{name}'.");
         }
 
-        if (name.Contains('/') || name.Contains('\\'))
-        {
-            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name cannot contain path separators: '{name}'.");
-        }
-
-        var trimmed = name.Trim();
-        if (trimmed == "." || trimmed == "..")
+        var parts = normalized.Split('/');
+        if (parts.Any(p => p.Trim() == "." || p.Trim() == ".."))
         {
             throw new InvalidTorrentFileException($"Malformed torrent file: torrent name contains directory traversal sequence: '{name}'.");
         }
 
-        if (Path.IsPathRooted(name) || (name.Length >= 2 && char.IsLetter(name[0]) && name[1] == ':'))
-        {
-            throw new InvalidTorrentFileException($"Malformed torrent file: torrent name cannot be an absolute path: '{name}'.");
-        }
+        return string.Join("_", parts.Where(p => p.Length > 0));
     }
 
     private static void ValidateAndSanitizePathPart(string part)
