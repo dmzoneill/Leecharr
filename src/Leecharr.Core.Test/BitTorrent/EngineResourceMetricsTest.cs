@@ -202,4 +202,40 @@ public class EngineResourceMetricsTest
         allMetrics[0].Category.Should().Be(string.Empty);
         allMetrics[0].Status.Should().NotBeNull();
     }
+
+    [Test]
+    public async Task EmbeddedTransmissionEngine_ProbeHealthAsync_ReturnsUnhealthyAndNotImplemented()
+    {
+        using var engine = new EmbeddedTransmissionEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+
+        engine.IsAvailable.Should().BeFalse();
+
+        var result = await engine.ProbeHealthAsync();
+        result.Should().NotBeNull();
+        result.IsHealthy.Should().BeFalse();
+        result.StatusMessage.Should().Contain("not implemented");
+    }
+
+    [Test]
+    public async Task LibTorrentDownloadEngine_ProbeHealthAsync_ReturnsUnhealthyAndNotImplemented()
+    {
+        using var engine = new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+
+        engine.IsAvailable.Should().BeFalse();
+
+        var result = await engine.ProbeHealthAsync();
+        result.Should().NotBeNull();
+        result.IsHealthy.Should().BeFalse();
+        result.StatusMessage.Should().Contain("not implemented");
+    }
 }

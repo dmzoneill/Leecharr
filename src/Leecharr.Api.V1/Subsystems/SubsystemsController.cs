@@ -407,7 +407,7 @@ public class SubsystemsController : Controller
                 Description = e.Description,
                 IsActive = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase),
                 IsAvailable = e.IsAvailable,
-                Status = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase) ? "Running" : (e.IsAvailable ? "Ready" : "Emulated"),
+                Status = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase) ? "Running" : (e.IsAvailable ? "Ready" : "Unavailable"),
                 Capabilities = new Dictionary<string, object>
                 {
                     ["supportsSequentialDownload"] = e.Capabilities.SupportsSequentialDownload,
