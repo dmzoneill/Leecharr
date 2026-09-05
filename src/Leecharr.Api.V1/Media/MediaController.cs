@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +36,12 @@ public class MediaController : RestController<MediaMetadataResource>
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "Path is resolved internally from server metadata storage")]
     public ActionResult GetArtwork(int torrentId, string type)
     {
+        if (!string.Equals(type, "poster", global::System.StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(type, "backdrop", global::System.StringComparison.OrdinalIgnoreCase))
+        {
+            return this.NotFound();
+        }
+
         var meta = this.mediaEnrichmentService.GetMetadata(torrentId);
         if (meta == null)
         {
@@ -49,6 +57,17 @@ public class MediaController : RestController<MediaMetadataResource>
             return this.NotFound();
         }
 
-        return this.PhysicalFile(global::System.IO.Path.GetFullPath(path), "image/jpeg");
+        var ext = global::System.IO.Path.GetExtension(path).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            _ => "application/octet-stream",
+        };
+
+        return this.PhysicalFile(global::System.IO.Path.GetFullPath(path), contentType);
     }
 }
