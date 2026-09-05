@@ -13,14 +13,17 @@ namespace NzbDrone.Core.Network.GeoIp;
 
 public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
 {
+    private const string DefaultEndpointTemplate = "http://ip-api.com/json/{0}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,as,query";
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
     private readonly Logger logger;
     private readonly ConcurrentDictionary<string, CachedGeoLocation> cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim rateLimiter = new(1, 1);
+    private readonly object rateLimitLock = new();
     private readonly Queue<DateTime> requestTimestamps = new();
     private readonly int maxRequestsPerMinute = 45;
     private readonly TimeSpan cacheTtl = TimeSpan.FromHours(24);
+    private readonly TimeSpan negativeCacheTtl = TimeSpan.FromMinutes(5);
+    private readonly string apiEndpointTemplate;
     private bool disposed;
 
     public string ProviderId => "OnlineApi";
@@ -33,23 +36,34 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
 
     public GeoIpCapabilities Capabilities => GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.Asn | GeoIpCapabilities.Isp | GeoIpCapabilities.InMemoryCache;
 
+    public string ApiEndpointTemplate => this.apiEndpointTemplate;
+
     public OnlineApiGeoIpProvider()
         : this(new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, ownsHttpClient: true)
     {
     }
 
-    public OnlineApiGeoIpProvider(HttpClient httpClient, bool ownsHttpClient = false)
+    public OnlineApiGeoIpProvider(HttpClient httpClient, bool ownsHttpClient = false, string apiEndpointTemplate = null)
     {
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.ownsHttpClient = ownsHttpClient;
+        this.apiEndpointTemplate = string.IsNullOrWhiteSpace(apiEndpointTemplate) ? DefaultEndpointTemplate : apiEndpointTemplate;
         this.logger = LogManager.GetCurrentClassLogger();
+
+        if (this.apiEndpointTemplate.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            this.logger.Warn(
+                "OnlineApiGeoIpProvider is configured with plaintext HTTP endpoint ({0}). Peer IP lookups may be exposed in transit; configure an HTTPS endpoint or use local MaxMind/IP2Location databases for privacy-sensitive environments.",
+                this.apiEndpointTemplate);
+        }
     }
 
     public async Task<GeoIpHealthResult> ProbeHealthAsync()
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "http://ip-api.com/json/8.8.8.8?fields=status,message,country,countryCode");
+            var probeUrl = string.Format(this.apiEndpointTemplate, "8.8.8.8");
+            using var request = new HttpRequestMessage(HttpMethod.Get, probeUrl);
             using var response = await this.httpClient.SendAsync(request);
 
             if (response.IsSuccessStatusCode)
@@ -92,7 +106,7 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
             return cached.Info;
         }
 
-        // Ignore private/local IPs
+        // 2. Ignore private / local / loopback IPs
         if (IsPrivateOrLoopback(ipAddress))
         {
             var local = new GeoLocationInfo
@@ -102,30 +116,49 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
                 CountryName = "Local Network",
                 City = "Localhost",
             };
-            this.SetCache(ipAddress, local);
+            this.SetCache(ipAddress, local, this.cacheTtl);
             return local;
         }
 
-        // 2. Throttle & execute online request
-        await this.rateLimiter.WaitAsync();
-        try
+        // 3. Rate limiter check without holding lock across HTTP request
+        var isRateLimited = false;
+        lock (this.rateLimitLock)
         {
             this.PruneRateLimiter();
             if (this.requestTimestamps.Count >= this.maxRequestsPerMinute)
             {
-                this.logger.Warn("GeoIP online API rate limit reached ({0} req/min). Skipping online lookup for {1}.", this.maxRequestsPerMinute, ipAddress);
-                return new GeoLocationInfo { IpAddress = ipAddress };
+                isRateLimited = true;
             }
+            else
+            {
+                this.requestTimestamps.Enqueue(DateTime.UtcNow);
+            }
+        }
 
-            this.requestTimestamps.Enqueue(DateTime.UtcNow);
+        if (isRateLimited)
+        {
+            this.logger.Warn(
+                "GeoIP online API rate limit reached ({0} req/min). Skipping online lookup for {1}.",
+                this.maxRequestsPerMinute,
+                ipAddress);
 
-            var endpoint = $"http://ip-api.com/json/{Uri.EscapeDataString(ipAddress)}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,as,query";
+            var rateLimitedStub = new GeoLocationInfo { IpAddress = ipAddress };
+            this.SetCache(ipAddress, rateLimitedStub, this.negativeCacheTtl);
+            return rateLimitedStub;
+        }
+
+        // 4. Perform outbound HTTP request
+        try
+        {
+            var endpoint = string.Format(this.apiEndpointTemplate, Uri.EscapeDataString(ipAddress));
             using var response = await this.httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("GeoIP online request for {0} failed with HTTP {1}", ipAddress, response.StatusCode);
-                return new GeoLocationInfo { IpAddress = ipAddress };
+                var errorStub = new GeoLocationInfo { IpAddress = ipAddress };
+                this.SetCache(ipAddress, errorStub, this.negativeCacheTtl);
+                return errorStub;
             }
 
             var json = await response.Content.ReadAsStringAsync();
@@ -148,23 +181,24 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
                     TimeZone = root.TryGetProperty("timezone", out var tz) ? tz.GetString() : string.Empty,
                 };
 
-                this.SetCache(ipAddress, info);
+                this.SetCache(ipAddress, info, this.cacheTtl);
                 return info;
             }
+
+            var failedStub = new GeoLocationInfo { IpAddress = ipAddress };
+            this.SetCache(ipAddress, failedStub, this.negativeCacheTtl);
+            return failedStub;
         }
         catch (Exception ex)
         {
             this.logger.Debug(ex, "Online GeoIP lookup failed for IP {0}", ipAddress);
+            var excStub = new GeoLocationInfo { IpAddress = ipAddress };
+            this.SetCache(ipAddress, excStub, this.negativeCacheTtl);
+            return excStub;
         }
-        finally
-        {
-            this.rateLimiter.Release();
-        }
-
-        return new GeoLocationInfo { IpAddress = ipAddress };
     }
 
-    private void SetCache(string ip, GeoLocationInfo info)
+    private void SetCache(string ip, GeoLocationInfo info, TimeSpan ttl)
     {
         if (this.cache.Count > 10000)
         {
@@ -174,7 +208,7 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
         this.cache[ip] = new CachedGeoLocation
         {
             Info = info,
-            ExpiresAt = DateTime.UtcNow.Add(this.cacheTtl),
+            ExpiresAt = DateTime.UtcNow.Add(ttl),
         };
     }
 
@@ -201,6 +235,11 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
 
         if (System.Net.IPAddress.TryParse(ip, out var addr))
         {
+            if (addr.IsIPv4MappedToIPv6)
+            {
+                addr = addr.MapToIPv4();
+            }
+
             if (System.Net.IPAddress.IsLoopback(addr))
             {
                 return true;
@@ -209,22 +248,63 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
             var bytes = addr.GetAddressBytes();
             if (bytes.Length == 4)
             {
+                // 10.0.0.0/8
                 if (bytes[0] == 10)
                 {
                     return true;
                 }
 
+                // 172.16.0.0/12
                 if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
                 {
                     return true;
                 }
 
+                // 192.168.0.0/16
                 if (bytes[0] == 192 && bytes[1] == 168)
                 {
                     return true;
                 }
 
+                // 127.0.0.0/8
+                if (bytes[0] == 127)
+                {
+                    return true;
+                }
+
+                // 169.254.0.0/16
                 if (bytes[0] == 169 && bytes[1] == 254)
+                {
+                    return true;
+                }
+
+                // 0.0.0.0/8
+                if (bytes[0] == 0)
+                {
+                    return true;
+                }
+            }
+            else if (bytes.Length == 16)
+            {
+                if (addr.Equals(System.Net.IPAddress.IPv6Loopback))
+                {
+                    return true;
+                }
+
+                // Link-local fe80::/10
+                if (addr.IsIPv6LinkLocal || (bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80))
+                {
+                    return true;
+                }
+
+                // Site-local fec0::/10
+                if (addr.IsIPv6SiteLocal)
+                {
+                    return true;
+                }
+
+                // Unique Local Address fc00::/7
+                if (addr.IsIPv6UniqueLocal || ((bytes[0] & 0xFE) == 0xFC))
                 {
                     return true;
                 }
@@ -243,8 +323,6 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 this.httpClient?.Dispose();
             }
-
-            this.rateLimiter?.Dispose();
         }
     }
 

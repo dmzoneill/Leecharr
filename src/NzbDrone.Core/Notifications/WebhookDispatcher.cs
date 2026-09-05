@@ -9,9 +9,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Http.Transport;
 using Polly;
 using Polly.Retry;
-using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Notifications;
 

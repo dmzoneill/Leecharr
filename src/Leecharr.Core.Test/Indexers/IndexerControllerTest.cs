@@ -259,7 +259,7 @@ public class IndexerControllerTest
         this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
             .Returns(Task.FromResult(TorznabTestResult.Fail("HTTP 403 Forbidden")));
 
-        var result = await this.controller.Test(resource);
+        var result = await this.controller.TestDirect(resource);
 
         result.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result.Result!;
@@ -294,7 +294,7 @@ public class IndexerControllerTest
         this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
             .Returns(Task.FromResult(TorznabTestResult.Ok(caps)));
 
-        var result = await this.controller.Test(resource);
+        var result = await this.controller.TestDirect(resource);
 
         result.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result.Result!;

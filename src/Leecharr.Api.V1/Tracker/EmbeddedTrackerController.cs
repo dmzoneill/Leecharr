@@ -257,19 +257,49 @@ public class EmbeddedTrackerController : ControllerBase
         }
 
         var bytes = ip.GetAddressBytes();
-        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        if (ip.AddressFamily == global::System.Net.Sockets.AddressFamily.InterNetwork)
         {
-            if (bytes[0] == 10) return true;
-            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
-            if (bytes[0] == 192 && bytes[1] == 168) return true;
-            if (bytes[0] == 127) return true;
-            if (bytes[0] == 169 && bytes[1] == 254) return true;
+            if (bytes[0] == 10)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 192 && bytes[1] == 168)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 127)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 169 && bytes[1] == 254)
+            {
+                return true;
+            }
         }
-        else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        else if (ip.AddressFamily == global::System.Net.Sockets.AddressFamily.InterNetworkV6)
         {
-            if (ip.Equals(IPAddress.IPv6Loopback)) return true;
-            if ((bytes[0] & 0xFE) == 0xFC) return true;
-            if (bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80) return true;
+            if (ip.Equals(IPAddress.IPv6Loopback))
+            {
+                return true;
+            }
+
+            if ((bytes[0] & 0xFE) == 0xFC)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80)
+            {
+                return true;
+            }
         }
 
         return false;

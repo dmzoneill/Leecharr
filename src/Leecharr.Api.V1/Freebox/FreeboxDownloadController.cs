@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -251,7 +252,7 @@ public class FreeboxDownloadController : ControllerBase
 
     [HttpPut]
     [Route("api/v4/downloads/{id}")]
-    public async Task<IActionResult> UpdateDownload(int id, [FromBody] FreeboxUpdateRequest jsonRequest = null)
+    public async Task<IActionResult> UpdateDownload(int id)
     {
         if (!this.IsFreeboxAuthenticated())
         {
@@ -275,18 +276,34 @@ public class FreeboxDownloadController : ControllerBase
                 }
             }
         }
-        else if (jsonRequest != null)
+        else
         {
-            status = jsonRequest.Status?.ToLowerInvariant();
-            queuePos = jsonRequest.QueuePos?.ToLowerInvariant();
-            if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value >= 0)
+            try
             {
-                var t = this.torrentService.Get(id);
-                if (t != null)
+                using var reader = new StreamReader(this.Request.Body);
+                var bodyStr = await reader.ReadToEndAsync();
+                if (!string.IsNullOrWhiteSpace(bodyStr))
                 {
-                    t.TargetRatio = jsonRequest.StopRatio.Value / 100.0;
-                    await this.torrentService.UpdateAsync(t);
+                    var jsonRequest = JsonSerializer.Deserialize<FreeboxUpdateRequest>(bodyStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (jsonRequest != null)
+                    {
+                        status = jsonRequest.Status?.ToLowerInvariant();
+                        queuePos = jsonRequest.QueuePos?.ToLowerInvariant();
+                        if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value >= 0)
+                        {
+                            var t = this.torrentService.Get(id);
+                            if (t != null)
+                            {
+                                t.TargetRatio = jsonRequest.StopRatio.Value / 100.0;
+                                await this.torrentService.UpdateAsync(t);
+                            }
+                        }
+                    }
                 }
+            }
+            catch
+            {
+                // Ignore parse errors
             }
         }
 

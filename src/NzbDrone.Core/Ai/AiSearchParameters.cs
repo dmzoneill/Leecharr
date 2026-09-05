@@ -24,6 +24,8 @@ public class AiSearchParameters
 
     public string Quality { get; set; }
 
+    public string Source { get; set; }
+
     public string Codec { get; set; }
 
     public string ReleaseGroup { get; set; }

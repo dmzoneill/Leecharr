@@ -212,7 +212,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpGet("{id:int}/peers")]
-    public ActionResult<List<PeerResource>> GetPeers(int id)
+    public async Task<ActionResult<List<PeerResource>>> GetPeers(int id)
     {
         var task = this.torrentService.GetDownloadTask(id);
         if (task == null)
@@ -221,9 +221,14 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var peers = task.GetPeers();
-        var resources = peers.Select((p, idx) =>
+        if (peers == null || peers.Count == 0)
         {
-            var geo = this.geoIpService?.Lookup(p.Ip);
+            return this.Ok(new List<PeerResource>());
+        }
+
+        var peerTasks = peers.Select(async (p, idx) =>
+        {
+            var geo = this.geoIpService != null ? await this.geoIpService.LookupAsync(p.Ip) : null;
             return new PeerResource
             {
                 Id = idx + 1,
@@ -240,8 +245,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 CountryName = geo?.CountryName ?? string.Empty,
                 City = geo?.City ?? string.Empty,
             };
-        }).ToList();
+        });
 
+        var resources = (await Task.WhenAll(peerTasks)).ToList();
         return this.Ok(resources);
     }
 

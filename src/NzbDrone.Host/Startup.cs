@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -204,14 +205,14 @@ public class Startup
     public void Configure(WebApplication app)
     {
         var configFileProvider = app.Services.GetRequiredService<IConfigFileProvider>();
-        if (!string.IsNullOrWhiteSpace(configFileProvider.UrlBase))
+        var urlBase = configFileProvider.UrlBase?.Trim() ?? string.Empty;
+        if (!string.IsNullOrEmpty(urlBase) && !urlBase.StartsWith('/'))
         {
-            var urlBase = configFileProvider.UrlBase.Trim();
-            if (!urlBase.StartsWith('/'))
-            {
-                urlBase = "/" + urlBase;
-            }
+            urlBase = "/" + urlBase;
+        }
 
+        if (!string.IsNullOrWhiteSpace(urlBase))
+        {
             app.UsePathBase(urlBase);
         }
 
@@ -219,7 +220,7 @@ public class Startup
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
         };
-        forwardedOptions.KnownNetworks.Clear();
+        forwardedOptions.KnownIPNetworks.Clear();
         forwardedOptions.KnownProxies.Clear();
         app.UseForwardedHeaders(forwardedOptions);
 
@@ -229,12 +230,6 @@ public class Startup
 
         app.UseMiddleware<HostHeaderValidationMiddleware>();
         app.UseMiddleware<CsrfProtectionMiddleware>();
-
-        var urlBase = configFileProvider.UrlBase?.Trim() ?? string.Empty;
-        if (!string.IsNullOrEmpty(urlBase) && !urlBase.StartsWith('/'))
-        {
-            urlBase = "/" + urlBase;
-        }
 
         app.Use(async (context, next) =>
         {

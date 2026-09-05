@@ -22,6 +22,8 @@ public class AiParsedRelease
 
     public string Quality { get; set; }
 
+    public string Source { get; set; }
+
     public string VideoCodec { get; set; }
 
     public string AudioCodec { get; set; }
