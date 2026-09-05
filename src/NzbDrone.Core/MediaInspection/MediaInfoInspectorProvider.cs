@@ -95,12 +95,13 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             var startInfo = new ProcessStartInfo
             {
                 FileName = binary,
-                Arguments = $"--Output=JSON \"{mediaPath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+            startInfo.ArgumentList.Add("--Output=JSON");
+            startInfo.ArgumentList.Add(mediaPath);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
