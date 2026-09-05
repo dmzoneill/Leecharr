@@ -24,6 +24,7 @@ public class StoragePathServiceTest
     public void SetUp()
     {
         this.configService = Substitute.For<IConfigService>();
+        this.configService.EnableIncompleteDir.Returns(true);
         this.categoryService = Substitute.For<ICategoryService>();
         this.diskProvider = Substitute.For<IDiskProvider>();
 
@@ -98,6 +99,18 @@ public class StoragePathServiceTest
         var path = this.storagePathService.GetWorkingPath("hash123", "Ubuntu.iso");
 
         path.Should().Be(Path.Combine("/downloads/incomplete", "Ubuntu.iso"));
+    }
+
+    [Test]
+    public void GetWorkingPath_WhenEnableIncompleteDirIsFalse_ReturnsFinalPath()
+    {
+        this.configService.EnableIncompleteDir.Returns(false);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var path = this.storagePathService.GetWorkingPath("hash123", "Ubuntu.iso", "tv");
+
+        path.Should().Be(Path.Combine("/downloads/tv", "Ubuntu.iso"));
     }
 
     [Test]

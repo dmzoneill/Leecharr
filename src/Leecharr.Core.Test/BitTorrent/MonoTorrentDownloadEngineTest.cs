@@ -56,6 +56,7 @@ public class MonoTorrentDownloadEngineTest
         this.configService.EnableDht.Returns(true);
         this.configService.EnablePex.Returns(true);
         this.configService.EnableBep27PrivateTorrents.Returns(true);
+        this.configService.EnableIncompleteDir.Returns(true);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -412,6 +413,53 @@ public class MonoTorrentDownloadEngineTest
 
         task.Should().NotBeNull();
         task.Manager.SavePath.Should().Be(customSavePath);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenEnableIncompleteDirIsFalse_UsesCompletedDirDirectly()
+    {
+        this.configService.EnableIncompleteDir.Returns(false);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("direct_completed.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 8,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "direct_completed.iso",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.0,
+            Category = "tv",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.Manager.SavePath.Should().Be(this.testDownloadDir);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenEnableIncompleteDirIsFalseAndExplicitSavePathGiven_UsesExplicitSavePath()
+    {
+        this.configService.EnableIncompleteDir.Returns(false);
+        var customPath = Path.Combine(Path.GetTempPath(), "custom_staging_" + Guid.NewGuid().ToString("N"));
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("custom_direct.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 9,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "custom_direct.iso",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.0,
+            SavePath = customPath,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.Manager.SavePath.Should().Be(customPath);
     }
 
     #endregion
