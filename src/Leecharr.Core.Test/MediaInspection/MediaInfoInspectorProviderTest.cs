@@ -247,4 +247,60 @@ sleep 300
         info.AudioBitDepth.Should().Be(24);
         info.SubtitleTracks.Should().ContainSingle().Which.Should().Contain("Full English SDH");
     }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenNumericFieldsAreJsonNumbers_ParsesCorrectly()
+    {
+        var json = @"
+{
+  ""media"": {
+    ""track"": [
+      {
+        ""@type"": ""General"",
+        ""Format"": ""Matroska"",
+        ""Duration"": 7200.0,
+        ""OverallBitRate"": 25000000
+      },
+      {
+        ""@type"": ""Video"",
+        ""Format"": ""HEVC"",
+        ""Width"": 3840,
+        ""Height"": 2160,
+        ""BitDepth"": 10,
+        ""HDR_Format"": ""Dolby Vision / HDR10"",
+        ""FrameRate"": 23.976
+      },
+      {
+        ""@type"": ""Audio"",
+        ""Format"": ""TrueHD"",
+        ""Format_Commercial"": ""Dolby TrueHD with Dolby Atmos"",
+        ""Channels"": 8,
+        ""SamplingRate"": 48000,
+        ""BitDepth"": 24
+      },
+      {
+        ""@type"": ""Text"",
+        ""Language"": ""en"",
+        ""Title"": ""Full English SDH"",
+        ""Format"": ""SubRip""
+      }
+    ]
+  }
+}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "Movie.2160p.UHD.mkv");
+
+        info.Should().NotBeNull();
+        info!.ContainerFormat.Should().Be("Matroska");
+        info.VideoCodec.Should().Be("HEVC");
+        info.Width.Should().Be(3840);
+        info.Height.Should().Be(2160);
+        info.Resolution.Should().Be("4K UHD (2160p)");
+        info.HdrFormat.Should().Contain("Dolby Vision");
+        info.AudioCodec.Should().Be("TrueHD");
+        info.AudioChannels.Should().Be("7.1");
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioBitDepth.Should().Be(24);
+        info.DurationSeconds.Should().Be(7200.0);
+        info.SubtitleTracks.Should().ContainSingle().Which.Should().Contain("Full English SDH");
+    }
 }
