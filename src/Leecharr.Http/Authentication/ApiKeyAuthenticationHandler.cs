@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -52,9 +53,31 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         }
 
         var apiKey = this.Request.Headers[this.Options.HeaderName].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Headers.TryGetValue("ApiKey", out var customApiKey))
+        {
+            apiKey = customApiKey.FirstOrDefault();
+        }
+
         if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("apikey", out var queryKey))
         {
             apiKey = queryKey.FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("access_token", out var queryAccessToken))
+        {
+            apiKey = queryAccessToken.FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("api_key", out var queryApiKey2))
+        {
+            apiKey = queryApiKey2.FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey) &&
+            this.Request.Headers.TryGetValue("Authorization", out var authHeaderVal) &&
+            authHeaderVal.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            apiKey = authHeaderVal.ToString()["Bearer ".Length..].Trim();
         }
 
         if (string.IsNullOrWhiteSpace(apiKey))
