@@ -486,7 +486,7 @@ public class TrackerBoostService : ITrackerBoostService
                     request.Headers.Add("X-Api-Key", prowlarr.ApiKey);
                 }
 
-                var response = await HttpClient.SendAsync(request);
+                using var response = await HttpClient.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                 {
                     continue;
@@ -1252,9 +1252,14 @@ public class TrackerBoostService : ITrackerBoostService
             if (completedTask == receiveTask)
             {
                 var result = await receiveTask;
-                if (result.Buffer.Length >= 8)
+                if (result.Buffer.Length >= 16)
                 {
-                    return true;
+                    var action = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(0, 4));
+                    var respTxId = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(4, 4));
+                    if (action == 0 && respTxId == transactionId)
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -1272,7 +1277,7 @@ public class TrackerBoostService : ITrackerBoostService
         {
             using var req = new HttpRequestMessage(HttpMethod.Head, url);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var resp = await HttpClient.SendAsync(req, cts.Token);
+            using var resp = await HttpClient.SendAsync(req, cts.Token);
             return resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.BadRequest;
         }
         catch
@@ -1596,7 +1601,7 @@ public class TrackerBoostService : ITrackerBoostService
             var separator = scrapeUrl.Contains('?') ? "&" : "?";
             var requestUrl = $"{scrapeUrl}{separator}info_hash={encodedHash}";
 
-            var resp = await HttpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
+            using var resp = await HttpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 return (false, 0, 0, 0);
@@ -1613,7 +1618,12 @@ public class TrackerBoostService : ITrackerBoostService
             {
                 foreach (var entry in filesDict)
                 {
-                    if (entry.Value is BDictionary fileStats)
+                    var keyBytes = entry.Key?.Value.ToArray();
+                    var keyHex = entry.Key?.ToString();
+                    var isMatch = (keyBytes != null && keyBytes.SequenceEqual(hashBytes)) ||
+                                  string.Equals(keyHex, hexHash, StringComparison.OrdinalIgnoreCase);
+
+                    if (isMatch && entry.Value is BDictionary fileStats)
                     {
                         var complete = fileStats.ContainsKey("complete") && fileStats["complete"] is BNumber c ? (int)c.Value : 0;
                         var incomplete = fileStats.ContainsKey("incomplete") && fileStats["incomplete"] is BNumber ic ? (int)ic.Value : 0;
@@ -1624,7 +1634,7 @@ public class TrackerBoostService : ITrackerBoostService
                 }
             }
 
-            return (true, 0, 0, 0);
+            return (false, 0, 0, 0);
         }
         catch (OperationCanceledException)
         {
