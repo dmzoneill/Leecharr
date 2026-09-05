@@ -447,4 +447,28 @@ public class PiecePicker
             return result;
         }
     }
+
+    public void SetAvailability(int[] availability)
+    {
+        if (availability == null)
+        {
+            return;
+        }
+
+        lock (this.syncLock)
+        {
+            var len = Math.Min(this.pieceCount, availability.Length);
+            for (var i = 0; i < len; i++)
+            {
+                this.swarmAvailability[i] = Math.Max(0, availability[i]);
+            }
+
+            for (var i = len; i < this.pieceCount; i++)
+            {
+                this.swarmAvailability[i] = 0;
+            }
+        }
+    }
+
+    public void UpdateAvailability(int[] availability) => this.SetAvailability(availability);
 }
