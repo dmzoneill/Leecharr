@@ -153,9 +153,9 @@ public class AuthController : ControllerBase
                 };
                 this.userSessionRepository.Insert(session);
             }
-            catch
+            catch (Exception ex)
             {
-                // Non-fatal if session insertion fails
+                this.logger.Warn(ex, "Failed to persist user session record upon login.");
             }
         }
 
@@ -599,9 +599,9 @@ public class AuthController : ControllerBase
                     };
                     this.userSessionRepository.Insert(session);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Non-fatal if session insertion fails
+                    this.logger.Warn(ex, "Failed to persist user session record upon SAML callback.");
                 }
             }
 
