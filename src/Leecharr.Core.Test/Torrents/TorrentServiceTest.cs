@@ -563,4 +563,49 @@ public class TorrentServiceTest
         await this.downloadEngine.DidNotReceive().MoveTorrentFilesAsync(Arg.Any<int>(), Arg.Any<string>());
         this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
     }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenAppFolderInfoProvided_SavesTorrentToAppDataFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            var customService = new TorrentService(
+                this.torrentRepository,
+                this.fileRepository,
+                this.categoryService,
+                this.mediaEnrichmentService,
+                this.configService,
+                this.downloadEngine,
+                this.eventAggregator,
+                this.trackerEntryRepository,
+                storagePathService: this.storagePathService,
+                appFolderInfo: appFolderInfo);
+
+            var parsed = new ParsedTorrent
+            {
+                InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+                Name = "TestTorrent",
+                TotalSize = 1000,
+                Files = new List<ParsedTorrentFile> { new() { Path = "test.mkv", Size = 1000 } },
+            };
+            var rawBytes = new byte[] { 1, 2, 3, 4 };
+
+            await customService.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, rawBytes);
+
+            var expectedPath = Path.Combine(tempDir, "Torrents", "aabbccddeeff00112233445566778899aabbccdd.torrent");
+            File.Exists(expectedPath).Should().BeTrue();
+            (await File.ReadAllBytesAsync(expectedPath)).Should().Equal(rawBytes);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }

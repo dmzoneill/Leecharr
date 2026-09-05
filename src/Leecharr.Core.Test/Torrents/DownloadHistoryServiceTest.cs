@@ -330,4 +330,58 @@ public class DownloadHistoryServiceTest
             h.DownloadUrl == "https://torznab.local/dl/2" &&
             h.Source == "TorznabTracker"));
     }
+
+    [Test]
+    public async Task ReAddTorrentAsync_WhenAppFolderInfoProvided_ReadsCachedTorrentFromAppDataFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_hist_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var torrentsDir = Path.Combine(tempDir, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
+            var hash = "11223344556677889900aabbccddeeff11223344";
+            var torrentFile = Path.Combine(torrentsDir, $"{hash}.torrent");
+            var expectedBytes = new byte[] { 9, 8, 7, 6 };
+            await File.WriteAllBytesAsync(torrentFile, expectedBytes);
+
+            var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            var customService = new DownloadHistoryService(
+                this.historyRepository,
+                this.torrentRepository,
+                this.trackerEntryRepository,
+                this.downloadEngine,
+                this.eventAggregator,
+                this.safeHttpClientService,
+                appFolderInfo);
+
+            var entry = new DownloadHistory
+            {
+                Id = 10,
+                InfoHash = hash,
+                Title = "Test ReAdd",
+            };
+
+            this.historyRepository.Get(10).Returns(entry);
+            this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(call =>
+            {
+                var t = (Torrent)call[0];
+                t.Id = 100;
+                return t;
+            });
+
+            var result = await customService.ReAddTorrentAsync(10);
+
+            result.Should().NotBeNull();
+            await this.downloadEngine.Received(1).AddTorrentAsync(Arg.Any<Torrent>(), Arg.Is<byte[]>(b => b.Length == 4), Arg.Any<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Events;
@@ -22,6 +23,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly IDownloadEngine downloadEngine;
     private readonly IEventAggregator eventAggregator;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     public DownloadHistoryService(
@@ -30,7 +32,8 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         ITrackerEntryRepository trackerEntryRepository,
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.historyRepository = historyRepository;
         this.torrentRepository = torrentRepository;
@@ -38,6 +41,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         this.downloadEngine = downloadEngine;
         this.eventAggregator = eventAggregator;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -301,11 +305,32 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             {
                 try
                 {
-                    var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                    var filePath = Path.Combine(appData, "Torrents", $"{added.InfoHash.ToLowerInvariant()}.torrent");
-                    if (File.Exists(filePath))
+                    var hash = added.InfoHash.ToLowerInvariant();
+                    var pathsToTry = new List<string>();
+
+                    if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
                     {
-                        torrentBytes = await File.ReadAllBytesAsync(filePath);
+                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Leecharr", "Torrents", $"{hash}.torrent"));
+                    }
+
+                    var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    if (!string.IsNullOrWhiteSpace(appData))
+                    {
+                        pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+                        pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+                    }
+
+                    foreach (var path in pathsToTry)
+                    {
+                        if (File.Exists(path))
+                        {
+                            torrentBytes = await File.ReadAllBytesAsync(path);
+                            if (torrentBytes != null && torrentBytes.Length > 0)
+                            {
+                                break;
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -349,7 +374,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         {
             try
             {
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                    ? this.appFolderInfo.AppDataFolder
+                    : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 var torrentsDir = Path.Combine(appData, "Torrents");
                 Directory.CreateDirectory(torrentsDir);
                 var filePath = Path.Combine(torrentsDir, $"{added.InfoHash.ToLowerInvariant()}.torrent");

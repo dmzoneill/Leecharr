@@ -282,4 +282,33 @@ public class StoragePathServiceTest
         this.diskProvider.Received(1).MoveFile(file2, "/downloads/tv/Show/ep2.mkv", true);
         this.diskProvider.DidNotReceive().MoveFile(file3, Arg.Any<string>(), Arg.Any<bool>());
     }
+
+    [Test]
+    public void GetIncompleteDirectory_WhenNotConfiguredAndAppFolderInfoProvided_ReturnsAppDataSubdirectory()
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/config");
+        this.configService.IncompleteDownloadDir.Returns(string.Empty);
+        this.diskProvider.FolderExists("/config/downloads/incomplete").Returns(true);
+
+        var service = new StoragePathService(this.configService, this.categoryService, this.diskProvider, appFolderInfo);
+        var result = service.GetIncompleteDirectory();
+
+        result.Should().Be(Path.Combine("/config", "downloads", "incomplete"));
+    }
+
+    [Test]
+    public void GetCompletedDirectory_WhenNotConfiguredAndAppFolderInfoProvided_ReturnsAppDataSubdirectory()
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/config");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns(string.Empty);
+        this.configService.DownloadDir.Returns(string.Empty);
+        this.diskProvider.FolderExists("/config/downloads").Returns(true);
+
+        var service = new StoragePathService(this.configService, this.categoryService, this.diskProvider, appFolderInfo);
+        var result = service.GetCompletedDirectory(null);
+
+        result.Should().Be(Path.Combine("/config", "downloads"));
+    }
 }

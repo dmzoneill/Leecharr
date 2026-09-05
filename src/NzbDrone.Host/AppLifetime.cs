@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Leecharr.Http.Authentication;
 using Microsoft.Extensions.Hosting;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
@@ -38,6 +39,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IQueueManagerService queueManagerService;
     private readonly IPowerManagementService powerManagementService;
     private readonly IUdpTrackerService udpTrackerService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -56,7 +58,8 @@ public class AppLifetime : IHostedService, IDisposable
         IBroadcastSignalRMessage signalRBroadcaster = null,
         IQueueManagerService queueManagerService = null,
         IPowerManagementService powerManagementService = null,
-        IUdpTrackerService udpTrackerService = null)
+        IUdpTrackerService udpTrackerService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -93,9 +96,20 @@ public class AppLifetime : IHostedService, IDisposable
 
             if (this.configService.AutoStart)
             {
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                var torrentsDir1 = Path.Combine(appData, "Torrents");
-                var torrentsDir2 = Path.Combine(appData, "Leecharr", "Torrents");
+                var pathsToTryDirs = new List<string>();
+                if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+                {
+                    pathsToTryDirs.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents"));
+                    pathsToTryDirs.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Leecharr", "Torrents"));
+                }
+
+                var legacyAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                if (!string.IsNullOrWhiteSpace(legacyAppData))
+                {
+                    pathsToTryDirs.Add(Path.Combine(legacyAppData, "Torrents"));
+                    pathsToTryDirs.Add(Path.Combine(legacyAppData, "Leecharr", "Torrents"));
+                }
+
                 var torrents = this.torrentRepository.All();
 
                 foreach (var torrent in torrents)
@@ -106,15 +120,17 @@ public class AppLifetime : IHostedService, IDisposable
                         if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
                         {
                             var hash = torrent.InfoHash.ToLowerInvariant();
-                            var path1 = Path.Combine(torrentsDir1, $"{hash}.torrent");
-                            var path2 = Path.Combine(torrentsDir2, $"{hash}.torrent");
-                            if (File.Exists(path1))
+                            foreach (var dir in pathsToTryDirs.Distinct())
                             {
-                                fileBytes = await File.ReadAllBytesAsync(path1, cancellationToken);
-                            }
-                            else if (File.Exists(path2))
-                            {
-                                fileBytes = await File.ReadAllBytesAsync(path2, cancellationToken);
+                                var path = Path.Combine(dir, $"{hash}.torrent");
+                                if (File.Exists(path))
+                                {
+                                    fileBytes = await File.ReadAllBytesAsync(path, cancellationToken);
+                                    if (fileBytes != null && fileBytes.Length > 0)
+                                    {
+                                        break;
+                                    }
+                                }
                             }
                         }
 
