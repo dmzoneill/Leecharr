@@ -916,10 +916,17 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           return <span>{t.leechers ?? 0}</span>;
 
         case "eta": {
-          const remaining = t.totalSize * (1 - (t.progress || 0));
-          const etaSec = t.downloadSpeed > 0 ? Math.floor(remaining / t.downloadSpeed) : 0;
+          if (t.progress >= 1.0) {
+            return <span>Done</span>;
+          }
+          const etaSec =
+            t.eta && t.eta > 0
+              ? t.eta
+              : t.downloadSpeed > 0
+              ? Math.floor((t.totalSize * (1 - (t.progress || 0))) / t.downloadSpeed)
+              : 0;
           return (
-            <span>{t.progress >= 1.0 ? "Done" : etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>
+            <span>{etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>
           );
         }
 
