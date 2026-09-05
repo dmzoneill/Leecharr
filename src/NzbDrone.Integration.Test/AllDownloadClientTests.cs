@@ -170,7 +170,38 @@ public class AllDownloadClientTests : IntegrationTestBase
         var nonceResponse = await this.Client.GetAsync("/nzbvortex/api/v1/auth/nonce");
         nonceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        var loginResponse = await this.Client.GetAsync("/nzbvortex/api/v1/auth/login");
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
         var queueResponse = await this.Client.GetAsync("/nzbvortex/api/v1/queue");
+        queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var qJson = await queueResponse.Content.ReadAsStringAsync();
+        using var qDoc = JsonDocument.Parse(qJson);
+        qDoc.RootElement.GetProperty("error").GetInt32().Should().Be(0);
+    }
+
+    [Test]
+    public async Task NzbVortex_RootPath_Nonce_Login_And_Queue_ReturnsSuccess()
+    {
+        var nonceResponse = await this.Client.GetAsync("/api/v1/auth/nonce");
+        nonceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getLoginResponse = await this.Client.GetAsync("/api/v1/auth/login");
+        getLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var getLoginJson = await getLoginResponse.Content.ReadAsStringAsync();
+        using var getDoc = JsonDocument.Parse(getLoginJson);
+        getDoc.RootElement.GetProperty("loginResult").GetInt32().Should().Be(0);
+        getDoc.RootElement.GetProperty("auth").GetBoolean().Should().BeTrue();
+
+        var postLoginResponse = await this.Client.PostAsync("/api/v1/auth/login", new StringContent(string.Empty, Encoding.UTF8, "application/x-www-form-urlencoded"));
+        postLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var postLoginJson = await postLoginResponse.Content.ReadAsStringAsync();
+        using var postDoc = JsonDocument.Parse(postLoginJson);
+        postDoc.RootElement.GetProperty("loginResult").GetInt32().Should().Be(0);
+        postDoc.RootElement.GetProperty("auth").GetBoolean().Should().BeTrue();
+
+        var queueResponse = await this.Client.GetAsync("/api/v1/queue");
         queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var qJson = await queueResponse.Content.ReadAsStringAsync();
