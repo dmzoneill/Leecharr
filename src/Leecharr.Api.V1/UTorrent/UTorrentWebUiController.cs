@@ -469,36 +469,31 @@ public class UTorrentWebUiController : ControllerBase
 
         foreach (var t in torrents)
         {
-            var isFinished = t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding;
-            var statusFlag = 1; // Loaded
+            var statusFlag = 128; // Loaded
 
-            if (t.Status == TorrentStatus.Downloading)
+            if (t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
             {
-                statusFlag = 1 | 2 | 16 | 512; // 531: Loaded + Queued + Checked + Started
-            }
-            else if (t.Status == TorrentStatus.Seeding)
-            {
-                statusFlag = 1 | 2 | 16 | 128 | 512; // 659: Loaded + Queued + Checked + Finished + Started
+                statusFlag = 1 | 128;
             }
             else if (t.Status == TorrentStatus.Paused)
             {
-                statusFlag = 1 | 4 | 16 | (isFinished ? 128 : 0);
+                statusFlag = 32 | 128;
             }
             else if (t.Status == TorrentStatus.Stopped)
             {
-                statusFlag = 1 | 16 | (isFinished ? 128 : 0);
+                statusFlag = 128;
             }
             else if (t.Status == TorrentStatus.Checking)
             {
-                statusFlag = 1 | 64;
+                statusFlag = 2 | 128;
             }
             else if (t.Status == TorrentStatus.Error)
             {
-                statusFlag = 1 | 8 | 16;
+                statusFlag = 16 | 128;
             }
-            else
+            else if (t.Status == TorrentStatus.Queued)
             {
-                statusFlag = 1 | 2 | 16 | (isFinished ? 128 : 0);
+                statusFlag = 64 | 128;
             }
 
             var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
@@ -524,7 +519,7 @@ public class UTorrentWebUiController : ControllerBase
                 t.Seeders,
                 t.Seeders,
                 65536,
-                0,
+                t.QueuePosition,
                 Math.Max(0, t.TotalSize - t.Downloaded),
                 string.Empty,
                 string.Empty,
