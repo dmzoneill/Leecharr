@@ -246,12 +246,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         var torrents = this.torrentService.GetAll();
 
-        if (!string.IsNullOrEmpty(hashes))
+        if (!string.IsNullOrEmpty(hashes) && !string.Equals(hashes.Trim(), "all", StringComparison.OrdinalIgnoreCase))
         {
             var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries)
-                .Select(h => h.ToLowerInvariant())
+                .Select(h => h.Trim().ToLowerInvariant())
                 .ToHashSet();
-            torrents = torrents.Where(t => hashList.Contains(t.InfoHash.ToLowerInvariant()));
+            torrents = torrents.Where(t => t.InfoHash != null && hashList.Contains(t.InfoHash.ToLowerInvariant()));
         }
 
         if (!string.IsNullOrEmpty(category))
@@ -498,46 +498,41 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] int? inactiveSeedingTimeLimit = null,
         [FromForm] int? maxRatioAction = null)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.BadRequest();
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
+            var updated = false;
+            if (ratioLimit.HasValue)
             {
-                var updated = false;
-                if (ratioLimit.HasValue)
-                {
-                    torrent.TargetRatio = ratioLimit.Value >= 0 ? ratioLimit.Value : 0;
-                    updated = true;
-                }
+                torrent.TargetRatio = ratioLimit.Value >= 0 ? ratioLimit.Value : 0;
+                updated = true;
+            }
 
-                if (seedingTimeLimit.HasValue)
-                {
-                    torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? seedingTimeLimit.Value : 0;
-                    updated = true;
-                }
+            if (seedingTimeLimit.HasValue)
+            {
+                torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? seedingTimeLimit.Value : 0;
+                updated = true;
+            }
 
-                if (maxRatioAction.HasValue)
+            if (maxRatioAction.HasValue)
+            {
+                torrent.ShareLimitAction = maxRatioAction.Value switch
                 {
-                    torrent.ShareLimitAction = maxRatioAction.Value switch
-                    {
-                        1 => "Remove",
-                        2 => "SuperSeeding",
-                        3 => "RemoveWithData",
-                        _ => "Pause",
-                    };
-                    updated = true;
-                }
+                    1 => "Remove",
+                    2 => "SuperSeeding",
+                    3 => "RemoveWithData",
+                    _ => "Pause",
+                };
+                updated = true;
+            }
 
-                if (updated)
-                {
-                    await this.torrentService.UpdateAsync(torrent);
-                }
+            if (updated)
+            {
+                await this.torrentService.UpdateAsync(torrent);
             }
         }
 
@@ -596,14 +591,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.BadRequest();
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                await this.torrentService.SetSuperSeedingAsync(torrent.Id, value);
-            }
+            await this.torrentService.SetSuperSeedingAsync(torrent.Id, value);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -675,21 +665,16 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] string value = null,
         [FromForm] bool? enable = null)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.BadRequest();
         }
 
         var force = enable ?? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                torrent.ForceStart = force;
-                await this.torrentService.UpdateAsync(torrent);
-            }
+            torrent.ForceStart = force;
+            await this.torrentService.UpdateAsync(torrent);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -699,19 +684,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/stop")]
     public async Task<ActionResult> PauseTorrents([FromForm] string hashes)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.BadRequest();
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                await this.torrentService.PauseAsync(torrent.Id);
-            }
+            await this.torrentService.PauseAsync(torrent.Id);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -721,19 +701,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/start")]
     public async Task<ActionResult> ResumeTorrents([FromForm] string hashes)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.BadRequest();
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                await this.torrentService.ResumeAsync(torrent.Id);
-            }
+            await this.torrentService.ResumeAsync(torrent.Id);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -744,19 +719,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] string hashes,
         [FromForm] bool deleteFiles = false)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.BadRequest();
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                await this.torrentService.DeleteAsync(torrent.Id, deleteFiles);
-            }
+            await this.torrentService.DeleteAsync(torrent.Id, deleteFiles);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -823,20 +793,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/addTags")]
     public async Task<ActionResult> AddTags([FromForm] string hashes, [FromForm] string tags)
     {
-        if (string.IsNullOrEmpty(hashes) || string.IsNullOrEmpty(tags))
+        if (string.IsNullOrWhiteSpace(hashes) || string.IsNullOrEmpty(tags))
         {
             return this.Content("Ok.", "text/plain");
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                torrent.Label = tags;
-                await this.torrentService.UpdateAsync(torrent);
-            }
+            torrent.Label = tags;
+            await this.torrentService.UpdateAsync(torrent);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -845,17 +810,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/removeTags")]
     public async Task<ActionResult> RemoveTags([FromForm] string hashes, [FromForm] string tags)
     {
-        if (!string.IsNullOrEmpty(hashes))
+        if (!string.IsNullOrWhiteSpace(hashes))
         {
-            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
             var tagsToRemove = (tags ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(t => t.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var hash in hashList)
+            foreach (var torrent in this.ResolveTorrents(hashes))
             {
-                var torrent = this.torrentService.GetByInfoHash(hash);
-                if (torrent != null && !string.IsNullOrEmpty(torrent.Label))
+                if (!string.IsNullOrEmpty(torrent.Label))
                 {
                     if (tagsToRemove.Count == 0)
                     {
@@ -934,20 +897,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/setCategory")]
     public async Task<ActionResult> SetCategory([FromForm] string hashes, [FromForm] string category)
     {
-        if (string.IsNullOrEmpty(hashes))
+        if (string.IsNullOrWhiteSpace(hashes))
         {
             return this.Content("Ok.", "text/plain");
         }
 
-        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var hash in hashList)
+        foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                torrent.Category = category ?? string.Empty;
-                await this.torrentService.UpdateAsync(torrent);
-            }
+            torrent.Category = category ?? string.Empty;
+            await this.torrentService.UpdateAsync(torrent);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -1119,16 +1077,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/recheck")]
     public async Task<ActionResult> RecheckTorrents([FromForm] string hashes)
     {
-        if (!string.IsNullOrEmpty(hashes))
+        if (!string.IsNullOrWhiteSpace(hashes))
         {
-            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var hash in hashList)
+            foreach (var torrent in this.ResolveTorrents(hashes))
             {
-                var torrent = this.torrentService.GetByInfoHash(hash);
-                if (torrent != null)
-                {
-                    await this.torrentService.ForceRecheckAsync(torrent.Id);
-                }
+                await this.torrentService.ForceRecheckAsync(torrent.Id);
             }
         }
 
@@ -1336,14 +1289,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes) && !string.IsNullOrWhiteSpace(location))
         {
-            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var h in hashList)
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    await this.torrentService.SetLocationAsync(t.Id, location, moveFiles: true);
-                }
+                await this.torrentService.SetLocationAsync(t.Id, location, moveFiles: true);
             }
         }
 
@@ -1355,13 +1303,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    await this.torrentService.MoveQueueAsync(t.Id, "top");
-                }
+                await this.torrentService.MoveQueueAsync(t.Id, "top");
             }
         }
 
@@ -1373,13 +1317,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    await this.torrentService.MoveQueueAsync(t.Id, "bottom");
-                }
+                await this.torrentService.MoveQueueAsync(t.Id, "bottom");
             }
         }
 
@@ -1391,13 +1331,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    await this.torrentService.MoveQueueAsync(t.Id, "up");
-                }
+                await this.torrentService.MoveQueueAsync(t.Id, "up");
             }
         }
 
@@ -1409,13 +1345,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var h in hashes.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    await this.torrentService.MoveQueueAsync(t.Id, "down");
-                }
+                await this.torrentService.MoveQueueAsync(t.Id, "down");
             }
         }
 
@@ -1441,15 +1373,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var h in hashList)
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    t.DownloadLimit = (int)(limit / 1024);
-                    await this.torrentService.UpdateAsync(t);
-                }
+                t.DownloadLimit = (int)(limit / 1024);
+                await this.torrentService.UpdateAsync(t);
             }
         }
 
@@ -1461,15 +1388,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var h in hashList)
+            foreach (var t in this.ResolveTorrents(hashes))
             {
-                var t = this.torrentService.GetByInfoHash(h);
-                if (t != null)
-                {
-                    t.UploadLimit = (int)(limit / 1024);
-                    await this.torrentService.UpdateAsync(t);
-                }
+                t.UploadLimit = (int)(limit / 1024);
+                await this.torrentService.UpdateAsync(t);
             }
         }
 
@@ -1575,6 +1497,32 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     public ActionResult GetSearchCategories()
     {
         return this.Ok(this.qbittorrentSearchService.GetCategories());
+    }
+
+    private IEnumerable<Torrent> ResolveTorrents(string hashes)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return Enumerable.Empty<Torrent>();
+        }
+
+        if (string.Equals(hashes.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return this.torrentService.GetAll();
+        }
+
+        var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<Torrent>();
+        foreach (var hash in hashList)
+        {
+            var torrent = this.torrentService.GetByInfoHash(hash.Trim());
+            if (torrent != null)
+            {
+                result.Add(torrent);
+            }
+        }
+
+        return result;
     }
 
     private static string MapToQBitState(TorrentStatus status, double progress)
