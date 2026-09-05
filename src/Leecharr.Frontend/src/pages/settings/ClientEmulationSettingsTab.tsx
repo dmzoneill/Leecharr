@@ -7,8 +7,30 @@ import {
   usePeerProtocolConfig,
   useSavePeerProtocolConfig,
 } from "../../api/hooks";
-import { SaveBar, SectionCard, NumberInput, TextInput, SelectInput, Toggle } from "./shared";
+import {
+  SaveBar,
+  SectionCard,
+  NumberInput,
+  TextInput,
+  SelectInput,
+  Toggle,
+} from "./shared";
 import { useToast } from "../../context/ToastContext";
+
+const CLIENT_PRESETS: Record<
+  string,
+  { userAgent: string; peerIdPrefix: string }
+> = {
+  qBittorrent: { userAgent: "qBittorrent/4.4.2", peerIdPrefix: "-qB4420-" },
+  Deluge: {
+    userAgent: "Deluge/2.0.5 libtorrent/1.2.14.0",
+    peerIdPrefix: "-DE2050-",
+  },
+  Transmission: { userAgent: "Transmission/3.00", peerIdPrefix: "-TR3000-" },
+  uTorrent: { userAgent: "uTorrent/3550", peerIdPrefix: "-UT3550-" },
+  BiglyBT: { userAgent: "BiglyBT/3.4.0.0", peerIdPrefix: "-AZ3400-" },
+  Leecharr: { userAgent: "Leecharr/1.0.0", peerIdPrefix: "-LC1000-" },
+};
 
 export function ClientEmulationSettingsTab() {
   const { showToast } = useToast();
@@ -24,8 +46,8 @@ export function ClientEmulationSettingsTab() {
   const [form, setForm] = useState({
     clientBehaviorEngineEnabled: true,
     primaryClient: "qBittorrent",
-    bitTorrentUserAgent: "Leecharr/1.0",
-    peerIdPrefix: "-LC1000-",
+    bitTorrentUserAgent: "qBittorrent/4.4.2",
+    peerIdPrefix: "-qB4420-",
     behaviorVariation: 0.15,
     clientProfileSwitching: false,
     switchClientProbability: 0.05,
@@ -49,11 +71,29 @@ export function ClientEmulationSettingsTab() {
 
   useEffect(() => {
     if (btConfig || simConfig || peerConfig) {
+      const primaryClient = simConfig?.primaryClient || "qBittorrent";
+      const preset =
+        CLIENT_PRESETS[primaryClient] || CLIENT_PRESETS.qBittorrent;
+      const bitTorrentUserAgent =
+        btConfig?.bitTorrentUserAgent &&
+        btConfig.bitTorrentUserAgent !== "Leecharr/1.0"
+          ? btConfig.bitTorrentUserAgent
+          : primaryClient === "Leecharr"
+            ? "Leecharr/1.0.0"
+            : preset.userAgent;
+      const peerIdPrefix =
+        btConfig?.peerIdPrefix && btConfig.peerIdPrefix !== "-LC1000-"
+          ? btConfig.peerIdPrefix
+          : primaryClient === "Leecharr"
+            ? "-LC1000-"
+            : preset.peerIdPrefix;
+
       setForm({
-        clientBehaviorEngineEnabled: simConfig?.clientBehaviorEngineEnabled ?? true,
-        primaryClient: simConfig?.primaryClient || "qBittorrent",
-        bitTorrentUserAgent: btConfig?.bitTorrentUserAgent || "Leecharr/1.0",
-        peerIdPrefix: btConfig?.peerIdPrefix || "-LC1000-",
+        clientBehaviorEngineEnabled:
+          simConfig?.clientBehaviorEngineEnabled ?? true,
+        primaryClient,
+        bitTorrentUserAgent,
+        peerIdPrefix,
         behaviorVariation: simConfig?.behaviorVariation ?? 0.15,
         clientProfileSwitching: simConfig?.clientProfileSwitching ?? false,
         switchClientProbability: simConfig?.switchClientProbability ?? 0.05,
@@ -63,10 +103,12 @@ export function ClientEmulationSettingsTab() {
         swarmIntelligenceEnabled: simConfig?.swarmIntelligenceEnabled ?? true,
         swarmAdaptationRate: simConfig?.swarmAdaptationRate ?? 0.1,
         swarmPeerAnalysisDepth: simConfig?.swarmPeerAnalysisDepth ?? 10,
-        seederUploadActivityProbability: peerConfig?.seederUploadActivityProbability ?? 0.7,
+        seederUploadActivityProbability:
+          peerConfig?.seederUploadActivityProbability ?? 0.7,
         peerIdleChance: peerConfig?.peerIdleChance ?? 0.1,
         peerDropoutProbability: peerConfig?.peerDropoutProbability ?? 0.05,
-        connectionRotationPercentage: peerConfig?.connectionRotationPercentage ?? 0.2,
+        connectionRotationPercentage:
+          peerConfig?.connectionRotationPercentage ?? 0.2,
         announceIntervalSeconds: btConfig?.announceIntervalSeconds ?? 1800,
         minAnnounceIntervalSeconds: btConfig?.minAnnounceIntervalSeconds ?? 300,
         scrapeIntervalSeconds: btConfig?.scrapeIntervalSeconds ?? 900,
@@ -76,25 +118,47 @@ export function ClientEmulationSettingsTab() {
     }
   }, [btConfig, simConfig, peerConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
 
+  const handlePrimaryClientChange = (client: string) => {
+    const preset = CLIENT_PRESETS[client] || CLIENT_PRESETS.qBittorrent;
+    setForm((prev) => ({
+      ...prev,
+      primaryClient: client,
+      bitTorrentUserAgent: preset.userAgent,
+      peerIdPrefix: preset.peerIdPrefix,
+    }));
+    setDirty(true);
+  };
+
   const isPending =
-    saveBtMutation.isPending || saveSimMutation.isPending || savePeerMutation.isPending;
-  const isError = saveBtMutation.isError || saveSimMutation.isError || savePeerMutation.isError;
+    saveBtMutation.isPending ||
+    saveSimMutation.isPending ||
+    savePeerMutation.isPending;
+  const isError =
+    saveBtMutation.isError ||
+    saveSimMutation.isError ||
+    savePeerMutation.isError;
   const isSuccess =
     (!btConfig || saveBtMutation.isSuccess) &&
     (!simConfig || saveSimMutation.isSuccess) &&
     (!peerConfig || savePeerMutation.isSuccess) &&
-    (saveBtMutation.isSuccess || saveSimMutation.isSuccess || savePeerMutation.isSuccess);
+    (saveBtMutation.isSuccess ||
+      saveSimMutation.isSuccess ||
+      savePeerMutation.isSuccess);
   const error = (saveBtMutation.error ||
     saveSimMutation.error ||
     savePeerMutation.error) as Error | null;
 
   const handleSave = () => {
-    let pending = (btConfig ? 1 : 0) + (simConfig ? 1 : 0) + (peerConfig ? 1 : 0);
+    let pending =
+      (btConfig ? 1 : 0) + (simConfig ? 1 : 0) + (peerConfig ? 1 : 0);
     if (pending === 0) return;
     let hasError = false;
 
@@ -107,7 +171,10 @@ export function ClientEmulationSettingsTab() {
 
     const handleError = (err: any) => {
       hasError = true;
-      showToast(err?.message || "Failed to save client emulation settings", "error");
+      showToast(
+        err?.message || "Failed to save client emulation settings",
+        "error",
+      );
     };
 
     if (btConfig) {
@@ -123,7 +190,7 @@ export function ClientEmulationSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
     if (simConfig) {
@@ -145,7 +212,7 @@ export function ClientEmulationSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
     if (peerConfig) {
@@ -161,7 +228,7 @@ export function ClientEmulationSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
   };
@@ -199,7 +266,7 @@ export function ClientEmulationSettingsTab() {
           <SelectInput
             label="Primary Emulated Client"
             value={form.primaryClient}
-            onChange={(v) => update("primaryClient", v)}
+            onChange={handlePrimaryClientChange}
             options={[
               {
                 value: "qBittorrent",
