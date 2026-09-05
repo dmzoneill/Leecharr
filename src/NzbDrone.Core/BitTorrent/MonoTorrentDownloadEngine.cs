@@ -847,18 +847,31 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 await task.Manager.SetFilePriorityAsync(targetFile, monoPriority);
                 if (task.Picker != null)
                 {
-                    var pickerPrio = priority switch
-                    {
-                        0 => 0,
-                        1 or 2 => 1,
-                        4 => 2,
-                        5 => 3,
-                        _ => 1,
-                    };
-
+                    var files = task.Manager.Files;
                     for (var p = targetFile.StartPieceIndex; p <= targetFile.EndPieceIndex; p++)
                     {
-                        task.Picker.SetPiecePriority(p, pickerPrio);
+                        var effectivePickerPrio = 0;
+                        foreach (var file in files)
+                        {
+                            if (p >= file.StartPieceIndex && p <= file.EndPieceIndex)
+                            {
+                                var filePrio = file.Priority switch
+                                {
+                                    MonoTorrent.Priority.DoNotDownload => 0,
+                                    MonoTorrent.Priority.Lowest or MonoTorrent.Priority.Low => 1,
+                                    MonoTorrent.Priority.Normal => 1,
+                                    MonoTorrent.Priority.High => 2,
+                                    MonoTorrent.Priority.Highest => 3,
+                                    _ => 1,
+                                };
+                                if (filePrio > effectivePickerPrio)
+                                {
+                                    effectivePickerPrio = filePrio;
+                                }
+                            }
+                        }
+
+                        task.Picker.SetPiecePriority(p, effectivePickerPrio);
                     }
                 }
 

@@ -1262,6 +1262,74 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetFilePriorityAsync_WhenFilesSharePiece_PreservesPiecePriorityForWantedFiles()
+    {
+        var pieces = new byte[40]; // 2 pieces
+        for (var i = 0; i < pieces.Length; i++)
+        {
+            pieces[i] = (byte)(i % 255);
+        }
+
+        var fileList = new BEncodedList
+        {
+            new BEncodedDictionary
+            {
+                { "length", new BEncodedNumber(10000) },
+                { "path", new BEncodedList { new BEncodedString("shared1.dat") } },
+            },
+            new BEncodedDictionary
+            {
+                { "length", new BEncodedNumber(20000) },
+                { "path", new BEncodedList { new BEncodedString("shared2.dat") } },
+            },
+        };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "name", new BEncodedString("SharedPieceTorrent") },
+            { "piece length", new BEncodedNumber(16384) },
+            { "pieces", new BEncodedString(pieces) },
+            { "files", fileList },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "info", infoDict },
+        };
+
+        var torrentBytes = rootDict.Encode();
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 103,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "SharedPieceTorrent",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Picker.Should().NotBeNull();
+
+        // File 1 is piece 0. File 2 spans piece 0 and piece 1.
+        // Set File 1 to DoNotDownload (0). File 2 is still Normal (priority 1).
+        await this.engine.SetFilePriorityAsync(103, task.Manager.Files[0].Path, 0);
+
+        // Piece 0 must still be wanted (priority > 0) because File 2 overlaps piece 0
+        var fullBitfield = Enumerable.Repeat(true, task.Picker.PieceCount).ToArray();
+        var requests = task.Picker.PickBlocks(fullBitfield, 10);
+        requests.Any(r => r.PieceIndex == 0).Should().BeTrue();
+
+        // Now set File 2 to DoNotDownload as well
+        await this.engine.SetFilePriorityAsync(103, task.Manager.Files[1].Path, 0);
+
+        // Piece 0 and Piece 1 should now be skipped (priority 0)
+        requests = task.Picker.PickBlocks(fullBitfield, 10);
+        requests.Any(r => r.PieceIndex == 0).Should().BeFalse();
+        requests.Any(r => r.PieceIndex == 1).Should().BeFalse();
+    }
+
+    [Test]
     public async Task AddTorrentAsync_UsesStreamingMode_WhenPiecePickerStrategyIsSequential()
     {
         this.configService.PiecePickerStrategy.Returns("Sequential");
