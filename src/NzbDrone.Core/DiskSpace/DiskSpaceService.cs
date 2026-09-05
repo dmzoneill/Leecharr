@@ -1,7 +1,10 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 
@@ -16,12 +19,17 @@ public class DiskSpaceService : IDiskSpaceService
 {
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IConfigService configService;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public DiskSpaceService(IAppFolderInfo appFolderInfo, IConfigService configService = null)
+    public DiskSpaceService(
+        IAppFolderInfo appFolderInfo,
+        IConfigService configService = null,
+        IDiskProvider diskProvider = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.configService = configService;
+        this.diskProvider = diskProvider ?? new DiskProvider();
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
@@ -85,43 +93,26 @@ public class DiskSpaceService : IDiskSpaceService
     {
         try
         {
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return;
             }
 
-            var driveTarget = path;
-            while (!string.IsNullOrEmpty(driveTarget) && !Directory.Exists(driveTarget))
+            var freeSpace = this.diskProvider.GetAvailableSpace(path);
+            var totalSpace = this.diskProvider.GetTotalSize(path);
+
+            if (freeSpace.HasValue && totalSpace.HasValue && totalSpace.Value > 0)
             {
-                var parent = Path.GetDirectoryName(driveTarget);
-                if (string.IsNullOrEmpty(parent) || parent == driveTarget)
+                if (seen.Add(path))
                 {
-                    break;
+                    result.Add(new DiskSpaceInfo
+                    {
+                        Path = path,
+                        Label = label,
+                        FreeSpace = freeSpace.Value,
+                        TotalSpace = totalSpace.Value,
+                    });
                 }
-
-                driveTarget = parent;
-            }
-
-            if (string.IsNullOrEmpty(driveTarget))
-            {
-                driveTarget = Path.GetPathRoot(path) ?? "/";
-            }
-
-            if (!seen.Add(path))
-            {
-                return;
-            }
-
-            var drive = new DriveInfo(driveTarget);
-            if (drive.IsReady && drive.TotalSize > 0)
-            {
-                result.Add(new DiskSpaceInfo
-                {
-                    Path = path,
-                    Label = label,
-                    FreeSpace = drive.AvailableFreeSpace,
-                    TotalSpace = drive.TotalSize,
-                });
             }
         }
         catch (Exception ex)
@@ -130,3 +121,4 @@ public class DiskSpaceService : IDiskSpaceService
         }
     }
 }
+
