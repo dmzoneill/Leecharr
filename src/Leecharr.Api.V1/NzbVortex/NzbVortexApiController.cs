@@ -22,7 +22,7 @@ namespace Leecharr.Api.V1.NzbVortex;
 [ApiController]
 public class NzbVortexApiController : ControllerBase, IActionFilter
 {
-    private static readonly ConcurrentDictionary<string, DateTime> authenticatedSessions = new();
+    private static readonly RpcSessionStore authenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -84,7 +84,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var session = this.Request.Query["session"].ToString();
-        if (!string.IsNullOrEmpty(session) && authenticatedSessions.TryGetValue(session, out var expiry) && expiry > DateTime.UtcNow)
+        if (!string.IsNullOrEmpty(session) && authenticatedSessions.IsValid(session))
         {
             return true;
         }
@@ -131,7 +131,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var sessionToken = Guid.NewGuid().ToString("N");
-        authenticatedSessions[sessionToken] = DateTime.UtcNow.AddHours(24);
+        authenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddHours(24));
 
         return this.Ok(new
         {
