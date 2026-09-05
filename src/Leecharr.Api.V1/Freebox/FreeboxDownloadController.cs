@@ -229,6 +229,7 @@ public class FreeboxDownloadController : ControllerBase
         {
             var savePath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads");
             var b64Dir = Convert.ToBase64String(Encoding.UTF8.GetBytes(savePath));
+            var isDone = t.Progress >= 1.0 || (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) || t.Status == TorrentStatus.Completed || t.Status == TorrentStatus.Seeding;
             return new
             {
                 id = t.Id,
@@ -246,7 +247,7 @@ public class FreeboxDownloadController : ControllerBase
                     TorrentStatus.Downloading => "downloading",
                     TorrentStatus.Seeding => "seeding",
                     TorrentStatus.Paused => "stopped",
-                    TorrentStatus.Stopped => "done",
+                    TorrentStatus.Stopped => isDone ? "done" : "stopped",
                     TorrentStatus.Error => "error",
                     _ => "queued",
                 },
@@ -276,19 +277,36 @@ public class FreeboxDownloadController : ControllerBase
             return this.Unauthorized();
         }
 
+        var effectiveDest = download_dir;
+        if (!string.IsNullOrWhiteSpace(download_dir))
+        {
+            try
+            {
+                var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(download_dir));
+                if (Path.IsPathRooted(decoded) || decoded.Contains('/') || decoded.Contains('\\'))
+                {
+                    effectiveDest = decoded;
+                }
+            }
+            catch (FormatException)
+            {
+                // download_dir was plain text
+            }
+        }
+
         var addedId = 0;
         if (!string.IsNullOrWhiteSpace(download_url))
         {
             if (download_url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
-                var added = await this.torrentService.AddFromMagnetAsync(download_url, null, download_dir, false);
+                var added = await this.torrentService.AddFromMagnetAsync(download_url, null, effectiveDest, false);
                 addedId = added?.Id ?? 0;
             }
             else
             {
                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(download_url, maxSizeBytes: 10 * 1024 * 1024);
                 var parsed = this.torrentFileParser.Parse(bytes);
-                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, download_dir, false, bytes);
+                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
                 addedId = added?.Id ?? 0;
             }
         }
@@ -299,7 +317,7 @@ public class FreeboxDownloadController : ControllerBase
             await file.CopyToAsync(ms);
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, download_dir, false, bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
             addedId = added?.Id ?? 0;
         }
 
