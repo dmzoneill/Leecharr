@@ -223,7 +223,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         };
 
         var listenIp = IPAddress.Any;
-        var listenIpv6 = IPAddress.IPv6Any;
+        IPAddress listenIpv6 = IPAddress.IPv6Any;
+        IPAddress resolvedIpv6 = null;
         var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
             : this.configService.BindInterface;
@@ -260,7 +261,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Warn("Failed to resolve IP for bound interface '{0}'. Defaulting to IPAddress.Any", iface);
             }
 
-            var resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6)
+            resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6)
                 ?? this.ResolveInterfaceIp(iface, System.Net.Sockets.AddressFamily.InterNetworkV6);
             if (resolvedIpv6 != null)
             {
@@ -282,14 +283,36 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.configService.EnableIPv6 && System.Net.Sockets.Socket.OSSupportsIPv6)
         {
-            try
+            if (hasSpecificInterface)
             {
-                listenEndPoints["ipv6"] = new IPEndPoint(listenIpv6, port);
-                this.logger.Info("Configured IPv6 dual-stack listening socket on [{0}]:{1}", listenIpv6, port);
+                if (resolvedIpv6 != null)
+                {
+                    try
+                    {
+                        listenEndPoints["ipv6"] = new IPEndPoint(resolvedIpv6, port);
+                        this.logger.Info("Configured IPv6 listening socket on [{0}]:{1}", resolvedIpv6, port);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to configure IPv6 listening socket");
+                    }
+                }
+                else
+                {
+                    this.logger.Warn("Bound interface '{0}' has no IPv6 address. IPv6 listening disabled to prevent traffic leak outside bound interface.", iface);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                this.logger.Warn(ex, "Failed to configure IPv6 dual-stack listening socket");
+                try
+                {
+                    listenEndPoints["ipv6"] = new IPEndPoint(listenIpv6, port);
+                    this.logger.Info("Configured IPv6 dual-stack listening socket on [{0}]:{1}", listenIpv6, port);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to configure IPv6 dual-stack listening socket");
+                }
             }
         }
 
