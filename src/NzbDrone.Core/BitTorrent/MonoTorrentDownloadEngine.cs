@@ -924,6 +924,62 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && trackers != null)
+        {
+            if (task.Manager.TrackerManager != null)
+            {
+                var targetUrls = trackers
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => t.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (targetUrls.Count == 0)
+                {
+                    return;
+                }
+
+                var trackersToRemove = new List<MonoTorrent.Trackers.ITracker>();
+                var tiers = task.Manager.TrackerManager.Tiers;
+                if (tiers != null)
+                {
+                    foreach (var tier in tiers)
+                    {
+                        if (tier?.Trackers != null)
+                        {
+                            foreach (var tracker in tier.Trackers)
+                            {
+                                if (tracker?.Uri != null)
+                                {
+                                    var uriString = tracker.Uri.OriginalString;
+                                    var absString = tracker.Uri.ToString();
+                                    if (targetUrls.Contains(uriString) || targetUrls.Contains(absString))
+                                    {
+                                        trackersToRemove.Add(tracker);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                foreach (var tracker in trackersToRemove)
+                {
+                    try
+                    {
+                        await task.Manager.TrackerManager.RemoveTrackerAsync(tracker);
+                        this.logger.Debug("Removed tracker {0} from torrent {1}", tracker.Uri, torrentId);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Could not remove tracker {0} from torrent {1}", tracker.Uri, torrentId);
+                    }
+                }
+            }
+        }
+    }
+
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)
