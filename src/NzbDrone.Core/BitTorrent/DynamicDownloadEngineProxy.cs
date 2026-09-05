@@ -336,6 +336,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public Task ResumeTorrentAsync(int torrentId)
         => Volatile.Read(ref this.activeEngine).ResumeTorrentAsync(torrentId);
 
+    public Task ResumeAllTorrentsAsync()
+        => Volatile.Read(ref this.activeEngine)?.ResumeAllTorrentsAsync() ?? Task.CompletedTask;
+
     public Task ForceRecheckAsync(int torrentId)
         => Volatile.Read(ref this.activeEngine).ForceRecheckAsync(torrentId);
 
