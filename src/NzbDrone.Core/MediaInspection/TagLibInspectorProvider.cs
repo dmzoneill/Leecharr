@@ -223,8 +223,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return InspectAvi(header, fileName);
         }
 
-        // 5. Check MP3 (ID3v2: 'ID3' or Frame Sync 0xFF 0xFB/0xFA)
-        if ((header[0] == 'I' && header[1] == 'D' && header[2] == '3') || (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0))
+        // 5. Check ID3v2-tagged audio (MP3, FLAC, WAV, AAC, etc.)
+        if (header[0] == 'I' && header[1] == 'D' && header[2] == '3')
+        {
+            return InspectId3Tagged(header, bytesRead, fileName);
+        }
+
+        // 6. Check MP3 Frame Sync (0xFF 0xFB/0xFA/etc.)
+        if (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0)
         {
             return InspectMp3(header, fileName);
         }
@@ -349,61 +355,67 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             ApplyResolution(info, info.Width, info.Height);
         }
 
-        if (info.VideoCodec == null && info.AudioCodec == null)
+        if (info.VideoCodec == null || info.AudioCodec == null)
         {
             var span = header.AsSpan();
-            if (span.IndexOf("V_MPEGH/ISO/HEVC"u8) >= 0)
+            if (info.VideoCodec == null)
             {
-                info.VideoCodec = "HEVC (H.265)";
-            }
-            else if (span.IndexOf("V_AV1"u8) >= 0)
-            {
-                info.VideoCodec = "AV1";
-            }
-            else if (span.IndexOf("V_VP9"u8) >= 0)
-            {
-                info.VideoCodec = "VP9";
-            }
-            else if (span.IndexOf("V_VP8"u8) >= 0)
-            {
-                info.VideoCodec = "VP8";
-            }
-            else if (span.IndexOf("V_MPEG4/ISO/AVC"u8) >= 0)
-            {
-                info.VideoCodec = "H.264";
+                if (span.IndexOf("V_MPEGH/ISO/HEVC"u8) >= 0)
+                {
+                    info.VideoCodec = "HEVC (H.265)";
+                }
+                else if (span.IndexOf("V_AV1"u8) >= 0)
+                {
+                    info.VideoCodec = "AV1";
+                }
+                else if (span.IndexOf("V_VP9"u8) >= 0)
+                {
+                    info.VideoCodec = "VP9";
+                }
+                else if (span.IndexOf("V_VP8"u8) >= 0)
+                {
+                    info.VideoCodec = "VP8";
+                }
+                else if (span.IndexOf("V_MPEG4/ISO/AVC"u8) >= 0)
+                {
+                    info.VideoCodec = "H.264";
+                }
             }
 
-            if (span.IndexOf("A_TRUEHD"u8) >= 0)
+            if (info.AudioCodec == null)
             {
-                ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
-            }
-            else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
-            }
-            else if (span.IndexOf("A_EAC3"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
-            }
-            else if (span.IndexOf("A_AC3"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "AC3 / Dolby Digital", "5.1", 15);
-            }
-            else if (span.IndexOf("A_DTS"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "DTS", "5.1", 20);
-            }
-            else if (span.IndexOf("A_FLAC"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "FLAC", "2.0", 35);
-            }
-            else if (span.IndexOf("A_OPUS"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "Opus", "2.0", 12);
-            }
-            else if (span.IndexOf("A_AAC"u8) >= 0)
-            {
-                ApplyAudioCodec(info, "AAC", "2.0", 10);
+                if (span.IndexOf("A_TRUEHD"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
+                }
+                else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
+                }
+                else if (span.IndexOf("A_EAC3"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
+                }
+                else if (span.IndexOf("A_AC3"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "AC3 / Dolby Digital", "5.1", 15);
+                }
+                else if (span.IndexOf("A_DTS"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "DTS", "5.1", 20);
+                }
+                else if (span.IndexOf("A_FLAC"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "FLAC", "2.0", 35);
+                }
+                else if (span.IndexOf("A_OPUS"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "Opus", "2.0", 12);
+                }
+                else if (span.IndexOf("A_AAC"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "AAC", "2.0", 10);
+                }
             }
         }
 
@@ -1636,7 +1648,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         info.AudioCodec = text.Contains("AC3") ? "AC3" : "MP3";
-        info.AudioChannels = "2.0";
 
         ApplyFilenameHints(info, fileName);
         return info;
@@ -1644,14 +1655,133 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private static MediaContainerInfo InspectMp3(byte[] header, string fileName)
     {
-        return new MediaContainerInfo
+        var info = new MediaContainerInfo
         {
             ContainerFormat = "MP3",
             AudioCodec = "MP3",
-            AudioChannels = "2.0",
-            AudioSampleRate = 44100,
-            AudioBitDepth = 16,
         };
+
+        ApplyFilenameHints(info, fileName);
+        return info;
+    }
+
+    private static MediaContainerInfo InspectId3Tagged(byte[] header, int bytesRead, string fileName)
+    {
+        var ext = !string.IsNullOrWhiteSpace(fileName) ? Path.GetExtension(fileName).ToLowerInvariant() : string.Empty;
+
+        int tagOffset = -1;
+        if (bytesRead >= 10)
+        {
+            int tagSize = ((header[6] & 0x7F) << 21) |
+                          ((header[7] & 0x7F) << 14) |
+                          ((header[8] & 0x7F) << 7) |
+                          (header[9] & 0x7F);
+
+            bool hasFooter = (header[5] & 0x10) != 0;
+            tagOffset = 10 + tagSize + (hasFooter ? 10 : 0);
+        }
+
+        if (tagOffset > 0 && tagOffset < bytesRead)
+        {
+            var remainingBytes = bytesRead - tagOffset;
+
+            // Check FLAC ('fLaC')
+            if (remainingBytes >= 4 &&
+                header[tagOffset] == 'f' && header[tagOffset + 1] == 'L' &&
+                header[tagOffset + 2] == 'a' && header[tagOffset + 3] == 'C')
+            {
+                return InspectFlac(header.AsSpan(tagOffset).ToArray());
+            }
+
+            // Check WAV / AVI (RIFF)
+            if (remainingBytes >= 12 &&
+                header[tagOffset] == 'R' && header[tagOffset + 1] == 'I' &&
+                header[tagOffset + 2] == 'F' && header[tagOffset + 3] == 'F')
+            {
+                if (header[tagOffset + 8] == 'W' && header[tagOffset + 9] == 'A' &&
+                    header[tagOffset + 10] == 'V' && header[tagOffset + 11] == 'E')
+                {
+                    var info = new MediaContainerInfo
+                    {
+                        ContainerFormat = "WAV",
+                        AudioCodec = "PCM",
+                    };
+
+                    ApplyFilenameHints(info, fileName);
+                    return info;
+                }
+
+                if (header[tagOffset + 8] == 'A' && header[tagOffset + 9] == 'V' &&
+                    header[tagOffset + 10] == 'I' && header[tagOffset + 11] == ' ')
+                {
+                    return InspectAvi(header.AsSpan(tagOffset).ToArray(), fileName);
+                }
+            }
+
+            // Check AAC (ADIF or ADTS frame sync 0xFFF...)
+            if (remainingBytes >= 4 &&
+                header[tagOffset] == 'A' && header[tagOffset + 1] == 'D' &&
+                header[tagOffset + 2] == 'I' && header[tagOffset + 3] == 'F')
+            {
+                var info = new MediaContainerInfo
+                {
+                    ContainerFormat = "AAC",
+                    AudioCodec = "AAC",
+                };
+
+                ApplyFilenameHints(info, fileName);
+                return info;
+            }
+
+            if (remainingBytes >= 2 &&
+                header[tagOffset] == 0xFF && (header[tagOffset + 1] & 0xF6) == 0xF0)
+            {
+                var info = new MediaContainerInfo
+                {
+                    ContainerFormat = "AAC",
+                    AudioCodec = "AAC",
+                };
+
+                ApplyFilenameHints(info, fileName);
+                return info;
+            }
+
+            // Check MP3 frame sync past ID3 tag
+            if (remainingBytes >= 2 &&
+                header[tagOffset] == 0xFF && (header[tagOffset + 1] & 0xE0) == 0xE0)
+            {
+                return InspectMp3(header.AsSpan(tagOffset).ToArray(), fileName);
+            }
+        }
+
+        switch (ext)
+        {
+            case ".flac":
+                return InspectFlac(Array.Empty<byte>());
+
+            case ".wav":
+                var wavInfo = new MediaContainerInfo
+                {
+                    ContainerFormat = "WAV",
+                    AudioCodec = "PCM",
+                };
+
+                ApplyFilenameHints(wavInfo, fileName);
+                return wavInfo;
+
+            case ".aac":
+                var aacInfo = new MediaContainerInfo
+                {
+                    ContainerFormat = "AAC",
+                    AudioCodec = "AAC",
+                };
+
+                ApplyFilenameHints(aacInfo, fileName);
+                return aacInfo;
+
+            default:
+                return InspectMp3(header, fileName);
+        }
     }
 
     public static MediaContainerInfo InspectByFileName(string fileName)
