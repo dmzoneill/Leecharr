@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
@@ -13,6 +14,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Trackers;
 
@@ -32,6 +34,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly ITorrentFileRepository fileRepository;
     private readonly IConfigService configService;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly Logger logger;
 
     public DownloadHistoryService(
@@ -46,7 +49,8 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         ITorrentFileParser torrentFileParser = null,
         ITorrentFileRepository fileRepository = null,
         IConfigService configService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        ITorrentMediaMetadataRepository mediaMetadataRepository = null)
     {
         this.historyRepository = historyRepository;
         this.torrentRepository = torrentRepository;
@@ -60,6 +64,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         this.fileRepository = fileRepository;
         this.configService = configService;
         this.appFolderInfo = appFolderInfo;
+        this.mediaMetadataRepository = mediaMetadataRepository;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -227,8 +232,29 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 Status = "Removed",
                 RemovalReason = reason,
             };
+
+            if (this.mediaMetadataRepository != null)
+            {
+                var metadata = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
+                if (metadata != null)
+                {
+                    entry.DataJson = JsonSerializer.Serialize(metadata);
+                }
+            }
+
             this.historyRepository.Insert(entry);
             return;
+        }
+
+        if (this.mediaMetadataRepository != null)
+        {
+            var metadata = (entry.TorrentId.HasValue ? this.mediaMetadataRepository.GetByTorrentId(entry.TorrentId.Value) : null)
+                ?? (torrent.Id > 0 ? this.mediaMetadataRepository.GetByTorrentId(torrent.Id) : null);
+
+            if (metadata != null)
+            {
+                entry.DataJson = JsonSerializer.Serialize(metadata);
+            }
         }
 
         entry.TorrentId = null;
