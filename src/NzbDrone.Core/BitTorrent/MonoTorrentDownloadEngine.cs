@@ -1805,21 +1805,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ResumeTorrentsAfterVpnRestoredAsync()
     {
-        if (this.isHaltedByKillSwitch)
+        if (this.vpnKillSwitchService != null && this.configService.EnableVpnKillSwitch)
         {
-            this.logger.Warn("Cannot resume torrents after VPN restoration: VPN Kill Switch is active (fail-closed).");
-            return;
-        }
-
-        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (this.isHaltedByKillSwitch)
+            var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetwork) ??
+                         this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6);
+            if (vpnIp == null)
             {
                 this.logger.Warn("Cannot resume torrents after VPN restoration: VPN Kill Switch is active (fail-closed).");
                 return;
             }
+        }
 
+        this.isHaltedByKillSwitch = false;
+
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
             if (this.engine == null)
             {
                 await this.StartEngineAsyncCore().ConfigureAwait(false);

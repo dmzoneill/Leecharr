@@ -1648,6 +1648,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         info.AudioCodec = text.Contains("AC3") ? "AC3" : "MP3";
+        info.AudioChannels = "2.0";
 
         ApplyFilenameHints(info, fileName);
         return info;
@@ -1659,6 +1660,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         {
             ContainerFormat = "MP3",
             AudioCodec = "MP3",
+            AudioChannels = "2.0",
+            AudioSampleRate = 44100,
+            AudioBitDepth = 16,
         };
 
         ApplyFilenameHints(info, fileName);

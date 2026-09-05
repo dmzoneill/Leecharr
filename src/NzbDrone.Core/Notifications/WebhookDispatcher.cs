@@ -86,7 +86,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             using var response = await this.retryPolicy.ExecuteAsync(
                 async (ct) =>
                 {
-                    using var request = this.BuildHttpRequest(targetUrl, payload, customHeadersJson);
+                    var request = this.BuildHttpRequest(targetUrl, payload, customHeadersJson);
                     return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
                 },
                 cancellationToken).ConfigureAwait(false);

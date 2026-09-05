@@ -65,6 +65,7 @@ public static class ContainerExtensions
         {
             if (type.IsInterface || type.IsAbstract || type.IsEnum || type.IsValueType || type.IsSubclassOf(typeof(Attribute)) ||
                 type.Name.EndsWith("Event") || type.Name.EndsWith("Command") || type.Name.EndsWith("Resource") ||
+                type.Name == "Database" ||
                 type.GetInterfaces().Any(i => i.Name == "IEvent" || i.Name == "IDownloadTask" || i.Name == "ITerminalSession") ||
                 (type.BaseType != null && (type.BaseType.Name == "ModelBase" || type.BaseType.Name == "Command" || type.BaseType.Name == "RestResource")))
             {
