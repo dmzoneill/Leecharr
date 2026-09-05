@@ -336,4 +336,58 @@ public class WebhookDispatcherTest
         var request = this.handler.SentRequests.Single();
         request.Content!.Headers.GetValues("Content-Language").Should().ContainSingle().Which.Should().Be("en-US");
     }
+
+    [Test]
+    public async Task DispatchAsync_WhenPushoverTargetAndDictionaryPayload_SendsFormUrlEncodedContent()
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["token"] = "app-token-123",
+            ["user"] = "user-key-456",
+            ["title"] = "Leecharr: OnGrab",
+            ["message"] = "Ubuntu.iso (tv) - Downloading",
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://api.pushover.net/1/messages.json", payload);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Method.Should().Be(HttpMethod.Post);
+        request.RequestUri.Should().Be(new Uri("https://api.pushover.net/1/messages.json"));
+        request.Content.Should().NotBeNull();
+        request.Content!.Headers.ContentType!.MediaType.Should().Be("application/x-www-form-urlencoded");
+
+        var body = await request.Content.ReadAsStringAsync();
+        body.Should().Contain("token=app-token-123");
+        body.Should().Contain("user=user-key-456");
+        body.Should().Contain("title=Leecharr%3A+OnGrab");
+        body.Should().Contain("message=Ubuntu.iso+%28tv%29+-+Downloading");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenPushoverTargetAndStringDictionaryPayload_SendsFormUrlEncodedContent()
+    {
+        var payload = new Dictionary<string, string>
+        {
+            ["token"] = "app-token-789",
+            ["user"] = "user-key-999",
+            ["message"] = "Test Message",
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://api.pushover.net/1/messages.json", payload);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Content.Should().NotBeNull();
+        request.Content!.Headers.ContentType!.MediaType.Should().Be("application/x-www-form-urlencoded");
+
+        var body = await request.Content.ReadAsStringAsync();
+        body.Should().Contain("token=app-token-789");
+        body.Should().Contain("user=user-key-999");
+        body.Should().Contain("message=Test+Message");
+    }
 }
