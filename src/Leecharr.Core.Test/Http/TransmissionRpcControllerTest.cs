@@ -826,4 +826,79 @@ public class TransmissionRpcControllerTest
         torrents!.Count.Should().Be(1);
         torrents[0]["id"].Should().Be(10);
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_CallsRenameFileAsyncAndReturnsArguments()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"old/movie.mkv\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"new/movie.mkv\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var responseArgs = response.Arguments as Dictionary<string, object>;
+        responseArgs.Should().NotBeNull();
+        responseArgs!["path"].Should().Be("old/movie.mkv");
+        responseArgs["name"].Should().Be("new/movie.mkv");
+        responseArgs["id"].Should().Be(42);
+
+        await this.torrentService.Received(1).RenameFileAsync(42, "old/movie.mkv", "new/movie.mkv");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_QueuedTorrents_ReturnsCorrectStatusAndMetadata()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var queuedDownload = new Torrent { Id = 1, Name = "QueuedDL", Status = TorrentStatus.Queued, Progress = 0.5, DateAdded = DateTime.UtcNow, QueuePosition = 1 };
+        var queuedSeed = new Torrent { Id = 2, Name = "QueuedSeed", Status = TorrentStatus.Queued, Progress = 1.0, DateAdded = DateTime.UtcNow, QueuePosition = 2, DateCompleted = DateTime.UtcNow };
+        this.torrentService.GetAll().Returns(new List<Torrent> { queuedDownload, queuedSeed });
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+
+        var responseArgs = response!.Arguments as Dictionary<string, object>;
+        var torrents = responseArgs!["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents!.Count.Should().Be(2);
+
+        torrents[0]["status"].Should().Be(3); // TR_STATUS_DOWNLOAD_WAIT
+        torrents[0]["queuePosition"].Should().Be(1);
+        torrents[0].ContainsKey("addedDate").Should().BeTrue();
+
+        torrents[1]["status"].Should().Be(5); // TR_STATUS_SEED_WAIT
+        torrents[1]["queuePosition"].Should().Be(2);
+        torrents[1].ContainsKey("doneDate").Should().BeTrue();
+    }
 }
