@@ -681,5 +681,51 @@ public class PiecePickerTest
             .WithMessage("*must be positive*");
     }
 
+    [Test]
+    public void SetAvailability_SetsSwarmAvailabilityCorrectly()
+    {
+        var picker = new PiecePicker(5, 16384, 81920);
+
+        var customAvailability = new[] { 3, 1, 4, 1, 5 };
+        picker.SetAvailability(customAvailability);
+
+        picker.GetAvailability().Should().Equal(customAvailability);
+
+        // Verify rarest-first selection uses the set availability
+        var fullBitfield = Enumerable.Repeat(true, 5).ToArray();
+        var requests = picker.PickBlocks(fullBitfield, 1);
+        requests.Should().HaveCount(1);
+        // Piece 1 or 3 has rarity 1 (rarest)
+        requests[0].PieceIndex.Should().BeOneOf(1, 3);
+    }
+
+    [Test]
+    public void UpdateAvailability_SetsSwarmAvailabilityCorrectly()
+    {
+        var picker = new PiecePicker(5, 16384, 81920);
+
+        picker.UpdateAvailability(new[] { 0, 5, 2, 8, 1 });
+
+        picker.GetAvailability().Should().Equal(new[] { 0, 5, 2, 8, 1 });
+    }
+
+    [Test]
+    public void SetAvailability_HandlesNullOrDifferentLengthArrays()
+    {
+        var picker = new PiecePicker(5, 16384, 81920);
+
+        // Null should not throw or change anything
+        picker.SetAvailability(null!);
+        picker.GetAvailability().Should().Equal(new[] { 0, 0, 0, 0, 0 });
+
+        // Shorter array sets available elements and zeroes remaining
+        picker.SetAvailability(new[] { 2, 4 });
+        picker.GetAvailability().Should().Equal(new[] { 2, 4, 0, 0, 0 });
+
+        // Longer array truncates to pieceCount
+        picker.SetAvailability(new[] { 1, 2, 3, 4, 5, 6, 7 });
+        picker.GetAvailability().Should().Equal(new[] { 1, 2, 3, 4, 5 });
+    }
+
     #endregion
 }

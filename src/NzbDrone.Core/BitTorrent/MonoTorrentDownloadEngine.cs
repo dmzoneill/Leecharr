@@ -2349,17 +2349,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         get
         {
-            if (this.Picker != null)
-            {
-                return this.Picker.GetAvailability();
-            }
-
-            if (this.Manager == null)
+            if (this.Manager == null && this.Picker == null)
             {
                 return Array.Empty<int>();
             }
 
-            var pieceCount = this.Manager.Bitfield?.Length ?? 0;
+            var pieceCount = this.Manager?.Bitfield?.Length ?? this.Picker?.PieceCount ?? 0;
             if (pieceCount <= 0)
             {
                 return Array.Empty<int>();
@@ -2385,6 +2380,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
             }
             catch
             {
+            }
+
+            if (this.Picker != null)
+            {
+                this.Picker.SetAvailability(availability);
             }
 
             return availability;
