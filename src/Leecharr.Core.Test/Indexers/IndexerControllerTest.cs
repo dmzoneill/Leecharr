@@ -221,6 +221,87 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task DownloadRelease_WhenDownloadUrlFailsAndInfoHashProvided_FallsBackToMagnetUrl()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Ubuntu 24.04 ISO",
+            DownloadUrl = "https://tracker.example.com/dead.torrent",
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            Category = "linux",
+        };
+
+        var createdTorrent = new Torrent
+        {
+            Id = 15,
+            Name = request.Title,
+            InfoHash = request.InfoHash,
+            Category = request.Category,
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl)
+            .Returns(Task.FromException<byte[]>(new HttpRequestException("404 Not Found")));
+
+        var expectedFallbackMagnet = $"magnet:?xt=urn:btih:{request.InfoHash}&dn={Uri.EscapeDataString(request.Title)}";
+        this.torrentService.AddFromMagnetAsync(expectedFallbackMagnet, request.Category, null, false)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        this.downloadHistoryService.Received(1).RecordTorrentAdded(
+            createdTorrent,
+            source: "Indexer",
+            magnetUrl: null,
+            downloadUrl: request.DownloadUrl,
+            indexerName: null);
+    }
+
+    [Test]
+    public async Task DownloadRelease_WithOnlyInfoHash_AddsFromFallbackMagnet()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Debian ISO",
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Category = "linux",
+        };
+
+        var createdTorrent = new Torrent
+        {
+            Id = 16,
+            Name = request.Title,
+            InfoHash = request.InfoHash,
+            Category = request.Category,
+        };
+
+        var expectedFallbackMagnet = $"magnet:?xt=urn:btih:{request.InfoHash}&dn={Uri.EscapeDataString(request.Title)}";
+        this.torrentService.AddFromMagnetAsync(expectedFallbackMagnet, request.Category, null, false)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task DownloadRelease_WhenDownloadUrlFailsAndNoInfoHash_ReturnsBadRequest()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Dead Release",
+            DownloadUrl = "https://tracker.example.com/dead.torrent",
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl)
+            .Returns(Task.FromException<byte[]>(new HttpRequestException("500 Internal Error")));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
     public async Task DownloadRelease_WhenTorrentServiceFails_ReturnsBadRequestAndDoesNotRecordHistory()
     {
         var request = new DownloadReleaseRequest
