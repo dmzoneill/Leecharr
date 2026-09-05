@@ -252,6 +252,31 @@ public class TorznabClientTest
         results[0].Title.Should().Be("Tom & Jerry The Movie 2021");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenMagnetInDownloadUrlOrLinkAndMagnetUrlEmpty_PopulatesMagnetUrl()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Magnet Enclosure Release</title>
+      <enclosure url=""magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&amp;dn=Release1"" length=""1000"" type=""application/x-bittorrent"" />
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+    <item>
+      <title>Magnet Link Release</title>
+      <link>magnet:?xt=urn:btih:1234567890ABCDEF1234567890ABCDEF12345678&amp;dn=Release2</link>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(2);
+        results[0].MagnetUrl.Should().StartWith("magnet:?");
+        results[1].MagnetUrl.Should().StartWith("magnet:?");
+    }
+
     #endregion
 
     #region Torznab Capabilities Parsing (t=caps)

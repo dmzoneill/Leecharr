@@ -349,6 +349,18 @@ public class TorznabClient : ITorznabClient
                     }
                 }
 
+                if (string.IsNullOrWhiteSpace(magnetUrl))
+                {
+                    if (!string.IsNullOrEmpty(downloadUrl) && downloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    {
+                        magnetUrl = downloadUrl;
+                    }
+                    else if (!string.IsNullOrEmpty(link) && link.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    {
+                        magnetUrl = link;
+                    }
+                }
+
                 var result = new TorznabSearchResult
                 {
                     Title = title,
