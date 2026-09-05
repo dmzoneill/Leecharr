@@ -1327,10 +1327,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var category = existingTask?.Category;
         var torrentName = manager.Torrent?.Name ?? infoHash;
 
-        // Source is where MonoTorrent saved the files during download (the incomplete dir).
-        var sourcePath = manager.ContainingDirectory
-            ?? Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName);
+        var isMultiFile = manager.Torrent != null && manager.Torrent.Files.Count > 1;
+        var sourcePath = isMultiFile
+            ? (manager.ContainingDirectory ?? Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName))
+            : Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName);
 
+        var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;
 
         try
@@ -1344,17 +1346,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Info("Moved completed torrent '{0}' from '{1}' to '{2}'", torrentName, sourcePath, finalDestination);
 
                 // Tell MonoTorrent the new save path so it continues seeding from the correct location.
-                if (!string.Equals(manager.SavePath, finalDestination, StringComparison.OrdinalIgnoreCase))
+                var seedingSavePath = !string.IsNullOrWhiteSpace(targetCompletedDir)
+                    ? targetCompletedDir
+                    : (Path.GetDirectoryName(finalDestination) ?? finalDestination);
+
+                if (!string.Equals(manager.SavePath, seedingSavePath, StringComparison.OrdinalIgnoreCase))
                 {
                     try
                     {
-                        Directory.CreateDirectory(finalDestination);
-                        await manager.MoveFilesAsync(finalDestination, true).ConfigureAwait(false);
-                        this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", finalDestination, infoHash);
+                        Directory.CreateDirectory(seedingSavePath);
+                        await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
+                        this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", seedingSavePath, infoHash);
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Warn(ex, "Failed to update MonoTorrent seeding path to '{0}' for {1}; files were already moved by StoragePathService", finalDestination, infoHash);
+                        this.logger.Warn(ex, "Failed to update MonoTorrent seeding path to '{0}' for {1}; files were already moved by StoragePathService", seedingSavePath, infoHash);
                     }
                 }
             }

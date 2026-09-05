@@ -127,7 +127,46 @@ public class StoragePathService : IStoragePathService
             return true;
         }
 
-        if (!this.diskProvider.FileExists(sourcePath) && !this.diskProvider.FolderExists(sourcePath))
+        var incompleteDir = this.GetIncompleteDirectory();
+        if (!string.IsNullOrWhiteSpace(incompleteDir) &&
+            string.Equals(
+                Path.GetFullPath(sourcePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            this.logger.Warn("Source path '{0}' is the incomplete root directory; refusing to move entire directory.", sourcePath);
+            return false;
+        }
+
+        var actualSource = sourcePath;
+        if (!this.diskProvider.FileExists(actualSource) && !this.diskProvider.FolderExists(actualSource))
+        {
+            var candidateExtensions = new List<string>();
+            var configuredExt = this.configService.IncompleteExtension;
+            if (!string.IsNullOrWhiteSpace(configuredExt))
+            {
+                candidateExtensions.Add(configuredExt);
+            }
+
+            foreach (var ext in DefaultIncompleteExtensions)
+            {
+                if (!candidateExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateExtensions.Add(ext);
+                }
+            }
+
+            foreach (var ext in candidateExtensions)
+            {
+                if (this.diskProvider.FileExists(sourcePath + ext))
+                {
+                    actualSource = sourcePath + ext;
+                    break;
+                }
+            }
+        }
+
+        if (!this.diskProvider.FileExists(actualSource) && !this.diskProvider.FolderExists(actualSource))
         {
             this.logger.Warn("Source path does not exist for moving: {0}", sourcePath);
             return false;
@@ -135,24 +174,24 @@ public class StoragePathService : IStoragePathService
 
         try
         {
-            this.logger.Info("Moving completed torrent from '{0}' to '{1}'", sourcePath, finalDestination);
+            this.logger.Info("Moving completed torrent from '{0}' to '{1}'", actualSource, finalDestination);
 
-            if (this.diskProvider.FolderExists(sourcePath))
-            {
-                this.MoveFolderWithFallback(sourcePath, finalDestination);
-            }
-            else if (this.diskProvider.FileExists(sourcePath))
+            if (this.diskProvider.FileExists(actualSource))
             {
                 try
                 {
-                    this.diskProvider.MoveFile(sourcePath, finalDestination, overwrite: true);
+                    this.diskProvider.MoveFile(actualSource, finalDestination, overwrite: true);
                 }
                 catch (IOException ioEx)
                 {
-                    this.logger.Info(ioEx, "MoveFile failed from '{0}' to '{1}'. Falling back to copy and delete.", sourcePath, finalDestination);
-                    this.diskProvider.CopyFile(sourcePath, finalDestination, overwrite: true);
-                    this.diskProvider.DeleteFile(sourcePath);
+                    this.logger.Info(ioEx, "MoveFile failed from '{0}' to '{1}'. Falling back to copy and delete.", actualSource, finalDestination);
+                    this.diskProvider.CopyFile(actualSource, finalDestination, overwrite: true);
+                    this.diskProvider.DeleteFile(actualSource);
                 }
+            }
+            else if (this.diskProvider.FolderExists(actualSource))
+            {
+                this.MoveFolderWithFallback(actualSource, finalDestination);
             }
 
             this.StripIncompleteExtensions(finalDestination);
