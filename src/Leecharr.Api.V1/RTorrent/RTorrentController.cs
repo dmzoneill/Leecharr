@@ -187,7 +187,20 @@ public class RTorrentController : ControllerBase
                                 }
                                 else if (cleanField.Equals("f.get_completed_chunks", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.completed_chunks", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    fRowData.Add(new XElement("value", new XElement("i8", file.Progress >= 1.0 ? 100 : (long)(file.Progress * 100))));
+                                    var completed = file.Progress >= 1.0 ? file.PieceCount : (long)(file.Progress * file.PieceCount);
+                                    fRowData.Add(new XElement("value", new XElement("i8", completed)));
+                                }
+                                else if (cleanField.Equals("f.get_size_chunks", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.size_chunks", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    fRowData.Add(new XElement("value", new XElement("i8", file.PieceCount)));
+                                }
+                                else if (cleanField.Equals("f.get_range_first", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.range_first", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    fRowData.Add(new XElement("value", new XElement("i8", file.PieceOffset)));
+                                }
+                                else if (cleanField.Equals("f.get_range_second", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.range_second", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    fRowData.Add(new XElement("value", new XElement("i8", Math.Max(file.PieceOffset, file.PieceOffset + file.PieceCount - 1))));
                                 }
                                 else if (cleanField.Equals("f.get_priority", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.priority", StringComparison.OrdinalIgnoreCase))
                                 {
