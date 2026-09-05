@@ -34,7 +34,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
         if (string.IsNullOrEmpty(this.ApiKey))
         {
-            this.SetValue("ApiKey", GenerateApiKey());
+            this.config["ApiKey"] = GenerateApiKey();
+            this.SaveToFile();
         }
     }
 
