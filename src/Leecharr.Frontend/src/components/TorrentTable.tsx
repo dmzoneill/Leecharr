@@ -297,6 +297,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const recheckTorrent = useRecheckTorrent();
   const moveTorrentQueue = useMoveTorrentQueue();
 
+  const telemetry = useTorrentStore((state) => state.telemetry);
+
   const [sortKey, setSortKey] = useState<ColumnKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -448,72 +450,80 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const sourceTorrents = propTorrents || [];
 
-  const filteredTorrents = sourceTorrents.filter((t) => {
-    if (filter) {
-      const q = filter.toLowerCase();
-      const matchName = (t.name || "").toLowerCase().includes(q);
-      const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
-      if (!matchName && !matchMedia) return false;
-    }
-    if (stateFilter && stateFilter !== "All") {
-      const st = (t.status || "").toLowerCase();
-      const target = stateFilter.toLowerCase();
-      if (target === "stopped" || target === "paused") {
-        if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
-      } else if (st !== target) {
-        return false;
+  const mergedTorrents = useMemo(() => {
+    return sourceTorrents.map((t) => applyTelemetry(t, telemetry[t.id]));
+  }, [sourceTorrents, telemetry]);
+
+  const filteredTorrents = useMemo(() => {
+    return mergedTorrents.filter((t) => {
+      if (filter) {
+        const q = filter.toLowerCase();
+        const matchName = (t.name || "").toLowerCase().includes(q);
+        const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
+        if (!matchName && !matchMedia) return false;
       }
-    }
-    if (trackerFilter && trackerFilter !== "All") {
-      const matchesTracker =
-        (t.trackers && t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
-        extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
-      if (!matchesTracker) return false;
-    }
-    if (privacyFilter && privacyFilter !== "All") {
-      if (privacyFilter === "Private" && !t.isPrivate) return false;
-      if (privacyFilter === "Public" && t.isPrivate) return false;
-    }
-    return true;
-  });
+      if (stateFilter && stateFilter !== "All") {
+        const st = (t.status || "").toLowerCase();
+        const target = stateFilter.toLowerCase();
+        if (target === "stopped" || target === "paused") {
+          if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
+        } else if (st !== target) {
+          return false;
+        }
+      }
+      if (trackerFilter && trackerFilter !== "All") {
+        const matchesTracker =
+          (t.trackers && t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
+          extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
+        if (!matchesTracker) return false;
+      }
+      if (privacyFilter && privacyFilter !== "All") {
+        if (privacyFilter === "Private" && !t.isPrivate) return false;
+        if (privacyFilter === "Public" && t.isPrivate) return false;
+      }
+      return true;
+    });
+  }, [mergedTorrents, filter, stateFilter, trackerFilter, privacyFilter]);
 
-  const sortedTorrents = [...filteredTorrents].sort((a, b) => {
-    let valA: any = (a as any)[sortKey];
-    let valB: any = (b as any)[sortKey];
+  const sortedTorrents = useMemo(() => {
+    return [...filteredTorrents].sort((a, b) => {
+      let valA: any = (a as any)[sortKey];
+      let valB: any = (b as any)[sortKey];
 
-    if (sortKey === "#") {
-      valA = a.queuePosition && a.queuePosition > 0 ? a.queuePosition : (a.id ?? 0);
-      valB = b.queuePosition && b.queuePosition > 0 ? b.queuePosition : (b.id ?? 0);
-    } else if (sortKey === "category") {
-      valA = a.category ?? a.label ?? "";
-      valB = b.category ?? b.label ?? "";
-    } else if (sortKey === "eta") {
-      valA =
-        a.eta ??
-        (a.downloadSpeed > 0 ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed : 9999999);
-      valB =
-        b.eta ??
-        (b.downloadSpeed > 0 ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed : 9999999);
-    }
+      if (sortKey === "#") {
+        valA = a.queuePosition && a.queuePosition > 0 ? a.queuePosition : (a.id ?? 0);
+        valB = b.queuePosition && b.queuePosition > 0 ? b.queuePosition : (b.id ?? 0);
+      } else if (sortKey === "category") {
+        valA = a.category ?? a.label ?? "";
+        valB = b.category ?? b.label ?? "";
+      } else if (sortKey === "eta") {
+        valA =
+          a.eta ??
+          (a.downloadSpeed > 0 ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed : 9999999);
+        valB =
+          b.eta ??
+          (b.downloadSpeed > 0 ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed : 9999999);
+      }
 
-    if (valA === valB) return 0;
-    if (valA === undefined || valA === null) return 1;
-    if (valB === undefined || valB === null) return -1;
+      if (valA === valB) return 0;
+      if (valA === undefined || valA === null) return 1;
+      if (valB === undefined || valB === null) return -1;
 
-    if (typeof valA === "string") {
-      return sortAsc
-        ? valA.localeCompare(valB, undefined, {
-            numeric: true,
-            sensitivity: "base",
-          })
-        : valB.localeCompare(valA, undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
-    }
+      if (typeof valA === "string") {
+        return sortAsc
+          ? valA.localeCompare(valB, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            })
+          : valB.localeCompare(valA, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            });
+      }
 
-    return sortAsc ? valA - valB : valB - valA;
-  });
+      return sortAsc ? valA - valB : valB - valA;
+    });
+  }, [filteredTorrents, sortKey, sortAsc]);
 
   // Build ordered, visible column list using the user's saved column order.
   const colDefMap = useMemo(() => new Map(ALL_COLUMNS.map((c) => [c.key, c])), []);
