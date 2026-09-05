@@ -209,12 +209,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                                 Url = url,
                                 Tier = tier,
                                 Enabled = true,
-                                Status = 1,
+                                Status = 0,
                                 AnnounceInterval = 1800,
-                                LastAnnounce = inserted.DateAdded,
+                                LastAnnounce = null,
                                 NextAnnounce = inserted.DateAdded.AddSeconds(1800),
-                                TotalAnnounces = 1,
-                                SuccessfulAnnounces = 1,
+                                TotalAnnounces = 0,
+                                SuccessfulAnnounces = 0,
                             });
                         }
                     }
@@ -233,12 +233,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     Url = parsed.AnnounceUrl,
                     Tier = 0,
                     Enabled = true,
-                    Status = 1,
+                    Status = 0,
                     AnnounceInterval = 1800,
-                    LastAnnounce = inserted.DateAdded,
+                    LastAnnounce = null,
                     NextAnnounce = inserted.DateAdded.AddSeconds(1800),
-                    TotalAnnounces = 1,
-                    SuccessfulAnnounces = 1,
+                    TotalAnnounces = 0,
+                    SuccessfulAnnounces = 0,
                 });
             }
         }
@@ -348,12 +348,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                         Url = trackerUrl,
                         Tier = 0,
                         Enabled = true,
-                        Status = 1,
+                        Status = 0,
                         AnnounceInterval = 1800,
-                        LastAnnounce = inserted.DateAdded,
+                        LastAnnounce = null,
                         NextAnnounce = inserted.DateAdded.AddSeconds(1800),
-                        TotalAnnounces = 1,
-                        SuccessfulAnnounces = 1,
+                        TotalAnnounces = 0,
+                        SuccessfulAnnounces = 0,
                     });
                 }
             }
