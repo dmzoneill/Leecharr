@@ -87,14 +87,28 @@ public class Aria2RpcController : ControllerBase
                     var trimmed = rawBody.TrimStart();
                     if (trimmed.StartsWith("<", StringComparison.Ordinal))
                     {
-                        if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
-                        {
-                            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Aria2\"";
-                            return this.StatusCode(StatusCodes.Status401Unauthorized, new { id, jsonrpc = "2.0", error = new { code = 1, message = "Unauthorized" } });
-                        }
-
                         var xmlDoc = global::System.Xml.Linq.XDocument.Parse(rawBody);
                         var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
+
+                        var isXmlAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+                        if (!isXmlAuth)
+                        {
+                            var firstToken = GetFirstXmlRpcToken(xmlDoc);
+                            if (!string.IsNullOrWhiteSpace(firstToken) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
+                            {
+                                if (string.Equals(firstToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                                {
+                                    isXmlAuth = true;
+                                }
+                            }
+                        }
+
+                        if (!isXmlAuth)
+                        {
+                            this.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Aria2\"";
+                            return this.BuildXmlRpcFault(1, "Unauthorized");
+                        }
+
                         try
                         {
                             return await this.HandleXmlRpcAsync(xmlMethodName, xmlDoc);
@@ -589,6 +603,22 @@ public class Aria2RpcController : ControllerBase
         return list;
     }
 
+    private static string GetFirstXmlRpcToken(global::System.Xml.Linq.XDocument xmlDoc)
+    {
+        var firstParam = xmlDoc?.Root?.Element("params")?.Elements("param").FirstOrDefault();
+        if (firstParam != null)
+        {
+            var val = firstParam.Element("value");
+            var strVal = val?.Element("string")?.Value ?? val?.Value;
+            if (!string.IsNullOrWhiteSpace(strVal) && strVal.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+            {
+                return strVal["token:".Length..];
+            }
+        }
+
+        return null;
+    }
+
     private static List<string> GetXmlRpcStringParams(global::System.Xml.Linq.XDocument xmlDoc)
     {
         var list = new List<string>();
@@ -601,7 +631,35 @@ public class Aria2RpcController : ControllerBase
         foreach (var p in paramsElem.Elements("param"))
         {
             var val = p.Element("value");
-            var strVal = val?.Element("string")?.Value ?? val?.Value;
+            if (val == null)
+            {
+                continue;
+            }
+
+            if (val.Element("array") is global::System.Xml.Linq.XElement arrayElem)
+            {
+                var data = arrayElem.Element("data");
+                if (data != null)
+                {
+                    foreach (var item in data.Elements("value"))
+                    {
+                        var itemStr = item.Element("string")?.Value ?? item.Value;
+                        if (!string.IsNullOrWhiteSpace(itemStr))
+                        {
+                            if (itemStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            list.Add(itemStr);
+                        }
+                    }
+                }
+
+                continue;
+            }
+
+            var strVal = val.Element("string")?.Value ?? val.Value;
             if (!string.IsNullOrWhiteSpace(strVal))
             {
                 if (strVal.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
