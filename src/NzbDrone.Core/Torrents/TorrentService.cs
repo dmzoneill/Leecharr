@@ -156,6 +156,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
+        var cat = !string.IsNullOrWhiteSpace(effectiveCategory)
+            ? this.categoryService.GetByName(effectiveCategory)
+            : null;
+
+        if (cat != null)
+        {
+            torrent.DownloadLimit = cat.DefaultDownloadLimit;
+            torrent.UploadLimit = cat.DefaultUploadLimit;
+            torrent.TargetRatio = cat.TargetRatio;
+            torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+        }
+
         var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
 
         // Insert torrent files
@@ -333,6 +345,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
+        var cat = !string.IsNullOrWhiteSpace(effectiveCategory)
+            ? this.categoryService.GetByName(effectiveCategory)
+            : null;
+
+        if (cat != null)
+        {
+            torrent.DownloadLimit = cat.DefaultDownloadLimit;
+            torrent.UploadLimit = cat.DefaultUploadLimit;
+            torrent.TargetRatio = cat.TargetRatio;
+            torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+        }
+
         var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
 
         // Insert trackers from magnet
@@ -401,6 +425,46 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (torrent == null)
         {
             throw new ArgumentNullException(nameof(torrent));
+        }
+
+        var existing = this.torrentRepository.Get(torrent.Id);
+        if (existing != null && !string.Equals(existing.Category, torrent.Category, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(torrent.Category))
+        {
+            var cat = this.categoryService.GetByName(torrent.Category);
+            if (cat != null)
+            {
+                if (torrent.DownloadLimit <= 0)
+                {
+                    torrent.DownloadLimit = cat.DefaultDownloadLimit;
+                }
+
+                if (torrent.UploadLimit <= 0)
+                {
+                    torrent.UploadLimit = cat.DefaultUploadLimit;
+                }
+
+                if (torrent.TargetRatio <= 0)
+                {
+                    torrent.TargetRatio = cat.TargetRatio;
+                }
+
+                if (torrent.TargetSeedTimeMinutes <= 0)
+                {
+                    torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+                }
+
+                if (this.downloadEngine != null)
+                {
+                    try
+                    {
+                        await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
+                    }
+                }
+            }
         }
 
         var updated = this.torrentRepository.Update(torrent);
@@ -968,6 +1032,61 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.torrentRepository.Update(torrent);
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
         this.logger.Info("Updated save path for torrent {0} ({1}) to '{2}' (moved={3})", torrent.Id, torrent.Name, newSavePath, moveFiles);
+    }
+
+    public async Task SetCategoryAsync(int id, string category)
+    {
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent == null)
+        {
+            this.logger.Warn("Cannot set category for torrent id {0}: torrent not found", id);
+            return;
+        }
+
+        torrent.Category = category ?? string.Empty;
+
+        var cat = !string.IsNullOrWhiteSpace(category)
+            ? this.categoryService.GetByName(category)
+            : null;
+
+        if (cat != null)
+        {
+            if (torrent.DownloadLimit <= 0)
+            {
+                torrent.DownloadLimit = cat.DefaultDownloadLimit;
+            }
+
+            if (torrent.UploadLimit <= 0)
+            {
+                torrent.UploadLimit = cat.DefaultUploadLimit;
+            }
+
+            if (torrent.TargetRatio <= 0)
+            {
+                torrent.TargetRatio = cat.TargetRatio;
+            }
+
+            if (torrent.TargetSeedTimeMinutes <= 0)
+            {
+                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+            }
+
+            if (this.downloadEngine != null)
+            {
+                try
+                {
+                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
+                }
+            }
+        }
+
+        this.torrentRepository.Update(torrent);
+        this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        this.logger.Info("Updated category for torrent {0} ({1}) to '{2}'", torrent.Id, torrent.Name, category);
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)

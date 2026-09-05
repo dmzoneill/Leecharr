@@ -40,4 +40,6 @@ public interface ITorrentService
     Task SetSuperSeedingAsync(int id, bool enabled);
 
     Task SetLocationAsync(int id, string newSavePath, bool moveFiles = true);
+
+    Task SetCategoryAsync(int id, string category);
 }
