@@ -74,6 +74,7 @@ public class AppLifetime : IHostedService, IDisposable
         this.queueManagerService = queueManagerService;
         this.powerManagementService = powerManagementService ?? new PowerManagementService();
         this.udpTrackerService = udpTrackerService;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
