@@ -21,6 +21,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
@@ -43,6 +44,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly IBlocklistService blocklistService;
     private readonly INatPmpPortMapperService natPmpPortMapperService;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly INetworkBindingService networkBindingService;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -151,7 +153,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         IEventAggregator eventAggregator,
         IBlocklistService blocklistService = null,
         INatPmpPortMapperService natPmpPortMapperService = null,
-        IVpnKillSwitchService vpnKillSwitchService = null)
+        IVpnKillSwitchService vpnKillSwitchService = null,
+        INetworkBindingService networkBindingService = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -161,6 +164,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.blocklistService = blocklistService;
         this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService();
         this.vpnKillSwitchService = vpnKillSwitchService;
+        this.networkBindingService = networkBindingService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (this.vpnKillSwitchService != null)
@@ -236,8 +240,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
 
+        var isInterfaceUp = true;
+        if (this.networkBindingService != null && hasSpecificInterface)
+        {
+            isInterfaceUp = this.networkBindingService.IsInterfaceUp(iface);
+        }
+
         if (hasSpecificInterface)
         {
+            if (!isInterfaceUp && isKillSwitchEnabled)
+            {
+                this.logger.Error("Network binding provider reported interface '{0}' is offline while Kill Switch is active. Halting engine in strict fail-closed state.", iface);
+                this.isHaltedByKillSwitch = true;
+                return;
+            }
+
             var resolvedIp = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress()
                 ?? this.ResolveInterfaceIp(iface, System.Net.Sockets.AddressFamily.InterNetwork);
 
