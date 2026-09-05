@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using NLog;
 using NLog.Targets;
 
@@ -12,6 +13,7 @@ public class RingBufferTarget : TargetWithLayout
 {
     private readonly object @lock = new();
     private readonly LogEntryRecord[] buffer;
+    private long sequenceNumber;
     private int position;
     private int count;
 
@@ -27,6 +29,7 @@ public class RingBufferTarget : TargetWithLayout
     {
         var entry = new LogEntryRecord
         {
+            Id = Interlocked.Increment(ref this.sequenceNumber),
             Time = logEvent.TimeStamp.ToUniversalTime(),
             Level = logEvent.Level.Name,
             Logger = logEvent.LoggerName,

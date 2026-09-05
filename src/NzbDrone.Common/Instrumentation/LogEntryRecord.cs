@@ -6,6 +6,8 @@ namespace NzbDrone.Common.Instrumentation;
 
 public class LogEntryRecord
 {
+    public long Id { get; set; }
+
     public DateTime Time { get; set; }
 
     public string Level { get; set; }
