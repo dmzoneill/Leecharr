@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
@@ -24,6 +25,7 @@ public class DelugeJsonRpcControllerTest
     private ICategoryService categoryService = null!;
     private IConfigService configService = null!;
     private IConfigFileProvider configFileProvider = null!;
+    private IDiskProvider diskProvider = null!;
     private DelugeJsonRpcController controller = null!;
 
     [SetUp]
@@ -35,6 +37,7 @@ public class DelugeJsonRpcControllerTest
         this.categoryService = Substitute.For<ICategoryService>();
         this.configService = Substitute.For<IConfigService>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
+        this.diskProvider = Substitute.For<IDiskProvider>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("deluge_secret_key");
@@ -45,7 +48,8 @@ public class DelugeJsonRpcControllerTest
             this.torrentFileParser,
             this.categoryService,
             this.configService,
-            this.configFileProvider);
+            this.configFileProvider,
+            diskProvider: this.diskProvider);
     }
 
     [Test]
@@ -371,7 +375,8 @@ public class DelugeJsonRpcControllerTest
         context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
-        this.configService.DownloadDir.Returns("/");
+        this.configService.DownloadDir.Returns("/downloads");
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(500_000_000_000L);
 
         using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space\",\"params\":[\"\"],\"id\":1}");
         var result = await this.controller.HandleRpc(doc.RootElement);
@@ -379,6 +384,25 @@ public class DelugeJsonRpcControllerTest
         result.Should().BeOfType<JsonResult>();
         var jsonResult = (JsonResult)result;
         var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":500000000000");
         json.Should().Contain("\"error\":null");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetFreeSpace_WithCustomPath_QueriesDiskProvider()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(250_000_000_000L);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space\",\"params\":[\"/mnt/storage\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":250000000000");
     }
 }
