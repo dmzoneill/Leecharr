@@ -530,7 +530,23 @@ public class TransmissionRpcController : ControllerBase
 
                 case "torrent-remove":
                     var removeIds = this.ExtractIds(request.Arguments, false);
-                    var deleteLocalData = request.Arguments != null && request.Arguments.TryGetValue("delete-local-data", out var delVal) && delVal.GetBoolean();
+                    var deleteLocalData = false;
+                    if (request.Arguments != null && request.Arguments.TryGetValue("delete-local-data", out var delVal))
+                    {
+                        if (delVal.ValueKind == JsonValueKind.True)
+                        {
+                            deleteLocalData = true;
+                        }
+                        else if (delVal.ValueKind == JsonValueKind.Number && delVal.TryGetInt32(out var n))
+                        {
+                            deleteLocalData = n != 0;
+                        }
+                        else if (delVal.ValueKind == JsonValueKind.String && bool.TryParse(delVal.GetString(), out var b))
+                        {
+                            deleteLocalData = b;
+                        }
+                    }
+
                     foreach (var id in removeIds)
                     {
                         await this.torrentService.DeleteAsync(id, deleteLocalData);
@@ -708,10 +724,17 @@ public class TransmissionRpcController : ControllerBase
                     else if (item.ValueKind == JsonValueKind.String)
                     {
                         var str = item.GetString();
-                        var torrent = this.torrentService.GetByInfoHash(str);
-                        if (torrent != null)
+                        if (int.TryParse(str, out var parsedId))
                         {
-                            ids.Add(torrent.Id);
+                            ids.Add(parsedId);
+                        }
+                        else
+                        {
+                            var torrent = this.torrentService.GetByInfoHash(str);
+                            if (torrent != null)
+                            {
+                                ids.Add(torrent.Id);
+                            }
                         }
                     }
                 }
@@ -723,10 +746,17 @@ public class TransmissionRpcController : ControllerBase
             else if (idsElem.ValueKind == JsonValueKind.String)
             {
                 var str = idsElem.GetString();
-                var torrent = this.torrentService.GetByInfoHash(str);
-                if (torrent != null)
+                if (int.TryParse(str, out var parsedId))
                 {
-                    ids.Add(torrent.Id);
+                    ids.Add(parsedId);
+                }
+                else
+                {
+                    var torrent = this.torrentService.GetByInfoHash(str);
+                    if (torrent != null)
+                    {
+                        ids.Add(torrent.Id);
+                    }
                 }
             }
         }
