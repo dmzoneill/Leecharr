@@ -238,6 +238,73 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentSet_WithLocation_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "TestTorrent",
+            SavePath = "/downloads/initial",
+        };
+        this.torrentService.Get(42).Returns(torrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        using var locDoc = JsonDocument.Parse("\"/downloads/target\"");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", true);
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t => t.Id == 42 && t.SavePath == "/downloads/target"));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithSameLocation_DoesNotInvokeSetLocationAsync()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "TestTorrent",
+            SavePath = "/downloads/same",
+        };
+        this.torrentService.Get(42).Returns(torrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        using var locDoc = JsonDocument.Parse("\"/downloads/same\"");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
     public async Task HandleRpc_TorrentSetLocation_WithMoveTrue_InvokesSetLocationAsyncWithMoveTrue()
     {
         var context = new DefaultHttpContext();
