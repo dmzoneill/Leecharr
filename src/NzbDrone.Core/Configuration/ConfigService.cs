@@ -46,6 +46,14 @@ public interface IConfigService
 
     string ActiveBlocklistProvider { get; }
 
+    bool BlocklistEnabled { get; }
+
+    string BlocklistUrl { get; }
+
+    string BlocklistPath { get; }
+
+    int BlocklistUpdateIntervalHours { get; }
+
     string ActiveAiProvider { get; }
 
     string OllamaHost { get; }
@@ -647,11 +655,20 @@ public class ConfigService : IConfigService
 
     public string ActiveMediaMetadataProvider => this.GetValue("ActiveMediaMetadataProvider", "ServarrSync");
 
+
     public string ActiveHttpTransportProvider => this.GetValue("ActiveHttpTransportProvider", "SocketsHttpHandler");
 
     public string ActiveGeoIpProvider => this.GetValue("ActiveGeoIpProvider", "MaxMind");
 
     public string ActiveBlocklistProvider => this.GetValue("ActiveBlocklistProvider", "RadixTree");
+
+    public bool BlocklistEnabled => this.GetValueBoolean("BlocklistEnabled", false);
+
+    public string BlocklistUrl => this.GetValue("BlocklistUrl", string.Empty);
+
+    public string BlocklistPath => this.GetValue("BlocklistPath", string.Empty);
+
+    public int BlocklistUpdateIntervalHours => this.GetValueInt("BlocklistUpdateIntervalHours", 24);
 
     public string ActiveAiProvider => this.GetValue("ActiveAiProvider", "RuleHeuristic");
 

@@ -16,6 +16,8 @@ public class SubsystemOverviewResource
 
     public string ActiveProviderId { get; set; }
 
+    public int RuleCount { get; set; }
+
     public List<SubsystemProviderResource> Providers { get; set; } = new();
 }
 
