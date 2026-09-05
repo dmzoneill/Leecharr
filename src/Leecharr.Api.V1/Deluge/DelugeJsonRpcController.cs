@@ -90,6 +90,34 @@ public class DelugeJsonRpcController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> HandleRpc([FromBody] JsonElement root)
     {
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            var responses = new List<object>();
+            foreach (var item in root.EnumerateArray())
+            {
+                var singleResult = await this.ProcessSingleRpcAsync(item);
+                if (singleResult is JsonResult jsonResult)
+                {
+                    responses.Add(jsonResult.Value);
+                }
+                else if (singleResult is ObjectResult objectResult)
+                {
+                    responses.Add(objectResult.Value);
+                }
+                else
+                {
+                    responses.Add(new { result = (object)null, error = "Unknown RPC result", id = (object)null });
+                }
+            }
+
+            return this.DelugeResult(responses);
+        }
+
+        return await this.ProcessSingleRpcAsync(root);
+    }
+
+    private async Task<IActionResult> ProcessSingleRpcAsync(JsonElement root)
+    {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("method", out var methodProp) || methodProp.ValueKind != JsonValueKind.String)
         {
             return this.DelugeResult(new { result = (object)null, error = "Invalid RPC request", id = (object)null });
@@ -207,6 +235,8 @@ public class DelugeJsonRpcController : ControllerBase
                             "system.list_methods",
                             "system.get_methods",
                             "core.get_config",
+                            "core.get_config_values",
+                            "core.get_config_value",
                             "core.get_session_status",
                             "core.get_free_space",
                             "core.get_path_free_space",
@@ -435,13 +465,70 @@ public class DelugeJsonRpcController : ControllerBase
                         result = new Dictionary<string, object>
                         {
                             { "download_location", this.configService.DownloadDir ?? "/downloads" },
+                            { "move_completed", false },
+                            { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
                             { "max_connections_global", this.configService.MaxGlobalConnections },
-                            { "max_download_speed", this.configService.MaxDownloadSpeedKbps },
-                            { "max_upload_speed", this.configService.MaxUploadSpeedKbps },
+                            { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
+                            { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
+                            { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                            { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                            { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                            { "compact_allocation", false },
+                            { "prioritize_first_last_pieces", true },
                         },
                         error = (object)null,
                         id,
                     });
+
+                case "core.get_config_values":
+                    var fullConfig = new Dictionary<string, object>
+                    {
+                        { "download_location", this.configService.DownloadDir ?? "/downloads" },
+                        { "move_completed", false },
+                        { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
+                        { "max_connections_global", this.configService.MaxGlobalConnections },
+                        { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
+                        { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
+                        { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                        { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                        { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                        { "compact_allocation", false },
+                        { "prioritize_first_last_pieces", true },
+                    };
+
+                    var requestedConfig = new Dictionary<string, object>();
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var keyElem in paramsElem[0].EnumerateArray())
+                        {
+                            var k = keyElem.GetString();
+                            if (!string.IsNullOrEmpty(k))
+                            {
+                                requestedConfig[k] = fullConfig.TryGetValue(k, out var val) ? val : null;
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = requestedConfig, error = (object)null, id });
+
+                case "core.get_config_value":
+                    var singleCfgKey = GetFirstStringParam(paramsElem);
+                    var singleFullConfig = new Dictionary<string, object>
+                    {
+                        { "download_location", this.configService.DownloadDir ?? "/downloads" },
+                        { "move_completed", false },
+                        { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
+                        { "max_connections_global", this.configService.MaxGlobalConnections },
+                        { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
+                        { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
+                        { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                        { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+                        { "max_active_seeding", this.configService.MaxActiveSeeds > 0 ? this.configService.MaxActiveSeeds : 5 },
+                        { "compact_allocation", false },
+                        { "prioritize_first_last_pieces", true },
+                    };
+                    singleFullConfig.TryGetValue(singleCfgKey ?? string.Empty, out var foundVal);
+                    return this.DelugeResult(new { result = foundVal, error = (object)null, id });
 
                 case "core.get_session_status":
                     var allT = this.torrentService.GetAll().ToList();
@@ -463,7 +550,8 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_free_space":
                 case "core.get_path_free_space":
-                    var targetPath = GetFirstStringParam(paramsElem) ?? this.configService.DownloadDir ?? "/downloads";
+                    var rawPath = GetFirstStringParam(paramsElem);
+                    var targetPath = !string.IsNullOrWhiteSpace(rawPath) ? rawPath : (this.configService.DownloadDir ?? "/downloads");
                     return this.DelugeResult(new { result = GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
@@ -978,7 +1066,12 @@ public class DelugeJsonRpcController : ControllerBase
 
                 default:
                     this.logger.Debug("Unhandled Deluge RPC method: {0}", method);
-                    return this.DelugeResult(new { result = true, error = (object)null, id });
+                    return this.DelugeResult(new
+                    {
+                        result = (object)null,
+                        error = new { message = $"Unknown method: {method}", code = 1 },
+                        id,
+                    });
             }
         }
         catch (Exception ex)
@@ -995,15 +1088,15 @@ public class DelugeJsonRpcController : ControllerBase
             var first = parameters[0];
             if (first.ValueKind == JsonValueKind.String)
             {
-                return first.GetString() ?? string.Empty;
+                return first.GetString();
             }
         }
         else if (parameters.ValueKind == JsonValueKind.String)
         {
-            return parameters.GetString() ?? string.Empty;
+            return parameters.GetString();
         }
 
-        return string.Empty;
+        return null;
     }
 
     private static bool GetSecondBoolParam(JsonElement parameters)
