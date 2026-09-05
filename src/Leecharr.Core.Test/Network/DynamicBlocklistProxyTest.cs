@@ -282,6 +282,93 @@ public class DynamicBlocklistProxyTest
     }
 
     [Test]
+    public async Task RadixTreeBlocklistProvider_Ipv4MappedIpv6_MatchesIpv4Rules()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var rules = new[]
+        {
+            "1.2.3.4",
+            "192.168.1.0/24",
+        };
+
+        await provider.LoadRulesAsync(rules);
+
+        // IPv4-mapped IPv6 notation for blocked IPs
+        provider.IsIpBlocked("::ffff:1.2.3.4").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:192.168.1.100").Should().BeTrue();
+
+        // Non-blocked IPs
+        provider.IsIpBlocked("::ffff:1.2.3.5").Should().BeFalse();
+        provider.IsIpBlocked("::ffff:192.168.2.1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_Ipv4MappedIpv6_RulesLoadedProperly()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var rules = new[]
+        {
+            "::ffff:10.0.0.1",
+            "::ffff:172.16.0.0/12",
+        };
+
+        var loaded = await provider.LoadRulesAsync(rules);
+        loaded.Should().Be(2);
+
+        // Check against both IPv4 and IPv4-mapped IPv6
+        provider.IsIpBlocked("10.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:10.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("10.0.0.2").Should().BeFalse();
+
+        provider.IsIpBlocked("172.16.5.1").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:172.16.5.1").Should().BeTrue();
+        provider.IsIpBlocked("172.32.0.1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task P2PDatBlocklistProvider_Ipv4MappedIpv6_MatchesIpv4Rules()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new[]
+        {
+            "Malicious Swarm:1.2.3.10-1.2.3.20",
+            "Rogue Node:5.5.5.5-5.5.5.5",
+        };
+
+        await provider.LoadRulesAsync(rules);
+
+        // IPv4-mapped IPv6 queries
+        provider.IsIpBlocked("::ffff:1.2.3.15").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:5.5.5.5").Should().BeTrue();
+
+        provider.IsIpBlocked("::ffff:1.2.3.9").Should().BeFalse();
+        provider.IsIpBlocked("::ffff:5.5.5.6").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task P2PDatBlocklistProvider_Ipv4MappedIpv6_RulesLoadedProperly()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new[]
+        {
+            "Mapped Range:::ffff:1.2.3.10-::ffff:1.2.3.20",
+            "::ffff:5.5.5.5",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(2);
+
+        // Check against both IPv4 and IPv4-mapped IPv6
+        provider.IsIpBlocked("1.2.3.15").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:1.2.3.15").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.9").Should().BeFalse();
+
+        provider.IsIpBlocked("5.5.5.5").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:5.5.5.5").Should().BeTrue();
+        provider.IsIpBlocked("5.5.5.6").Should().BeFalse();
+    }
+
+    [Test]
     public async Task LinuxIpSetBlocklistProvider_ProbeHealthAndDelegation()
     {
         var diskProvider = Substitute.For<IDiskProvider>();
