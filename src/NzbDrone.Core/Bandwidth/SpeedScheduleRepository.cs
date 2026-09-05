@@ -20,6 +20,7 @@ public class SpeedScheduleRepository : BasicRepository<SpeedSchedule>, ISpeedSch
     {
         using var connection = this.database.OpenConnection();
         return connection.Query<SpeedSchedule>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = 1 OR \"IsEnabled\" = true ORDER BY \"Priority\"");
+            $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Priority\"",
+            new { IsEnabled = true });
     }
 }
