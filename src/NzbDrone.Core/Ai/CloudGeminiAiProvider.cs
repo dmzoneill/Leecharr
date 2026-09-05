@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -139,11 +140,95 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
         }
     }
 
+    private static string ExtractJson(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = text.Trim();
+        if (trimmed.StartsWith("```"))
+        {
+            var firstLineBreak = trimmed.IndexOf('\n');
+            if (firstLineBreak != -1)
+            {
+                trimmed = trimmed[(firstLineBreak + 1)..];
+            }
+
+            if (trimmed.EndsWith("```"))
+            {
+                trimmed = trimmed[..^3];
+            }
+
+            trimmed = trimmed.Trim();
+        }
+
+        var startIdx = trimmed.IndexOf('{');
+        var endIdx = trimmed.LastIndexOf('}');
+        if (startIdx != -1 && endIdx > startIdx)
+        {
+            return trimmed.Substring(startIdx, endIdx - startIdx + 1);
+        }
+
+        return trimmed;
+    }
+
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
     {
-        var result = await this.fallbackProvider.ParseReleaseAsync(releaseName);
-        result.AdditionalTags["Engine"] = "Gemini";
-        return result;
+        if (string.IsNullOrWhiteSpace(releaseName))
+        {
+            return await this.fallbackProvider.ParseReleaseAsync(releaseName);
+        }
+
+        var apiKey = this.GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var systemPrompt = "You are a scene release title parsing engine. Output ONLY a raw JSON object with keys: cleanTitle (string), year (integer or null), resolution (string e.g. 1080p, 2160p, 720p), source (string e.g. WEB-DL, BluRay, HDTV), videoCodec (string e.g. x265, x264, HEVC, H.264), audioCodec (string e.g. AAC, DTS-HD, AC3), releaseGroup (string), season (integer or null), episode (integer or null), isProper (bool), isRepack (bool), confidenceScore (float 0.0-1.0). No markdown formatting or extra text.";
+                var userPrompt = $"Parse this release name: \"{releaseName}\"";
+
+                var responseText = await this.GenerateChatResponseAsync(userPrompt, systemPrompt);
+                if (!string.IsNullOrWhiteSpace(responseText))
+                {
+                    var cleanJson = ExtractJson(responseText);
+                    if (!string.IsNullOrWhiteSpace(cleanJson))
+                    {
+                        using var doc = JsonDocument.Parse(cleanJson);
+                        var root = doc.RootElement;
+                        var cleanTitle = root.TryGetProperty("cleanTitle", out var ct) ? ct.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(cleanTitle))
+                        {
+                            var parsed = new AiParsedRelease
+                            {
+                                RawTitle = releaseName,
+                                CleanTitle = cleanTitle,
+                                Year = root.TryGetProperty("year", out var yr) && yr.TryGetInt32(out var yVal) ? yVal : null,
+                                Resolution = root.TryGetProperty("resolution", out var res) ? res.GetString() ?? string.Empty : string.Empty,
+                                Source = root.TryGetProperty("source", out var src) ? src.GetString() ?? string.Empty : string.Empty,
+                                VideoCodec = root.TryGetProperty("videoCodec", out var vc) ? vc.GetString() ?? string.Empty : string.Empty,
+                                AudioCodec = root.TryGetProperty("audioCodec", out var ac) ? ac.GetString() ?? string.Empty : string.Empty,
+                                ReleaseGroup = root.TryGetProperty("releaseGroup", out var rg) ? rg.GetString() ?? string.Empty : string.Empty,
+                                Season = root.TryGetProperty("season", out var sn) && sn.TryGetInt32(out var snVal) ? snVal : (root.TryGetProperty("seasonNumber", out var snOld) && snOld.TryGetInt32(out var snOldVal) ? snOldVal : null),
+                                Episode = root.TryGetProperty("episode", out var en) && en.TryGetInt32(out var enVal) ? enVal : (root.TryGetProperty("episodeNumber", out var enOld) && enOld.TryGetInt32(out var enOldVal) ? enOldVal : null),
+                                IsProper = root.TryGetProperty("isProper", out var ip) && ip.GetBoolean(),
+                                IsRepack = root.TryGetProperty("isRepack", out var ir) && ir.GetBoolean(),
+                                ConfidenceScore = root.TryGetProperty("confidenceScore", out var cs) && cs.TryGetDouble(out var csVal) ? csVal : 0.95,
+                            };
+                            parsed.AdditionalTags["Engine"] = this.ProviderId;
+                            return parsed;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Gemini ParseReleaseAsync failed, falling back to heuristic engine.");
+            }
+        }
+
+        return await this.fallbackProvider.ParseReleaseAsync(releaseName);
     }
 
     public async Task<AiDiagnosticReport> DiagnoseTorrentHealthAsync(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
@@ -167,14 +252,129 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
 
     public async Task<AiSearchParameters> ProcessNaturalLanguageSearchAsync(string naturalQuery)
     {
-        var result = await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
-        return result;
+        if (string.IsNullOrWhiteSpace(naturalQuery))
+        {
+            return await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
+        }
+
+        var apiKey = this.GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var systemPrompt = "You are a natural language search parser for media indexers. Extract the user's intent and output ONLY a raw JSON object with keys: cleanTitle (string), rawQuery (string), year (integer or null), resolution (string e.g. 1080p, 2160p, 720p or null), source (string or null), season (integer or null), episode (integer or null), category (string e.g. movies, tv, music or null), minSeeders (integer). No markdown formatting or extra text.";
+                var userPrompt = $"Convert this search query: \"{naturalQuery}\"";
+
+                var responseText = await this.GenerateChatResponseAsync(userPrompt, systemPrompt);
+                if (!string.IsNullOrWhiteSpace(responseText))
+                {
+                    var cleanJson = ExtractJson(responseText);
+                    if (!string.IsNullOrWhiteSpace(cleanJson))
+                    {
+                        using var doc = JsonDocument.Parse(cleanJson);
+                        var root = doc.RootElement;
+                        var cleanTitle = root.TryGetProperty("cleanTitle", out var ct) ? ct.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(cleanTitle))
+                        {
+                            var searchParams = new AiSearchParameters
+                            {
+                                RawQuery = naturalQuery,
+                                CleanTitle = cleanTitle,
+                                Year = root.TryGetProperty("year", out var yr) && yr.TryGetInt32(out var yVal) ? yVal : null,
+                                Resolution = root.TryGetProperty("resolution", out var res) ? res.GetString() : null,
+                                Source = root.TryGetProperty("source", out var src) ? src.GetString() : null,
+                                Season = root.TryGetProperty("season", out var sn) && sn.TryGetInt32(out var snVal) ? snVal : null,
+                                Episode = root.TryGetProperty("episode", out var en) && en.TryGetInt32(out var enVal) ? enVal : null,
+                                Category = root.TryGetProperty("category", out var cat) ? cat.GetString() : null,
+                                MinSeeders = root.TryGetProperty("minSeeders", out var ms) && ms.TryGetInt32(out var msVal) ? msVal : 0,
+                                ConfidenceScore = 0.95,
+                            };
+                            return searchParams;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Gemini ProcessNaturalLanguageSearchAsync failed, falling back to heuristic engine.");
+            }
+        }
+
+        return await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
     }
 
     public async Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
     {
-        var assessment = await this.fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
-        return assessment;
+        var apiKey = this.GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var fileList = files != null ? string.Join(", ", files.Select(f => f.Path)) : "none";
+                var systemPrompt = "You are a BitTorrent cybersecurity analysis engine. Assess the malware risk of the torrent name and file listing. Output ONLY a raw JSON object with keys: riskLevel (string: 'Safe', 'Suspicious', 'HighRisk'), riskScore (float 0.0-1.0), isSuspicious (bool), summary (string), suspiciousFiles (array of strings), threatReasons (array of strings), recommendations (array of strings). No markdown formatting or extra text.";
+                var userPrompt = $"Analyze this torrent: Name=\"{torrentName}\", Files=[{fileList}]";
+
+                var responseText = await this.GenerateChatResponseAsync(userPrompt, systemPrompt);
+                if (!string.IsNullOrWhiteSpace(responseText))
+                {
+                    var cleanJson = ExtractJson(responseText);
+                    if (!string.IsNullOrWhiteSpace(cleanJson))
+                    {
+                        using var doc = JsonDocument.Parse(cleanJson);
+                        var root = doc.RootElement;
+                        var riskLevel = root.TryGetProperty("riskLevel", out var rl) ? rl.GetString() ?? "Safe" : "Safe";
+                        var riskScore = root.TryGetProperty("riskScore", out var rs) && rs.TryGetDouble(out var rsVal) ? rsVal : 0.0;
+                        var isSuspicious = root.TryGetProperty("isSuspicious", out var susp) ? susp.GetBoolean() : (riskScore > 0.3);
+
+                        var suspiciousFiles = new List<string>();
+                        if (root.TryGetProperty("suspiciousFiles", out var sfArr) && sfArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in sfArr.EnumerateArray())
+                            {
+                                suspiciousFiles.Add(item.GetString() ?? string.Empty);
+                            }
+                        }
+
+                        var threatReasons = new List<string>();
+                        if (root.TryGetProperty("threatReasons", out var trArr) && trArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in trArr.EnumerateArray())
+                            {
+                                threatReasons.Add(item.GetString() ?? string.Empty);
+                            }
+                        }
+
+                        var recommendations = new List<string>();
+                        if (root.TryGetProperty("recommendations", out var recArr) && recArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in recArr.EnumerateArray())
+                            {
+                                recommendations.Add(item.GetString() ?? string.Empty);
+                            }
+                        }
+
+                        return new AiMalwareRiskAssessment
+                        {
+                            TorrentName = torrentName ?? string.Empty,
+                            RiskLevel = riskLevel,
+                            RiskScore = riskScore,
+                            IsSuspicious = isSuspicious,
+                            AnalyzedFilesCount = files?.Count ?? 0,
+                            SuspiciousFileNames = suspiciousFiles,
+                            ThreatReasons = threatReasons,
+                            Recommendations = recommendations,
+                            AssessedAt = DateTime.UtcNow,
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Gemini AnalyzeMalwareRiskAsync failed, falling back to heuristic engine.");
+            }
+        }
+
+        return await this.fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
     }
 
     public async Task<string> GenerateChatResponseAsync(string userMessage, string systemContext = null)
