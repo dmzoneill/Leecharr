@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Peers;
 using Microsoft.AspNetCore.Mvc;
@@ -98,7 +99,7 @@ public class PeerConnectionLogControllerTest
     }
 
     [Test]
-    public void GetActive_ReturnsLiveTaskPeers()
+    public async Task GetActive_ReturnsLiveTaskPeers()
     {
         var torrent = new Torrent { Id = 1, Name = "Active Torrent", InfoHash = "activehash" };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
@@ -111,7 +112,7 @@ public class PeerConnectionLogControllerTest
 
         this.downloadEngine.GetTask(1).Returns(downloadTask);
 
-        var result = this.controller.GetActive();
+        var result = await this.controller.GetActive();
         result.Result.Should().BeOfType<OkObjectResult>();
 
         var okResult = (OkObjectResult)result.Result!;
