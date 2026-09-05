@@ -25,7 +25,7 @@ namespace Leecharr.Api.V1.Deluge;
 [Route("json")]
 public class DelugeJsonRpcController : ControllerBase
 {
-    private static readonly ConcurrentDictionary<string, DateTime> AuthenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
 
     private static readonly JsonSerializerOptions DelugeJsonOptions = new()
     {
@@ -77,7 +77,7 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (this.Request.Cookies.TryGetValue("deluge-session", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            if (AuthenticatedSessions.TryGetValue(sid, out var exp) && exp > DateTime.UtcNow)
+            if (AuthenticatedSessions.IsValid(sid))
             {
                 return true;
             }
@@ -170,7 +170,7 @@ public class DelugeJsonRpcController : ControllerBase
                 if (loginSuccess)
                 {
                     var sid = Guid.NewGuid().ToString("N");
-                    AuthenticatedSessions[sid] = DateTime.UtcNow.AddDays(7);
+                    AuthenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
                     this.Response.Cookies.Append("deluge-session", sid, new CookieOptions
                     {
                         HttpOnly = true,
@@ -192,9 +192,9 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (lowerMethod == "auth.delete_session")
             {
-                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid))
+                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid) && !string.IsNullOrWhiteSpace(sid))
                 {
-                    AuthenticatedSessions.TryRemove(sid, out _);
+                    AuthenticatedSessions.RemoveSession(sid);
                     this.Response.Cookies.Delete("deluge-session");
                 }
 
