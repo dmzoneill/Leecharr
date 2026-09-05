@@ -11,6 +11,8 @@ using Microsoft.Data.Sqlite;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Datastore;
 
 namespace Leecharr.Core.Test.Backup;
 
@@ -343,5 +345,75 @@ public class BackupControllerTest
         }
 
         SqliteConnection.ClearAllPools();
+    }
+
+    [Test]
+    public void Create_WhenPostgreSqlConfiguredAndStaleSqliteExists_IgnoresStaleSqliteFiles()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new BackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider);
+
+        // Create stale SQLite files
+        var staleDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var staleWal = Path.Combine(this.testTempDir, "leecharr.db-wal");
+        File.WriteAllText(staleDb, "stale-sqlite-data");
+        File.WriteAllText(staleWal, "stale-sqlite-wal");
+
+        var configPath = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(configPath, "<config><PostgresHost>localhost</PostgresHost></config>");
+
+        var result = pgController.Create();
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var backup = (BackupResource)okResult.Value!;
+        backup.Should().NotBeNull();
+        backup.DatabaseType.Should().Be("PostgreSQL");
+
+        using var zip = ZipFile.OpenRead(backup.Path);
+        zip.Entries.Should().Contain(e => e.FullName == "config.xml");
+        zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db", "PostgreSQL backup must not include stale SQLite database");
+        zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db-wal", "PostgreSQL backup must not include stale SQLite WAL");
+    }
+
+    [Test]
+    public void Restore_WhenPostgreSqlConfigured_ExtractsConfigAndDoesNotCorruptOrCheckSqlite()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new BackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider);
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_backup_pg.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = zip.CreateEntry("config.xml");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("<pg-config/>");
+        }
+
+        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<OkObjectResult>();
+
+        var restoredConfig = Path.Combine(this.testTempDir, "config.xml");
+        File.Exists(restoredConfig).Should().BeTrue();
+        File.ReadAllText(restoredConfig).Should().Be("<pg-config/>");
     }
 }
