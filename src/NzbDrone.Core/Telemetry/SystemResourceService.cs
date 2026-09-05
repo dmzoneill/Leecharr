@@ -271,6 +271,7 @@ public class SystemResourceService : ISystemResourceService
         });
 
         // 5. Swarm IP Blocklist Subsystem
+        var totalRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "blocklist",
@@ -280,7 +281,8 @@ public class SystemResourceService : ISystemResourceService
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["rulesActive"] = true,
+                ["rulesActive"] = totalRules > 0,
+                ["ruleCount"] = totalRules,
                 ["lookupMode"] = "RadixTreeBinarySearch",
             },
         });
