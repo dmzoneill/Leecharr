@@ -150,8 +150,6 @@ public class TorrentFileParserTest
 
     [TestCase("..")]
     [TestCase(".")]
-    [TestCase("dir/sub")]
-    [TestCase(@"dir\sub")]
     [TestCase("/root")]
     [TestCase("root\0name")]
     [TestCase("   ")]
@@ -162,6 +160,30 @@ public class TorrentFileParserTest
         var act = () => this.parser.Parse(bytes);
 
         act.Should().Throw<InvalidTorrentFileException>();
+    }
+
+    [Test]
+    public void Parse_WhenSingleFileTorrentNameContainsSlashes_SanitizesPathAndPreservesName()
+    {
+        var bytes = CreateTorrentBytes(info => info["name"] = new BEncodedString("AC/DC - Back in Black.mp3"));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Name.Should().Be("AC/DC - Back in Black.mp3");
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("AC_DC - Back in Black.mp3");
+    }
+
+    [Test]
+    public void Parse_WhenMultiFileTorrentRootNameContainsSlashes_ParsesSuccessfully()
+    {
+        var bytes = CreateMultiFileTorrentBytes("Show S01 [H.264/AAC]", (1024, new[] { "Episode 1.mkv" }));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Name.Should().Be("Show S01 [H.264/AAC]");
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("Episode 1.mkv");
     }
 
     [Test]
