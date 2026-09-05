@@ -95,12 +95,18 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             var startInfo = new ProcessStartInfo
             {
                 FileName = binary,
-                Arguments = $"-v quiet -print_format json -show_format -show_streams \"{mediaPath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+            startInfo.ArgumentList.Add("-v");
+            startInfo.ArgumentList.Add("quiet");
+            startInfo.ArgumentList.Add("-print_format");
+            startInfo.ArgumentList.Add("json");
+            startInfo.ArgumentList.Add("-show_format");
+            startInfo.ArgumentList.Add("-show_streams");
+            startInfo.ArgumentList.Add(mediaPath);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
