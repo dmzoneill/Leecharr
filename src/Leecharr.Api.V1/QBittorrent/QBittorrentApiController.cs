@@ -182,6 +182,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
             authenticatedSessions.RemoveSession(sid);
+            sessionSyncStates.TryRemove($"sid:{sid}", out _);
         }
 
         this.Response.Cookies.Delete("SID");
@@ -1147,39 +1148,84 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
-    private static readonly object SyncLock = new();
-    private static int currentRid = 0;
-    private static Dictionary<string, (QBitTorrentSnapshot Snapshot, int LastModifiedRid)> cachedTorrents = new(StringComparer.OrdinalIgnoreCase);
-    private static List<(string Hash, int RemovedAtRid)> removedTorrents = new();
+    private static readonly ConcurrentDictionary<string, QBitSessionSyncState> sessionSyncStates = new(StringComparer.OrdinalIgnoreCase);
+    private static DateTime lastSyncCleanupTime = DateTime.UtcNow;
 
     public static void ResetSyncState()
     {
-        lock (SyncLock)
+        sessionSyncStates.Clear();
+    }
+
+    private static void CleanupExpiredSessionSyncStates()
+    {
+        var now = DateTime.UtcNow;
+        if (now - lastSyncCleanupTime < TimeSpan.FromMinutes(10))
         {
-            currentRid = 0;
-            cachedTorrents.Clear();
-            removedTorrents.Clear();
+            return;
+        }
+
+        lastSyncCleanupTime = now;
+        var expirationThreshold = now.AddHours(-1);
+
+        foreach (var kvp in sessionSyncStates)
+        {
+            if (kvp.Value.LastAccessed < expirationThreshold)
+            {
+                sessionSyncStates.TryRemove(kvp.Key, out _);
+            }
         }
     }
 
-    private record QBitTorrentSnapshot(
-        string Name,
-        long Size,
-        double Progress,
-        long DlSpeed,
-        long UpSpeed,
-        string State,
-        string Category,
-        string Tags,
-        string SavePath,
-        long Eta,
-        double Ratio);
+    private string GetClientSessionKey()
+    {
+        try
+        {
+            if (this.HttpContext != null && this.Request != null)
+            {
+                if (this.Request.Cookies != null && this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
+                {
+                    return $"sid:{sid}";
+                }
+
+                var apiKey = this.Request.Headers?["X-Api-Key"].FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query != null && this.Request.Query.TryGetValue("apikey", out var qKey))
+                {
+                    apiKey = qKey.FirstOrDefault();
+                }
+
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    var ip = this.HttpContext.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
+                    return $"key:{apiKey}:{ip}";
+                }
+
+                var remoteIp = this.HttpContext.Connection?.RemoteIpAddress?.ToString();
+                if (!string.IsNullOrWhiteSpace(remoteIp))
+                {
+                    return $"ip:{remoteIp}";
+                }
+            }
+        }
+        catch
+        {
+            // Fallback for mock/test contexts where Request is uninitialized
+        }
+
+        return "default_session";
+    }
 
     [HttpGet("sync/maindata")]
     public ActionResult<Dictionary<string, object>> GetMainData([FromQuery] int rid = 0)
     {
-        lock (SyncLock)
+        CleanupExpiredSessionSyncStates();
+
+        var sessionKey = this.GetClientSessionKey();
+        var sessionState = sessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
+
+        lock (sessionState.Lock)
         {
+            sessionState.LastAccessed = DateTime.UtcNow;
+
             var torrents = this.torrentService.GetAll().ToList();
             var categories = this.categoryService.GetAll().ToDictionary(
                 c => c.Name,
@@ -1197,11 +1243,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var currentHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // If rid == 0, or cached state is unavailable, or rid is out of sequence, perform a full update
-            if (rid <= 0 || cachedTorrents.Count == 0 || rid > currentRid)
+            if (rid <= 0 || sessionState.CachedTorrents.Count == 0 || rid > sessionState.CurrentRid)
             {
-                currentRid = rid <= 0 ? 1 : rid + 1;
-                cachedTorrents.Clear();
-                removedTorrents.Clear();
+                sessionState.CurrentRid = rid <= 0 ? 1 : rid + 1;
+                sessionState.CachedTorrents.Clear();
+                sessionState.RemovedTorrents.Clear();
 
                 var torrentDict = new Dictionary<string, object>();
                 foreach (var t in torrents)
@@ -1221,7 +1267,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         t.Eta > 0 ? t.Eta : 8640000,
                         t.Ratio);
 
-                    cachedTorrents[t.InfoHash] = (snapshot, currentRid);
+                    sessionState.CachedTorrents[t.InfoHash] = (snapshot, sessionState.CurrentRid);
 
                     torrentDict[t.InfoHash] = new
                     {
@@ -1241,7 +1287,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                 var fullResult = new Dictionary<string, object>
                 {
-                    ["rid"] = currentRid,
+                    ["rid"] = sessionState.CurrentRid,
                     ["full_update"] = true,
                     ["torrents"] = torrentDict,
                     ["categories"] = categories,
@@ -1252,7 +1298,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
 
             // Incremental delta sync
-            var nextRid = currentRid + 1;
+            var nextRid = sessionState.CurrentRid + 1;
             var updatedTorrents = new Dictionary<string, object>();
 
             foreach (var t in torrents)
@@ -1272,9 +1318,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     t.Eta > 0 ? t.Eta : 8640000,
                     t.Ratio);
 
-                if (!cachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot)
+                if (!sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot)
                 {
-                    cachedTorrents[t.InfoHash] = (snapshot, nextRid);
+                    sessionState.CachedTorrents[t.InfoHash] = (snapshot, nextRid);
                     updatedTorrents[t.InfoHash] = new
                     {
                         name = snapshot.Name,
@@ -1293,28 +1339,28 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
 
             // Detect removed torrents
-            var removedNow = cachedTorrents.Keys.Where(h => !currentHashes.Contains(h)).ToList();
+            var removedNow = sessionState.CachedTorrents.Keys.Where(h => !currentHashes.Contains(h)).ToList();
             foreach (var hash in removedNow)
             {
-                cachedTorrents.Remove(hash);
-                removedTorrents.Add((hash, nextRid));
+                sessionState.CachedTorrents.Remove(hash);
+                sessionState.RemovedTorrents.Add((hash, nextRid));
             }
 
-            if (removedTorrents.Count > 500)
+            if (sessionState.RemovedTorrents.Count > 500)
             {
-                removedTorrents.RemoveRange(0, removedTorrents.Count - 500);
+                sessionState.RemovedTorrents.RemoveRange(0, sessionState.RemovedTorrents.Count - 500);
             }
 
-            var torrentsRemoved = removedTorrents
+            var torrentsRemoved = sessionState.RemovedTorrents
                 .Where(r => r.RemovedAtRid > rid)
                 .Select(r => r.Hash)
                 .ToList();
 
-            currentRid = nextRid;
+            sessionState.CurrentRid = nextRid;
 
             var deltaResult = new Dictionary<string, object>
             {
-                ["rid"] = currentRid,
+                ["rid"] = sessionState.CurrentRid,
                 ["full_update"] = false,
                 ["torrents"] = updatedTorrents,
                 ["torrents_removed"] = torrentsRemoved,
@@ -1600,4 +1646,30 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             _ => "unknown",
         };
     }
+}
+
+public record QBitTorrentSnapshot(
+    string Name,
+    long Size,
+    double Progress,
+    long DlSpeed,
+    long UpSpeed,
+    string State,
+    string Category,
+    string Tags,
+    string SavePath,
+    long Eta,
+    double Ratio);
+
+public class QBitSessionSyncState
+{
+    public int CurrentRid { get; set; }
+
+    public Dictionary<string, (QBitTorrentSnapshot Snapshot, int ChangedAtRid)> CachedTorrents { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<(string Hash, int RemovedAtRid)> RemovedTorrents { get; } = new();
+
+    public object Lock { get; } = new();
+
+    public DateTime LastAccessed { get; set; } = DateTime.UtcNow;
 }
