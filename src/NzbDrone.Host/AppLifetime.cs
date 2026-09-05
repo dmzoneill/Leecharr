@@ -41,6 +41,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
+    private bool downloadStartedThisSession;
 
     public AppLifetime(
         IConfigService configService,
@@ -208,6 +209,10 @@ public class AppLifetime : IHostedService, IDisposable
                 await Task.Delay(1000, token);
 
                 var tasks = this.downloadEngine?.GetAllTasks()?.ToList();
+                if (tasks != null && tasks.Any(t => t.Status == TorrentStatus.Downloading))
+                {
+                    this.downloadStartedThisSession = true;
+                }
 
                 // Broadcast 1-second speedPulse telemetry to SignalR clients
                 if (this.signalRBroadcaster != null && this.signalRBroadcaster.IsConnected && tasks != null && tasks.Count > 0)
@@ -366,20 +371,34 @@ public class AppLifetime : IHostedService, IDisposable
                         var hasActiveDownloads = allTorrents.Any(t => t.Status == TorrentStatus.Downloading);
                         var hasActiveTorrents = allTorrents.Any(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
 
+                        if (hasActiveDownloads)
+                        {
+                            this.downloadStartedThisSession = true;
+                        }
+
                         bool trigger = false;
                         if (string.Equals(condition, "WhenDownloadsComplete", StringComparison.OrdinalIgnoreCase))
                         {
-                            trigger = !hasActiveDownloads && allTorrents.Any(t => t.Progress >= 1.0);
+                            trigger = this.downloadStartedThisSession && !hasActiveDownloads && allTorrents.Any(t => t.Progress >= 1.0);
                         }
                         else if (string.Equals(condition, "WhenAllTorrentsComplete", StringComparison.OrdinalIgnoreCase))
                         {
-                            trigger = !hasActiveTorrents && allTorrents.Count > 0;
+                            trigger = this.downloadStartedThisSession && !hasActiveTorrents && allTorrents.Count > 0;
                         }
 
                         if (trigger)
                         {
+                            this.configService.SaveConfigDictionary(new Dictionary<string, object> { { "AutoShutdownAction", "None" } });
+                            this.downloadStartedThisSession = false;
                             this.logger.Warn("Auto-shutdown condition met ({0}). Triggering power action: {1}", condition, powerAction);
-                            _ = this.powerManagementService.ExecutePowerActionAsync(powerAction);
+                            try
+                            {
+                                await this.powerManagementService.ExecutePowerActionAsync(powerAction);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Error(ex, "Failed to execute auto-shutdown power action {0}", powerAction);
+                            }
                         }
                     }
                 }
