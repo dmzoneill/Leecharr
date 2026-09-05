@@ -5,13 +5,20 @@ import CountryFlag from "../CountryFlag";
 import PeerClientBadge from "../PeerClientBadge";
 import type { Torrent } from "../../api/types";
 
-export function PeersTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: number }) {
+export function PeersTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: peers, isLoading, isError } = usePeers(effectiveId);
 
   if (isLoading) return <PanelLoading>Loading peers...</PanelLoading>;
   if (isError) return <PanelEmpty>Failed to load peers.</PanelEmpty>;
-  if (!peers || peers.length === 0) return <PanelEmpty>No peers connected</PanelEmpty>;
+  if (!peers || peers.length === 0)
+    return <PanelEmpty>No peers connected</PanelEmpty>;
 
   return (
     <div className="detail-panel-table-wrap">
@@ -32,8 +39,9 @@ export function PeersTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
         >
           <i className="fas fa-lock" />
           <span>
-            <strong>BEP 27 Private Swarm:</strong> Peer discovery is restricted exclusively to
-            tracker announces. DHT and PEX peer exchanges are disabled to protect passkey privacy.
+            <strong>BEP 27 Private Swarm:</strong> Peer discovery is restricted
+            exclusively to tracker announces. DHT and PEX peer exchanges are
+            disabled to protect passkey privacy.
           </span>
         </div>
       )}
@@ -52,7 +60,7 @@ export function PeersTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
         </thead>
         <tbody>
           {peers.map((p) => (
-            <tr key={p.id} className="torrent-table-row">
+            <tr key={`${p.ip}:${p.port || p.id}`} className="torrent-table-row">
               <td className="mono" style={{ whiteSpace: "nowrap" }}>
                 <div
                   style={{
@@ -61,7 +69,11 @@ export function PeersTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                     gap: "0.4rem",
                   }}
                 >
-                  <CountryFlag ip={p.ip} />
+                  <CountryFlag
+                    ip={p.ip}
+                    countryCode={p.countryCode}
+                    countryName={p.countryName}
+                  />
                   <span>
                     {p.ip}:{p.port}
                   </span>
@@ -95,7 +107,9 @@ export function PeersTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: "0.78rem" }}>{(p.progress * 100).toFixed(1)}%</span>
+                  <span style={{ fontSize: "0.78rem" }}>
+                    {(p.progress * 100).toFixed(1)}%
+                  </span>
                 </div>
               </td>
               <td>{formatSpeed(p.uploadSpeed)}</td>

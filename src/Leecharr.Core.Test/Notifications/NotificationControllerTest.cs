@@ -164,4 +164,89 @@ public class NotificationControllerTest
             Arg.Any<string>(),
             Arg.Any<object>());
     }
+
+    [Test]
+    public async Task Test_WhenWebhookNotificationWithCustomHeaders_ForwardsHeadersToWebhookDispatcher()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 10,
+            Name = "Custom Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com/webhook\",\"headers\":{\"Authorization\":\"Bearer test-secret-token\",\"X-Custom\":\"header-val\"}}",
+        };
+
+        this.notificationRepository.Get(10).Returns(notif);
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.Test(10);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(s => s.Contains("Bearer test-secret-token") && s.Contains("header-val")));
+    }
+
+    [Test]
+    public async Task TestDirect_WhenNotificationWithCustomHeaders_ForwardsHeadersToWebhookDispatcher()
+    {
+        var resource = new NotificationResource
+        {
+            Name = "Direct Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com/webhook/direct\",\"headers\":{\"X-Custom-Auth\":\"direct-secret-456\"}}",
+        };
+
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook/direct",
+            Arg.Any<object>(),
+            Arg.Is<string>(s => s.Contains("direct-secret-456")));
+    }
+
+    [Test]
+    public async Task Test_WhenNotificationWithNoCustomHeaders_ForwardsNullCustomHeadersToWebhookDispatcher()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 11,
+            Name = "Plain Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com/plain\"}",
+        };
+
+        this.notificationRepository.Get(11).Returns(notif);
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.Test(11);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/plain",
+            Arg.Any<object>(),
+            null);
+    }
 }
