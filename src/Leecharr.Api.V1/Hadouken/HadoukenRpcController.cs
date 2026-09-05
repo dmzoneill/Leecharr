@@ -33,7 +33,7 @@ public class HadoukenRpcRequest
 [ApiController]
 public class HadoukenRpcController : ControllerBase
 {
-    private static readonly ConcurrentDictionary<string, DateTime> AuthenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ITorrentFileService torrentFileService;
@@ -76,7 +76,7 @@ public class HadoukenRpcController : ControllerBase
             token = this.Request.Query["token"].ToString();
         }
 
-        if (!string.IsNullOrEmpty(token) && AuthenticatedSessions.TryGetValue(token, out var exp) && exp > DateTime.UtcNow)
+        if (!string.IsNullOrEmpty(token) && AuthenticatedSessions.IsValid(token))
         {
             return true;
         }
@@ -126,11 +126,33 @@ public class HadoukenRpcController : ControllerBase
                 if (success)
                 {
                     var token = Guid.NewGuid().ToString("N");
-                    AuthenticatedSessions[token] = DateTime.UtcNow.AddDays(7);
+                    AuthenticatedSessions.SetSession(token, DateTime.UtcNow.AddDays(7));
                     return this.Ok(new { result = token, error = (object)null, id });
                 }
 
                 return this.Ok(new { result = (object)null, error = "Invalid credentials", id });
+            }
+
+            if (lowerMethod == "auth.logout")
+            {
+                var token = this.Request.Headers["X-Hadouken-Token"].ToString();
+                if (string.IsNullOrEmpty(token))
+                {
+                    token = this.Request.Query["token"].ToString();
+                }
+
+                if (string.IsNullOrEmpty(token) && request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0 &&
+                    request.Params[0].ValueKind == JsonValueKind.String)
+                {
+                    token = request.Params[0].GetString();
+                }
+
+                if (!string.IsNullOrEmpty(token))
+                {
+                    AuthenticatedSessions.RemoveSession(token);
+                }
+
+                return this.Ok(new { result = true, error = (object)null, id });
             }
 
             if (!this.IsHadoukenAuthenticated())
