@@ -86,21 +86,21 @@ public class DynamicAuthSchemeManagerTest
         var httpContext = new DefaultHttpContext();
         httpContext.RequestServices = this.serviceProvider;
 
+        var initialPrincipal = new ClaimsPrincipal(new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "sub-12345"),
+                new Claim("preferred_username", "oidcuser"),
+                new Claim("email", "oidc@example.com"),
+            },
+            "OIDC"));
+
         var tokenValidatedContext = new TokenValidatedContext(
             httpContext,
             new AuthenticationScheme("Oidc_test-oidc", "Test OIDC", typeof(OpenIdConnectHandler)),
             capturedOptions,
-            new AuthenticationProperties())
-        {
-            Principal = new ClaimsPrincipal(new ClaimsIdentity(
-                new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, "sub-12345"),
-                    new Claim("preferred_username", "oidcuser"),
-                    new Claim("email", "oidc@example.com"),
-                },
-                "OIDC")),
-        };
+            initialPrincipal,
+            new AuthenticationProperties());
 
         await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
 
