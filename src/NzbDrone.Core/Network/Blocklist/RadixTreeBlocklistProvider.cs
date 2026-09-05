@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 
@@ -98,23 +99,9 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            // Extract rule (support "name:IP/CIDR" or "IP/CIDR" or "IP")
-            var token = line;
-            if (!TryParseCidr(token, out var ip, out var prefixLength))
+            if (!TryExtractRule(line, out var token) || !TryParseCidr(token, out var ip, out var prefixLength))
             {
-                var colonIdx = line.IndexOf(':');
-                if (colonIdx >= 0)
-                {
-                    token = line[(colonIdx + 1)..].Trim();
-                    if (!TryParseCidr(token, out ip, out prefixLength))
-                    {
-                        continue;
-                    }
-                }
-                else
-                {
-                    continue;
-                }
+                continue;
             }
 
             if (ip.AddressFamily == AddressFamily.InterNetwork)
@@ -131,8 +118,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
         lock (this.@lock)
         {
-            this.ipv4Root = newIpv4Root;
-            this.ipv6Root = newIpv6Root;
+            Volatile.Write(ref this.ipv4Root, newIpv4Root);
+            Volatile.Write(ref this.ipv6Root, newIpv6Root);
             this.ruleCount = added;
         }
 
@@ -144,10 +131,34 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
     {
         lock (this.@lock)
         {
-            this.ipv4Root = new RadixNode();
-            this.ipv6Root = new RadixNode();
+            Volatile.Write(ref this.ipv4Root, new RadixNode());
+            Volatile.Write(ref this.ipv6Root, new RadixNode());
             this.ruleCount = 0;
         }
+    }
+
+    private static bool TryExtractRule(string line, out string rule)
+    {
+        line = line.Trim();
+        if (TryParseCidr(line, out _, out _))
+        {
+            rule = line;
+            return true;
+        }
+
+        var colon = line.IndexOf(':');
+        if (colon >= 0)
+        {
+            var candidate = line[(colon + 1)..].Trim();
+            if (TryParseCidr(candidate, out _, out _))
+            {
+                rule = candidate;
+                return true;
+            }
+        }
+
+        rule = line;
+        return false;
     }
 
     private bool IsIpv4Blocked(IPAddress ip)
@@ -155,7 +166,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         var bytes = ip.GetAddressBytes();
         var ipNum = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
 
-        var current = this.ipv4Root;
+        var current = Volatile.Read(ref this.ipv4Root);
         for (var i = 31; i >= 0; i--)
         {
             if (current.IsBlocked)
@@ -179,7 +190,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
     {
         var bytes = ip.GetAddressBytes();
 
-        var current = this.ipv6Root;
+        var current = Volatile.Read(ref this.ipv6Root);
         for (var bitIndex = 0; bitIndex < 128; bitIndex++)
         {
             if (current.IsBlocked)
