@@ -733,6 +733,7 @@ function Statistics() {
                   <SeedingSimulator
                     currentUploaded={t.uploaded}
                     totalSize={t.totalSize}
+                    downloaded={t.downloaded}
                     currentRatio={t.ratio}
                     currentUploadSpeed={t.uploadSpeed}
                     seedingTimeSeconds={t.seedingTime}
