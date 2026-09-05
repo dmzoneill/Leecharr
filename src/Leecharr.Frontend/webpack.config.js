@@ -11,7 +11,7 @@ module.exports = (env, argv) => {
     output: {
       path: path.resolve(__dirname, "../NzbDrone.Host/wwwroot"),
       filename: isDev ? "[name].js" : "[name].[contenthash].js",
-      publicPath: "/",
+      publicPath: "auto",
       clean: true,
     },
     resolve: {

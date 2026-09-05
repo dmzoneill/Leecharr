@@ -107,7 +107,12 @@ export function TerminalView({
       rows: Math.max(5, term.rows || 24).toString(),
     });
 
-    const wsUrl = `${protocol}//${window.location.host}/api/v1/terminal/ws?${params.toString()}`;
+    const urlBase =
+      typeof window !== "undefined" && (window as any).Leecharr?.urlBase
+        ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
+        : "";
+
+    const wsUrl = `${protocol}//${window.location.host}${urlBase}/api/v1/terminal/ws?${params.toString()}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
