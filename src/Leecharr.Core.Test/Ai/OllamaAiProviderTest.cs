@@ -47,7 +47,8 @@ public class OllamaAiProviderTest
         provider.DisplayName.Should().Contain("Ollama");
         provider.Version.Should().Be("1.0");
         provider.IsAvailable.Should().BeTrue();
-        provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsCloudLlm | AiCapabilities.SupportsLocalOfflineInference);
+        provider.Capabilities.Should().HaveFlag(AiCapabilities.SupportsLocalOfflineInference);
+        provider.Capabilities.Should().NotHaveFlag(AiCapabilities.SupportsCloudLlm);
     }
 
     [Test]

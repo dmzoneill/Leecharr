@@ -73,7 +73,12 @@ public class OnnxLocalAiProvider : IAiEngineProvider
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
     {
         var result = await this.fallbackProvider.ParseReleaseAsync(releaseName);
-        result.AdditionalTags["Engine"] = "OnnxLocal";
+        var modelPath = this.configService?.GetValue("OnnxModelPath", "/config/models/leecharr-ai.onnx") ?? "/config/models/leecharr-ai.onnx";
+        if (File.Exists(modelPath))
+        {
+            result.AdditionalTags["Engine"] = "OnnxLocal";
+        }
+
         return result;
     }
 
