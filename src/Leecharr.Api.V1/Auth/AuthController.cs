@@ -29,6 +29,7 @@ public class AuthController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly IConfigService configService;
     private readonly IUserSessionRepository userSessionRepository;
+    private readonly IJitUserProvisioningService jitUserProvisioningService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public AuthController(
@@ -36,13 +37,15 @@ public class AuthController : ControllerBase
         IIdentityProviderService identityProviderService,
         IConfigFileProvider configFileProvider,
         IConfigService configService,
-        IUserSessionRepository userSessionRepository = null)
+        IUserSessionRepository userSessionRepository = null,
+        IJitUserProvisioningService jitUserProvisioningService = null)
     {
         this.userService = userService;
         this.identityProviderService = identityProviderService;
         this.configFileProvider = configFileProvider;
         this.configService = configService;
         this.userSessionRepository = userSessionRepository;
+        this.jitUserProvisioningService = jitUserProvisioningService;
     }
 
     [HttpGet("providers")]
@@ -505,24 +508,46 @@ public class AuthController : ControllerBase
                 return this.Unauthorized("Unable to resolve NameID or Email from SAML response");
             }
 
-            var username = !string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : (nameId ?? "saml_user");
-            var user = this.userService.GetByUsername(username);
-
-            var roles = assertionDoc.Descendants()
+            var rawGroups = assertionDoc.Descendants()
                 .Where(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("role", StringComparison.OrdinalIgnoreCase) == true || e.Attribute("Name")?.Value?.Contains("group", StringComparison.OrdinalIgnoreCase) == true))
                 .SelectMany(e => e.Elements().Where(v => v.Name.LocalName == "AttributeValue").Select(v => v.Value))
                 .Where(r => !string.IsNullOrWhiteSpace(r))
                 .ToList();
 
-            if (roles.Count == 0)
+            var subjectId = nameId ?? email;
+            var username = !string.IsNullOrWhiteSpace(email) ? email : (nameId ?? "saml_user");
+
+            User user;
+            if (this.jitUserProvisioningService != null)
+            {
+                var profile = new ExternalUserProfile(
+                    provider.ProviderId,
+                    subjectId,
+                    username,
+                    email,
+                    displayName,
+                    rawGroups);
+
+                user = this.jitUserProvisioningService.ProvisionOrUpdateUser(profile);
+            }
+            else
             {
                 var isFirstUser = !this.userService.HasAnyUsers();
-                roles.Add(isFirstUser ? "Admin" : "User");
+                var roles = rawGroups.Count > 0 ? rawGroups : (isFirstUser ? new List<string> { "Admin" } : new List<string> { "User" });
+                user = this.userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
             }
 
-            if (user == null)
+            var rolesList = new List<string>();
+            try
             {
-                user = this.userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
+                if (!string.IsNullOrEmpty(user.Roles))
+                {
+                    rolesList = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
+                }
+            }
+            catch
+            {
+                rolesList = new List<string> { "User" };
             }
 
             var claims = new List<Claim>
@@ -537,7 +562,7 @@ public class AuthController : ControllerBase
                 claims.Add(new Claim(ClaimTypes.Email, user.Email));
             }
 
-            foreach (var role in roles)
+            foreach (var role in rolesList)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
