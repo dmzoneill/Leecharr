@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
 
@@ -771,9 +772,33 @@ public class ConfigService : IConfigService
 
     public string EncryptionMode => this.GetValue("EncryptionMode", "preferEncrypted");
 
-    public string BitTorrentUserAgent => this.GetValue("BitTorrentUserAgent", "Leecharr/1.0");
+    public string BitTorrentUserAgent
+    {
+        get
+        {
+            var val = this.GetValue("BitTorrentUserAgent", string.Empty);
+            if (!string.IsNullOrWhiteSpace(val) && val != "Leecharr/1.0")
+            {
+                return val;
+            }
 
-    public string PeerIdPrefix => this.GetValue("PeerIdPrefix", "-LC1000-");
+            return ClientEmulationPresets.GetPreset(this.PrimaryClient).UserAgent;
+        }
+    }
+
+    public string PeerIdPrefix
+    {
+        get
+        {
+            var val = this.GetValue("PeerIdPrefix", string.Empty);
+            if (!string.IsNullOrWhiteSpace(val) && val != "-LC1000-")
+            {
+                return val;
+            }
+
+            return ClientEmulationPresets.GetPreset(this.PrimaryClient).PeerIdPrefix;
+        }
+    }
 
     public int AnnounceIntervalSeconds => this.GetValueInt("AnnounceIntervalSeconds", 1800);
 
