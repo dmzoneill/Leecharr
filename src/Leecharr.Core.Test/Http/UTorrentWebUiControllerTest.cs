@@ -94,4 +94,24 @@ public class UTorrentWebUiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).DeleteAsync(42, true);
     }
+
+    [Test]
+    public async Task HandleWebUi_AddUrl_FallsBackToPathInForm_WhenDownloadDirMissing()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        httpContext.Request.ContentType = "application/x-www-form-urlencoded";
+        httpContext.Request.Form = new FormCollection(new System.Collections.Generic.Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+        {
+            { "path", "/downloads/custom" },
+            { "label", "tv-shows" },
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567";
+        var result = await this.controller.HandleWebUi(null!, "add-url", null!, magnet, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnet, "tv-shows", "/downloads/custom", false);
+    }
 }

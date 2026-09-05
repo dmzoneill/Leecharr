@@ -113,8 +113,19 @@ public class UTorrentWebUiController : ControllerBase
                 return this.StatusCode(StatusCodes.Status405MethodNotAllowed, "State-mutating actions must be performed using HTTP POST.");
             }
 
-            var targetCategory = label ?? (this.Request.HasFormContentType ? this.Request.Form["label"].ToString() : null);
-            var targetDir = download_dir ?? path ?? (this.Request.HasFormContentType ? (this.Request.Form["download_dir"].ToString() ?? this.Request.Form["path"].ToString()) : null);
+            var targetCategory = !string.IsNullOrWhiteSpace(label) ? label : (this.Request.HasFormContentType && this.Request.Form.TryGetValue("label", out var labelVal) && !string.IsNullOrWhiteSpace(labelVal.ToString()) ? labelVal.ToString() : null);
+            var targetDir = !string.IsNullOrWhiteSpace(download_dir) ? download_dir : (!string.IsNullOrWhiteSpace(path) ? path : null);
+            if (string.IsNullOrWhiteSpace(targetDir) && this.Request.HasFormContentType)
+            {
+                if (this.Request.Form.TryGetValue("download_dir", out var dirVal) && !string.IsNullOrWhiteSpace(dirVal.ToString()))
+                {
+                    targetDir = dirVal.ToString();
+                }
+                else if (this.Request.Form.TryGetValue("path", out var pathVal) && !string.IsNullOrWhiteSpace(pathVal.ToString()))
+                {
+                    targetDir = pathVal.ToString();
+                }
+            }
 
             switch (action.ToLowerInvariant())
             {
