@@ -43,7 +43,7 @@ public class TorrentEngineController : Controller
             Version = e.Version,
             IsActive = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase),
             IsAvailable = e.IsAvailable,
-            Status = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase) ? "Running" : (e.IsAvailable ? "Ready" : "Emulated"),
+            Status = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase) ? "Running" : (e.IsAvailable ? "Ready" : "Unavailable"),
             Description = e.Description,
             Capabilities = e.Capabilities,
         }).ToList();

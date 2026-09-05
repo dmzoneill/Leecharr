@@ -40,7 +40,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public string Description => "Isolated, lightweight Transmission daemon running on a local loopback socket. Maximum process isolation and low memory footprint.";
 
-    public bool IsAvailable => CheckDaemonAvailability();
+    public bool IsAvailable => false;
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
     {
@@ -75,29 +75,18 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
-        var checks = new List<string>();
-        var warnings = new List<string>();
-
-        var daemonInstalled = CheckDaemonAvailability();
-        if (daemonInstalled)
-        {
-            checks.Add("transmission-daemon binary: Found on host / PATH");
-            checks.Add("Loopback RPC connection: Verified");
-        }
-        else
-        {
-            checks.Add("Transmission daemon: Integrated Managed Emulation Engine");
-            warnings.Add("External transmission-daemon binary not detected on PATH. Operating in built-in protocol compatibility mode.");
-        }
-
         return Task.FromResult(new EngineHealthCheckResult
         {
-            IsHealthy = true,
-            StatusMessage = daemonInstalled
-                ? "Transmission sidecar process is ready for low-overhead downloads."
-                : "Transmission engine ready in protocol compatibility mode.",
-            DependencyChecks = checks,
-            Warnings = warnings,
+            IsHealthy = false,
+            StatusMessage = "Engine backend is not implemented.",
+            DependencyChecks = new List<string>
+            {
+                "Transmission daemon sidecar: Not implemented",
+            },
+            Warnings = new List<string>
+            {
+                "Transmission daemon engine is not implemented.",
+            },
         });
     }
 
