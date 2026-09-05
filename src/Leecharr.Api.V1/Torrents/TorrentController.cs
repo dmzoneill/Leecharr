@@ -691,6 +691,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.SequentialDownload = resource.SequentialDownload.Value;
         }
 
+        var isInitialSeedingChanged = resource.InitialSeeding.HasValue && resource.InitialSeeding.Value != existing.InitialSeeding;
         if (resource.InitialSeeding.HasValue)
         {
             existing.InitialSeeding = resource.InitialSeeding.Value;
@@ -759,6 +760,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var updated = await this.torrentService.UpdateAsync(existing);
+        if (isInitialSeedingChanged)
+        {
+            await this.torrentService.SetSuperSeedingAsync(updated.Id, updated.InitialSeeding);
+        }
+
         if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
         {
             await this.downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);

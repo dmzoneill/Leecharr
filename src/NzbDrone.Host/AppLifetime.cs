@@ -251,30 +251,36 @@ public class AppLifetime : IHostedService, IDisposable
 
                                     if (ratioReached || timeReached)
                                     {
-                                        this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-
                                         var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction) && !string.Equals(torrent.ShareLimitAction, "Default", StringComparison.OrdinalIgnoreCase)
                                             ? torrent.ShareLimitAction
                                             : this.configService.GlobalShareLimitAction;
 
                                         if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
                                             await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: true);
                                         }
                                         else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
                                             await this.torrentService.DeleteAsync(torrent.Id, deleteFiles: false);
                                         }
                                         else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            if (torrent.InitialSeeding)
+                                            {
+                                                continue;
+                                            }
+
+                                            this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
-                                            torrent.InitialSeeding = true;
-                                            await this.torrentService.UpdateAsync(torrent);
+                                            await this.torrentService.SetSuperSeedingAsync(torrent.Id, true);
                                         }
                                         else
                                         {
+                                            this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, torrent.TargetRatio, torrent.SeedTimeMinutes, torrent.TargetSeedTimeMinutes);
 
                                             var oldStatus = torrent.Status;
