@@ -48,8 +48,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         this.logger = LogManager.GetCurrentClassLogger();
 
         var desiredEngineId = this.configService.ActiveTorrentEngine;
-        this.activeEngine = this.availableEngines.FirstOrDefault(e => e.EngineId.Equals(desiredEngineId, StringComparison.OrdinalIgnoreCase))
-                        ?? this.availableEngines.FirstOrDefault(e => e.EngineId.Equals("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+        this.activeEngine = this.availableEngines.FirstOrDefault(e => e.IsAvailable && e.EngineId.Equals(desiredEngineId, StringComparison.OrdinalIgnoreCase))
+                        ?? this.availableEngines.FirstOrDefault(e => e.IsAvailable && e.EngineId.Equals("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+                        ?? this.availableEngines.FirstOrDefault(e => e.IsAvailable)
                         ?? this.availableEngines.FirstOrDefault();
 
         if (this.activeEngine == null)
@@ -109,6 +110,17 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             {
                 Success = false,
                 Error = $"Target engine '{targetEngineId}' is not registered.",
+            };
+        }
+
+        if (!targetEngine.IsAvailable)
+        {
+            return new EngineSwitchResult
+            {
+                Success = false,
+                PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                ActiveEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                Error = $"Cannot switch to engine '{targetEngine.DisplayName}': engine is not available.",
             };
         }
 

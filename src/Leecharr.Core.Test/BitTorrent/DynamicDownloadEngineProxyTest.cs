@@ -84,6 +84,24 @@ public class DynamicDownloadEngineProxyTest
     }
 
     [Test]
+    public void Constructor_WhenConfiguredEngineUnavailable_FallsBackToAvailableEngine()
+    {
+        var configSvc = Substitute.For<IConfigService>();
+        configSvc.ActiveTorrentEngine.Returns("Transmission");
+
+        this.transmissionEngine.IsAvailable.Returns(false);
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.transmissionEngine, this.monoTorrentEngine },
+            configSvc,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        testProxy.ActiveEngineId.Should().Be("MonoTorrent");
+        testProxy.ActiveEngine.Should().BeSameAs(this.monoTorrentEngine);
+    }
+
+    [Test]
     public void GetEngines_ReturnsAllRegisteredEngines()
     {
         var engines = this.proxy.GetEngines().ToList();
@@ -166,6 +184,19 @@ public class DynamicDownloadEngineProxyTest
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("not registered");
         this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenTargetUnavailable_AbortsSwitch()
+    {
+        this.libTorrentEngine.IsAvailable.Returns(false);
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("not available");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+        await this.monoTorrentEngine.DidNotReceive().StopAsync();
     }
 
     [Test]
