@@ -247,10 +247,13 @@ public class Startup
             app.UsePathBase(urlBase);
         }
 
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        var forwardedOptions = new ForwardedHeadersOptions
         {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-        });
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+        };
+        forwardedOptions.KnownNetworks.Clear();
+        forwardedOptions.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwardedOptions);
 
         app.UseMiddleware<SecurityHeadersMiddleware>();
 
