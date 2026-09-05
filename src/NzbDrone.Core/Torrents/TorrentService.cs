@@ -18,7 +18,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
 
-public class TorrentService : ITorrentService
+public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>
 {
     private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
     private readonly ITorrentRepository torrentRepository;
@@ -786,6 +786,13 @@ public class TorrentService : ITorrentService
                         isResolved: true));
                 }
             }
+
+            // Record completion timestamp when torrent reaches Seeding
+            if (torrent.Status == TorrentStatus.Seeding && !torrent.DateCompleted.HasValue)
+            {
+                torrent.DateCompleted = DateTime.UtcNow;
+                this.torrentRepository.Update(torrent);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(torrent.TrackerUrl) && this.trackerEntryRepository != null)
@@ -939,5 +946,34 @@ public class TorrentService : ITorrentService
         this.torrentRepository.Update(torrent);
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
         this.logger.Info("Updated save path for torrent {0} ({1}) to '{2}' (moved={3})", torrent.Id, torrent.Name, newSavePath, moveFiles);
+    }
+
+    public void Handle(TorrentDownloadCompletedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        var torrent = this.torrentRepository.Get(message.Torrent.Id);
+        if (torrent != null)
+        {
+            var oldStatus = torrent.Status;
+            torrent.Status = TorrentStatus.Seeding;
+            torrent.Progress = 1.0;
+            torrent.DateCompleted = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(message.Torrent.SavePath))
+            {
+                torrent.SavePath = message.Torrent.SavePath;
+            }
+
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            {
+                Torrent = torrent,
+                OldStatus = oldStatus,
+                NewStatus = TorrentStatus.Seeding,
+            });
+        }
     }
 }
