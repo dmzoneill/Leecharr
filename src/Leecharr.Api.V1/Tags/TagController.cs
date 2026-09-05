@@ -83,15 +83,22 @@ public class TagController : Controller
         });
     }
 
+    [HttpPut]
     [HttpPut("{id:int}")]
-    public ActionResult<TagResource> Update(int id, [FromBody] TagResource resource)
+    public ActionResult<TagResource> Update([FromBody] TagResource resource, int id = 0)
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Label))
         {
             return this.BadRequest();
         }
 
-        var existing = this.tagRepository.Get(id);
+        var targetId = id > 0 ? id : resource.Id;
+        if (targetId <= 0)
+        {
+            return this.BadRequest();
+        }
+
+        var existing = this.tagRepository.Get(targetId);
         if (existing == null)
         {
             return this.NotFound();
