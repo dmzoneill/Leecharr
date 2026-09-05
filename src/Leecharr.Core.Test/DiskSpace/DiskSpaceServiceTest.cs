@@ -75,7 +75,7 @@ public class DiskSpaceServiceTest
         var root = Path.GetPathRoot(tempPath);
         if (!string.IsNullOrEmpty(root))
         {
-            result.FindAll(d => string.Equals(d.Path, root, StringComparison.OrdinalIgnoreCase)).Should().HaveCountLessOrEqualTo(1);
+            result.FindAll(d => string.Equals(d.Path, root, StringComparison.OrdinalIgnoreCase)).Count.Should().BeLessThanOrEqualTo(1);
         }
     }
 
@@ -115,4 +115,3 @@ public class DiskSpaceServiceTest
         result.Should().Contain(d => d.Label == "Startup" && d.Path == "/opt/leecharr" && d.FreeSpace == 10_000_000_000L);
     }
 }
-

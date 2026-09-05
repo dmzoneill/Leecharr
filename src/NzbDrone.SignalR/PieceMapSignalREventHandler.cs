@@ -21,22 +21,26 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
     public PieceMapSignalREventHandler(IBroadcastSignalRMessage signalRBroadcaster, int flushIntervalMs = 250)
     {
         this.signalRBroadcaster = signalRBroadcaster;
-        this.flushTimer = new Timer(async _ =>
-        {
-            if (!await this.flushLock.WaitAsync(0))
+        this.flushTimer = new Timer(
+            async _ =>
             {
-                return;
-            }
+                if (!await this.flushLock.WaitAsync(0))
+                {
+                    return;
+                }
 
-            try
-            {
-                this.Flush();
-            }
-            finally
-            {
-                this.flushLock.Release();
-            }
-        }, null, flushIntervalMs, flushIntervalMs);
+                try
+                {
+                    this.Flush();
+                }
+                finally
+                {
+                    this.flushLock.Release();
+                }
+            },
+            null,
+            flushIntervalMs,
+            flushIntervalMs);
     }
 
     public void Handle(PieceVerifiedEvent message)
