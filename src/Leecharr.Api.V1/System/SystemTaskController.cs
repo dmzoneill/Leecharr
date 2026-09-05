@@ -89,14 +89,24 @@ public class SystemTaskController : Controller
                 var list = new List<ScheduledTaskResource>();
                 foreach (var t in dbTasks)
                 {
+                    var hasRun = t.LastExecution != default && t.LastExecution > DateTime.MinValue;
+                    var lastStartTime = t.LastStartTime.HasValue && t.LastStartTime.Value != default && t.LastStartTime.Value > DateTime.MinValue
+                        ? t.LastStartTime
+                        : null;
+
                     string lastDuration = null;
-                    if (t.LastExecution != default && t.LastStartTime.HasValue)
+                    if (hasRun && lastStartTime.HasValue)
                     {
-                        var diff = t.LastExecution >= t.LastStartTime.Value
-                            ? t.LastExecution - t.LastStartTime.Value
+                        var diff = t.LastExecution >= lastStartTime.Value
+                            ? t.LastExecution - lastStartTime.Value
                             : TimeSpan.Zero;
                         lastDuration = diff.ToString(@"hh\:mm\:ss");
                     }
+
+                    var intervalMinutes = t.Interval > 0 ? t.Interval : 15;
+                    var nextExecution = hasRun
+                        ? (t.LastExecution.AddMinutes(intervalMinutes) < now ? now : t.LastExecution.AddMinutes(intervalMinutes))
+                        : now;
 
                     list.Add(new ScheduledTaskResource
                     {
@@ -104,10 +114,10 @@ public class SystemTaskController : Controller
                         TypeName = t.TypeName,
                         Name = t.TypeName.Replace("Task", string.Empty),
                         Interval = t.Interval,
-                        LastExecution = t.LastExecution,
-                        LastStartTime = t.LastStartTime,
+                        LastExecution = hasRun ? t.LastExecution : null,
+                        LastStartTime = lastStartTime,
                         LastDuration = lastDuration,
-                        NextExecution = t.LastExecution.AddMinutes(t.Interval > 0 ? t.Interval : 15),
+                        NextExecution = nextExecution,
                     });
                 }
 
