@@ -16,6 +16,7 @@ using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
@@ -45,6 +46,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly INatPmpPortMapperService natPmpPortMapperService;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly INetworkBindingService networkBindingService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -156,7 +158,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         IBlocklistService blocklistService = null,
         INatPmpPortMapperService natPmpPortMapperService = null,
         IVpnKillSwitchService vpnKillSwitchService = null,
-        INetworkBindingService networkBindingService = null)
+        INetworkBindingService networkBindingService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -167,6 +170,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService();
         this.vpnKillSwitchService = vpnKillSwitchService;
         this.networkBindingService = networkBindingService;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (this.vpnKillSwitchService != null)
@@ -188,7 +192,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var port = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
         this.logger.Info("Initializing MonoTorrent download engine on port {0}...", port);
 
-        var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
+        var cacheDir = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+            ? Path.Combine(this.appFolderInfo.AppDataFolder, "Cache")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
         try
         {
             Directory.CreateDirectory(cacheDir);
