@@ -928,12 +928,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return;
         }
 
-        if (moveFiles && this.downloadEngine != null)
+        if (this.downloadEngine != null)
         {
-            this.logger.Info("Moving files for torrent {0} ({1}) from '{2}' to '{3}'", torrent.Id, torrent.Name, oldSavePath, newSavePath);
+            this.logger.Info("Setting location for torrent {0} ({1}) from '{2}' to '{3}' (moveFiles={4})", torrent.Id, torrent.Name, oldSavePath, newSavePath, moveFiles);
             try
             {
-                await this.downloadEngine.MoveTorrentFilesAsync(id, newSavePath);
+                await this.downloadEngine.MoveTorrentFilesAsync(id, newSavePath, moveFiles);
             }
             catch (Exception ex)
             {

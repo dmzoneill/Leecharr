@@ -721,6 +721,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.Name = resource.Name;
         }
 
+        if (!string.IsNullOrWhiteSpace(resource.SavePath) && !string.Equals(resource.SavePath, existing.SavePath, StringComparison.OrdinalIgnoreCase))
+        {
+            await this.torrentService.SetLocationAsync(id, resource.SavePath, moveFiles: true);
+            existing = this.torrentService.Get(id);
+        }
+
         var isPrivateChanged = resource.IsPrivate != existing.IsPrivate;
         if (isPrivateChanged)
         {
