@@ -285,4 +285,38 @@ public class DynamicHttpTransportProxyTest
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
     }
+
+    [Test]
+    public async Task DynamicHttpTransportHandler_ForwardsRequestsToEngine()
+    {
+        var engine = Substitute.For<IHttpTransportEngine>();
+        var expectedResponse = new HttpResponseMessage(HttpStatusCode.Accepted);
+        engine.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(expectedResponse));
+
+        using var handler = new DynamicHttpTransportHandler(engine);
+        using var client = new HttpClient(handler);
+
+        var response = await client.GetAsync("https://example.com/test");
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        await engine.Received(1).SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SafeHttpClientService_WithTransportEngine_RoutesRequestsThroughEngine()
+    {
+        var engine = Substitute.For<IHttpTransportEngine>();
+        var expectedResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(new byte[] { 1, 2, 3, 4 }),
+        };
+        engine.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(expectedResponse));
+
+        using var safeClient = new NzbDrone.Core.Http.SafeHttpClientService(engine);
+        var bytes = await safeClient.DownloadBytesAsync("https://example.com/file.bin");
+
+        bytes.Should().Equal(new byte[] { 1, 2, 3, 4 });
+        await engine.Received(1).SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>());
+    }
 }

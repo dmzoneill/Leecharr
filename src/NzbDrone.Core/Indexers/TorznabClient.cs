@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using NLog;
+using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Indexers;
 
@@ -46,11 +47,18 @@ public class TorznabClient : ITorznabClient
     private readonly HttpClient httpClient;
     private readonly Logger logger;
 
-    public TorznabClient(HttpClient httpClient = null)
+    public TorznabClient(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null)
     {
         if (httpClient != null)
         {
             this.httpClient = httpClient;
+        }
+        else if (transportEngine != null)
+        {
+            this.httpClient = new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(25),
+            };
         }
         else
         {
@@ -63,6 +71,11 @@ public class TorznabClient : ITorznabClient
         }
 
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public TorznabClient(HttpClient httpClient)
+        : this(null, httpClient)
+    {
     }
 
     public async Task<List<TorznabSearchResult>> SearchAsync(
