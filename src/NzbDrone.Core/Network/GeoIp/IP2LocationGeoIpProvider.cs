@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using NLog;
@@ -47,7 +48,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
-    public string GetDatabasePath()
+    public virtual string GetDatabasePath()
     {
         var candidates = new List<string>
         {
@@ -134,6 +135,11 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                     return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
                 }
 
+                if (parsedIp.IsIPv4MappedToIPv6)
+                {
+                    parsedIp = parsedIp.MapToIPv4();
+                }
+
                 if (parsedIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                 {
                     var ipBytes = parsedIp.GetAddressBytes();
@@ -158,7 +164,56 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
                         if (ipNum >= ipFrom && ipNum < ipTo)
                         {
-                            var result = this.ReadRecordData(rowOffset);
+                            var result = this.ReadRecordData(rowOffset, 4);
+                            result.IpAddress = ipAddress;
+                            return Task.FromResult(result);
+                        }
+
+                        if (ipNum < ipFrom)
+                        {
+                            high = mid - 1;
+                        }
+                        else
+                        {
+                            low = mid + 1;
+                        }
+                    }
+                }
+                else if (parsedIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && this.ipv6Count > 0 && this.baseAddressIPv6 > 0)
+                {
+                    var ipNum = new BigInteger(parsedIp.GetAddressBytes(), isUnsigned: true, isBigEndian: true);
+
+                    var low = 0L;
+                    var high = (long)this.ipv6Count;
+                    var rowSize = 16L + ((long)(this.dbColumn - 1) * 4);
+
+                    while (low <= high)
+                    {
+                        var mid = low + ((high - low) / 2);
+                        var rowOffset = (this.baseAddressIPv6 - 1) + (mid * rowSize);
+
+                        this.fileStream.Seek(rowOffset, SeekOrigin.Begin);
+                        var fromBytes = this.binaryReader.ReadBytes(16);
+                        if (fromBytes.Length < 16)
+                        {
+                            break;
+                        }
+
+                        var ipFrom = new BigInteger(fromBytes, isUnsigned: true, isBigEndian: false);
+
+                        var ipToOffset = (this.baseAddressIPv6 - 1) + ((mid + 1) * rowSize);
+                        this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
+                        var toBytes = this.binaryReader.ReadBytes(16);
+                        if (toBytes.Length < 16)
+                        {
+                            break;
+                        }
+
+                        var ipTo = new BigInteger(toBytes, isUnsigned: true, isBigEndian: false);
+
+                        if (ipNum >= ipFrom && ipNum < ipTo)
+                        {
+                            var result = this.ReadRecordData(rowOffset, 16);
                             result.IpAddress = ipAddress;
                             return Task.FromResult(result);
                         }
@@ -183,10 +238,10 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
     }
 
-    private GeoLocationInfo ReadRecordData(long rowOffset)
+    private GeoLocationInfo ReadRecordData(long rowOffset, int ipColumnSize = 4)
     {
         var info = new GeoLocationInfo();
-        this.fileStream.Seek(rowOffset + 4, SeekOrigin.Begin);
+        this.fileStream.Seek(rowOffset + ipColumnSize, SeekOrigin.Begin);
 
         var countryOffset = this.binaryReader.ReadUInt32();
         if (countryOffset > 0)
