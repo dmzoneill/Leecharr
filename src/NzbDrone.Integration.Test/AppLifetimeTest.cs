@@ -227,4 +227,60 @@ public class AppLifetimeTest
             d.ContainsKey("AutoShutdownAction") && (string)d["AutoShutdownAction"] == "None"));
         await this.powerManagementService.Received(1).ExecutePowerActionAsync(PowerAction.Shutdown);
     }
+
+    [Test]
+    public async Task StartAsync_WhenAutoStartEnabledAndAppFolderInfoProvided_RestoresTorrentsFromAppDataFolder()
+    {
+        var tempDir = Path.Combine(System.IO.Path.GetTempPath(), "leecharr_lifetime_test_" + System.Guid.NewGuid().ToString("N"));
+        try
+        {
+            var torrentsDir = System.IO.Path.Combine(tempDir, "Torrents");
+            System.IO.Directory.CreateDirectory(torrentsDir);
+            var hash = "99887766554433221100aabbccddeeff00112233";
+            var torrentFile = System.IO.Path.Combine(torrentsDir, $"{hash}.torrent");
+            var expectedBytes = new byte[] { 42, 43, 44 };
+            await System.IO.File.WriteAllBytesAsync(torrentFile, expectedBytes);
+
+            var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            this.configService.AutoStart.Returns(true);
+            this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+            var torrent = new Torrent
+            {
+                Id = 5,
+                Name = "Startup Restore Torrent",
+                InfoHash = hash,
+                Status = TorrentStatus.Downloading,
+            };
+            this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+            using var lifetime = new AppLifetime(
+                this.configService,
+                this.eventAggregator,
+                this.downloadEngine,
+                this.torrentRepository,
+                this.watchFolderService,
+                this.networkSecurityService,
+                this.rssSyncService,
+                this.dynamicAuthManager,
+                this.torrentService,
+                appFolderInfo: appFolderInfo);
+
+            await lifetime.StartAsync(CancellationToken.None);
+            await lifetime.StopAsync(CancellationToken.None);
+
+            await this.downloadEngine.Received(1).AddTorrentAsync(
+                Arg.Is<Torrent>(t => t.Id == 5),
+                Arg.Is<byte[]>(b => b.Length == 3));
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(tempDir))
+            {
+                System.IO.Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }
