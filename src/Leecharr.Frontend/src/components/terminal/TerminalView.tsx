@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { apiClient } from "../../api/client";
 
 export interface TerminalViewProps {
   cwd?: string;
@@ -101,11 +102,16 @@ export function TerminalView({
 
     // Build WebSocket URL
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const apiKey = apiClient.getApiKey();
     const params = new URLSearchParams({
       cwd: cwd || "",
       cols: Math.max(10, term.cols || 80).toString(),
       rows: Math.max(5, term.rows || 24).toString(),
     });
+
+    if (apiKey) {
+      params.set("apikey", apiKey);
+    }
 
     const urlBase =
       typeof window !== "undefined" && (window as any).Leecharr?.urlBase
