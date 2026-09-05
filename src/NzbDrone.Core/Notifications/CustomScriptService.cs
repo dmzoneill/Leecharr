@@ -72,6 +72,14 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
 
+                // Transmission compatibility environment variables
+                startInfo.EnvironmentVariables["TR_TORRENT_DIR"] = torrent.SavePath ?? string.Empty;
+                startInfo.EnvironmentVariables["TR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
+                startInfo.EnvironmentVariables["TR_TORRENT_HASH"] = torrent.InfoHash ?? string.Empty;
+                startInfo.EnvironmentVariables["TR_TORRENT_ID"] = torrent.Id.ToString();
+                startInfo.EnvironmentVariables["TR_TIME_LOCALTIME"] = DateTime.Now.ToString("s");
+                startInfo.EnvironmentVariables["TR_APP_VERSION"] = "4.0.0";
+
                 var meta = this.mediaEnrichmentService?.GetMetadata(torrent.Id);
                 if (meta != null)
                 {

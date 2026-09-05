@@ -69,6 +69,21 @@ public class NotificationEventHandler :
         }
 
         this.Dispatch(n => n.OnGrab, "OnGrab", message.Torrent);
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentAddedFilename))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentAddedFilename, message.Torrent, "OnGrab").ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error executing ScriptTorrentAdded script");
+                }
+            });
+        }
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
@@ -82,7 +97,32 @@ public class NotificationEventHandler :
 
         if (!string.IsNullOrWhiteSpace(this.configService?.OnDownloadCompleteScript))
         {
-            Task.Run(() => this.customScriptService.ExecuteScriptAsync(this.configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete"));
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.customScriptService.ExecuteScriptAsync(this.configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete").ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error executing OnDownloadComplete script");
+                }
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentDoneFilename))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentDoneFilename, message.Torrent, "OnDownloadComplete").ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error executing ScriptTorrentDone script");
+                }
+            });
         }
     }
 
@@ -162,6 +202,21 @@ public class NotificationEventHandler :
                 }
             });
         }
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentDoneSeedingFilename))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentDoneSeedingFilename, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error executing ScriptTorrentDoneSeeding script");
+                }
+            });
+        }
     }
 
     public void Handle(HealthIssueEvent message)
@@ -212,7 +267,17 @@ public class NotificationEventHandler :
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() => this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue"));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue").ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error executing custom script for OnHealthIssue");
+                    }
+                });
             }
             else
             {
