@@ -651,6 +651,42 @@ public class TransmissionRpcController : ControllerBase
 
                     return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
+                case "torrent-rename-path":
+                    var renameIds = this.ExtractIds(request.Arguments);
+                    var targetId = renameIds.FirstOrDefault();
+                    string oldPath = null;
+                    string newName = null;
+
+                    if (request.Arguments != null)
+                    {
+                        if (request.Arguments.TryGetValue("path", out var pathElem))
+                        {
+                            oldPath = pathElem.GetString();
+                        }
+
+                        if (request.Arguments.TryGetValue("name", out var nameElem))
+                        {
+                            newName = nameElem.GetString();
+                        }
+                    }
+
+                    if (targetId > 0 && !string.IsNullOrWhiteSpace(oldPath) && !string.IsNullOrWhiteSpace(newName))
+                    {
+                        await this.torrentService.RenameFileAsync(targetId, oldPath, newName);
+                    }
+
+                    return this.Ok(new TransmissionRpcResponse
+                    {
+                        Result = "success",
+                        Arguments = new Dictionary<string, object>
+                        {
+                            { "path", oldPath },
+                            { "name", newName },
+                            { "id", targetId },
+                        },
+                        Tag = tag,
+                    });
+
                 case "port-test":
                     return this.Ok(new TransmissionRpcResponse
                     {
@@ -880,10 +916,12 @@ public class TransmissionRpcController : ControllerBase
         var statusNum = t.Status switch
         {
             TorrentStatus.Stopped => 0,
+            TorrentStatus.Paused => 0,
             TorrentStatus.Checking => 2,
+            TorrentStatus.Queued when t.Progress >= 1.0 => 5, // TR_STATUS_SEED_WAIT
+            TorrentStatus.Queued => 3,                        // TR_STATUS_DOWNLOAD_WAIT
             TorrentStatus.Downloading => 4,
             TorrentStatus.Seeding => 6,
-            TorrentStatus.Paused => 0,
             _ => 0,
         };
 
@@ -938,6 +976,8 @@ public class TransmissionRpcController : ControllerBase
 
         var secondsDownloading = (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds;
         var secondsSeeding = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0;
+        var addedDate = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
+        var doneDate = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
         var isError = t.Status == TorrentStatus.Error;
 
         var dict = new Dictionary<string, object>
@@ -968,6 +1008,11 @@ public class TransmissionRpcController : ControllerBase
             { "error", isError ? 3 : 0 },
             { "secondsDownloading", secondsDownloading },
             { "secondsSeeding", secondsSeeding },
+            { "addedDate", addedDate },
+            { "doneDate", doneDate },
+            { "activityDate", addedDate },
+            { "queuePosition", t.QueuePosition },
+            { "recheckProgress", t.Status == TorrentStatus.Checking ? t.Progress : 0.0 },
             { "seedRatioLimit", t.TargetRatio },
             { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
             { "seedIdleLimit", t.TargetSeedTimeMinutes },
