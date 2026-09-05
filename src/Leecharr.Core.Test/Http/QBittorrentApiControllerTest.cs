@@ -354,10 +354,8 @@ public class QBittorrentApiControllerTest
         var result = await this.controller.SetCategory("all", "movies");
 
         result.Should().BeOfType<ContentResult>();
-        torrent1.Category.Should().Be("movies");
-        torrent2.Category.Should().Be("movies");
-        await this.torrentService.Received(1).UpdateAsync(torrent1);
-        await this.torrentService.Received(1).UpdateAsync(torrent2);
+        await this.torrentService.Received(1).SetCategoryAsync(1, "movies");
+        await this.torrentService.Received(1).SetCategoryAsync(2, "movies");
     }
 
     [Test]
