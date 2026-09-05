@@ -225,8 +225,37 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var clean = Regex.Replace(raw, @"[._]", " ");
         clean = Regex.Replace(clean, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
         clean = Regex.Replace(clean, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
-        clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+        var year = ExtractYear(raw);
+        if (year > 0)
+        {
+            clean = Regex.Replace(clean, $@"(?<!^)\s*\b{year}\b.*$", string.Empty);
+        }
+        else
+        {
+            clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+        }
+
         clean = clean.Trim('-', ' ', '.');
         return string.IsNullOrWhiteSpace(clean) ? raw.Trim() : clean.Trim();
+    }
+
+    private static int ExtractYear(string rawTitle)
+    {
+        if (string.IsNullOrWhiteSpace(rawTitle))
+        {
+            return 0;
+        }
+
+        var taggedMatch = Regex.Match(
+            rawTitle,
+            @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+        if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
+        {
+            return ty;
+        }
+
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
     }
 }

@@ -62,8 +62,6 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
-        this.logger = LogManager.GetCurrentClassLogger();
-    }
 
     public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500)
     {
@@ -276,10 +274,6 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         if (string.IsNullOrWhiteSpace(effectiveCategory))
         {
             effectiveCategory = this.configService?.DefaultCategory;
-            if (string.IsNullOrWhiteSpace(effectiveCategory) && this.categoryService != null)
-            {
-                effectiveCategory = this.categoryService.GetDefault()?.Name;
-            }
         }
 
         // 2. Resolve SavePath
@@ -430,7 +424,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         var status = isCompleted ? TorrentStatus.Seeding : TorrentStatus.Downloading;
         var progress = isCompleted ? 1.0 : (totalSize > 0 && entry.Downloaded > 0 ? Math.Min(1.0, (double)entry.Downloaded / totalSize) : 0.0);
         var downloaded = isCompleted && entry.Downloaded <= 0 ? totalSize : entry.Downloaded;
-        var dateCompleted = isCompleted ? (entry.DateCompleted ?? DateTime.UtcNow) : null;
+        DateTime? dateCompleted = isCompleted ? (entry.DateCompleted ?? DateTime.UtcNow) : null;
 
         var torrent = new Torrent
         {

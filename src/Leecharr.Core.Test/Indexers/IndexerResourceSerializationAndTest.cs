@@ -175,6 +175,8 @@ public class IndexerResourceSerializationAndTest
         var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
         var torznabClient = Substitute.For<ITorznabClient>();
+        torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(TorznabTestResult.Ok(new TorznabCapabilities { SupportsSearch = true })));
         var prowlarrSync = Substitute.For<IProwlarrSyncService>();
         var torrentService = Substitute.For<ITorrentService>();
         var torrentParser = Substitute.For<ITorrentFileParser>();
@@ -207,6 +209,8 @@ public class IndexerResourceSerializationAndTest
         var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
         var torznabClient = Substitute.For<ITorznabClient>();
+        torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(TorznabTestResult.Ok(null)));
         torznabClient.SearchAsync(Arg.Any<IndexerDefinition>(), Arg.Any<string>(), limit: 1)
             .Returns(Task.FromResult(new List<TorznabSearchResult> { new() { Title = "Test Release" } }));
 

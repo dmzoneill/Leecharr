@@ -818,6 +818,25 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 ParseMp4Boxes(moovData, 0, totalRead, info);
             }
+            else if (boxType == "ftyp")
+            {
+                long payloadSize = boxSize - headerSize;
+                int bytesToRead = (int)Math.Min(payloadSize, 1024);
+                var ftypData = new byte[bytesToRead];
+                int totalRead = 0;
+                while (totalRead < bytesToRead)
+                {
+                    int r = stream.Read(ftypData, totalRead, bytesToRead - totalRead);
+                    if (r <= 0)
+                    {
+                        break;
+                    }
+
+                    totalRead += r;
+                }
+
+                ParseFtypBox(ftypData, 0, totalRead, info);
+            }
 
             if (boxEndPos > streamLength)
             {
@@ -898,9 +917,147 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 case "stsd":
                     ParseStsd(data, payloadOffset, boxEnd, info);
                     break;
+
+                case "ftyp":
+                    ParseFtypBox(data, payloadOffset, boxEnd, info);
+                    break;
             }
 
             offset = boxEnd;
+        }
+    }
+
+    private static void ParseFtypBox(byte[] data, int offset, int limit, MediaContainerInfo info)
+    {
+        for (int i = offset; i + 4 <= limit; i += 4)
+        {
+            var brand = System.Text.Encoding.ASCII.GetString(data, i, 4);
+            switch (brand)
+            {
+                case "hvc1":
+                case "hev1":
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        info.VideoCodec = "HEVC (H.265)";
+                    }
+
+                    break;
+
+                case "av01":
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        info.VideoCodec = "AV1";
+                    }
+
+                    break;
+
+                case "vp09":
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        info.VideoCodec = "VP9";
+                    }
+
+                    break;
+
+                case "vp08":
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        info.VideoCodec = "VP8";
+                    }
+
+                    break;
+
+                case "avc1":
+                case "avc3":
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        info.VideoCodec = "H.264";
+                    }
+
+                    break;
+
+                case "ec-3":
+                case "ec+3":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "E-AC3 / Dolby Digital Plus";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "5.1";
+                    }
+
+                    break;
+
+                case "ac-3":
+                case "ac+3":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "AC3 / Dolby Digital";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "5.1";
+                    }
+
+                    break;
+
+                case "alac":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "Apple Lossless (ALAC)";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "2.0";
+                    }
+
+                    break;
+
+                case "mp4a":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "AAC";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "2.0";
+                    }
+
+                    break;
+
+                case "Opus":
+                case "opus":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "Opus";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "2.0";
+                    }
+
+                    break;
+
+                case "fLaC":
+                case "flac":
+                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    {
+                        info.AudioCodec = "FLAC";
+                    }
+
+                    if (string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = "2.0";
+                    }
+
+                    break;
+            }
         }
     }
 

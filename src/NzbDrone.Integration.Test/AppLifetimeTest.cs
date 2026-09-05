@@ -231,7 +231,7 @@ public class AppLifetimeTest
     [Test]
     public async Task StartAsync_WhenAutoStartEnabledAndAppFolderInfoProvided_RestoresTorrentsFromAppDataFolder()
     {
-        var tempDir = Path.Combine(System.IO.Path.GetTempPath(), "leecharr_lifetime_test_" + System.Guid.NewGuid().ToString("N"));
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "leecharr_lifetime_test_" + System.Guid.NewGuid().ToString("N"));
         try
         {
             var torrentsDir = System.IO.Path.Combine(tempDir, "Torrents");

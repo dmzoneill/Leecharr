@@ -516,9 +516,9 @@ public class AuthController : ControllerBase
                 .ToList();
 
             var subjectId = nameId ?? email;
-            var username = !string.IsNullOrWhiteSpace(email) ? email : (nameId ?? "saml_user");
+            var username = !string.IsNullOrWhiteSpace(email) ? (email.Contains('@') ? email.Split('@')[0] : email) : (nameId != null && nameId.Contains('@') ? nameId.Split('@')[0] : (nameId ?? "saml_user"));
 
-            User user;
+            User user = null;
             if (this.jitUserProvisioningService != null)
             {
                 var profile = new ExternalUserProfile(
@@ -533,9 +533,15 @@ public class AuthController : ControllerBase
             }
             else
             {
-                var isFirstUser = !this.userService.HasAnyUsers();
-                var roles = rawGroups.Count > 0 ? rawGroups : (isFirstUser ? new List<string> { "Admin" } : new List<string> { "User" });
-                user = this.userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
+                user = (!string.IsNullOrWhiteSpace(username) ? this.userService.GetByUsername(username) : null)
+                    ?? (!string.IsNullOrWhiteSpace(email) ? this.userService.GetByUsername(email) : null)
+                    ?? (!string.IsNullOrWhiteSpace(nameId) ? this.userService.GetByUsername(nameId) : null);
+                if (user == null)
+                {
+                    var isFirstUser = !this.userService.HasAnyUsers();
+                    var roles = rawGroups.Count > 0 ? rawGroups : (isFirstUser ? new List<string> { "Admin" } : new List<string> { "User" });
+                    user = this.userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
+                }
             }
 
             var rolesList = new List<string>();
