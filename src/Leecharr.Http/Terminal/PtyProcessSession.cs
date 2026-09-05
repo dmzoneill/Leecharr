@@ -12,18 +12,31 @@ namespace Leecharr.Http.Terminal;
 
 public sealed class PtyProcessSession : ITerminalSession
 {
-    private const string PythonPtyScript = @"import os, pty, struct, fcntl, termios, sys, select
+    private const string PythonPtyScript = @"import os, pty, struct, fcntl, termios, sys, select, signal
 
 cwd = sys.argv[1] if len(sys.argv) > 1 else '/tmp'
 cols = int(sys.argv[2]) if len(sys.argv) > 2 else 80
 rows = int(sys.argv[3]) if len(sys.argv) > 3 else 24
+ctrl_pipe = sys.argv[4] if len(sys.argv) > 4 else None
 
 master, slave = pty.openpty()
 winsize = struct.pack('HHHH', rows, cols, 0, 0)
 fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
 
+ctrl_fd = None
+if ctrl_pipe and os.path.exists(ctrl_pipe):
+    try:
+        ctrl_fd = os.open(ctrl_pipe, os.O_RDWR)
+    except:
+        ctrl_fd = None
+
 pid = os.fork()
 if pid == 0:
+    if ctrl_fd is not None:
+        try:
+            os.close(ctrl_fd)
+        except:
+            pass
     os.close(master)
     os.setsid()
     os.dup2(slave, 0)
@@ -43,8 +56,11 @@ if pid == 0:
         os.execlp('/bin/sh', '/bin/sh', '-i')
 else:
     os.close(slave)
+    rfds = [0, master]
+    if ctrl_fd is not None:
+        rfds.append(ctrl_fd)
     while True:
-        r, _, _ = select.select([0, master], [], [])
+        r, _, _ = select.select(rfds, [], [])
         if 0 in r:
             data = os.read(0, 4096)
             if not data:
@@ -58,39 +74,65 @@ else:
                 os.write(1, data)
             except OSError:
                 break
+        if ctrl_fd is not None and ctrl_fd in r:
+            try:
+                ctrl_data = os.read(ctrl_fd, 512).decode('utf-8', errors='ignore')
+                if ctrl_data:
+                    for line in ctrl_data.strip().split('\n'):
+                        line = line.strip()
+                        if ':' in line:
+                            parts = line.split(':')
+                            r_rows, r_cols = int(parts[0]), int(parts[1])
+                            winsize = struct.pack('HHHH', r_rows, r_cols, 0, 0)
+                            fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+                            try:
+                                os.kill(pid, signal.SIGWINCH)
+                            except:
+                                pass
+            except:
+                pass
 ";
 
     private readonly Process process;
     private readonly Stream inputStream;
     private readonly Stream outputStream;
+    private readonly string controlPipePath;
+    private FileStream controlPipeStream;
     private int disposed;
 
     public int ProcessId => this.process.Id;
 
     public bool IsActive => this.disposed == 0 && !this.process.HasExited;
 
-    private PtyProcessSession(Process process)
+    private PtyProcessSession(Process process, string controlPipePath = null, FileStream controlPipeStream = null)
     {
         this.process = process;
         this.inputStream = process.StandardInput.BaseStream;
         this.outputStream = process.StandardOutput.BaseStream;
+        this.controlPipePath = controlPipePath;
+        this.controlPipeStream = controlPipeStream;
     }
 
     public static PtyProcessSession Start(string cwd, int cols, int rows)
     {
         var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? cwd : "/tmp";
+        string controlPipePath = null;
+        FileStream controlPipeStream = null;
 
         ProcessStartInfo startInfo;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3")))
         {
             var pyBinary = File.Exists("/usr/bin/python3") ? "/usr/bin/python3" : "/bin/python3";
+            controlPipePath = Path.Combine(Path.GetTempPath(), $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
+            CreateFifo(controlPipePath);
+
             var b64Script = Convert.ToBase64String(Encoding.UTF8.GetBytes(PythonPtyScript));
             var pyCommand = $"import base64; exec(base64.b64decode('{b64Script}'))";
 
             startInfo = new ProcessStartInfo
             {
                 FileName = pyBinary,
-                Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows}",
+                Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows} \"{controlPipePath}\"",
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -124,7 +166,19 @@ else:
         var proc = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to launch terminal process");
 
-        return new PtyProcessSession(proc);
+        if (controlPipePath != null && File.Exists(controlPipePath))
+        {
+            try
+            {
+                controlPipeStream = new FileStream(controlPipePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            }
+            catch
+            {
+                controlPipeStream = null;
+            }
+        }
+
+        return new PtyProcessSession(proc, controlPipePath, controlPipeStream);
     }
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
@@ -164,7 +218,24 @@ else:
 
     public void Resize(int cols, int rows)
     {
-        // Handled dynamically
+        if (this.disposed != 0 || this.process.HasExited)
+        {
+            return;
+        }
+
+        if (this.controlPipeStream != null)
+        {
+            try
+            {
+                var msg = Encoding.UTF8.GetBytes($"{rows}:{cols}\n");
+                this.controlPipeStream.Write(msg, 0, msg.Length);
+                this.controlPipeStream.Flush();
+            }
+            catch
+            {
+                // Shell or control channel closed
+            }
+        }
     }
 
     public void Kill()
@@ -176,6 +247,30 @@ else:
 
         try
         {
+            if (this.controlPipeStream != null)
+            {
+                try
+                {
+                    this.controlPipeStream.Dispose();
+                }
+                catch
+                {
+                }
+
+                this.controlPipeStream = null;
+            }
+
+            if (this.controlPipePath != null && File.Exists(this.controlPipePath))
+            {
+                try
+                {
+                    File.Delete(this.controlPipePath);
+                }
+                catch
+                {
+                }
+            }
+
             if (!this.process.HasExited)
             {
                 this.process.Kill(entireProcessTree: true);
@@ -194,4 +289,46 @@ else:
         this.Kill();
         return ValueTask.CompletedTask;
     }
+
+    private static void CreateFifo(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                if (MkFifo(path, 438 /* 0666 */) == 0)
+                {
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback to mkfifo process
+        }
+
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "mkfifo",
+                Arguments = $"\"{path}\"",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+            });
+            proc?.WaitForExit(1000);
+        }
+        catch
+        {
+            // Ignored
+        }
+    }
+
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MkFifo(string path, uint mode);
 }
