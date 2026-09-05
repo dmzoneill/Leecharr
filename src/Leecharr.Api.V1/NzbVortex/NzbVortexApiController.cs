@@ -221,12 +221,12 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
             downloadedBytes = t.Downloaded,
             transferedSpeed = (int)t.DownloadSpeed,
             speed = t.DownloadSpeed,
-            isPaused = t.Status == TorrentStatus.Paused,
+            isPaused = t.Status == TorrentStatus.Paused || (t.Status == TorrentStatus.Stopped && !IsComplete(t)),
             state = t.Status switch
             {
                 TorrentStatus.Downloading => 1,
                 TorrentStatus.Seeding => 20,
-                TorrentStatus.Stopped => 20,
+                TorrentStatus.Stopped => IsComplete(t) ? 20 : 0,
                 TorrentStatus.Paused => 0,
                 TorrentStatus.Error => 21,
                 _ => 0,
@@ -390,4 +390,10 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         await this.torrentFileService.SetPriorityAsync(fileId, 1);
         return this.Ok(new { error = 0, result = 0 });
     }
+
+    private static bool IsComplete(Torrent t) =>
+        t.Progress >= 1.0 ||
+        (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) ||
+        t.Status == TorrentStatus.Completed ||
+        t.Status == TorrentStatus.Seeding;
 }
