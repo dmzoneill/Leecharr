@@ -345,6 +345,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
         => Volatile.Read(ref this.activeEngine).AddTrackersAsync(torrentId, trackers);
 
+    public Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
+        => Volatile.Read(ref this.activeEngine).RemoveTrackersAsync(torrentId, trackers);
+
     public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
         => Volatile.Read(ref this.activeEngine).SetFilePriorityAsync(torrentId, filePath, priority);
 
