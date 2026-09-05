@@ -68,6 +68,7 @@ export interface Torrent {
   targetSeedTimeMinutes?: number;
   shareLimitAction?: string;
   dateCompleted?: string | null;
+  bitfield?: string | null;
 }
 
 export interface TrackerMetric {
