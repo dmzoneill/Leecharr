@@ -55,6 +55,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicHttpTransportProxy>();
         container.RegisterSingletonWithInterfaces<DynamicGeoIpProxy>();
         container.RegisterSingletonWithInterfaces<DynamicBlocklistProxy>();
+        container.RegisterSingletonWithInterfaces<BlocklistUpdateTask>();
         container.RegisterSingletonWithInterfaces<DynamicArchiveExtractorProxy>();
         container.RegisterSingletonWithInterfaces<DynamicMediaInspectorProxy>();
         container.RegisterSingletonWithInterfaces<DynamicAiProxy>();
