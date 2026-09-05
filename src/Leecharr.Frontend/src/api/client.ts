@@ -300,7 +300,7 @@ export const api = {
       `${BASE_URL}/system/resources/subsystems`
     ),
   createTorrent: (request: import("./types").TorrentCreationRequest) =>
-    fetchJson<import("./types").TorrentCreationResult>(`/api/v2/torrents/create`, {
+    fetchJson<import("./types").TorrentCreationResult>(`${BASE_URL}/torrents/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
