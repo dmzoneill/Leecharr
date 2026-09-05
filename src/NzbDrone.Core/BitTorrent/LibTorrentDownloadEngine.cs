@@ -40,7 +40,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public string Description => "High-performance C++20 BitTorrent engine with memory-mapped file I/O, BitTorrent v2 Merkle trees, and LEDBAT uTP.";
 
-    public bool IsAvailable => CheckNativeAvailability();
+    public bool IsAvailable => false;
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
     {
@@ -75,30 +75,18 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
-        var checks = new List<string>();
-        var warnings = new List<string>();
-
-        var nativeAvailable = CheckNativeAvailability();
-        if (nativeAvailable)
-        {
-            checks.Add("libtorrent native shared library: Found & Loadable");
-            checks.Add("OpenSSL crypto backend: Initialized");
-            checks.Add("POSIX / Windows asynchronous I/O backend: Ready");
-        }
-        else
-        {
-            checks.Add("libtorrent native library: In-Memory Managed Emulation Mode");
-            warnings.Add("Native libtorrent_c library not found in runtimes directory. Running in high-compatibility emulation mode.");
-        }
-
         return Task.FromResult(new EngineHealthCheckResult
         {
-            IsHealthy = true,
-            StatusMessage = nativeAvailable
-                ? "libtorrent engine is active with hardware-accelerated C++ backend."
-                : "libtorrent engine is ready in high-compatibility managed mode.",
-            DependencyChecks = checks,
-            Warnings = warnings,
+            IsHealthy = false,
+            StatusMessage = "Engine backend is not implemented.",
+            DependencyChecks = new List<string>
+            {
+                "libtorrent native bindings: Not implemented",
+            },
+            Warnings = new List<string>
+            {
+                "libtorrent C++ engine is not implemented.",
+            },
         });
     }
 
