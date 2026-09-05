@@ -13,6 +13,7 @@ using Leecharr.Api.V1.Deluge;
 using Leecharr.Api.V1.Flood;
 using Leecharr.Api.V1.Freebox;
 using Leecharr.Api.V1.Hadouken;
+using Leecharr.Api.V1.Nzbget;
 using Leecharr.Api.V1.NzbVortex;
 using Leecharr.Api.V1.RTorrent;
 using Leecharr.Api.V1.Sabnzbd;
@@ -411,5 +412,37 @@ public class RpcSsrfProtectionTest
 
         grabbed.Should().Be(0);
         await torrentSvc.DidNotReceive().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [TestCase("http://127.0.0.1/evil.torrent")]
+    [TestCase("http://169.254.169.254/latest/meta-data")]
+    public async Task NzbgetRpcController_Append_WithSsrfUrl_ReturnsErrorWithSsrfBlocked(string ssrfUrl)
+    {
+        var controller = new NzbgetRpcController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var context = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse($"[\"{ssrfUrl}\", \"\", \"tv\"]");
+        var request = new NzbgetRequest
+        {
+            Method = "append",
+            Params = doc.RootElement,
+            Id = 1,
+        };
+
+        var result = await controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        json.Should().Contain("SSRF blocked");
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
     }
 }
