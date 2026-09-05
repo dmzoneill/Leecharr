@@ -571,17 +571,35 @@ public class Aria2RpcController : ControllerBase
                 var filesTorrent = this.FindByGid(filesGid);
                 if (filesTorrent != null)
                 {
-                    var files = this.torrentFileService.GetFiles(filesTorrent.Id).ToList();
+                    var saveDir = filesTorrent.SavePath ?? this.configService.DownloadDir ?? "/downloads";
+                    var files = this.torrentFileService.GetFiles(filesTorrent.Id)?.ToList();
                     var downloadTask = this.torrentService?.GetDownloadTask(filesTorrent.Id);
-                    TorrentFileProgressEnricher.Enrich(filesTorrent, files, downloadTask);
-                    return files.Select((f, idx) => new
+                    if (files != null && files.Count > 0)
                     {
-                        index = (idx + 1).ToString(),
-                        path = f.Path,
-                        length = f.Size.ToString(),
-                        completedLength = f.BytesCompleted.ToString(),
-                        selected = "true",
-                    }).ToList();
+                        TorrentFileProgressEnricher.Enrich(filesTorrent, files, downloadTask);
+                        return files.Select((f, idx) => new
+                        {
+                            index = (idx + 1).ToString(),
+                            path = global::System.IO.Path.Combine(saveDir, f.Path ?? string.Empty),
+                            length = f.Size.ToString(),
+                            completedLength = f.BytesCompleted.ToString(),
+                            selected = f.Priority > 0 ? "true" : "false",
+                            uris = Array.Empty<object>(),
+                        }).ToList();
+                    }
+
+                    return new object[]
+                    {
+                        new
+                        {
+                            index = "1",
+                            path = global::System.IO.Path.Combine(saveDir, filesTorrent.Name ?? string.Empty),
+                            length = filesTorrent.TotalSize.ToString(),
+                            completedLength = filesTorrent.Downloaded.ToString(),
+                            selected = "true",
+                            uris = Array.Empty<object>(),
+                        },
+                    };
                 }
 
                 return Array.Empty<object>();
@@ -967,6 +985,17 @@ public class Aria2RpcController : ControllerBase
 
                 return new global::System.Xml.Linq.XElement("struct");
 
+            case "aria2.getfiles":
+                var filesGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var filesTorrent = this.FindByGid(filesGid);
+                if (filesTorrent != null)
+                {
+                    var task = this.torrentService?.GetDownloadTask(filesTorrent.Id);
+                    return BuildXmlRpcFilesArray(filesTorrent, downloadDir, this.torrentFileService, task);
+                }
+
+                return new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data"));
+
             case "aria2.addtorrent":
                 if (stringParams.Count > 0)
                 {
@@ -1110,6 +1139,45 @@ public class Aria2RpcController : ControllerBase
         }
     }
 
+    private static global::System.Xml.Linq.XElement BuildXmlRpcFilesArray(Torrent t, string downloadDir, ITorrentFileService torrentFileService, NzbDrone.Core.BitTorrent.IDownloadTask downloadTask = null)
+    {
+        var dir = t.SavePath ?? downloadDir ?? "/downloads";
+        var name = t.Name ?? string.Empty;
+
+        var filesDataElem = new global::System.Xml.Linq.XElement("data");
+        var files = torrentFileService?.GetFiles(t.Id)?.ToList();
+        if (files != null && files.Count > 0)
+        {
+            TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
+            for (var i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                var filePath = string.IsNullOrWhiteSpace(f.Path) ? name : f.Path;
+                filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement(
+                    "struct",
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (i + 1).ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, filePath)))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", f.Size.ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", f.BytesCompleted.ToString()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (f.Priority > 0).ToString().ToLowerInvariant()))),
+                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "uris"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data")))))));
+            }
+        }
+        else
+        {
+            filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement(
+                "struct",
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1"))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, name)))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "true"))),
+                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "uris"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("array", new global::System.Xml.Linq.XElement("data")))))));
+        }
+
+        return new global::System.Xml.Linq.XElement("array", filesDataElem);
+    }
+
     private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir, ITorrentFileService torrentFileService)
     {
         var gid = GetGidFromInfoHash(t.InfoHash);
@@ -1124,35 +1192,6 @@ public class Aria2RpcController : ControllerBase
         };
         var dir = t.SavePath ?? downloadDir ?? "/downloads";
         var name = t.Name ?? string.Empty;
-
-        var filesDataElem = new global::System.Xml.Linq.XElement("data");
-        var files = torrentFileService?.GetFiles(t.Id)?.ToList();
-        if (files != null && files.Count > 0)
-        {
-            TorrentFileProgressEnricher.Enrich(t, files, null);
-            for (var i = 0; i < files.Count; i++)
-            {
-                var f = files[i];
-                var filePath = string.IsNullOrWhiteSpace(f.Path) ? name : f.Path;
-                filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement(
-                    "struct",
-                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (i + 1).ToString()))),
-                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, filePath)))),
-                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", f.Size.ToString()))),
-                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", f.BytesCompleted.ToString()))),
-                    new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (f.Priority > 0).ToString().ToLowerInvariant()))))));
-            }
-        }
-        else
-        {
-            filesDataElem.Add(new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement(
-                "struct",
-                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "index"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "1"))),
-                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "path"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", global::System.IO.Path.Combine(dir, name)))),
-                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "length"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.TotalSize.ToString()))),
-                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "completedLength"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", t.Downloaded.ToString()))),
-                new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "selected"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "true"))))));
-        }
 
         return new global::System.Xml.Linq.XElement(
             "struct",
@@ -1179,7 +1218,7 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "mode"), new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "multi")))))),
             new global::System.Xml.Linq.XElement("member", new global::System.Xml.Linq.XElement("name", "files"), new global::System.Xml.Linq.XElement(
                 "value",
-                new global::System.Xml.Linq.XElement("array", filesDataElem))));
+                BuildXmlRpcFilesArray(t, downloadDir, torrentFileService))));
     }
 
     private static global::System.Xml.Linq.XElement BuildXmlRpcTorrentArray(IEnumerable<Torrent> torrents, string downloadDir, ITorrentFileService torrentFileService)
@@ -1260,6 +1299,7 @@ public class Aria2RpcController : ControllerBase
             _ => "waiting",
         };
 
+        var defaultDir = this.configService.DownloadDir ?? "/downloads";
         var rawFiles = this.torrentFileService.GetFiles(t.Id)?.ToList();
         object[] filesArray;
         if (rawFiles is { Count: > 0 })
@@ -1269,10 +1309,11 @@ public class Aria2RpcController : ControllerBase
             filesArray = rawFiles.Select((f, idx) => (object)new
             {
                 index = (idx + 1).ToString(),
-                path = global::System.IO.Path.Combine(t.SavePath ?? "/downloads", f.Path ?? string.Empty),
+                path = global::System.IO.Path.Combine(t.SavePath ?? defaultDir, f.Path ?? string.Empty),
                 length = f.Size.ToString(),
                 completedLength = f.BytesCompleted.ToString(),
-                selected = f.Priority > 0 ? "true" : "false"
+                selected = f.Priority > 0 ? "true" : "false",
+                uris = Array.Empty<object>(),
             }).ToArray();
         }
         else
@@ -1282,11 +1323,12 @@ public class Aria2RpcController : ControllerBase
                 new
                 {
                     index = "1",
-                    path = global::System.IO.Path.Combine(t.SavePath ?? "/downloads", t.Name ?? string.Empty),
+                    path = global::System.IO.Path.Combine(t.SavePath ?? defaultDir, t.Name ?? string.Empty),
                     length = t.TotalSize.ToString(),
                     completedLength = t.Downloaded.ToString(),
-                    selected = "true"
-                }
+                    selected = "true",
+                    uris = Array.Empty<object>(),
+                },
             };
         }
 
