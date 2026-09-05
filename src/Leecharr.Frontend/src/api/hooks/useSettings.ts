@@ -22,6 +22,7 @@ import type {
   SyncResult,
   IndexerDefinition,
   IndexerTestResult,
+  RssRule,
   Torrent,
 } from "../types";
 
@@ -343,6 +344,47 @@ export function useSyncProwlarr() {
     mutationFn: (data: { url: string; apiKey: string }) =>
       apiClient.post("/indexers/sync-prowlarr", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["indexers"] }),
+  });
+}
+
+export function useRssRules() {
+  return useQuery<RssRule[]>({
+    queryKey: ["rssrules"],
+    queryFn: () => apiClient.get("/rssrules"),
+  });
+}
+
+export function useCreateRssRule() {
+  const queryClient = useQueryClient();
+  return useMutation<RssRule, Error, Partial<RssRule>>({
+    mutationFn: (rule) => apiClient.post("/rssrules", rule),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rssrules"] }),
+  });
+}
+
+export function useUpdateRssRule() {
+  const queryClient = useQueryClient();
+  return useMutation<RssRule, Error, RssRule>({
+    mutationFn: (rule) => apiClient.put(`/rssrules/${rule.id}`, rule),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rssrules"] }),
+  });
+}
+
+export function useDeleteRssRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/rssrules/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rssrules"] }),
+  });
+}
+
+export function useSyncRss() {
+  const queryClient = useQueryClient();
+  return useMutation<{ success: boolean; grabbedCount: number }, Error, void>({
+    mutationFn: () => apiClient.post("/rssrules/sync"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    },
   });
 }
 

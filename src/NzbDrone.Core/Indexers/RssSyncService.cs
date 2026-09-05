@@ -77,7 +77,7 @@ public class RssSyncService : IRssSyncService
 
                     foreach (var rule in activeRules)
                     {
-                        if (rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
+                        if (rule.IndexerIds != null && rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
                         {
                             continue;
                         }
