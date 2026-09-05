@@ -197,6 +197,7 @@ public class AppLifetime : IHostedService, IDisposable
     private async Task RunBackgroundLoopAsync(CancellationToken token)
     {
         var watchFolderTickCounter = 0;
+        var maintenanceTickCounter = 0;
         var rssTickCounter = 0;
         var seedingTickCounter = 0;
 
@@ -344,8 +345,10 @@ public class AppLifetime : IHostedService, IDisposable
                 }
 
                 // 2. Check VPN Kill Switch every 5 seconds
-                if (watchFolderTickCounter % 5 == 0)
+                maintenanceTickCounter++;
+                if (maintenanceTickCounter >= 5)
                 {
+                    maintenanceTickCounter = 0;
                     this.networkSecurityService.CheckVpnKillSwitch();
 
                     if (this.queueManagerService != null)
