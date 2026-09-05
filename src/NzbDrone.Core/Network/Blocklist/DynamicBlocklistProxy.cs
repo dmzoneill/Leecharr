@@ -180,10 +180,15 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
 
     public void ClearRules()
     {
-        lock (this.loadedRawRules)
+        this.switchLock.Wait();
+        try
         {
             this.loadedRawRules.Clear();
             Volatile.Read(ref this.activeProvider).ClearRules();
+        }
+        finally
+        {
+            this.switchLock.Release();
         }
     }
 
