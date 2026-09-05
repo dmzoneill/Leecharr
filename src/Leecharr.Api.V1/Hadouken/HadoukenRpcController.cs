@@ -197,31 +197,31 @@ public class HadoukenRpcController : ControllerBase
                     var torrentRows = new List<object[]>();
                     foreach (var t in allTorrents)
                     {
-                        var isFinished = t.Progress >= 1.0;
-                        int statusFlag;
-                        if (t.Status == TorrentStatus.Downloading)
+                        var statusFlag = 128; // Loaded
+
+                        if (t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
                         {
-                            statusFlag = 1 | 2;
-                        }
-                        else if (t.Status == TorrentStatus.Seeding)
-                        {
-                            statusFlag = 1 | 8 | 16 | (isFinished ? 128 : 0);
+                            statusFlag = 1 | 128;
                         }
                         else if (t.Status == TorrentStatus.Paused)
                         {
-                            statusFlag = 1 | 4 | 16 | (isFinished ? 128 : 0);
+                            statusFlag = 32 | 128;
                         }
                         else if (t.Status == TorrentStatus.Stopped)
                         {
-                            statusFlag = 1 | 16 | (isFinished ? 128 : 0);
+                            statusFlag = 128;
+                        }
+                        else if (t.Status == TorrentStatus.Checking)
+                        {
+                            statusFlag = 2 | 128;
                         }
                         else if (t.Status == TorrentStatus.Error)
                         {
-                            statusFlag = 1 | 8 | 16;
+                            statusFlag = 16 | 128;
                         }
-                        else
+                        else if (t.Status == TorrentStatus.Queued)
                         {
-                            statusFlag = 1 | 2 | 16;
+                            statusFlag = 64 | 128;
                         }
 
                         var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
