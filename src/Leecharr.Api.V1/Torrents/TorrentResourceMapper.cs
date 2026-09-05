@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Text.Json;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaInspection;
@@ -9,7 +10,27 @@ namespace Leecharr.Api.V1.Torrents;
 
 public static class TorrentResourceMapper
 {
-    public static TorrentResource ToResource(Torrent model, TorrentMediaMetadata metadata = null)
+    public static string EncodeBitfield(bool[] pieces)
+    {
+        if (pieces == null || pieces.Length == 0)
+        {
+            return null;
+        }
+
+        var byteCount = (pieces.Length + 7) / 8;
+        var bytes = new byte[byteCount];
+        for (var i = 0; i < pieces.Length; i++)
+        {
+            if (pieces[i])
+            {
+                bytes[i / 8] |= (byte)(1 << (7 - (i % 8)));
+            }
+        }
+
+        return Convert.ToBase64String(bytes);
+    }
+
+    public static TorrentResource ToResource(Torrent model, TorrentMediaMetadata metadata = null, string bitfield = null)
     {
         if (model == null)
         {
@@ -58,6 +79,7 @@ public static class TorrentResourceMapper
             LastActive = model.LastActive,
             TagIds = model.TagIds,
             SeedingTime = model.SeedingTimeSeconds,
+            Bitfield = bitfield,
         };
 
         if (metadata != null)

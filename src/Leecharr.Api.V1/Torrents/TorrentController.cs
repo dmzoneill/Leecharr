@@ -107,7 +107,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var resources = torrents.Select((t, idx) =>
         {
             allMetadata.TryGetValue(t.Id, out var meta);
-            var res = TorrentResourceMapper.ToResource(t, meta);
+            var task = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
+            var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
+                ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
+                : null;
+            var res = TorrentResourceMapper.ToResource(t, meta, bitfield);
             res.QueuePosition = t.QueuePosition > 0 ? t.QueuePosition : idx + 1;
             if (allDbTrackers.TryGetValue(t.Id, out var trackerEntries) && trackerEntries.Count > 0)
             {
@@ -153,7 +157,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var meta = this.mediaEnrichmentService.GetMetadata(id);
-        var res = TorrentResourceMapper.ToResource(torrent, meta);
+        var task = this.downloadEngine?.GetTask(id) ?? this.torrentService?.GetDownloadTask(id);
+        var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
+            ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
+            : null;
+        var res = TorrentResourceMapper.ToResource(torrent, meta, bitfield);
         res.QueuePosition = torrent.QueuePosition > 0 ? torrent.QueuePosition : 1;
         var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
 
@@ -869,6 +877,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var meta = this.mediaEnrichmentService.GetMetadata(model.Id);
-        return TorrentResourceMapper.ToResource(model, meta);
+        var task = this.downloadEngine?.GetTask(model.Id) ?? this.torrentService?.GetDownloadTask(model.Id);
+        var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
+            ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
+            : null;
+        return TorrentResourceMapper.ToResource(model, meta, bitfield);
     }
 }
