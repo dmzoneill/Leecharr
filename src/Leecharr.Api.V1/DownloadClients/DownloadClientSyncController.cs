@@ -2,7 +2,7 @@
 
 using System;
 using System.Linq;
-using System.Net.Sockets;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Http;
@@ -18,12 +18,14 @@ public class DownloadClientSyncController : Controller
 {
     private readonly IDownloadClientRepository clientRepository;
     private readonly ITorrentService torrentService;
+    private readonly HttpClient httpClient;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public DownloadClientSyncController(IDownloadClientRepository clientRepository, ITorrentService torrentService)
+    public DownloadClientSyncController(IDownloadClientRepository clientRepository, ITorrentService torrentService, HttpClient httpClient = null)
     {
         this.clientRepository = clientRepository;
         this.torrentService = torrentService;
+        this.httpClient = httpClient;
     }
 
     [HttpPost("sync")]
@@ -31,21 +33,38 @@ public class DownloadClientSyncController : Controller
     {
         var clients = this.clientRepository.GetEnabled().ToList();
         var syncedCount = 0;
+        var totalDiscovered = 0;
+        var failedClients = 0;
 
         foreach (var client in clients)
         {
             try
             {
-                using var tcp = new TcpClient();
-                var connectTask = tcp.ConnectAsync(client.Host, client.Port);
-                var completed = await Task.WhenAny(connectTask, Task.Delay(3000));
-                if (completed == connectTask && tcp.Connected)
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient);
+                totalDiscovered += items.Count;
+
+                foreach (var item in items)
                 {
-                    syncedCount++;
+                    if (string.IsNullOrWhiteSpace(item.InfoHash))
+                    {
+                        continue;
+                    }
+
+                    var existing = this.torrentService.GetByInfoHash(item.InfoHash);
+                    if (existing == null)
+                    {
+                        var category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : client.Category;
+                        var savePath = !string.IsNullOrWhiteSpace(item.SavePath) ? item.SavePath : null;
+                        var magnetUri = $"magnet:?xt=urn:btih:{item.InfoHash}";
+
+                        await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+                        syncedCount++;
+                    }
                 }
             }
             catch (Exception ex)
             {
+                failedClients++;
                 this.logger.Warn(ex, "Failed to sync download client {0} ({1}:{2})", client.Name, client.Host, client.Port);
             }
         }
@@ -54,7 +73,11 @@ public class DownloadClientSyncController : Controller
         {
             Success = true,
             SyncedCount = syncedCount,
-            Message = $"Download client sync completed successfully ({syncedCount}/{clients.Count} connected).",
+            TotalCount = totalDiscovered,
+            Added = syncedCount,
+            Skipped = Math.Max(0, totalDiscovered - syncedCount),
+            Failed = failedClients,
+            Message = $"Download client sync completed successfully ({syncedCount} torrent(s) imported).",
         });
     }
 }
