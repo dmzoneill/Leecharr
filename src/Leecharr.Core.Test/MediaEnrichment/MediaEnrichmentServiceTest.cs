@@ -445,6 +445,11 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     [TestCase("Show.1x05", "Show")]
     [TestCase("Season.of.the.Witch.2011.1080p", "Season of the Witch")]
     [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance")]
+    [TestCase("Blade.Runner.2049.2017.1080p", "Blade Runner 2049")]
+    [TestCase("2001.A.Space.Odyssey.1968.1080p", "2001 A Space Odyssey")]
+    [TestCase("1917.2019.1080p", "1917")]
+    [TestCase("1984.1956.720p", "1984")]
+    [TestCase("2012.2009.1080p", "2012")]
     public void CleanTitle_StripsEpisodicTagsAndYears_AcrossProviders(string raw, string expected)
     {
         TmdbMetadataProvider.CleanTitle(raw).Should().Be(expected);
