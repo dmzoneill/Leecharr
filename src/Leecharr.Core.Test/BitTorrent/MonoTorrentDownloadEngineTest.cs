@@ -225,6 +225,23 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task StartAsync_AppliesCustomPeerIdAndUserAgent()
+    {
+        this.configService.PeerIdPrefix.Returns("-qB4420-");
+        this.configService.BitTorrentUserAgent.Returns("qBittorrent/4.4.2");
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.PeerId.Text.Should().StartWith("-qB4420-");
+        monoEngine.PeerId.Text.Length.Should().Be(20);
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
     public void GetTask_WhenNotFound_ReturnsNull()
     {
         var task = this.engine.GetTask(9999);
