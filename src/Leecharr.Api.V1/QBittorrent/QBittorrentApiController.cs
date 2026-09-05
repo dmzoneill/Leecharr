@@ -1525,25 +1525,38 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
+    [HttpGet("search/start")]
     [HttpPost("search/start")]
     public ActionResult StartSearch(
-        [FromForm] string pattern,
-        [FromForm] string plugins = null,
-        [FromForm] string category = null)
+        [FromQuery] string pattern = null,
+        [FromQuery] string plugins = null,
+        [FromQuery] string category = null,
+        [FromForm] string formPattern = null,
+        [FromForm] string formPlugins = null,
+        [FromForm] string formCategory = null)
     {
-        if (string.IsNullOrWhiteSpace(pattern))
+        var finalPattern = !string.IsNullOrWhiteSpace(formPattern) ? formPattern : pattern;
+        var finalPlugins = !string.IsNullOrWhiteSpace(formPlugins) ? formPlugins : plugins;
+        var finalCategory = !string.IsNullOrWhiteSpace(formCategory) ? formCategory : category;
+
+        if (string.IsNullOrWhiteSpace(finalPattern))
         {
             return this.BadRequest("Pattern is required.");
         }
 
-        var id = this.qbittorrentSearchService.StartSearch(pattern, plugins, category);
+        var id = this.qbittorrentSearchService.StartSearch(finalPattern, finalPlugins, finalCategory);
         return this.Ok(new { id });
     }
 
     [HttpPost("search/stop")]
-    public ActionResult StopSearch([FromForm] int id)
+    public ActionResult StopSearch([FromQuery] int? id = null, [FromForm] int? formId = null)
     {
-        this.qbittorrentSearchService.StopSearch(id);
+        var targetId = id ?? formId;
+        if (targetId.HasValue)
+        {
+            this.qbittorrentSearchService.StopSearch(targetId.Value);
+        }
+
         return this.Content("Ok.", "text/plain");
     }
 
@@ -1585,9 +1598,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("search/delete")]
-    public ActionResult DeleteSearch([FromForm] int id)
+    public ActionResult DeleteSearch([FromQuery] int? id = null, [FromForm] int? formId = null)
     {
-        this.qbittorrentSearchService.DeleteSearch(id);
+        var targetId = id ?? formId;
+        if (targetId.HasValue)
+        {
+            this.qbittorrentSearchService.DeleteSearch(targetId.Value);
+        }
+
         return this.Content("Ok.", "text/plain");
     }
 
