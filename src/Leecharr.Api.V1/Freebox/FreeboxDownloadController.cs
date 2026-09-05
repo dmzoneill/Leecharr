@@ -29,6 +29,7 @@ public class FreeboxUpdateRequest
 [ApiController]
 public class FreeboxDownloadController : ControllerBase
 {
+    private static readonly RpcSessionStore authenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
@@ -63,9 +64,39 @@ public class FreeboxDownloadController : ControllerBase
         }
 
         var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
-        if (!string.IsNullOrEmpty(token) && string.Equals(token, "freebox-session-token", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(token))
         {
-            return true;
+            token = this.Request.Query["X-Fbx-App-Auth"].ToString();
+        }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            token = this.Request.Query["session_token"].ToString();
+        }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            token = this.Request.Query["session"].ToString();
+        }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            token = this.Request.Query["token"].ToString();
+        }
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            if (authenticatedSessions.IsValid(token))
+            {
+                return true;
+            }
+
+            if (this.configFileProvider != null &&
+                !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                RpcAuthenticationHelper.FixedTimeEquals(token, this.configFileProvider.ApiKey))
+            {
+                return true;
+            }
         }
 
         return false;
@@ -117,12 +148,67 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/login")]
     public IActionResult LoginSession()
     {
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
+        {
+            var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+            if (!isAuth && !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey))
+            {
+                var masterKey = this.configFileProvider.ApiKey;
+                var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
+                if (!string.IsNullOrEmpty(token) && (authenticatedSessions.IsValid(token) || RpcAuthenticationHelper.FixedTimeEquals(token, masterKey)))
+                {
+                    isAuth = true;
+                }
+                else if (this.Request.Query.TryGetValue("password", out var queryPass) && !string.IsNullOrWhiteSpace(queryPass) &&
+                         RpcAuthenticationHelper.FixedTimeEquals(queryPass.ToString(), masterKey))
+                {
+                    isAuth = true;
+                }
+                else if (this.Request.Query.TryGetValue("app_token", out var queryAppToken) && !string.IsNullOrWhiteSpace(queryAppToken) &&
+                         RpcAuthenticationHelper.FixedTimeEquals(queryAppToken.ToString(), masterKey))
+                {
+                    isAuth = true;
+                }
+                else if (this.Request.HasFormContentType)
+                {
+                    var formPass = this.Request.Form["password"].ToString();
+                    var formAppToken = this.Request.Form["app_token"].ToString();
+                    var formApiKey = this.Request.Form["api_key"].ToString();
+                    if (!string.IsNullOrWhiteSpace(formPass) && RpcAuthenticationHelper.FixedTimeEquals(formPass, masterKey))
+                    {
+                        isAuth = true;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(formAppToken) && RpcAuthenticationHelper.FixedTimeEquals(formAppToken, masterKey))
+                    {
+                        isAuth = true;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(formApiKey) && RpcAuthenticationHelper.FixedTimeEquals(formApiKey, masterKey))
+                    {
+                        isAuth = true;
+                    }
+                }
+            }
+
+            if (!isAuth)
+            {
+                return this.Ok(new
+                {
+                    success = false,
+                    msg = "Invalid credentials",
+                    error_code = "auth_required",
+                });
+            }
+        }
+
+        var sessionToken = Guid.NewGuid().ToString("N");
+        authenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddDays(7));
+
         return this.Ok(new
         {
             success = true,
             result = new
             {
-                session_token = "freebox-session-token",
+                session_token = sessionToken,
                 logged_in = true,
                 permissions = new { downloader = true },
             },
