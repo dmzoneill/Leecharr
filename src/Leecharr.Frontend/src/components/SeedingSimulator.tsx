@@ -4,6 +4,7 @@ import { formatBytes, formatSpeed } from "../utils/formatters";
 interface SeedingSimulatorProps {
   currentUploaded: number;
   totalSize: number;
+  downloaded?: number;
   currentRatio: number;
   currentUploadSpeed: number; // bytes/sec
   seedingTimeSeconds?: number;
@@ -14,6 +15,7 @@ interface SeedingSimulatorProps {
 export function SeedingSimulator({
   currentUploaded,
   totalSize,
+  downloaded,
   currentRatio,
   currentUploadSpeed,
   seedingTimeSeconds = 0,
@@ -23,7 +25,9 @@ export function SeedingSimulator({
   const [targetRatio, setTargetRatio] = useState<number>(2.0);
 
   // Target calculations
-  const targetUploadBytes = totalSize * targetRatio;
+  const effectiveBaseBytes =
+    downloaded !== undefined && downloaded > 0 ? downloaded : totalSize;
+  const targetUploadBytes = effectiveBaseBytes * targetRatio;
   const remainingUploadBytes = Math.max(0, targetUploadBytes - currentUploaded);
 
   const etaSeconds = useMemo(() => {
