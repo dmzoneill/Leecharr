@@ -11,6 +11,7 @@ using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network.GeoIp;
@@ -65,6 +66,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly IGeoIpService geoIpService;
     private readonly IDownloadEngine downloadEngine;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly ITorrentCreationService torrentCreationService;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -75,7 +77,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         IBroadcastSignalRMessage signalRBroadcaster,
         IGeoIpService geoIpService = null,
         IDownloadEngine downloadEngine = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        ITorrentCreationService torrentCreationService = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -86,6 +89,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.geoIpService = geoIpService;
         this.downloadEngine = downloadEngine;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.torrentCreationService = torrentCreationService;
     }
 
     [HttpGet]
@@ -635,6 +639,32 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     public async Task<ActionResult<TorrentResource>> GrabRelease([FromBody] AddTorrentJsonRequest request)
     {
         return await this.AddTorrentJson(request);
+    }
+
+    [HttpPost("create")]
+    [Consumes("application/json")]
+    public async Task<ActionResult<TorrentCreationResult>> CreateTorrent([FromBody] TorrentCreationRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request?.Path))
+        {
+            return this.BadRequest(new TorrentCreationResult
+            {
+                Success = false,
+                ErrorMessage = "A valid source file or directory path is required.",
+            });
+        }
+
+        if (this.torrentCreationService == null)
+        {
+            return this.StatusCode(StatusCodes.Status503ServiceUnavailable, new TorrentCreationResult
+            {
+                Success = false,
+                ErrorMessage = "Torrent creation service is unavailable.",
+            });
+        }
+
+        var result = await this.torrentCreationService.CreateTorrentAsync(request);
+        return this.Ok(result);
     }
 
     [HttpPost("{id:int}/pause")]

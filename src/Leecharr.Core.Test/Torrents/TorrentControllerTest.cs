@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.GeoIp;
@@ -30,6 +31,7 @@ public class TorrentControllerTest
     private IBroadcastSignalRMessage signalRBroadcaster = null!;
     private IDownloadEngine downloadEngine = null!;
     private IGeoIpService geoIpService = null!;
+    private ITorrentCreationService torrentCreationService = null!;
     private TorrentController controller = null!;
 
     [SetUp]
@@ -43,6 +45,7 @@ public class TorrentControllerTest
         this.signalRBroadcaster = Substitute.For<IBroadcastSignalRMessage>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.geoIpService = Substitute.For<IGeoIpService>();
+        this.torrentCreationService = Substitute.For<ITorrentCreationService>();
 
         this.controller = new TorrentController(
             this.torrentService,
@@ -52,7 +55,8 @@ public class TorrentControllerTest
             this.trackerEntryRepository,
             this.signalRBroadcaster,
             geoIpService: this.geoIpService,
-            downloadEngine: this.downloadEngine);
+            downloadEngine: this.downloadEngine,
+            torrentCreationService: this.torrentCreationService);
     }
 
     [Test]
@@ -596,5 +600,57 @@ public class TorrentControllerTest
         resources[1].CountryCode.Should().Be(string.Empty);
         resources[1].CountryName.Should().Be(string.Empty);
         resources[1].City.Should().Be(string.Empty);
+    }
+
+    [Test]
+    public async Task CreateTorrent_WhenRequestIsNull_ReturnsBadRequest()
+    {
+        var result = await this.controller.CreateTorrent(null);
+
+        var badRequestResult = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        var creationResult = badRequestResult.Value.Should().BeOfType<TorrentCreationResult>().Subject;
+        creationResult.Success.Should().BeFalse();
+        creationResult.ErrorMessage.Should().Contain("required");
+    }
+
+    [Test]
+    public async Task CreateTorrent_WhenPathIsEmpty_ReturnsBadRequest()
+    {
+        var request = new TorrentCreationRequest { Path = "   " };
+        var result = await this.controller.CreateTorrent(request);
+
+        var badRequestResult = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        var creationResult = badRequestResult.Value.Should().BeOfType<TorrentCreationResult>().Subject;
+        creationResult.Success.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CreateTorrent_WhenServiceReturnsResult_ReturnsOkWithResult()
+    {
+        var request = new TorrentCreationRequest
+        {
+            Path = "/data/test.mkv",
+            Name = "test",
+            IsPrivate = true,
+            Trackers = new List<string> { "http://tracker.example.com/announce" },
+        };
+
+        var expectedResult = new TorrentCreationResult
+        {
+            Success = true,
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            TotalSize = 1048576,
+            PieceCount = 4,
+            PieceLength = 262144,
+            OutputPath = "/data/test.torrent",
+        };
+
+        this.torrentCreationService.CreateTorrentAsync(request).Returns(Task.FromResult(expectedResult));
+
+        var result = await this.controller.CreateTorrent(request);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var actualResult = okResult.Value.Should().BeOfType<TorrentCreationResult>().Subject;
+        actualResult.Should().BeEquivalentTo(expectedResult);
     }
 }
