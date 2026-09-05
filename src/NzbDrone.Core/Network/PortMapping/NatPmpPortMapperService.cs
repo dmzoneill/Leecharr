@@ -129,6 +129,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             if (lifetimeSeconds > 0)
             {
+                if (Interlocked.CompareExchange(ref this.isRunning, 1, 0) == 0)
+                {
+                    this.renewalTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                }
+
                 var renewalDelaySeconds = Math.Max(30, result.LifetimeSeconds / 2);
                 var active = new ActivePortMapping
                 {
@@ -536,6 +541,18 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 "NAT-PMP gateway epoch decreased from {0} to {1} (gateway reboot detected).",
                 this.lastObservedEpoch.Value,
                 epoch);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await this.RenewAllMappingsAsync(force: true).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error re-creating NAT-PMP mappings after gateway reboot");
+                }
+            });
         }
 
         this.lastObservedEpoch = epoch;
