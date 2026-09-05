@@ -7,6 +7,7 @@ using FluentValidation;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Ai;
+using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Security;
 
@@ -307,9 +308,13 @@ public class SimulationConfigController : ConfigController<SimulationConfigResou
 [V1ApiController("config/trackerserver")]
 public class TrackerServerConfigController : ConfigController<TrackerServerConfigResource>
 {
-    public TrackerServerConfigController(IConfigService configService)
+    private readonly IUdpTrackerService udpTrackerService;
+
+    public TrackerServerConfigController(IConfigService configService, IUdpTrackerService udpTrackerService = null)
         : base(configService)
     {
+        this.udpTrackerService = udpTrackerService;
+
         this.SharedValidator.RuleFor(c => c.TrackerHttpPort)
             .InclusiveBetween(1, 65535);
 
@@ -324,6 +329,43 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
 
         this.SharedValidator.RuleFor(c => c.TrackerRateLimitPerMinute)
             .GreaterThanOrEqualTo(1);
+    }
+
+    public override ActionResult<TrackerServerConfigResource> SaveConfig([FromBody] TrackerServerConfigResource resource)
+    {
+        var result = base.SaveConfig(resource);
+
+        if (this.udpTrackerService != null)
+        {
+            if (resource != null && resource.TrackerServerEnabled && resource.TrackerUdpEnabled)
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.udpTrackerService.RestartAsync();
+                    }
+                    catch
+                    {
+                    }
+                });
+            }
+            else
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.udpTrackerService.StopAsync();
+                    }
+                    catch
+                    {
+                    }
+                });
+            }
+        }
+
+        return result;
     }
 
     protected override TrackerServerConfigResource ToResource(IConfigService model)

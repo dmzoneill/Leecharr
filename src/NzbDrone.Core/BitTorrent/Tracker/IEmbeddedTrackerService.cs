@@ -33,6 +33,43 @@ public class TrackerAnnounceRequest
     public int NumWant { get; set; } = 50;
 }
 
+public class TrackerAnnounceResult
+{
+    public bool Success { get; set; }
+
+    public string FailureReason { get; set; }
+
+    public int Interval { get; set; }
+
+    public int MinInterval { get; set; }
+
+    public int Seeders { get; set; }
+
+    public int Leechers { get; set; }
+
+    public IReadOnlyList<TrackerPeerState> Peers { get; set; } = Array.Empty<TrackerPeerState>();
+}
+
+public class TrackerScrapeItem
+{
+    public byte[] InfoHash { get; set; }
+
+    public int Seeders { get; set; }
+
+    public long Downloaded { get; set; }
+
+    public int Leechers { get; set; }
+}
+
+public class TrackerScrapeResult
+{
+    public bool Success { get; set; }
+
+    public string FailureReason { get; set; }
+
+    public IReadOnlyList<TrackerScrapeItem> Files { get; set; } = Array.Empty<TrackerScrapeItem>();
+}
+
 public interface IEmbeddedTrackerService
 {
     bool IsEnabled { get; }
@@ -46,6 +83,10 @@ public interface IEmbeddedTrackerService
     byte[] ProcessAnnounce(TrackerAnnounceRequest request);
 
     byte[] ProcessScrape(List<byte[]> infoHashList);
+
+    TrackerAnnounceResult Announce(TrackerAnnounceRequest request);
+
+    TrackerScrapeResult Scrape(List<byte[]> infoHashList);
 
     void RegisterSwarm(string infoHashHex);
 
