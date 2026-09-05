@@ -21,12 +21,15 @@ ctrl_pipe = sys.argv[4] if len(sys.argv) > 4 else None
 
 master, slave = pty.openpty()
 winsize = struct.pack('HHHH', rows, cols, 0, 0)
-fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+try:
+    fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+except:
+    pass
 
 ctrl_fd = None
 if ctrl_pipe and os.path.exists(ctrl_pipe):
     try:
-        ctrl_fd = os.open(ctrl_pipe, os.O_RDWR)
+        ctrl_fd = os.open(ctrl_pipe, os.O_RDWR | os.O_NONBLOCK)
     except:
         ctrl_fd = None
 
@@ -37,35 +40,61 @@ if pid == 0:
             os.close(ctrl_fd)
         except:
             pass
-    os.close(master)
+    try:
+        os.close(master)
+    except:
+        pass
     os.setsid()
+    try:
+        fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+    except:
+        pass
     os.dup2(slave, 0)
     os.dup2(slave, 1)
     os.dup2(slave, 2)
-    if slave > 2:
-        os.close(slave)
+    try:
+        max_fd = os.sysconf('SC_OPEN_MAX')
+    except:
+        max_fd = 1024
+    try:
+        os.closerange(3, max_fd)
+    except:
+        pass
     try:
         os.chdir(cwd)
     except:
         pass
     os.environ['TERM'] = 'xterm-256color'
     os.environ['COLORTERM'] = 'truecolor'
+    if 'LANG' not in os.environ:
+        os.environ['LANG'] = 'en_US.UTF-8'
+    shell_bin = '/bin/bash' if os.path.exists('/bin/bash') else '/bin/sh'
+    shell_name = os.path.basename(shell_bin)
     try:
-        os.execlp('/bin/bash', '/bin/bash', '-i')
+        os.execlp(shell_bin, shell_name, '-i')
     except:
-        os.execlp('/bin/sh', '/bin/sh', '-i')
+        os.execlp('/bin/sh', 'sh', '-i')
 else:
-    os.close(slave)
+    try:
+        os.close(slave)
+    except:
+        pass
     rfds = [0, master]
     if ctrl_fd is not None:
         rfds.append(ctrl_fd)
     while True:
-        r, _, _ = select.select(rfds, [], [])
+        try:
+            r, _, _ = select.select(rfds, [], [])
+        except (InterruptedError, select.error):
+            continue
         if 0 in r:
-            data = os.read(0, 4096)
-            if not data:
+            try:
+                data = os.read(0, 4096)
+                if not data:
+                    break
+                os.write(master, data)
+            except OSError:
                 break
-            os.write(master, data)
         if master in r:
             try:
                 data = os.read(master, 4096)
@@ -84,7 +113,10 @@ else:
                             parts = line.split(':')
                             r_rows, r_cols = int(parts[0]), int(parts[1])
                             winsize = struct.pack('HHHH', r_rows, r_cols, 0, 0)
-                            fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+                            try:
+                                fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+                            except:
+                                pass
                             try:
                                 os.kill(pid, signal.SIGWINCH)
                             except:

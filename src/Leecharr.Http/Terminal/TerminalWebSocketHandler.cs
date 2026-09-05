@@ -77,6 +77,28 @@ public static class TerminalWebSocketHandler
         await using var session = ptyService.CreateSession(cwd, cols, rows);
 
         using var cts = new CancellationTokenSource();
+        var sendLock = new SemaphoreSlim(1, 1);
+
+        async Task SafeSendTextAsync(string text, CancellationToken ct)
+        {
+            var bytes = Encoding.UTF8.GetBytes(text);
+            await sendLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(bytes),
+                        WebSocketMessageType.Text,
+                        true,
+                        ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                sendLock.Release();
+            }
+        }
 
         var readPtyTask = Task.Run(async () =>
         {
@@ -93,13 +115,7 @@ public static class TerminalWebSocketHandler
 
                     string text = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     var payload = JsonSerializer.Serialize(new { type = "output", data = text });
-                    var sendBytes = Encoding.UTF8.GetBytes(payload);
-
-                    await webSocket.SendAsync(
-                        new ArraySegment<byte>(sendBytes),
-                        WebSocketMessageType.Text,
-                        true,
-                        cts.Token);
+                    await SafeSendTextAsync(payload, cts.Token);
                 }
             }
             catch
@@ -119,16 +135,29 @@ public static class TerminalWebSocketHandler
             {
                 while (!cts.IsCancellationRequested && webSocket.State == WebSocketState.Open)
                 {
-                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                    using var ms = new MemoryStream();
+                    WebSocketReceiveResult result;
+                    do
+                    {
+                        result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            break;
+                        }
+
+                        ms.Write(buffer, 0, result.Count);
+                    }
+                    while (!result.EndOfMessage);
+
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         break;
                     }
 
-                    if (result.Count > 0)
+                    if (ms.Length > 0)
                     {
-                        string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        using var doc = JsonDocument.Parse(json);
+                        ms.Seek(0, SeekOrigin.Begin);
+                        using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: cts.Token);
                         var root = doc.RootElement;
 
                         if (root.TryGetProperty("type", out var typeProp))
@@ -151,12 +180,7 @@ public static class TerminalWebSocketHandler
                             }
                             else if (type == "ping")
                             {
-                                var pong = Encoding.UTF8.GetBytes("{\"type\":\"pong\"}");
-                                await webSocket.SendAsync(
-                                    new ArraySegment<byte>(pong),
-                                    WebSocketMessageType.Text,
-                                    true,
-                                    cts.Token);
+                                await SafeSendTextAsync("{\"type\":\"pong\"}", cts.Token);
                             }
                         }
                     }
@@ -179,12 +203,7 @@ public static class TerminalWebSocketHandler
         {
             if (webSocket.State == WebSocketState.Open)
             {
-                var exitMsg = Encoding.UTF8.GetBytes("{\"type\":\"exit\"}");
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(exitMsg),
-                    WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None);
+                await SafeSendTextAsync("{\"type\":\"exit\"}", CancellationToken.None);
 
                 await webSocket.CloseAsync(
                     WebSocketCloseStatus.NormalClosure,
@@ -195,6 +214,10 @@ public static class TerminalWebSocketHandler
         catch
         {
             // Ignored on socket close
+        }
+        finally
+        {
+            sendLock.Dispose();
         }
 
         session.Kill();

@@ -114,4 +114,36 @@ public class PtyTerminalServiceTest
 
         session.Kill();
     }
+
+    [Test]
+    public async Task CreateSession_SpawnsInteractiveShell_EmitsStartupPromptWithoutInput()
+    {
+        var service = new PtyTerminalService();
+        await using var session = service.CreateSession("/tmp", 80, 24);
+
+        session.Should().NotBeNull();
+        session.IsActive.Should().BeTrue();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var buffer = new byte[2048];
+        var sb = new StringBuilder();
+
+        while (!cts.IsCancellationRequested && sb.Length < 100)
+        {
+            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            if (bytesRead <= 0)
+            {
+                break;
+            }
+
+            sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+            if (sb.Length > 0)
+            {
+                break;
+            }
+        }
+
+        sb.Length.Should().BeGreaterThan(0);
+        session.Kill();
+    }
 }
