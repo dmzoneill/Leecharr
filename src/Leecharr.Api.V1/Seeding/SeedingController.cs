@@ -82,7 +82,7 @@ public class SeedingController : Controller
         var totalDown = torrents.Sum(t => t.Downloaded);
         var totalUp = torrents.Sum(t => t.Uploaded);
         var globalRatio = totalDown > 0 ? (double)totalUp / totalDown : 0.0;
-        var avgRatio = totalDown > 0 ? (double)totalUp / totalDown : (torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0);
+        var avgRatio = torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0;
 
         RecordSample(torrents);
 
@@ -188,9 +188,7 @@ public class SeedingController : Controller
             var totalUp = torrents.Sum(t => t.UploadSpeed);
             var activeCount = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
             var totalPeers = torrents.Sum(t => t.Seeders + t.Leechers);
-            var totalBytesDown = torrents.Sum(t => t.Downloaded);
-            var totalBytesUp = torrents.Sum(t => t.Uploaded);
-            var avgRatio = totalBytesDown > 0 ? (double)totalBytesUp / totalBytesDown : (torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0);
+            var avgRatio = torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0;
 
             GlobalHistory.Enqueue(new SpeedSnapshotResource
             {
@@ -205,6 +203,15 @@ public class SeedingController : Controller
             while (GlobalHistory.Count > 120)
             {
                 GlobalHistory.TryDequeue(out _);
+            }
+
+            var activeIds = new HashSet<int>(torrents.Select(t => t.Id));
+            foreach (var key in TorrentHistories.Keys)
+            {
+                if (!activeIds.Contains(key))
+                {
+                    TorrentHistories.TryRemove(key, out _);
+                }
             }
 
             foreach (var t in torrents)
