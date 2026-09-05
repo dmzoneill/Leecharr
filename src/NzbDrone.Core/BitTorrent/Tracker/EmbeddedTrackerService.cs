@@ -233,6 +233,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
         var eligiblePeers = swarm.Peers.Values
             .Where(p => !Equals(p.Ip, request.RemoteIp) || p.Port != request.Port)
+            .Where(p => request.Left != 0 || !p.IsSeeder)
             .ToArray();
 
         Random.Shared.Shuffle(eligiblePeers);
@@ -248,6 +249,17 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         if (!this.IsEnabled)
         {
             return FailureResponse("Embedded tracker is disabled.");
+        }
+
+        if (this.configService?.TrackerEnableScrape == false)
+        {
+            return FailureResponse("Scrape is disabled.");
+        }
+
+        if (this.configService?.TrackerPrivateMode == true &&
+            (infoHashList == null || infoHashList.Count == 0))
+        {
+            return FailureResponse("Wildcard scrape not allowed on private tracker.");
         }
 
         var filesDict = new BEncodedDictionary();
