@@ -564,6 +564,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             () => Interlocked.Increment(ref this.blockedPeersCount));
         this.tasks[torrent.Id] = downloadTask;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
+        if (manager.InfoHashes?.V1 != null)
+        {
+            this.infoHashToId[manager.InfoHashes.V1.ToHex()] = torrent.Id;
+        }
+
+        if (manager.InfoHashes?.V2 != null)
+        {
+            this.infoHashToId[manager.InfoHashes.V2.ToHex()] = torrent.Id;
+        }
 
         manager.TorrentStateChanged += this.OnTorrentStateChanged;
         manager.PieceHashed += this.OnPieceHashed;
@@ -597,6 +606,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.tasks.TryRemove(torrentId, out var task))
         {
             this.infoHashToId.TryRemove(task.InfoHash, out _);
+            if (task.Manager?.InfoHashes?.V1 != null)
+            {
+                this.infoHashToId.TryRemove(task.Manager.InfoHashes.V1.ToHex(), out _);
+            }
+
+            if (task.Manager?.InfoHashes?.V2 != null)
+            {
+                this.infoHashToId.TryRemove(task.Manager.InfoHashes.V2.ToHex(), out _);
+            }
+
             task.UnhookEvents();
 
             if (task.Manager != null)
