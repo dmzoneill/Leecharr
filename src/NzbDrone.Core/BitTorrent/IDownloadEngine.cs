@@ -26,6 +26,8 @@ public interface IDownloadEngine
 
     Task ResumeTorrentAsync(int torrentId);
 
+    Task ResumeAllTorrentsAsync() => Task.CompletedTask;
+
     Task ForceRecheckAsync(int torrentId);
 
     Task ForceAnnounceAsync(int torrentId);
