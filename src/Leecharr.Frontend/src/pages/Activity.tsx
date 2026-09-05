@@ -35,6 +35,9 @@ function Activity() {
   });
 
   const seededRef = useRef(false);
+  const lastStatsRef = useRef<typeof stats>(undefined);
+  const torrentsRef = useRef(torrents);
+  torrentsRef.current = torrents;
 
   useEffect(() => {
     if (!serverHistory || seededRef.current) return;
@@ -59,12 +62,13 @@ function Activity() {
   }, [serverHistory]);
 
   useEffect(() => {
-    if (!stats) return;
+    if (!stats || stats === lastStatsRef.current) return;
+    lastStatsRef.current = stats;
 
     const upSpeed = sanitizeNumber(stats.uploadSpeed);
     const downSpeed = sanitizeNumber(stats.downloadSpeed);
 
-    const totalPeers = (torrents ?? []).reduce(
+    const totalPeers = (torrentsRef.current ?? []).reduce(
       (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
       0
     );
@@ -85,7 +89,7 @@ function Activity() {
       ratio: push(curr.ratio, sanitizeNumber(stats.averageRatio ?? stats.globalRatio)),
       networkActivity: push(curr.networkActivity, upSpeed + downSpeed),
     }));
-  }, [stats, torrents]);
+  }, [stats]);
 
   const currentUpload =
     history.uploadSpeed.length > 0 ? history.uploadSpeed[history.uploadSpeed.length - 1] : 0;
