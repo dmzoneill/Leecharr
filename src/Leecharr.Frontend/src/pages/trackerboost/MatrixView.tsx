@@ -22,7 +22,7 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
       const q = matrixSearch.toLowerCase();
       const meta = torrentMetaMap.get((t.infoHash || "").toLowerCase());
       return (
-        t.torrentName.toLowerCase().includes(q) ||
+        (t.torrentName || "").toLowerCase().includes(q) ||
         (meta?.mediaTitle && meta.mediaTitle.toLowerCase().includes(q)) ||
         (t.infoHash || "").toLowerCase().includes(q) ||
         (t.trackers || []).some((tr) =>

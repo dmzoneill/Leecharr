@@ -118,7 +118,7 @@ export function TrackerBoost() {
 
   const handleInspectTorrent = (infoHash: string) => {
     const targetKey = unifiedItems.find(
-      (u) => u.infoHash.toLowerCase() === infoHash.toLowerCase()
+      (u) => (u.infoHash || "").toLowerCase() === (infoHash || "").toLowerCase()
     )?.key;
     if (targetKey) setSelectedKey(targetKey);
     setActiveTab("booster");
