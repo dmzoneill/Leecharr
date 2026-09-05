@@ -120,4 +120,68 @@ public class SpeedSchedulerServiceTest
         var daytimeLimits = this.service.GetCurrentLimits(new DateTime(2026, 9, 1, 10, 0, 0));
         daytimeLimits.IsThrottled.Should().BeFalse();
     }
+
+    [Test]
+    public void GetCurrentLimits_WhenScheduleThrottlesOnlyDownload_UploadFallsBackToGlobalLimit()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Download Only Throttling",
+                Days = 127,
+                StartTime = "09:00:00",
+                EndTime = "17:00:00",
+                MaxDownloadSpeed = 2000,
+                MaxUploadSpeed = 0, // Unconstrained by schedule
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+
+        limits.MaxDownloadSpeedKbps.Should().Be(2000);
+        limits.MaxUploadSpeedKbps.Should().Be(20000); // Falls back to configService.MaxUploadSpeedKbps
+        limits.IsThrottled.Should().BeTrue();
+
+        this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
+            .Should().Be(2000);
+        this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
+            .Should().Be(20000);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenScheduleThrottlesOnlyUpload_DownloadFallsBackToGlobalLimit()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Upload Only Throttling",
+                Days = 127,
+                StartTime = "09:00:00",
+                EndTime = "17:00:00",
+                MaxDownloadSpeed = 0, // Unconstrained by schedule
+                MaxUploadSpeed = 300,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+
+        limits.MaxDownloadSpeedKbps.Should().Be(50000); // Falls back to configService.MaxDownloadSpeedKbps
+        limits.MaxUploadSpeedKbps.Should().Be(300);
+        limits.IsThrottled.Should().BeTrue();
+
+        this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
+            .Should().Be(50000);
+        this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
+            .Should().Be(300);
+    }
 }
