@@ -1106,7 +1106,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/removeTrackers")]
-    public ActionResult RemoveTrackers([FromForm] string hash, [FromForm] string urls)
+    public async Task<ActionResult> RemoveTrackers([FromForm] string hash, [FromForm] string urls)
     {
         if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
         {
@@ -1116,6 +1116,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var urlSet = urls.Split('|', StringSplitOptions.RemoveEmptyEntries)
                     .Select(u => u.Trim())
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (this.downloadEngine != null)
+                {
+                    await this.downloadEngine.RemoveTrackersAsync(torrent.Id, urlSet);
+                }
 
                 var existing = this.trackerEntryRepository.GetByTorrentId(torrent.Id);
                 foreach (var t in existing.Where(t => urlSet.Contains(t.Url)))
