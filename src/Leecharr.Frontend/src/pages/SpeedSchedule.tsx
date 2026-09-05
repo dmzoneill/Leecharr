@@ -442,7 +442,9 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
               {String(hour).padStart(2, "0")}:00
             </div>
             {DAY_FLAGS.map((day) => {
-              const active = schedules.filter((s) => isHourInSchedule(s, hour, day.value));
+              const active = schedules
+                .filter((s) => isHourInSchedule(s, hour, day.value))
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
               const top = active[0];
               return (
                 <div
@@ -548,7 +550,9 @@ export function SpeedSchedule() {
   const now = new Date();
   const currentHour = now.getHours() + now.getMinutes() / 60;
   const currentDayFlag = 1 << now.getDay();
-  const activeSchedule = schedules?.find((s) => isHourInSchedule(s, currentHour, currentDayFlag));
+  const activeSchedule = schedules
+    ?.filter((s) => isHourInSchedule(s, currentHour, currentDayFlag))
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0];
   const activeScheduleName =
     activeLimits?.activeScheduleName ||
     activeSchedule?.name ||

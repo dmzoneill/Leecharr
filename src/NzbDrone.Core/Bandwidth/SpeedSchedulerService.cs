@@ -67,7 +67,9 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             try
             {
                 var limits = this.GetCurrentLimits();
-                await this.downloadEngine.SetRateLimitsAsync(limits.MaxDownloadSpeedKbps, limits.MaxUploadSpeedKbps);
+                var downloadLimit = limits.IsPaused && limits.MaxDownloadSpeedKbps <= 0 ? 1 : limits.MaxDownloadSpeedKbps;
+                var uploadLimit = limits.IsPaused && limits.MaxUploadSpeedKbps <= 0 ? 1 : limits.MaxUploadSpeedKbps;
+                await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
             }
             catch (Exception ex)
             {

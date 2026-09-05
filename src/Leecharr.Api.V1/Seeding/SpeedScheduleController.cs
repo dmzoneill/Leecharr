@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Bandwidth;
@@ -54,7 +55,7 @@ public class SpeedScheduleController : Controller
     }
 
     [HttpPost]
-    public ActionResult<SpeedScheduleResource> Create([FromBody] SpeedScheduleResource resource)
+    public async Task<ActionResult<SpeedScheduleResource>> Create([FromBody] SpeedScheduleResource resource)
     {
         if (resource == null)
         {
@@ -63,11 +64,12 @@ public class SpeedScheduleController : Controller
 
         var model = ToModel(resource);
         var created = this.speedScheduleRepository.Insert(model);
+        await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         return this.Ok(ToResource(created));
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult<SpeedScheduleResource> Update(int id, [FromBody] SpeedScheduleResource resource)
+    public async Task<ActionResult<SpeedScheduleResource>> Update(int id, [FromBody] SpeedScheduleResource resource)
     {
         if (resource == null)
         {
@@ -83,13 +85,15 @@ public class SpeedScheduleController : Controller
         var model = ToModel(resource);
         model.Id = id;
         this.speedScheduleRepository.Update(model);
+        await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
-    public ActionResult Delete(int id)
+    public async Task<ActionResult> Delete(int id)
     {
         this.speedScheduleRepository.Delete(id);
+        await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         return this.Ok();
     }
 
