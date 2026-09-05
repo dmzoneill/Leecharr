@@ -52,6 +52,28 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         try
         {
             var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            // Test if process has CAP_NET_RAW capability for SO_BINDTODEVICE (option 25)
+            try
+            {
+                using var testSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                var loBytes = Encoding.ASCII.GetBytes("lo\0");
+                testSocket.SetRawSocketOption((int)SocketOptionLevel.Socket, SoBindToDevice, loBytes);
+            }
+            catch (SocketException sex) when (sex.SocketErrorCode == SocketError.AccessDenied || sex.NativeErrorCode == 1)
+            {
+                return Task.FromResult(new NetworkBindingHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = "Linux SO_BINDTODEVICE requires CAP_NET_RAW permission (EPERM / Access Denied).",
+                    Warnings = { "Process lacks CAP_NET_RAW capability required for SO_BINDTODEVICE kernel binding. Grant CAP_NET_RAW or run as root/privileged container." },
+                });
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Capability probe non-fatal exception during SO_BINDTODEVICE test");
+            }
+
             return Task.FromResult(new NetworkBindingHealthCheckResult
             {
                 IsHealthy = true,
@@ -94,7 +116,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to apply SO_BINDTODEVICE on interface '{0}', falling back to standard bind", interfaceName);
+            this.logger.Warn(ex, "Failed to apply SO_BINDTODEVICE on interface '{0}'", interfaceName);
             throw;
         }
     }
