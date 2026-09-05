@@ -56,6 +56,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             return false;
         }
 
+        if (parsedIp.IsIPv4MappedToIPv6)
+        {
+            parsedIp = parsedIp.MapToIPv4();
+        }
+
         if (parsedIp.AddressFamily == AddressFamily.InterNetwork)
         {
             return this.IsIpv4Blocked(parsedIp);
@@ -95,24 +100,32 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
             // Extract rule (support "name:IP/CIDR" or "IP/CIDR" or "IP")
             var token = line;
-            var colonIdx = line.IndexOf(':');
-            if (colonIdx >= 0 && !line.Contains("::"))
+            if (!TryParseCidr(token, out var ip, out var prefixLength))
             {
-                token = line[(colonIdx + 1)..].Trim();
+                var colonIdx = line.IndexOf(':');
+                if (colonIdx >= 0)
+                {
+                    token = line[(colonIdx + 1)..].Trim();
+                    if (!TryParseCidr(token, out ip, out prefixLength))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    continue;
+                }
             }
 
-            if (TryParseCidr(token, out var ip, out var prefixLength))
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    InsertIpv4(newIpv4Root, ip, prefixLength);
-                    added++;
-                }
-                else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-                {
-                    InsertIpv6(newIpv6Root, ip, prefixLength);
-                    added++;
-                }
+                InsertIpv4(newIpv4Root, ip, prefixLength);
+                added++;
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                InsertIpv6(newIpv6Root, ip, prefixLength);
+                added++;
             }
         }
 
@@ -257,6 +270,15 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
             if (IPAddress.TryParse(ipStr, out ip) && int.TryParse(lenStr, out prefixLength))
             {
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                    if (prefixLength > 96)
+                    {
+                        prefixLength -= 96;
+                    }
+                }
+
                 var maxLen = ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
                 return prefixLength >= 0 && prefixLength <= maxLen;
             }
@@ -266,6 +288,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
         if (IPAddress.TryParse(cidr, out ip))
         {
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
             prefixLength = ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
             return true;
         }
