@@ -54,6 +54,21 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       } else if (typeof data?.pieceIndex === "number") {
         verified.add(data.pieceIndex);
       }
+      if (typeof data?.bitfield === "string" && data.bitfield.length > 0) {
+        try {
+          const binary = atob(data.bitfield);
+          for (let i = 0; i < binary.length; i++) {
+            const byte = binary.charCodeAt(i);
+            for (let bit = 0; bit < 8; bit++) {
+              if ((byte & (1 << (7 - bit))) !== 0) {
+                verified.add(i * 8 + bit);
+              }
+            }
+          }
+        } catch {
+          // ignore invalid bitfield
+        }
+      }
       return {
         pieceMaps: {
           ...state.pieceMaps,

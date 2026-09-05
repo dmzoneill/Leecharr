@@ -327,6 +327,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               isSeeding={
                 (currentTorrent.status || "").toLowerCase() === "seeding"
               }
+              bitfield={currentTorrent.bitfield}
             />
           )}
           {tab === "monitoring" && (
