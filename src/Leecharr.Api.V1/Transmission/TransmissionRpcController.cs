@@ -888,12 +888,13 @@ public class TransmissionRpcController : ControllerBase
         };
 
         var needsFiles = requestedFields == null || requestedFields.Count == 0 ||
-            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count");
+            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count") || requestedFields.Contains("sizeWhenDone") || requestedFields.Contains("leftUntilDone");
 
         List<Dictionary<string, object>> filesList;
         List<Dictionary<string, object>> fileStats;
         List<int> priorities;
         int fileCount;
+        long sizeWhenDone;
 
         if (needsFiles)
         {
@@ -917,6 +918,7 @@ public class TransmissionRpcController : ControllerBase
             }).ToList();
 
             priorities = files.Select(f => f.Priority).ToList();
+            sizeWhenDone = files.Count > 0 ? files.Where(f => f.Priority > 0).Sum(f => f.Size) : t.TotalSize;
         }
         else
         {
@@ -924,7 +926,11 @@ public class TransmissionRpcController : ControllerBase
             fileStats = new List<Dictionary<string, object>>();
             priorities = new List<int>();
             fileCount = 0;
+            sizeWhenDone = t.TotalSize;
         }
+
+        var haveValid = (long)(t.TotalSize * t.Progress);
+        var leftUntilDone = Math.Max(0, sizeWhenDone - (long)(sizeWhenDone * t.Progress));
 
         var labels = string.IsNullOrWhiteSpace(t.Category)
             ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
@@ -942,15 +948,19 @@ public class TransmissionRpcController : ControllerBase
             { "status", statusNum },
             { "percentDone", t.Progress },
             { "totalSize", t.TotalSize },
-            { "leftUntilDone", Math.Max(0, t.TotalSize - t.Downloaded) },
+            { "sizeWhenDone", sizeWhenDone },
+            { "leftUntilDone", leftUntilDone },
+            { "haveValid", haveValid },
+            { "haveUnchecked", 0L },
             { "downloadedEver", t.Downloaded },
             { "uploadedEver", t.Uploaded },
             { "rateDownload", t.DownloadSpeed },
             { "rateUpload", t.UploadSpeed },
             { "eta", t.Eta },
             { "uploadRatio", t.Ratio },
-            { "peersConnected", t.Leechers },
+            { "peersConnected", t.Seeders + t.Leechers },
             { "peersSendingToUs", t.Seeders },
+            { "peersGettingFromUs", t.Leechers },
             { "isFinished", t.Progress >= 1.0 },
             { "downloadDir", t.SavePath ?? string.Empty },
             { "labels", labels },
