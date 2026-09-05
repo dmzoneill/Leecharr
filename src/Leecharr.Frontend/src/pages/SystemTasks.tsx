@@ -32,6 +32,9 @@ function formatTaskName(typeName: string): string {
 }
 
 function formatInterval(minutes: number): string {
+  if (minutes < 1) {
+    return `${Math.round(minutes * 60)} seconds`;
+  }
   if (minutes < 60) {
     return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   }
@@ -49,6 +52,9 @@ function formatInterval(minutes: number): string {
 function formatRelativeTime(dateStr?: string | null): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
+  if (isNaN(date.getTime()) || date.getFullYear() < 1970) {
+    return "-";
+  }
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const absDiff = Math.abs(diffMs);
