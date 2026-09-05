@@ -32,6 +32,7 @@ public class SubsystemsController : Controller
     private readonly IHttpTransportManager httpTransportManager;
     private readonly IAiManager aiManager;
     private readonly ISystemResourceService resourceService;
+    private readonly IBlocklistUpdateService blocklistUpdateService;
 
     public SubsystemsController(
         ITorrentEngineManager torrentEngineManager,
@@ -43,7 +44,8 @@ public class SubsystemsController : Controller
         IMediaMetadataManager mediaMetadataManager,
         IHttpTransportManager httpTransportManager,
         IAiManager aiManager,
-        ISystemResourceService resourceService)
+        ISystemResourceService resourceService,
+        IBlocklistUpdateService blocklistUpdateService = null)
     {
         this.torrentEngineManager = torrentEngineManager;
         this.extractorManager = extractorManager;
@@ -55,6 +57,23 @@ public class SubsystemsController : Controller
         this.httpTransportManager = httpTransportManager;
         this.aiManager = aiManager;
         this.resourceService = resourceService;
+        this.blocklistUpdateService = blocklistUpdateService;
+    }
+
+    [HttpPost("blocklist/update")]
+    public async Task<IActionResult> UpdateBlocklistRules()
+    {
+        var loaded = this.blocklistUpdateService != null
+            ? await this.blocklistUpdateService.UpdateRulesAsync()
+            : 0;
+
+        return this.Ok(new
+        {
+            success = true,
+            rulesLoaded = loaded,
+            activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
+            activeProvider = this.blocklistManager.ActiveProviderId,
+        });
     }
 
     [HttpGet("metrics")]
@@ -496,6 +515,7 @@ public class SubsystemsController : Controller
     private SubsystemOverviewResource BuildBlocklistSubsystem()
     {
         var activeId = this.blocklistManager.ActiveProviderId;
+        var totalRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0;
         return new SubsystemOverviewResource
         {
             Id = "blocklist",
@@ -503,6 +523,7 @@ public class SubsystemsController : Controller
             Category = "Network & Security",
             Description = "Filters malicious peer IP addresses, ranges, and CIDR subnets before establishing connections.",
             ActiveProviderId = activeId,
+            RuleCount = totalRules,
             Providers = this.blocklistManager.GetProviders().Select(p => new SubsystemProviderResource
             {
                 ProviderId = p.ProviderId,
@@ -517,7 +538,8 @@ public class SubsystemsController : Controller
                     ["supportsIPv4"] = p.Capabilities.HasFlag(BlocklistCapabilities.IPv4),
                     ["supportsIPv6"] = p.Capabilities.HasFlag(BlocklistCapabilities.IPv6),
                     ["supportsCidr"] = p.Capabilities.HasFlag(BlocklistCapabilities.Cidr),
-                    ["supportsLinuxIpSet"] = p.Capabilities.HasFlag(BlocklistCapabilities.LinuxIpSet)
+                    ["supportsLinuxIpSet"] = p.Capabilities.HasFlag(BlocklistCapabilities.LinuxIpSet),
+                    ["ruleCount"] = p.RuleCount
                 }
             }).ToList(),
         };
