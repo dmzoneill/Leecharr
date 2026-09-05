@@ -152,6 +152,12 @@ public class TransmissionRpcController : ControllerBase
                             { "speed-limit-down-enabled", this.configService.MaxDownloadSpeedKbps > 0 },
                             { "speed-limit-up-enabled", this.configService.MaxUploadSpeedKbps > 0 },
                             { "peer-port", this.configService.ListeningPort },
+                            { "script-torrent-done-filename", this.configService.ScriptTorrentDoneFilename ?? string.Empty },
+                            { "script-torrent-done-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename) },
+                            { "script-torrent-added-filename", this.configService.ScriptTorrentAddedFilename ?? string.Empty },
+                            { "script-torrent-added-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentAddedFilename) },
+                            { "script-torrent-done-seeding-filename", this.configService.ScriptTorrentDoneSeedingFilename ?? string.Empty },
+                            { "script-torrent-done-seeding-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneSeedingFilename) },
                         },
                         Tag = tag,
                     });
@@ -199,6 +205,21 @@ public class TransmissionRpcController : ControllerBase
                         if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
                         {
                             updates["ListeningPort"] = peerPort.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("script-torrent-done-filename", out var doneFile) && doneFile.ValueKind == JsonValueKind.String)
+                        {
+                            updates["ScriptTorrentDoneFilename"] = doneFile.GetString();
+                        }
+
+                        if (request.Arguments.TryGetValue("script-torrent-added-filename", out var addedFile) && addedFile.ValueKind == JsonValueKind.String)
+                        {
+                            updates["ScriptTorrentAddedFilename"] = addedFile.GetString();
+                        }
+
+                        if (request.Arguments.TryGetValue("script-torrent-done-seeding-filename", out var seedingFile) && seedingFile.ValueKind == JsonValueKind.String)
+                        {
+                            updates["ScriptTorrentDoneSeedingFilename"] = seedingFile.GetString();
                         }
 
                         if (updates.Count > 0)
