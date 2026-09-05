@@ -1257,11 +1257,17 @@ public class TrackerBoostService : ITrackerBoostService
 
     private async Task<TorrentTrackerInspectionResult> InspectHashInternalAsync(int torrentId, string torrentName, string infoHash, bool isPrivate)
     {
-        var attachedMap = new Dictionary<string, TrackerEntry>();
+        var attachedMap = new Dictionary<string, TrackerEntry>(StringComparer.OrdinalIgnoreCase);
         if (torrentId > 0)
         {
-            attachedMap = this.trackerEntryRepository.GetByTorrentId(torrentId)
-                .ToDictionary(t => (t.Url ?? string.Empty).Trim().ToLowerInvariant(), t => t);
+            foreach (var entry in this.trackerEntryRepository.GetByTorrentId(torrentId))
+            {
+                var clean = (entry.Url ?? string.Empty).Trim();
+                if (!string.IsNullOrEmpty(clean))
+                {
+                    attachedMap[clean] = entry;
+                }
+            }
         }
 
         var allKnownTrackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
