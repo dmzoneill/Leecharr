@@ -53,6 +53,7 @@ public class AuthController : ControllerBase
     public ActionResult<List<AuthProviderResource>> GetProviders()
     {
         var providers = new List<AuthProviderResource>();
+        var basePath = this.Request.PathBase.HasValue ? this.Request.PathBase.Value : string.Empty;
 
         var enabledProviders = this.identityProviderService.GetEnabled();
         foreach (var p in enabledProviders)
@@ -66,8 +67,8 @@ public class AuthController : ControllerBase
                 IconUrl = p.IconUrl,
                 ButtonText = p.ButtonText ?? $"Sign in with {p.Name}",
                 LoginUrl = p.ProviderType == IdentityProviderType.Saml
-                    ? $"/api/v1/auth/login/saml/{p.ProviderId}"
-                    : $"/api/v1/auth/login/{p.ProviderId}",
+                    ? $"{basePath}/api/v1/auth/login/saml/{p.ProviderId}"
+                    : $"{basePath}/api/v1/auth/login/{p.ProviderId}",
             });
         }
 
@@ -271,7 +272,7 @@ public class AuthController : ControllerBase
             return this.NotFound("SAML Identity Provider not found");
         }
 
-        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}";
+        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
         var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{providerId}";
         var id = "_" + Guid.NewGuid().ToString("N");
         var issueInstant = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -611,7 +612,7 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult GetSamlMetadata()
     {
-        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}";
+        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
         var entityId = $"{baseUrl}/saml/metadata";
         var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml";
 
