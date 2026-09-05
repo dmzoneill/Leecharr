@@ -267,7 +267,10 @@ public class SabnzbdApiController : ControllerBase
 
                 var allTorrents = this.torrentService.GetAll().ToList();
                 var queueSlots = allTorrents
-                    .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
+                    .Where(t => t.Status == TorrentStatus.Downloading ||
+                                t.Status == TorrentStatus.Queued ||
+                                t.Status == TorrentStatus.Paused ||
+                                (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
                     .Select(t =>
                     {
                         var secondsLeft = t.DownloadSpeed > 0 ? (t.TotalSize - t.Downloaded) / t.DownloadSpeed : 0;
@@ -282,7 +285,7 @@ public class SabnzbdApiController : ControllerBase
                             sizeleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2") + " MB",
                             mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2"),
                             mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
-                            status = t.Status == TorrentStatus.Paused ? "Paused" : "Downloading",
+                            status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "Paused" : "Downloading",
                             cat = t.Category ?? "default",
                             priority = "Normal",
                             timeleft = timeleftStr,
@@ -332,7 +335,7 @@ public class SabnzbdApiController : ControllerBase
 
                 var nowUtc = DateTime.UtcNow;
                 var finishedTorrents = this.torrentService.GetAll()
-                    .Where(t => t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed)
+                    .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
                     .Select(t =>
                     {
                         var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
@@ -598,4 +601,10 @@ public class SabnzbdApiController : ControllerBase
             return 1099511627776L;
         }
     }
+
+    private static bool IsComplete(Torrent t) =>
+        t.Progress >= 1.0 ||
+        (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) ||
+        t.Status == TorrentStatus.Completed ||
+        t.Status == TorrentStatus.Seeding;
 }

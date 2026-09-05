@@ -758,10 +758,19 @@ public class NzbgetRpcController : ControllerBase
         };
     }
 
+    private static bool IsComplete(Torrent t) =>
+        t.Progress >= 1.0 ||
+        (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) ||
+        t.Status == TorrentStatus.Completed ||
+        t.Status == TorrentStatus.Seeding;
+
     private List<object> GetListGroups()
     {
         return this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.Paused)
+            .Where(t => t.Status == TorrentStatus.Downloading ||
+                        t.Status == TorrentStatus.Queued ||
+                        t.Status == TorrentStatus.Paused ||
+                        (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
             .Select(t =>
             {
                 var totalMb = (int)(t.TotalSize / (1024 * 1024));
@@ -793,7 +802,7 @@ public class NzbgetRpcController : ControllerBase
                     FileCount = 1,
                     RemainingFileCount = 1,
                     PausedFileCount = 0,
-                    Status = t.Status == TorrentStatus.Paused ? "PAUSED" : "DOWNLOADING",
+                    Status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "PAUSED" : "DOWNLOADING",
                     ActiveDownloads = 1,
                     Parameters = Array.Empty<object>(),
                 };
@@ -803,7 +812,7 @@ public class NzbgetRpcController : ControllerBase
     private List<object> GetHistory()
     {
         return this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
+            .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
             .Select(t =>
             {
                 var totalMb = (int)(t.TotalSize / (1024 * 1024));
