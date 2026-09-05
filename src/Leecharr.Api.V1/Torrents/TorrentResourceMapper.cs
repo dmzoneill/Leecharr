@@ -57,6 +57,7 @@ public static class TorrentResourceMapper
             DateCompleted = model.DateCompleted,
             LastActive = model.LastActive,
             TagIds = model.TagIds,
+            SeedingTime = model.SeedingTimeSeconds,
         };
 
         if (metadata != null)

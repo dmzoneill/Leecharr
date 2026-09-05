@@ -97,6 +97,8 @@ public class TorrentResource : RestResource
 
     public List<int> TagIds { get; set; } = new();
 
+    public long SeedingTime { get; set; }
+
     // Enriched Media Fields
     public string MediaTitle { get; set; }
 

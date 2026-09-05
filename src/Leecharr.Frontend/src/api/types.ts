@@ -41,7 +41,7 @@ export interface Torrent {
   eta: number;
   sortOrder: number;
   forceCompleted: boolean;
-  seedingTime: number;
+  seedingTime?: number;
   queuePosition?: number;
   category?: string | null;
   resolution?: string | null;
