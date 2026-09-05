@@ -273,4 +273,175 @@ public class QBittorrentApiControllerTest
         list[1]["progress"].Should().Be(0.0);
         list[1]["is_seed"].Should().Be(false);
     }
+
+    [Test]
+    public void GetTorrentsInfo_WithHashesAll_ReturnsAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var response = this.controller.GetTorrentsInfo(hashes: "all");
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task PauseTorrents_WithHashesAll_PausesAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.PauseTorrents("all");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).PauseAsync(1);
+        await this.torrentService.Received(1).PauseAsync(2);
+    }
+
+    [Test]
+    public async Task ResumeTorrents_WithHashesAll_ResumesAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.ResumeTorrents("all");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).ResumeAsync(1);
+        await this.torrentService.Received(1).ResumeAsync(2);
+    }
+
+    [Test]
+    public async Task DeleteTorrents_WithHashesAll_DeletesAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.DeleteTorrents("all", deleteFiles: true);
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).DeleteAsync(1, true);
+        await this.torrentService.Received(1).DeleteAsync(2, true);
+    }
+
+    [Test]
+    public async Task RecheckTorrents_WithHashesAll_RechecksAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.RecheckTorrents("all");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).ForceRecheckAsync(1);
+        await this.torrentService.Received(1).ForceRecheckAsync(2);
+    }
+
+    [Test]
+    public async Task SetCategory_WithHashesAll_SetsCategoryOnAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.SetCategory("all", "movies");
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.Category.Should().Be("movies");
+        torrent2.Category.Should().Be("movies");
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.torrentService.Received(1).UpdateAsync(torrent2);
+    }
+
+    [Test]
+    public async Task SetForceStart_WithHashesAll_SetsForceStartOnAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.SetForceStart("all", "true");
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.ForceStart.Should().BeTrue();
+        torrent2.ForceStart.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.torrentService.Received(1).UpdateAsync(torrent2);
+    }
+
+    [Test]
+    public async Task SetSuperSeeding_WithHashesAll_SetsSuperSeedingOnAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.SetSuperSeeding("all", true);
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).SetSuperSeedingAsync(1, true);
+        await this.torrentService.Received(1).SetSuperSeedingAsync(2, true);
+    }
+
+    [Test]
+    public async Task AddAndRemoveTags_WithHashesAll_UpdatesTagsOnAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "oldTag" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2", Label = "oldTag" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var addResult = await this.controller.AddTags("all", "tag1, tag2");
+        addResult.Should().BeOfType<ContentResult>();
+        torrent1.Label.Should().Be("tag1, tag2");
+        torrent2.Label.Should().Be("tag1, tag2");
+
+        var removeResult = await this.controller.RemoveTags("all", "tag1");
+        removeResult.Should().BeOfType<ContentResult>();
+        torrent1.Label.Should().Be("tag2");
+        torrent2.Label.Should().Be("tag2");
+    }
+
+    [Test]
+    public async Task PriorityAndLimits_WithHashesAll_AppliesToAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        await this.controller.TopPrio("all");
+        await this.torrentService.Received(1).MoveQueueAsync(1, "top");
+        await this.torrentService.Received(1).MoveQueueAsync(2, "top");
+
+        await this.controller.BottomPrio("all");
+        await this.torrentService.Received(1).MoveQueueAsync(1, "bottom");
+        await this.torrentService.Received(1).MoveQueueAsync(2, "bottom");
+
+        await this.controller.IncreasePrio("all");
+        await this.torrentService.Received(1).MoveQueueAsync(1, "up");
+        await this.torrentService.Received(1).MoveQueueAsync(2, "up");
+
+        await this.controller.DecreasePrio("all");
+        await this.torrentService.Received(1).MoveQueueAsync(1, "down");
+        await this.torrentService.Received(1).MoveQueueAsync(2, "down");
+
+        await this.controller.SetTorrentDownloadLimit("all", 1048576);
+        torrent1.DownloadLimit.Should().Be(1024);
+        torrent2.DownloadLimit.Should().Be(1024);
+
+        await this.controller.SetTorrentUploadLimit("all", 524288);
+        torrent1.UploadLimit.Should().Be(512);
+        torrent2.UploadLimit.Should().Be(512);
+
+        await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 120, maxRatioAction: 1);
+        torrent1.TargetRatio.Should().Be(2.0);
+        torrent1.TargetSeedTimeMinutes.Should().Be(120);
+        torrent1.ShareLimitAction.Should().Be("Remove");
+    }
 }
