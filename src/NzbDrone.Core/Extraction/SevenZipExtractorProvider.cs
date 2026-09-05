@@ -19,7 +19,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".7z", ".rar", ".zip", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz", ".txz", ".lz", ".z", ".iso", ".cab", ".arj", ".lzh", ".wim",
+        ".7z", ".rar", ".zip", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz", ".txz", ".lz", ".z", ".iso", ".cab", ".arj", ".lzh", ".wim", ".001",
     };
 
     public string ProviderId => "SevenZip";
@@ -79,7 +79,16 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         }
 
         var ext = Path.GetExtension(filePath);
-        return !string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext);
+        if (!string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext))
+        {
+            return true;
+        }
+
+        var fileName = Path.GetFileName(filePath);
+        return fileName.EndsWith(".7z.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".rar.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".tar.001", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
@@ -105,6 +114,8 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        Process process = null;
+
         try
         {
             this.logger.Info("7-Zip extracting '{0}' to '{1}' using '{2}'...", archivePath, targetDir, binary);
@@ -122,15 +133,35 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             startInfo.ArgumentList.Add($"-o{targetDir}");
             startInfo.ArgumentList.Add(archivePath);
 
-            using var process = new Process { StartInfo = startInfo };
+            process = new Process { StartInfo = startInfo };
             process.Start();
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(60));
+            cts.CancelAfter(TimeSpan.FromMinutes(30));
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
             var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
-            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+
+            try
+            {
+                await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
+                }
+                catch
+                {
+                }
+
+                this.logger.Warn("7-Zip extraction of '{0}' was canceled.", archivePath);
+                throw;
+            }
 
             if (process.ExitCode == 0)
             {
@@ -144,13 +175,30 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         }
         catch (OperationCanceledException)
         {
-            this.logger.Warn("7-Zip extraction of '{0}' was canceled.", archivePath);
             throw;
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "7-Zip failed to extract archive: {0}", archivePath);
             return false;
+        }
+        finally
+        {
+            if (process != null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
+                }
+                catch
+                {
+                }
+
+                process.Dispose();
+            }
         }
     }
 

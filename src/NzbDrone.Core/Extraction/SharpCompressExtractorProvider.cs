@@ -20,7 +20,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".rar", ".zip", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz", ".txz", ".lz", ".z",
+        ".rar", ".zip", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz", ".txz", ".lz", ".z", ".001",
     };
 
     public string ProviderId => "SharpCompress";
@@ -69,7 +69,16 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         }
 
         var ext = Path.GetExtension(filePath);
-        return !string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext);
+        if (!string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext))
+        {
+            return true;
+        }
+
+        var fileName = Path.GetFileName(filePath);
+        return fileName.EndsWith(".7z.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".rar.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".tar.001", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
@@ -95,8 +104,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                 cancellationToken.ThrowIfCancellationRequested();
                 this.logger.Info("SharpCompress extracting '{0}' to '{1}'...", archivePath, targetDir);
 
-                using var stream = File.OpenRead(archivePath);
-                using var archive = ArchiveFactory.OpenArchive(stream);
+                using var archive = ArchiveFactory.OpenArchive(archivePath);
 
                 var options = new ExtractionOptions
                 {
