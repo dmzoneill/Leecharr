@@ -35,3 +35,16 @@ public class TorznabCapabilities
 
     public int MaxPageSize { get; set; } = 100;
 }
+
+public class TorznabTestResult
+{
+    public bool Success { get; set; }
+
+    public string ErrorMessage { get; set; }
+
+    public TorznabCapabilities Capabilities { get; set; }
+
+    public static TorznabTestResult Ok(TorznabCapabilities capabilities = null) => new() { Success = true, Capabilities = capabilities };
+
+    public static TorznabTestResult Fail(string message) => new() { Success = false, ErrorMessage = message };
+}

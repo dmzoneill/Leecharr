@@ -414,75 +414,47 @@ public class IndexerController : Controller
             }
         }
 
-        // For Torznab/Newznab indexers: test with t=caps first, falling back to t=search
+        // For Torznab/Newznab indexers: test connection via ITorznabClient
         try
         {
-            var uriBuilder = new UriBuilder(indexer.Url);
-            var query = "t=caps";
-            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+            var testResult = await this.torznabClient.TestConnectionAsync(indexer);
+            if (testResult.Success)
             {
-                query += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
-            }
-
-            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
-                ? query
-                : uriBuilder.Query.TrimStart('?') + "&" + query;
-
-            using var capsReq = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
-            var capsResp = await this.httpClient.SendAsync(capsReq);
-            if (capsResp.IsSuccessStatusCode)
-            {
-                var content = await capsResp.Content.ReadAsStringAsync();
-                if (!string.IsNullOrWhiteSpace(content) && content.Contains("<caps", StringComparison.OrdinalIgnoreCase) && !content.Contains("<error", StringComparison.OrdinalIgnoreCase))
+                if (testResult.Capabilities?.Categories != null && testResult.Capabilities.Categories.Count > 0 &&
+                    (indexer.Categories == null || indexer.Categories.Count == 0))
                 {
-                    TorznabCapabilities caps = null;
-                    try
+                    var catIds = new HashSet<int>();
+                    foreach (var cat in testResult.Capabilities.Categories)
                     {
-                        caps = this.torznabClient?.ParseCapabilitiesXml(content);
-                    }
-                    catch
-                    {
-                    }
-
-                    if (caps?.Categories != null && caps.Categories.Count > 0 && (indexer.Categories == null || indexer.Categories.Count == 0))
-                    {
-                        var catIds = new HashSet<int>();
-                        foreach (var cat in caps.Categories)
+                        catIds.Add(cat.Id);
+                        foreach (var sub in cat.SubCategories)
                         {
-                            catIds.Add(cat.Id);
-                            foreach (var sub in cat.SubCategories)
-                            {
-                                catIds.Add(sub.Id);
-                            }
-                        }
-
-                        indexer.Categories = catIds.OrderBy(c => c).ToList();
-                        if (indexer.Id > 0)
-                        {
-                            this.indexerRepository.Update(indexer);
+                            catIds.Add(sub.Id);
                         }
                     }
 
-                    return this.Ok(new IndexerTestResult
+                    indexer.Categories = catIds.OrderBy(c => c).ToList();
+                    if (indexer.Id > 0)
                     {
-                        Success = true,
-                        Message = $"Connected successfully to {indexer.Name} (capabilities verified).",
-                    });
+                        this.indexerRepository.Update(indexer);
+                    }
                 }
-            }
-        }
-        catch
-        {
-            // Fall back to t=search
-        }
 
-        try
-        {
-            var results = await this.torznabClient.SearchAsync(indexer, string.Empty, limit: 1);
+                var msg = testResult.Capabilities != null
+                    ? $"Connected successfully to {indexer.Name} (capabilities verified)."
+                    : $"Connected successfully to {indexer.Name}.";
+
+                return this.Ok(new IndexerTestResult
+                {
+                    Success = true,
+                    Message = msg,
+                });
+            }
+
             return this.Ok(new IndexerTestResult
             {
-                Success = true,
-                Message = $"Connected successfully to {indexer.Name}.",
+                Success = false,
+                Message = $"Connection failed: {testResult.ErrorMessage}",
             });
         }
         catch (Exception ex)
