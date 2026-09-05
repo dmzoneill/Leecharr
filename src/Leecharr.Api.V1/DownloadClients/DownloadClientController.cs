@@ -5,14 +5,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Torrents;
 
@@ -24,6 +27,7 @@ public class DownloadClientController : Controller
     private readonly IDownloadClientRepository repository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DownloadClientController(IDownloadClientRepository repository, ITorrentService torrentService, HttpClient httpClient = null)
     {
@@ -105,7 +109,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        return await this.TestDirectInternal(ToResource(definition));
+        return await this.TestDirectInternal(ToResource(definition), definition.Password);
     }
 
     [HttpPost("test")]
@@ -116,7 +120,17 @@ public class DownloadClientController : Controller
             return this.BadRequest();
         }
 
-        return await this.TestDirectInternal(resource);
+        var password = resource.Password;
+        if ((string.IsNullOrEmpty(password) || password.Contains('*')) && resource.Id > 0)
+        {
+            var existing = this.repository.Get(resource.Id);
+            if (existing != null)
+            {
+                password = existing.Password;
+            }
+        }
+
+        return await this.TestDirectInternal(resource, password);
     }
 
     [HttpGet("{id:int}/items")]
@@ -246,7 +260,7 @@ public class DownloadClientController : Controller
         };
     }
 
-    private async Task<ActionResult<DownloadClientTestResult>> TestDirectInternal(DownloadClientResource resource)
+    private async Task<ActionResult<DownloadClientTestResult>> TestDirectInternal(DownloadClientResource resource, string passwordOverride = null)
     {
         if (string.IsNullOrWhiteSpace(resource.Host))
         {
@@ -256,14 +270,64 @@ public class DownloadClientController : Controller
         var port = resource.Port > 0 ? resource.Port : 8080;
         var scheme = resource.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{resource.Host}:{port}";
+        var password = passwordOverride ?? resource.Password;
+
+        HttpClient localHttp = null;
+        if (this.httpClient == null)
+        {
+            var handler = new HttpClientHandler
+            {
+                CookieContainer = new CookieContainer(),
+                UseCookies = true,
+            };
+            localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+        }
+
+        var http = this.httpClient ?? localHttp;
 
         try
         {
-            var http = this.httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-
             if (string.Equals(resource.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
+                if (!string.IsNullOrWhiteSpace(resource.Username) || !string.IsNullOrWhiteSpace(password))
+                {
+                    var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        { "username", resource.Username ?? string.Empty },
+                        { "password", password ?? string.Empty },
+                    });
+
+                    var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
+                    if (!loginResp.IsSuccessStatusCode)
+                    {
+                        return this.Ok(new DownloadClientTestResult
+                        {
+                            Success = false,
+                            Message = $"Authentication failed for qBittorrent at {baseUrl} (HTTP {(int)loginResp.StatusCode}).",
+                        });
+                    }
+
+                    var loginResult = await loginResp.Content.ReadAsStringAsync();
+                    if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return this.Ok(new DownloadClientTestResult
+                        {
+                            Success = false,
+                            Message = $"Authentication failed for qBittorrent at {baseUrl}: Invalid username or password.",
+                        });
+                    }
+                }
+
                 var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion");
+                if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    return this.Ok(new DownloadClientTestResult
+                    {
+                        Success = false,
+                        Message = $"Authentication failed for qBittorrent at {baseUrl}: Access forbidden (credentials required).",
+                    });
+                }
+
                 if (resp.IsSuccessStatusCode)
                 {
                     var ver = await resp.Content.ReadAsStringAsync();
@@ -272,7 +336,23 @@ public class DownloadClientController : Controller
             }
             else if (string.Equals(resource.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
             {
-                var resp = await http.GetAsync($"{baseUrl}/transmission/rpc");
+                var req = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/transmission/rpc");
+                if (!string.IsNullOrWhiteSpace(resource.Username) || !string.IsNullOrWhiteSpace(password))
+                {
+                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{resource.Username}:{password}"));
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+                }
+
+                var resp = await http.SendAsync(req);
+                if (resp.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    return this.Ok(new DownloadClientTestResult
+                    {
+                        Success = false,
+                        Message = $"Authentication failed for Transmission at {baseUrl}: Invalid username or password.",
+                    });
+                }
+
                 if (resp.StatusCode == HttpStatusCode.Conflict || resp.IsSuccessStatusCode)
                 {
                     return this.Ok(new DownloadClientTestResult { Success = true, Message = "Transmission RPC endpoint reachable." });
@@ -280,10 +360,59 @@ public class DownloadClientController : Controller
             }
             else if (string.Equals(resource.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
             {
+                if (!string.IsNullOrWhiteSpace(password))
+                {
+                    var loginContent = new StringContent(
+                        JsonSerializer.Serialize(new
+                        {
+                            method = "auth.login",
+                            @params = new object[] { password },
+                            id = 1,
+                        }),
+                        Encoding.UTF8,
+                        "application/json");
+
+                    var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
+                    if (!loginResp.IsSuccessStatusCode)
+                    {
+                        return this.Ok(new DownloadClientTestResult
+                        {
+                            Success = false,
+                            Message = $"Authentication failed for Deluge at {baseUrl} (HTTP {(int)loginResp.StatusCode}).",
+                        });
+                    }
+
+                    var loginJson = await loginResp.Content.ReadAsStringAsync();
+                    using var loginDoc = JsonDocument.Parse(loginJson);
+                    if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
+                        resElem.ValueKind == JsonValueKind.False)
+                    {
+                        return this.Ok(new DownloadClientTestResult
+                        {
+                            Success = false,
+                            Message = $"Authentication failed for Deluge at {baseUrl}: Invalid password.",
+                        });
+                    }
+                }
+
                 var content = new StringContent("{\"method\":\"auth.check_session\",\"params\":[],\"id\":1}", Encoding.UTF8, "application/json");
                 var resp = await http.PostAsync($"{baseUrl}/json", content);
                 if (resp.IsSuccessStatusCode)
                 {
+                    var json = await resp.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("result", out var checkResult) && checkResult.ValueKind == JsonValueKind.True)
+                    {
+                        return this.Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC connected successfully." });
+                    }
+                    else if (doc.RootElement.TryGetProperty("result", out var falseRes) && falseRes.ValueKind == JsonValueKind.False)
+                    {
+                        if (string.IsNullOrWhiteSpace(password))
+                        {
+                            return this.Ok(new DownloadClientTestResult { Success = false, Message = "Authentication failed for Deluge: Password required." });
+                        }
+                    }
+
                     return this.Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC endpoint reachable." });
                 }
             }
@@ -299,11 +428,16 @@ public class DownloadClientController : Controller
         }
         catch (Exception ex)
         {
+            this.logger.Warn(ex, "TestDirectInternal failed for {0}:{1}", resource.Host, port);
             return this.Ok(new DownloadClientTestResult
             {
                 Success = false,
                 Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}",
             });
+        }
+        finally
+        {
+            localHttp?.Dispose();
         }
     }
 }
