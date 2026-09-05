@@ -460,8 +460,10 @@ public class TrackerBoostService : ITrackerBoostService
         {
             var indexers = this.indexerRepository.All().ToList();
             var prowlarrIndexers = indexers.Where(i =>
-                (i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(i.Url) && !string.IsNullOrWhiteSpace(i.ApiKey))).ToList();
+                !string.IsNullOrWhiteSpace(i.Url) &&
+                !string.IsNullOrWhiteSpace(i.ApiKey) &&
+                ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
+                 (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)))).ToList();
 
             foreach (var prowlarr in prowlarrIndexers)
             {
@@ -471,6 +473,11 @@ public class TrackerBoostService : ITrackerBoostService
                 }
 
                 var baseUrl = prowlarr.Url.TrimEnd('/');
+                if (Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedUri))
+                {
+                    baseUrl = $"{parsedUri.Scheme}://{parsedUri.Authority}";
+                }
+
                 var requestUrl = $"{baseUrl}/api/v1/indexer";
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
@@ -501,6 +508,25 @@ public class TrackerBoostService : ITrackerBoostService
                     }
 
                     var indexerName = indexerElem.TryGetProperty("name", out var nProp) ? nProp.GetString() : "Prowlarr Indexer";
+
+                    if (indexerElem.TryGetProperty("fields", out var fieldsProp) && fieldsProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var field in fieldsProp.EnumerateArray())
+                        {
+                            if (field.TryGetProperty("name", out var nameProp) &&
+                                string.Equals(nameProp.GetString(), "baseUrl", StringComparison.OrdinalIgnoreCase) &&
+                                field.TryGetProperty("value", out var valProp) &&
+                                valProp.ValueKind == JsonValueKind.String)
+                            {
+                                var u = valProp.GetString();
+                                if (IsValidPublicTrackerUrl(u))
+                                {
+                                    this.AddTrackerInternal(u, TrackerSourceType.Prowlarr, $"Prowlarr ({indexerName})");
+                                    harvestedCount++;
+                                }
+                            }
+                        }
+                    }
 
                     if (indexerElem.TryGetProperty("indexerUrls", out var urlsProp) && urlsProp.ValueKind == JsonValueKind.Array)
                     {
