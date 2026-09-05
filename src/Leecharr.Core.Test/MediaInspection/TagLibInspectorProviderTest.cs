@@ -198,6 +198,198 @@ public class TagLibInspectorProviderTest
         result.Height.Should().Be(1080);
     }
 
+    [Test]
+    public void Inspect_MultiTrackMkv_PreservesPrimaryTrueHdAndPopulatesSubtitleTracks()
+    {
+        var audioTracks = new (string, int)[]
+        {
+            ("A_TRUEHD", 8),
+            ("A_AC3", 6),
+            ("A_AAC", 2),
+        };
+        var subTracks = new string[]
+        {
+            "S_TEXT/UTF8",
+            "S_TEXT/ASS",
+            "S_HDMV/PGS",
+        };
+
+        var ebmlData = CreateMultiTrackMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, audioTracks, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.Width.Should().Be(3840);
+        result.Height.Should().Be(2160);
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("7.1");
+        result.SubtitleTracks.Should().ContainInOrder("SubRip (SRT)", "Advanced SubStation Alpha", "PGS Subtitles");
+    }
+
+    [Test]
+    public void Inspect_MultiTrackMkv_UpgradesAudioCodecWhenHigherFidelityFollows()
+    {
+        var audioTracks = new (string, int)[]
+        {
+            ("A_AC3", 6),
+            ("A_TRUEHD", 8),
+        };
+        var subTracks = new string[]
+        {
+            "S_VOBSUB",
+            "S_DVBSUB",
+        };
+
+        var ebmlData = CreateMultiTrackMatroskaHeader("matroska", "V_MPEG4/ISO/AVC", 1920, 1080, audioTracks, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "show.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("7.1");
+        result.SubtitleTracks.Should().ContainInOrder("VobSub", "DVB Subtitles");
+    }
+
+    [Test]
+    public void Inspect_MultiTrackMkv_DeduplicatesSubtitleTracks()
+    {
+        var audioTracks = new (string, int)[]
+        {
+            ("A_DTS", 6),
+        };
+        var subTracks = new string[]
+        {
+            "S_TEXT/UTF8",
+            "S_TEXT/UTF8",
+            "S_TEXT/SSA",
+        };
+
+        var ebmlData = CreateMultiTrackMatroskaHeader("matroska", "V_MPEG4/ISO/AVC", 1920, 1080, audioTracks, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "show.mkv");
+
+        result.Should().NotBeNull();
+        result.SubtitleTracks.Should().HaveCount(2);
+        result.SubtitleTracks.Should().ContainInOrder("SubRip (SRT)", "SubStation Alpha");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithMultipleAudioAndSubtitleTracks_PreservesPrimaryAudioAndPopulatesSubtitleTracks()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+
+        var videoEntry = CreateVisualSampleEntry("hvc1", 3840, 2160);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry1 = CreateAudioSampleEntry("mlpa", 8, 24, 48000);
+        var audioTrak1 = CreateTrackBox(CreateStsdBox(audioEntry1));
+
+        var audioEntry2 = CreateAudioSampleEntry("mp4a", 2, 16, 48000);
+        var audioTrak2 = CreateTrackBox(CreateStsdBox(audioEntry2));
+
+        var subEntry1 = CreateMp4Box("tx3g", new byte[10]);
+        var subTrak1 = CreateTrackBox(CreateStsdBox(subEntry1));
+
+        var subEntry2 = CreateMp4Box("wvtt", new byte[10]);
+        var subTrak2 = CreateTrackBox(CreateStsdBox(subEntry2));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak1, audioTrak2, subTrak1, subTrak2);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "movie.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("7.1");
+        result.SubtitleTracks.Should().Contain("tx3g");
+        result.SubtitleTracks.Should().Contain("WebVTT");
+    }
+
+    private static byte[] CreateMultiTrackMatroskaHeader(
+        string docType,
+        string videoCodecId,
+        int width,
+        int height,
+        (string CodecId, int Channels)[] audioTracks,
+        string[] subtitleCodecIds)
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header (0x1A45DFA3)
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment (0x18538067)
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Tracks (0x1654AE6B)
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // 4. Video TrackEntry (0xAE)
+        if (!string.IsNullOrEmpty(videoCodecId))
+        {
+            WriteId(ms, 0xAE);
+            WriteSize(ms, -1);
+            WriteEbmlUInt(ms, 0x83, 1);
+            WriteEbmlString(ms, 0x86, videoCodecId);
+
+            WriteId(ms, 0xE0);
+            WriteSize(ms, -1);
+            WriteEbmlUInt(ms, 0xB0, (ulong)width);
+            WriteEbmlUInt(ms, 0xBA, (ulong)height);
+        }
+
+        // 5. Audio TrackEntries
+        if (audioTracks != null)
+        {
+            foreach (var (audioCodecId, channels) in audioTracks)
+            {
+                WriteId(ms, 0xAE);
+                WriteSize(ms, -1);
+                WriteEbmlUInt(ms, 0x83, 2);
+                WriteEbmlString(ms, 0x86, audioCodecId);
+
+                WriteId(ms, 0xE1);
+                WriteSize(ms, -1);
+                WriteEbmlUInt(ms, 0x9F, (ulong)channels);
+            }
+        }
+
+        // 6. Subtitle TrackEntries
+        if (subtitleCodecIds != null)
+        {
+            foreach (var subCodec in subtitleCodecIds)
+            {
+                WriteId(ms, 0xAE);
+                WriteSize(ms, -1);
+                WriteEbmlUInt(ms, 0x83, 17);
+                WriteEbmlString(ms, 0x86, subCodec);
+            }
+        }
+
+        return ms.ToArray();
+    }
+
     private static byte[] CreateMatroskaHeader(string docType, string videoCodecId, int width, int height, string audioCodecId, int channels)
     {
         using var ms = new MemoryStream();
