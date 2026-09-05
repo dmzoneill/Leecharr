@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using Polly;
@@ -15,7 +16,7 @@ namespace NzbDrone.Core.Notifications;
 
 public interface IWebhookDispatcher
 {
-    Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null);
+    Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default);
 }
 
 public class WebhookDispatcher : IWebhookDispatcher
@@ -39,19 +40,31 @@ public class WebhookDispatcher : IWebhookDispatcher
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         this.logger = LogManager.GetCurrentClassLogger();
 
-        this.retryPolicy = retryPolicy ?? Policy<HttpResponseMessage>
-            .Handle<HttpRequestException>()
-            .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
-            .WaitAndRetryAsync(
-                3,
-                retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // 2s, 4s, 8s
-                (outcome, timespan, retryAttempt, context) =>
-                {
-                    this.logger.Warn("Webhook dispatch failed. Retrying in {0}s (Attempt {1}/3)...", timespan.TotalSeconds, retryAttempt);
-                });
+        CancellationToken cancellationToken = default;
+        this.retryPolicy = retryPolicy ?? CreateRetryPolicy(cancellationToken: cancellationToken);
     }
 
-    public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null)
+    internal static AsyncRetryPolicy<HttpResponseMessage> CreateRetryPolicy(
+        CancellationToken cancellationToken = default,
+        int retryCount = 3,
+        Func<int, TimeSpan> sleepDurationProvider = null,
+        Action<DelegateResult<HttpResponseMessage>, TimeSpan, int, Context> onRetry = null)
+    {
+        return Policy<HttpResponseMessage>
+            .Handle<HttpRequestException>()
+            .Or<TimeoutException>()
+            .Or<TaskCanceledException>(ex => cancellationToken == default || !cancellationToken.IsCancellationRequested)
+            .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
+            .WaitAndRetryAsync(
+                retryCount,
+                sleepDurationProvider ?? (retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))), // 2s, 4s, 8s
+                onRetry ?? ((outcome, timespan, retryAttempt, context) =>
+                {
+                    LogManager.GetCurrentClassLogger().Warn("Webhook dispatch failed. Retrying in {0}s (Attempt {1}/{2})...", timespan.TotalSeconds, retryAttempt, retryCount);
+                }));
+    }
+
+    public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
@@ -70,26 +83,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                     Content = content,
                 };
 
-                if (!string.IsNullOrWhiteSpace(customHeadersJson))
-                {
-                    try
-                    {
-                        var headers = JsonSerializer.Deserialize<Dictionary<string, string>>(customHeadersJson);
-                        if (headers != null)
-                        {
-                            foreach (var kvp in headers)
-                            {
-                                request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore header parse error
-                    }
-                }
+                this.AttachCustomHeaders(request, customHeadersJson);
 
-                return await this.httpClient.SendAsync(request);
+                return await this.httpClient.SendAsync(request, cancellationToken);
             });
 
             if (response.IsSuccessStatusCode)
@@ -105,6 +101,101 @@ public class WebhookDispatcher : IWebhookDispatcher
         {
             this.logger.Error(ex, "Failed to dispatch webhook to {0}", targetUrl);
             return false;
+        }
+    }
+
+    private void AttachCustomHeaders(HttpRequestMessage request, string customHeadersJson)
+    {
+        if (string.IsNullOrWhiteSpace(customHeadersJson))
+        {
+            return;
+        }
+
+        var trimmed = customHeadersJson.Trim();
+
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        var key = prop.Name?.Trim();
+                        if (string.IsNullOrWhiteSpace(key))
+                        {
+                            continue;
+                        }
+
+                        var val = prop.Value.ValueKind == JsonValueKind.String
+                            ? prop.Value.GetString()?.Trim()
+                            : prop.Value.GetRawText().Trim();
+
+                        this.AddHeader(request, key, val);
+                    }
+
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to parse custom headers JSON. Attempting fallback key-value parsing.");
+            }
+        }
+
+        // Fallback or line-based key-value parsing (e.g. "Header: Value" or "Header=Value")
+        try
+        {
+            var lines = trimmed.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var addedAny = false;
+            foreach (var line in lines)
+            {
+                var cleanLine = line.Trim();
+                if (string.IsNullOrWhiteSpace(cleanLine) || cleanLine.StartsWith("#") || cleanLine.StartsWith("//"))
+                {
+                    continue;
+                }
+
+                var separatorIndex = cleanLine.IndexOfAny(new[] { ':', '=' });
+                if (separatorIndex > 0)
+                {
+                    var key = cleanLine.Substring(0, separatorIndex).Trim();
+                    var val = cleanLine.Substring(separatorIndex + 1).Trim();
+                    if (!string.IsNullOrWhiteSpace(key))
+                    {
+                        this.AddHeader(request, key, val);
+                        addedAny = true;
+                    }
+                }
+            }
+
+            if (!addedAny && !trimmed.StartsWith("{"))
+            {
+                this.logger.Warn("Could not parse custom headers from input: {0}", customHeadersJson);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to parse custom headers: {0}", customHeadersJson);
+        }
+    }
+
+    private void AddHeader(HttpRequestMessage request, string key, string value)
+    {
+        var added = request.Headers.TryAddWithoutValidation(key, value ?? string.Empty);
+        if (!added && request.Content != null)
+        {
+            added = request.Content.Headers.TryAddWithoutValidation(key, value ?? string.Empty);
+        }
+
+        if (added)
+        {
+            this.logger.Debug("Attached custom header '{0}' to webhook request", key);
+        }
+        else
+        {
+            this.logger.Warn("Failed to add custom header '{0}' to outgoing request", key);
         }
     }
 }

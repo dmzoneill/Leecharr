@@ -54,10 +54,9 @@ public class WebhookDispatcherTest
     {
         this.handler = new TestHttpMessageHandler();
         this.httpClient = new HttpClient(this.handler);
-        this.fastRetryPolicy = Policy<HttpResponseMessage>
-            .Handle<HttpRequestException>()
-            .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
-            .WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(1));
+        this.fastRetryPolicy = WebhookDispatcher.CreateRetryPolicy(
+            retryCount: 3,
+            sleepDurationProvider: _ => TimeSpan.FromMilliseconds(1));
 
         this.dispatcher = new WebhookDispatcher(this.httpClient, this.fastRetryPolicy);
     }
@@ -209,5 +208,132 @@ public class WebhookDispatcherTest
 
         result.Should().BeFalse();
         this.handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenTimeoutException_RetriesAndSucceeds()
+    {
+        var attempts = 0;
+        this.handler.ExceptionFactory = req =>
+        {
+            attempts++;
+            return attempts < 3 ? new TimeoutException("The HTTP request timed out") : null;
+        };
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.OK);
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenTaskCanceledExceptionDueToTimeout_RetriesAndSucceeds()
+    {
+        var attempts = 0;
+        this.handler.ExceptionFactory = req =>
+        {
+            attempts++;
+            return attempts < 2
+                ? new TaskCanceledException("The operation was canceled due to HttpClient.Timeout elapsing", new TimeoutException())
+                : null;
+        };
+        this.handler.ResponseFactory = _ => new HttpResponseMessage(HttpStatusCode.OK);
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenAllRetriesFailTimeout_ReturnsFalse()
+    {
+        this.handler.ExceptionFactory = _ => new TimeoutException("Persistent timeout");
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenAllRetriesFailTaskCanceledTimeout_ReturnsFalse()
+    {
+        this.handler.ExceptionFactory = _ => new TaskCanceledException("Timeout canceled", new TimeoutException());
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(4); // initial + 3 retries
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenCanceledByCallerToken_DoesNotRetry()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, cancellationToken: cts.Token);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithKeyValueHeadersFormat_AddsHeadersToRequest()
+    {
+        var customHeaders = "Authorization: Bearer my-key-123\r\nX-Tracking-Id: track-789";
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Headers.GetValues("Authorization").Should().ContainSingle().Which.Should().Be("Bearer my-key-123");
+        request.Headers.GetValues("X-Tracking-Id").Should().ContainSingle().Which.Should().Be("track-789");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithEqualsKeyValueHeadersFormat_AddsHeadersToRequest()
+    {
+        var customHeaders = "X-Api-Key=secret-value\nX-Service-Id=service-456";
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Headers.GetValues("X-Api-Key").Should().ContainSingle().Which.Should().Be("secret-value");
+        request.Headers.GetValues("X-Service-Id").Should().ContainSingle().Which.Should().Be("service-456");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithWhitespaceInHeaders_TrimsWhitespaceAndAddsHeaders()
+    {
+        var customHeaders = "  {  \"  X-Spaced-Header  \"  :  \"   trimmed-value   \"  }  ";
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Headers.GetValues("X-Spaced-Header").Should().ContainSingle().Which.Should().Be("trimmed-value");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithContentHeader_AddsToContentHeaders()
+    {
+        var customHeaders = "{\"Content-Language\":\"en-US\"}";
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Content!.Headers.GetValues("Content-Language").Should().ContainSingle().Which.Should().Be("en-US");
     }
 }
