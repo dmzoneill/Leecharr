@@ -1233,7 +1233,8 @@ public class TrackerBoostService : ITrackerBoostService
                 return false;
             }
 
-            using var client = new UdpClient();
+            var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
+            using var client = new UdpClient(targetAddress.AddressFamily);
             client.Client.ReceiveTimeout = 2000;
             client.Client.SendTimeout = 2000;
 
@@ -1243,7 +1244,7 @@ public class TrackerBoostService : ITrackerBoostService
             BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8, 4), 0);
             BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(12, 4), transactionId);
 
-            var endpoint = new IPEndPoint(addresses[0], port);
+            var endpoint = new IPEndPoint(targetAddress, port);
             await client.SendAsync(packet, packet.Length, endpoint);
 
             var receiveTask = client.ReceiveAsync();
@@ -1517,8 +1518,9 @@ public class TrackerBoostService : ITrackerBoostService
                 return (false, 0, 0, 0);
             }
 
-            using var client = new UdpClient();
-            var endpoint = new IPEndPoint(addresses[0], port);
+            var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
+            using var client = new UdpClient(targetAddress.AddressFamily);
+            var endpoint = new IPEndPoint(targetAddress, port);
 
             var connectTxId = Random.Shared.Next();
             var connectPacket = new byte[16];
