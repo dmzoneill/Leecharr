@@ -49,7 +49,9 @@ export function HarvesterPanel({
       if (downloadFilter === "leecharr" && item.sourceType !== "leecharr") return false;
       if (downloadSearch.trim()) {
         const q = downloadSearch.toLowerCase();
-        if (!item.name.toLowerCase().includes(q) && !item.infoHash.toLowerCase().includes(q)) {
+        const name = (item.name || "").toLowerCase();
+        const hash = (item.infoHash || "").toLowerCase();
+        if (!name.includes(q) && !hash.includes(q)) {
           return false;
         }
       }
@@ -635,7 +637,7 @@ export function HarvesterPanel({
                     color: "var(--text-muted)",
                   }}
                 >
-                  Scraping candidate trackers for hash {selectedItem.infoHash.slice(0, 8)}...
+                  Scraping candidate trackers for hash {(selectedItem?.infoHash || "").slice(0, 8)}...
                 </div>
               ) : (
                 <div

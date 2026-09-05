@@ -68,11 +68,10 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
     return (trackers ?? []).filter((t) => {
       if (trackerSearch.trim()) {
         const q = trackerSearch.toLowerCase();
-        if (
-          !t.url.toLowerCase().includes(q) &&
-          !t.host.toLowerCase().includes(q) &&
-          !t.sourceName.toLowerCase().includes(q)
-        ) {
+        const url = (t.url || "").toLowerCase();
+        const host = (t.host || "").toLowerCase();
+        const sourceName = (t.sourceName || "").toLowerCase();
+        if (!url.includes(q) && !host.includes(q) && !sourceName.includes(q)) {
           return false;
         }
       }
