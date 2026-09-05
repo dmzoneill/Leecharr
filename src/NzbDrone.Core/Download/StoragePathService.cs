@@ -18,7 +18,7 @@ public interface IStoragePathService
 
     string GetCompletedDirectory(string category);
 
-    string GetWorkingPath(string infoHash, string torrentName);
+    string GetWorkingPath(string infoHash, string torrentName, string category = null);
 
     string GetFinalPath(string category, string torrentName);
 
@@ -101,10 +101,14 @@ public class StoragePathService : IStoragePathService
         return target;
     }
 
-    public string GetWorkingPath(string infoHash, string torrentName)
+    public string GetWorkingPath(string infoHash, string torrentName, string category = null)
     {
-        var incompleteDir = this.GetIncompleteDirectory();
-        return Path.Combine(incompleteDir, torrentName);
+        if (!this.configService.EnableIncompleteDir)
+        {
+            return this.GetFinalPath(category, torrentName);
+        }
+
+        return Path.Combine(this.GetIncompleteDirectory(), torrentName);
     }
 
     public string GetFinalPath(string category, string torrentName)
@@ -119,6 +123,7 @@ public class StoragePathService : IStoragePathService
 
         if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase))
         {
+            this.StripIncompleteExtensions(finalDestination);
             return true;
         }
 
