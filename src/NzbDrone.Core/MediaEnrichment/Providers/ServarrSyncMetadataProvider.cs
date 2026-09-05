@@ -225,7 +225,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var clean = Regex.Replace(raw, @"[._]", " ");
         clean = Regex.Replace(clean, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
         clean = Regex.Replace(clean, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
-        clean = Regex.Replace(clean, @"\b(19\d\d|20\d\d)\b.*", string.Empty);
+        clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
         clean = clean.Trim('-', ' ', '.');
         return string.IsNullOrWhiteSpace(clean) ? raw.Trim() : clean.Trim();
     }

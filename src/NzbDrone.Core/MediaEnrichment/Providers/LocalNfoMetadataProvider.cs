@@ -309,14 +309,28 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
         cleaned = Regex.Replace(cleaned, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
         cleaned = Regex.Replace(cleaned, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
-        cleaned = Regex.Replace(cleaned, @"\b(19\d\d|20\d\d)\b.*", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
         cleaned = cleaned.Trim('-', ' ', '.');
         return string.IsNullOrWhiteSpace(cleaned) ? rawTitle.Trim() : cleaned.Trim();
     }
 
     private static int ExtractYear(string rawTitle)
     {
-        var match = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b");
-        return match.Success && int.TryParse(match.Value, out var y) ? y : 0;
+        if (string.IsNullOrWhiteSpace(rawTitle))
+        {
+            return 0;
+        }
+
+        var taggedMatch = Regex.Match(
+            rawTitle,
+            @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+        if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
+        {
+            return ty;
+        }
+
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
     }
 }

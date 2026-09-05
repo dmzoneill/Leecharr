@@ -56,6 +56,11 @@ public class LocalNfoMetadataProviderTest
     [TestCase("Game.of.Thrones.Season.1.1080p", "Game of Thrones")]
     [TestCase("The.Mandalorian.Episode.01.2160p", "The Mandalorian")]
     [TestCase("Open.Season.1080p", "Open Season")]
+    [TestCase("Blade.Runner.2049.2017.1080p", "Blade Runner 2049")]
+    [TestCase("2001.A.Space.Odyssey.1968.1080p", "2001 A Space Odyssey")]
+    [TestCase("1917.2019.1080p", "1917")]
+    [TestCase("1984.1956.720p", "1984")]
+    [TestCase("2012.2009.1080p", "2012")]
     public void CleanTitle_StripsEpisodicTagsAndYears(string raw, string expected)
     {
         LocalNfoMetadataProvider.CleanTitle(raw).Should().Be(expected);
