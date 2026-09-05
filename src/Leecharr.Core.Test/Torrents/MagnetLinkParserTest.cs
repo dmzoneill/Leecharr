@@ -18,6 +18,7 @@ public class MagnetLinkParserTest
         var parsed = MagnetLinkParser.Parse(magnet);
 
         parsed.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.V1InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
         parsed.DisplayName.Should().Be("Ubuntu.iso");
         parsed.Trackers.Should().HaveCount(2);
         parsed.Trackers.Should().Contain("http://tracker.local/announce");
@@ -27,13 +28,48 @@ public class MagnetLinkParserTest
     [Test]
     public void Parse_WhenBase32InfoHash_ConvertsToHex()
     {
-        // 32-character base32 hash
-        var magnet = "magnet:?xt=urn:btih:MFRGGZDFMY======&dn=Test";
+        // 32-character base32 hash for 20 bytes (e.g. 20 zero bytes = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)
+        var magnet = "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=Test";
 
         var parsed = MagnetLinkParser.Parse(magnet);
 
         parsed.DisplayName.Should().Be("Test");
-        parsed.InfoHash.Should().NotBeNullOrEmpty();
+        parsed.InfoHash.Should().Be("0000000000000000000000000000000000000000");
+        parsed.V1InfoHash.Should().Be("0000000000000000000000000000000000000000");
+    }
+
+    [Test]
+    public void Parse_WhenUppercaseKeys_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?XT=urn:btih:0123456789abcdef0123456789abcdef01234567&DN=Uppercase.iso&TR=http%3A%2F%2Ftracker.local%2Fannounce";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.DisplayName.Should().Be("Uppercase.iso");
+        parsed.Trackers.Should().Contain("http://tracker.local/announce");
+    }
+
+    [Test]
+    public void Parse_WhenHybridMagnet_SetsBothHashesAndDefaultsToV1()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&xt=urn:btmh:1220d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c&dn=Hybrid";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.V1InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.DisplayName.Should().Be("Hybrid");
+    }
+
+    [Test]
+    public void Parse_WhenInvalidBase32Chars_ThrowsFormatException()
+    {
+        var magnet = "magnet:?xt=urn:btih:INVALID_CHARACTERS_NOT_BASE32!&dn=Test";
+
+        Action act = () => MagnetLinkParser.Parse(magnet);
+        act.Should().Throw<FormatException>();
     }
 
     [Test]
@@ -58,6 +94,7 @@ public class MagnetLinkParserTest
         var parsed = MagnetLinkParser.Parse(magnet);
 
         parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
         parsed.DisplayName.Should().Be("V2Torrent");
     }
 
@@ -69,6 +106,7 @@ public class MagnetLinkParserTest
         var parsed = MagnetLinkParser.Parse(magnet);
 
         parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
         parsed.DisplayName.Should().Be("DirectSha");
     }
 }

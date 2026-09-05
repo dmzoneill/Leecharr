@@ -10,6 +10,10 @@ public class ParsedMagnetLink
 {
     public string InfoHash { get; set; }
 
+    public string V1InfoHash { get; set; }
+
+    public string V2InfoHash { get; set; }
+
     public string DisplayName { get; set; }
 
     public List<string> Trackers { get; set; } = new();
@@ -45,7 +49,7 @@ public static class MagnetLinkParser
                 continue;
             }
 
-            var key = kv[0];
+            var key = kv[0].Trim().ToLowerInvariant();
             var value = HttpUtility.UrlDecode(kv[1]);
 
             switch (key)
@@ -53,32 +57,44 @@ public static class MagnetLinkParser
                 case "xt":
                     if (value.StartsWith("urn:btih:", StringComparison.OrdinalIgnoreCase))
                     {
-                        var hash = value.Substring("urn:btih:".Length);
+                        var hash = value.Substring("urn:btih:".Length).Trim();
 
                         if (hash.Length == 32)
                         {
-                            result.InfoHash = Base32ToHex(hash).ToLowerInvariant();
+                            result.V1InfoHash = Base32ToHex(hash).ToLowerInvariant();
+                        }
+                        else if (hash.Length == 40 && IsValidHex(hash))
+                        {
+                            result.V1InfoHash = hash.ToLowerInvariant();
                         }
                         else
                         {
-                            result.InfoHash = hash.ToLowerInvariant();
+                            throw new FormatException($"Invalid btih info hash: {hash}");
                         }
                     }
                     else if (value.StartsWith("urn:btmh:", StringComparison.OrdinalIgnoreCase))
                     {
-                        var hash = value.Substring("urn:btmh:".Length);
+                        var hash = value.Substring("urn:btmh:".Length).Trim();
 
-                        if (hash.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && hash.Length == 68)
+                        if (hash.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && hash.Length == 68 && IsValidHex(hash))
                         {
-                            result.InfoHash = hash.Substring(4).ToLowerInvariant();
+                            result.V2InfoHash = hash.Substring(4).ToLowerInvariant();
+                        }
+                        else if (hash.Length == 64 && IsValidHex(hash))
+                        {
+                            result.V2InfoHash = hash.ToLowerInvariant();
                         }
                         else if (hash.Length == 32)
                         {
-                            result.InfoHash = Base32ToHex(hash).ToLowerInvariant();
+                            result.V2InfoHash = Base32ToHex(hash).ToLowerInvariant();
+                        }
+                        else if (hash.Length == 40 && IsValidHex(hash))
+                        {
+                            result.V2InfoHash = hash.ToLowerInvariant();
                         }
                         else
                         {
-                            result.InfoHash = hash.ToLowerInvariant();
+                            throw new FormatException($"Invalid btmh info hash: {hash}");
                         }
                     }
 
@@ -106,6 +122,8 @@ public static class MagnetLinkParser
             }
         }
 
+        result.InfoHash = result.V1InfoHash ?? result.V2InfoHash;
+
         if (string.IsNullOrEmpty(result.InfoHash))
         {
             throw new FormatException("Magnet link missing valid info hash (xt=urn:btih:... or xt=urn:btmh:...)");
@@ -125,7 +143,7 @@ public static class MagnetLinkParser
             var val = b32Alphabet.IndexOf(c);
             if (val < 0)
             {
-                continue;
+                throw new FormatException($"Invalid character in Base32 string: '{c}'");
             }
 
             for (var bit = 4; bit >= 0; bit--)
@@ -147,5 +165,23 @@ public static class MagnetLinkParser
         }
 
         return Convert.ToHexString(bytes);
+    }
+
+    private static bool IsValidHex(string hex)
+    {
+        if (string.IsNullOrEmpty(hex))
+        {
+            return false;
+        }
+
+        foreach (var c in hex)
+        {
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
