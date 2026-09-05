@@ -245,4 +245,62 @@ public class IndexerControllerTest
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
     }
+
+    [Test]
+    public async Task Test_WhenTorznabTestFails_ReturnsFailureMessage()
+    {
+        var resource = new IndexerResource
+        {
+            Name = "DeadIndexer",
+            Url = "https://dead.indexer.local",
+            Implementation = "Torznab",
+        };
+
+        this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
+            .Returns(Task.FromResult(TorznabTestResult.Fail("HTTP 403 Forbidden")));
+
+        var result = await this.controller.Test(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var testResult = (IndexerTestResult)okResult.Value!;
+        testResult.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("HTTP 403 Forbidden");
+    }
+
+    [Test]
+    public async Task Test_WhenTorznabTestSucceeds_ReturnsSuccessMessageAndUpdatesCategories()
+    {
+        var resource = new IndexerResource
+        {
+            Id = 5,
+            Name = "LiveIndexer",
+            Url = "https://live.indexer.local",
+            Implementation = "Torznab",
+        };
+
+        var existingIndexer = new IndexerDefinition { Id = 5, Name = "LiveIndexer", Url = "https://live.indexer.local" };
+        this.indexerRepository.Get(5).Returns(existingIndexer);
+
+        var caps = new TorznabCapabilities
+        {
+            Categories = new System.Collections.Generic.List<TorznabCategory>
+            {
+                new() { Id = 2000, Name = "Movies" },
+                new() { Id = 5000, Name = "TV" },
+            },
+        };
+
+        this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
+            .Returns(Task.FromResult(TorznabTestResult.Ok(caps)));
+
+        var result = await this.controller.Test(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var testResult = (IndexerTestResult)okResult.Value!;
+        testResult.Success.Should().BeTrue();
+        testResult.Message.Should().Contain("Connected successfully to LiveIndexer");
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Categories.Contains(2000) && idx.Categories.Contains(5000)));
+    }
 }

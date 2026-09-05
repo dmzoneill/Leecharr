@@ -35,6 +35,8 @@ public interface ITorznabClient
     Task<TorznabCapabilities> FetchCapabilitiesAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default);
 
     TorznabCapabilities ParseCapabilitiesXml(string xml);
+
+    Task<TorznabTestResult> TestConnectionAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default);
 }
 
 public class TorznabClient : ITorznabClient
@@ -616,5 +618,97 @@ public class TorznabClient : ITorznabClient
         }
 
         return capabilities;
+    }
+
+    public async Task<TorznabTestResult> TestConnectionAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default)
+    {
+        if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            return TorznabTestResult.Fail("Indexer URL is empty.");
+        }
+
+        try
+        {
+            // 1. First attempt: t=caps
+            var capsUriBuilder = new UriBuilder(indexer.Url);
+            var capsQuery = "t=caps";
+            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+            {
+                capsQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
+            }
+
+            capsUriBuilder.Query = string.IsNullOrEmpty(capsUriBuilder.Query)
+                ? capsQuery
+                : capsUriBuilder.Query.TrimStart('?') + "&" + capsQuery;
+
+            using var capsReq = new HttpRequestMessage(HttpMethod.Get, capsUriBuilder.Uri);
+            var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
+            var capsContent = await capsResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+            if (capsResp.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(capsContent))
+            {
+                if (capsContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
+                {
+                    var doc = XDocument.Parse(capsContent);
+                    var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
+                    var code = errorElem?.Attribute("code")?.Value ?? "unknown";
+                    var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
+                    return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
+                }
+
+                if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
+                {
+                    var caps = this.ParseCapabilitiesXml(capsContent);
+                    return TorznabTestResult.Ok(caps);
+                }
+            }
+
+            // 2. Fallback attempt: t=search with limit=1 to verify endpoint & API key
+            var searchUriBuilder = new UriBuilder(indexer.Url);
+            var searchQuery = "t=search&limit=1";
+            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
+            {
+                searchQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
+            }
+
+            searchUriBuilder.Query = string.IsNullOrEmpty(searchUriBuilder.Query)
+                ? searchQuery
+                : searchUriBuilder.Query.TrimStart('?') + "&" + searchQuery;
+
+            using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUriBuilder.Uri);
+            var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
+
+            if (!searchResp.IsSuccessStatusCode)
+            {
+                return TorznabTestResult.Fail($"HTTP {(int)searchResp.StatusCode} {searchResp.ReasonPhrase}");
+            }
+
+            var searchContent = await searchResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(searchContent))
+            {
+                return TorznabTestResult.Fail("Empty response received from indexer.");
+            }
+
+            if (searchContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
+            {
+                var doc = XDocument.Parse(searchContent);
+                var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
+                var code = errorElem?.Attribute("code")?.Value ?? "unknown";
+                var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
+                return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
+            }
+
+            if (searchContent.Contains("<rss", StringComparison.OrdinalIgnoreCase) || searchContent.Contains("<channel", StringComparison.OrdinalIgnoreCase) || searchContent.Contains("<feed", StringComparison.OrdinalIgnoreCase))
+            {
+                return TorznabTestResult.Ok();
+            }
+
+            return TorznabTestResult.Fail("Response is not a valid Torznab XML feed.");
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Torznab connection test failed for {0} ({1})", indexer.Name, indexer.Url);
+            return TorznabTestResult.Fail(ex.Message);
+        }
     }
 }
