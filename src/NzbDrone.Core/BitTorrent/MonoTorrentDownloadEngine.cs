@@ -1929,23 +1929,6 @@ public class MonoTorrentDownloadTask : IDownloadTask
         var anyWorking = allTrackers.Any(t => t.Status == MonoTorrent.Trackers.TrackerState.Ok);
         var anyTierSucceeded = tiers != null && tiers.Any(t => t.LastAnnounceSucceeded);
 
-        if (anyWorking || anyTierSucceeded)
-        {
-            if (this.isTrackerStalled)
-            {
-                this.isTrackerStalled = false;
-                this.errorMessage = null;
-                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker announce succeeded.", isResolved: true));
-            }
-
-            return false;
-        }
-
-        var failingTrackers = allTrackers
-            .Where(t => t.Status is MonoTorrent.Trackers.TrackerState.Offline or MonoTorrent.Trackers.TrackerState.InvalidResponse ||
-                        !string.IsNullOrWhiteSpace(t.FailureMessage))
-            .ToList();
-
         var hasPendingTrackers = allTrackers.Any(t =>
             t.Status is MonoTorrent.Trackers.TrackerState.Connecting
             or MonoTorrent.Trackers.TrackerState.Unknown);
@@ -1960,6 +1943,24 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
             return false;
         }
+
+        if (anyWorking || anyTierSucceeded)
+        {
+            if (this.isTrackerStalled)
+            {
+                this.isTrackerStalled = false;
+                this.errorMessage = null;
+                eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker announce succeeded.", isResolved: true));
+            }
+
+            return false;
+        }
+
+        // Determine failing trackers and set stall if appropriate
+        var failingTrackers = allTrackers
+            .Where(t => t.Status is MonoTorrent.Trackers.TrackerState.Offline or MonoTorrent.Trackers.TrackerState.InvalidResponse ||
+                        !string.IsNullOrWhiteSpace(t.FailureMessage))
+            .ToList();
 
         if (!hasPendingTrackers &&
             (failingTrackers.Count == allTrackers.Count ||
@@ -1985,7 +1986,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             return true;
         }
 
-        return this.isTrackerStalled;
+        return false;
     }
 
     internal void SetTrackerStalled(string message, IEventAggregator eventAggregator = null)
