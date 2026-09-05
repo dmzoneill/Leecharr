@@ -12,7 +12,6 @@ using NzbDrone.Core.Indexers;
 namespace Leecharr.Api.V1.Indexers;
 
 [V1ApiController("rssrules")]
-[Route("api/v1/rssrules")]
 [Route("api/v1/rssrule")]
 public class RssRuleController : Controller
 {
