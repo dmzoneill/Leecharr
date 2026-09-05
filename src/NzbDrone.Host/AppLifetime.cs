@@ -165,6 +165,18 @@ public class AppLifetime : IHostedService, IDisposable
             this.logger.Warn(ex, "Error initializing UDP tracker service on startup");
         }
 
+        try
+        {
+            if (this.configService.WatchFolderEnabled)
+            {
+                this.watchFolderService.StartWatcher();
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error initializing watch folder service on startup");
+        }
+
         this.cts = new CancellationTokenSource();
         this.backgroundLoopTask = Task.Run(() => this.RunBackgroundLoopAsync(this.cts.Token), this.cts.Token);
 
@@ -186,6 +198,15 @@ public class AppLifetime : IHostedService, IDisposable
             {
                 this.logger.Warn(ex, "Error shutting down UDP tracker service");
             }
+        }
+
+        try
+        {
+            this.watchFolderService.StopWatcher();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error stopping watch folder service on shutdown");
         }
 
         try
