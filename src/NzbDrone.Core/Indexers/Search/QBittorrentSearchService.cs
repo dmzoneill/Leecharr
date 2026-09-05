@@ -116,61 +116,77 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                         ? this.indexerRepository.GetSearchEnabled().ToList()
                         : new List<IndexerDefinition>();
 
+                    if (!string.IsNullOrWhiteSpace(plugins) &&
+                        !string.Equals(plugins, "all", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(plugins, "enabled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var pluginSet = plugins.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        indexers = indexers.Where(i => pluginSet.Contains(i.Name, StringComparer.OrdinalIgnoreCase)).ToList();
+                    }
+
                     if (indexers.Count == 0)
                     {
-                        this.logger.Warn("No search-enabled indexers configured in Leecharr.");
+                        this.logger.Warn("No matching search-enabled indexers configured in Leecharr.");
                         job.Status = "Stopped";
                         return;
                     }
+
+                    int? categoryId = category?.ToLowerInvariant() switch
+                    {
+                        "movies" => 2000,
+                        "tv" => 5000,
+                        "music" => 3000,
+                        "games" => 1000,
+                        "anime" => 5070,
+                        "software" => 4000,
+                        "books" => 7000,
+                        _ => null,
+                    };
 
                     var tasks = indexers.Select(async indexer =>
                     {
                         try
                         {
-                            var results = await this.torznabClient.SearchAsync(indexer, pattern, limit: 100);
-                            return results ?? new List<TorznabSearchResult>();
+                            if (cts.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            var results = await this.torznabClient.SearchAsync(indexer, pattern, categoryId: categoryId, limit: 100);
+                            if (results == null || results.Count == 0)
+                            {
+                                return;
+                            }
+
+                            if (cts.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            lock (job.Results)
+                            {
+                                foreach (var item in results)
+                                {
+                                    job.Results.Add(new QBittorrentSearchResultItem
+                                    {
+                                        DescrLink = item.Guid ?? item.DownloadUrl ?? string.Empty,
+                                        FileName = item.Title ?? "Unknown",
+                                        FileSize = item.Size,
+                                        FileUrl = item.MagnetUrl ?? item.DownloadUrl ?? string.Empty,
+                                        NbLeechers = item.Leechers,
+                                        NbSeeders = item.Seeders,
+                                        SiteUrl = item.IndexerName ?? indexer.Name ?? "Leecharr",
+                                    });
+                                }
+                            }
                         }
                         catch (Exception ex)
                         {
                             this.logger.Warn(ex, "Search failed on indexer {0}", indexer.Name);
-                            return new List<TorznabSearchResult>();
                         }
                     });
 
-                    var aggregated = await Task.WhenAll(tasks);
-                    try
-                    {
-                        if (cts.IsCancellationRequested)
-                        {
-                            job.Status = "Stopped";
-                            return;
-                        }
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        job.Status = "Stopped";
-                        return;
-                    }
-
-                    lock (job.Results)
-                    {
-                        foreach (var list in aggregated)
-                        {
-                            foreach (var item in list)
-                            {
-                                job.Results.Add(new QBittorrentSearchResultItem
-                                {
-                                    DescrLink = item.Guid ?? item.DownloadUrl ?? string.Empty,
-                                    FileName = item.Title ?? "Unknown",
-                                    FileSize = item.Size,
-                                    FileUrl = item.MagnetUrl ?? item.DownloadUrl ?? string.Empty,
-                                    NbLeechers = item.Leechers,
-                                    NbSeeders = item.Seeders,
-                                    SiteUrl = item.IndexerName ?? "Leecharr",
-                                });
-                            }
-                        }
-                    }
+                    await Task.WhenAll(tasks);
                 }
                 catch (Exception ex)
                 {
