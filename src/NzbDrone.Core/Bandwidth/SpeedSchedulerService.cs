@@ -123,8 +123,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             var isThrottled = match.MaxDownloadSpeed > 0 || match.MaxUploadSpeed > 0;
             return new EffectiveSpeedLimits
             {
-                MaxDownloadSpeedKbps = match.MaxDownloadSpeed < 0 ? 0 : match.MaxDownloadSpeed,
-                MaxUploadSpeedKbps = match.MaxUploadSpeed < 0 ? 0 : match.MaxUploadSpeed,
+                MaxDownloadSpeedKbps = match.MaxDownloadSpeed < 0 ? 0 : match.MaxDownloadSpeed > 0 ? match.MaxDownloadSpeed : this.configService.MaxDownloadSpeedKbps,
+                MaxUploadSpeedKbps = match.MaxUploadSpeed < 0 ? 0 : match.MaxUploadSpeed > 0 ? match.MaxUploadSpeed : this.configService.MaxUploadSpeedKbps,
                 IsThrottled = isThrottled,
                 IsPaused = isPaused,
             };
@@ -136,8 +136,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             var isThrottled = this.configService.AltDownloadSpeedKbps > 0 || this.configService.AltUploadSpeedKbps > 0;
             return new EffectiveSpeedLimits
             {
-                MaxDownloadSpeedKbps = this.configService.AltDownloadSpeedKbps < 0 ? 0 : this.configService.AltDownloadSpeedKbps,
-                MaxUploadSpeedKbps = this.configService.AltUploadSpeedKbps < 0 ? 0 : this.configService.AltUploadSpeedKbps,
+                MaxDownloadSpeedKbps = this.configService.AltDownloadSpeedKbps < 0 ? 0 : this.configService.AltDownloadSpeedKbps > 0 ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps,
+                MaxUploadSpeedKbps = this.configService.AltUploadSpeedKbps < 0 ? 0 : this.configService.AltUploadSpeedKbps > 0 ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps,
                 IsThrottled = isThrottled,
                 IsPaused = isPaused,
             };
@@ -166,7 +166,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         }
 
         var schedule = this.GetCurrentLimits(currentTime);
-        if (schedule.IsThrottled || schedule.IsPaused)
+        if (schedule.MaxDownloadSpeedKbps > 0 || (schedule.IsPaused && schedule.MaxDownloadSpeedKbps == 0))
         {
             return schedule.MaxDownloadSpeedKbps;
         }
@@ -187,7 +187,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         }
 
         var schedule = this.GetCurrentLimits(currentTime);
-        if (schedule.IsThrottled || schedule.IsPaused)
+        if (schedule.MaxUploadSpeedKbps > 0 || (schedule.IsPaused && schedule.MaxUploadSpeedKbps == 0))
         {
             return schedule.MaxUploadSpeedKbps;
         }

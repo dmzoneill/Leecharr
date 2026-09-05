@@ -168,6 +168,58 @@ public class BandwidthHierarchyTest
         _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0).Should().Be(20000);
     }
 
+    [Test]
+    public void ResolveEffectiveDownloadLimit_WhenScheduleOnlyLimitsUpload_FallsBackToGlobalLimit()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Upload Only Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 0,
+                MaxUploadSpeed = 1500,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+        _repository.GetEnabled().Returns(schedules);
+
+        var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
+        var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
+
+        downloadEffective.Should().Be(50000); // Global download limit fallback
+        uploadEffective.Should().Be(1500); // Schedule upload limit
+    }
+
+    [Test]
+    public void ResolveEffectiveUploadLimit_WhenScheduleOnlyLimitsDownload_FallsBackToGlobalLimit()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Download Only Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 3000,
+                MaxUploadSpeed = 0,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+        _repository.GetEnabled().Returns(schedules);
+
+        var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
+        var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
+
+        downloadEffective.Should().Be(3000); // Schedule download limit
+        uploadEffective.Should().Be(20000); // Global upload limit fallback
+    }
+
     #endregion
 
     #region Alternative Speed Limits Tests
