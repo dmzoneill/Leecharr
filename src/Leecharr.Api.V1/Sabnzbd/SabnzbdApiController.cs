@@ -65,6 +65,7 @@ public class SabnzbdApiController : ControllerBase
         var formValue = this.Request.HasFormContentType ? this.Request.Form["value"].ToString() : string.Empty;
         var formValue2 = this.Request.HasFormContentType ? this.Request.Form["value2"].ToString() : string.Empty;
         var formCat = this.Request.HasFormContentType ? this.Request.Form["cat"].ToString() : string.Empty;
+        var formPriority = this.Request.HasFormContentType ? this.Request.Form["priority"].ToString() : string.Empty;
 
         var effectiveMode = (!string.IsNullOrWhiteSpace(mode) ? mode : formMode).ToLowerInvariant();
 
@@ -331,12 +332,16 @@ public class SabnzbdApiController : ControllerBase
 
                 var nowUtc = DateTime.UtcNow;
                 var finishedTorrents = this.torrentService.GetAll()
-                    .Where(t => t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding)
+                    .Where(t => t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed)
                     .Select(t =>
                     {
                         var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
                             ? (int)Math.Max(1, (t.DateCompleted.Value - t.DateAdded).TotalSeconds)
                             : (t.DateAdded != default ? (int)Math.Max(1, (nowUtc - t.DateAdded).TotalSeconds) : 60);
+
+                        var storagePath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads");
+                        var completePath = !string.IsNullOrWhiteSpace(t.Name) ? Path.Combine(storagePath, t.Name) : storagePath;
+                        var completedEpoch = new DateTimeOffset(t.DateCompleted ?? (t.DateAdded != default ? t.DateAdded : nowUtc)).ToUnixTimeSeconds();
 
                         return new
                         {
@@ -347,17 +352,17 @@ public class SabnzbdApiController : ControllerBase
                             bytes = t.TotalSize,
                             category = t.Category ?? "default",
                             status = "Completed",
-                            storage = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
-                            path = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+                            storage = storagePath,
+                            path = storagePath,
                             download_time = downloadSeconds,
-                            completename = t.Name ?? string.Empty,
-                            completed = t.DateCompleted ?? t.DateAdded,
+                            completename = completePath,
+                            completed = completedEpoch,
                         };
                     }).ToList();
 
                 var totalHistoryBytes = finishedTorrents.Sum(f => f.bytes);
-                var monthCutoff = nowUtc.AddDays(-30);
-                var weekCutoff = nowUtc.AddDays(-7);
+                var monthCutoff = new DateTimeOffset(nowUtc.AddDays(-30)).ToUnixTimeSeconds();
+                var weekCutoff = new DateTimeOffset(nowUtc.AddDays(-7)).ToUnixTimeSeconds();
                 var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
                 var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
 
@@ -385,7 +390,7 @@ public class SabnzbdApiController : ControllerBase
                         var added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
                         if (added != null)
                         {
-                            var prioStr = this.Request.Query["priority"].ToString();
+                            var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
                             if (int.TryParse(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
@@ -402,7 +407,7 @@ public class SabnzbdApiController : ControllerBase
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
                         if (added != null)
                         {
-                            var prioStr = this.Request.Query["priority"].ToString();
+                            var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
                             if (int.TryParse(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
@@ -416,8 +421,37 @@ public class SabnzbdApiController : ControllerBase
 
                 return this.Ok(new { status = true, nzo_ids = new[] { addedId } });
 
-            case "addfile":
             case "addlocalfile":
+                var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
+
+                if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath))
+                {
+                    var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(
+                        parsed,
+                        !string.IsNullOrWhiteSpace(cat) ? cat : formCat,
+                        null,
+                        false,
+                        bytes);
+
+                    if (added != null)
+                    {
+                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
+                        if (int.TryParse(prioStr, out var pVal))
+                        {
+                            added.Priority = pVal;
+                            await this.torrentService.UpdateAsync(added);
+                        }
+                    }
+
+                    return this.Ok(new
+                    {
+                        status = true,
+                        nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") }
+                    });
+                }
+
                 if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
                 {
                     var file = this.Request.Form.Files[0];
@@ -429,7 +463,32 @@ public class SabnzbdApiController : ControllerBase
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
                     if (added != null)
                     {
-                        var prioStr = this.Request.Query["priority"].ToString();
+                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
+                        if (int.TryParse(prioStr, out var pVal))
+                        {
+                            added.Priority = pVal;
+                            await this.torrentService.UpdateAsync(added);
+                        }
+                    }
+
+                    return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
+                }
+
+                return this.BadRequest(new { status = false, error = "No local file path or uploaded file provided." });
+
+            case "addfile":
+                if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+                {
+                    var file = this.Request.Form.Files[0];
+                    var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
+                    using var ms = new MemoryStream();
+                    await file.CopyToAsync(ms);
+                    var bytes = ms.ToArray();
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+                    if (added != null)
+                    {
+                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
                         if (int.TryParse(prioStr, out var pVal))
                         {
                             added.Priority = pVal;
