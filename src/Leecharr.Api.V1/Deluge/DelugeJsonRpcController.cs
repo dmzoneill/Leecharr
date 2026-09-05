@@ -451,7 +451,7 @@ public class DelugeJsonRpcController : ControllerBase
                         {
                             { "download_rate", allT.Sum(t => t.DownloadSpeed) },
                             { "upload_rate", allT.Sum(t => t.UploadSpeed) },
-                            { "num_peers", allT.Sum(t => t.Leechers) },
+                            { "num_peers", allT.Sum(t => t.Seeders + t.Leechers) },
                             { "payload_download_rate", allT.Sum(t => t.DownloadSpeed) },
                             { "payload_upload_rate", allT.Sum(t => t.UploadSpeed) },
                             { "total_download", allT.Sum(t => t.Downloaded) },
@@ -526,6 +526,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                     return this.DelugeResult(new { result = resultDict, error = (object)null, id });
 
+                case "web.get_torrent_status":
                 case "core.get_torrent_status":
                     var targetHash = GetFirstStringParam(paramsElem);
                     var found = this.torrentService.GetByInfoHash(targetHash);
@@ -1125,15 +1126,15 @@ public class DelugeJsonRpcController : ControllerBase
             { "ratio", t.Ratio },
             { "num_seeds", t.Seeders },
             { "total_seeds", t.Seeders },
-            { "num_peers", t.Leechers },
-            { "total_peers", t.Leechers },
+            { "num_peers", t.Seeders + t.Leechers },
+            { "total_peers", t.Seeders + t.Leechers },
             { "num_files", numFiles },
             { "files", filesList },
             { "file_priorities", filePriorities },
             { "file_progress", fileProgress },
             { "save_path", t.SavePath ?? string.Empty },
             { "label", t.Category ?? string.Empty },
-            { "is_finished", t.Progress >= 1.0 },
+            { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "is_seed", t.Status == TorrentStatus.Seeding },
             { "paused", t.Status == TorrentStatus.Paused },
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
