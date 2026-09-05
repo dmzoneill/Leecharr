@@ -19,15 +19,21 @@ public class DownloadHistoryController : Controller
     private readonly IDownloadHistoryService historyService;
     private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly IMediaEnrichmentService mediaEnrichmentService;
+    private readonly IDownloadHistoryRepository downloadHistoryRepository;
+    private readonly ITorrentRepository torrentRepository;
 
     public DownloadHistoryController(
         IDownloadHistoryService historyService,
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
-        IMediaEnrichmentService mediaEnrichmentService = null)
+        IMediaEnrichmentService mediaEnrichmentService = null,
+        IDownloadHistoryRepository downloadHistoryRepository = null,
+        ITorrentRepository torrentRepository = null)
     {
         this.historyService = historyService;
         this.mediaMetadataRepository = mediaMetadataRepository;
         this.mediaEnrichmentService = mediaEnrichmentService;
+        this.downloadHistoryRepository = downloadHistoryRepository;
+        this.torrentRepository = torrentRepository;
     }
 
     [HttpGet]
@@ -87,11 +93,24 @@ public class DownloadHistoryController : Controller
         {
             var torrent = new Torrent
             {
-                Id = record.TorrentId ?? record.Id,
+                Id = record.TorrentId ?? 0,
                 Name = record.Title,
                 InfoHash = record.InfoHash ?? string.Empty,
             };
-            await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+            var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+            if (metadata != null)
+            {
+                record.DataJson = JsonSerializer.Serialize(metadata);
+            }
+
+            if (this.downloadHistoryRepository != null)
+            {
+                this.downloadHistoryRepository.Update(record);
+            }
+            else
+            {
+                this.historyService.Update(record);
+            }
         }
 
         var resource = this.ToResource(record);
@@ -110,11 +129,23 @@ public class DownloadHistoryController : Controller
                 {
                     var torrent = new Torrent
                     {
-                        Id = record.TorrentId ?? record.Id,
+                        Id = record.TorrentId ?? 0,
                         Name = record.Title,
                         InfoHash = record.InfoHash ?? string.Empty,
                     };
-                    await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                    var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                    if (metadata != null)
+                    {
+                        record.DataJson = JsonSerializer.Serialize(metadata);
+                        if (this.downloadHistoryRepository != null)
+                        {
+                            this.downloadHistoryRepository.Update(record);
+                        }
+                        else
+                        {
+                            this.historyService.Update(record);
+                        }
+                    }
                 }
                 catch
                 {
@@ -152,6 +183,15 @@ public class DownloadHistoryController : Controller
         if (model.TorrentId.HasValue && this.mediaMetadataRepository != null)
         {
             metadata = this.mediaMetadataRepository.GetByTorrentId(model.TorrentId.Value);
+        }
+
+        if (metadata == null && !string.IsNullOrEmpty(model.InfoHash) && this.torrentRepository != null && this.mediaMetadataRepository != null)
+        {
+            var activeTorrent = this.torrentRepository.GetByInfoHash(model.InfoHash);
+            if (activeTorrent != null)
+            {
+                metadata = this.mediaMetadataRepository.GetByTorrentId(activeTorrent.Id);
+            }
         }
 
         if (metadata == null && !string.IsNullOrEmpty(model.DataJson))
