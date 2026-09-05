@@ -128,6 +128,12 @@ public class AllDownloadClientTests : IntegrationTestBase
         var json = await dlResponse.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         doc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var updateResponse = await this.Client.PutAsync("/api/v4/downloads/1", new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("stop_ratio", "150"),
+        }));
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Test]

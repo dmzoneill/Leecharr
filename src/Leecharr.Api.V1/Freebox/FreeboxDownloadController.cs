@@ -265,12 +265,12 @@ public class FreeboxDownloadController : ControllerBase
         {
             status = this.Request.Form["status"].ToString().ToLowerInvariant();
             queuePos = this.Request.Form["queue_pos"].ToString().ToLowerInvariant();
-            if (double.TryParse(this.Request.Form["stop_ratio"].ToString(), out var formRatio) && formRatio > 0)
+            if (double.TryParse(this.Request.Form["stop_ratio"].ToString(), out var formRatio) && formRatio >= 0)
             {
                 var t = this.torrentService.Get(id);
                 if (t != null)
                 {
-                    t.TargetRatio = formRatio;
+                    t.TargetRatio = formRatio / 100.0;
                     await this.torrentService.UpdateAsync(t);
                 }
             }
@@ -279,12 +279,12 @@ public class FreeboxDownloadController : ControllerBase
         {
             status = jsonRequest.Status?.ToLowerInvariant();
             queuePos = jsonRequest.QueuePos?.ToLowerInvariant();
-            if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value > 0)
+            if (jsonRequest.StopRatio.HasValue && jsonRequest.StopRatio.Value >= 0)
             {
                 var t = this.torrentService.Get(id);
                 if (t != null)
                 {
-                    t.TargetRatio = jsonRequest.StopRatio.Value;
+                    t.TargetRatio = jsonRequest.StopRatio.Value / 100.0;
                     await this.torrentService.UpdateAsync(t);
                 }
             }
