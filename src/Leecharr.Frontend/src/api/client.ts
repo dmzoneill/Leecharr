@@ -2,6 +2,21 @@ import { Torrent, TorrentFile, Category, SystemStatus } from "./types";
 
 const BASE_URL = "/api/v1";
 
+async function parseResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return null as unknown as T;
+  }
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return null as unknown as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
+}
+
 class ApiClient {
   private apiKey: string | null = null;
 
@@ -63,11 +78,7 @@ class ApiClient {
       throw error;
     }
 
-    if (response.status === 204 || response.headers.get("content-length") === "0") {
-      return null as unknown as T;
-    }
-
-    return response.json();
+    return parseResponseBody<T>(response);
   }
 
   get<T>(endpoint: string): Promise<T> {
@@ -100,7 +111,7 @@ class ApiClient {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 
-    return response.json();
+    return parseResponseBody<T>(response);
   }
 
   put<T>(endpoint: string, body?: unknown): Promise<T> {
@@ -138,11 +149,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(errorText || `HTTP Error ${response.status}`);
   }
 
-  if (response.status === 204 || response.headers.get("content-length") === "0") {
-    return null as unknown as T;
-  }
-
-  return response.json();
+  return parseResponseBody<T>(response);
 }
 
 export const api = {
