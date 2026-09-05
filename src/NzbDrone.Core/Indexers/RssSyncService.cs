@@ -28,6 +28,7 @@ public class RssSyncService : IRssSyncService
     private readonly ITorrentFileParser torrentFileParser;
     private readonly HttpClient httpClient;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
 
@@ -38,7 +39,8 @@ public class RssSyncService : IRssSyncService
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser = null,
         HttpClient httpClient = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDownloadHistoryService downloadHistoryService = null)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -47,6 +49,7 @@ public class RssSyncService : IRssSyncService
         this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
+        this.downloadHistoryService = downloadHistoryService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -86,29 +89,63 @@ public class RssSyncService : IRssSyncService
                         {
                             this.logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
 
+                            Torrent addedTorrent = null;
                             var grabbed = false;
                             if (!string.IsNullOrEmpty(release.MagnetUrl))
                             {
-                                await this.torrentService.AddFromMagnetAsync(release.MagnetUrl);
-                                grabbed = true;
-                            }
-                            else if (!string.IsNullOrEmpty(release.DownloadUrl))
-                            {
                                 try
                                 {
-                                    var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
-                                    var parsed = this.torrentFileParser.Parse(torrentBytes);
-                                    await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
-                                    grabbed = true;
+                                    addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl);
+                                    grabbed = addedTorrent != null;
                                 }
                                 catch (Exception ex)
                                 {
-                                    this.logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
+                                    this.logger.Error(ex, "Failed to add magnet for release {0}", release.Title);
+                                }
+                            }
+                            else if (!string.IsNullOrEmpty(release.DownloadUrl))
+                            {
+                                if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    try
+                                    {
+                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl);
+                                        grabbed = addedTorrent != null;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        this.logger.Error(ex, "Failed to add magnet download url for release {0}", release.Title);
+                                    }
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+                                        var parsed = this.torrentFileParser.Parse(torrentBytes);
+                                        addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
+                                        grabbed = addedTorrent != null;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        this.logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
+                                    }
                                 }
                             }
 
-                            if (grabbed)
+                            if (grabbed && addedTorrent != null)
                             {
+                                var effectiveMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
+                                    ? release.MagnetUrl
+                                    : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
+
+                                this.downloadHistoryService?.RecordTorrentAdded(
+                                    addedTorrent,
+                                    source: $"RSS: {rule.Name}",
+                                    magnetUrl: effectiveMagnet,
+                                    downloadUrl: release.DownloadUrl,
+                                    indexerName: indexer.Name);
+
                                 if (!string.IsNullOrEmpty(releaseId))
                                 {
                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
