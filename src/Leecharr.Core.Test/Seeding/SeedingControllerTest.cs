@@ -80,7 +80,7 @@ public class SeedingControllerTest
         stats.TotalDownloaded.Should().Be(17000);
         stats.TotalUploaded.Should().Be(16000);
         stats.GlobalRatio.Should().BeApproximately(16000.0 / 17000.0, 0.0001);
-        stats.AverageRatio.Should().BeApproximately(16000.0 / 17000.0, 0.0001);
+        stats.AverageRatio.Should().BeApproximately((0.2 + 1.5 + 0.0) / 3.0, 0.0001);
     }
 
     [Test]
