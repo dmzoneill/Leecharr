@@ -10,6 +10,7 @@ using Leecharr.Http.Authentication;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
@@ -36,6 +37,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IBroadcastSignalRMessage signalRBroadcaster;
     private readonly IQueueManagerService queueManagerService;
     private readonly IPowerManagementService powerManagementService;
+    private readonly IUdpTrackerService udpTrackerService;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -52,7 +54,8 @@ public class AppLifetime : IHostedService, IDisposable
         ITorrentService torrentService = null,
         IBroadcastSignalRMessage signalRBroadcaster = null,
         IQueueManagerService queueManagerService = null,
-        IPowerManagementService powerManagementService = null)
+        IPowerManagementService powerManagementService = null,
+        IUdpTrackerService udpTrackerService = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -66,6 +69,7 @@ public class AppLifetime : IHostedService, IDisposable
         this.signalRBroadcaster = signalRBroadcaster;
         this.queueManagerService = queueManagerService;
         this.powerManagementService = powerManagementService ?? new PowerManagementService();
+        this.udpTrackerService = udpTrackerService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -127,6 +131,18 @@ public class AppLifetime : IHostedService, IDisposable
             this.logger.Error(ex, "Error initializing download engine on startup");
         }
 
+        try
+        {
+            if (this.configService.TrackerServerEnabled && this.configService.TrackerUdpEnabled && this.udpTrackerService != null)
+            {
+                await this.udpTrackerService.StartAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error initializing UDP tracker service on startup");
+        }
+
         this.cts = new CancellationTokenSource();
         this.backgroundLoopTask = Task.Run(() => this.RunBackgroundLoopAsync(this.cts.Token), this.cts.Token);
 
@@ -137,6 +153,18 @@ public class AppLifetime : IHostedService, IDisposable
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         this.logger.Info("Leecharr application shutting down...");
+
+        if (this.udpTrackerService != null)
+        {
+            try
+            {
+                await this.udpTrackerService.StopAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error shutting down UDP tracker service");
+            }
+        }
 
         try
         {

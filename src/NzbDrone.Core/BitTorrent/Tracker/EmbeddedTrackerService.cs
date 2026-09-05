@@ -133,27 +133,27 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         }
     }
 
-    public byte[] ProcessAnnounce(TrackerAnnounceRequest request)
+    public TrackerAnnounceResult Announce(TrackerAnnounceRequest request)
     {
         if (!this.IsEnabled)
         {
-            return FailureResponse("Embedded tracker is disabled.");
+            return new TrackerAnnounceResult { Success = false, FailureReason = "Embedded tracker is disabled." };
         }
 
         if (request == null)
         {
-            return FailureResponse("Missing request.");
+            return new TrackerAnnounceResult { Success = false, FailureReason = "Missing request." };
         }
 
         if (!TryValidateInfoHash(request.InfoHashBytes, request.InfoHashHex, out var hexKey, out var validBytes, out var hashError))
         {
-            return FailureResponse(hashError);
+            return new TrackerAnnounceResult { Success = false, FailureReason = hashError };
         }
 
         var isPrivate = this.configService?.TrackerPrivateMode ?? false;
         if (isPrivate && !this.swarms.ContainsKey(hexKey))
         {
-            return FailureResponse("Torrent not registered on this private tracker.");
+            return new TrackerAnnounceResult { Success = false, FailureReason = "Torrent not registered on this private tracker." };
         }
 
         var isStopped = string.Equals(request.Event, "stopped", StringComparison.OrdinalIgnoreCase);
@@ -162,7 +162,16 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
         if (isStopped && !this.swarms.ContainsKey(hexKey))
         {
-            return this.BuildAnnounceResponse(0, 0, Array.Empty<TrackerPeerState>(), request);
+            var announceInterval = this.configService?.TrackerAnnounceInterval ?? 1800;
+            return new TrackerAnnounceResult
+            {
+                Success = true,
+                Interval = announceInterval,
+                MinInterval = Math.Min(300, announceInterval / 2),
+                Seeders = 0,
+                Leechers = 0,
+                Peers = Array.Empty<TrackerPeerState>(),
+            };
         }
 
         SwarmState swarm;
@@ -172,7 +181,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
             {
                 if (!this.TryAcquireSwarmSlot())
                 {
-                    return FailureResponse("Tracker swarm limit reached.");
+                    return new TrackerAnnounceResult { Success = false, FailureReason = "Tracker swarm limit reached." };
                 }
 
                 var newSwarm = new SwarmState
@@ -225,8 +234,8 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
             }
         }
 
-        var announceInterval = this.configService?.TrackerAnnounceInterval ?? 1800;
-        this.PruneStalePeers(swarm, TimeSpan.FromSeconds(announceInterval * 2), hexKey);
+        var interval = this.configService?.TrackerAnnounceInterval ?? 1800;
+        this.PruneStalePeers(swarm, TimeSpan.FromSeconds(interval * 2), hexKey);
 
         var seeders = swarm.Peers.Values.Count(p => p.IsSeeder);
         var leechers = swarm.Peers.Values.Count(p => !p.IsSeeder);
@@ -241,28 +250,47 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         var numWant = request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50);
         var candidatePeers = eligiblePeers.Take(numWant).ToList();
 
-        return this.BuildAnnounceResponse(seeders, leechers, candidatePeers, request);
+        return new TrackerAnnounceResult
+        {
+            Success = true,
+            Interval = interval,
+            MinInterval = Math.Min(300, interval / 2),
+            Seeders = seeders,
+            Leechers = leechers,
+            Peers = candidatePeers,
+        };
     }
 
-    public byte[] ProcessScrape(List<byte[]> infoHashList)
+    public byte[] ProcessAnnounce(TrackerAnnounceRequest request)
+    {
+        var result = this.Announce(request);
+        if (!result.Success)
+        {
+            return FailureResponse(result.FailureReason);
+        }
+
+        return this.BuildAnnounceResponse(result.Seeders, result.Leechers, result.Peers, request);
+    }
+
+    public TrackerScrapeResult Scrape(List<byte[]> infoHashList)
     {
         if (!this.IsEnabled)
         {
-            return FailureResponse("Embedded tracker is disabled.");
+            return new TrackerScrapeResult { Success = false, FailureReason = "Embedded tracker is disabled." };
         }
 
         if (this.configService?.TrackerEnableScrape == false)
         {
-            return FailureResponse("Scrape is disabled.");
+            return new TrackerScrapeResult { Success = false, FailureReason = "Scrape is disabled." };
         }
 
         if (this.configService?.TrackerPrivateMode == true &&
             (infoHashList == null || infoHashList.Count == 0))
         {
-            return FailureResponse("Wildcard scrape not allowed on private tracker.");
+            return new TrackerScrapeResult { Success = false, FailureReason = "Wildcard scrape not allowed on private tracker." };
         }
 
-        var filesDict = new BEncodedDictionary();
+        var list = new List<TrackerScrapeItem>();
 
         if (infoHashList != null && infoHashList.Count > 0)
         {
@@ -293,12 +321,13 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
                 if (hexKey != null && binaryHash != null && this.swarms.TryGetValue(hexKey, out var swarm))
                 {
-                    filesDict[new BEncodedString(binaryHash)] = new BEncodedDictionary
+                    list.Add(new TrackerScrapeItem
                     {
-                        { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
-                        { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
-                        { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
-                    };
+                        InfoHash = binaryHash,
+                        Seeders = swarm.Peers.Values.Count(p => p.IsSeeder),
+                        Downloaded = swarm.DownloadedCount,
+                        Leechers = swarm.Peers.Values.Count(p => !p.IsSeeder),
+                    });
                 }
             }
         }
@@ -312,13 +341,40 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
                     ? swarm.InfoHash
                     : ConvertHexToBytes(hexKey);
 
-                filesDict[new BEncodedString(hashBytes)] = new BEncodedDictionary
+                list.Add(new TrackerScrapeItem
                 {
-                    { "complete", new BEncodedNumber(swarm.Peers.Values.Count(p => p.IsSeeder)) },
-                    { "downloaded", new BEncodedNumber(swarm.DownloadedCount) },
-                    { "incomplete", new BEncodedNumber(swarm.Peers.Values.Count(p => !p.IsSeeder)) },
-                };
+                    InfoHash = hashBytes,
+                    Seeders = swarm.Peers.Values.Count(p => p.IsSeeder),
+                    Downloaded = swarm.DownloadedCount,
+                    Leechers = swarm.Peers.Values.Count(p => !p.IsSeeder),
+                });
             }
+        }
+
+        return new TrackerScrapeResult
+        {
+            Success = true,
+            Files = list,
+        };
+    }
+
+    public byte[] ProcessScrape(List<byte[]> infoHashList)
+    {
+        var result = this.Scrape(infoHashList);
+        if (!result.Success)
+        {
+            return FailureResponse(result.FailureReason);
+        }
+
+        var filesDict = new BEncodedDictionary();
+        foreach (var file in result.Files)
+        {
+            filesDict[new BEncodedString(file.InfoHash)] = new BEncodedDictionary
+            {
+                { "complete", new BEncodedNumber(file.Seeders) },
+                { "downloaded", new BEncodedNumber(file.Downloaded) },
+                { "incomplete", new BEncodedNumber(file.Leechers) },
+            };
         }
 
         var root = new BEncodedDictionary

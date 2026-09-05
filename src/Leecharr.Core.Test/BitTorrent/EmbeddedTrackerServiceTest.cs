@@ -30,6 +30,7 @@ public class EmbeddedTrackerServiceTest
         this.configService.TrackerAnnounceInterval.Returns(1800);
         this.configService.TrackerMaxPeersPerAnnounce.Returns(50);
         this.configService.TrackerPrivateMode.Returns(false);
+        this.configService.TrackerEnableScrape.Returns(true);
 
         this.trackerService = new EmbeddedTrackerService(this.configService);
     }
