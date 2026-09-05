@@ -43,13 +43,10 @@ public class WebhookDispatcher : IWebhookDispatcher
     {
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         this.logger = LogManager.GetCurrentClassLogger();
-
-        CancellationToken cancellationToken = default;
-        this.retryPolicy = retryPolicy ?? CreateRetryPolicy(cancellationToken: cancellationToken);
+        this.retryPolicy = retryPolicy ?? CreateRetryPolicy();
     }
 
     internal static AsyncRetryPolicy<HttpResponseMessage> CreateRetryPolicy(
-        CancellationToken cancellationToken = default,
         int retryCount = 3,
         Func<int, TimeSpan> sleepDurationProvider = null,
         Action<DelegateResult<HttpResponseMessage>, TimeSpan, int, Context> onRetry = null)
@@ -57,15 +54,24 @@ public class WebhookDispatcher : IWebhookDispatcher
         return Policy<HttpResponseMessage>
             .Handle<HttpRequestException>()
             .Or<TimeoutException>()
-            .Or<TaskCanceledException>(ex => cancellationToken == default || !cancellationToken.IsCancellationRequested)
+            .Or<TaskCanceledException>(ex => !ex.CancellationToken.IsCancellationRequested)
             .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
             .WaitAndRetryAsync(
                 retryCount,
                 sleepDurationProvider ?? (retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))), // 2s, 4s, 8s
-                onRetry ?? ((outcome, timespan, retryAttempt, context) =>
+                (outcome, timespan, retryAttempt, context) =>
                 {
-                    LogManager.GetCurrentClassLogger().Warn("Webhook dispatch failed. Retrying in {0}s (Attempt {1}/{2})...", timespan.TotalSeconds, retryAttempt, retryCount);
-                }));
+                    outcome.Result?.Dispose();
+
+                    if (onRetry != null)
+                    {
+                        onRetry(outcome, timespan, retryAttempt, context);
+                    }
+                    else
+                    {
+                        LogManager.GetCurrentClassLogger().Warn("Webhook dispatch failed. Retrying in {0}s (Attempt {1}/{2})...", timespan.TotalSeconds, retryAttempt, retryCount);
+                    }
+                });
     }
 
     public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
@@ -77,37 +83,13 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         try
         {
-            var response = await this.retryPolicy.ExecuteAsync(async () =>
-            {
-                HttpContent content;
-
-                if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
-                    payload is IDictionary<string, object> dict)
+            using var response = await this.retryPolicy.ExecuteAsync(
+                async (ct) =>
                 {
-                    var formPairs = dict.Select(kvp =>
-                        new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
-                    content = new FormUrlEncodedContent(formPairs);
-                }
-                else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
-                         payload is IDictionary<string, string> stringDict)
-                {
-                    content = new FormUrlEncodedContent(stringDict);
-                }
-                else
-                {
-                    var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-                    content = new StringContent(json, Encoding.UTF8, "application/json");
-                }
-
-                var request = new HttpRequestMessage(HttpMethod.Post, targetUrl)
-                {
-                    Content = content,
-                };
-
-                this.AttachCustomHeaders(request, customHeadersJson);
-
-                return await this.httpClient.SendAsync(request, cancellationToken);
-            });
+                    using var request = this.BuildHttpRequest(targetUrl, payload, customHeadersJson);
+                    return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {
@@ -123,6 +105,38 @@ public class WebhookDispatcher : IWebhookDispatcher
             this.logger.Error(ex, "Failed to dispatch webhook to {0}", targetUrl);
             return false;
         }
+    }
+
+    private HttpRequestMessage BuildHttpRequest(string targetUrl, object payload, string customHeadersJson)
+    {
+        HttpContent content;
+
+        if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+            payload is IDictionary<string, object> dict)
+        {
+            var formPairs = dict.Select(kvp =>
+                new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+            content = new FormUrlEncodedContent(formPairs);
+        }
+        else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+                 payload is IDictionary<string, string> stringDict)
+        {
+            content = new FormUrlEncodedContent(stringDict);
+        }
+        else
+        {
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            content = new StringContent(json, Encoding.UTF8, "application/json");
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, targetUrl)
+        {
+            Content = content,
+        };
+
+        this.AttachCustomHeaders(request, customHeadersJson);
+
+        return request;
     }
 
     private void AttachCustomHeaders(HttpRequestMessage request, string customHeadersJson)
