@@ -13,6 +13,9 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -20,6 +23,7 @@ namespace Leecharr.Core.Test.BitTorrent;
 public class EmbeddedTrackerServiceTest
 {
     private IConfigService configService;
+    private ITorrentRepository torrentRepository;
     private EmbeddedTrackerService trackerService;
 
     [SetUp]
@@ -27,12 +31,13 @@ public class EmbeddedTrackerServiceTest
     {
         this.configService = Substitute.For<IConfigService>();
         this.configService.TrackerServerEnabled.Returns(true);
+        this.configService.TrackerEnableScrape.Returns(true);
         this.configService.TrackerAnnounceInterval.Returns(1800);
         this.configService.TrackerMaxPeersPerAnnounce.Returns(50);
-        this.configService.TrackerPrivateMode.Returns(false);
         this.configService.TrackerEnableScrape.Returns(true);
+        this.torrentRepository = Substitute.For<ITorrentRepository>();
 
-        this.trackerService = new EmbeddedTrackerService(this.configService);
+        this.trackerService = new EmbeddedTrackerService(this.configService, this.torrentRepository);
     }
 
     [TearDown]
@@ -327,7 +332,56 @@ public class EmbeddedTrackerServiceTest
     }
 
     [Test]
-    public void ProcessAnnounce_SwarmLimitReached_PrunesLeastRecentlyActiveEmptySwarm()
+    public void ProcessAnnounce_SwarmLimitReached_PrunesInactivePeersFromUnregisteredSwarms()
+    {
+        this.configService.TrackerAnnounceInterval.Returns(1);
+        this.trackerService.MaxSwarms = 2;
+
+        var hex1 = "1111111111111111111111111111111111111111";
+        var hex2 = "2222222222222222222222222222222222222222";
+        var hex3 = "3333333333333333333333333333333333333333";
+
+        // Peer announces to swarm 1 first
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex1,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 100,
+        });
+
+        // Peer announces to swarm 2 second
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex2,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            Left = 100,
+        });
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+
+        // Wait for peer in swarm 1 & 2 to exceed 2x interval (2 seconds)
+        Thread.Sleep(2100);
+
+        // Now announce to swarm 3 (new swarm). Capacity is full (2/2), but inactive peers in unregistered swarms are pruned.
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex3,
+            RemoteIp = IPAddress.Parse("10.0.0.3"),
+            Port = 6883,
+            Left = 0,
+        };
+
+        var bytes = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
+        dict.ContainsKey("failure reason").Should().BeFalse();
+
+        this.trackerService.ActiveSwarmsCount.Should().BeGreaterThan(0);
+    }
+
+    [Test]
+    public void ProcessAnnounce_SwarmLimitReached_RegisteredEmptySwarms_NotEvicted_RejectsNewSwarm()
     {
         this.trackerService.MaxSwarms = 2;
 
@@ -335,17 +389,15 @@ public class EmbeddedTrackerServiceTest
         var hex2 = "2222222222222222222222222222222222222222";
         var hex3 = "3333333333333333333333333333333333333333";
 
-        // Register swarm 1 first (older)
+        // Register swarm 1 and 2 (both empty, registered internally by Leecharr)
         this.trackerService.RegisterSwarm(hex1);
-        Thread.Sleep(20);
-
-        // Register swarm 2 second (newer)
         this.trackerService.RegisterSwarm(hex2);
 
         this.trackerService.ActiveSwarmsCount.Should().Be(2);
+        this.trackerService.ActivePeersCount.Should().Be(0);
 
-        // Now announce to swarm 3 (new swarm). Capacity is full (2/2), but empty swarms exist.
-        // Swarm 1 is least-recently active, so it should be pruned to make room for swarm 3.
+        // Try announcing to a 3rd swarm when capacity is full of registered swarms.
+        // Registered swarms must NOT be evicted.
         var req = new TrackerAnnounceRequest
         {
             InfoHashHex = hex3,
@@ -356,22 +408,11 @@ public class EmbeddedTrackerServiceTest
 
         var bytes = this.trackerService.ProcessAnnounce(req);
         var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
-        dict.ContainsKey("failure reason").Should().BeFalse();
+        dict.ContainsKey("failure reason").Should().BeTrue();
+        ((BEncodedString)dict["failure reason"]).Text.Should().Be("Tracker swarm limit reached.");
 
+        // Both registered swarms remain intact
         this.trackerService.ActiveSwarmsCount.Should().Be(2);
-
-        // Verify scrape contains hex2 and hex3, but not hex1
-        var scrape = this.trackerService.ProcessScrape(new List<byte[]>
-        {
-            Convert.FromHexString(hex1),
-            Convert.FromHexString(hex2),
-            Convert.FromHexString(hex3),
-        });
-        var scrapeDict = (BEncodedDictionary)BEncodedValue.Decode(scrape);
-        var files = (BEncodedDictionary)scrapeDict["files"];
-        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex1))).Should().BeFalse();
-        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex2))).Should().BeTrue();
-        files.ContainsKey(new BEncodedString(Convert.FromHexString(hex3))).Should().BeTrue();
     }
 
     [Test]
@@ -682,5 +723,111 @@ public class EmbeddedTrackerServiceTest
         var allDict = (BEncodedDictionary)BEncodedValue.Decode(scrapeAllResp);
         var allFiles = (BEncodedDictionary)allDict["files"];
         allFiles.ContainsKey(new BEncodedString(infoHash)).Should().BeTrue();
+    }
+
+    [Test]
+    public void RegisterSwarm_WhenSwarmAlreadyExists_SetsIsRegisteredTrue_WithoutConsumingExtraSlot()
+    {
+        this.trackerService.MaxSwarms = 1;
+        var hex = "1111111111111111111111111111111111111111";
+
+        // Swarm created via public announce
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 100,
+        };
+        this.trackerService.ProcessAnnounce(req);
+        this.trackerService.ActiveSwarmsCount.Should().Be(1);
+
+        // Registering the existing swarm marks it registered and succeeds even at MaxSwarms capacity
+        this.trackerService.RegisterSwarm(hex);
+        this.trackerService.ActiveSwarmsCount.Should().Be(1);
+
+        // Switch to private mode; announce must succeed because it is now registered
+        this.configService.TrackerPrivateMode.Returns(true);
+        var resp = this.trackerService.ProcessAnnounce(req);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("failure reason").Should().BeFalse();
+    }
+
+    [Test]
+    public void Handle_TorrentAddedAndDeletedEvents_RegistersAndUnregistersSwarm()
+    {
+        this.configService.TrackerPrivateMode.Returns(true);
+        var hex = "1111111111111111111111111111111111111111";
+        var torrent = new Torrent { InfoHash = hex };
+
+        // Before adding, private announce fails
+        var req = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 0,
+        };
+        var resp1 = this.trackerService.ProcessAnnounce(req);
+        ((BEncodedDictionary)BEncodedValue.Decode(resp1)).ContainsKey("failure reason").Should().BeTrue();
+
+        // Handle TorrentAddedEvent
+        this.trackerService.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        // Now private announce succeeds
+        var resp2 = this.trackerService.ProcessAnnounce(req);
+        ((BEncodedDictionary)BEncodedValue.Decode(resp2)).ContainsKey("failure reason").Should().BeFalse();
+
+        // Handle TorrentDeletedEvent
+        this.trackerService.Handle(new TorrentDeletedEvent { Torrent = torrent });
+
+        // Swarm is unregistered; another announce in private mode fails
+        var reqLeecher = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            Left = 100,
+        };
+        var resp3 = this.trackerService.ProcessAnnounce(reqLeecher);
+        ((BEncodedDictionary)BEncodedValue.Decode(resp3)).ContainsKey("failure reason").Should().BeTrue();
+    }
+
+    [Test]
+    public void Handle_ApplicationStartedEvent_RegistersAllExistingTorrents()
+    {
+        this.configService.TrackerPrivateMode.Returns(true);
+        var hex1 = "1111111111111111111111111111111111111111";
+        var hex2 = "2222222222222222222222222222222222222222";
+
+        this.torrentRepository.All().Returns(new List<Torrent>
+        {
+            new Torrent { InfoHash = hex1 },
+            new Torrent { InfoHash = hex2 },
+        });
+
+        this.trackerService.Handle(new ApplicationStartedEvent());
+
+        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+
+        var req1 = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex1,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            Left = 0,
+        };
+        var resp1 = this.trackerService.ProcessAnnounce(req1);
+        ((BEncodedDictionary)BEncodedValue.Decode(resp1)).ContainsKey("failure reason").Should().BeFalse();
+
+        var req2 = new TrackerAnnounceRequest
+        {
+            InfoHashHex = hex2,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            Left = 0,
+        };
+        var resp2 = this.trackerService.ProcessAnnounce(req2);
+        ((BEncodedDictionary)BEncodedValue.Decode(resp2)).ContainsKey("failure reason").Should().BeFalse();
     }
 }
