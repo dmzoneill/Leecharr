@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -76,11 +77,28 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         try
         {
-            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-
             var response = await this.retryPolicy.ExecuteAsync(async () =>
             {
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                HttpContent content;
+
+                if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+                    payload is IDictionary<string, object> dict)
+                {
+                    var formPairs = dict.Select(kvp =>
+                        new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                    content = new FormUrlEncodedContent(formPairs);
+                }
+                else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+                         payload is IDictionary<string, string> stringDict)
+                {
+                    content = new FormUrlEncodedContent(stringDict);
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                    content = new StringContent(json, Encoding.UTF8, "application/json");
+                }
+
                 var request = new HttpRequestMessage(HttpMethod.Post, targetUrl)
                 {
                     Content = content,
