@@ -151,4 +151,150 @@ public class RTorrentControllerTest
         contentResult.Content.Should().Contain("<i4>0</i4>");
         await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/id_target", moveFiles: true);
     }
+
+    [Test]
+    public async Task HandleXmlRpc_SystemMulticall_WithBatchedQueries_ReturnsArrayOfResults()
+    {
+        var torrent1 = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent.One",
+            InfoHash = "1111111111111111111111111111111111111111",
+            Category = "tv",
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 2,
+            Name = "Torrent.Two",
+            InfoHash = "2222222222222222222222222222222222222222",
+            Category = "movies",
+        };
+
+        this.torrentService.GetByInfoHash("1111111111111111111111111111111111111111").Returns(torrent1);
+        this.torrentService.GetByInfoHash("2222222222222222222222222222222222222222").Returns(torrent2);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>system.multicall</methodName>
+              <params>
+                <param>
+                  <value>
+                    <array>
+                      <data>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>d.name</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data>
+                                    <value><string>1111111111111111111111111111111111111111</string></value>
+                                  </data>
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>d.get_custom1</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data>
+                                    <value><string>2222222222222222222222222222222222222222</string></value>
+                                  </data>
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                      </data>
+                    </array>
+                  </value>
+                </param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>Torrent.One</string>");
+        contentResult.Content.Should().Contain("<string>movies</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SystemMulticall_WithGetDirectoryAndVersion_ReturnsExpectedResults()
+    {
+        this.configService.DownloadDir.Returns("/data/downloads");
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>system.multicall</methodName>
+              <params>
+                <param>
+                  <value>
+                    <array>
+                      <data>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>get_directory</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data />
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>system.client_version</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data />
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                      </data>
+                    </array>
+                  </value>
+                </param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>/data/downloads</string>");
+        contentResult.Content.Should().Contain("<string>0.9.8</string>");
+    }
 }

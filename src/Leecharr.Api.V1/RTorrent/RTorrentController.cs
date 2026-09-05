@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -722,10 +723,25 @@ public class RTorrentController : ControllerBase
                 return int.TryParse(first.Value, out var i) ? i : 0;
             case "i8":
                 return long.TryParse(first.Value, out var l) ? l : 0L;
+            case "double":
+                return double.TryParse(first.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : 0.0;
             case "boolean":
                 return first.Value == "1" || first.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
             case "base64":
                 return Convert.FromBase64String(first.Value);
+            case "struct":
+                var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                foreach (var member in first.Elements("member"))
+                {
+                    var name = member.Element("name")?.Value?.Trim();
+                    var valElem = member.Element("value");
+                    if (!string.IsNullOrEmpty(name) && valElem != null)
+                    {
+                        dict[name] = ParseXmlRpcValue(valElem);
+                    }
+                }
+
+                return dict;
             case "array":
                 var list = new List<object>();
                 var data = first.Element("data");
