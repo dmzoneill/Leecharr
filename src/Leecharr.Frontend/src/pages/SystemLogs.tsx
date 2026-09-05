@@ -67,15 +67,17 @@ export function SystemLogs() {
   const [levelFilter, setLevelFilter] = useState<LogLevel | "All">("All");
   const [searchText, setSearchText] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [cleared, setCleared] = useState(false);
+  const [clearedBeforeId, setClearedBeforeId] = useState<number | null>(null);
   const logContentRef = useRef<HTMLDivElement>(null);
 
   const queryLevel = levelFilter === "All" ? null : levelFilter;
   const { data: rawEntries = [], isLoading } = useLogEntries(queryLevel);
 
   const filteredEntries = useMemo(() => {
-    if (cleared) return [];
     let list = rawEntries;
+    if (clearedBeforeId !== null) {
+      list = list.filter((e) => e.id > clearedBeforeId);
+    }
     if (searchText.trim()) {
       const q = searchText.toLowerCase();
       list = list.filter(
@@ -86,11 +88,11 @@ export function SystemLogs() {
       );
     }
     return list;
-  }, [rawEntries, searchText, cleared]);
+  }, [rawEntries, searchText, clearedBeforeId]);
 
   const handleClear = useCallback(() => {
-    setCleared(true);
-  }, []);
+    setClearedBeforeId(rawEntries.reduce((max, e) => Math.max(max, e.id), 0));
+  }, [rawEntries]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -219,7 +221,7 @@ export function SystemLogs() {
               <div className="log-empty-state">Loading log entries...</div>
             ) : filteredEntries.length === 0 ? (
               <div className="log-empty-state">
-                {cleared
+                {clearedBeforeId !== null
                   ? "Log display cleared. New entries will appear above."
                   : searchText
                     ? "No log entries match the search filter."
