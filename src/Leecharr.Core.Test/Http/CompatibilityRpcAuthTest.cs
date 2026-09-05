@@ -190,4 +190,54 @@ public class CompatibilityRpcAuthTest
         var result = controller.GetAppVersion();
         result.Should().BeOfType<UnauthorizedResult>();
     }
+
+    [Test]
+    public void NzbVortex_WhenHardcodedSessionTokenProvided_Returns401()
+    {
+        var controller = new NzbVortexApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?session=leecharr-session-token");
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = controller.GetAppVersion();
+        result.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Test]
+    public void NzbVortex_WhenAuthenticatedViaLogin_SessionTokenGrantsAccess()
+    {
+        var controller = new NzbVortexApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        loginContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.Login();
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)loginResult;
+        var sessionProp = okResult.Value!.GetType().GetProperty("session")!.GetValue(okResult.Value)!.ToString();
+        sessionProp.Should().NotBeNullOrWhiteSpace();
+        sessionProp.Should().NotBe("leecharr-session-token");
+
+        var authedContext = new DefaultHttpContext();
+        authedContext.Request.QueryString = new QueryString($"?session={sessionProp}");
+        controller.ControllerContext = new ControllerContext { HttpContext = authedContext };
+
+        var appVersionResult = controller.GetAppVersion();
+        appVersionResult.Should().BeOfType<OkObjectResult>();
+    }
 }

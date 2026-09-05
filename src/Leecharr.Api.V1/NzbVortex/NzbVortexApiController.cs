@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -21,6 +22,7 @@ namespace Leecharr.Api.V1.NzbVortex;
 [ApiController]
 public class NzbVortexApiController : ControllerBase, IActionFilter
 {
+    private static readonly ConcurrentDictionary<string, DateTime> authenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -82,7 +84,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var session = this.Request.Query["session"].ToString();
-        if (!string.IsNullOrEmpty(session) && string.Equals(session, "leecharr-session-token", StringComparison.Ordinal))
+        if (!string.IsNullOrEmpty(session) && authenticatedSessions.TryGetValue(session, out var expiry) && expiry > DateTime.UtcNow)
         {
             return true;
         }
@@ -128,11 +130,14 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
             }
         }
 
+        var sessionToken = Guid.NewGuid().ToString("N");
+        authenticatedSessions[sessionToken] = DateTime.UtcNow.AddHours(24);
+
         return this.Ok(new
         {
             loginResult = 0,
             auth = true,
-            session = "leecharr-session-token",
+            session = sessionToken,
             error = 0,
             result = 0,
         });
