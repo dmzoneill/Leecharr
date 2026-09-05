@@ -12,6 +12,7 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Messaging.Events;
@@ -66,7 +67,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         IMediaMetadataService mediaMetadataService = null,
         IArrConnectionRepository arrRepository = null,
         ISafeHttpClientService safeHttpClientService = null,
-        HttpClient httpClient = null)
+        HttpClient httpClient = null,
+        IHttpTransportEngine transportEngine = null)
     {
         this.repository = repository;
         this.inspector = inspector;
@@ -75,8 +77,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         this.eventAggregator = eventAggregator;
         this.mediaMetadataService = mediaMetadataService;
         this.arrRepository = arrRepository;
-        this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : (transportEngine != null ? new SafeHttpClientService(transportEngine) : new SafeHttpClientService()));
+        this.httpClient = httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) } : new HttpClient { Timeout = TimeSpan.FromSeconds(15) });
         this.logger = LogManager.GetCurrentClassLogger();
     }
 

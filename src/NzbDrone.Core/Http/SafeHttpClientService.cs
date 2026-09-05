@@ -10,6 +10,7 @@ using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Http;
 
@@ -21,7 +22,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
     private readonly bool ownsClient;
     private readonly Logger logger;
 
-    public SafeHttpClientService(HttpClient httpClient = null)
+    public SafeHttpClientService(IHttpTransportEngine transportEngine, HttpClient httpClient = null)
     {
         this.logger = LogManager.GetCurrentClassLogger();
 
@@ -29,6 +30,15 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         {
             this.httpClient = httpClient;
             this.ownsClient = false;
+        }
+        else if (transportEngine != null)
+        {
+            var handler = new DynamicHttpTransportHandler(transportEngine);
+            this.httpClient = new HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(30),
+            };
+            this.ownsClient = true;
         }
         else
         {
@@ -39,6 +49,11 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             };
             this.ownsClient = true;
         }
+    }
+
+    public SafeHttpClientService(HttpClient httpClient = null)
+        : this(null, httpClient)
+    {
     }
 
     public SafeHttpClientService(HttpMessageHandler handler, bool disposeHandler = true)
