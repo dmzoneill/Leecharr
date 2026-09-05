@@ -225,48 +225,52 @@ public class SynologyDownloadStationController : ControllerBase
         {
             case "list":
                 var all = this.torrentService.GetAll().ToList();
-                var tasks = all.Select(t => new
+                var tasks = all.Select(t =>
                 {
-                    id = t.InfoHash.ToLowerInvariant(),
-                    title = t.Name ?? string.Empty,
-                    size = t.TotalSize,
-                    status = t.Status switch
+                    var isComplete = t.Progress >= 1.0 || (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) || t.Status == TorrentStatus.Completed || t.Status == TorrentStatus.Seeding;
+                    return new
                     {
-                        TorrentStatus.Downloading => 2,
-                        TorrentStatus.Paused => 3,
-                        TorrentStatus.Stopped => 5,
-                        TorrentStatus.Seeding => 7,
-                        TorrentStatus.Error => 9,
-                        _ => 1,
-                    },
-                    status_text = t.Status switch
-                    {
-                        TorrentStatus.Downloading => "downloading",
-                        TorrentStatus.Seeding => "seeding",
-                        TorrentStatus.Paused => "paused",
-                        TorrentStatus.Stopped => "finished",
-                        TorrentStatus.Error => "error",
-                        _ => "waiting",
-                    },
-                    type = "bt",
-                    username = "admin",
-                    additional = new
-                    {
-                        detail = new
+                        id = t.InfoHash.ToLowerInvariant(),
+                        title = t.Name ?? string.Empty,
+                        size = t.TotalSize,
+                        status = t.Status switch
                         {
-                            destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
-                            uri = string.Empty,
-                            create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                            priority = "auto"
+                            TorrentStatus.Downloading => 2,
+                            TorrentStatus.Paused => 3,
+                            TorrentStatus.Stopped => isComplete ? 5 : 3,
+                            TorrentStatus.Seeding => 7,
+                            TorrentStatus.Error => 9,
+                            _ => 1,
                         },
-                        transfer = new
+                        status_text = t.Status switch
                         {
-                            size_downloaded = t.Downloaded,
-                            size_uploaded = t.Uploaded,
-                            speed_download = t.DownloadSpeed,
-                            speed_upload = t.UploadSpeed
-                        }
-                    },
+                            TorrentStatus.Downloading => "downloading",
+                            TorrentStatus.Seeding => "seeding",
+                            TorrentStatus.Paused => "paused",
+                            TorrentStatus.Stopped => isComplete ? "finished" : "paused",
+                            TorrentStatus.Error => "error",
+                            _ => "waiting",
+                        },
+                        type = "bt",
+                        username = "admin",
+                        additional = new
+                        {
+                            detail = new
+                            {
+                                destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+                                uri = string.Empty,
+                                create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                                priority = "auto"
+                            },
+                            transfer = new
+                            {
+                                size_downloaded = t.Downloaded,
+                                size_uploaded = t.Uploaded,
+                                speed_download = t.DownloadSpeed,
+                                speed_upload = t.UploadSpeed
+                            }
+                        },
+                    };
                 }).ToList();
 
                 return this.Ok(new
@@ -277,35 +281,28 @@ public class SynologyDownloadStationController : ControllerBase
                         total = tasks.Count,
                         offset = 0,
                         task = tasks,
-                        tasks
+                        tasks = tasks
                     },
                 });
 
             case "create":
-                var targetUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : string.Empty);
-                if (string.IsNullOrWhiteSpace(targetUri) && this.Request.HasFormContentType)
-                {
-                    if (this.Request.Form.TryGetValue("uri", out var formUriVal) && !string.IsNullOrWhiteSpace(formUriVal.ToString()))
-                    {
-                        targetUri = formUriVal.ToString();
-                    }
-                    else if (this.Request.Form.TryGetValue("url", out var formUrlVal) && !string.IsNullOrWhiteSpace(formUrlVal.ToString()))
-                    {
-                        targetUri = formUrlVal.ToString();
-                    }
-                }
+                var formUri = this.Request.HasFormContentType ? this.Request.Form["uri"].ToString() : string.Empty;
+                var formUrl = this.Request.HasFormContentType ? this.Request.Form["url"].ToString() : string.Empty;
+                var formDestination = this.Request.HasFormContentType ? this.Request.Form["destination"].ToString() : string.Empty;
 
-                var targetDest = (!string.IsNullOrWhiteSpace(destination) ? destination : (this.Request.HasFormContentType && this.Request.Form.TryGetValue("destination", out var formDestVal) && !string.IsNullOrWhiteSpace(formDestVal.ToString()) ? formDestVal.ToString() : null))?.Trim('\"', '\'');
+                var effectiveUri = !string.IsNullOrWhiteSpace(uri) ? uri : (!string.IsNullOrWhiteSpace(url) ? url : (!string.IsNullOrWhiteSpace(formUri) ? formUri : formUrl));
+                var effectiveDest = !string.IsNullOrWhiteSpace(destination) ? destination : (!string.IsNullOrWhiteSpace(formDestination) ? formDestination : null);
+                var targetDest = effectiveDest;
 
-                if (!string.IsNullOrWhiteSpace(targetUri))
+                if (!string.IsNullOrWhiteSpace(effectiveUri))
                 {
-                    if (targetUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    if (effectiveUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        await this.torrentService.AddFromMagnetAsync(targetUri, null, targetDest, false);
+                        await this.torrentService.AddFromMagnetAsync(effectiveUri, null, targetDest, false);
                     }
                     else
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUri, maxSizeBytes: 10 * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(effectiveUri, maxSizeBytes: 10 * 1024 * 1024);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                     }
@@ -337,39 +334,52 @@ public class SynologyDownloadStationController : ControllerBase
                     infoTorrents = infoTorrents.Where(t => queryIds.Contains(t.InfoHash) || queryIds.Contains(t.Id.ToString())).ToList();
                 }
 
-                var infoTasks = infoTorrents.Select(t => new
+                var infoTasks = infoTorrents.Select(t =>
                 {
-                    id = t.InfoHash.ToLowerInvariant(),
-                    title = t.Name ?? string.Empty,
-                    size = t.TotalSize,
-                    status = t.Status switch
+                    var isComplete = t.Progress >= 1.0 || (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) || t.Status == TorrentStatus.Completed || t.Status == TorrentStatus.Seeding;
+                    return new
                     {
-                        TorrentStatus.Downloading => "downloading",
-                        TorrentStatus.Seeding => "seeding",
-                        TorrentStatus.Paused => "paused",
-                        TorrentStatus.Stopped => "finished",
-                        TorrentStatus.Error => "error",
-                        _ => "waiting",
-                    },
-                    type = "bt",
-                    username = "admin",
-                    additional = new
-                    {
-                        detail = new
+                        id = t.InfoHash.ToLowerInvariant(),
+                        title = t.Name ?? string.Empty,
+                        size = t.TotalSize,
+                        status = t.Status switch
                         {
-                            destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
-                            uri = string.Empty,
-                            create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                            priority = "auto"
+                            TorrentStatus.Downloading => 2,
+                            TorrentStatus.Paused => 3,
+                            TorrentStatus.Stopped => isComplete ? 5 : 3,
+                            TorrentStatus.Seeding => 7,
+                            TorrentStatus.Error => 9,
+                            _ => 1,
                         },
-                        transfer = new
+                        status_text = t.Status switch
                         {
-                            size_downloaded = t.Downloaded,
-                            size_uploaded = t.Uploaded,
-                            speed_download = t.DownloadSpeed,
-                            speed_upload = t.UploadSpeed
-                        }
-                    },
+                            TorrentStatus.Downloading => "downloading",
+                            TorrentStatus.Seeding => "seeding",
+                            TorrentStatus.Paused => "paused",
+                            TorrentStatus.Stopped => isComplete ? "finished" : "paused",
+                            TorrentStatus.Error => "error",
+                            _ => "waiting",
+                        },
+                        type = "bt",
+                        username = "admin",
+                        additional = new
+                        {
+                            detail = new
+                            {
+                                destination = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+                                uri = string.Empty,
+                                create_time = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                                priority = "auto"
+                            },
+                            transfer = new
+                            {
+                                size_downloaded = t.Downloaded,
+                                size_uploaded = t.Uploaded,
+                                speed_download = t.DownloadSpeed,
+                                speed_upload = t.UploadSpeed
+                            }
+                        },
+                    };
                 }).ToList();
 
                 return this.Ok(new
@@ -397,7 +407,9 @@ public class SynologyDownloadStationController : ControllerBase
 
                 foreach (var taskId in idsToDelete)
                 {
-                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
+                    var trimmed = taskId.Trim();
+                    var t = this.torrentService.GetByInfoHash(trimmed) ??
+                            (int.TryParse(trimmed, out var idNum) ? this.torrentService.Get(idNum) : null);
                     if (t != null)
                     {
                         await this.torrentService.DeleteAsync(t.Id, deleteFiles);
@@ -411,7 +423,9 @@ public class SynologyDownloadStationController : ControllerBase
                 var idsToPause = (!string.IsNullOrWhiteSpace(id) ? id : formPauseId).Split(',', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var taskId in idsToPause)
                 {
-                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
+                    var trimmed = taskId.Trim();
+                    var t = this.torrentService.GetByInfoHash(trimmed) ??
+                            (int.TryParse(trimmed, out var idNum) ? this.torrentService.Get(idNum) : null);
                     if (t != null)
                     {
                         await this.torrentService.PauseAsync(t.Id);
@@ -425,7 +439,9 @@ public class SynologyDownloadStationController : ControllerBase
                 var idsToResume = (!string.IsNullOrWhiteSpace(id) ? id : formResumeId).Split(',', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var taskId in idsToResume)
                 {
-                    var t = this.torrentService.GetByInfoHash(taskId.Trim());
+                    var trimmed = taskId.Trim();
+                    var t = this.torrentService.GetByInfoHash(trimmed) ??
+                            (int.TryParse(trimmed, out var idNum) ? this.torrentService.Get(idNum) : null);
                     if (t != null)
                     {
                         await this.torrentService.ResumeAsync(t.Id);
