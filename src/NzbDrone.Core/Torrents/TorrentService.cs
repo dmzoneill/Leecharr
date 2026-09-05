@@ -725,6 +725,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task ResumeAsync(int id)
     {
+        if (this.downloadEngine?.IsHaltedByKillSwitch == true)
+        {
+            this.logger.Warn("Cannot resume torrent id {0}: VPN Kill Switch is active (fail-closed).", id);
+            return;
+        }
+
         var torrent = this.torrentRepository.Get(id);
         if (torrent != null && torrent.Status == TorrentStatus.Paused)
         {

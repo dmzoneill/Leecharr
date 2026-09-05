@@ -878,6 +878,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume torrent id {0}: VPN Kill Switch is active (fail-closed).", torrentId);
+            return;
+        }
+
         lock (this.pendingTorrentsLock)
         {
             var pendingIndex = this.pendingTorrents.FindIndex(p => p.Torrent?.Id == torrentId);
@@ -894,6 +900,31 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public async Task ResumeAllTorrentsAsync()
+    {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume all torrents: VPN Kill Switch is active (fail-closed).");
+            return;
+        }
+
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager != null)
+            {
+                try
+                {
+                    await task.Manager.StartAsync();
+                    this.logger.Info("Resumed torrent id {0}", task.TorrentId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to resume torrent id {0}", task.TorrentId);
+                }
+            }
+        }
+    }
+
     public async Task ForceRecheckAsync(int torrentId)
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
@@ -905,6 +936,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ForceAnnounceAsync(int torrentId)
     {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot force announce torrent id {0}: VPN Kill Switch is active (fail-closed).", torrentId);
+            return;
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             if (task.Manager.TrackerManager != null)
@@ -1768,9 +1805,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ResumeTorrentsAfterVpnRestoredAsync()
     {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume torrents after VPN restoration: VPN Kill Switch is active (fail-closed).");
+            return;
+        }
+
         await this.engineStateLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (this.isHaltedByKillSwitch)
+            {
+                this.logger.Warn("Cannot resume torrents after VPN restoration: VPN Kill Switch is active (fail-closed).");
+                return;
+            }
+
             if (this.engine == null)
             {
                 await this.StartEngineAsyncCore().ConfigureAwait(false);
