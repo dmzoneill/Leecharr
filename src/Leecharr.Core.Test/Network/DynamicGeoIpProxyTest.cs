@@ -306,21 +306,88 @@ public class DynamicGeoIpProxyTest
         handler.RequestCount.Should().Be(2);
     }
 
+    [Test]
+    public async Task OnlineApiGeoIpProvider_IPv4MappedIPv6_ResolvedAsLocalNetworkWithoutNetworkCall()
+    {
+        var handler = new MockHttpMessageHandler("{}");
+        using var httpClient = new HttpClient(handler);
+        using var provider = new OnlineApiGeoIpProvider(httpClient);
+
+        var mappedIps = new[]
+        {
+            "::ffff:192.168.1.50",
+            "::ffff:10.0.0.1",
+            "::ffff:172.16.1.1",
+            "::ffff:127.0.0.1",
+            "::ffff:169.254.1.1",
+            "::1",
+            "fe80::1",
+        };
+
+        foreach (var ip in mappedIps)
+        {
+            var result = await provider.LookupAsync(ip);
+            result.Should().NotBeNull();
+            result.CountryCode.Should().Be("LAN");
+            result.CountryName.Should().Be("Local Network");
+        }
+
+        handler.RequestCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task OnlineApiGeoIpProvider_NegativeCaching_CachesFailedHttpAndApiErrors()
+    {
+        var handler = new MockHttpMessageHandler(@"{""status"":""fail"",""message"":""reserved range""}", HttpStatusCode.OK);
+        using var httpClient = new HttpClient(handler);
+        using var provider = new OnlineApiGeoIpProvider(httpClient);
+
+        // 1. First lookup fails API status
+        var result1 = await provider.LookupAsync("240.0.0.1");
+        result1.Should().NotBeNull();
+        result1.IpAddress.Should().Be("240.0.0.1");
+        result1.CountryCode.Should().BeNullOrEmpty();
+        handler.RequestCount.Should().Be(1);
+
+        // 2. Second lookup hits negative cache without HTTP call
+        var result2 = await provider.LookupAsync("240.0.0.1");
+        result2.Should().NotBeNull();
+        result2.IpAddress.Should().Be("240.0.0.1");
+        handler.RequestCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task OnlineApiGeoIpProvider_ConfigurableEndpoint_UsesCustomEndpoint()
+    {
+        var handler = new MockHttpMessageHandler(@"{""status"":""success"",""countryCode"":""FR"",""country"":""France"",""city"":""Paris""}");
+        using var httpClient = new HttpClient(handler);
+        using var provider = new OnlineApiGeoIpProvider(httpClient, false, "https://secure-geo.example.com/lookup/{0}");
+
+        provider.ApiEndpointTemplate.Should().Be("https://secure-geo.example.com/lookup/{0}");
+
+        var result = await provider.LookupAsync("1.2.3.4");
+        result.CountryCode.Should().Be("FR");
+        result.City.Should().Be("Paris");
+        handler.RequestCount.Should().Be(1);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly string responseContent;
+        private readonly HttpStatusCode statusCode;
 
         public int RequestCount { get; private set; }
 
-        public MockHttpMessageHandler(string responseContent)
+        public MockHttpMessageHandler(string responseContent, HttpStatusCode statusCode = HttpStatusCode.OK)
         {
             this.responseContent = responseContent;
+            this.statusCode = statusCode;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             this.RequestCount++;
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            var response = new HttpResponseMessage(this.statusCode)
             {
                 Content = new StringContent(this.responseContent),
             };
