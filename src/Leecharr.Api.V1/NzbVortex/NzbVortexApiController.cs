@@ -108,7 +108,9 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [AllowAnonymous]
     [HttpGet]
     [HttpPost]
+    [NzbVortexLoginConstraint]
     [Route("nzbvortex/api/v1/auth/login")]
+    [Route("api/v1/auth/login")]
     public IActionResult Login()
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)

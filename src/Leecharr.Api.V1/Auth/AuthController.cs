@@ -72,6 +72,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [Consumes("application/json")]
     [AllowAnonymous]
     public async Task<ActionResult<CurrentUserResource>> Login([FromBody] LoginRequestResource request, [FromQuery] string returnUrl = null)
     {
