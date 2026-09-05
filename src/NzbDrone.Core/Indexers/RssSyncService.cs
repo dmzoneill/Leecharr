@@ -91,49 +91,35 @@ public class RssSyncService : IRssSyncService
 
                             Torrent addedTorrent = null;
                             var grabbed = false;
-                            if (!string.IsNullOrEmpty(release.MagnetUrl))
+                            try
                             {
-                                try
+                                if (!string.IsNullOrEmpty(release.MagnetUrl))
                                 {
                                     addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl);
-                                    grabbed = addedTorrent != null;
+                                    grabbed = true;
                                 }
-                                catch (Exception ex)
+                                else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                 {
-                                    this.logger.Error(ex, "Failed to add magnet for release {0}", release.Title);
-                                }
-                            }
-                            else if (!string.IsNullOrEmpty(release.DownloadUrl))
-                            {
-                                if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    try
+                                    if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                     {
                                         addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl);
-                                        grabbed = addedTorrent != null;
+                                        grabbed = true;
                                     }
-                                    catch (Exception ex)
-                                    {
-                                        this.logger.Error(ex, "Failed to add magnet download url for release {0}", release.Title);
-                                    }
-                                }
-                                else
-                                {
-                                    try
+                                    else
                                     {
                                         var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
                                         var parsed = this.torrentFileParser.Parse(torrentBytes);
                                         addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
-                                        grabbed = addedTorrent != null;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        this.logger.Error(ex, "Failed to download and add torrent file for release {0} from {1}", release.Title, release.DownloadUrl);
+                                        grabbed = true;
                                     }
                                 }
                             }
+                            catch (Exception ex)
+                            {
+                                this.logger.Error(ex, "Failed to grab release {0}", release.Title);
+                            }
 
-                            if (grabbed && addedTorrent != null)
+                            if (grabbed)
                             {
                                 var effectiveMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
                                     ? release.MagnetUrl

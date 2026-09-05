@@ -482,5 +482,36 @@ public class RssSyncServiceTest
         await act.Should().NotThrowAsync();
     }
 
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadUrlIsMagnetAndMagnetUrlEmpty_GrabsViaMagnet()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Catch All",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:magnet-download-url",
+            Title = "Magnet.DownloadUrl.Release",
+            MagnetUrl = null,
+            DownloadUrl = "magnet:?xt=urn:btih:FEDCBA0987654321FEDCBA0987654321FEDCBA09",
+            Seeders = 20,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await this.service.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+        await this.torrentService.Received(1).AddFromMagnetAsync(release.DownloadUrl);
+    }
+
     #endregion
 }
