@@ -533,17 +533,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return null;
         }
 
+        var useIncompleteDir = this.configService.EnableIncompleteDir;
+        var completedDir = !string.IsNullOrWhiteSpace(torrent.SavePath)
+            ? torrent.SavePath
+            : this.storagePathService.GetCompletedDirectory(torrent.Category);
+
         if (string.IsNullOrWhiteSpace(torrent.SavePath))
         {
-            var cat = !string.IsNullOrWhiteSpace(torrent.Category) ? torrent.Category : this.configService?.DefaultCategory;
-            torrent.SavePath = this.categoryService != null
-                ? this.categoryService.GetSavePathForCategory(cat, this.configService?.DownloadDir ?? "/downloads")
-                : (this.configService?.DownloadDir ?? "/downloads");
+            torrent.SavePath = completedDir;
         }
 
         var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding || (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath));
-        var workingPath = isCompleteOrSeeding && !string.IsNullOrWhiteSpace(torrent.SavePath)
-            ? torrent.SavePath
+        var workingPath = (isCompleteOrSeeding || !useIncompleteDir)
+            ? completedDir
             : this.storagePathService.GetIncompleteDirectory();
 
         try

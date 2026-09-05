@@ -186,6 +186,8 @@ public interface IConfigService
 
     string PreallocationMode { get; }
 
+    string DiskPreAllocationMode { get; }
+
     bool RenamePartialFiles { get; }
 
     string Umask { get; }
@@ -821,7 +823,9 @@ public class ConfigService : IConfigService
     // Storage & Incomplete Staging & Preallocation
     public bool EnableIncompleteDir => this.GetValueBoolean("EnableIncompleteDir", true);
 
-    public string PreallocationMode => this.GetValue("PreallocationMode", "Sparse");
+    public string PreallocationMode => this.GetValue("PreallocationMode", this.GetValue("DiskPreAllocationMode", "Sparse"));
+
+    public string DiskPreAllocationMode => this.PreallocationMode;
 
     public bool RenamePartialFiles => this.GetValueBoolean("RenamePartialFiles", true);
 
