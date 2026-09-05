@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 
@@ -1784,6 +1786,91 @@ public class MonoTorrentDownloadEngineTest
             File.Exists(expectedFilePath).Should().BeTrue();
             new FileInfo(expectedFilePath).Length.Should().Be(file.Length);
         }
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenVpnKillSwitchActiveAndEngineHalted_QueuesTorrentAndDrainsOnVpnRestored()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.configService.BindInterface.Returns("tun0");
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns((IPAddress)null);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("vpn_queued.bin", 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 301,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "vpn_queued.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        var task = await vpnEngine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().BeNull();
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+        vpnEngine.GetTask(torrent.Id).Should().BeNull();
+
+        // Simulate VPN restoration
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns(IPAddress.Loopback);
+        await vpnEngine.ResumeTorrentsAfterVpnRestoredAsync();
+
+        vpnEngine.IsHaltedByKillSwitch.Should().BeFalse();
+        vpnEngine.GetTask(torrent.Id).Should().NotBeNull();
+        vpnEngine.GetTask(torrent.Id).InfoHash.Should().Be(torrent.InfoHash);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenQueuedAndRemovedBeforeVpnRestores_IsRemovedFromPendingQueue()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.configService.BindInterface.Returns("tun0");
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns((IPAddress)null);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("vpn_removed.bin", 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 302,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "vpn_removed.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        var task = await vpnEngine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().BeNull();
+
+        await vpnEngine.RemoveTorrentAsync(torrent.Id, false);
+
+        // Restore VPN
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns(IPAddress.Loopback);
+        await vpnEngine.ResumeTorrentsAfterVpnRestoredAsync();
+
+        vpnEngine.GetTask(torrent.Id).Should().BeNull();
     }
 
     #endregion
