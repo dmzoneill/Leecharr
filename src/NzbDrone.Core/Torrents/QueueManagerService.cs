@@ -12,7 +12,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Torrents;
 
-public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusChangedEvent>, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>
+public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusChangedEvent>, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>, IHandle<ConfigSavedEvent>
 {
     private readonly ITorrentRepository torrentRepository;
     private readonly IConfigService configService;
@@ -44,12 +44,19 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
         try
         {
-            var maxDownloads = this.configService.MaxActiveDownloads;
-            var maxUploads = this.configService.MaxActiveUploads;
+            var maxDownloads = this.configService.DownloadQueueSize > 0
+                ? this.configService.DownloadQueueSize
+                : this.configService.MaxActiveDownloads;
+            var maxUploads = this.configService.SeedQueueSize > 0
+                ? this.configService.SeedQueueSize
+                : this.configService.MaxActiveUploads;
             var maxTotal = this.configService.MaxActiveTorrents;
             var ignoreSlow = this.configService.IgnoreSlowTorrents;
             var slowDownThreshold = this.configService.SlowTorrentDownloadRateThreshold;
             var slowUpThreshold = this.configService.SlowTorrentUploadRateThreshold;
+            var queueStalledEnabled = this.configService.QueueStalledEnabled;
+            var queueStalledMinutes = this.configService.QueueStalledMinutes;
+            var idleSeedingLimitMinutes = this.configService.IdleSeedingLimitMinutes;
 
             var allTorrents = this.torrentRepository.All()
                 .OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : t.Id)
@@ -77,14 +84,30 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 }
 
                 var task = this.downloadEngine?.GetTask(torrent.Id);
-                var isComplete = torrent.Progress >= 1.0;
+                var isComplete = torrent.Status == TorrentStatus.Seeding ||
+                                 torrent.Progress >= 1.0 ||
+                                 torrent.DateCompleted.HasValue;
 
                 if (!isComplete)
                 {
                     // Downloading candidate
+                    var downloadSpeed = task != null ? task.DownloadSpeed : torrent.DownloadSpeed;
+                    if (downloadSpeed > 0)
+                    {
+                        torrent.LastActive = DateTime.UtcNow;
+                    }
+
                     var isSlow = ignoreSlow && task != null && task.DownloadSpeed < slowDownThreshold;
-                    var canRunDownload = (maxDownloads <= 0 || activeDownloads < maxDownloads || isSlow) &&
-                                         (maxTotal <= 0 || activeTotal < maxTotal || isSlow);
+
+                    var isStalled = (task != null && task.IsStalled) ||
+                                    (queueStalledEnabled &&
+                                     queueStalledMinutes > 0 &&
+                                     downloadSpeed == 0 &&
+                                     (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes);
+
+                    var isIgnoredDownload = isSlow || isStalled;
+                    var canRunDownload = (maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
+                                         (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload);
 
                     if (canRunDownload)
                     {
@@ -116,7 +139,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             });
                         }
 
-                        if (!isSlow)
+                        if (!isIgnoredDownload)
                         {
                             activeDownloads++;
                             activeTotal++;
@@ -157,9 +180,21 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 else
                 {
                     // Seeding candidate
+                    var uploadSpeed = task != null ? task.UploadSpeed : torrent.UploadSpeed;
+                    if (uploadSpeed > 0)
+                    {
+                        torrent.LastActive = DateTime.UtcNow;
+                    }
+
                     var isSlow = ignoreSlow && task != null && task.UploadSpeed < slowUpThreshold;
-                    var canRunUpload = (maxUploads <= 0 || activeUploads < maxUploads || isSlow) &&
-                                       (maxTotal <= 0 || activeTotal < maxTotal || isSlow);
+
+                    var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
+                                       uploadSpeed == 0 &&
+                                       (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
+
+                    var isIgnoredUpload = isSlow || isIdleSeeder;
+                    var canRunUpload = (maxUploads <= 0 || activeUploads < maxUploads || isIgnoredUpload) &&
+                                       (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredUpload);
 
                     if (canRunUpload)
                     {
@@ -191,7 +226,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             });
                         }
 
-                        if (!isSlow)
+                        if (!isIgnoredUpload)
                         {
                             activeUploads++;
                             activeTotal++;
@@ -263,6 +298,11 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
     }
 
     public void Handle(TorrentDeletedEvent message)
+    {
+        _ = Task.Run(this.ProcessQueueAsync);
+    }
+
+    public void Handle(ConfigSavedEvent message)
     {
         _ = Task.Run(this.ProcessQueueAsync);
     }
