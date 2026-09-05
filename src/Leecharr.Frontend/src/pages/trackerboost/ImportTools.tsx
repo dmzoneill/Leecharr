@@ -7,7 +7,7 @@ import {
   useHarvestProwlarrTrackers,
   useHarvestFeedTrackers,
   useScanTrackerBoostTrackers,
-  useAddTrackerBoostTracker,
+  useBulkImportTrackerBoostTrackers,
 } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import type { TrackerBoostSettings } from "../../api/types";
@@ -27,7 +27,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const harvestProwlarr = useHarvestProwlarrTrackers();
   const harvestFeeds = useHarvestFeedTrackers();
   const scanTrackers = useScanTrackerBoostTrackers();
-  const addTracker = useAddTrackerBoostTracker();
+  const bulkImportTrackers = useBulkImportTrackerBoostTrackers();
 
   const [localShowModal, setLocalShowModal] = useState(false);
   const [bulkImportText, setBulkImportText] = useState("");
@@ -103,19 +103,16 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     }
 
     setIsBulkImporting(true);
-    let imported = 0;
-    for (const url of lines) {
-      try {
-        await addTracker.mutateAsync({ url });
-        imported++;
-      } catch {
-        // Continue on duplicates/errors
-      }
+    try {
+      const res = await bulkImportTrackers.mutateAsync({ trackersText: lines.join("\n") });
+      handleClose();
+      setBulkImportText("");
+      showToast(`Successfully processed ${lines.length} trackers (${res.importedCount} added)!`, "success");
+    } catch (err: any) {
+      showToast(`Failed to bulk import trackers: ${err?.message || "Unknown error"}`, "error");
+    } finally {
+      setIsBulkImporting(false);
     }
-    setIsBulkImporting(false);
-    handleClose();
-    setBulkImportText("");
-    showToast(`Successfully processed ${lines.length} trackers (${imported} added)!`, "success");
   };
 
   const enabledClientsCount = useMemo(() => {
