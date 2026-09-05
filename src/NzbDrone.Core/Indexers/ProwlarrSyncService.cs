@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Indexers;
 
@@ -62,12 +63,36 @@ public class ProwlarrSyncService : IProwlarrSyncService
     private readonly ITorznabClient torznabClient;
     private readonly Logger logger;
 
-    public ProwlarrSyncService(IIndexerRepository repository, HttpClient httpClient = null, ITorznabClient torznabClient = null)
+    public ProwlarrSyncService(
+        IIndexerRepository repository,
+        IHttpTransportEngine transportEngine = null,
+        HttpClient httpClient = null,
+        ITorznabClient torznabClient = null)
     {
         this.repository = repository;
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        if (httpClient != null)
+        {
+            this.httpClient = httpClient;
+        }
+        else if (transportEngine != null)
+        {
+            this.httpClient = new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(15),
+            };
+        }
+        else
+        {
+            this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        }
+
         this.torznabClient = torznabClient;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public ProwlarrSyncService(IIndexerRepository repository, HttpClient httpClient, ITorznabClient torznabClient = null)
+        : this(repository, null, httpClient, torznabClient)
+    {
     }
 
     public async Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey)

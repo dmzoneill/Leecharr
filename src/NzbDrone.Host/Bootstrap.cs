@@ -16,6 +16,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Extraction;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
@@ -53,6 +54,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<VpnKillSwitchService>();
         container.RegisterSingletonWithInterfaces<DynamicMediaMetadataProxy>();
         container.RegisterSingletonWithInterfaces<DynamicHttpTransportProxy>();
+        container.RegisterSingleton<ISafeHttpClientService, SafeHttpClientService>();
         container.RegisterSingletonWithInterfaces<DynamicGeoIpProxy>();
         container.RegisterSingletonWithInterfaces<DynamicBlocklistProxy>();
         container.RegisterSingletonWithInterfaces<BlocklistUpdateTask>();
