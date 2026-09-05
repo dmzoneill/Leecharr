@@ -52,9 +52,9 @@ public class LogController : ControllerBase
 
         var entries = target.GetEntries(count, minimumLevel);
 
-        var resources = entries.Select((e, i) => new LogResource
+        var resources = entries.Select(e => new LogResource
         {
-            Id = i + 1,
+            Id = e.Id,
             Time = e.Time.ToString("O"),
             Level = e.Level,
             Logger = e.Logger,
@@ -85,7 +85,7 @@ public class LogController : ControllerBase
 
 public class LogResource
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     public string Time { get; set; }
 
