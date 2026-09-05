@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Aria2;
@@ -46,7 +47,7 @@ public class CompatibilityRpcAuthTest
     }
 
     [Test]
-    public async Task UTorrentWebUi_WhenUnauthenticated_Returns401()
+    public async Task UTorrentWebUi_WhenUnauthenticated_Returns401AndBadRequest()
     {
         var controller = new UTorrentWebUiController(
             this.torrentService,
@@ -63,7 +64,52 @@ public class CompatibilityRpcAuthTest
         tokenResult.Should().BeOfType<UnauthorizedResult>();
 
         var webUiResult = await controller.HandleWebUi(null!, "getprops", "hash1", null!, null!, null!, null!, null!, null!);
-        webUiResult.Should().BeOfType<UnauthorizedResult>();
+        webUiResult.Should().BeOfType<BadRequestObjectResult>();
+        ((BadRequestObjectResult)webUiResult).Value.Should().Be("invalid request");
+    }
+
+    [Test]
+    public async Task UTorrentWebUi_WhenAuthenticatedViaTokenAndCookie_GrantsAccess()
+    {
+        var controller = new UTorrentWebUiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            configFileProvider: this.configFileProvider);
+
+        var tokenContext = new DefaultHttpContext();
+        tokenContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = tokenContext };
+
+        var tokenResult = controller.GetToken();
+        tokenResult.Should().BeOfType<ContentResult>();
+
+        var contentResult = (ContentResult)tokenResult;
+        var html = contentResult.Content!;
+        var startIdx = html.IndexOf("<div id=\"token\">", StringComparison.Ordinal) + "<div id=\"token\">".Length;
+        var endIdx = html.IndexOf("</div>", startIdx, StringComparison.Ordinal);
+        var token = html[startIdx..endIdx];
+        token.Should().NotBeNullOrWhiteSpace();
+
+        tokenContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookie = setCookieHeaders.ToString();
+        var guidCookie = setCookie.Split(';')[0].Replace("GUID=", string.Empty);
+
+        var authedContext = new DefaultHttpContext();
+        authedContext.Request.Headers["Cookie"] = $"GUID={guidCookie}";
+        controller.ControllerContext = new ControllerContext { HttpContext = authedContext };
+
+        var webUiResult = await controller.HandleWebUi(null!, "getprops", "hash1", null!, null!, null!, null!, null!, token);
+        webUiResult.Should().BeOfType<OkObjectResult>();
+
+        var badAuthedContext = new DefaultHttpContext();
+        badAuthedContext.Request.Headers["Cookie"] = $"GUID={guidCookie}";
+        controller.ControllerContext = new ControllerContext { HttpContext = badAuthedContext };
+
+        var badResult = await controller.HandleWebUi(null!, "getprops", "hash1", null!, null!, null!, null!, null!, "wrong_token");
+        badResult.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Test]
