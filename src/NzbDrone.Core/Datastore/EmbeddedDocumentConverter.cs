@@ -40,4 +40,3 @@ public class EmbeddedDocumentConverter<T> : SqlMapper.TypeHandler<T>
         return default;
     }
 }
-
