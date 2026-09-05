@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace NzbDrone.Common.Disk;
 
@@ -150,7 +151,7 @@ public class DiskProvider : IDiskProvider
             return true;
         }
 
-        return !Directory.EnumerateFileSystemEntries(path).GetEnumerator().MoveNext();
+        return !Directory.EnumerateFileSystemEntries(path).Any();
     }
 
     public IEnumerable<string> GetDirectories(string path) => Directory.GetDirectories(path);
@@ -168,16 +169,29 @@ public class DiskProvider : IDiskProvider
         }
 
         long size = 0;
-        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        var options = new EnumerationOptions
         {
-            try
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(path, "*", options))
             {
-                size += new FileInfo(file).Length;
+                try
+                {
+                    size += new FileInfo(file).Length;
+                }
+                catch
+                {
+                    // Skip inaccessible files
+                }
             }
-            catch
-            {
-                // Skip inaccessible files
-            }
+        }
+        catch
+        {
+            // Root path itself may be inaccessible
         }
 
         return size;
