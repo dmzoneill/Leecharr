@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -109,10 +111,81 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                         groups,
                         avatarUrl);
 
-                    this.jitUserProvisioning.ProvisionOrUpdateUser(profile);
+                    var user = this.jitUserProvisioning.ProvisionOrUpdateUser(profile);
+
+                    var rolesList = new List<string>();
+                    try
+                    {
+                        if (user != null && !string.IsNullOrEmpty(user.Roles))
+                        {
+                            rolesList = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
+                        }
+                    }
+                    catch
+                    {
+                        rolesList = new List<string> { "User" };
+                    }
+
+                    if (rolesList.Count == 0)
+                    {
+                        rolesList.Add("User");
+                    }
+
+                    var userId = user?.Id.ToString() ?? sub;
+                    var finalUsername = user?.Username ?? username;
+                    var finalDisplayName = user?.DisplayName ?? displayName;
+                    var finalEmail = user?.Email ?? email;
+
+                    var sessionToken = Guid.NewGuid().ToString("N");
+                    var userClaims = new List<Claim>
+                    {
+                        new(ClaimTypes.NameIdentifier, userId),
+                        new(ClaimTypes.Name, finalUsername),
+                        new("DisplayName", finalDisplayName),
+                        new("SessionId", sessionToken),
+                        new("TicketId", sessionToken),
+                        new("SessionToken", sessionToken),
+                    };
+
+                    if (!string.IsNullOrEmpty(finalEmail))
+                    {
+                        userClaims.Add(new Claim(ClaimTypes.Email, finalEmail));
+                    }
+
+                    foreach (var role in rolesList)
+                    {
+                        userClaims.Add(new Claim(ClaimTypes.Role, role));
+                    }
+
+                    var identity = new ClaimsIdentity(userClaims, "Cookies");
+                    context.Principal = new ClaimsPrincipal(identity);
+
+                    var userSessionRepository = context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>() ??
+                                               this.serviceProvider?.GetService<IUserSessionRepository>();
+                    if (userSessionRepository != null && user != null)
+                    {
+                        try
+                        {
+                            var session = new UserSession
+                            {
+                                UserId = user.Id,
+                                SessionToken = sessionToken,
+                                IpAddress = context.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                                UserAgent = context.HttpContext?.Request?.Headers?["User-Agent"].ToString() ?? string.Empty,
+                                CreatedAt = DateTime.UtcNow,
+                                Expiry = DateTime.UtcNow.AddDays(30),
+                                LastActivity = DateTime.UtcNow,
+                            };
+                            userSessionRepository.Insert(session);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Failed to insert UserSession for OIDC user {0}", finalUsername);
+                        }
+                    }
 
                     return Task.CompletedTask;
-                }
+                },
             },
         };
 
