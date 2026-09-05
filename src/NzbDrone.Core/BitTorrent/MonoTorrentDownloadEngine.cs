@@ -918,7 +918,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return anyMoved;
     }
 
-    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (string.IsNullOrWhiteSpace(newSavePath))
         {
@@ -934,8 +934,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         try
         {
             Directory.CreateDirectory(newSavePath);
-            await task.Manager.MoveFilesAsync(newSavePath, true).ConfigureAwait(false);
-            this.logger.Info("Successfully moved files for torrent {0} to '{1}'", torrentId, newSavePath);
+            await task.Manager.MoveFilesAsync(newSavePath, moveFiles).ConfigureAwait(false);
+            this.logger.Info("Successfully moved files for torrent {0} to '{1}' (moveFiles={2})", torrentId, newSavePath, moveFiles);
         }
         catch (Exception ex)
         {
