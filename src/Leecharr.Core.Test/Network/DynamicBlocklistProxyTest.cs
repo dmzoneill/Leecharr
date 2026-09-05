@@ -290,9 +290,19 @@ public class DynamicBlocklistProxyTest
         var provider = new LinuxIpSetBlocklistProvider(diskProvider);
         provider.ProviderId.Should().Be("LinuxIpSet");
         provider.DisplayName.Should().Contain("Linux Kernel IPSet");
+        provider.DisplayName.Should().Contain("Stub / Experimental");
+        provider.Capabilities.HasFlag(BlocklistCapabilities.LinuxIpSet).Should().BeFalse();
 
-        var health = await provider.ProbeHealthAsync();
-        health.Should().NotBeNull();
+        var healthWithoutBinary = await provider.ProbeHealthAsync();
+        healthWithoutBinary.Should().NotBeNull();
+        healthWithoutBinary.IsHealthy.Should().BeFalse();
+
+        diskProvider.FileExists("/usr/sbin/ipset").Returns(true);
+        var healthWithBinary = await provider.ProbeHealthAsync();
+        healthWithBinary.Should().NotBeNull();
+        healthWithBinary.IsHealthy.Should().BeTrue();
+        healthWithBinary.StatusMessage.Should().Contain("user-space fallback mode");
+        healthWithBinary.Warnings.Should().Contain(w => w.Contains("Kernel-level packet dropping is currently disabled"));
 
         await provider.LoadRulesAsync(new[] { "192.168.1.0/24" });
         provider.IsIpBlocked("192.168.1.50").Should().BeTrue();

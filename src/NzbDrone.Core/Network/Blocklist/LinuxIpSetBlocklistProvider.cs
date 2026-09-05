@@ -17,13 +17,13 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
 
     public string ProviderId => "LinuxIpSet";
 
-    public string DisplayName => "Linux Kernel IPSet / Netfilter Drop";
+    public string DisplayName => "Linux Kernel IPSet / Netfilter Drop (Stub / Experimental)";
 
     public string Version => "1.0";
 
     public bool IsAvailable => OsInfo.IsLinux && this.HasIpSetBinary();
 
-    public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.LinuxIpSet | BlocklistCapabilities.Cidr;
+    public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr;
 
     public int RuleCount => this.inMemoryTrie.RuleCount;
 
@@ -61,8 +61,9 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         return Task.FromResult(new BlocklistHealthResult
         {
             IsHealthy = true,
-            StatusMessage = $"Linux IPSet kernel filter operational ({ipSetPath}) with {this.RuleCount} rules loaded.",
+            StatusMessage = $"Linux IPSet provider operational in user-space fallback mode ({ipSetPath}) with {this.RuleCount} rules loaded.",
             LoadedRuleCount = this.RuleCount,
+            Warnings = new List<string> { "Kernel-level packet dropping is currently disabled / experimental; rules are evaluated in-memory via Radix tree." },
         });
     }
 
