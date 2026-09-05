@@ -279,6 +279,20 @@ public class NotificationEventHandler :
                     }
                 });
             }
+            else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        SendEmailNotification(notif.Settings, "OnHealthIssue", null, null, payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error sending email notification for OnHealthIssue");
+                    }
+                });
+            }
             else
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
@@ -329,6 +343,20 @@ public class NotificationEventHandler :
                     catch (Exception ex)
                     {
                         this.logger.Error(ex, "Error executing custom script for OnApplicationUpdate");
+                    }
+                });
+            }
+            else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        SendEmailNotification(notif.Settings, "OnApplicationUpdate", null, null, payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error sending email notification for OnApplicationUpdate");
                     }
                 });
             }
