@@ -13,6 +13,7 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Nzbget;
@@ -38,6 +39,7 @@ public class NzbgetRpcController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IDiskProvider diskProvider;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
@@ -46,7 +48,8 @@ public class NzbgetRpcController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -54,6 +57,7 @@ public class NzbgetRpcController : ControllerBase
         this.configService = configService;
         this.configFileProvider = configFileProvider;
         this.diskProvider = diskProvider;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
     }
 
     [HttpGet]
@@ -260,23 +264,45 @@ public class NzbgetRpcController : ControllerBase
                                 var bytes = Convert.FromBase64String(nzbContent);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
-                                return this.Ok(new { version = "1.1", result = added?.Id ?? 1, id });
+                                return this.Ok(new { version = "1.1", result = added?.Id, id });
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                return this.Ok(new { version = "1.1", result = 1, id });
+                                this.logger.Error(ex, "Failed to parse and add torrent content in NZBGet append");
+                                return this.Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
                             }
                         }
-                        else if (!string.IsNullOrWhiteSpace(nzbName) && (nzbName.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || nzbName.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                        else if (!string.IsNullOrWhiteSpace(nzbName))
                         {
-                            try
+                            if (nzbName.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
-                                var added = await this.torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
-                                return this.Ok(new { version = "1.1", result = added?.Id ?? 1, id });
+                                try
+                                {
+                                    var added = await this.torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
+                                    return this.Ok(new { version = "1.1", result = added?.Id, id });
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.logger.Error(ex, "Failed to add magnet in NZBGet append");
+                                    return this.Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
+                                }
                             }
-                            catch
+
+                            if (nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                nzbName.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                             {
-                                return this.Ok(new { version = "1.1", result = 1, id });
+                                try
+                                {
+                                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: 10 * 1024 * 1024);
+                                    var parsed = this.torrentFileParser.Parse(bytes);
+                                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
+                                    return this.Ok(new { version = "1.1", result = added?.Id, id });
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.logger.Error(ex, "Failed to download and add torrent from URL in NZBGet append: {0}", nzbName);
+                                    return this.Ok(new { version = "1.1", error = new { code = 1, message = ex.Message }, id });
+                                }
                             }
                         }
                     }
