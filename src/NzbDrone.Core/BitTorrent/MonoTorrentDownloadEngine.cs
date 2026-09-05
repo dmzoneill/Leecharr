@@ -50,6 +50,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
+    private readonly object pendingTorrentsLock = new();
+    private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
 
     private ClientEngine engine;
     private Timer trackerHealthTimer;
@@ -418,6 +420,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
 
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
+
+        await this.DrainPendingTorrentsAsync();
     }
 
     public async Task StopAsync()
@@ -460,11 +464,67 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.logger.Info("MonoTorrent download engine stopped.");
     }
 
+    private async Task<bool> EnsureEngineReadyAsync()
+    {
+        if (this.engine != null)
+        {
+            return true;
+        }
+
+        await this.StartAsync();
+
+        if (this.engine != null)
+        {
+            return true;
+        }
+
+        if (this.isHaltedByKillSwitch)
+        {
+            return false;
+        }
+
+        throw new InvalidOperationException("Torrent engine failed to start.");
+    }
+
+    private async Task DrainPendingTorrentsAsync()
+    {
+        List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pending;
+
+        lock (this.pendingTorrentsLock)
+        {
+            if (this.pendingTorrents.Count == 0)
+            {
+                return;
+            }
+
+            pending = new List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)>(this.pendingTorrents);
+            this.pendingTorrents.Clear();
+        }
+
+        foreach (var (torrent, fileBytes, uri) in pending)
+        {
+            try
+            {
+                await this.AddTorrentAsync(torrent, fileBytes, uri);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to add queued torrent {0}", torrent.Name);
+            }
+        }
+    }
+
     public async Task<IDownloadTask> AddTorrentAsync(CoreTorrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
     {
-        if (this.engine == null)
+        if (!await this.EnsureEngineReadyAsync())
         {
-            await this.StartAsync();
+            lock (this.pendingTorrentsLock)
+            {
+                this.pendingTorrents.Add((torrent, torrentFileBytes, magnetUri));
+            }
+
+            this.logger.Info("VPN kill switch active; torrent '{0}' queued until engine is available.", torrent.Name);
+            return null;
         }
 
         var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding || (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath));
@@ -625,6 +685,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
+        lock (this.pendingTorrentsLock)
+        {
+            this.pendingTorrents.RemoveAll(p => p.Torrent?.Id == torrentId);
+        }
+
         if (this.tasks.TryRemove(torrentId, out var task))
         {
             this.infoHashToId.TryRemove(task.InfoHash, out _);
@@ -753,6 +818,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task PauseTorrentAsync(int torrentId)
     {
+        lock (this.pendingTorrentsLock)
+        {
+            var pendingIndex = this.pendingTorrents.FindIndex(p => p.Torrent?.Id == torrentId);
+            if (pendingIndex >= 0)
+            {
+                this.pendingTorrents[pendingIndex].Torrent.Status = TorrentStatus.Paused;
+            }
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             await task.Manager.PauseAsync();
@@ -762,6 +836,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
+        lock (this.pendingTorrentsLock)
+        {
+            var pendingIndex = this.pendingTorrents.FindIndex(p => p.Torrent?.Id == torrentId);
+            if (pendingIndex >= 0)
+            {
+                this.pendingTorrents[pendingIndex].Torrent.Status = TorrentStatus.Downloading;
+            }
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             await task.Manager.StartAsync();
@@ -1577,6 +1660,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             await this.StartAsync().ConfigureAwait(false);
         }
+        else
+        {
+            await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
+        }
 
         var toResume = this.interruptedTorrentIds.Distinct().ToList();
         while (this.interruptedTorrentIds.TryTake(out _))
@@ -1645,6 +1732,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         this.trackerHealthTimer?.Dispose();
         this.trackerHealthTimer = null;
+
+        lock (this.pendingTorrentsLock)
+        {
+            this.pendingTorrents.Clear();
+        }
 
         this.StopAsync().GetAwaiter().GetResult();
     }
