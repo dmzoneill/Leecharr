@@ -9,6 +9,9 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Categories;
+using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
@@ -25,6 +28,11 @@ public class DownloadHistoryServiceTest
     private IDownloadEngine downloadEngine = null!;
     private IEventAggregator eventAggregator = null!;
     private ISafeHttpClientService safeHttpClientService = null!;
+    private ICategoryService categoryService = null!;
+    private IStoragePathService storagePathService = null!;
+    private ITorrentFileParser torrentFileParser = null!;
+    private ITorrentFileRepository fileRepository = null!;
+    private IConfigService configService = null!;
     private DownloadHistoryService service = null!;
 
     [SetUp]
@@ -36,13 +44,29 @@ public class DownloadHistoryServiceTest
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
+        this.categoryService = Substitute.For<ICategoryService>();
+        this.storagePathService = Substitute.For<IStoragePathService>();
+        this.torrentFileParser = Substitute.For<ITorrentFileParser>();
+        this.fileRepository = Substitute.For<ITorrentFileRepository>();
+        this.configService = Substitute.For<IConfigService>();
+
+        this.configService.DefaultCategory.Returns("movies");
+        this.configService.DownloadDir.Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(args => $"/downloads/{(string)args[0]}");
+
         this.service = new DownloadHistoryService(
             this.historyRepository,
             this.torrentRepository,
             this.trackerEntryRepository,
             this.downloadEngine,
             this.eventAggregator,
-            this.safeHttpClientService);
+            this.safeHttpClientService,
+            this.categoryService,
+            this.storagePathService,
+            this.torrentFileParser,
+            this.fileRepository,
+            this.configService);
     }
 
     [Test]
@@ -153,9 +177,169 @@ public class DownloadHistoryServiceTest
         added.Should().NotBeNull();
         added.Id.Should().Be(42);
         added.InfoHash.Should().Be("unique123");
+        added.SavePath.Should().Be("/downloads/movies");
+        added.Category.Should().Be("movies");
         history.TorrentId.Should().Be(42);
         history.Status.Should().Be("Active");
         this.historyRepository.Received(1).Update(history);
+    }
+
+    [Test]
+    public void ReAdd_ResolvesSavePath_AndDoesNotPolluteCategoryWithIndexerSource()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 15,
+            InfoHash = "indexerhash999",
+            Title = "Indexer Release",
+            TotalSize = 8000,
+            Source = "1337x",
+            PrimaryTracker = "udp://tracker.opentrackr.org:1337/announce",
+        };
+
+        this.historyRepository.Get(15).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("indexerhash999").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.categoryService.GetByName("1337x").Returns((Category)null!);
+        this.configService.DefaultCategory.Returns("movies");
+        this.categoryService.GetSavePathForCategory("movies", "/downloads").Returns("/downloads/movies");
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 99;
+            return t;
+        });
+
+        var added = this.service.ReAdd(15);
+
+        added.Should().NotBeNull();
+        added.Category.Should().Be("movies");
+        added.SavePath.Should().Be("/downloads/movies");
+    }
+
+    [Test]
+    public void ReAdd_PreservesValidExistingCategory()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 16,
+            InfoHash = "tvshowhash123",
+            Title = "TV Show Release",
+            TotalSize = 12000,
+            Source = "tv",
+            PrimaryTracker = "udp://tracker.opentrackr.org:1337/announce",
+        };
+
+        this.historyRepository.Get(16).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("tvshowhash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.categoryService.GetByName("tv").Returns(new Category { Id = 2, Name = "tv", SavePath = "/media/tv" });
+        this.categoryService.GetSavePathForCategory("tv", Arg.Any<string>()).Returns("/media/tv");
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 101;
+            return t;
+        });
+
+        var added = this.service.ReAdd(16);
+
+        added.Should().NotBeNull();
+        added.Category.Should().Be("tv");
+        added.SavePath.Should().Be("/media/tv");
+    }
+
+    [Test]
+    public void ReAdd_WhenCompletedInHistory_SetsSeedingStatusAndFullProgress()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 17,
+            InfoHash = "completedhash555",
+            Title = "Completed Show",
+            TotalSize = 50000,
+            Status = "Completed",
+            DateCompleted = DateTime.UtcNow.AddDays(-1),
+            Downloaded = 50000,
+            Uploaded = 100000,
+            Ratio = 2.0,
+        };
+
+        this.historyRepository.Get(17).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("completedhash555").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 102;
+            return t;
+        });
+
+        var added = this.service.ReAdd(17);
+
+        added.Should().NotBeNull();
+        added.Status.Should().Be(TorrentStatus.Seeding);
+        added.Progress.Should().Be(1.0);
+        added.Downloaded.Should().Be(50000);
+        added.DateCompleted.Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task ReAddAsync_WithTorrentBytes_ParsesFilesAndInsertsTorrentFileRecords()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 18,
+            InfoHash = "parsedbyteshash",
+            Title = "Parsed Torrent Release",
+            TotalSize = 10000,
+            DownloadUrl = "https://tracker.example.com/download/test.torrent",
+        };
+
+        var fakeBytes = new byte[] { 0x64, 0x38, 0x3a, 0x61, 0x6e, 0x6e };
+        var parsed = new ParsedTorrent
+        {
+            Name = "Parsed Torrent Release",
+            InfoHash = "parsedbyteshash",
+            TotalSize = 10000,
+            PieceCount = 10,
+            PieceLength = 1000,
+            AnnounceUrl = "udp://tracker.open.org:1337/announce",
+            Files = new List<ParsedTorrentFile>
+            {
+                new ParsedTorrentFile { Path = "Parsed Torrent Release/video.mkv", Size = 9000 },
+                new ParsedTorrentFile { Path = "Parsed Torrent Release/sample.nfo", Size = 1000 },
+            },
+        };
+
+        this.historyRepository.Get(18).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("parsedbyteshash").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/download/test.torrent")
+            .Returns(Task.FromResult(fakeBytes));
+        this.torrentFileParser.Parse(fakeBytes).Returns(parsed);
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 103;
+            return t;
+        });
+
+        var added = await this.service.ReAddAsync(18);
+
+        added.Should().NotBeNull();
+        added.Id.Should().Be(103);
+        added.PieceCount.Should().Be(10);
+        added.PieceLength.Should().Be(1000);
+        this.fileRepository.Received(1).InsertMany(Arg.Is<List<TorrentFile>>(files =>
+            files.Count == 2 &&
+            files[0].Path == "Parsed Torrent Release/video.mkv" &&
+            files[0].Size == 9000 &&
+            files[1].Path == "Parsed Torrent Release/sample.nfo" &&
+            files[1].Size == 1000));
     }
 
     [Test]
@@ -331,3 +515,4 @@ public class DownloadHistoryServiceTest
             h.Source == "TorznabTracker"));
     }
 }
+
