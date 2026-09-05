@@ -179,4 +179,30 @@ public class QBittorrentSearchServiceTest
 
         service.GetAllStatuses().Should().BeEmpty();
     }
+
+    [Test]
+    public async Task StartSearch_WithSpecificPluginAndCategory_QueriesOnlyFilteredIndexerWithCategoryId()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100)
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "The Matrix 1999 4K", Size = 15000000000, Seeders = 80, Leechers = 2, DownloadUrl = "http://dl-matrix" },
+            });
+
+        var id = this.searchService.StartSearch("matrix", plugins: "IndexerOne", category: "movies");
+        id.Should().BeGreaterThan(0);
+
+        await Task.Delay(200);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100);
+        await this.torznabClient.DidNotReceive().SearchAsync(indexer2, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>());
+
+        var results = this.searchService.GetResults(id);
+        results.Results.Should().HaveCount(1);
+        results.Results[0].FileName.Should().Be("The Matrix 1999 4K");
+    }
 }
