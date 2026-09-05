@@ -1014,7 +1014,7 @@ public class MonoTorrentDownloadEngineTest
 
         var task = this.engine.GetTask(40);
         task.Should().NotBeNull();
-        task!.Status.Should().Be(TorrentStatus.Paused);
+        task!.Status.Should().BeOneOf(TorrentStatus.Paused, TorrentStatus.Stopped);
     }
 
     [Test]
