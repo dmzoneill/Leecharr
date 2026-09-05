@@ -16,6 +16,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.RTorrent;
 
@@ -29,6 +30,7 @@ public class RTorrentController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public RTorrentController(
@@ -38,7 +40,8 @@ public class RTorrentController : ControllerBase
         IConfigService configService,
         ITorrentFileService torrentFileService = null,
         IConfigFileProvider configFileProvider = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -47,6 +50,7 @@ public class RTorrentController : ControllerBase
         this.torrentFileService = torrentFileService;
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.trackerEntryRepository = trackerEntryRepository;
     }
 
     [HttpPost]
@@ -209,32 +213,98 @@ public class RTorrentController : ControllerBase
                 {
                     var t = this.torrentService.GetByInfoHash(tHash);
                     var tArrayData = new XElement("data");
-                    if (t != null && !string.IsNullOrWhiteSpace(t.TrackerUrl))
+                    if (t != null)
                     {
-                        var tRowData = new XElement("data");
                         var tFields = paramValues.Skip(2).OfType<string>().ToList();
-                        foreach (var field in tFields)
+                        if (tFields.Count == 0 && paramValues.Count > 1)
                         {
-                            var cleanField = field.Trim().TrimEnd('=', '(', ')');
-                            if (cleanField.Equals("t.get_url", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.url", StringComparison.OrdinalIgnoreCase))
-                            {
-                                tRowData.Add(new XElement("value", new XElement("string", t.TrackerUrl)));
-                            }
-                            else if (cleanField.Equals("t.get_type", StringComparison.OrdinalIgnoreCase))
-                            {
-                                tRowData.Add(new XElement("value", new XElement("i4", 1)));
-                            }
-                            else if (cleanField.Equals("t.is_enabled", StringComparison.OrdinalIgnoreCase))
-                            {
-                                tRowData.Add(new XElement("value", new XElement("i4", 1)));
-                            }
-                            else
-                            {
-                                tRowData.Add(new XElement("value", new XElement("string", string.Empty)));
-                            }
+                            tFields = paramValues.Skip(1).OfType<string>().Where(x => x.StartsWith("t.", StringComparison.OrdinalIgnoreCase)).ToList();
                         }
 
-                        tArrayData.Add(new XElement("value", new XElement("array", tRowData)));
+                        var trackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList();
+                        if (trackers != null && trackers.Count > 0)
+                        {
+                            foreach (var tracker in trackers)
+                            {
+                                var tRowData = new XElement("data");
+                                foreach (var field in tFields)
+                                {
+                                    var cleanField = field.Trim().TrimEnd('=', '(', ')');
+                                    if (cleanField.Equals("t.get_url", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.url", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("string", tracker.Url ?? string.Empty)));
+                                    }
+                                    else if (cleanField.Equals("t.get_type", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.type", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Tier > 0 ? tracker.Tier : 1)));
+                                    }
+                                    else if (cleanField.Equals("t.is_enabled", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Enabled ? 1 : 0)));
+                                    }
+                                    else if (cleanField.Equals("t.is_open", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                    }
+                                    else if (cleanField.Equals("t.get_group", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.group", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Tier)));
+                                    }
+                                    else if (cleanField.Equals("t.get_scrape_complete", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.scrape_complete", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Seeders)));
+                                    }
+                                    else if (cleanField.Equals("t.get_scrape_incomplete", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.scrape_incomplete", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Leechers)));
+                                    }
+                                    else if (cleanField.Equals("t.get_scrape_downloaded", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.scrape_downloaded", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.Downloaded)));
+                                    }
+                                    else if (cleanField.Equals("t.get_normal_interval", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.normal_interval", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.AnnounceInterval)));
+                                    }
+                                    else
+                                    {
+                                        tRowData.Add(new XElement("value", new XElement("string", string.Empty)));
+                                    }
+                                }
+
+                                tArrayData.Add(new XElement("value", new XElement("array", tRowData)));
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
+                        {
+                            var tRowData = new XElement("data");
+                            foreach (var field in tFields)
+                            {
+                                var cleanField = field.Trim().TrimEnd('=', '(', ')');
+                                if (cleanField.Equals("t.get_url", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.url", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("string", t.TrackerUrl)));
+                                }
+                                else if (cleanField.Equals("t.get_type", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.type", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                }
+                                else if (cleanField.Equals("t.is_enabled", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                }
+                                else if (cleanField.Equals("t.is_open", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("i4", 1)));
+                                }
+                                else
+                                {
+                                    tRowData.Add(new XElement("value", new XElement("string", string.Empty)));
+                                }
+                            }
+
+                            tArrayData.Add(new XElement("value", new XElement("array", tRowData)));
+                        }
                     }
 
                     return new XElement("array", tArrayData);
@@ -320,6 +390,17 @@ public class RTorrentController : ControllerBase
                         if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
                             var added = await this.torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                            if (added != null && customPriority.HasValue)
+                            {
+                                added.Priority = customPriority.Value;
+                                await this.torrentService.UpdateAsync(added);
+                            }
+                        }
+                        else if (global::System.IO.File.Exists(uriStr))
+                        {
+                            var bytes = await global::System.IO.File.ReadAllBytesAsync(uriStr);
+                            var parsed = this.torrentFileParser.Parse(bytes);
+                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 added.Priority = customPriority.Value;
