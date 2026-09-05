@@ -800,10 +800,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             if (!resource.Active.Value && existing.Status != TorrentStatus.Paused)
             {
                 await this.torrentService.PauseAsync(id);
+                existing.Status = TorrentStatus.Paused;
             }
-            else if (resource.Active.Value && existing.Status == TorrentStatus.Paused)
+            else if (resource.Active.Value && existing.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
             {
                 await this.torrentService.ResumeAsync(id);
+                existing.Status = existing.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
             }
         }
 
