@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -56,7 +57,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
             // Allow auth if password or username matches API key or authentication is disabled
             if (!this.configFileProvider.AuthenticationEnabled ||
-                (!string.IsNullOrWhiteSpace(configuredApiKey) && (password == configuredApiKey || username == configuredApiKey)))
+                (!string.IsNullOrWhiteSpace(configuredApiKey) && (RpcAuthenticationHelper.FixedTimeEquals(password, configuredApiKey) || RpcAuthenticationHelper.FixedTimeEquals(username, configuredApiKey))))
             {
                 var claims = new[]
                 {
