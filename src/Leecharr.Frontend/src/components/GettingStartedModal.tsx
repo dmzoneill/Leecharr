@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   useCreateIndexer,
+  useSyncProwlarr,
   useTestDirectIndexer,
   useCreateArrConnection,
   useTestDirectArrConnection,
@@ -144,6 +145,7 @@ export function GettingStartedModal({
   // API Mutations
   const testIndexerMutation = useTestDirectIndexer();
   const createIndexerMutation = useCreateIndexer();
+  const syncProwlarrMutation = useSyncProwlarr();
 
   const testArrMutation = useTestDirectArrConnection();
   const createArrMutation = useCreateArrConnection();
@@ -204,12 +206,29 @@ export function GettingStartedModal({
   };
 
   const handleSaveIndexer = () => {
-    const payload = normalizeIndexerPayload(indexerForm);
-    createIndexerMutation.mutate(payload, {
-      onSuccess: () => {
-        handleNext();
-      },
-    });
+    if (indexerForm.indexerType === "Prowlarr") {
+      syncProwlarrMutation.mutate(
+        {
+          url: indexerForm.url || "http://localhost:9696",
+          apiKey: indexerForm.apiKey || "",
+        },
+        {
+          onSuccess: () => {
+            handleNext();
+          },
+          onError: (err) => {
+            setIndexerTestResult({ success: false, message: `Sync failed: ${err.message}` });
+          },
+        }
+      );
+    } else {
+      const payload = normalizeIndexerPayload(indexerForm);
+      createIndexerMutation.mutate(payload, {
+        onSuccess: () => {
+          handleNext();
+        },
+      });
+    }
   };
 
   const handleTestArr = (
@@ -815,9 +834,9 @@ export function GettingStartedModal({
                     <button
                       className="btn btn-primary"
                       onClick={handleSaveIndexer}
-                      disabled={createIndexerMutation.isPending}
+                      disabled={createIndexerMutation.isPending || syncProwlarrMutation.isPending}
                     >
-                      {createIndexerMutation.isPending ? "Saving..." : "Save & Continue"}
+                      {createIndexerMutation.isPending || syncProwlarrMutation.isPending ? "Saving..." : "Save & Continue"}
                     </button>
                   </div>
                 </div>
