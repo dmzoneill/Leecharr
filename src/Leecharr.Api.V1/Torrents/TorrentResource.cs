@@ -99,6 +99,8 @@ public class TorrentResource : RestResource
 
     public long SeedingTime { get; set; }
 
+    public string Bitfield { get; set; }
+
     // Enriched Media Fields
     public string MediaTitle { get; set; }
 
