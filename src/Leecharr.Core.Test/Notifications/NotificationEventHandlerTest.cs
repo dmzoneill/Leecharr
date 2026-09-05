@@ -7,7 +7,9 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Network;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Torrents;
 
@@ -412,5 +414,150 @@ public class NotificationEventHandlerTest
 
         act1.Should().NotThrow();
         act2.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenCustomHeadersConfigured_ForwardsHeadersToWebhookDispatcher()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 50,
+            Name = "Webhook with Headers",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook\",\"headers\":{\"Authorization\":\"Bearer token-123\",\"X-Tracking\":\"track-abc\"}}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 51,
+            Name = "Ubuntu ISO",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://test/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains("Bearer token-123") && h.Contains("track-abc")));
+    }
+
+    [Test]
+    public async Task Handle_HealthIssueEvent_WhenCustomHeadersConfigured_ForwardsHeadersToWebhookDispatcher()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 52,
+            Name = "Health Alert Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook\",\"headers\":{\"X-Health-Alert\":\"warning-123\"}}",
+            OnHealthIssue = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 53,
+            Name = "Tracker Error Torrent",
+            Status = TorrentStatus.Stalled,
+        };
+
+        this.handler.Handle(new HealthIssueEvent(torrent, "Tracker", "Connection reset", isResolved: false));
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://test/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains("warning-123")));
+    }
+
+    [Test]
+    public async Task Handle_ApplicationUpdatedEvent_WhenCustomHeadersConfigured_ForwardsHeadersToWebhookDispatcher()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 54,
+            Name = "Update Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook\",\"headers\":{\"X-App-Update\":\"ver-2\"}}",
+            OnApplicationUpdate = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new ApplicationUpdatedEvent { PreviousVersion = "1.0.0", NewVersion = "1.1.0" });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://test/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains("ver-2")));
+    }
+
+    [Test]
+    public async Task Handle_VpnKillSwitchTriggeredEvent_WhenCustomHeadersConfigured_ForwardsHeadersToWebhookDispatcher()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 55,
+            Name = "VPN Kill Switch Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook\",\"headers\":{\"X-KillSwitch\":\"vpn-alert\"}}",
+            OnHealthIssue = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new VpnKillSwitchTriggeredEvent("wg0"));
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://test/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains("vpn-alert")));
+    }
+
+    [Test]
+    public void ResolveCustomHeaders_VariousFormats_ExtractsExpectedHeaders()
+    {
+        // JSON object
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"headers\":{\"Authorization\":\"Bearer abc\"}}")
+            .Should().Contain("Bearer abc");
+
+        // Stringified JSON
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"headers\":\"{\\\"Authorization\\\":\\\"Bearer abc\\\"}\"}")
+            .Should().Contain("Bearer abc");
+
+        // CustomHeaders property
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"customHeaders\":{\"X-Key\":\"val\"}}")
+            .Should().Contain("val");
+
+        // Key-value string in headers
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"headers\":\"X-Custom: header-value\"}")
+            .Should().Be("X-Custom: header-value");
+
+        // Query string format
+        NotificationEventHandler.ResolveCustomHeaders("url=http://test&headers=%7B%22Key%22%3A%22Val%22%7D")
+            .Should().Contain("Val");
+
+        // Missing headers or empty
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\"}").Should().BeNull();
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"headers\":{}}").Should().BeNull();
+        NotificationEventHandler.ResolveCustomHeaders("http://test/plain").Should().BeNull();
+        NotificationEventHandler.ResolveCustomHeaders(string.Empty).Should().BeNull();
+        NotificationEventHandler.ResolveCustomHeaders(null).Should().BeNull();
     }
 }
