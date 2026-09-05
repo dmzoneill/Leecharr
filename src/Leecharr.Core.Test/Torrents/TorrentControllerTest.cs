@@ -513,11 +513,11 @@ public class TorrentControllerTest
     }
 
     [Test]
-    public void GetPeers_WhenTaskIsNull_ReturnsEmptyList()
+    public async Task GetPeers_WhenTaskIsNull_ReturnsEmptyList()
     {
         this.torrentService.GetDownloadTask(1).Returns((IDownloadTask)null!);
 
-        var result = this.controller.GetPeers(1);
+        var result = await this.controller.GetPeers(1);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var resources = okResult.Value.Should().BeAssignableTo<List<PeerResource>>().Subject;
@@ -525,7 +525,7 @@ public class TorrentControllerTest
     }
 
     [Test]
-    public void GetPeers_WhenPeersExist_MapsCountryCodeCountryNameCityAndPeerProperties()
+    public async Task GetPeers_WhenPeersExist_MapsCountryCodeCountryNameCityAndPeerProperties()
     {
         var downloadTask = Substitute.For<IDownloadTask>();
         var peers = new List<PeerInfo>
@@ -559,15 +559,15 @@ public class TorrentControllerTest
         downloadTask.GetPeers().Returns(peers);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
-        this.geoIpService.Lookup("8.8.8.8").Returns(new GeoLocationInfo
+        this.geoIpService.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
         {
             CountryCode = "US",
             CountryName = "United States",
             City = "Mountain View",
-        });
-        this.geoIpService.Lookup("192.168.1.100").Returns((GeoLocationInfo)null!);
+        }));
+        this.geoIpService.LookupAsync("192.168.1.100").Returns(Task.FromResult((GeoLocationInfo)null!));
 
-        var result = this.controller.GetPeers(1);
+        var result = await this.controller.GetPeers(1);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var resources = okResult.Value.Should().BeAssignableTo<List<PeerResource>>().Subject;

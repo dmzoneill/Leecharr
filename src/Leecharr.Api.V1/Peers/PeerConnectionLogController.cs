@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
@@ -91,7 +92,7 @@ public class PeerConnectionLogController : Controller
     }
 
     [HttpGet("active")]
-    public ActionResult<List<PeerConnectionLogResource>> GetActive()
+    public async Task<ActionResult<List<PeerConnectionLogResource>>> GetActive()
     {
         var logs = new List<PeerConnectionLogResource>();
         var torrents = this.torrentService?.GetAll() ?? new List<Torrent>();
@@ -104,7 +105,7 @@ public class PeerConnectionLogController : Controller
             {
                 foreach (var peer in task.GetPeers())
                 {
-                    var geo = this.geoIpService?.Lookup(peer.Ip);
+                    var geo = this.geoIpService != null ? await this.geoIpService.LookupAsync(peer.Ip) : null;
 
                     logs.Add(new PeerConnectionLogResource
                     {
