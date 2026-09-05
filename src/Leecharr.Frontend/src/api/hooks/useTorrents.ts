@@ -457,7 +457,7 @@ export function useCreateTag() {
 export function useUpdateTag() {
   const queryClient = useQueryClient();
   return useMutation<Tag, Error, Tag>({
-    mutationFn: (tag) => apiClient.put("/tag", tag),
+    mutationFn: (tag) => apiClient.put(`/tag/${tag.id}`, tag),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tags"] }),
   });
 }
