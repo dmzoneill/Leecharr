@@ -529,6 +529,24 @@ public class ConfigService : IConfigService
     {
         var allConfig = this.repository.All().ToDictionary(c => c.Key, c => c, StringComparer.OrdinalIgnoreCase);
 
+        if (configValues.ContainsKey("DownloadQueueSize") && !configValues.ContainsKey("MaxActiveDownloads"))
+        {
+            configValues["MaxActiveDownloads"] = configValues["DownloadQueueSize"];
+        }
+        else if (configValues.ContainsKey("MaxActiveDownloads") && !configValues.ContainsKey("DownloadQueueSize"))
+        {
+            configValues["DownloadQueueSize"] = configValues["MaxActiveDownloads"];
+        }
+
+        if (configValues.ContainsKey("SeedQueueSize") && !configValues.ContainsKey("MaxActiveUploads"))
+        {
+            configValues["MaxActiveUploads"] = configValues["SeedQueueSize"];
+        }
+        else if (configValues.ContainsKey("MaxActiveUploads") && !configValues.ContainsKey("SeedQueueSize"))
+        {
+            configValues["SeedQueueSize"] = configValues["MaxActiveUploads"];
+        }
+
         foreach (var (key, value) in configValues)
         {
             var strValue = value?.ToString() ?? string.Empty;
@@ -730,9 +748,9 @@ public class ConfigService : IConfigService
 
     public int MaxUploadSlots => this.GetValueInt("MaxUploadSlots", 8);
 
-    public int MaxActiveDownloads => this.GetValueInt("MaxActiveDownloads", 3);
+    public int MaxActiveDownloads => this.GetValueInt("MaxActiveDownloads", this.GetValueInt("DownloadQueueSize", 3));
 
-    public int MaxActiveUploads => this.GetValueInt("MaxActiveUploads", 3);
+    public int MaxActiveUploads => this.GetValueInt("MaxActiveUploads", this.GetValueInt("SeedQueueSize", 3));
 
     public int MaxActiveTorrents => this.GetValueInt("MaxActiveTorrents", 10);
 
@@ -828,9 +846,9 @@ public class ConfigService : IConfigService
     public string Umask => this.GetValue("Umask", "022");
 
     // Queue & Concurrency Management
-    public int DownloadQueueSize => this.GetValueInt("DownloadQueueSize", 5);
+    public int DownloadQueueSize => this.GetValueInt("DownloadQueueSize", this.GetValueInt("MaxActiveDownloads", 5));
 
-    public int SeedQueueSize => this.GetValueInt("SeedQueueSize", 10);
+    public int SeedQueueSize => this.GetValueInt("SeedQueueSize", this.GetValueInt("MaxActiveUploads", 10));
 
     public bool QueueStalledEnabled => this.GetValueBoolean("QueueStalledEnabled", true);
 
