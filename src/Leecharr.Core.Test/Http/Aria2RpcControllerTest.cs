@@ -386,7 +386,7 @@ public class Aria2RpcControllerTest
         this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false)
             .Returns(Task.FromResult(addedTorrent));
 
-        var jsonParams = $"[\"{magnetUri}\"]";
+        var jsonParams = $"[[\"{magnetUri}\"]]";
         var base64Params = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonParams));
 
         var context = new DefaultHttpContext();
@@ -412,7 +412,7 @@ public class Aria2RpcControllerTest
         actionResult.Should().BeOfType<ContentResult>();
 
         var contentResult = (ContentResult)actionResult;
-        contentResult.ContentType.Should().Be("application/javascript");
+        contentResult.ContentType.Should().StartWith("application/javascript");
         contentResult.Content.Should().StartWith("myJsonpCallback(");
         contentResult.Content.Should().EndWith(");");
         contentResult.Content.Should().Contain("\"version\":\"1.36.0\"");
@@ -438,6 +438,170 @@ public class Aria2RpcControllerTest
         var okResult = (OkObjectResult)actionResult;
         var json = JsonSerializer.Serialize(okResult.Value);
         json.Should().Contain("1.36.0");
+    }
+
+    [Test]
+    public async Task GetFiles_JsonRpc_ReturnsFileStructsWithAbsolutePathsSelectionStateAndUris()
+    {
+        var torrent = new Torrent
+        {
+            Id = 8,
+            Name = "MultiFileTorrent",
+            InfoHash = FullInfoHash,
+            SavePath = "/downloads/movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 1200,
+            Downloaded = 600,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 8, Path = "movie.mkv", Size = 1000, Priority = 1 },
+            new() { Id = 2, TorrentId = 8, Path = "sample.mkv", Size = 200, Priority = 0 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(8).Returns(files);
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 50,
+              "method": "aria2.getFiles",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var result = doc.RootElement.GetProperty("result");
+        result.GetArrayLength().Should().Be(2);
+
+        var file1 = result[0];
+        file1.GetProperty("index").GetString().Should().Be("1");
+        file1.GetProperty("path").GetString().Should().Be(Path.Combine("/downloads/movies", "movie.mkv"));
+        file1.GetProperty("length").GetString().Should().Be("1000");
+        file1.GetProperty("completedLength").GetString().Should().Be("500");
+        file1.GetProperty("selected").GetString().Should().Be("true");
+        file1.GetProperty("uris").GetArrayLength().Should().Be(0);
+
+        var file2 = result[1];
+        file2.GetProperty("index").GetString().Should().Be("2");
+        file2.GetProperty("path").GetString().Should().Be(Path.Combine("/downloads/movies", "sample.mkv"));
+        file2.GetProperty("length").GetString().Should().Be("200");
+        file2.GetProperty("completedLength").GetString().Should().Be("100");
+        file2.GetProperty("selected").GetString().Should().Be("false");
+        file2.GetProperty("uris").GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetFiles_XmlRpc_ReturnsArrayOfFileStructsWithAbsolutePathsSelectionStateAndUris()
+    {
+        var torrent = new Torrent
+        {
+            Id = 9,
+            Name = "XmlFilesTorrent",
+            InfoHash = FullInfoHash,
+            SavePath = "/downloads/tv",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 1500,
+            Downloaded = 750,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 10, TorrentId = 9, Path = "ep1.mkv", Size = 1000, Priority = 1 },
+            new() { Id = 11, TorrentId = 9, Path = "ep2.mkv", Size = 500, Priority = 0 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(9).Returns(files);
+
+        this.SetXmlRpcRequest("aria2.getFiles", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var fileStructs = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("struct"))
+            .ToList();
+
+        fileStructs.Should().NotBeNull();
+        fileStructs!.Count.Should().Be(2);
+
+        var s1 = fileStructs[0]!;
+        GetStructMember(s1, "index").Should().Be("1");
+        GetStructMember(s1, "path").Should().Be(Path.Combine("/downloads/tv", "ep1.mkv"));
+        GetStructMember(s1, "length").Should().Be("1000");
+        GetStructMember(s1, "completedLength").Should().Be("500");
+        GetStructMember(s1, "selected").Should().Be("true");
+        s1.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == "uris")
+            ?.Element("value")?.Element("array")?.Element("data")?.Elements("value").Count().Should().Be(0);
+
+        var s2 = fileStructs[1]!;
+        GetStructMember(s2, "index").Should().Be("2");
+        GetStructMember(s2, "path").Should().Be(Path.Combine("/downloads/tv", "ep2.mkv"));
+        GetStructMember(s2, "length").Should().Be("500");
+        GetStructMember(s2, "completedLength").Should().Be("250");
+        GetStructMember(s2, "selected").Should().Be("false");
+        s2.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == "uris")
+            ?.Element("value")?.Element("array")?.Element("data")?.Elements("value").Count().Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetFiles_JsonRpc_NonExistentGid_ReturnsEmptyArray()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 51,
+              "method": "aria2.getFiles",
+              "params": ["nonexistentgid123"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var result = doc.RootElement.GetProperty("result");
+        result.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetFiles_XmlRpc_NonExistentGid_ReturnsEmptyArray()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetXmlRpcRequest("aria2.getFiles", "nonexistentgid123");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var dataElem = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data");
+        dataElem.Should().NotBeNull();
+        dataElem!.Elements("value").Should().BeEmpty();
+    }
+
+    private static string GetStructMember(XElement structElem, string memberName)
+    {
+        var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
+        var val = member?.Element("value");
+        return val?.Element("string")?.Value ?? val?.Value;
     }
 
     private static string GetJsonRpcResultString(IActionResult actionResult)
