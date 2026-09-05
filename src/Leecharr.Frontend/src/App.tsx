@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router";
 import { api } from "./api/client";
 import { signalRManager } from "./api/signalr";
 import { Torrent, Category } from "./api/types";
@@ -14,7 +20,12 @@ import {
 import { useTorrentStore } from "./stores/useTorrentStore";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
-import { DashboardIcon, TorrentIcon, SettingsIcon, SystemIcon } from "./components/icons/NavIcons";
+import {
+  DashboardIcon,
+  TorrentIcon,
+  SettingsIcon,
+  SystemIcon,
+} from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
   ScheduleIcon,
@@ -43,6 +54,7 @@ import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
+import { TerminalPage } from "./pages/TerminalPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
@@ -50,8 +62,14 @@ import { AddTorrentModal } from "./components/AddTorrentModal";
 import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
-import { GettingStartedModal, STORAGE_KEY_HIDE_GUIDE } from "./components/GettingStartedModal";
-import { SETTINGS_GROUPS, LEGACY_SETTINGS_MAP } from "./pages/settings/settingsNavData";
+import {
+  GettingStartedModal,
+  STORAGE_KEY_HIDE_GUIDE,
+} from "./components/GettingStartedModal";
+import {
+  SETTINGS_GROUPS,
+  LEGACY_SETTINGS_MAP,
+} from "./pages/settings/settingsNavData";
 import { useSettingsDirty } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./App.css";
@@ -59,6 +77,7 @@ import "./App.css";
 const systemSubItems = [
   { id: "status", label: "Status" },
   { id: "resources", label: "Resources" },
+  { id: "terminal", label: "Terminal CLI" },
   { id: "tasks", label: "Tasks" },
   { id: "backup", label: "Backup" },
   { id: "updates", label: "Updates" },
@@ -76,7 +95,9 @@ export function App() {
   const { data: categories = [] } = useCategories();
   const [connected, setConnected] = useState<boolean>(false);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<import("./api/types").CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<
+    import("./api/types").CurrentUser | null
+  >(null);
 
   const queryClient = useQueryClient();
 
@@ -87,7 +108,9 @@ export function App() {
     const applyTheme = () => {
       let theme = generalConfig?.themeStyle || "dark";
       if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        theme = window.matchMedia("(prefers-color-scheme: light)").matches
+          ? "light"
+          : "dark";
       }
       const accent = generalConfig?.colorScheme || "auto";
       document.documentElement.setAttribute("data-theme", theme);
@@ -130,10 +153,13 @@ export function App() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
-  const [showGettingStartedModal, setShowGettingStartedModal] = useState<boolean>(() => {
-    return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
-  });
-  const [openSettingsGroups, setOpenSettingsGroups] = useState<Record<string, boolean>>({});
+  const [showGettingStartedModal, setShowGettingStartedModal] =
+    useState<boolean>(() => {
+      return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
+    });
+  const [openSettingsGroups, setOpenSettingsGroups] = useState<
+    Record<string, boolean>
+  >({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_sidebar_collapsed") === "true";
   });
@@ -169,7 +195,10 @@ export function App() {
     activeNav = "schedule";
   } else if (pathname.startsWith("/statistics")) {
     activeNav = "statistics";
-  } else if (pathname.startsWith("/indexers") || pathname.startsWith("/search")) {
+  } else if (
+    pathname.startsWith("/indexers") ||
+    pathname.startsWith("/search")
+  ) {
     activeNav = "indexers";
   } else if (
     pathname.startsWith("/trackerboost") ||
@@ -198,6 +227,8 @@ export function App() {
       }
       activeSubNav = foundPageId;
     }
+  } else if (pathname.startsWith("/terminal")) {
+    activeNav = "terminal";
   } else if (pathname.startsWith("/system")) {
     activeNav = "system";
     const parts = pathname.split("/");
@@ -216,7 +247,7 @@ export function App() {
     (to: string) => {
       confirmIfDirty(() => navigate(to));
     },
-    [confirmIfDirty, navigate]
+    [confirmIfDirty, navigate],
   );
 
   useEffect(() => {
@@ -260,10 +291,12 @@ export function App() {
               : typeof (msg.body as any).id === "number"
                 ? [msg.body]
                 : typeof msg.body === "object"
-                  ? Object.entries(msg.body).map(([id, data]: [string, any]) => ({
-                      id: Number(id) || data?.id,
-                      ...(typeof data === "object" ? data : {}),
-                    }))
+                  ? Object.entries(msg.body).map(
+                      ([id, data]: [string, any]) => ({
+                        id: Number(id) || data?.id,
+                        ...(typeof data === "object" ? data : {}),
+                      }),
+                    )
                   : [];
 
           if (updates.length > 0) {
@@ -297,14 +330,18 @@ export function App() {
           if (Array.isArray(body)) {
             for (const item of body) {
               const tid = Number(
-                typeof item === "object" && item !== null ? (item.id ?? item.torrentId) : item
+                typeof item === "object" && item !== null
+                  ? (item.id ?? item.torrentId)
+                  : item,
               );
               if (!Number.isNaN(tid) && tid > 0) {
                 useTorrentStore.getState().removeTorrent(tid);
               }
             }
           } else if (body !== undefined && body !== null) {
-            const tid = Number(typeof body === "object" ? (body.id ?? body.torrentId) : body);
+            const tid = Number(
+              typeof body === "object" ? (body.id ?? body.torrentId) : body,
+            );
             if (!Number.isNaN(tid) && tid > 0) {
               useTorrentStore.getState().removeTorrent(tid);
             }
@@ -342,14 +379,20 @@ export function App() {
     }
   };
 
-  const handleDelete = async (payload: { id: number; deleteFiles?: boolean } | number) => {
+  const handleDelete = async (
+    payload: { id: number; deleteFiles?: boolean } | number,
+  ) => {
     const id = typeof payload === "number" ? payload : payload.id;
-    const deleteFiles = typeof payload === "number" ? false : Boolean(payload.deleteFiles);
+    const deleteFiles =
+      typeof payload === "number" ? false : Boolean(payload.deleteFiles);
 
     try {
       await api.deleteTorrent(id, deleteFiles);
       useTorrentStore.getState().removeTorrent(id);
-      showToast(deleteFiles ? "Torrent and files deleted" : "Torrent removed", "info");
+      showToast(
+        deleteFiles ? "Torrent and files deleted" : "Torrent removed",
+        "info",
+      );
       refreshServerData();
     } catch (err: any) {
       showToast(err?.message || "Failed to delete torrent", "error");
@@ -370,7 +413,9 @@ export function App() {
   }
 
   return (
-    <div className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div
+      className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
+    >
       {/* Sidebar Navigation */}
       <aside className={`sidebar sidebar-${activeNav}`}>
         <div
@@ -522,6 +567,29 @@ export function App() {
             <span>Tracker Boost</span>
           </div>
 
+          {/* Terminal CLI */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "terminal" ? "active" : ""}`}
+            onClick={() => guardedNavigate("/terminal")}
+            style={{ cursor: "pointer" }}
+            title="Interactive Download Shell & File Inspector"
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "16px",
+                fontFamily: "monospace",
+                fontSize: "0.85rem",
+                fontWeight: "bold",
+              }}
+            >
+              &gt;_
+            </span>
+            <span>Terminal CLI</span>
+          </div>
+
           {/* Settings */}
           <div
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
@@ -534,7 +602,9 @@ export function App() {
           {activeNav === "settings" && (
             <div className="sidebar-settings-tree">
               {SETTINGS_GROUPS.map((group) => {
-                const isGroupActive = group.pages.some((p) => p.id === activeSubNav);
+                const isGroupActive = group.pages.some(
+                  (p) => p.id === activeSubNav,
+                );
                 const isOpen = openSettingsGroups[group.id] ?? isGroupActive;
                 return (
                   <div key={group.id} className="sidebar-group-container">
@@ -559,7 +629,11 @@ export function App() {
                         <span>{group.icon}</span>
                         <span>{group.shortLabel}</span>
                       </span>
-                      <span className={`sidebar-group-chevron ${isOpen ? "open" : ""}`}>▶</span>
+                      <span
+                        className={`sidebar-group-chevron ${isOpen ? "open" : ""}`}
+                      >
+                        ▶
+                      </span>
                     </div>
                     {isOpen &&
                       group.pages.map((page) => {
@@ -568,7 +642,9 @@ export function App() {
                           <div
                             key={page.id}
                             className={`sidebar-settings-subitem ${isPageActive ? "active" : ""}`}
-                            onClick={() => guardedNavigate(`/settings/${page.id}`)}
+                            onClick={() =>
+                              guardedNavigate(`/settings/${page.id}`)
+                            }
                             title={page.description}
                           >
                             <span
@@ -605,7 +681,9 @@ export function App() {
                                   backgroundColor: isPageActive
                                     ? "var(--accent)"
                                     : "rgba(255,255,255,0.06)",
-                                  color: isPageActive ? "#10111a" : "var(--text-muted)",
+                                  color: isPageActive
+                                    ? "#10111a"
+                                    : "var(--text-muted)",
                                 }}
                               >
                                 {page.badge}
@@ -652,16 +730,23 @@ export function App() {
               type="button"
               className="topbar-btn sidebar-toggle-btn"
               onClick={toggleSidebar}
-              title={isSidebarCollapsed ? "Show Main Menu (Alt+M)" : "Hide Main Menu (Alt+M)"}
+              title={
+                isSidebarCollapsed
+                  ? "Show Main Menu (Alt+M)"
+                  : "Hide Main Menu (Alt+M)"
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 width: "28px",
                 height: "28px",
-                border: "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+                border:
+                  "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
                 borderRadius: "4px",
-                background: isSidebarCollapsed ? "var(--accent, #ffd166)" : "transparent",
+                background: isSidebarCollapsed
+                  ? "var(--accent, #ffd166)"
+                  : "transparent",
                 color: isSidebarCollapsed ? "#10111a" : "var(--text-secondary)",
                 cursor: "pointer",
                 fontSize: "0.95rem",
@@ -720,7 +805,27 @@ export function App() {
             >
               🚀 Setup Guide
             </button>
-            <button className="btn btn-small btn-success" onClick={() => setShowAddModal(true)}>
+            <button
+              className="btn btn-small"
+              onClick={() => guardedNavigate("/terminal")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                backgroundColor: "rgba(56, 189, 248, 0.12)",
+                color: "#38bdf8",
+                border: "1px solid rgba(56, 189, 248, 0.3)",
+                fontWeight: 600,
+                fontFamily: "monospace",
+              }}
+              title="Open Terminal CLI to inspect download volumes"
+            >
+              &gt;_ CLI
+            </button>
+            <button
+              className="btn btn-small btn-success"
+              onClick={() => setShowAddModal(true)}
+            >
               + Add Torrent
             </button>
 
@@ -822,7 +927,9 @@ export function App() {
                       <Dashboard
                         torrents={torrents}
                         onNavigateTorrents={() => guardedNavigate("/torrents")}
-                        onNavigateSettings={(tab) => guardedNavigate(`/settings/${tab}`)}
+                        onNavigateSettings={(tab) =>
+                          guardedNavigate(`/settings/${tab}`)
+                        }
                       />
                     </div>
                   </ErrorBoundary>
@@ -843,8 +950,10 @@ export function App() {
                       onOpenAddModal={() => setShowAddModal(true)}
                       onOpenSearchModal={() => setShowSearchModal(true)}
                       onNavigateTab={(nav, subNav) => {
-                        if (nav === "settings") guardedNavigate(`/settings/${subNav || "general"}`);
-                        else if (nav === "system") guardedNavigate(`/system/${subNav || "status"}`);
+                        if (nav === "settings")
+                          guardedNavigate(`/settings/${subNav || "general"}`);
+                        else if (nav === "system")
+                          guardedNavigate(`/system/${subNav || "status"}`);
                         else if (subNav) guardedNavigate(`/${nav}/${subNav}`);
                         else guardedNavigate(`/${nav}`);
                       }}
@@ -867,9 +976,18 @@ export function App() {
               />
 
               {/* Activity Hub */}
-              <Route path="/activity" element={<Navigate to="/activity/history" replace />} />
-              <Route path="/activity/torrents" element={<Navigate to="/torrents" replace />} />
-              <Route path="/activity/add" element={<Navigate to="/torrents/add" replace />} />
+              <Route
+                path="/activity"
+                element={<Navigate to="/activity/history" replace />}
+              />
+              <Route
+                path="/activity/torrents"
+                element={<Navigate to="/torrents" replace />}
+              />
+              <Route
+                path="/activity/add"
+                element={<Navigate to="/torrents/add" replace />}
+              />
               <Route
                 path="/activity/history"
                 element={
@@ -878,7 +996,10 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route path="/history" element={<Navigate to="/activity/history" replace />} />
+              <Route
+                path="/history"
+                element={<Navigate to="/activity/history" replace />}
+              />
               <Route
                 path="/activity/metrics"
                 element={
@@ -897,7 +1018,10 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route path="/search" element={<Navigate to="/indexers" replace />} />
+              <Route
+                path="/search"
+                element={<Navigate to="/indexers" replace />}
+              />
 
               {/* Operational Visualizations */}
               <Route
@@ -934,11 +1058,20 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route path="/boost" element={<Navigate to="/trackerboost" replace />} />
-              <Route path="/downloadplusplus" element={<Navigate to="/trackerboost" replace />} />
+              <Route
+                path="/boost"
+                element={<Navigate to="/trackerboost" replace />}
+              />
+              <Route
+                path="/downloadplusplus"
+                element={<Navigate to="/trackerboost" replace />}
+              />
 
               {/* Settings */}
-              <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
+              <Route
+                path="/settings"
+                element={<Navigate to="/settings/general" replace />}
+              />
               <Route
                 path="/settings/:section"
                 element={
@@ -949,7 +1082,10 @@ export function App() {
               />
 
               {/* System Diagnostics & Maintenance */}
-              <Route path="/system" element={<Navigate to="/system/status" replace />} />
+              <Route
+                path="/system"
+                element={<Navigate to="/system/status" replace />}
+              />
               <Route
                 path="/system/status"
                 element={
@@ -1026,9 +1162,36 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route path="/system/api-docs" element={<Navigate to="/system/api" replace />} />
-              <Route path="/system/swagger" element={<Navigate to="/system/api" replace />} />
-              <Route path="/api-docs" element={<Navigate to="/system/api" replace />} />
+              <Route
+                path="/system/api-docs"
+                element={<Navigate to="/system/api" replace />}
+              />
+              <Route
+                path="/system/swagger"
+                element={<Navigate to="/system/api" replace />}
+              />
+              <Route
+                path="/api-docs"
+                element={<Navigate to="/system/api" replace />}
+              />
+
+              {/* Terminal CLI */}
+              <Route
+                path="/terminal"
+                element={
+                  <ErrorBoundary title="Terminal Error">
+                    <TerminalPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/system/terminal"
+                element={
+                  <ErrorBoundary title="Terminal Error">
+                    <TerminalPage />
+                  </ErrorBoundary>
+                }
+              />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
