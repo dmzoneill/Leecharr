@@ -6,6 +6,7 @@ import {
   useDeleteIndexer,
   useTestIndexer,
   useTestDirectIndexer,
+  useSyncProwlarr,
 } from "../../api/hooks";
 import type { IndexerDefinition, IndexerTestResult } from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
@@ -59,6 +60,7 @@ export function IndexersTab() {
   const deleteMutation = useDeleteIndexer();
   const testMutation = useTestIndexer();
   const testDirectMutation = useTestDirectIndexer();
+  const syncMutation = useSyncProwlarr();
   const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(null);
   const confirm = useConfirm();
   useEscapeKey(() => setEditing(null), Boolean(editing));
@@ -80,6 +82,25 @@ export function IndexersTab() {
 
   const handleSave = () => {
     if (!editing) return;
+    if (editing.indexerType === "Prowlarr" && !editing.id) {
+      syncMutation.mutate(
+        {
+          url: editing.url || "http://localhost:9696",
+          apiKey: editing.apiKey || "",
+        },
+        {
+          onSuccess: (data) => {
+            showToast(`Synced ${data.syncedCount} indexers from Prowlarr`, "success");
+            setEditing(null);
+            setModalTestResult(null);
+          },
+          onError: (err) => {
+            showToast(err?.message || "Failed to sync with Prowlarr", "error");
+          },
+        }
+      );
+      return;
+    }
     const payload = normalizeIndexerPayload(editing);
     if (editing.id) {
       updateMutation.mutate(payload, {
@@ -448,9 +469,9 @@ export function IndexersTab() {
                 <button
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={createMutation.isPending || updateMutation.isPending || syncMutation.isPending}
                 >
-                  {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                  {createMutation.isPending || updateMutation.isPending || syncMutation.isPending ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>

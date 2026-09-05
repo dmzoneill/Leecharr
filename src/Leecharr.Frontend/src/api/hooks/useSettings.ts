@@ -331,8 +331,18 @@ export function useTestIndexer() {
 }
 
 export function useTestDirectIndexer() {
+  const queryClient = useQueryClient();
   return useMutation<IndexerTestResult, Error, Partial<IndexerDefinition>>({
     mutationFn: (indexer) => apiClient.post("/indexers/test", indexer),
+  });
+}
+
+export function useSyncProwlarr() {
+  const queryClient = useQueryClient();
+  return useMutation<{ success: boolean; syncedCount: number }, Error, { url: string; apiKey: string }>({
+    mutationFn: (data: { url: string; apiKey: string }) =>
+      apiClient.post("/indexers/sync-prowlarr", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["indexers"] }),
   });
 }
 

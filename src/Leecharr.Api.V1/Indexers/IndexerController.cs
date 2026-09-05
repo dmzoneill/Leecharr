@@ -134,11 +134,16 @@ public class IndexerController : Controller
     }
 
     [HttpPost("sync-prowlarr")]
-    public async Task<ActionResult<object>> SyncProwlarr([FromQuery] string url = "http://localhost:9696", [FromQuery] string apiKey = "")
+    public async Task<ActionResult<object>> SyncProwlarr(
+        [FromBody] ProwlarrSyncRequest request = null,
+        [FromQuery] string url = null,
+        [FromQuery] string apiKey = null)
     {
         try
         {
-            var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(url, apiKey);
+            var targetUrl = !string.IsNullOrWhiteSpace(request?.Url) ? request.Url : (!string.IsNullOrWhiteSpace(url) ? url : "http://localhost:9696");
+            var targetApiKey = !string.IsNullOrWhiteSpace(request?.ApiKey) ? request.ApiKey : (apiKey ?? string.Empty);
+            var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(targetUrl, targetApiKey);
             return this.Ok(new { success = true, syncedCount = count });
         }
         catch (Exception ex)
@@ -536,3 +541,11 @@ public class IndexerController : Controller
         };
     }
 }
+
+public class ProwlarrSyncRequest
+{
+    public string Url { get; set; } = "http://localhost:9696";
+
+    public string ApiKey { get; set; } = string.Empty;
+}
+
