@@ -12,6 +12,9 @@ using System.Threading;
 using MonoTorrent.BEncoding;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent.Tracker;
 
@@ -47,19 +50,28 @@ public class SwarmState
     public bool IsRegistered { get; set; }
 }
 
-public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
+public class EmbeddedTrackerService : IEmbeddedTrackerService,
+    IHandle<TorrentAddedEvent>,
+    IHandle<TorrentDeletedEvent>,
+    IHandle<ApplicationStartedEvent>,
+    IDisposable
 {
     public const int DefaultMaxSwarms = 20_000;
 
     private readonly IConfigService configService;
+    private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, SwarmState> swarms = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer cleanupTimer;
     private int disposed;
 
-    public EmbeddedTrackerService(IConfigService configService = null, int? maxSwarms = null)
+    public EmbeddedTrackerService(
+        IConfigService configService = null,
+        ITorrentRepository torrentRepository = null,
+        int? maxSwarms = null)
     {
         this.configService = configService;
+        this.torrentRepository = torrentRepository;
         this.MaxSwarms = maxSwarms ?? (configService != null && configService.TrackerMaxSwarms > 0
             ? configService.TrackerMaxSwarms
             : DefaultMaxSwarms);
@@ -89,6 +101,47 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
     public int MaxSwarms { get; set; }
 
+    public void Handle(TorrentAddedEvent message)
+    {
+        if (message?.Torrent?.InfoHash != null)
+        {
+            this.RegisterSwarm(message.Torrent.InfoHash);
+        }
+    }
+
+    public void Handle(TorrentDeletedEvent message)
+    {
+        if (message?.Torrent?.InfoHash != null)
+        {
+            this.UnregisterSwarm(message.Torrent.InfoHash);
+        }
+    }
+
+    public void Handle(ApplicationStartedEvent message)
+    {
+        if (this.torrentRepository != null)
+        {
+            try
+            {
+                var torrents = this.torrentRepository.All();
+                if (torrents != null)
+                {
+                    foreach (var torrent in torrents)
+                    {
+                        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        {
+                            this.RegisterSwarm(torrent.InfoHash);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to register existing torrents with embedded tracker on startup.");
+            }
+        }
+    }
+
     public void RegisterSwarm(string infoHashHex)
     {
         if (string.IsNullOrWhiteSpace(infoHashHex))
@@ -102,18 +155,35 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
             return;
         }
 
+        if (this.swarms.TryGetValue(normalizedHex, out var existing))
+        {
+            lock (existing)
+            {
+                existing.IsRegistered = true;
+                existing.LastActivityUtc = DateTime.UtcNow;
+            }
+
+            return;
+        }
+
         if (!this.TryAcquireSwarmSlot())
         {
             this.logger.Warn("Failed to register swarm: maximum number of swarms reached ({0}).", this.MaxSwarms);
             return;
         }
 
-        this.swarms.GetOrAdd(normalizedHex, _ => new SwarmState
+        var swarm = this.swarms.GetOrAdd(normalizedHex, _ => new SwarmState
         {
             InfoHash = normalizedBytes,
             LastActivityUtc = DateTime.UtcNow,
             IsRegistered = true,
         });
+
+        lock (swarm)
+        {
+            swarm.IsRegistered = true;
+            swarm.LastActivityUtc = DateTime.UtcNow;
+        }
     }
 
     public void UnregisterSwarm(string infoHashHex)
@@ -123,13 +193,26 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
             return;
         }
 
-        if (TryValidateInfoHashHex(infoHashHex, out var normalizedHex, out _, out _))
+        string normalizedHex;
+        if (!TryValidateInfoHashHex(infoHashHex, out normalizedHex, out _, out _))
         {
-            this.swarms.TryRemove(normalizedHex, out _);
+            normalizedHex = infoHashHex.Trim().ToUpperInvariant();
         }
-        else
+
+        if (this.swarms.TryGetValue(normalizedHex, out var swarm))
         {
-            this.swarms.TryRemove(infoHashHex.Trim().ToUpperInvariant(), out _);
+            lock (swarm)
+            {
+                if (swarm.Peers.IsEmpty)
+                {
+                    ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                        new KeyValuePair<string, SwarmState>(normalizedHex, swarm));
+                }
+                else
+                {
+                    swarm.IsRegistered = false;
+                }
+            }
         }
     }
 
@@ -151,7 +234,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         }
 
         var isPrivate = this.configService?.TrackerPrivateMode ?? false;
-        if (isPrivate && !this.swarms.ContainsKey(hexKey))
+        if (isPrivate && (!this.swarms.TryGetValue(hexKey, out var registeredSwarm) || !registeredSwarm.IsRegistered))
         {
             return new TrackerAnnounceResult { Success = false, FailureReason = "Torrent not registered on this private tracker." };
         }
@@ -480,7 +563,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
         }
 
         var emptySwarms = this.swarms
-            .Where(kvp => kvp.Value.Peers.IsEmpty)
+            .Where(kvp => kvp.Value.Peers.IsEmpty && !kvp.Value.IsRegistered)
             .OrderBy(kvp => kvp.Value.LastActivityUtc)
             .ToList();
 
@@ -491,7 +574,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService, IDisposable
 
             lock (swarm)
             {
-                if (swarm.Peers.IsEmpty)
+                if (swarm.Peers.IsEmpty && !swarm.IsRegistered)
                 {
                     ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
                         new KeyValuePair<string, SwarmState>(hexKey, swarm));
