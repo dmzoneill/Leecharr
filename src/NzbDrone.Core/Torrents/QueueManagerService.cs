@@ -239,10 +239,19 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
     public void Handle(TorrentStatusChangedEvent message)
     {
-        // Avoid looping when QueueManager updates status to Queued/Downloading/Seeding
-        if (message?.NewStatus == TorrentStatus.Paused ||
-            message?.NewStatus == TorrentStatus.Stopped ||
-            (message?.OldStatus == TorrentStatus.Downloading && message?.NewStatus == TorrentStatus.Seeding))
+        if (message == null)
+        {
+            return;
+        }
+
+        // Trigger queue evaluation when an active torrent vacates a slot (paused, stopped, error, stalled, completed)
+        // or when checking finishes and the torrent enters Queued state.
+        if (message.NewStatus == TorrentStatus.Paused ||
+            message.NewStatus == TorrentStatus.Stopped ||
+            message.NewStatus == TorrentStatus.Error ||
+            message.NewStatus == TorrentStatus.Stalled ||
+            (message.OldStatus == TorrentStatus.Downloading && message.NewStatus == TorrentStatus.Seeding) ||
+            (message.OldStatus == TorrentStatus.Checking && message.NewStatus == TorrentStatus.Queued))
         {
             _ = Task.Run(this.ProcessQueueAsync);
         }
