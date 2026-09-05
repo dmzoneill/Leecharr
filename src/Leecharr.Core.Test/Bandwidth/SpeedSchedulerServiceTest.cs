@@ -184,4 +184,61 @@ public class SpeedSchedulerServiceTest
         this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
             .Should().Be(300);
     }
+
+    [Test]
+    public void GetCurrentLimits_WithNonPaddedAndSecondPrecisionTimes_MatchesCorrectly()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Flexible Format Schedule",
+                Days = 127,
+                StartTime = "9:00",
+                EndTime = "23:59:01",
+                MaxDownloadSpeed = 1500,
+                MaxUploadSpeed = 800,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var limitsAtStart = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 9, 0, 0));
+        limitsAtStart.IsThrottled.Should().BeTrue();
+        limitsAtStart.MaxDownloadSpeedKbps.Should().Be(1500);
+
+        var limitsAtEnd = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 1));
+        limitsAtEnd.IsThrottled.Should().BeTrue();
+        limitsAtEnd.MaxDownloadSpeedKbps.Should().Be(1500);
+
+        var limitsBeforeStart = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 8, 59, 59));
+        limitsBeforeStart.IsThrottled.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetCurrentLimits_WithInvalidTimeString_GracefullyIgnoresSchedule()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Invalid Schedule",
+                Days = 127,
+                StartTime = "invalid-time",
+                EndTime = "23:59:00",
+                MaxDownloadSpeed = 1500,
+                MaxUploadSpeed = 800,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+        limits.IsThrottled.Should().BeFalse();
+        limits.MaxDownloadSpeedKbps.Should().Be(50000);
+    }
 }

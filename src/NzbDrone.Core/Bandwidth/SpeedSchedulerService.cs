@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
@@ -88,26 +89,32 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         var now = currentTime ?? DateTime.Now;
         var todayFlag = 1 << (int)now.DayOfWeek;
         var prevDayFlag = 1 << (((int)now.DayOfWeek + 6) % 7);
-        var timeStr = now.ToString("HH:mm:ss");
+        var currentTimeOnly = TimeOnly.FromDateTime(now);
 
         var activeSchedules = this.repository.GetEnabled()
             .Where(s =>
             {
-                if (string.Compare(s.StartTime, s.EndTime, StringComparison.Ordinal) <= 0)
+                if (!TimeOnly.TryParse(s.StartTime, CultureInfo.InvariantCulture, out var startTime) ||
+                    !TimeOnly.TryParse(s.EndTime, CultureInfo.InvariantCulture, out var endTime))
+                {
+                    return false;
+                }
+
+                if (startTime <= endTime)
                 {
                     return (s.Days & todayFlag) != 0 &&
-                        string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0 &&
-                        string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0;
+                        currentTimeOnly >= startTime &&
+                        currentTimeOnly <= endTime;
                 }
                 else
                 {
                     // Overnight schedule (e.g. 22:00 to 06:00)
-                    if (string.Compare(timeStr, s.StartTime, StringComparison.Ordinal) >= 0)
+                    if (currentTimeOnly >= startTime)
                     {
                         return (s.Days & todayFlag) != 0;
                     }
 
-                    if (string.Compare(timeStr, s.EndTime, StringComparison.Ordinal) <= 0)
+                    if (currentTimeOnly <= endTime)
                     {
                         return (s.Days & prevDayFlag) != 0;
                     }
