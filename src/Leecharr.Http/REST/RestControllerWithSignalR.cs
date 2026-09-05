@@ -49,9 +49,17 @@ public abstract class RestControllerWithSignalR<TResource, TModel> : RestControl
             return;
         }
 
+        var actionSuffix = action switch
+        {
+            ModelAction.Created => "Added",
+            ModelAction.Updated => "Updated",
+            ModelAction.Deleted => "Deleted",
+            _ => string.Empty,
+        };
+
         var signalRMessage = new SignalRMessage
         {
-            Name = resource.ResourceName,
+            Name = $"{resource.ResourceName}{actionSuffix}",
             Body = resource,
             Action = action,
         };

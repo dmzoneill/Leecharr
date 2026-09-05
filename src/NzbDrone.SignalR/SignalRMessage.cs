@@ -11,6 +11,6 @@ public class SignalRMessage
 
     public string Name { get; set; }
 
-    [JsonIgnore]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public ModelAction Action { get; set; }
 }
