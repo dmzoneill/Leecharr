@@ -40,6 +40,12 @@ public class BitTorrentConfigResource : RestResource
 
     public string PreallocationMode { get; set; }
 
+    public string DiskPreAllocationMode
+    {
+        get => this.PreallocationMode;
+        set => this.PreallocationMode = value;
+    }
+
     public bool RenamePartialFiles { get; set; }
 
     public string Umask { get; set; }
@@ -173,6 +179,7 @@ public static class BitTorrentConfigResourceMapper
             IncompleteDownloadDir = model.IncompleteDownloadDir,
             EnableIncompleteDir = model.EnableIncompleteDir,
             PreallocationMode = model.PreallocationMode,
+            DiskPreAllocationMode = model.PreallocationMode,
             RenamePartialFiles = model.RenamePartialFiles,
             Umask = model.Umask,
 
