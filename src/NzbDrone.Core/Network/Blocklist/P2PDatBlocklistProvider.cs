@@ -50,7 +50,17 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return false;
         }
 
-        if (!IPAddress.TryParse(ipAddress, out var parsedIp) || parsedIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        if (!IPAddress.TryParse(ipAddress, out var parsedIp))
+        {
+            return false;
+        }
+
+        if (parsedIp.IsIPv4MappedToIPv6)
+        {
+            parsedIp = parsedIp.MapToIPv4();
+        }
+
+        if (parsedIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
         {
             return false;
         }
@@ -149,42 +159,89 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
     {
         range = default;
         var name = string.Empty;
-        var rangePart = line;
 
-        var colonIdx = line.LastIndexOf(':');
-        if (colonIdx >= 0 && !line.Contains("::"))
-        {
-            name = line[..colonIdx].Trim();
-            rangePart = line[(colonIdx + 1)..].Trim();
-        }
-
-        var hyphenIdx = rangePart.IndexOf('-');
+        var hyphenIdx = line.IndexOf('-');
         if (hyphenIdx >= 0)
         {
-            var startStr = rangePart[..hyphenIdx].Trim();
-            var endStr = rangePart[(hyphenIdx + 1)..].Trim();
+            var startCandidate = line[..hyphenIdx].Trim();
+            var endStr = line[(hyphenIdx + 1)..].Trim();
+            var startStr = startCandidate;
 
-            if (IPAddress.TryParse(startStr, out var startIp) && IPAddress.TryParse(endStr, out var endIp) &&
-                startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            if (!IPAddress.TryParse(startCandidate, out var startIp))
             {
-                var sBytes = startIp.GetAddressBytes();
-                var eBytes = endIp.GetAddressBytes();
-
-                var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
-                var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
-
-                if (startNum <= endNum)
+                var colonIdx = startCandidate.IndexOf(':');
+                if (colonIdx >= 0)
                 {
-                    range = new IpRange(startNum, endNum, name);
-                    return true;
+                    name = startCandidate[..colonIdx].Trim();
+                    startStr = startCandidate[(colonIdx + 1)..].Trim();
+                    if (!IPAddress.TryParse(startStr, out startIp))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            if (IPAddress.TryParse(endStr, out var endIp))
+            {
+                if (startIp.IsIPv4MappedToIPv6)
+                {
+                    startIp = startIp.MapToIPv4();
+                }
+
+                if (endIp.IsIPv4MappedToIPv6)
+                {
+                    endIp = endIp.MapToIPv4();
+                }
+
+                if (startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                    endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    var sBytes = startIp.GetAddressBytes();
+                    var eBytes = endIp.GetAddressBytes();
+
+                    var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
+                    var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
+
+                    if (startNum <= endNum)
+                    {
+                        range = new IpRange(startNum, endNum, name);
+                        return true;
+                    }
                 }
             }
 
             return false;
         }
 
-        if (IPAddress.TryParse(rangePart, out var singleIp) && singleIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        var singleCandidate = line;
+        if (!IPAddress.TryParse(singleCandidate, out var singleIp))
+        {
+            var colonIdx = singleCandidate.IndexOf(':');
+            if (colonIdx >= 0)
+            {
+                name = singleCandidate[..colonIdx].Trim();
+                singleCandidate = singleCandidate[(colonIdx + 1)..].Trim();
+                if (!IPAddress.TryParse(singleCandidate, out singleIp))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (singleIp.IsIPv4MappedToIPv6)
+        {
+            singleIp = singleIp.MapToIPv4();
+        }
+
+        if (singleIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
         {
             var bytes = singleIp.GetAddressBytes();
             var num = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
