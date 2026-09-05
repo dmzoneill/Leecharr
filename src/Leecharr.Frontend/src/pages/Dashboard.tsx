@@ -4,6 +4,7 @@ import {
   useArrConnections,
   useIndexers,
   useSchedulerConfig,
+  useActiveSpeedLimits,
   useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
@@ -27,6 +28,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
   const { data: schedulerConfig } = useSchedulerConfig();
+  const { data: activeLimits } = useActiveSpeedLimits();
   const { data: diskSpace } = useDiskSpace();
   const { data: seedingStats } = useSeedingStats();
 
@@ -38,7 +40,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalDlSpeed = torrents.reduce((acc, t) => acc + (t.downloadSpeed || 0), 0);
   const totalUlSpeed = torrents.reduce((acc, t) => acc + (t.uploadSpeed || 0), 0);
   const avgRatio =
-    torrents.length > 0 ? torrents.reduce((acc, t) => acc + t.ratio, 0) / torrents.length : 0;
+    torrents.length > 0
+      ? torrents.reduce((acc, t) => acc + (t.ratio ?? 0), 0) / torrents.length
+      : 0;
 
   const speedsRef = useRef({ dl: totalDlSpeed, ul: totalUlSpeed });
   speedsRef.current = { dl: totalDlSpeed, ul: totalUlSpeed };
@@ -545,7 +549,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 color: "var(--text-secondary, #c7c5d3)",
               }}
             >
-              {schedulerConfig?.enabled ? "SCHEDULED" : "NORMAL (24x7)"}
+              {activeLimits?.isThrottled
+                ? "THROTTLED"
+                : schedulerConfig?.schedulerEnabled
+                ? "SCHEDULED"
+                : "NORMAL (24x7)"}
             </span>
           </div>
           <div
@@ -559,8 +567,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>Upload Limit:</span>
             <span style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}>
-              {schedulerConfig?.uploadLimitKBs
-                ? `${schedulerConfig.uploadLimitKBs} KB/s`
+              {activeLimits?.maxUploadSpeedKbps
+                ? `${activeLimits.maxUploadSpeedKbps} KB/s`
                 : "Unlimited"}
             </span>
           </div>
@@ -574,8 +582,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>Download Limit:</span>
             <span style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}>
-              {schedulerConfig?.downloadLimitKBs
-                ? `${schedulerConfig.downloadLimitKBs} KB/s`
+              {activeLimits?.maxDownloadSpeedKbps
+                ? `${activeLimits.maxDownloadSpeedKbps} KB/s`
                 : "Unlimited"}
             </span>
           </div>

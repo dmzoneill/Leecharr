@@ -574,9 +574,6 @@ export interface TrackerServerConfig {
 export interface SchedulerConfig {
   id: number;
   schedulerEnabled: boolean;
-  enabled?: boolean;
-  uploadLimitKBs?: number;
-  downloadLimitKBs?: number;
   schedulerStartHour: number;
   schedulerStartMinute: number;
   schedulerEndHour: number;
