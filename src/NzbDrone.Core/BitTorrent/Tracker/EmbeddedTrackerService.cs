@@ -257,6 +257,15 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             };
         }
 
+        if (request.Port <= 0 || request.Port > 65535)
+        {
+            return new TrackerAnnounceResult
+            {
+                Success = false,
+                FailureReason = "Invalid port: must be between 1 and 65535.",
+            };
+        }
+
         SwarmState swarm;
         while (true)
         {
