@@ -903,7 +903,7 @@ public class ConfigService : IConfigService
     public int PeerPortRandomHigh => this.GetValueInt("PeerPortRandomHigh", 65535);
 
     // MonoTorrent Specific
-    public int DiskCacheBytes => this.GetValueInt("DiskCacheBytes", 67108864);
+    public int DiskCacheBytes => this.GetValueInt("DiskCacheBytes", this.DiskWriteCacheSizeMb * 1024 * 1024);
 
     public string DiskCachePolicy => this.GetValue("DiskCachePolicy", "ReadsAndWrites");
 

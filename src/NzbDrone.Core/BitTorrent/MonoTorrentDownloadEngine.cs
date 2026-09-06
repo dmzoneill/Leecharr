@@ -389,7 +389,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             UsePartialFiles = this.configService.AppendIncompleteExtension,
             DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
-            DiskCacheBytes = this.configService.DiskCacheBytes > 0 ? this.configService.DiskCacheBytes : Math.Max(128, this.configService.DiskWriteCacheSizeMb) * 1024 * 1024,
+            DiskCacheBytes = this.configService.DiskWriteCacheSizeMb > 0
+                ? this.configService.DiskWriteCacheSizeMb * 1024 * 1024
+                : (this.configService.DiskCacheBytes > 0 ? this.configService.DiskCacheBytes : 128 * 1024 * 1024),
             MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
             MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0 ? this.configService.MaxDownloadSpeedKbps * 1024 : 0,
             MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps * 1024 : 0,
@@ -1577,9 +1579,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastPiecesHashedCount = currentHashed;
         var piecesPerSec = Math.Round(piecesDelta / elapsedSec, 1);
 
-        var diskCacheCap = this.configService.DiskCacheBytes > 0
-            ? this.configService.DiskCacheBytes
-            : Math.Max(128, this.configService.DiskWriteCacheSizeMb) * 1024L * 1024L;
+        var diskCacheCap = this.configService.DiskWriteCacheSizeMb > 0
+            ? this.configService.DiskWriteCacheSizeMb * 1024L * 1024L
+            : (this.configService.DiskCacheBytes > 0 ? (long)this.configService.DiskCacheBytes : 128L * 1024L * 1024L);
 
         long cacheHits = 0;
         long cacheMisses = 0;
