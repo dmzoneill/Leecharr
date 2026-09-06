@@ -521,7 +521,7 @@ public class TrackerBoostServiceTest
         var hash = "3333333333333333333333333333333333333333";
         var torrent = new Torrent { Id = 99, InfoHash = hash };
 
-        var deletedEvent = new TorrentDeletedEvent(torrent, false);
+        var deletedEvent = new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = false };
         var act = () => this.service.Handle(deletedEvent);
         act.Should().NotThrow();
     }

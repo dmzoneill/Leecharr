@@ -96,7 +96,7 @@ public class AuthControllerLoginBruteForceTest
             Id = 1,
             Username = "admin",
             PasswordHash = "hash",
-            PasswordSalt = "salt",
+            Salt = "salt",
         });
 
         var failRequest = new LoginRequestResource

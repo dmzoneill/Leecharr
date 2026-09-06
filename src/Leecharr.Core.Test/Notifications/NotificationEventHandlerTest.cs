@@ -561,9 +561,9 @@ public class NotificationEventHandlerTest
         NotificationEventHandler.ResolveCustomHeaders(null).Should().BeNull();
     }
 
-    [TestCase("Movie.Name.(2024).1080p", "Movie.Name.\(2024\).1080p")]
-    [TestCase("Test_Name*With[Brackets]And`Code`", "Test\_Name\*With\[Brackets\]And\`Code\`")]
-    [TestCase("Spoiler|Bar and >Quote and ~Strikethrough~ and \Path", "Spoiler\|Bar and \>Quote and \~Strikethrough\~ and \\Path")]
+    [TestCase("Movie.Name.(2024).1080p", @"Movie.Name.\(2024\).1080p")]
+    [TestCase("Test_Name*With[Brackets]And`Code`", @"Test\_Name\*With\[Brackets\]And\`Code\`")]
+    [TestCase(@"Spoiler|Bar and >Quote and ~Strikethrough~ and \Path", @"Spoiler\|Bar and \>Quote and \~Strikethrough\~ and \\Path")]
     [TestCase(null, "")]
     [TestCase("", "")]
     public void EscapeMarkdown_EscapesAllMetacharacters(string input, string expected)
@@ -581,7 +581,7 @@ public class NotificationEventHandlerTest
             Name = "Telegram Alert",
             Implementation = "Telegram",
             ConfigContract = "TelegramSettings",
-            Settings = "{"token":"bot - token - abc","chat_id":"chat - 123"}",
+            Settings = "{\"token\":\"bot-token-abc\",\"chat_id\":\"chat-123\"}",
             OnGrab = true,
         };
 
@@ -602,9 +602,9 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.telegram.org/botbot-token-abc/sendMessage",
             Arg.Is<object>(payload =>
-                payload is Dictionary<string, object> dict &&
-                dict["text"].ToString()!.Contains("Movie.Title.\(2024\).\[1080p\].x264-GROUP") &&
-                dict["text"].ToString()!.Contains("Movies \(HD\)") &&
-                dict["parse_mode"].ToString() == "Markdown"));
+                payload != null &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.\(2024\).\[1080p\].x264-GROUP") &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies \(HD\)") &&
+                ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"));
     }
 }

@@ -212,8 +212,8 @@ export function ProtocolsSettingsTab() {
       />
 
       <SectionCard
-        title="Protocol Encryption & Transport Standards"
-        description="Configure BitTorrent Enhancement Proposals (BEPs), MSE/PE encryption, and uTP transport."
+        title={t("settings.protocolEncryptionTranspor")}
+        description={t("settings.configureBitTorrentEnhanceme")}
       >
         <div
           style={{
@@ -223,7 +223,7 @@ export function ProtocolsSettingsTab() {
           }}
         >
           <SelectInput
-            label="Protocol Encryption (MSE/PE)"
+            label={t("settings.protocolEncryptionMSEPE")}
             value={form.encryptionMode}
             onChange={(v) => update("encryptionMode", v)}
             options={[
@@ -244,7 +244,7 @@ export function ProtocolsSettingsTab() {
           />
 
           <NumberInput
-            label="Transport Connection Timeout"
+            label={t("settings.transportConnectionTimeout")}
             value={form.transportConnectionTimeoutSeconds}
             onChange={(v) => update("transportConnectionTimeoutSeconds", v)}
             min={5}
@@ -279,43 +279,43 @@ export function ProtocolsSettingsTab() {
             }}
           >
             <Toggle
-              label="ut_metadata (BEP 9)"
+              label={t("settings.utMetadataBEP9")}
               checked={form.extensionUtMetadata}
               onChange={(v) => update("extensionUtMetadata", v)}
               hint="Magnet link metadata exchange"
             />
             <Toggle
-              label="ut_pex (BEP 11)"
+              label={t("settings.utPexBEP11")}
               checked={form.extensionUtPex}
               onChange={(v) => update("extensionUtPex", v)}
               hint="uTorrent Peer Exchange"
             />
             <Toggle
-              label="lt_donthave (BEP 54)"
+              label={t("settings.ltDonthaveBEP54")}
               checked={form.extensionLtDontHave}
               onChange={(v) => update("extensionLtDontHave", v)}
               hint="Prune unwanted piece messages"
             />
             <Toggle
-              label="Fast Extension (BEP 6)"
+              label={t("settings.fastExtensionBEP6")}
               checked={form.extensionFastExtension}
               onChange={(v) => update("extensionFastExtension", v)}
               hint="Allowed Fast & Suggest Pieces"
             />
             <Toggle
-              label="Private Torrents (BEP 27)"
+              label={t("settings.privateTorrentsBEP27")}
               checked={form.enableBep27PrivateTorrents}
               onChange={(v) => update("enableBep27PrivateTorrents", v)}
               hint="Strictly disables DHT, PEX, and Local Peer Discovery on private swarms"
             />
             <Toggle
-              label="uTP LEDBAT (BEP 29)"
+              label={t("settings.uTPLEDBATBEP29")}
               checked={form.utpEnabled}
               onChange={(v) => update("utpEnabled", v)}
               hint="Micro Transport Protocol over UDP"
             />
             <Toggle
-              label="TCP Fallback"
+              label={t("settings.tCPFallback")}
               checked={form.tcpFallback}
               onChange={(v) => update("tcpFallback", v)}
               hint="Fall back to TCP on uTP timeout"
@@ -325,8 +325,8 @@ export function ProtocolsSettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Protocol Timeouts & Keepalive Cadence"
-        description="Fine-tune network socket read/write deadlines and keepalive intervals."
+        title={t("settings.protocolTimeoutsKeepalive")}
+        description={t("settings.fineTuneNetworkSocketRead")}
       >
         <div
           style={{
@@ -336,7 +336,7 @@ export function ProtocolsSettingsTab() {
           }}
         >
           <NumberInput
-            label="Handshake Timeout"
+            label={t("settings.handshakeTimeout")}
             value={form.handshakeTimeoutSeconds}
             onChange={(v) => update("handshakeTimeoutSeconds", v)}
             min={5}
@@ -346,7 +346,7 @@ export function ProtocolsSettingsTab() {
           />
 
           <NumberInput
-            label="Message Read Timeout"
+            label={t("settings.messageReadTimeout")}
             value={form.messageReadTimeoutSeconds}
             onChange={(v) => update("messageReadTimeoutSeconds", v)}
             min={10}
@@ -356,7 +356,7 @@ export function ProtocolsSettingsTab() {
           />
 
           <NumberInput
-            label="Keepalive Interval"
+            label={t("settings.keepaliveInterval")}
             value={form.keepAliveIntervalSeconds}
             onChange={(v) => update("keepAliveIntervalSeconds", v)}
             min={30}
@@ -366,7 +366,7 @@ export function ProtocolsSettingsTab() {
           />
 
           <NumberInput
-            label="Peer Re-contact Cooldown"
+            label={t("settings.peerReContactCooldown")}
             value={form.peerContactIntervalSeconds}
             onChange={(v) => update("peerContactIntervalSeconds", v)}
             min={10}
@@ -378,8 +378,8 @@ export function ProtocolsSettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Multi-Tracker Tier Policies & Failover"
-        description="Configure announcement behavior across tiered tracker lists (BEP 12)."
+        title={t("settings.multiTrackerTierPolicies")}
+        description={t("settings.configureAnnouncementBehavio")}
       >
         <div
           style={{
@@ -389,26 +389,26 @@ export function ProtocolsSettingsTab() {
           }}
         >
           <Toggle
-            label="Enable Multi-Tracker Management (BEP 12)"
+            label={t("settings.enableMultiTrackerManagemen")}
             checked={form.multiTrackerEnabled}
             onChange={(v) => update("multiTrackerEnabled", v)}
           />
 
           <Toggle
-            label="Automatic Tier Failover"
+            label={t("settings.automaticTierFailover")}
             checked={form.multiTrackerFailoverEnabled}
             onChange={(v) => update("multiTrackerFailoverEnabled", v)}
             hint="Switch to secondary tracker tiers when primary is offline"
           />
 
           <Toggle
-            label="Announce to All Tiers in Parallel"
+            label={t("settings.announceToAllTiersInParal")}
             checked={form.announceToAllTiers}
             onChange={(v) => update("announceToAllTiers", v)}
           />
 
           <Toggle
-            label="Announce to All Trackers in Tier"
+            label={t("settings.announceToAllTrackersInTi")}
             checked={form.announceToAllInTier}
             onChange={(v) => update("announceToAllInTier", v)}
           />

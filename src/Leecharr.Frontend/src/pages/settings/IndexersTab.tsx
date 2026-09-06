@@ -587,7 +587,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, url: v });
                 setModalTestResult(null);
               }}
-              placeholder="http://localhost:9696"
+              placeholder={t("settings.httpLocalhost9696")}
             />
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
@@ -605,7 +605,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, apiPath: v });
                 setModalTestResult(null);
               }}
-              placeholder="/api"
+              placeholder={t("settings.api")}
             />
             <TextInput
               label={t("settingsTabs.indexers.categoriesLabel")}
@@ -618,7 +618,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, categories: v });
                 setModalTestResult(null);
               }}
-              placeholder="2000,5000"
+              placeholder={t("settings.20005000")}
             />
             <Toggle
               label={t("settingsTabs.indexers.enableLabel")}
@@ -840,7 +840,7 @@ export function IndexersTab() {
               hint="0 = no minimum size constraint"
             />
             <NumberInput
-              label="Maximum Size (Bytes)"
+              label={t("settings.maximumSizeBytes")}
               value={editingRule.maxSizeBytes ?? 0}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, maxSizeBytes: v })
@@ -849,7 +849,7 @@ export function IndexersTab() {
               hint="0 = no maximum size constraint"
             />
             <NumberInput
-              label="Category ID"
+              label={t("settings.categoryID")}
               value={editingRule.categoryId ?? 0}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, categoryId: v })
@@ -858,7 +858,7 @@ export function IndexersTab() {
               hint="0 = any category (e.g. 5040 for TV/HD, 2040 for Movies/HD)"
             />
             <TextInput
-              label="Assigned Indexers (IDs)"
+              label={t("settings.assignedIndexersIDs")}
               value={
                 Array.isArray(editingRule.indexerIds)
                   ? editingRule.indexerIds.join(",")
@@ -871,11 +871,11 @@ export function IndexersTab() {
                   .filter((n) => !isNaN(n) && n > 0);
                 setEditingRule({ ...editingRule, indexerIds: ids });
               }}
-              placeholder="Leave empty for All Indexers, or e.g. 1,2"
+              placeholder={t("settings.leaveEmptyForAllIndexers")}
               hint="Comma-separated Indexer IDs (leave blank for all indexers)"
             />
             <Toggle
-              label="Freeleech Only"
+              label={t("settings.freeleechOnly")}
               checked={editingRule.freeleechOnly ?? false}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, freeleechOnly: v })

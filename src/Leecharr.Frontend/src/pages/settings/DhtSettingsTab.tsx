@@ -167,19 +167,19 @@ export function DhtSettingsTab() {
       />
 
       <SectionCard
-        title="Mainline Distributed Hash Table (BEP 5 DHT)"
-        description="Trackerless swarm discovery and decentralized Kademlia routing tables."
+        title={t("settings.mainlineDistributedHashTabl")}
+        description={t("settings.trackerlessSwarmDiscoveryAn")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Mainline DHT"
+            label={t("settings.enableMainlineDHT")}
             checked={form.enableDht}
             onChange={(v) => update("enableDht", v)}
             hint="Find peers without requiring centralized tracker responses"
           />
 
           <TextInput
-            label="Bootstrap Router Nodes"
+            label={t("settings.bootstrapRouterNodes")}
             value={form.dhtBootstrapNodes}
             onChange={(v) => update("dhtBootstrapNodes", v)}
             disabled={!form.enableDht}
@@ -194,7 +194,7 @@ export function DhtSettingsTab() {
             }}
           >
             <NumberInput
-              label="Routing Table Size (K-Buckets)"
+              label={t("settings.routingTableSizeKBuckets")}
               value={form.dhtRoutingTableSize}
               onChange={(v) => update("dhtRoutingTableSize", v)}
               disabled={!form.enableDht}
@@ -203,7 +203,7 @@ export function DhtSettingsTab() {
             />
 
             <NumberInput
-              label="K-Bucket Capacity"
+              label={t("settings.kBucketCapacity")}
               value={form.dhtBucketSize}
               onChange={(v) => update("dhtBucketSize", v)}
               disabled={!form.enableDht}
@@ -212,7 +212,7 @@ export function DhtSettingsTab() {
             />
 
             <NumberInput
-              label="Max Active Routing Nodes"
+              label={t("settings.maxActiveRoutingNodes")}
               value={form.dhtMaxNodes}
               onChange={(v) => update("dhtMaxNodes", v)}
               disabled={!form.enableDht}
@@ -221,7 +221,7 @@ export function DhtSettingsTab() {
             />
 
             <NumberInput
-              label="Concurrent Alpha Queries"
+              label={t("settings.concurrentAlphaQueries")}
               value={form.dhtConcurrentQueries}
               onChange={(v) => update("dhtConcurrentQueries", v)}
               disabled={!form.enableDht}
@@ -244,7 +244,7 @@ export function DhtSettingsTab() {
               }}
             >
               <Toggle
-                label="Rate-Limit Inbound DHT Queries"
+                label={t("settings.rateLimitInboundDHTQueries")}
                 checked={form.dhtRateLimitEnabled}
                 onChange={(v) => update("dhtRateLimitEnabled", v)}
                 disabled={!form.enableDht}
@@ -252,7 +252,7 @@ export function DhtSettingsTab() {
               />
 
               <NumberInput
-                label="Max DHT Queries / Sec"
+                label={t("settings.maxDHTQueriesSec")}
                 value={form.dhtMaxQueriesPerSecond}
                 onChange={(v) => update("dhtMaxQueriesPerSecond", v)}
                 disabled={!form.enableDht || !form.dhtRateLimitEnabled}
@@ -266,8 +266,8 @@ export function DhtSettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Peer Exchange (PEX) & Local Discovery (LPD)"
-        description="Exchange connected peer lists and discover peers on local LAN subnets."
+        title={t("settings.peerExchangePEXLocalDi")}
+        description={t("settings.exchangeConnectedPeerLists")}
       >
         <div
           style={{
@@ -278,7 +278,7 @@ export function DhtSettingsTab() {
         >
           <div>
             <Toggle
-              label="Enable Peer Exchange (PEX, BEP 11)"
+              label={t("settings.enablePeerExchangePEXBEP")}
               checked={form.enablePex}
               onChange={(v) => update("enablePex", v)}
               hint="Exchanges known peer IP addresses directly with connected swarm peers"
@@ -292,7 +292,7 @@ export function DhtSettingsTab() {
               }}
             >
               <NumberInput
-                label="PEX Broadcast Cadence"
+                label={t("settings.pEXBroadcastCadence")}
                 value={form.pexInterval}
                 onChange={(v) => update("pexInterval", v)}
                 disabled={!form.enablePex}
@@ -301,7 +301,7 @@ export function DhtSettingsTab() {
                 suffix={t("settingsTabs.batch2.sec")}
               />
               <NumberInput
-                label="Max Peers per PEX Frame"
+                label={t("settings.maxPeersPerPEXFrame")}
                 value={form.pexMaxPeersPerMessage}
                 onChange={(v) => update("pexMaxPeersPerMessage", v)}
                 disabled={!form.enablePex}
@@ -313,7 +313,7 @@ export function DhtSettingsTab() {
 
           <div>
             <Toggle
-              label="Local Peer Discovery (LPD / LSD, BEP 14)"
+              label={t("settings.localPeerDiscoveryLPDLS")}
               checked={form.enableLpd}
               onChange={(v) => update("enableLpd", v)}
               hint="Multicast subnet broadcasts (239.192.152.143:6771) for maximum LAN speeds"
@@ -323,11 +323,11 @@ export function DhtSettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Default Fallback Public Trackers"
-        description="Public fallback announce URLs automatically appended to public swarms lacking seeds."
+        title={t("settings.defaultFallbackPublicTracke")}
+        description={t("settings.publicFallbackAnnounceURLs")}
       >
         <TextInput
-          label="Default Trackers (Comma or newline separated)"
+          label={t("settings.defaultTrackersCommaOrNew")}
           value={form.defaultTrackers}
           onChange={(v) => update("defaultTrackers", v)}
           hint="e.g. udp://tracker.opentrackr.org:1337/announce, udp://open.stealth.si:80/announce"

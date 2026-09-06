@@ -95,8 +95,8 @@ export function ProxySettingsTab() {
       />
 
       <SectionCard
-        title="Outbound SOCKS5 / HTTP Proxy Tunnel"
-        description="Route BitTorrent tracker queries and peer data transfers through secure proxy tunnels."
+        title={t("settings.outboundSOCKS5HTTPProxyT")}
+        description={t("settings.routeBitTorrentTrackerQueri")}
       >
         <div
           style={{
@@ -106,7 +106,7 @@ export function ProxySettingsTab() {
           }}
         >
           <SelectInput
-            label="Proxy Protocol Type"
+            label={t("settings.proxyProtocolType")}
             value={form.proxyType}
             onChange={(v) => update("proxyType", v)}
             options={[
@@ -118,7 +118,7 @@ export function ProxySettingsTab() {
           />
 
           <TextInput
-            label="Proxy Hostname or IP"
+            label={t("settings.proxyHostnameOrIP")}
             value={form.proxyHost}
             onChange={(v) => update("proxyHost", v)}
             disabled={!isProxyActive}
@@ -126,7 +126,7 @@ export function ProxySettingsTab() {
           />
 
           <NumberInput
-            label="Proxy Port"
+            label={t("settings.proxyPort")}
             value={form.proxyPort}
             onChange={(v) => update("proxyPort", v)}
             disabled={!isProxyActive}
@@ -145,7 +145,7 @@ export function ProxySettingsTab() {
             }}
           >
             <Toggle
-              label="Enable Proxy Authentication"
+              label={t("settings.enableProxyAuthentication")}
               checked={form.proxyAuthEnabled}
               onChange={(v) => update("proxyAuthEnabled", v)}
             />
@@ -160,13 +160,13 @@ export function ProxySettingsTab() {
                 }}
               >
                 <TextInput
-                  label="Proxy Username"
+                  label={t("settings.proxyUsername")}
                   value={form.proxyUsername}
                   onChange={(v) => update("proxyUsername", v)}
                 />
 
                 <TextInput
-                  label="Proxy Password"
+                  label={t("settings.proxyPassword")}
                   value={form.proxyPassword}
                   onChange={(v) => update("proxyPassword", v)}
                   type="password"
@@ -178,8 +178,8 @@ export function ProxySettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Privacy & Anonymous Routing Policy"
-        description="Enforce strict proxy routing and suppress client identification headers."
+        title={t("settings.privacyAnonymousRoutingPo")}
+        description={t("settings.enforceStrictProxyRoutingA")}
       >
         <div
           style={{
@@ -189,14 +189,14 @@ export function ProxySettingsTab() {
           }}
         >
           <Toggle
-            label="Anonymous Mode"
+            label={t("settings.anonymousMode")}
             checked={form.anonymousMode}
             onChange={(v) => update("anonymousMode", v)}
             hint="Strips user-agent strings, suppresses client identification headers, and hides listening ports"
           />
 
           <Toggle
-            label="Strict Proxy Enforcement (Kill on Failure)"
+            label={t("settings.strictProxyEnforcementKill")}
             checked={form.forceProxy}
             onChange={(v) => update("forceProxy", v)}
             disabled={!isProxyActive}

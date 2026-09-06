@@ -6,6 +6,7 @@ using System.Linq;
 using FluentAssertions;
 using NLog;
 using NSubstitute;
+using NSubstitute.Core;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -21,6 +22,8 @@ public class ConfigServiceTest
     private Logger logger = null!;
     private List<ConfigModel> store = null!;
     private ConfigService service = null!;
+
+    private Action<CallInfo> onUpsertMany = null!;
 
     [SetUp]
     public void SetUp()
@@ -46,33 +49,34 @@ public class ConfigServiceTest
 
             return model;
         });
-        this.repository.When(r => r.UpsertMany(Arg.Any<IEnumerable<ConfigModel>>(), Arg.Any<IEnumerable<ConfigModel>>()))
-            .Do(call =>
+        this.onUpsertMany = call =>
+        {
+            var toInsert = call.ArgAt<IEnumerable<ConfigModel>>(0);
+            var toUpdate = call.ArgAt<IEnumerable<ConfigModel>>(1);
+
+            if (toInsert != null)
             {
-                var toInsert = call.Arg<IEnumerable<ConfigModel>>();
-                var toUpdate = call.Arg<IEnumerable<ConfigModel>>();
-
-                if (toInsert != null)
+                foreach (var m in toInsert)
                 {
-                    foreach (var m in toInsert)
+                    m.Id = this.store.Count + 1;
+                    this.store.Add(m);
+                }
+            }
+
+            if (toUpdate != null)
+            {
+                foreach (var m in toUpdate)
+                {
+                    var idx = this.store.FindIndex(x => x.Key.Equals(m.Key, StringComparison.OrdinalIgnoreCase));
+                    if (idx >= 0)
                     {
-                        m.Id = this.store.Count + 1;
-                        this.store.Add(m);
+                        this.store[idx] = m;
                     }
                 }
-
-                if (toUpdate != null)
-                {
-                    foreach (var m in toUpdate)
-                    {
-                        var idx = this.store.FindIndex(x => x.Key.Equals(m.Key, StringComparison.OrdinalIgnoreCase));
-                        if (idx >= 0)
-                        {
-                            this.store[idx] = m;
-                        }
-                    }
-                }
-            });
+            }
+        };
+        this.repository.When(r => r.UpsertMany(Arg.Any<IEnumerable<ConfigModel>>(), Arg.Any<IEnumerable<ConfigModel>>()))
+            .Do(call => this.onUpsertMany(call));
 
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.logger = LogManager.GetCurrentClassLogger();
@@ -143,8 +147,7 @@ public class ConfigServiceTest
     [Test]
     public void SaveConfigDictionary_WhenRepositoryThrows_PropagatesExceptionWithoutUpdatingCache()
     {
-        this.repository.When(r => r.UpsertMany(Arg.Any<IEnumerable<ConfigModel>>(), Arg.Any<IEnumerable<ConfigModel>>()))
-            .Do(_ => throw new InvalidOperationException("Database connection lost"));
+        this.onUpsertMany = _ => throw new InvalidOperationException("Database connection lost");
 
         var values = new Dictionary<string, object>
         {

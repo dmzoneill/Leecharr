@@ -933,21 +933,21 @@ export function NotificationsTab() {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="https://discord.com/api/webhooks/..."
+                  placeholder={t("settings.httpsDiscordComApiWebhoo")}
                   hint={t("settingsTabs.notifications.discordUrlHint")}
                 />
                 <TextInput
                   label={t("settingsTabs.notifications.botUsername")}
                   value={editing.username}
                   onChange={(v) => setEditing({ ...editing, username: v })}
-                  placeholder="Leecharr"
+                  placeholder={t("settings.leecharr2")}
                   hint={t("settingsTabs.notifications.discordBotUsernameHint")}
                 />
                 <TextInput
                   label={t("settingsTabs.notifications.avatarUrl")}
                   value={editing.avatarUrl}
                   onChange={(v) => setEditing({ ...editing, avatarUrl: v })}
-                  placeholder="https://..."
+                  placeholder={t("settings.https")}
                   hint={t("settingsTabs.notifications.avatarUrlHint")}
                 />
               </>
@@ -963,7 +963,7 @@ export function NotificationsTab() {
                     setModalTestResult(null);
                   }}
                   type="password"
-                  placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                  placeholder={t("settings.123456789ABCdefGhIJKlmNoPQRsT")}
                   hint={t("settingsTabs.notifications.telegramTokenHint")}
                 />
                 <TextInput
@@ -973,7 +973,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, chatId: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="123456789"
+                  placeholder={t("settings.123456789")}
                   hint={t("settingsTabs.notifications.chatIdHint")}
                 />
               </>
@@ -988,7 +988,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="http://gotify.example.com"
+                  placeholder={t("settings.httpGotifyExampleCom")}
                   hint={t("settingsTabs.notifications.gotifyUrlHint")}
                 />
                 <TextInput
@@ -999,7 +999,7 @@ export function NotificationsTab() {
                     setModalTestResult(null);
                   }}
                   type="password"
-                  placeholder="A1b2c3d4e5"
+                  placeholder={t("settings.a1b2c3d4e5")}
                   hint={t("settingsTabs.notifications.gotifyTokenHint")}
                 />
                 <NumberInput
@@ -1053,7 +1053,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="http://localhost:8000/notify"
+                  placeholder={t("settings.httpLocalhost8000Notify")}
                   hint={t("settingsTabs.notifications.appriseUrlHint")}
                 />
               </>
@@ -1068,7 +1068,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="https://example.com/webhook"
+                  placeholder={t("settings.httpsExampleComWebhook")}
                   hint={t("settingsTabs.notifications.webhookUrlHint")}
                 />
                 <SelectInput
@@ -1116,7 +1116,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, server: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="smtp.example.com"
+                  placeholder={t("settings.smtpExampleCom")}
                   hint={t("settingsTabs.notifications.smtpServerHint")}
                 />
                 <NumberInput
@@ -1136,7 +1136,7 @@ export function NotificationsTab() {
                   label={t("settingsTabs.notifications.fromAddress")}
                   value={editing.from}
                   onChange={(v) => setEditing({ ...editing, from: v })}
-                  placeholder="leecharr@example.com"
+                  placeholder={t("settings.leecharrExampleCom")}
                   hint={t("settingsTabs.notifications.fromAddressHint")}
                 />
                 <TextInput
@@ -1146,7 +1146,7 @@ export function NotificationsTab() {
                     setEditing({ ...editing, recipient: v });
                     setModalTestResult(null);
                   }}
-                  placeholder="user@example.com"
+                  placeholder={t("settings.userExampleCom")}
                   hint={t("settingsTabs.notifications.recipientAddressHint")}
                 />
                 <TextInput
