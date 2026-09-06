@@ -978,6 +978,8 @@ export interface DownloadReleaseRequest {
   indexerId?: number;
   indexerName?: string;
   category?: string;
+  savePath?: string;
+  startPaused?: boolean;
 }
 
 export type TrackerProtocol = "Udp" | "Http" | "Https" | number;

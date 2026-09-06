@@ -678,4 +678,28 @@ public class TorrentControllerTest
         existing.SequentialDownload.Should().BeTrue();
         await this.downloadEngine.Received(1).SetSequentialDownloadAsync(42, true);
     }
+
+    [Test]
+    public async Task Upload_PassesSavePathToTorrentService()
+    {
+        var fileMock = Substitute.For<Microsoft.AspNetCore.Http.IFormFile>();
+        fileMock.Length.Returns(100);
+        fileMock.FileName.Returns("test.torrent");
+        fileMock.CopyToAsync(Arg.Any<System.IO.Stream>()).Returns(Task.CompletedTask);
+
+        var parsedTorrent = new ParsedTorrent { Name = "test", InfoHash = "abc" };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        var addedTorrent = new Torrent { Id = 123, Name = "test" };
+        this.torrentService.AddFromParsedTorrentAsync(parsedTorrent, "movies", "/custom/path", false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult(addedTorrent));
+
+        var files = new List<Microsoft.AspNetCore.Http.IFormFile> { fileMock };
+        var result = await this.controller.Upload(files, category: "movies", savePath: "/custom/path", isPaused: false);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var uploadResult = okResult.Value.Should().BeOfType<TorrentUploadResult>().Subject;
+        uploadResult.Added.Should().HaveCount(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsedTorrent, "movies", "/custom/path", false, Arg.Any<byte[]>());
+    }
 }

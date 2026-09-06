@@ -44,8 +44,16 @@ function parseMagnetPreview(uri: string): MagnetInfo | null {
     const hash = xt.replace(/^urn:btih:/i, "").substring(0, 40);
     const name = params.get("dn") || undefined;
     const trackers = params.getAll("tr");
+    let decodedName = name ? name.replace(/\+/g, " ") : undefined;
+    if (decodedName && decodedName.includes("%")) {
+      try {
+        decodedName = decodeURIComponent(decodedName);
+      } catch {
+        // Keep decodedName as-is if malformed percent sequence
+      }
+    }
     return {
-      name: name ? decodeURIComponent(name.replace(/\+/g, " ")) : undefined,
+      name: decodedName,
       hash: hash || undefined,
       trackerCount: trackers.length,
     };
@@ -65,6 +73,7 @@ export function AddTorrentForm({
   const [files, setFiles] = useState<File[]>([]);
   const [magnetLink, setMagnetLink] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [savePath, setSavePath] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
@@ -189,7 +198,12 @@ export function AddTorrentForm({
     if (mode === "file" && files.length > 0) {
       setResultMessage(null);
       addTorrent.mutate(
-        { files, category: selectedCategory, isPaused },
+        {
+          files,
+          category: selectedCategory,
+          savePath: savePath.trim() || undefined,
+          isPaused,
+        },
         {
           onSuccess: (result: AddTorrentResult) => {
             if (result && result.failed && result.failed.length === 0) {
@@ -222,7 +236,12 @@ export function AddTorrentForm({
       );
     } else if (mode === "magnet" && magnetLink.trim()) {
       addTorrent.mutate(
-        { magnetLink: magnetLink.trim(), category: selectedCategory, isPaused },
+        {
+          magnetLink: magnetLink.trim(),
+          category: selectedCategory,
+          savePath: savePath.trim() || undefined,
+          isPaused,
+        },
         {
           onSuccess: () => {
             showToast("Magnet link added successfully", "success");
@@ -258,6 +277,8 @@ export function AddTorrentForm({
         indexerId: release.indexerId,
         indexerName: release.indexerName || release.indexer || "",
         category: selectedCategory,
+        savePath: savePath.trim() || undefined,
+        startPaused: isPaused,
       },
       {
         onSuccess: () => {
@@ -1619,8 +1640,8 @@ export function AddTorrentForm({
         </div>
       )}
 
-      {/* Category & Download Options in File and Magnet modes */}
-      {mode !== "search" && mode !== "create" && (
+      {/* Category & Download Options in File, Magnet and Search modes */}
+      {mode !== "create" && (
         <div
           style={{
             display: "flex",
@@ -1670,6 +1691,35 @@ export function AddTorrentForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="torrentSavePathInput"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+              }}
+            >
+              Save Path:
+            </label>
+            <input
+              id="torrentSavePathInput"
+              type="text"
+              value={savePath}
+              onChange={(e) => setSavePath(e.target.value)}
+              placeholder="Default download directory"
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light, #1c203b)",
+                minWidth: "200px",
+              }}
+            />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
