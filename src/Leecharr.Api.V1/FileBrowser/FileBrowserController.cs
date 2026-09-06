@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.FileBrowser;
@@ -265,7 +266,7 @@ public class FileBrowserController : Controller
 
     [HttpPost("upload")]
     [RequestSizeLimit(1073741824)] // 1 GB
-    public async System.Threading.Tasks.Task<ActionResult> Upload([FromQuery] string path = null)
+    public async Task<ActionResult> Upload([FromQuery] string path = null)
     {
         var targetDir = this.fileBrowserService.ResolvePath(path);
         if (!global::System.IO.Directory.Exists(targetDir))
