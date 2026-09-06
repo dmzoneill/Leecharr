@@ -32,6 +32,32 @@ public interface IBasicRepository<TModel>
 
     TModel Update(TModel model);
 
+    void UpdateMany(IEnumerable<TModel> models)
+    {
+        if (models == null)
+        {
+            return;
+        }
+
+        foreach (var model in models)
+        {
+            this.Update(model);
+        }
+    }
+
+    void UpsertMany(IEnumerable<TModel> toInsert, IEnumerable<TModel> toUpdate)
+    {
+        if (toInsert != null)
+        {
+            this.InsertMany(toInsert);
+        }
+
+        if (toUpdate != null)
+        {
+            this.UpdateMany(toUpdate);
+        }
+    }
+
     void Delete(int id);
 
     void Delete(TModel model);
@@ -90,13 +116,20 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
     public void InsertMany(IEnumerable<TModel> models)
     {
-        if (models == null)
-        {
-            return;
-        }
+        this.UpsertMany(models, null);
+    }
 
-        var modelList = models as IList<TModel> ?? models.ToList();
-        if (modelList.Count == 0)
+    public void UpdateMany(IEnumerable<TModel> models)
+    {
+        this.UpsertMany(null, models);
+    }
+
+    public void UpsertMany(IEnumerable<TModel> toInsert, IEnumerable<TModel> toUpdate)
+    {
+        var insertList = toInsert as IList<TModel> ?? toInsert?.ToList() ?? new List<TModel>();
+        var updateList = toUpdate as IList<TModel> ?? toUpdate?.ToList() ?? new List<TModel>();
+
+        if (insertList.Count == 0 && updateList.Count == 0)
         {
             return;
         }
@@ -106,25 +139,43 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
         try
         {
-            var isSqlite = this.database.DatabaseType == DatabaseType.SQLite;
-            var insertSql = TableMapping.GetInsertSql(this.table, modelList[0]);
-            var querySql = isSqlite
-                ? insertSql + "; SELECT last_insert_rowid()"
-                : insertSql + " RETURNING \"Id\"";
-
-            foreach (var model in modelList)
+            if (insertList.Count > 0)
             {
-                var id = connection.ExecuteScalar<int>(querySql, model, transaction: transaction);
-                model.Id = id;
+                var isSqlite = this.database.DatabaseType == DatabaseType.SQLite;
+                var insertSql = TableMapping.GetInsertSql(this.table, insertList[0]);
+                var querySql = isSqlite
+                    ? insertSql + "; SELECT last_insert_rowid()"
+                    : insertSql + " RETURNING "Idstring.Empty;
+
+                foreach (var model in insertList)
+                {
+                    var id = connection.ExecuteScalar<int>(querySql, model, transaction: transaction);
+                    model.Id = id;
+                }
+            }
+
+            if (updateList.Count > 0)
+            {
+                var updateSql = TableMapping.GetUpdateSql(this.table, updateList[0]);
+
+                foreach (var model in updateList)
+                {
+                    connection.Execute(updateSql, model, transaction: transaction);
+                }
             }
 
             transaction.Commit();
 
             if (this.eventAggregator != null)
             {
-                foreach (var model in modelList)
+                foreach (var model in insertList)
                 {
                     this.eventAggregator.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Created));
+                }
+
+                foreach (var model in updateList)
+                {
+                    this.eventAggregator.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Updated));
                 }
             }
         }

@@ -529,6 +529,11 @@ public class ConfigService : IConfigService
 
     public void SaveConfigDictionary(Dictionary<string, object> configValues)
     {
+        if (configValues == null || configValues.Count == 0)
+        {
+            return;
+        }
+
         var allConfig = this.repository.All().ToDictionary(c => c.Key, c => c, StringComparer.OrdinalIgnoreCase);
 
         if (configValues.ContainsKey("DownloadQueueSize") && !configValues.ContainsKey("MaxActiveDownloads"))
@@ -549,6 +554,9 @@ public class ConfigService : IConfigService
             configValues["SeedQueueSize"] = configValues["MaxActiveUploads"];
         }
 
+        var toInsert = new List<ConfigModel>();
+        var toUpdate = new List<ConfigModel>();
+
         foreach (var (key, value) in configValues)
         {
             var strValue = value?.ToString() ?? string.Empty;
@@ -556,18 +564,33 @@ public class ConfigService : IConfigService
             if (allConfig.TryGetValue(key, out var existing))
             {
                 existing.Value = strValue;
-                this.repository.Update(existing);
+                toUpdate.Add(existing);
             }
             else
             {
-                this.repository.Insert(new ConfigModel { Key = key, Value = strValue });
+                toInsert.Add(new ConfigModel { Key = key, Value = strValue });
             }
         }
 
+        this.repository.UpsertMany(toInsert, toUpdate);
+
         lock (this.cacheLock)
         {
-            this.cache = this.repository.All()
-                .ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
+            var newCache = this.cache != null
+                ? new Dictionary<string, string>(this.cache, StringComparer.OrdinalIgnoreCase)
+                : allConfig.ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in toInsert)
+            {
+                newCache[item.Key] = item.Value;
+            }
+
+            foreach (var item in toUpdate)
+            {
+                newCache[item.Key] = item.Value;
+            }
+
+            this.cache = newCache;
         }
 
         this.eventAggregator.PublishEvent(new ConfigSavedEvent());

@@ -46,6 +46,33 @@ public class ConfigServiceTest
 
             return model;
         });
+        this.repository.When(r => r.UpsertMany(Arg.Any<IEnumerable<ConfigModel>>(), Arg.Any<IEnumerable<ConfigModel>>()))
+            .Do(call =>
+            {
+                var toInsert = call.Arg<IEnumerable<ConfigModel>>();
+                var toUpdate = call.Arg<IEnumerable<ConfigModel>>();
+
+                if (toInsert != null)
+                {
+                    foreach (var m in toInsert)
+                    {
+                        m.Id = this.store.Count + 1;
+                        this.store.Add(m);
+                    }
+                }
+
+                if (toUpdate != null)
+                {
+                    foreach (var m in toUpdate)
+                    {
+                        var idx = this.store.FindIndex(x => x.Key.Equals(m.Key, StringComparison.OrdinalIgnoreCase));
+                        if (idx >= 0)
+                        {
+                            this.store[idx] = m;
+                        }
+                    }
+                }
+            });
 
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.logger = LogManager.GetCurrentClassLogger();
@@ -108,7 +135,27 @@ public class ConfigServiceTest
         this.service.SaveConfigDictionary(values);
 
         this.service.DownloadDir.Should().Be("/new/path");
-        this.repository.Received(1).Update(Arg.Is<ConfigModel>(c => c.Key == "DownloadDir" && c.Value == "/new/path"));
+        this.repository.Received(1).UpsertMany(
+            Arg.Is<IEnumerable<ConfigModel>>(ins => !ins.Any()),
+            Arg.Is<IEnumerable<ConfigModel>>(upd => upd.Any(c => c.Key == "DownloadDir" && c.Value == "/new/path")));
+    }
+
+    [Test]
+    public void SaveConfigDictionary_WhenRepositoryThrows_PropagatesExceptionWithoutUpdatingCache()
+    {
+        this.repository.When(r => r.UpsertMany(Arg.Any<IEnumerable<ConfigModel>>(), Arg.Any<IEnumerable<ConfigModel>>()))
+            .Do(_ => throw new InvalidOperationException("Database connection lost"));
+
+        var values = new Dictionary<string, object>
+        {
+            { "ListeningPort", 60000 },
+        };
+
+        var act = () => this.service.SaveConfigDictionary(values);
+        act.Should().Throw<InvalidOperationException>().WithMessage("Database connection lost");
+
+        // Cache should retain original default value
+        this.service.ListeningPort.Should().Be(51413);
     }
 
     [Test]
