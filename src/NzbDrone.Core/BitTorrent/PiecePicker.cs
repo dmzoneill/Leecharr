@@ -454,8 +454,14 @@ public class PiecePicker
                 return 0.0;
             }
 
-            var verifiedCount = this.pieces.Count(p => p.IsVerified);
-            return (double)verifiedCount / this.pieceCount;
+            var activeCount = this.pieces.Count(p => p.Priority > 0);
+            if (activeCount == 0)
+            {
+                return 0.0;
+            }
+
+            var verifiedCount = this.pieces.Count(p => p.Priority > 0 && p.IsVerified);
+            return (double)verifiedCount / activeCount;
         }
     }
 

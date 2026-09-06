@@ -738,5 +738,50 @@ public class PiecePickerTest
         picker.GetAvailability().Should().Equal(new[] { 1, 2, 3, 4, 5 });
     }
 
+    [Test]
+    public void GetProgress_SelectiveDownloading_ReturnsAccurateProgressForActivePieces()
+    {
+        // 1000 pieces total, 900 unselected (Priority = 0), 100 selected (Priority = 1)
+        var picker = new PiecePicker(1000, 16384, 16384000);
+
+        for (int i = 100; i < 1000; i++)
+        {
+            picker.SetPiecePriority(i, 0);
+        }
+
+        // Initially 0% progress
+        picker.GetProgress().Should().Be(0.0);
+
+        // Verify 50 of the 100 active pieces
+        for (int i = 0; i < 50; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
+
+        picker.GetProgress().Should().Be(0.5);
+
+        // Verify the remaining 50 active pieces
+        for (int i = 50; i < 100; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
+
+        picker.GetProgress().Should().Be(1.0);
+    }
+
+    [Test]
+    public void GetProgress_WhenAllPiecesUnselected_ReturnsZero()
+    {
+        var picker = new PiecePicker(10, 16384, 163840);
+        for (int i = 0; i < 10; i++)
+        {
+            picker.SetPiecePriority(i, 0);
+        }
+
+        picker.GetProgress().Should().Be(0.0);
+    }
+
     #endregion
 }
