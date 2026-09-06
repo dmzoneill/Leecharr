@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +20,20 @@ public class MediaController : RestController<MediaMetadataResource>
     public MediaController(IMediaEnrichmentService mediaEnrichmentService)
     {
         this.mediaEnrichmentService = mediaEnrichmentService;
+    }
+
+    [HttpGet]
+    public ActionResult<List<MediaMetadataResource>> GetAll()
+    {
+        var all = this.mediaEnrichmentService.GetAllMetadata();
+        return this.Ok(all.Values.Select(MediaMetadataResourceMapper.ToResource).ToList());
+    }
+
+    [HttpDelete("{torrentId:int}")]
+    public IActionResult Delete(int torrentId)
+    {
+        this.mediaEnrichmentService.DeleteMetadata(torrentId);
+        return this.NoContent();
     }
 
     [HttpGet("{torrentId:int}")]
