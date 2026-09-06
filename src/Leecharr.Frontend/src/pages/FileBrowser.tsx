@@ -1,15 +1,26 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { FileManager } from "@cubone/react-file-manager";
+import "@cubone/react-file-manager/dist/style.css";
 import {
   useFileListing,
   useCreateDirectory,
   useRenameFileEntry,
   useDeleteFileEntry,
+  useBatchDeleteFiles,
+  useFilePreview,
 } from "../api/hooks";
-import { formatBytes, formatDate } from "../utils/formatters";
+import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
-import { PromptModal } from "../components/PromptModal";
+
+interface FileManagerFile {
+  name: string;
+  isDirectory: boolean;
+  path: string;
+  size?: number;
+  updatedAt?: string;
+}
 
 function getPathSegments(path: string): { label: string; fullPath: string }[] {
   const segments = path.split("/").filter(Boolean);
@@ -36,15 +47,23 @@ export function FileBrowser() {
       : undefined;
 
   const [currentPath, setCurrentPath] = useState<string>(queryPath || "");
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+
   const {
     data: listing,
     isLoading,
     isError,
     refetch,
   } = useFileListing(currentPath || undefined);
+
   const mkdirMutation = useCreateDirectory();
   const renameMutation = useRenameFileEntry();
   const deleteMutation = useDeleteFileEntry();
+  const batchDeleteMutation = useBatchDeleteFiles();
+  const { data: previewData, isLoading: isPreviewLoading } = useFilePreview(
+    previewPath || undefined,
+    !!previewPath,
+  );
 
   useEffect(() => {
     if (listing?.path && !currentPath) {
@@ -65,178 +84,166 @@ export function FileBrowser() {
     }
   };
 
-  const handleEntryClick = (entry: { isDirectory: boolean; path: string }) => {
-    if (entry.isDirectory) {
-      navigateTo(entry.path);
-    }
-  };
-
   const handleCopyPath = () => {
-    navigator.clipboard.writeText(currentPath || listing?.path || "");
+    const textToCopy = currentPath || listing?.path || "";
+    navigator.clipboard.writeText(textToCopy);
     showToast("Path copied to clipboard", "info");
   };
 
-  const handleNewFolder = async () => {
-    const name = await new Promise<string | null>((resolve) => {
-      const el = document.createElement("input");
-      el.type = "text";
-      el.style.display = "none";
-      el.placeholder = "Folder name";
-      document.body.appendChild(el);
-      const cleanup = () => {
-        document.body.removeChild(el);
-      };
+  const handleOpenInCli = () => {
+    const target = currentPath || listing?.path || "/downloads";
+    navigate(`/terminal?path=${encodeURIComponent(target)}`);
+  };
 
-      const modal = document.createElement("div");
-      modal.innerHTML = `
-        <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-          <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-            <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">New Folder</h3>
-            <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3)">Creating in: ${currentPath || listing?.path || "/"}</p>
-            <input id="new-folder-input" type="text" placeholder="Folder name" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-            <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-              <button id="new-folder-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-              <button id="new-folder-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Create</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
+  const handleDownloadFile = (filePath: string) => {
+    window.open(
+      `/api/v1/files/download?path=${encodeURIComponent(filePath)}`,
+      "_blank",
+    );
+  };
 
-      const input = modal.querySelector(
-        "#new-folder-input",
-      ) as HTMLInputElement;
-      input.focus();
+  const files: FileManagerFile[] = useMemo(() => {
+    if (!listing?.entries) return [];
+    return listing.entries.map((entry) => ({
+      name: entry.name,
+      isDirectory: entry.isDirectory,
+      path: entry.path,
+      size: entry.size,
+      updatedAt: entry.modified || undefined,
+    }));
+  }, [listing]);
 
-      const finish = (value: string | null) => {
-        modal.remove();
-        cleanup();
-        resolve(value);
-      };
+  const dirStats = useMemo(() => {
+    let folderCount = 0;
+    let fileCount = 0;
+    let totalSize = 0;
+    if (listing?.entries) {
+      for (const e of listing.entries) {
+        if (e.isDirectory) folderCount++;
+        else {
+          fileCount++;
+          totalSize += e.size || 0;
+        }
+      }
+    }
+    return { folderCount, fileCount, totalSize };
+  }, [listing]);
 
-      modal
-        .querySelector("#new-folder-cancel")
-        ?.addEventListener("click", () => finish(null));
-      modal.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") finish(null);
-        if (e.key === "Enter") finish(input.value.trim() || null);
-      });
-      modal
-        .querySelector("#new-folder-ok")
-        ?.addEventListener("click", () => finish(input.value.trim() || null));
-    });
+  const handleFolderChange = (newPath: string) => {
+    navigateTo(newPath);
+  };
 
-    if (!name) return;
+  const handleFileOpen = (file: FileManagerFile) => {
+    if (file.isDirectory) {
+      navigateTo(file.path);
+    } else {
+      setPreviewPath(file.path);
+    }
+  };
 
+  const handleCreateFolder = async (
+    name: string,
+    parentFolder: FileManagerFile,
+  ) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
     try {
-      const targetPath = currentPath
-        ? `${currentPath}/${name}`
-        : `${listing?.defaultPath || "/"}/${name}`;
+      const parent = parentFolder?.path || currentPath || listing?.path || "/";
+      const targetPath = parent.endsWith("/")
+        ? `${parent}${trimmed}`
+        : `${parent}/${trimmed}`;
       await mkdirMutation.mutateAsync(targetPath);
-      showToast(`Created folder "${name}"`, "success");
+      showToast(`Created folder "${trimmed}"`, "success");
     } catch (err: any) {
       showToast(err?.message || "Failed to create folder", "error");
     }
   };
 
-  const handleRename = (entryPath: string, currentName: string) => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = currentName;
-
-    const modal = document.createElement("div");
-    modal.innerHTML = `
-      <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-        <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-          <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">Rename</h3>
-          <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3);word-break:break-all"><code>${entryPath}</code></p>
-          <input id="rename-input" type="text" value="${currentName}" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-          <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-            <button id="rename-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-            <button id="rename-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Rename</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    const inputEl = modal.querySelector("#rename-input") as HTMLInputElement;
-    inputEl.focus();
-    inputEl.select();
-
-    const finish = async (value: string | null) => {
-      modal.remove();
-      if (!value || value === currentName) return;
-
-      try {
-        await renameMutation.mutateAsync({ path: entryPath, newName: value });
-        showToast(`Renamed to "${value}"`, "success");
-      } catch (err: any) {
-        showToast(err?.message || "Failed to rename", "error");
-      }
-    };
-
-    modal
-      .querySelector("#rename-cancel")
-      ?.addEventListener("click", () => finish(null));
-    modal.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") finish(null);
-      if (e.key === "Enter") finish(inputEl.value.trim() || null);
-    });
-    modal
-      .querySelector("#rename-ok")
-      ?.addEventListener("click", () => finish(inputEl.value.trim() || null));
+  const handleRename = async (file: FileManagerFile, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === file.name) return;
+    try {
+      await renameMutation.mutateAsync({
+        path: file.path,
+        newName: trimmed,
+      });
+      showToast(`Renamed to "${trimmed}"`, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to rename", "error");
+    }
   };
 
-  const handleDelete = async (
-    entryPath: string,
-    entryName: string,
-    isDir: boolean,
-  ) => {
+  const handleDelete = async (selectedFiles: FileManagerFile[]) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const count = selectedFiles.length;
+
     const ok = await confirm({
-      title: isDir ? "Delete Folder" : "Delete File",
+      title:
+        count === 1
+          ? selectedFiles[0].isDirectory
+            ? "Delete Folder"
+            : "Delete File"
+          : "Delete Selected Items",
       message: (
         <span>
-          Delete <strong>{entryName}</strong>?{" "}
-          {isDir && (
-            <span style={{ color: "var(--danger, #ef4444)" }}>
-              This will delete all contents recursively.
-            </span>
-          )}
+          Are you sure you want to delete{" "}
+          <strong>
+            {count === 1 ? selectedFiles[0].name : `${count} items`}
+          </strong>
+          ?
         </span>
       ),
       danger: true,
-      confirmText: "Delete",
+      confirmText: count === 1 ? "Delete" : `Delete ${count} Items`,
     });
 
     if (!ok) return;
 
     try {
-      await deleteMutation.mutateAsync(entryPath);
-      showToast(`Deleted "${entryName}"`, "info");
+      if (count === 1) {
+        await deleteMutation.mutateAsync(selectedFiles[0].path);
+        showToast(`Deleted "${selectedFiles[0].name}"`, "info");
+      } else {
+        await batchDeleteMutation.mutateAsync(selectedFiles.map((f) => f.path));
+        showToast(`Deleted ${count} items`, "info");
+      }
     } catch (err: any) {
-      showToast(err?.message || "Failed to delete", "error");
+      showToast(err?.message || "Failed to delete item(s)", "error");
     }
   };
 
-  const handleOpenInCli = () => {
-    navigate(
-      `/terminal?path=${encodeURIComponent(currentPath || listing?.path || "/downloads")}`,
-    );
+  const handleDownload = (selectedFiles: FileManagerFile[]) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    selectedFiles.forEach((file) => {
+      if (!file.isDirectory) {
+        handleDownloadFile(file.path);
+      }
+    });
   };
 
   const segments = getPathSegments(currentPath || listing?.path || "/");
+  const displayPath =
+    currentPath || listing?.path || listing?.defaultPath || "/";
 
   if (isLoading && !listing) {
     return (
       <div
         className="card"
         style={{
-          padding: "1.5rem",
+          padding: "3rem 1.5rem",
           textAlign: "center",
           color: "var(--text-muted)",
         }}
       >
+        <span
+          style={{
+            fontSize: "2rem",
+            display: "block",
+            marginBottom: "0.75rem",
+          }}
+        >
+          ⏳
+        </span>
         Loading file browser...
       </div>
     );
@@ -247,19 +254,24 @@ export function FileBrowser() {
       <div
         className="card"
         style={{
-          padding: "1.5rem",
+          padding: "2rem 1.5rem",
           textAlign: "center",
           color: "var(--danger, #ef4444)",
         }}
       >
+        <span
+          style={{
+            fontSize: "2rem",
+            display: "block",
+            marginBottom: "0.75rem",
+          }}
+        >
+          ⚠️
+        </span>
         Failed to load directory listing.
       </div>
     );
   }
-
-  const entries = listing?.entries || [];
-  const displayPath =
-    currentPath || listing?.path || listing?.defaultPath || "/";
 
   return (
     <div
@@ -270,7 +282,6 @@ export function FileBrowser() {
         gap: "0.85rem",
       }}
     >
-      {/* Header Card */}
       <div
         className="card"
         style={{
@@ -283,7 +294,7 @@ export function FileBrowser() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "1.4rem" }}>📂</span>
+          <span style={{ fontSize: "1.4rem" }}>🗂️</span>
           <div>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
               File Browser
@@ -295,8 +306,10 @@ export function FileBrowser() {
                 color: "var(--text-muted)",
               }}
             >
-              Browse, create, rename, and delete files and folders on the
-              server.
+              {dirStats.folderCount} folder
+              {dirStats.folderCount === 1 ? "" : "s"} &bull;{" "}
+              {dirStats.fileCount} file{dirStats.fileCount === 1 ? "" : "s"}{" "}
+              &bull; {formatBytes(dirStats.totalSize)} total
             </p>
           </div>
         </div>
@@ -312,7 +325,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={handleNavigateUp}
             disabled={!listing?.parent || listing.parent === listing.path}
             title="Go to parent directory"
@@ -322,7 +335,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={() => refetch()}
             title="Refresh"
           >
@@ -331,7 +344,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={handleCopyPath}
             title="Copy current path to clipboard"
           >
@@ -339,20 +352,10 @@ export function FileBrowser() {
           </button>
           <button
             type="button"
-            className="btn btn-primary"
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
-            onClick={handleNewFolder}
-            disabled={mkdirMutation.isPending}
-            title="Create new folder in current directory"
-          >
-            + New Folder
-          </button>
-          <button
-            type="button"
             className="btn btn-outline"
             style={{
               fontSize: "0.8rem",
-              padding: "0.3rem 0.65rem",
+              padding: "0.35rem 0.75rem",
               fontFamily: "monospace",
             }}
             onClick={handleOpenInCli}
@@ -363,20 +366,17 @@ export function FileBrowser() {
         </div>
       </div>
 
-      {/* PWD Breadcrumb Bar */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "0.35rem",
           padding: "0.55rem 0.85rem",
-          backgroundColor: "var(--bg-card, #131627)",
+          backgroundColor: "var(--bg-card, #171b35)",
           borderRadius: "8px",
           border: "1px solid var(--border-light, #1c203b)",
           fontSize: "0.85rem",
           overflowX: "auto",
-          whiteSpace: "nowrap",
-          flexWrap: "nowrap",
         }}
       >
         <span
@@ -396,12 +396,8 @@ export function FileBrowser() {
             border: "none",
             color: "var(--accent, #ffd166)",
             cursor: "pointer",
-            fontWeight: segments.length === 0 ? 700 : 400,
             fontSize: "0.85rem",
-            padding: "0 0.2rem",
-            fontFamily: "monospace",
           }}
-          title="Root"
         >
           /
         </button>
@@ -418,18 +414,10 @@ export function FileBrowser() {
               style={{
                 background: "none",
                 border: "none",
-                color:
-                  idx === segments.length - 1
-                    ? "var(--text-primary, #f8f4ed)"
-                    : "var(--accent, #ffd166)",
+                color: "var(--text-primary, #f8f4ed)",
                 cursor: "pointer",
-                fontWeight: idx === segments.length - 1 ? 700 : 400,
                 fontSize: "0.85rem",
-                padding: "0 0.2rem",
-                fontFamily: "monospace",
-                whiteSpace: "nowrap",
               }}
-              title={seg.fullPath}
             >
               {seg.label}
             </button>
@@ -437,7 +425,6 @@ export function FileBrowser() {
         ))}
       </div>
 
-      {/* Error banner for missing path */}
       {listing && !listing.exists && (
         <div
           style={{
@@ -454,250 +441,248 @@ export function FileBrowser() {
         </div>
       )}
 
-      {/* File Table */}
       <div
-        className="card"
         style={{
           flex: 1,
-          minHeight: 0,
-          overflow: "auto",
-          padding: 0,
+          minHeight: "550px",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <table
-          className="torrent-table"
-          style={{ width: "100%", borderCollapse: "collapse" }}
+        <FileManager
+          className="leecharr-file-manager"
+          files={files}
+          initialPath={currentPath || listing?.path || ""}
+          primaryColor="#ffd166"
+          collapsibleNav={true}
+          defaultNavExpanded={false}
+          enableFilePreview={true}
+          height="100%"
+          onFolderChange={handleFolderChange}
+          onFileOpen={handleFileOpen}
+          onCreateFolder={handleCreateFolder}
+          onRename={handleRename}
+          onDelete={handleDelete}
+          onDownload={handleDownload}
+          onRefresh={() => refetch()}
+        />
+      </div>
+
+      {previewPath && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreviewPath(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(16, 17, 26, 0.85)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: "1.5rem",
+          }}
         >
-          <thead>
-            <tr
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "850px",
+              maxHeight: "85vh",
+              backgroundColor: "var(--bg-secondary, #171b35)",
+              borderRadius: "12px",
+              border: "1px solid rgba(255, 209, 102, 0.35)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
               style={{
-                position: "sticky",
-                top: 0,
-                backgroundColor: "var(--bg-primary, #10111A)",
-                zIndex: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "1rem 1.25rem",
                 borderBottom: "1px solid var(--border, #23284B)",
               }}
             >
-              <th
-                className="torrent-table-th"
-                style={{ textAlign: "left", padding: "0.6rem 0.85rem" }}
-              >
-                Name
-              </th>
-              <th
-                className="torrent-table-th"
+              <div
                 style={{
-                  width: 100,
-                  textAlign: "right",
-                  padding: "0.6rem 0.85rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.6rem",
+                  overflow: "hidden",
                 }}
               >
-                Size
-              </th>
-              <th
-                className="torrent-table-th"
-                style={{
-                  width: 150,
-                  textAlign: "left",
-                  padding: "0.6rem 0.85rem",
-                }}
+                <span style={{ fontSize: "1.3rem" }}>📄</span>
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "1.05rem",
+                      color: "var(--text-primary, #f8f4ed)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: "550px",
+                    }}
+                  >
+                    {previewData?.name || previewPath.split("/").pop()}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-muted, #8a879e)",
+                    }}
+                  >
+                    {previewData?.size ? formatBytes(previewData.size) : ""}{" "}
+                    &bull; <code>{previewPath}</code>
+                  </span>
+                </div>
+              </div>
+
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
               >
-                Modified
-              </th>
-              <th
-                className="torrent-table-th"
-                style={{
-                  width: 130,
-                  textAlign: "right",
-                  padding: "0.6rem 0.85rem",
-                }}
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.length === 0 && (
-              <tr>
-                <td
-                  colSpan={4}
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+                  onClick={() => handleDownloadFile(previewPath)}
+                >
+                  📥 Download
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+                  onClick={() => setPreviewPath(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflow: "auto",
+                padding: "1.25rem",
+                backgroundColor: "var(--bg-primary, #10111A)",
+              }}
+            >
+              {isPreviewLoading ? (
+                <div
                   style={{
-                    padding: "2rem",
                     textAlign: "center",
-                    color: "var(--text-muted, #8a879e)",
-                    fontSize: "0.9rem",
+                    padding: "3rem",
+                    color: "var(--text-muted)",
                   }}
                 >
-                  {listing?.exists ? "Empty directory" : "Directory not found"}
-                </td>
-              </tr>
-            )}
-            {entries.map((entry) => (
-              <tr
-                key={entry.path}
-                className="torrent-table-row"
-                style={{
-                  backgroundColor: entry.isDirectory
-                    ? "rgba(23, 27, 53, 0.4)"
-                    : "transparent",
-                  borderBottom: "1px solid rgba(35, 40, 75, 0.5)",
-                  fontSize: "0.85rem",
-                  cursor: entry.isDirectory ? "pointer" : "default",
-                }}
-                onClick={() => handleEntryClick(entry)}
-              >
-                <td style={{ padding: "0.5rem 0.85rem" }}>
+                  Loading file preview...
+                </div>
+              ) : previewData?.type === "image" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: "260px",
+                  }}
+                >
+                  <img
+                    src={previewData.downloadUrl}
+                    alt={previewData.name}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
+              ) : previewData?.type === "text" ? (
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: "1rem",
+                    backgroundColor: "rgba(0, 0, 0, 0.4)",
+                    borderRadius: "6px",
+                    fontFamily: "monospace",
+                    fontSize: "0.82rem",
+                    color: "var(--text-primary, #F8F4ED)",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: "55vh",
+                  }}
+                >
+                  {previewData.content}
+                </pre>
+              ) : (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "3rem 1rem",
+                    color: "var(--text-secondary, #C7C5D3)",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "3rem",
+                      display: "block",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    📄
+                  </span>
+                  <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem" }}>
+                    Binary / Media File
+                  </h4>
+                  <p
+                    style={{
+                      margin: "0 0 1.5rem",
+                      fontSize: "0.85rem",
+                      color: "var(--text-muted, #8a879e)",
+                    }}
+                  >
+                    Direct inline text preview is not available for this file
+                    type. You can download the file or open the directory in
+                    terminal.
+                  </p>
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      gap: "0.6rem",
-                    }}
-                  >
-                    <span style={{ fontSize: "1rem", flexShrink: 0 }}>
-                      {entry.isDirectory ? "📁" : getFileIcon(entry.extension)}
-                    </span>
-                    <span
-                      style={{
-                        fontWeight: entry.isDirectory ? 600 : 400,
-                        color: entry.isDirectory
-                          ? "var(--text-primary, #F8F4ED)"
-                          : "var(--text-secondary, #C7C5D3)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={entry.path}
-                    >
-                      {entry.name}
-                    </span>
-                  </div>
-                </td>
-
-                <td
-                  style={{
-                    textAlign: "right",
-                    padding: "0.5rem 0.85rem",
-                    color: "var(--text-secondary, #C7C5D3)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {entry.isDirectory ? "\u2014" : formatBytes(entry.size)}
-                </td>
-
-                <td
-                  style={{
-                    padding: "0.5rem 0.85rem",
-                    color: "var(--text-muted, #8a879e)",
-                    fontSize: "0.8rem",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {entry.modified ? formatDate(entry.modified) : "\u2014"}
-                </td>
-
-                <td
-                  style={{
-                    textAlign: "right",
-                    padding: "0.5rem 0.85rem",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      gap: "0.4rem",
+                      justifyContent: "center",
+                      gap: "0.75rem",
                     }}
                   >
                     <button
                       type="button"
-                      className="btn btn-small btn-outline"
-                      style={{
-                        fontSize: "0.72rem",
-                        padding: "0.2rem 0.45rem",
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRename(entry.path, entry.name);
-                      }}
-                      title="Rename"
+                      className="btn btn-primary"
+                      onClick={() => handleDownloadFile(previewPath)}
                     >
-                      ✏️ Rename
+                      📥 Download File (
+                      {previewData?.size ? formatBytes(previewData.size) : ""})
                     </button>
                     <button
                       type="button"
-                      className="btn btn-small btn-outline"
-                      style={{
-                        fontSize: "0.72rem",
-                        padding: "0.2rem 0.45rem",
-                        color: "var(--danger, #ef4444)",
-                        borderColor: "rgba(239, 68, 68, 0.35)",
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setPreviewPath(null);
+                        handleOpenInCli();
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(entry.path, entry.name, entry.isDirectory);
-                      }}
-                      disabled={deleteMutation.isPending}
-                      title="Delete"
                     >
-                      🗑 Delete
+                      💻 Open in Terminal
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
-
-function getFileIcon(extension: string | null): string {
-  const ext = (extension || "").toLowerCase();
-  switch (ext) {
-    case "mkv":
-    case "mp4":
-    case "avi":
-    case "mov":
-    case "wmv":
-    case "m4v":
-    case "webm":
-      return "🎬";
-    case "mp3":
-    case "flac":
-    case "wav":
-    case "aac":
-    case "ogg":
-    case "m4a":
-    case "opus":
-      return "🎵";
-    case "srt":
-    case "sub":
-    case "vtt":
-    case "ass":
-    case "idx":
-      return "💬";
-    case "zip":
-    case "rar":
-    case "7z":
-    case "tar":
-    case "gz":
-    case "iso":
-      return "📦";
-    case "jpg":
-    case "jpeg":
-    case "png":
-    case "webp":
-    case "gif":
-    case "bmp":
-      return "🖼️";
-    case "torrent":
-      return "🌊";
-    case "torrent":
-      return "🌊";
-    default:
-      return "📄";
-  }
 }
 
 export default FileBrowser;

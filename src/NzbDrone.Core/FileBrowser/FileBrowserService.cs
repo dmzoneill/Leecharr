@@ -46,6 +46,8 @@ public interface IFileBrowserService
     void Rename(string path, string newName);
 
     void Delete(string path);
+
+    string ResolvePath(string path);
 }
 
 public class FileBrowserService : IFileBrowserService
@@ -177,7 +179,7 @@ public class FileBrowserService : IFileBrowserService
         }
     }
 
-    private string ResolvePath(string path)
+    public string ResolvePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
