@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Numerics;
@@ -147,6 +148,35 @@ public class IP2LocationGeoIpProviderTest
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         health.StatusMessage.Should().Contain("IP2Location database loaded successfully");
+    }
+
+    [Test]
+    public async Task Concurrent_ProbeHealthAsync_And_LookupAsync_ExecutesSafelyWithoutStateCorruption()
+    {
+        CreateSampleBinaryDatabase(this.tempDbFile);
+        var diskMock = Substitute.For<IDiskProvider>();
+        diskMock.FileExists(this.tempDbFile).Returns(true);
+
+        using var provider = new TestableIP2LocationGeoIpProvider(this.tempDbFile, diskMock, this.appFolderInfo);
+
+        var tasks = new List<Task>();
+        for (var i = 0; i < 50; i++)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                var health = await provider.ProbeHealthAsync();
+                health.IsHealthy.Should().BeTrue();
+            }));
+
+            tasks.Add(Task.Run(async () =>
+            {
+                var lookup = await provider.LookupAsync("8.8.8.8");
+                lookup.Should().NotBeNull();
+                lookup.CountryCode.Should().Be("US");
+            }));
+        }
+
+        await Task.WhenAll(tasks);
     }
 
     private static void CreateSampleBinaryDatabase(string filePath)
