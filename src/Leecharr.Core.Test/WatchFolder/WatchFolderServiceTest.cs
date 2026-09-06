@@ -391,4 +391,34 @@ public class WatchFolderServiceTest
     }
 
     #endregion
+    [Test]
+    public async Task ProcessFileAsync_WhenCalledConcurrentlyForSameFile_OnlyProcessesOnce()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "concurrent.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x33, 0x30, 0x65 });
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Concurrent.Movie.2024.1080p",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            TotalSize = 2048,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        var task1 = this.service.ProcessFileAsync(testFile);
+        var task2 = this.service.ProcessFileAsync(testFile);
+
+        var results = await Task.WhenAll(task1, task2);
+
+        // One must succeed, one must be skipped (return false due to duplicate guard)
+        results.Should().ContainSingle(r => r == true);
+        results.Should().ContainSingle(r => r == false);
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: Arg.Any<string>(),
+            startPaused: Arg.Any<bool>(),
+            rawBytes: Arg.Any<byte[]>());
+    }
 }
