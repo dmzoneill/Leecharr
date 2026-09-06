@@ -276,4 +276,30 @@ sleep 300
         info.AudioChannels.Should().Be("7.1");
         info.DurationSeconds.Should().Be(7200.0);
     }
+
+    [TestCase(720, 400)]
+    [TestCase(720, 360)]
+    [TestCase(640, 360)]
+    [TestCase(640, 480)]
+    public void ParseFFprobeJson_WhenSdCroppedOrWidescreen_Derives480pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+  ""format"": {{
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""3600.000000""
+  }},
+  ""streams"": [
+    {{
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": {width},
+      ""height"": {height}
+    }}
+  ]
+}}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("480p");
+    }
 }
