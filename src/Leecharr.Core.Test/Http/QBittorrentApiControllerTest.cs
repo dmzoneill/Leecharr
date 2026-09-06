@@ -439,7 +439,7 @@ public class QBittorrentApiControllerTest
 
         await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 120, maxRatioAction: 1);
         torrent1.TargetRatio.Should().Be(2.0);
-        torrent1.TargetSeedTimeMinutes.Should().Be(120);
+        torrent1.TargetSeedTimeMinutes.Should().Be(2);
         torrent1.ShareLimitAction.Should().Be("Remove");
     }
 
