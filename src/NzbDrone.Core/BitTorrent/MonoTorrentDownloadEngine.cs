@@ -2524,6 +2524,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    public long TotalBytes => this.Manager?.Torrent?.Size ?? this.initialTorrent?.Size ?? 0;
+
+    public long TotalSize => this.TotalBytes;
+
     public long DownloadedBytes => this.Manager?.Monitor?.DataBytesReceived ?? 0;
 
     public long UploadedBytes => this.Manager?.Monitor?.DataBytesSent ?? 0;
