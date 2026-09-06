@@ -360,11 +360,23 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
         => Volatile.Read(ref this.activeEngine).SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
 
+    public Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
+        => Volatile.Read(ref this.activeEngine)?.SetTorrentPrivateStatusAsync(torrentId, isPrivate) ?? Task.CompletedTask;
+
     public Task SetSequentialDownloadAsync(int torrentId, bool enabled)
         => Volatile.Read(ref this.activeEngine)?.SetSequentialDownloadAsync(torrentId, enabled) ?? Task.CompletedTask;
 
-    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
-        => Volatile.Read(ref this.activeEngine).MoveTorrentFilesAsync(torrentId, newSavePath);
+    public Task SetSuperSeedingAsync(int torrentId, bool enabled)
+        => Volatile.Read(ref this.activeEngine)?.SetSuperSeedingAsync(torrentId, enabled) ?? Task.CompletedTask;
+
+    public Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath)
+        => Volatile.Read(ref this.activeEngine)?.RenameFileAsync(torrentId, oldRelativePath, newRelativePath) ?? Task.FromResult(false);
+
+    public Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder)
+        => Volatile.Read(ref this.activeEngine)?.RenameFolderAsync(torrentId, oldRelativeFolder, newRelativeFolder) ?? Task.FromResult(false);
+
+    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
+        => Volatile.Read(ref this.activeEngine)?.MoveTorrentFilesAsync(torrentId, newSavePath, moveFiles) ?? Task.CompletedTask;
 
     public IDownloadTask GetTask(int torrentId)
         => Volatile.Read(ref this.activeEngine).GetTask(torrentId);

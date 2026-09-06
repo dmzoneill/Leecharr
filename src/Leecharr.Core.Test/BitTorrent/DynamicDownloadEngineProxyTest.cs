@@ -315,4 +315,42 @@ public class DynamicDownloadEngineProxyTest
             }
         }
     }
+
+    [Test]
+    public async Task RenameFileAsync_ForwardsToActiveEngine()
+    {
+        this.monoTorrentEngine.RenameFileAsync(42, "old.txt", "new.txt").Returns(Task.FromResult(true));
+
+        var result = await this.proxy.RenameFileAsync(42, "old.txt", "new.txt");
+
+        result.Should().BeTrue();
+        await this.monoTorrentEngine.Received(1).RenameFileAsync(42, "old.txt", "new.txt");
+    }
+
+    [Test]
+    public async Task RenameFolderAsync_ForwardsToActiveEngine()
+    {
+        this.monoTorrentEngine.RenameFolderAsync(42, "old_folder", "new_folder").Returns(Task.FromResult(true));
+
+        var result = await this.proxy.RenameFolderAsync(42, "old_folder", "new_folder");
+
+        result.Should().BeTrue();
+        await this.monoTorrentEngine.Received(1).RenameFolderAsync(42, "old_folder", "new_folder");
+    }
+
+    [Test]
+    public async Task SetTorrentPrivateStatusAsync_ForwardsToActiveEngine()
+    {
+        await this.proxy.SetTorrentPrivateStatusAsync(42, true);
+
+        await this.monoTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
+    }
+
+    [Test]
+    public async Task SetSuperSeedingAsync_ForwardsToActiveEngine()
+    {
+        await this.proxy.SetSuperSeedingAsync(42, true);
+
+        await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
+    }
 }
