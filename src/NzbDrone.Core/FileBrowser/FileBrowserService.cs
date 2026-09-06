@@ -167,7 +167,10 @@ public class FileBrowserService : IFileBrowserService
     {
         var current = this.ResolvePath(path);
 
-        if (string.IsNullOrWhiteSpace(newName) || newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        if (string.IsNullOrWhiteSpace(newName) ||
+            string.Equals(newName, ".", StringComparison.Ordinal) ||
+            string.Equals(newName, "..", StringComparison.Ordinal) ||
+            newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new ArgumentException($"The name '{newName}' is invalid.");
         }
@@ -175,13 +178,23 @@ public class FileBrowserService : IFileBrowserService
         var parent = this.GetParentPath(current);
         var dest = Path.Combine(parent, newName);
 
+        if (string.Equals(current, dest, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (this.diskProvider.FileExists(dest) || this.diskProvider.FolderExists(dest))
+        {
+            throw new InvalidOperationException($"Destination '{dest}' already exists.");
+        }
+
         if (this.diskProvider.FolderExists(current))
         {
             this.diskProvider.MoveFolder(current, dest);
         }
         else
         {
-            this.diskProvider.MoveFile(current, dest, true);
+            this.diskProvider.MoveFile(current, dest, false);
         }
     }
 
