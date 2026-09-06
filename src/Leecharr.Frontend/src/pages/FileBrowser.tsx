@@ -36,7 +36,18 @@ export function FileBrowser() {
       : undefined;
 
   const [currentPath, setCurrentPath] = useState<string>(queryPath || "");
-  const { data: listing, isLoading, isError, refetch } = useFileListing(currentPath || undefined);
+  const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{
+    path: string;
+    name: string;
+  } | null>(null);
+
+  const {
+    data: listing,
+    isLoading,
+    isError,
+    refetch,
+  } = useFileListing(currentPath || undefined);
   const mkdirMutation = useCreateDirectory();
   const renameMutation = useRenameFileEntry();
   const deleteMutation = useDeleteFileEntry();
@@ -47,15 +58,12 @@ export function FileBrowser() {
     }
   }, [listing, currentPath]);
 
-  const navigateTo = useCallback(
-    (path: string) => {
-      setCurrentPath(path);
-      const url = new URL(window.location.href);
-      url.searchParams.set("path", path);
-      window.history.replaceState({}, "", url.toString());
-    },
-    [],
-  );
+  const navigateTo = useCallback((path: string) => {
+    setCurrentPath(path);
+    const url = new URL(window.location.href);
+    url.searchParams.set("path", path);
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   const handleNavigateUp = () => {
     if (listing?.parent && listing.parent !== listing.path) {
@@ -63,10 +71,7 @@ export function FileBrowser() {
     }
   };
 
-  const handleEntryClick = (entry: {
-    isDirectory: boolean;
-    path: string;
-  }) => {
+  const handleEntryClick = (entry: { isDirectory: boolean; path: string }) => {
     if (entry.isDirectory) {
       navigateTo(entry.path);
     }
@@ -77,114 +82,29 @@ export function FileBrowser() {
     showToast("Path copied to clipboard", "info");
   };
 
-  const handleNewFolder = async () => {
-    const name = await new Promise<string | null>((resolve) => {
-      const el = document.createElement("input");
-      el.type = "text";
-      el.style.display = "none";
-      el.placeholder = "Folder name";
-      document.body.appendChild(el);
-      const cleanup = () => {
-        document.body.removeChild(el);
-      };
-
-      const modal = document.createElement("div");
-      modal.innerHTML = `
-        <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-          <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-            <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">New Folder</h3>
-            <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3)">Creating in: ${currentPath || listing?.path || "/"}</p>
-            <input id="new-folder-input" type="text" placeholder="Folder name" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-            <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-              <button id="new-folder-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-              <button id="new-folder-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Create</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      const input = modal.querySelector("#new-folder-input") as HTMLInputElement;
-      input.focus();
-
-      const finish = (value: string | null) => {
-        modal.remove();
-        cleanup();
-        resolve(value);
-      };
-
-      modal.querySelector("#new-folder-cancel")?.addEventListener("click", () => finish(null));
-      modal.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") finish(null);
-        if (e.key === "Enter") finish(input.value.trim() || null);
-      });
-      modal.querySelector("#new-folder-ok")?.addEventListener("click", () => finish(input.value.trim() || null));
-    });
-
-    if (!name) return;
-
-    try {
-      const targetPath = currentPath
-        ? `${currentPath}/${name}`
-        : `${listing?.defaultPath || "/"}/${name}`;
-      await mkdirMutation.mutateAsync(targetPath);
-      showToast(`Created folder "${name}"`, "success");
-    } catch (err: any) {
-      showToast(err?.message || "Failed to create folder", "error");
-    }
+  const handleNewFolder = () => {
+    setIsNewFolderOpen(true);
   };
 
   const handleRename = (entryPath: string, currentName: string) => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = currentName;
-
-    const modal = document.createElement("div");
-    modal.innerHTML = `
-      <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-        <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-          <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">Rename</h3>
-          <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3);word-break:break-all"><code>${entryPath}</code></p>
-          <input id="rename-input" type="text" value="${currentName}" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-          <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-            <button id="rename-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-            <button id="rename-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Rename</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    const inputEl = modal.querySelector("#rename-input") as HTMLInputElement;
-    inputEl.focus();
-    inputEl.select();
-
-    const finish = async (value: string | null) => {
-      modal.remove();
-      if (!value || value === currentName) return;
-
-      try {
-        await renameMutation.mutateAsync({ path: entryPath, newName: value });
-        showToast(`Renamed to "${value}"`, "success");
-      } catch (err: any) {
-        showToast(err?.message || "Failed to rename", "error");
-      }
-    };
-
-    modal.querySelector("#rename-cancel")?.addEventListener("click", () => finish(null));
-    modal.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") finish(null);
-      if (e.key === "Enter") finish(inputEl.value.trim() || null);
-    });
-    modal.querySelector("#rename-ok")?.addEventListener("click", () => finish(inputEl.value.trim() || null));
+    setRenameTarget({ path: entryPath, name: currentName });
   };
 
-  const handleDelete = async (entryPath: string, entryName: string, isDir: boolean) => {
+  const handleDelete = async (
+    entryPath: string,
+    entryName: string,
+    isDir: boolean,
+  ) => {
     const ok = await confirm({
       title: isDir ? "Delete Folder" : "Delete File",
       message: (
         <span>
-          Delete <strong>{entryName}</strong>? {isDir && <span style={{ color: "var(--danger, #ef4444)" }}>This will delete all contents recursively.</span>}
+          Delete <strong>{entryName}</strong>?{" "}
+          {isDir && (
+            <span style={{ color: "var(--danger, #ef4444)" }}>
+              This will delete all contents recursively.
+            </span>
+          )}
         </span>
       ),
       danger: true,
@@ -202,14 +122,23 @@ export function FileBrowser() {
   };
 
   const handleOpenInCli = () => {
-    navigate(`/terminal?path=${encodeURIComponent(currentPath || listing?.path || "/downloads")}`);
+    navigate(
+      `/terminal?path=${encodeURIComponent(currentPath || listing?.path || "/downloads")}`,
+    );
   };
 
   const segments = getPathSegments(currentPath || listing?.path || "/");
 
   if (isLoading && !listing) {
     return (
-      <div className="card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)" }}>
+      <div
+        className="card"
+        style={{
+          padding: "1.5rem",
+          textAlign: "center",
+          color: "var(--text-muted)",
+        }}
+      >
         Loading file browser...
       </div>
     );
@@ -217,14 +146,22 @@ export function FileBrowser() {
 
   if (isError) {
     return (
-      <div className="card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--danger, #ef4444)" }}>
+      <div
+        className="card"
+        style={{
+          padding: "1.5rem",
+          textAlign: "center",
+          color: "var(--danger, #ef4444)",
+        }}
+      >
         Failed to load directory listing.
       </div>
     );
   }
 
   const entries = listing?.entries || [];
-  const displayPath = currentPath || listing?.path || listing?.defaultPath || "/";
+  const displayPath =
+    currentPath || listing?.path || listing?.defaultPath || "/";
 
   return (
     <div
@@ -260,7 +197,8 @@ export function FileBrowser() {
                 color: "var(--text-muted)",
               }}
             >
-              Browse, create, rename, and delete files and folders on the server.
+              Browse, create, rename, and delete files and folders on the
+              server.
             </p>
           </div>
         </div>
@@ -343,7 +281,13 @@ export function FileBrowser() {
           flexWrap: "nowrap",
         }}
       >
-        <span style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0, fontWeight: 600 }}>
+        <span
+          style={{
+            color: "var(--text-muted, #8a879e)",
+            flexShrink: 0,
+            fontWeight: 600,
+          }}
+        >
           📁 PWD:
         </span>
         <button
@@ -365,7 +309,11 @@ export function FileBrowser() {
         </button>
         {segments.map((seg, idx) => (
           <React.Fragment key={seg.fullPath}>
-            <span style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0 }}>/</span>
+            <span
+              style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0 }}
+            >
+              /
+            </span>
             <button
               type="button"
               onClick={() => navigateTo(seg.fullPath)}
@@ -403,7 +351,8 @@ export function FileBrowser() {
             color: "var(--danger, #ef4444)",
           }}
         >
-          Directory does not exist: <code style={{ wordBreak: "break-all" }}>{displayPath}</code>
+          Directory does not exist:{" "}
+          <code style={{ wordBreak: "break-all" }}>{displayPath}</code>
         </div>
       )}
 
@@ -439,19 +388,31 @@ export function FileBrowser() {
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 100, textAlign: "right", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 100,
+                  textAlign: "right",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Size
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 150, textAlign: "left", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 150,
+                  textAlign: "left",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Modified
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 130, textAlign: "right", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 130,
+                  textAlign: "right",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Actions
               </th>
@@ -496,9 +457,7 @@ export function FileBrowser() {
                     }}
                   >
                     <span style={{ fontSize: "1rem", flexShrink: 0 }}>
-                      {entry.isDirectory
-                        ? "📁"
-                        : getFileIcon(entry.extension)}
+                      {entry.isDirectory ? "📁" : getFileIcon(entry.extension)}
                     </span>
                     <span
                       style={{
@@ -525,7 +484,7 @@ export function FileBrowser() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {entry.isDirectory ? "\u2014" : formatBytes(entry.size)}
+                  {entry.isDirectory ? "—" : formatBytes(entry.size)}
                 </td>
 
                 <td
@@ -536,7 +495,7 @@ export function FileBrowser() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {entry.modified ? formatDate(entry.modified) : "\u2014"}
+                  {entry.modified ? formatDate(entry.modified) : "—"}
                 </td>
 
                 <td
@@ -591,6 +550,88 @@ export function FileBrowser() {
           </tbody>
         </table>
       </div>
+
+      {/* New Folder Modal */}
+      <PromptModal
+        isOpen={isNewFolderOpen}
+        title="New Folder"
+        message={`Creating in: ${currentPath || listing?.path || "/"}`}
+        placeholder="Folder name"
+        confirmText="Create"
+        validate={(val) => {
+          const trimmed = val.trim();
+          if (!trimmed) return "Folder name is required";
+          if (
+            trimmed === "." ||
+            trimmed === ".." ||
+            trimmed.includes("/") ||
+            trimmed.includes("\\")
+          ) {
+            return "Invalid folder name";
+          }
+          return null;
+        }}
+        onConfirm={async (name) => {
+          setIsNewFolderOpen(false);
+          const trimmed = name.trim();
+          if (!trimmed) return;
+
+          try {
+            const basePath =
+              currentPath || listing?.path || listing?.defaultPath || "/";
+            const targetPath = basePath.endsWith("/")
+              ? `${basePath}${trimmed}`
+              : `${basePath}/${trimmed}`;
+            await mkdirMutation.mutateAsync(targetPath);
+            showToast(`Created folder "${trimmed}"`, "success");
+          } catch (err: any) {
+            showToast(err?.message || "Failed to create folder", "error");
+          }
+        }}
+        onCancel={() => setIsNewFolderOpen(false)}
+      />
+
+      {/* Rename Modal */}
+      <PromptModal
+        isOpen={!!renameTarget}
+        title="Rename"
+        message={renameTarget ? renameTarget.path : undefined}
+        defaultValue={renameTarget ? renameTarget.name : ""}
+        placeholder="New name"
+        confirmText="Rename"
+        validate={(val) => {
+          const trimmed = val.trim();
+          if (!trimmed) return "Name is required";
+          if (
+            trimmed === "." ||
+            trimmed === ".." ||
+            trimmed.includes("/") ||
+            trimmed.includes("\\")
+          ) {
+            return "Invalid name";
+          }
+          return null;
+        }}
+        onConfirm={async (value) => {
+          if (!renameTarget) return;
+          const { path: entryPath, name: currentName } = renameTarget;
+          setRenameTarget(null);
+
+          const trimmed = value.trim();
+          if (!trimmed || trimmed === currentName) return;
+
+          try {
+            await renameMutation.mutateAsync({
+              path: entryPath,
+              newName: trimmed,
+            });
+            showToast(`Renamed to "${trimmed}"`, "success");
+          } catch (err: any) {
+            showToast(err?.message || "Failed to rename", "error");
+          }
+        }}
+        onCancel={() => setRenameTarget(null)}
+      />
     </div>
   );
 }
@@ -634,8 +675,6 @@ function getFileIcon(extension: string | null): string {
     case "gif":
     case "bmp":
       return "🖼️";
-    case "torrent":
-      return "🌊";
     case "torrent":
       return "🌊";
     default:
