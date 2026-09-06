@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -14,6 +15,7 @@ using System.Xml.Linq;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Authentication;
@@ -24,6 +26,11 @@ namespace Leecharr.Api.V1.Auth;
 [V1ApiController("auth")]
 public class AuthController : ControllerBase
 {
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan AttemptWindow = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+    private static readonly ConcurrentDictionary<string, (int Failures, DateTime WindowStart, DateTime? LockoutUntil)> LoginAttempts = new();
+
     private readonly IUserService userService;
     private readonly IIdentityProviderService identityProviderService;
     private readonly IConfigFileProvider configFileProvider;
@@ -85,11 +92,21 @@ public class AuthController : ControllerBase
             return this.BadRequest(new { error = "Username and password are required" });
         }
 
+        var clientIp = this.GetClientIpAddress();
+        if (this.IsLoginThrottled(clientIp))
+        {
+            return this.StatusCode(StatusCodes.Status429TooManyRequests, new { error = "Too many failed login attempts. Please try again later." });
+        }
+
         var user = this.userService.Authenticate(request.Username, request.Password);
         if (user == null)
         {
+            this.RecordFailedLogin(clientIp);
+            await Task.Delay(500);
             return this.Unauthorized(new { error = "Invalid username or password" });
         }
+
+        this.ResetLoginAttempts(clientIp);
 
         var rolesList = new List<string>();
         try
@@ -739,5 +756,67 @@ public class AuthController : ControllerBase
         }
 
         return null;
+    }
+
+    public static void ResetThrottling()
+    {
+        LoginAttempts.Clear();
+    }
+
+    private bool IsLoginThrottled(string ipAddress)
+    {
+        var now = DateTime.UtcNow;
+        if (!LoginAttempts.TryGetValue(ipAddress, out var record))
+        {
+            return false;
+        }
+
+        if (record.LockoutUntil.HasValue)
+        {
+            if (now < record.LockoutUntil.Value)
+            {
+                return true;
+            }
+
+            LoginAttempts.TryRemove(ipAddress, out _);
+            return false;
+        }
+
+        if (now - record.WindowStart > AttemptWindow)
+        {
+            LoginAttempts.TryRemove(ipAddress, out _);
+            return false;
+        }
+
+        return record.Failures >= MaxFailedAttempts;
+    }
+
+    private void RecordFailedLogin(string ipAddress)
+    {
+        var now = DateTime.UtcNow;
+        LoginAttempts.AddOrUpdate(
+            ipAddress,
+            _ => (1, now, null),
+            (_, existing) =>
+            {
+                if (now - existing.WindowStart > AttemptWindow)
+                {
+                    return (1, now, null);
+                }
+
+                var newFailures = existing.Failures + 1;
+                var lockout = newFailures >= MaxFailedAttempts ? (DateTime?)now.Add(LockoutDuration) : null;
+                return (newFailures, existing.WindowStart, lockout);
+            });
+    }
+
+    private void ResetLoginAttempts(string ipAddress)
+    {
+        LoginAttempts.TryRemove(ipAddress, out _);
+    }
+
+    private string GetClientIpAddress()
+    {
+        return this.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
     }
 }
