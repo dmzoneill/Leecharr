@@ -12,11 +12,13 @@ import { formatDate } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../TrackerFavicon";
-import TrackerMultiSelectModal, { TrackerPickerItem } from "../TrackerMultiSelectModal";
+import TrackerMultiSelectModal, {
+  TrackerPickerItem,
+} from "../TrackerMultiSelectModal";
 
 function getAttachedTrackerIndicator(
   status: string,
-  det?: { isVerified?: boolean; healthStatus?: string | number }
+  det?: { isVerified?: boolean; healthStatus?: string | number },
 ): {
   icon: string;
   badgeClass: string;
@@ -44,7 +46,8 @@ function getAttachedTrackerIndicator(
   if (isWorking) {
     return {
       icon: "🟢",
-      badgeClass: status === "Announcing" ? "badge-announcing" : "badge-seeding",
+      badgeClass:
+        status === "Announcing" ? "badge-announcing" : "badge-seeding",
     };
   }
   if (isFailed) {
@@ -73,9 +76,17 @@ export function TrackersTab({
   torrentId?: number;
 }) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
-  const { data: trackers, isLoading, isError, refetch } = useTorrentTrackers(effectiveId);
+  const {
+    data: trackers,
+    isLoading,
+    isError,
+    refetch,
+  } = useTorrentTrackers(effectiveId);
   const { data: availableTrackers } = useTrackerBoostTrackers();
-  const { data: inspection } = useInspectTorrentTrackers(effectiveId, effectiveId > 0);
+  const { data: inspection } = useInspectTorrentTrackers(
+    effectiveId,
+    effectiveId > 0,
+  );
   const addTracker = useAddTorrentTracker();
   const deleteTracker = useDeleteTorrentTracker();
   const announceTracker = useAnnounceTorrentTracker();
@@ -84,7 +95,9 @@ export function TrackersTab({
   const [showPickerModal, setShowPickerModal] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [isAddingBatch, setIsAddingBatch] = useState(false);
-  const isPrivate = Boolean(torrent?.isPrivate || (inspection as any)?.isPrivate);
+  const isPrivate = Boolean(
+    torrent?.isPrivate || (inspection as any)?.isPrivate,
+  );
 
   const handleBoostSwarm = () => {
     if (!effectiveId || isPrivate) return;
@@ -100,11 +113,16 @@ export function TrackersTab({
   };
 
   const attachedUrls = useMemo(() => {
-    return new Set((trackers ?? []).map((t) => (t.url ?? "").trim().toLowerCase()));
+    return new Set(
+      (trackers ?? []).map((t) => (t.url ?? "").trim().toLowerCase()),
+    );
   }, [trackers]);
 
   const detectionMap = useMemo(() => {
-    const map = new Map<string, NonNullable<typeof inspection>["detections"][number]>();
+    const map = new Map<
+      string,
+      NonNullable<typeof inspection>["detections"][number]
+    >();
     (inspection?.detections ?? []).forEach((d) => {
       if (d.trackerUrl) {
         map.set(d.trackerUrl.trim().toLowerCase(), d);
@@ -213,7 +231,10 @@ export function TrackersTab({
     setIsAddingBatch(false);
     setSelectedUrls(new Set());
     if (addedCount > 0) {
-      showToast(`Added ${addedCount} tracker(s) to torrent and queued announce`, "success");
+      showToast(
+        `Added ${addedCount} tracker(s) to torrent and queued announce`,
+        "success",
+      );
     }
     if (errors.length > 0) {
       errors.forEach((e) => showToast(e, "error"));
@@ -233,7 +254,7 @@ export function TrackersTab({
         onError: (err) => {
           showToast(`Failed to remove tracker: ${err.message}`, "error");
         },
-      }
+      },
     );
   };
 
@@ -276,9 +297,9 @@ export function TrackersTab({
           >
             <i className="fas fa-lock" />
             <span>
-              <strong>BEP 27 Private Swarm Active:</strong> Only authorized private tracker
-              endpoints are announced. Public tracker injection, DHT, PEX, and LPD are strictly
-              disabled.
+              <strong>BEP 27 Private Swarm Active:</strong> Only authorized
+              private tracker endpoints are announced. Public tracker injection,
+              DHT, PEX, and LPD are strictly disabled.
             </span>
           </div>
         )}
@@ -296,14 +317,19 @@ export function TrackersTab({
                 <th className="torrent-table-th">Interval</th>
                 <th className="torrent-table-th">Last Announce</th>
                 <th className="torrent-table-th">Next Announce</th>
-                <th className="torrent-table-th" style={{ textAlign: "right", width: "90px" }}>
+                <th
+                  className="torrent-table-th"
+                  style={{ textAlign: "right", width: "90px" }}
+                >
                   Action
                 </th>
               </tr>
             </thead>
             <tbody>
               {trackers.map((t) => {
-                const det = detectionMap.get((t.url ?? "").trim().toLowerCase());
+                const det = detectionMap.get(
+                  (t.url ?? "").trim().toLowerCase(),
+                );
                 const ind = getAttachedTrackerIndicator(t.status, det);
                 return (
                   <tr key={t.id} className="torrent-table-row">
@@ -335,9 +361,15 @@ export function TrackersTab({
                     </td>
                     <td>{t.seeders}</td>
                     <td>{t.leechers}</td>
-                    <td>{t.announceInterval ? `${t.announceInterval}s` : "1800s"}</td>
-                    <td>{t.lastAnnounce ? formatDate(t.lastAnnounce) : "Never"}</td>
-                    <td>{t.nextAnnounce ? formatDate(t.nextAnnounce) : "Queued"}</td>
+                    <td>
+                      {t.announceInterval ? `${t.announceInterval}s` : "1800s"}
+                    </td>
+                    <td>
+                      {t.lastAnnounce ? formatDate(t.lastAnnounce) : "Never"}
+                    </td>
+                    <td>
+                      {t.nextAnnounce ? formatDate(t.nextAnnounce) : "Queued"}
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <div
                         style={{
@@ -358,13 +390,19 @@ export function TrackersTab({
                               { torrentId: effectiveId, trackerId: t.id },
                               {
                                 onSuccess: (data) => {
-                                  showToast(data.message || "Announce queued", "success");
+                                  showToast(
+                                    data.message || "Announce queued",
+                                    "success",
+                                  );
                                   refetch();
                                 },
                                 onError: (err) => {
-                                  showToast(`Announce failed: ${err.message}`, "error");
+                                  showToast(
+                                    `Announce failed: ${err.message}`,
+                                    "error",
+                                  );
                                 },
-                              }
+                              },
                             );
                           }}
                           disabled={announceTracker.isPending}
@@ -443,7 +481,9 @@ export function TrackersTab({
               : "Open tracker picker to select, search, and filter trackers"
           }
         >
-          <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span
+            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+          >
             <span>🎯</span>
             {selectedUrls.size === 0 ? (
               <span style={{ color: "var(--text-muted)" }}>
@@ -451,8 +491,8 @@ export function TrackersTab({
               </span>
             ) : (
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
-                {selectedUrls.size} Tracker{selectedUrls.size === 1 ? "" : "s"} Selected (Click to
-                change)
+                {selectedUrls.size} Tracker{selectedUrls.size === 1 ? "" : "s"}{" "}
+                Selected (Click to change)
               </span>
             )}
           </span>

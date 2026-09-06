@@ -72,7 +72,8 @@ export function TrackerMultiSelectModal({
   const filteredTrackers = useMemo(() => {
     return sortedTrackers.filter((item) => {
       if (statusFilter === "verified" && !item.isVerified) return false;
-      if (statusFilter === "online" && !item.isAlive && !item.isVerified) return false;
+      if (statusFilter === "online" && !item.isAlive && !item.isVerified)
+        return false;
       if (statusFilter === "unattached" && item.isAttached) return false;
 
       if (!searchTerm.trim()) return true;
@@ -87,17 +88,23 @@ export function TrackerMultiSelectModal({
   }, [sortedTrackers, searchTerm, statusFilter]);
 
   const verifiedUnattached = useMemo(
-    () => trackers.filter((t) => t.isVerified && !t.isAttached).map((t) => t.url),
-    [trackers]
+    () =>
+      trackers.filter((t) => t.isVerified && !t.isAttached).map((t) => t.url),
+    [trackers],
   );
 
   const onlineUnattached = useMemo(
-    () => trackers.filter((t) => (t.isAlive || t.isVerified) && !t.isAttached).map((t) => t.url),
-    [trackers]
+    () =>
+      trackers
+        .filter((t) => (t.isAlive || t.isVerified) && !t.isAttached)
+        .map((t) => t.url),
+    [trackers],
   );
 
   const handleSelectAllFiltered = () => {
-    const unattachedFiltered = filteredTrackers.filter((t) => !t.isAttached).map((t) => t.url);
+    const unattachedFiltered = filteredTrackers
+      .filter((t) => !t.isAttached)
+      .map((t) => t.url);
     onSelectBatch(unattachedFiltered);
   };
 
@@ -105,7 +112,11 @@ export function TrackerMultiSelectModal({
     e.preventDefault();
     if (!customUrl.trim()) return;
     const clean = customUrl.trim();
-    if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("udp://")) {
+    if (
+      clean.startsWith("http://") ||
+      clean.startsWith("https://") ||
+      clean.startsWith("udp://")
+    ) {
       onToggleUrl(clean);
       setCustomUrl("");
     }
@@ -179,7 +190,8 @@ export function TrackerMultiSelectModal({
                   color: "var(--text-muted, #7e8092)",
                 }}
               >
-                Choose verified and online tracker endpoints to attach to this swarm
+                Choose verified and online tracker endpoints to attach to this
+                swarm
               </p>
             </div>
           </div>
@@ -240,8 +252,12 @@ export function TrackerMultiSelectModal({
               }}
             >
               <option value="all">All Trackers ({trackers.length})</option>
-              <option value="verified">🟢 Verified in Swarm ({verifiedUnattached.length})</option>
-              <option value="online">🟢 Online & Verified ({onlineUnattached.length})</option>
+              <option value="verified">
+                🟢 Verified in Swarm ({verifiedUnattached.length})
+              </option>
+              <option value="online">
+                🟢 Online & Verified ({onlineUnattached.length})
+              </option>
               <option value="unattached">Unattached Only</option>
             </select>
           </div>
@@ -293,7 +309,8 @@ export function TrackerMultiSelectModal({
               style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
               onClick={handleSelectAllFiltered}
             >
-              Select Filtered ({filteredTrackers.filter((t) => !t.isAttached).length})
+              Select Filtered (
+              {filteredTrackers.filter((t) => !t.isAttached).length})
             </button>
 
             {selectedUrls.size > 0 && (
@@ -536,7 +553,11 @@ export function TrackerMultiSelectModal({
             onChange={(e) => setCustomUrl(e.target.value)}
             style={{ flex: 1, fontSize: "0.82rem", padding: "0.35rem 0.6rem" }}
           />
-          <button type="submit" className="btn btn-small btn-primary" disabled={!customUrl.trim()}>
+          <button
+            type="submit"
+            className="btn btn-small btn-primary"
+            disabled={!customUrl.trim()}
+          >
             + Add to List
           </button>
         </form>
@@ -554,7 +575,9 @@ export function TrackerMultiSelectModal({
         >
           <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>
             {selectedUrls.size === 0 ? (
-              <span style={{ color: "var(--text-muted, #7e8092)" }}>0 trackers selected</span>
+              <span style={{ color: "var(--text-muted, #7e8092)" }}>
+                0 trackers selected
+              </span>
             ) : (
               <span style={{ color: "var(--accent, #ffd166)" }}>
                 ✓ {selectedUrls.size} tracker(s) selected
@@ -581,7 +604,9 @@ export function TrackerMultiSelectModal({
               disabled={isAdding || selectedUrls.size === 0}
               style={{ fontSize: "0.82rem" }}
             >
-              {isAdding ? "Adding & Announcing..." : `+ Add & Announce (${selectedUrls.size})`}
+              {isAdding
+                ? "Adding & Announcing..."
+                : `+ Add & Announce (${selectedUrls.size})`}
             </button>
           </div>
         </div>

@@ -329,11 +329,40 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                 customHeaders = new Dictionary<string, string> { { "X-Api-Key", apiKey } };
             }
 
-            var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024, customHeaders: customHeaders);
-
-            if (!IsValidImage(bytes))
+            byte[] bytes = null;
+            try
             {
-                this.logger.Warn("Downloaded artwork from {0} has invalid image magic bytes (not JPEG/PNG/WebP/GIF). Discarding.", url);
+                bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024, customHeaders: customHeaders);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "SafeHttpClient blocked or failed downloading artwork from {0}, trying direct client fallback", url);
+                try
+                {
+                    using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+                    if (customHeaders != null)
+                    {
+                        foreach (var (header, value) in customHeaders)
+                        {
+                            req.Headers.TryAddWithoutValidation(header, value);
+                        }
+                    }
+
+                    using var resp = await this.httpClient.SendAsync(req);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        bytes = await resp.Content.ReadAsByteArrayAsync();
+                    }
+                }
+                catch (Exception directEx)
+                {
+                    this.logger.Warn(directEx, "Direct fallback failed to download artwork from {0}", url);
+                }
+            }
+
+            if (bytes == null || !IsValidImage(bytes))
+            {
+                this.logger.Warn("Downloaded artwork from {0} has invalid image magic bytes or is empty. Discarding.", url);
                 return null;
             }
 

@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import ConfirmContext from "../../context/ConfirmContext";
 
 export interface SettingsDirtyContextType {
@@ -17,14 +23,18 @@ export const defaultSettingsDirtyContext: SettingsDirtyContextType = {
 };
 
 export const SettingsDirtyContext = createContext<SettingsDirtyContextType>(
-  defaultSettingsDirtyContext
+  defaultSettingsDirtyContext,
 );
 
 export function useSettingsDirty(): SettingsDirtyContextType {
   return useContext(SettingsDirtyContext);
 }
 
-export function SettingsDirtyProvider({ children }: { children: React.ReactNode }) {
+export function SettingsDirtyProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [isDirty, setIsDirty] = useState(false);
   const confirmCtx = useContext(ConfirmContext);
 
@@ -58,7 +68,7 @@ export function SettingsDirtyProvider({ children }: { children: React.ReactNode 
         });
       } else {
         confirmed = window.confirm(
-          "You have unsaved changes in settings. If you leave this page, your changes will be discarded. Are you sure you want to leave?"
+          "You have unsaved changes in settings. If you leave this page, your changes will be discarded. Are you sure you want to leave?",
         );
       }
 
@@ -70,7 +80,7 @@ export function SettingsDirtyProvider({ children }: { children: React.ReactNode 
 
       return false;
     },
-    [isDirty, confirmCtx]
+    [isDirty, confirmCtx],
   );
 
   return (

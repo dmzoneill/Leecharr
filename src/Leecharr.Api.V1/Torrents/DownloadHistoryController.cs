@@ -132,6 +132,7 @@ public class DownloadHistoryController : Controller
                         Id = record.TorrentId ?? 0,
                         Name = record.Title,
                         InfoHash = record.InfoHash ?? string.Empty,
+                        Category = record.Source,
                     };
                     var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
                     if (metadata != null)
@@ -157,9 +158,46 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("reconcile")]
-    public ActionResult Reconcile()
+    public async Task<ActionResult> Reconcile()
     {
         var count = this.historyService.ReconcileAllTorrents();
+        if (this.mediaEnrichmentService != null)
+        {
+            var records = this.historyService.GetAll(null, null, 1000);
+            foreach (var record in records)
+            {
+                if (string.IsNullOrEmpty(record.DataJson) || record.DataJson == "{}")
+                {
+                    try
+                    {
+                        var torrent = new Torrent
+                        {
+                            Id = record.TorrentId ?? 0,
+                            Name = record.Title,
+                            InfoHash = record.InfoHash ?? string.Empty,
+                            Category = record.Source,
+                        };
+                        var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                        if (metadata != null)
+                        {
+                            record.DataJson = JsonSerializer.Serialize(metadata);
+                            if (this.downloadHistoryRepository != null)
+                            {
+                                this.downloadHistoryRepository.Update(record);
+                            }
+                            else
+                            {
+                                this.historyService.Update(record);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
         return this.Ok(new { success = true, processedCount = count });
     }
 

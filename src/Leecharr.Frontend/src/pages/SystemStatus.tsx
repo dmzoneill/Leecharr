@@ -35,7 +35,9 @@ function SystemStatus() {
         }}
       >
         <div className="page-header-group">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Status
             </h1>
@@ -48,8 +50,8 @@ function SystemStatus() {
               marginTop: "0.2rem",
             }}
           >
-            Runtime environment, service health checks, disk allocations, and integrated ecosystem
-            endpoints
+            Runtime environment, service health checks, disk allocations, and
+            integrated ecosystem endpoints
           </div>
         </div>
 
@@ -77,8 +79,11 @@ function SystemStatus() {
               {formatUptime(
                 status.uptimeSeconds ??
                   (status.startTime
-                    ? Math.floor((Date.now() - new Date(status.startTime).getTime()) / 1000)
-                    : 0)
+                    ? Math.floor(
+                        (Date.now() - new Date(status.startTime).getTime()) /
+                          1000,
+                      )
+                    : 0),
               )}
             </span>
           </div>
@@ -94,7 +99,8 @@ function SystemStatus() {
           marginBottom: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: "1.25rem",
         }}
       >
@@ -152,11 +158,14 @@ function SystemStatus() {
           >
             <span>✓</span>
             <span>
-              All background tasks and service configuration checks passed with no warnings.
+              All background tasks and service configuration checks passed with
+              no warnings.
             </span>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
+          >
             {warningOrErrorChecks.map((check, i) => {
               const isError = check.type === "Error";
               return (
@@ -172,9 +181,13 @@ function SystemStatus() {
                       ? "rgba(220, 53, 69, 0.15)"
                       : "rgba(255, 193, 7, 0.12)",
                     border: `1px solid ${
-                      isError ? "rgba(220, 53, 69, 0.35)" : "rgba(255, 193, 7, 0.3)"
+                      isError
+                        ? "rgba(220, 53, 69, 0.35)"
+                        : "rgba(255, 193, 7, 0.3)"
                     }`,
-                    color: isError ? "var(--danger, #dc3545)" : "var(--warning, #ffc107)",
+                    color: isError
+                      ? "var(--danger, #dc3545)"
+                      : "var(--warning, #ffc107)",
                     fontSize: "0.875rem",
                   }}
                 >
@@ -216,7 +229,8 @@ function SystemStatus() {
             marginBottom: "1.25rem",
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow:
+              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: 0,
             overflow: "hidden",
           }}
@@ -269,7 +283,10 @@ function SystemStatus() {
                   <th className="torrent-table-th">Endpoint / Host</th>
                   <th className="torrent-table-th">State</th>
                   <th className="torrent-table-th">Integration Features</th>
-                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                  <th
+                    className="torrent-table-th"
+                    style={{ textAlign: "right" }}
+                  >
                     Actions
                   </th>
                 </tr>
@@ -278,16 +295,22 @@ function SystemStatus() {
                 {arrConnections?.map((conn) => (
                   <tr key={`arr-${conn.id}`} className="torrent-table-row">
                     <td>
-                      <strong style={{ color: "var(--text-primary)" }}>{conn.name}</strong>
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {conn.name}
+                      </strong>
                     </td>
                     <td>
-                      <span className="badge badge-primary">{conn.arrType}</span>
+                      <span className="badge badge-primary">
+                        {conn.arrType}
+                      </span>
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>{conn.url}</code>
                     </td>
                     <td>
-                      <span className={`badge ${conn.enable ? "badge-seeding" : "badge-stopped"}`}>
+                      <span
+                        className={`badge ${conn.enable ? "badge-seeding" : "badge-stopped"}`}
+                      >
                         {conn.enable ? "Enabled" : "Disabled"}
                       </span>
                     </td>
@@ -330,10 +353,14 @@ function SystemStatus() {
                 {downloadClients?.map((client) => (
                   <tr key={`client-${client.id}`} className="torrent-table-row">
                     <td>
-                      <strong style={{ color: "var(--text-primary)" }}>{client.name}</strong>
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {client.name}
+                      </strong>
                     </td>
                     <td>
-                      <span className="badge badge-secondary">{client.clientType}</span>
+                      <span className="badge badge-secondary">
+                        {client.clientType}
+                      </span>
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>
@@ -380,16 +407,24 @@ function SystemStatus() {
                 {indexers?.map((idx) => (
                   <tr key={`indexer-${idx.id}`} className="torrent-table-row">
                     <td>
-                      <strong style={{ color: "var(--text-primary)" }}>{idx.name}</strong>
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {idx.name}
+                      </strong>
                     </td>
                     <td>
-                      <span className="badge badge-secondary">{idx.indexerType}</span>
+                      <span className="badge badge-secondary">
+                        {idx.indexerType}
+                      </span>
                     </td>
                     <td>
-                      <code style={{ fontSize: "0.8rem" }}>{idx.url || "-"}</code>
+                      <code style={{ fontSize: "0.8rem" }}>
+                        {idx.url || "-"}
+                      </code>
                     </td>
                     <td>
-                      <span className={`badge ${idx.enable ? "badge-seeding" : "badge-stopped"}`}>
+                      <span
+                        className={`badge ${idx.enable ? "badge-seeding" : "badge-stopped"}`}
+                      >
                         {idx.enable ? "Enabled" : "Disabled"}
                       </span>
                     </td>
@@ -437,7 +472,8 @@ function SystemStatus() {
           marginBottom: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -465,7 +501,8 @@ function SystemStatus() {
               marginTop: "0.2rem",
             }}
           >
-            Host storage drives and mount points available for torrent payload persistence
+            Host storage drives and mount points available for torrent payload
+            persistence
           </div>
         </div>
 
@@ -485,14 +522,20 @@ function SystemStatus() {
               <tbody>
                 {diskSpace.map((d, i) => {
                   const usedPercent =
-                    d.totalSpace > 0 ? ((d.totalSpace - d.freeSpace) / d.totalSpace) * 100 : 0;
+                    d.totalSpace > 0
+                      ? ((d.totalSpace - d.freeSpace) / d.totalSpace) * 100
+                      : 0;
                   let barClass = "disk-progress-bar";
-                  if (usedPercent >= 90) barClass += " disk-progress-bar-danger";
-                  else if (usedPercent >= 75) barClass += " disk-progress-bar-warning";
+                  if (usedPercent >= 90)
+                    barClass += " disk-progress-bar-danger";
+                  else if (usedPercent >= 75)
+                    barClass += " disk-progress-bar-warning";
                   return (
                     <tr key={i} className="torrent-table-row">
                       <td>
-                        <strong style={{ color: "var(--text-primary)" }}>{d.label}</strong>{" "}
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {d.label}
+                        </strong>{" "}
                         <span
                           style={{
                             color: "var(--text-muted)",
@@ -516,7 +559,10 @@ function SystemStatus() {
                               borderRadius: "4px",
                             }}
                           />
-                          <span className="disk-progress-text" style={{ fontWeight: 600 }}>
+                          <span
+                            className="disk-progress-text"
+                            style={{ fontWeight: 600 }}
+                          >
                             {usedPercent.toFixed(1)}%
                           </span>
                         </div>
@@ -550,7 +596,8 @@ function SystemStatus() {
             style={{
               borderRadius: "8px",
               border: "1px solid rgba(255, 255, 255, 0.08)",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+              boxShadow:
+                "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
               padding: "1.25rem",
             }}
           >
@@ -582,7 +629,9 @@ function SystemStatus() {
                 <div className="status-row">
                   <span className="status-label">Instance UUID</span>
                   <span className="status-value">
-                    <code style={{ fontSize: "0.82rem" }}>{status.instanceUuid}</code>
+                    <code style={{ fontSize: "0.82rem" }}>
+                      {status.instanceUuid}
+                    </code>
                   </span>
                 </div>
               )}
@@ -594,18 +643,24 @@ function SystemStatus() {
               </div>
               <div className="status-row">
                 <span className="status-label">Database</span>
-                <span className="status-value">{status.databaseVersion || "SQLite"}</span>
+                <span className="status-value">
+                  {status.databaseVersion || "SQLite"}
+                </span>
               </div>
               <div className="status-row">
                 <span className="status-label">Database Migration</span>
                 <span className="status-value">
-                  {status.databaseMigration ? `Schema #${status.databaseMigration}` : "Current"}
+                  {status.databaseMigration
+                    ? `Schema #${status.databaseMigration}`
+                    : "Current"}
                 </span>
               </div>
               <div className="status-row">
                 <span className="status-label">AppData Directory</span>
                 <span className="status-value">
-                  <code>{status.appDataPath || status.appDataFolder || "-"}</code>
+                  <code>
+                    {status.appDataPath || status.appDataFolder || "-"}
+                  </code>
                 </span>
               </div>
               <div className="status-row">
@@ -633,7 +688,8 @@ function SystemStatus() {
           style={{
             borderRadius: "8px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+            boxShadow:
+              "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: "1.25rem",
           }}
         >
@@ -648,7 +704,9 @@ function SystemStatus() {
           >
             Resources & Links
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
+          >
             <div className="status-row">
               <span className="status-label">Official Website</span>
               <span className="status-value">

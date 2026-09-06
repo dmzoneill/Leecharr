@@ -1506,10 +1506,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (m != null)
             {
                 var mon = m.Monitor;
-                if (mon != null)
+                var isInactive = task.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+                if (mon != null && !isInactive)
                 {
                     totalDownSpeed += mon.DownloadRate;
                     totalUpSpeed += mon.UploadRate;
+                }
+
+                if (mon != null)
+                {
                     totalDataDown += mon.DataBytesReceived;
                     totalDataUp += mon.DataBytesSent;
                     totalProtoDown += mon.ProtocolBytesReceived;
@@ -2522,13 +2527,13 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public double Progress => this.Manager != null ? this.Manager.Progress / 100.0 : 0.0;
 
-    public long DownloadSpeed => this.Manager?.Monitor?.DownloadRate ?? 0;
+    public long DownloadSpeed => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Monitor?.DownloadRate ?? 0);
 
-    public long UploadSpeed => this.Manager?.Monitor?.UploadRate ?? 0;
+    public long UploadSpeed => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Monitor?.UploadRate ?? 0);
 
-    public int ConnectedSeeders => this.Manager?.Peers?.Seeds ?? 0;
+    public int ConnectedSeeders => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Peers?.Seeds ?? 0);
 
-    public int ConnectedLeechers => this.Manager?.Peers?.Leechs ?? 0;
+    public int ConnectedLeechers => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Peers?.Leechs ?? 0);
 
     public bool IsSuperSeeding => this.Manager?.IsInitialSeeding ?? false;
 
@@ -2803,11 +2808,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
             swarmAvailability = Math.Round((double)sum / availabilityList.Length, 2);
         }
 
-        var downSpeed = monitor?.DownloadRate ?? 0;
-        var upSpeed = monitor?.UploadRate ?? 0;
+        var isInactive = this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+        var downSpeed = isInactive ? 0 : (monitor?.DownloadRate ?? 0);
+        var upSpeed = isInactive ? 0 : (monitor?.UploadRate ?? 0);
         var totalSize = this.Manager.Torrent?.Size ?? (long)totalPieces * pieceLength;
         long? etaSeconds = null;
-        if (isDownloading && downSpeed > 0 && totalSize > dataDown)
+        if (!isInactive && isDownloading && downSpeed > 0 && totalSize > dataDown)
         {
             etaSeconds = (totalSize - dataDown) / downSpeed;
         }

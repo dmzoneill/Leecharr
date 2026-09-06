@@ -54,7 +54,10 @@ function useNotificationSettings(): [
 
   const saveSettings = (newSettings: NotificationSettings) => {
     setSettings(newSettings);
-    localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(newSettings));
+    localStorage.setItem(
+      NOTIFICATION_SETTINGS_KEY,
+      JSON.stringify(newSettings),
+    );
   };
 
   return [settings, saveSettings];
@@ -131,7 +134,9 @@ function getDefaultFormForImplementation(impl: string): NotificationFormState {
   };
 }
 
-function parseNotificationToForm(notif: NotificationResource): NotificationFormState {
+function parseNotificationToForm(
+  notif: NotificationResource,
+): NotificationFormState {
   let parsed: Record<string, any> = {};
   if (notif.settings) {
     try {
@@ -161,7 +166,12 @@ function parseNotificationToForm(notif: NotificationResource): NotificationFormS
     onApplicationUpdate: notif.onApplicationUpdate ?? false,
     tags: notif.tags || [],
 
-    url: parsed.serverUrl || parsed.url || parsed.targetUrl || parsed.webhookUrl || "",
+    url:
+      parsed.serverUrl ||
+      parsed.url ||
+      parsed.targetUrl ||
+      parsed.webhookUrl ||
+      "",
     token: parsed.token || parsed.botToken || parsed.apiKey || "",
     chatId: parsed.chat_id || parsed.chatId || "",
     userKey: parsed.user || parsed.userKey || "",
@@ -182,7 +192,9 @@ function parseNotificationToForm(notif: NotificationResource): NotificationFormS
   };
 }
 
-function buildNotificationPayload(form: NotificationFormState): NotificationResource {
+function buildNotificationPayload(
+  form: NotificationFormState,
+): NotificationResource {
   let settingsObj: Record<string, any> = {};
 
   switch (form.implementation) {
@@ -331,10 +343,14 @@ function getNotificationSummary(notif: NotificationResource): string {
   try {
     const s = JSON.parse(notif.settings || "{}");
     if (notif.implementation === "Telegram") {
-      return s.chat_id || s.chatId ? `Chat ID: ${s.chat_id || s.chatId}` : "Telegram Bot";
+      return s.chat_id || s.chatId
+        ? `Chat ID: ${s.chat_id || s.chatId}`
+        : "Telegram Bot";
     }
     if (notif.implementation === "Pushover") {
-      return s.user ? `User: ${String(s.user).substring(0, 6)}...` : "Pushover Alert";
+      return s.user
+        ? `User: ${String(s.user).substring(0, 6)}...`
+        : "Pushover Alert";
     }
     if (notif.implementation === "Email") {
       return s.recipient
@@ -352,11 +368,14 @@ function getNotificationSummary(notif: NotificationResource): string {
 function getNotificationUrl(notif: NotificationResource): string | null {
   try {
     const s = JSON.parse(notif.settings || "{}");
-    if (typeof s.serverUrl === "string" && s.serverUrl.startsWith("http")) return s.serverUrl;
+    if (typeof s.serverUrl === "string" && s.serverUrl.startsWith("http"))
+      return s.serverUrl;
     if (typeof s.url === "string" && s.url.startsWith("http")) return s.url;
-    if (notif.settings && notif.settings.startsWith("http")) return notif.settings;
+    if (notif.settings && notif.settings.startsWith("http"))
+      return notif.settings;
   } catch {
-    if (notif.settings && notif.settings.startsWith("http")) return notif.settings;
+    if (notif.settings && notif.settings.startsWith("http"))
+      return notif.settings;
   }
   return null;
 }
@@ -372,7 +391,8 @@ export function NotificationsTab() {
   const [saved, setSaved] = useState(false);
 
   // Backend outbound notifications
-  const { data: notifications, isLoading: isLoadingNotifications } = useNotifications();
+  const { data: notifications, isLoading: isLoadingNotifications } =
+    useNotifications();
   const createMutation = useCreateNotification();
   const updateMutation = useUpdateNotification();
   const deleteMutation = useDeleteNotification();
@@ -380,8 +400,11 @@ export function NotificationsTab() {
   const testDirectMutation = useTestDirectNotification();
 
   const [editing, setEditing] = useState<NotificationFormState | null>(null);
-  const [testResults, setTestResults] = useState<Record<number, NotificationTestResult | null>>({});
-  const [modalTestResult, setModalTestResult] = useState<NotificationTestResult | null>(null);
+  const [testResults, setTestResults] = useState<
+    Record<number, NotificationTestResult | null>
+  >({});
+  const [modalTestResult, setModalTestResult] =
+    useState<NotificationTestResult | null>(null);
 
   useEscapeKey(() => {
     setEditing(null);
@@ -390,7 +413,7 @@ export function NotificationsTab() {
 
   const setToastPref = <K extends keyof NotificationSettings>(
     key: K,
-    value: NotificationSettings[K]
+    value: NotificationSettings[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setDirty(true);
@@ -404,7 +427,10 @@ export function NotificationsTab() {
       setSaved(true);
       showToast("Toast notification preferences saved", "success");
     } catch (err: any) {
-      showToast(err?.message || "Failed to save notification preferences", "error");
+      showToast(
+        err?.message || "Failed to save notification preferences",
+        "error",
+      );
     }
   };
 
@@ -420,16 +446,22 @@ export function NotificationsTab() {
 
   const handleTypeChange = (newType: string) => {
     if (!editing) return;
-    const currentDefaults = getDefaultFormForImplementation(editing.implementation);
+    const currentDefaults = getDefaultFormForImplementation(
+      editing.implementation,
+    );
     const newDefaults = getDefaultFormForImplementation(newType);
-    const isDefaultName = !editing.name || editing.name === currentDefaults.name;
+    const isDefaultName =
+      !editing.name || editing.name === currentDefaults.name;
 
     setEditing({
       ...editing,
       implementation: newType,
       name: isDefaultName ? newDefaults.name : editing.name,
       configContract: `${newType}Settings`,
-      username: newType === "Discord" && !editing.username ? "Leecharr" : editing.username,
+      username:
+        newType === "Discord" && !editing.username
+          ? "Leecharr"
+          : editing.username,
     });
     setModalTestResult(null);
   };
@@ -441,11 +473,14 @@ export function NotificationsTab() {
         onSuccess: (data) => {
           setTestResults((prev) => ({ ...prev, [id]: data }));
           if (data.success) {
-            showToast(`Test notification for "${name}" sent successfully`, "success");
+            showToast(
+              `Test notification for "${name}" sent successfully`,
+              "success",
+            );
           } else {
             showToast(
               `Test notification for "${name}" failed: ${data.message || "Unknown error"}`,
-              "error"
+              "error",
             );
           }
         },
@@ -485,7 +520,10 @@ export function NotificationsTab() {
           if (data.success) {
             showToast("Test notification sent successfully", "success");
           } else {
-            showToast(`Test notification failed: ${data.message || "Unknown error"}`, "error");
+            showToast(
+              `Test notification failed: ${data.message || "Unknown error"}`,
+              "error",
+            );
           }
         },
         onError: (err: any) => {
@@ -696,13 +734,19 @@ export function NotificationsTab() {
                       {notif.implementation}
                     </span>
                     {notif.enable === false && (
-                      <span className="provider-card-badge provider-card-badge-gray">Disabled</span>
+                      <span className="provider-card-badge provider-card-badge-gray">
+                        Disabled
+                      </span>
                     )}
                     {notif.onGrab && (
-                      <span className="provider-card-badge provider-card-badge-blue">Grab</span>
+                      <span className="provider-card-badge provider-card-badge-blue">
+                        Grab
+                      </span>
                     )}
                     {notif.onDownloadComplete && (
-                      <span className="provider-card-badge provider-card-badge-blue">Complete</span>
+                      <span className="provider-card-badge provider-card-badge-blue">
+                        Complete
+                      </span>
                     )}
                     {notif.onSeedGoalReached && (
                       <span className="provider-card-badge provider-card-badge-blue">
@@ -710,7 +754,9 @@ export function NotificationsTab() {
                       </span>
                     )}
                     {notif.onHealthIssue && (
-                      <span className="provider-card-badge provider-card-badge-blue">Health</span>
+                      <span className="provider-card-badge provider-card-badge-blue">
+                        Health
+                      </span>
                     )}
                   </div>
                   <div className="provider-card-info">{summary}</div>
@@ -728,7 +774,9 @@ export function NotificationsTab() {
                     </div>
                   )}
                   {testResults[notif.id] === null && (
-                    <div className="provider-card-test provider-card-test-pending">Testing...</div>
+                    <div className="provider-card-test provider-card-test-pending">
+                      Testing...
+                    </div>
                   )}
                 </div>
               );
@@ -764,8 +812,13 @@ export function NotificationsTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
-              {editing.id ? "Edit Notification Connection" : "Add Notification Connection"}
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
+              {editing.id
+                ? "Edit Notification Connection"
+                : "Add Notification Connection"}
             </div>
 
             <TextInput
@@ -1052,13 +1105,17 @@ export function NotificationsTab() {
               <Toggle
                 label="On Download Complete"
                 checked={editing.onDownloadComplete}
-                onChange={(v) => setEditing({ ...editing, onDownloadComplete: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onDownloadComplete: v })
+                }
                 hint="Piece check completes 100%"
               />
               <Toggle
                 label="On Seed Goal Reached"
                 checked={editing.onSeedGoalReached}
-                onChange={(v) => setEditing({ ...editing, onSeedGoalReached: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onSeedGoalReached: v })
+                }
                 hint="Target ratio or seed time met"
               />
               <Toggle
@@ -1070,37 +1127,49 @@ export function NotificationsTab() {
               <Toggle
                 label="On Health Restored"
                 checked={editing.onHealthRestored}
-                onChange={(v) => setEditing({ ...editing, onHealthRestored: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onHealthRestored: v })
+                }
                 hint="Health issue returns to normal"
               />
               <Toggle
                 label="On Manual Action Required"
                 checked={editing.onManualInteractionRequired}
-                onChange={(v) => setEditing({ ...editing, onManualInteractionRequired: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onManualInteractionRequired: v })
+                }
                 hint="Stalled or action needed"
               />
               <Toggle
                 label="On Media Inspected"
                 checked={editing.onMediaInspected}
-                onChange={(v) => setEditing({ ...editing, onMediaInspected: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onMediaInspected: v })
+                }
                 hint="Codecs and stream info inspected"
               />
               <Toggle
                 label="On Extract Complete"
                 checked={editing.onExtractComplete}
-                onChange={(v) => setEditing({ ...editing, onExtractComplete: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onExtractComplete: v })
+                }
                 hint="Archive unpack finished"
               />
               <Toggle
                 label="On Torrent Deleted"
                 checked={editing.onTorrentDeleted}
-                onChange={(v) => setEditing({ ...editing, onTorrentDeleted: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onTorrentDeleted: v })
+                }
                 hint="Torrent removed from client"
               />
               <Toggle
                 label="On Application Update"
                 checked={editing.onApplicationUpdate}
-                onChange={(v) => setEditing({ ...editing, onApplicationUpdate: v })}
+                onChange={(v) =>
+                  setEditing({ ...editing, onApplicationUpdate: v })
+                }
                 hint="Leecharr upgraded to new version"
               />
             </div>
@@ -1142,7 +1211,9 @@ export function NotificationsTab() {
                     ? "var(--success, #28a745)"
                     : "var(--danger, #dc3545)",
                   border: `1px solid ${
-                    modalTestResult.success ? "rgba(40, 167, 69, 0.35)" : "rgba(220, 53, 69, 0.35)"
+                    modalTestResult.success
+                      ? "rgba(40, 167, 69, 0.35)"
+                      : "rgba(220, 53, 69, 0.35)"
                   }`,
                 }}
               >
@@ -1199,7 +1270,9 @@ export function NotificationsTab() {
                 onClick={handleModalTest}
                 disabled={testDirectMutation.isPending}
               >
-                {testDirectMutation.isPending ? "Testing..." : "Test Notification"}
+                {testDirectMutation.isPending
+                  ? "Testing..."
+                  : "Test Notification"}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -1216,9 +1289,13 @@ export function NotificationsTab() {
                   type="button"
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
                 >
-                  {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
             </div>

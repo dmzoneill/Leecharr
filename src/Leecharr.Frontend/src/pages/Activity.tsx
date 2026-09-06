@@ -49,7 +49,9 @@ function Activity() {
     const act = recent.map((s) => sanitizeNumber(s.activeTorrents));
     const peers = recent.map((s) => sanitizeNumber(s.totalPeers));
     const rat = recent.map((s) => sanitizeNumber(s.averageRatio));
-    const net = recent.map((s) => sanitizeNumber(s.uploadSpeed) + sanitizeNumber(s.downloadSpeed));
+    const net = recent.map(
+      (s) => sanitizeNumber(s.uploadSpeed) + sanitizeNumber(s.downloadSpeed),
+    );
 
     setHistory({
       uploadSpeed: up,
@@ -70,7 +72,7 @@ function Activity() {
 
     const totalPeers = (torrentsRef.current ?? []).reduce(
       (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-      0
+      0,
     );
 
     const push = (arr: number[], val: number) => {
@@ -84,17 +86,27 @@ function Activity() {
     setHistory((curr) => ({
       uploadSpeed: push(curr.uploadSpeed, upSpeed),
       downloadSpeed: push(curr.downloadSpeed, downSpeed),
-      activeTorrents: push(curr.activeTorrents, sanitizeNumber(stats.activeTorrents)),
+      activeTorrents: push(
+        curr.activeTorrents,
+        sanitizeNumber(stats.activeTorrents),
+      ),
       peerConnections: push(curr.peerConnections, sanitizeNumber(totalPeers)),
-      ratio: push(curr.ratio, sanitizeNumber(stats.averageRatio ?? stats.globalRatio)),
+      ratio: push(
+        curr.ratio,
+        sanitizeNumber(stats.averageRatio ?? stats.globalRatio),
+      ),
       networkActivity: push(curr.networkActivity, upSpeed + downSpeed),
     }));
   }, [stats]);
 
   const currentUpload =
-    history.uploadSpeed.length > 0 ? history.uploadSpeed[history.uploadSpeed.length - 1] : 0;
+    history.uploadSpeed.length > 0
+      ? history.uploadSpeed[history.uploadSpeed.length - 1]
+      : 0;
   const currentDownload =
-    history.downloadSpeed.length > 0 ? history.downloadSpeed[history.downloadSpeed.length - 1] : 0;
+    history.downloadSpeed.length > 0
+      ? history.downloadSpeed[history.downloadSpeed.length - 1]
+      : 0;
   const currentActive =
     stats?.activeTorrents ??
     (history.activeTorrents.length > 0
@@ -102,7 +114,7 @@ function Activity() {
       : 0);
   const currentPeers = (torrents ?? []).reduce(
     (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-    0
+    0,
   );
   const currentRatio =
     stats?.averageRatio ??
@@ -122,7 +134,9 @@ function Activity() {
         }}
       >
         <div className="page-header-group">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <h1 className="page-heading" style={{ margin: 0 }}>
               Activity Metrics
             </h1>

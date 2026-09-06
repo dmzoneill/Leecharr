@@ -1,8 +1,16 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats } from "../api/hooks";
-import { formatBytes, formatSpeed, formatRatio, formatSeconds } from "../utils/formatters";
-import { calculateAchievements, calculateTrackerBuffers } from "../utils/milestones";
+import {
+  formatBytes,
+  formatSpeed,
+  formatRatio,
+  formatSeconds,
+} from "../utils/formatters";
+import {
+  calculateAchievements,
+  calculateTrackerBuffers,
+} from "../utils/milestones";
 import SpeedGraph from "../components/SpeedGraph";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
@@ -16,16 +24,26 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function Statistics() {
-  const { data: torrents, isLoading: torrentsLoading, isError: torrentsError } = useTorrents();
+  const {
+    data: torrents,
+    isLoading: torrentsLoading,
+    isError: torrentsError,
+  } = useTorrents();
   const { data: stats } = useSeedingStats();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "achievements" | "buffers" | "simulator">(
-    "overview"
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "achievements" | "buffers" | "simulator"
+  >("overview");
+
+  const achievements = useMemo(
+    () => calculateAchievements(torrents, stats),
+    [torrents, stats],
   );
 
-  const achievements = useMemo(() => calculateAchievements(torrents, stats), [torrents, stats]);
-
-  const trackerBuffers = useMemo(() => calculateTrackerBuffers(torrents), [torrents]);
+  const trackerBuffers = useMemo(
+    () => calculateTrackerBuffers(torrents),
+    [torrents],
+  );
 
   const statusCounts: Record<string, number> = {};
   (torrents ?? []).forEach((t) => {
@@ -34,7 +52,9 @@ function Statistics() {
   const total = torrents?.length ?? 0;
   const entries = Object.entries(statusCounts).filter(([, v]) => v > 0);
 
-  const topTorrents = [...(torrents ?? [])].sort((a, b) => b.uploaded - a.uploaded).slice(0, 10);
+  const topTorrents = [...(torrents ?? [])]
+    .sort((a, b) => b.uploaded - a.uploaded)
+    .slice(0, 10);
 
   return (
     <div className="content-area">
@@ -51,7 +71,9 @@ function Statistics() {
         }}
       >
         <div className="page-header-group">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <h1 className="page-heading" style={{ margin: 0 }}>
               Statistics & Achievements
             </h1>
@@ -66,7 +88,8 @@ function Statistics() {
               marginTop: "0.2rem",
             }}
           >
-            Live transfer speeds, seeding milestones, swarm preservation, and tracker metrics
+            Live transfer speeds, seeding milestones, swarm preservation, and
+            tracker metrics
           </div>
         </div>
 
@@ -82,7 +105,8 @@ function Statistics() {
             className={`view-toggle-btn ${activeTab === "achievements" ? "active" : ""}`}
             onClick={() => setActiveTab("achievements")}
           >
-            🏆 Achievements ({achievements.unlockedCount}/{achievements.totalCount})
+            🏆 Achievements ({achievements.unlockedCount}/
+            {achievements.totalCount})
           </button>
           <button
             className={`view-toggle-btn ${activeTab === "buffers" ? "active" : ""}`}
@@ -120,7 +144,8 @@ function Statistics() {
                 "linear-gradient(90deg, rgba(200, 168, 78, 0.15) 0%, rgba(22, 22, 22, 0.9) 100%)",
               border: "1px solid rgba(200, 168, 78, 0.3)",
               borderRadius: "8px",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+              boxShadow:
+                "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
               padding: "1rem 1.25rem",
             }}
           >
@@ -135,7 +160,10 @@ function Statistics() {
                 }}
               >
                 <span>🎖️ {achievements.rankTitle}</span>
-                <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                <span
+                  className="badge badge-secondary"
+                  style={{ fontSize: "0.75rem" }}
+                >
                   Level {achievements.overallLevel}
                 </span>
               </div>
@@ -146,8 +174,9 @@ function Statistics() {
                   marginTop: "0.2rem",
                 }}
               >
-                {achievements.unlockedCount} of {achievements.totalCount} Seeding Milestones
-                Unlocked • {achievements.totalSwarmGuardians.length} Rare Swarms Protected
+                {achievements.unlockedCount} of {achievements.totalCount}{" "}
+                Seeding Milestones Unlocked •{" "}
+                {achievements.totalSwarmGuardians.length} Rare Swarms Protected
               </div>
             </div>
 
@@ -165,12 +194,15 @@ function Statistics() {
               style={{
                 marginBottom: "1.25rem",
                 borderRadius: "8px",
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+                boxShadow:
+                  "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
                 padding: "1.25rem",
               }}
             >
-              <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>Status Breakdown</h3>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>
+                Status Breakdown
+              </h3>
               <div
                 style={{
                   display: "flex",
@@ -205,7 +237,10 @@ function Statistics() {
               </div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                 {entries.map(([status, count]) => (
-                  <div key={status} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div
+                    key={status}
+                    style={{ display: "flex", alignItems: "center", gap: 6 }}
+                  >
                     <div
                       style={{
                         width: 12,
@@ -220,7 +255,10 @@ function Statistics() {
                         color: "var(--text-secondary)",
                       }}
                     >
-                      {status}: <strong style={{ color: "var(--text-primary)" }}>{count}</strong>
+                      {status}:{" "}
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {count}
+                      </strong>
                     </span>
                   </div>
                 ))}
@@ -240,12 +278,15 @@ function Statistics() {
               className="card"
               style={{
                 borderRadius: "8px",
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+                boxShadow:
+                  "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
                 padding: "1.25rem",
               }}
             >
-              <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>Top Torrents by Upload</h3>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>
+                Top Torrents by Upload
+              </h3>
               {torrentsLoading ? (
                 <p className="loading">Loading...</p>
               ) : torrentsError ? (
@@ -283,7 +324,9 @@ function Statistics() {
                                 {t.name}
                               </Link>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{formatBytes(t.uploaded)}</td>
+                            <td style={{ fontWeight: 600 }}>
+                              {formatBytes(t.uploaded)}
+                            </td>
                             <td>
                               <span
                                 className={`badge ${t.ratio >= 2.0 ? "badge-primary" : t.ratio >= 1.0 ? "badge-secondary" : "badge-outline"}`}
@@ -314,7 +357,8 @@ function Statistics() {
               className="card"
               style={{
                 borderRadius: "8px",
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+                boxShadow:
+                  "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
                 padding: "1.25rem",
               }}
@@ -327,8 +371,13 @@ function Statistics() {
                   marginBottom: "0.5rem",
                 }}
               >
-                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>🛡️ Swarm Guardians</h3>
-                <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>
+                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
+                  🛡️ Swarm Guardians
+                </h3>
+                <span
+                  className="badge badge-warning"
+                  style={{ fontSize: "0.75rem" }}
+                >
                   {achievements.totalSwarmGuardians.length} Rare
                 </span>
               </div>
@@ -339,13 +388,14 @@ function Statistics() {
                   margin: "0 0 0.75rem 0",
                 }}
               >
-                Releases with 2 or fewer seeders in the world where you are keeping the archive
-                alive.
+                Releases with 2 or fewer seeders in the world where you are
+                keeping the archive alive.
               </p>
 
               {achievements.totalSwarmGuardians.length === 0 ? (
                 <p className="loading" style={{ margin: 0, padding: "1rem 0" }}>
-                  No dying swarms detected. All active torrents have healthy peer counts!
+                  No dying swarms detected. All active torrents have healthy
+                  peer counts!
                 </p>
               ) : (
                 <div className="torrent-table-wrapper">
@@ -373,7 +423,10 @@ function Statistics() {
                             </Link>
                           </td>
                           <td>
-                            <span className="badge badge-danger" style={{ fontSize: "0.75rem" }}>
+                            <span
+                              className="badge badge-danger"
+                              style={{ fontSize: "0.75rem" }}
+                            >
                               ⚠️ {t.seeders} Seeder{t.seeders !== 1 ? "s" : ""}
                             </span>
                           </td>
@@ -393,7 +446,9 @@ function Statistics() {
 
       {/* ACHIEVEMENTS & HALL OF FAME TAB */}
       {activeTab === "achievements" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           {/* Level & Rank Header */}
           <div
             className="card"
@@ -403,7 +458,8 @@ function Statistics() {
                 "linear-gradient(135deg, rgba(200, 168, 78, 0.2) 0%, rgba(20, 20, 20, 0.95) 100%)",
               border: "1px solid var(--accent)",
               borderRadius: "8px",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+              boxShadow:
+                "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             }}
           >
             <div
@@ -430,9 +486,15 @@ function Statistics() {
                 <h2 style={{ margin: "0.25rem 0", fontSize: "1.7rem" }}>
                   Level {achievements.overallLevel} • {achievements.rankTitle}
                 </h2>
-                <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                  {achievements.unlockedCount} of {achievements.totalCount} Achievements Complete (
-                  {((achievements.unlockedCount / achievements.totalCount) * 100).toFixed(0)}
+                <div
+                  style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}
+                >
+                  {achievements.unlockedCount} of {achievements.totalCount}{" "}
+                  Achievements Complete (
+                  {(
+                    (achievements.unlockedCount / achievements.totalCount) *
+                    100
+                  ).toFixed(0)}
                   %)
                 </div>
               </div>
@@ -499,7 +561,8 @@ function Statistics() {
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
-                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+                  boxShadow:
+                    "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
                 }}
               >
                 <div>
@@ -520,7 +583,9 @@ function Statistics() {
                     </span>
                   </div>
 
-                  <h3 style={{ margin: "0 0 0.35rem 0", fontSize: "1.05rem" }}>{badge.name}</h3>
+                  <h3 style={{ margin: "0 0 0.35rem 0", fontSize: "1.05rem" }}>
+                    {badge.name}
+                  </h3>
                   <p
                     style={{
                       fontSize: "0.82rem",
@@ -559,7 +624,9 @@ function Statistics() {
                       style={{
                         width: `${badge.progress}%`,
                         height: "100%",
-                        backgroundColor: badge.isUnlocked ? "var(--accent)" : "var(--text-muted)",
+                        backgroundColor: badge.isUnlocked
+                          ? "var(--accent)"
+                          : "var(--text-muted)",
                       }}
                     />
                   </div>
@@ -572,13 +639,16 @@ function Statistics() {
 
       {/* TRACKER BUFFERS & BONUS POINTS TAB */}
       {activeTab === "buffers" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           <div
             className="card"
             style={{
               padding: "1.25rem",
               borderRadius: "8px",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+              boxShadow:
+                "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
@@ -592,8 +662,9 @@ function Statistics() {
                 margin: 0,
               }}
             >
-              Calculates your safe download buffer across trackers before dropping below 1.0 ratio,
-              plus estimated hourly Bonus Points (BP) generated by your active swarms.
+              Calculates your safe download buffer across trackers before
+              dropping below 1.0 ratio, plus estimated hourly Bonus Points (BP)
+              generated by your active swarms.
             </p>
           </div>
 
@@ -603,7 +674,8 @@ function Statistics() {
               padding: 0,
               overflow: "hidden",
               borderRadius: "8px",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+              boxShadow:
+                "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
@@ -617,7 +689,10 @@ function Statistics() {
                     <th className="torrent-table-th">Total Downloaded</th>
                     <th className="torrent-table-th">Ratio</th>
                     <th className="torrent-table-th">Safe Buffer (1.0x)</th>
-                    <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                    <th
+                      className="torrent-table-th"
+                      style={{ textAlign: "right" }}
+                    >
                       Est. Bonus Points
                     </th>
                   </tr>
@@ -638,7 +713,9 @@ function Statistics() {
                         </Link>
                       </td>
                       <td>{tb.torrentCount}</td>
-                      <td style={{ fontWeight: 600 }}>{formatBytes(tb.totalUploaded)}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {formatBytes(tb.totalUploaded)}
+                      </td>
                       <td>{formatBytes(tb.totalDownloaded)}</td>
                       <td>
                         <span
@@ -652,14 +729,20 @@ function Statistics() {
                         <span
                           style={{
                             fontWeight: 600,
-                            color: tb.bufferBytes > 0 ? "var(--accent, #c8a84e)" : "inherit",
+                            color:
+                              tb.bufferBytes > 0
+                                ? "var(--accent, #c8a84e)"
+                                : "inherit",
                           }}
                         >
                           +{formatBytes(tb.bufferBytes)}
                         </span>
                       </td>
                       <td style={{ textAlign: "right" }}>
-                        <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                        <span
+                          className="badge badge-secondary"
+                          style={{ fontSize: "0.75rem" }}
+                        >
                           ⚡ ~{tb.estimatedPointsPerHour} pts/hr
                         </span>
                       </td>
@@ -674,7 +757,9 @@ function Statistics() {
 
       {/* SIMULATOR TAB */}
       {activeTab === "simulator" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           <div className="card" style={{ padding: "1.25rem" }}>
             <h3 style={{ margin: "0 0 0.5rem 0" }}>
               ⚡ Global Seeding & Ratio Milestone Simulator
@@ -686,8 +771,9 @@ function Statistics() {
                 margin: "0 0 1rem 0",
               }}
             >
-              Calculate estimated upload timelines, target ratios, and private tracker Hit & Run
-              safety thresholds based on your live seeding transfer rates.
+              Calculate estimated upload timelines, target ratios, and private
+              tracker Hit & Run safety thresholds based on your live seeding
+              transfer rates.
             </p>
 
             <SeedingSimulator
@@ -703,8 +789,12 @@ function Statistics() {
           </div>
 
           <div className="card" style={{ padding: "1.25rem" }}>
-            <h3 style={{ margin: "0 0 0.75rem 0" }}>Simulate Individual Swarms</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <h3 style={{ margin: "0 0 0.75rem 0" }}>
+              Simulate Individual Swarms
+            </h3>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
               {(torrents ?? []).slice(0, 5).map((t) => (
                 <div
                   key={t.id}
@@ -725,7 +815,9 @@ function Statistics() {
                       gap: "0.5rem",
                     }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t.name}</span>
+                    <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                      {t.name}
+                    </span>
                     <span className="badge badge-secondary">
                       {t.status} • {formatBytes(t.totalSize)}
                     </span>

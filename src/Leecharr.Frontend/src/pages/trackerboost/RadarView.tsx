@@ -25,7 +25,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
 
   const handleCopyAllTrackers = () => {
     if (!trackers || trackers.length === 0) return;
-    const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join("\n");
+    const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join(
+      "\n",
+    );
     navigator.clipboard.writeText(uniqueUrls);
     showToast(`Copied ${trackers.length} tracker URLs to clipboard!`, "info");
   };
@@ -35,7 +37,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
       showToast("No trackers available to export", "info");
       return;
     }
-    const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join("\n");
+    const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join(
+      "\n",
+    );
     const blob = new Blob([uniqueUrls], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -43,7 +47,10 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
     link.download = `leecharr-trackers-${new Date().toISOString().slice(0, 10)}.txt`;
     link.click();
     URL.revokeObjectURL(url);
-    showToast(`Exported ${trackers.length} tracker endpoints to .txt!`, "success");
+    showToast(
+      `Exported ${trackers.length} tracker endpoints to .txt!`,
+      "success",
+    );
   };
 
   const handleAddCustomTracker = (e: React.FormEvent) => {
@@ -60,7 +67,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
         onError: (err) => {
           showToast(`Failed to add tracker: ${err.message}`, "error");
         },
-      }
+      },
     );
   };
 
@@ -76,17 +83,48 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
         }
       }
       if (sourceFilter !== "all") {
-        if (sourceFilter === "active" && t.source !== "ActiveTorrent" && t.source !== 4)
+        if (
+          sourceFilter === "active" &&
+          t.source !== "ActiveTorrent" &&
+          t.source !== 4
+        )
           return false;
-        if (sourceFilter === "prowlarr" && t.source !== "Prowlarr" && t.source !== 1) return false;
-        if (sourceFilter === "feeds" && t.source !== "PublicList" && t.source !== 0) return false;
-        if (sourceFilter === "manual" && t.source !== "Manual" && t.source !== 3) return false;
+        if (
+          sourceFilter === "prowlarr" &&
+          t.source !== "Prowlarr" &&
+          t.source !== 1
+        )
+          return false;
+        if (
+          sourceFilter === "feeds" &&
+          t.source !== "PublicList" &&
+          t.source !== 0
+        )
+          return false;
+        if (
+          sourceFilter === "manual" &&
+          t.source !== "Manual" &&
+          t.source !== 3
+        )
+          return false;
       }
       if (healthFilter !== "all") {
-        if (healthFilter === "alive" && t.status !== "Alive" && t.status !== 1) return false;
-        if (healthFilter === "slow" && t.status !== "Slow" && t.status !== 2) return false;
-        if (healthFilter === "offline" && t.status !== "Offline" && t.status !== 3) return false;
-        if (healthFilter === "untested" && t.status !== "Untested" && t.status !== 0) return false;
+        if (healthFilter === "alive" && t.status !== "Alive" && t.status !== 1)
+          return false;
+        if (healthFilter === "slow" && t.status !== "Slow" && t.status !== 2)
+          return false;
+        if (
+          healthFilter === "offline" &&
+          t.status !== "Offline" &&
+          t.status !== 3
+        )
+          return false;
+        if (
+          healthFilter === "untested" &&
+          t.status !== "Untested" &&
+          t.status !== 0
+        )
+          return false;
       }
       return true;
     });
@@ -182,7 +220,10 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               📥 Bulk Import
             </button>
           )}
-          <button className="btn btn-primary" onClick={() => setIsAddingTracker(true)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setIsAddingTracker(true)}
+          >
             + Add Single
           </button>
         </div>
@@ -201,7 +242,11 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             onChange={(e) => setNewTrackerUrl(e.target.value)}
             style={{ flex: 1 }}
           />
-          <button type="submit" className="btn btn-primary" disabled={addTracker.isPending}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={addTracker.isPending}
+          >
             Save
           </button>
           <button
@@ -254,7 +299,10 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               <th className="torrent-table-th" style={{ width: "14%" }}>
                 Verified Swarms
               </th>
-              <th className="torrent-table-th" style={{ width: "10%", textAlign: "right" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: "10%", textAlign: "right" }}
+              >
                 Actions
               </th>
             </tr>
@@ -281,12 +329,18 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                   </div>
                 </td>
                 <td>
-                  <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                  <span
+                    className="badge badge-secondary"
+                    style={{ fontSize: "0.75rem" }}
+                  >
                     {tr.protocol}
                   </span>
                 </td>
                 <td>
-                  <span className="badge badge-outline" style={{ fontSize: "0.75rem" }}>
+                  <span
+                    className="badge badge-outline"
+                    style={{ fontSize: "0.75rem" }}
+                  >
                     {tr.sourceName}
                   </span>
                 </td>
@@ -301,7 +355,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                 <td style={{ fontFamily: "monospace" }}>
                   {tr.latencyMs > 0 ? `${tr.latencyMs}ms` : "-"}
                 </td>
-                <td>{tr.totalVerifiedTorrents ?? tr.totalSwarmsFound} swarms</td>
+                <td>
+                  {tr.totalVerifiedTorrents ?? tr.totalSwarmsFound} swarms
+                </td>
                 <td style={{ textAlign: "right" }}>
                   <button
                     className="btn btn-sm btn-danger"
