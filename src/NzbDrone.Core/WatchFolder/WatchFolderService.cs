@@ -44,6 +44,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<string, int> failedAttempts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> processingFiles = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
     private FileSystemWatcher watcher;
 
@@ -253,59 +254,77 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
     public async Task<bool> ProcessFileAsync(string file, string folder = null)
     {
-        folder ??= this.configService.WatchFolderPath;
-
-        if (!this.IsFileReady(file))
+        if (string.IsNullOrWhiteSpace(file))
         {
-            this.logger.Debug("Watch folder file '{0}' is locked or still being written. Skipping this scan cycle.", file);
+            return false;
+        }
+
+        var fullPath = Path.GetFullPath(file);
+        if (!this.processingFiles.TryAdd(fullPath, 0))
+        {
             return false;
         }
 
         try
         {
-            var bytes = await File.ReadAllBytesAsync(file).ConfigureAwait(false);
-            var parsed = this.torrentFileParser.Parse(bytes);
+            folder ??= this.configService.WatchFolderPath;
 
-            var category = this.MatchCategoryFromReleaseName(parsed.Name);
-            this.logger.Info("Watch folder adding: {0} with auto-matched category: {1}", parsed.Name, category);
-
-            await this.torrentService.AddFromParsedTorrentAsync(
-                parsed,
-                category: category,
-                startPaused: !this.configService.WatchFolderAutoStartTorrents,
-                rawBytes: bytes).ConfigureAwait(false);
-
-            this.failedAttempts.TryRemove(file, out _);
-
-            if (this.configService.WatchFolderDeleteAddedTorrents)
+            if (!this.IsFileReady(file))
             {
-                this.diskProvider.DeleteFile(file);
-            }
-            else
-            {
-                var loadedDir = Path.Combine(folder, "loaded");
-                this.diskProvider.EnsureFolder(loadedDir);
-                var dest = Path.Combine(loadedDir, Path.GetFileName(file));
-                this.diskProvider.MoveFile(file, dest, true);
+                this.logger.Debug("Watch folder file '{0}' is locked or still being written. Skipping this scan cycle.", file);
+                return false;
             }
 
-            return true;
-        }
-        catch (Exception ex)
-        {
-            var attempts = this.failedAttempts.AddOrUpdate(file, 1, (_, count) => count + 1);
-            if (attempts >= 3)
+            try
             {
-                this.logger.Warn(ex, "Watch folder torrent '{0}' failed after {1} attempts. Quarantining file.", file, attempts);
+                var bytes = await File.ReadAllBytesAsync(file).ConfigureAwait(false);
+                var parsed = this.torrentFileParser.Parse(bytes);
+
+                var category = this.MatchCategoryFromReleaseName(parsed.Name);
+                this.logger.Info("Watch folder adding: {0} with auto-matched category: {1}", parsed.Name, category);
+
+                await this.torrentService.AddFromParsedTorrentAsync(
+                    parsed,
+                    category: category,
+                    startPaused: !this.configService.WatchFolderAutoStartTorrents,
+                    rawBytes: bytes).ConfigureAwait(false);
+
                 this.failedAttempts.TryRemove(file, out _);
-                this.QuarantineFile(folder, file);
-            }
-            else
-            {
-                this.logger.Warn(ex, "Failed to process watch folder torrent '{0}' (attempt {1}/3). Will retry.", file, attempts);
-            }
 
-            return false;
+                if (this.configService.WatchFolderDeleteAddedTorrents)
+                {
+                    this.diskProvider.DeleteFile(file);
+                }
+                else
+                {
+                    var loadedDir = Path.Combine(folder, "loaded");
+                    this.diskProvider.EnsureFolder(loadedDir);
+                    var dest = Path.Combine(loadedDir, Path.GetFileName(file));
+                    this.diskProvider.MoveFile(file, dest, true);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var attempts = this.failedAttempts.AddOrUpdate(file, 1, (_, count) => count + 1);
+                if (attempts >= 3)
+                {
+                    this.logger.Warn(ex, "Watch folder torrent '{0}' failed after {1} attempts. Quarantining file.", file, attempts);
+                    this.failedAttempts.TryRemove(file, out _);
+                    this.QuarantineFile(folder, file);
+                }
+                else
+                {
+                    this.logger.Warn(ex, "Failed to process watch folder torrent '{0}' (attempt {1}/3). Will retry.", file, attempts);
+                }
+
+                return false;
+            }
+        }
+        finally
+        {
+            this.processingFiles.TryRemove(fullPath, out _);
         }
     }
 
