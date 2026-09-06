@@ -975,7 +975,7 @@ public class TransmissionRpcController : ControllerBase
             : new[] { t.Category };
 
         var secondsDownloading = (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds;
-        var secondsSeeding = t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0;
+        var secondsSeeding = t.SeedingTimeSeconds;
         var addedDate = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
         var doneDate = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
         var isError = t.Status == TorrentStatus.Error;

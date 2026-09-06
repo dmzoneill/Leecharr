@@ -243,6 +243,7 @@ public class AppLifetime : IHostedService, IDisposable
         var maintenanceTickCounter = 0;
         var rssTickCounter = 0;
         var seedingTickCounter = 0;
+        var lastSeedingTickUtc = DateTime.UtcNow;
 
         while (!token.IsCancellationRequested)
         {
@@ -312,6 +313,9 @@ public class AppLifetime : IHostedService, IDisposable
                 seedingTickCounter++;
                 if (this.torrentService != null && seedingTickCounter >= 10)
                 {
+                    var now = DateTime.UtcNow;
+                    var elapsedSeconds = Math.Max(1, (long)Math.Round((now - lastSeedingTickUtc).TotalSeconds));
+                    lastSeedingTickUtc = now;
                     seedingTickCounter = 0;
                     try
                     {
@@ -323,6 +327,9 @@ public class AppLifetime : IHostedService, IDisposable
                                 var torrent = this.torrentService.Get(torrentId);
                                 if (torrent != null && torrent.Status == TorrentStatus.Seeding)
                                 {
+                                    torrent.CumulativeSeedingTimeSeconds += elapsedSeconds;
+                                    await this.torrentService.UpdateAsync(torrent);
+
                                     var category = !string.IsNullOrWhiteSpace(torrent.Category) ? this.categoryService?.GetByName(torrent.Category) : null;
                                     var effectiveRatio = torrent.TargetRatio > 0 ? torrent.TargetRatio : (category?.TargetRatio ?? 0);
                                     var effectiveSeedTime = torrent.TargetSeedTimeMinutes > 0 ? torrent.TargetSeedTimeMinutes : (category?.TargetSeedTimeMinutes ?? 0);
