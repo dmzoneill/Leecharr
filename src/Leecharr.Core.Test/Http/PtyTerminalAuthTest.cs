@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Security;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -25,6 +26,7 @@ public class PtyTerminalAuthTest
     {
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.TerminalAccessEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("master_secret_api_key");
 
         this.configService = Substitute.For<IConfigService>();
@@ -56,6 +58,36 @@ public class PtyTerminalAuthTest
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenTerminalAccessDisabled_RejectsWith403Forbidden()
+    {
+        this.configFileProvider.TerminalAccessEnabled.Returns(false);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Request.Headers["X-Api-Key"] = "master_secret_api_key";
+        context.Response.Body = new MemoryStream();
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public void IsAuthorized_WhenTerminalAccessDisabled_ReturnsFalse()
+    {
+        this.configFileProvider.TerminalAccessEnabled.Returns(false);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Request.Headers["X-Api-Key"] = "master_secret_api_key";
+
+        var isAuthorized = TerminalWebSocketHandler.IsAuthorized(context, this.configFileProvider);
+
+        isAuthorized.Should().BeFalse();
     }
 
     [Test]
@@ -135,6 +167,18 @@ public class PtyTerminalAuthTest
         var isAuthorized = TerminalWebSocketHandler.IsAuthorized(context, this.configFileProvider);
 
         isAuthorized.Should().BeTrue();
+    }
+
+    [Test]
+    public void PtyTerminalService_CreateSession_WhenTerminalAccessDisabled_ThrowsSecurityException()
+    {
+        this.configFileProvider.TerminalAccessEnabled.Returns(false);
+        var service = new PtyTerminalService(this.configFileProvider);
+
+        Action act = () => service.CreateSession("/tmp", 80, 24);
+
+        act.Should().Throw<SecurityException>()
+            .WithMessage("*prohibited by security configuration*");
     }
 
     [Test]

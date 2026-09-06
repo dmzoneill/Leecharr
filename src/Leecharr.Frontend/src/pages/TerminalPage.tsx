@@ -141,6 +141,28 @@ export function TerminalPage() {
         </div>
       </div>
 
+      {/* Security Warning Notice */}
+      <div
+        style={{
+          padding: "0.6rem 1rem",
+          backgroundColor: "rgba(255, 209, 102, 0.1)",
+          border: "1px solid rgba(255, 209, 102, 0.3)",
+          borderRadius: "8px",
+          fontSize: "0.85rem",
+          color: "var(--accent, #ffd166)",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <span>⚠️</span>
+        <span>
+          <strong>Security Notice:</strong> Terminal access provides interactive
+          shell execution on the host container. Access is restricted to
+          administrators.
+        </span>
+      </div>
+
       {/* Terminal View */}
       <div
         style={{

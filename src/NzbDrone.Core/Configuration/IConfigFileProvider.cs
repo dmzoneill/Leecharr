@@ -26,6 +26,8 @@ public interface IConfigFileProvider
 
     bool AuthenticationEnabled { get; }
 
+    bool TerminalAccessEnabled { get; }
+
     string LogLevel { get; }
 
     string UrlBase { get; }

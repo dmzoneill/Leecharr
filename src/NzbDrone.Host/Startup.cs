@@ -316,6 +316,14 @@ public class Startup
                 context.WebSockets.IsWebSocketRequest)
             {
                 var configFileProvider = context.RequestServices.GetRequiredService<IConfigFileProvider>();
+                if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Terminal access is disabled by configuration.");
+                    await context.Response.CompleteAsync();
+                    return;
+                }
+
                 if (configFileProvider.AuthenticationEnabled)
                 {
                     var user = context.User;
@@ -350,12 +358,28 @@ public class Startup
         var terminalHandler = async (HttpContext context) =>
         {
             var configFileProvider = context.RequestServices.GetRequiredService<IConfigFileProvider>();
-            if (configFileProvider.AuthenticationEnabled)
+            if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
             {
-                var isAuthenticated = (context.User?.Identity?.IsAuthenticated == true) ||
-                                      RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsync("Terminal access is disabled by configuration.");
+                await context.Response.CompleteAsync();
+                return;
+            }
 
-                if (!isAuthenticated)
+            if (configFileProvider?.AuthenticationEnabled == true)
+            {
+                var user = context.User;
+                if (user?.Identity?.IsAuthenticated == true)
+                {
+                    if (!user.IsInRole("Admin") && !user.HasClaim(System.Security.Claims.ClaimTypes.Role, "Admin"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsync("Admin role required for terminal access.");
+                        await context.Response.CompleteAsync();
+                        return;
+                    }
+                }
+                else if (!RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider))
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     await context.Response.WriteAsync("Authentication required for terminal access.");

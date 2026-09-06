@@ -17,6 +17,11 @@ public static class TerminalWebSocketHandler
 {
     public static bool IsAuthorized(HttpContext context, IConfigFileProvider configFileProvider)
     {
+        if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
+        {
+            return false;
+        }
+
         if (configFileProvider == null || !configFileProvider.AuthenticationEnabled)
         {
             return true;
@@ -37,6 +42,14 @@ public static class TerminalWebSocketHandler
         IConfigFileProvider configFileProvider = null)
     {
         configFileProvider ??= context.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider;
+
+        if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync("Terminal access is disabled by configuration.");
+            await context.Response.CompleteAsync();
+            return;
+        }
 
         if (configFileProvider?.AuthenticationEnabled == true)
         {

@@ -355,6 +355,8 @@ public class CertificateManager : ICertificateManager
 
         public string PostgresPassword => string.Empty;
 
+        public bool TerminalAccessEnabled => false;
+
         public void SaveConfigDictionary(Dictionary<string, object> values)
         {
         }
