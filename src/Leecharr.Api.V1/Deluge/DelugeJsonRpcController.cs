@@ -259,6 +259,7 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.set_torrent_options",
                             "core.move_storage",
                             "core.get_filter_tree",
+                            "web.get_filter_tree",
                             "core.get_enabled_plugins",
                             "core.get_available_plugins",
                             "label.get_labels",
@@ -436,18 +437,7 @@ public class DelugeJsonRpcController : ControllerBase
                         {
                             connected = true,
                             torrents = torrentDict,
-                            filters = new
-                            {
-                                state = new object[]
-                                {
-                                    new object[] { "All", allTorrentsForUi.Count },
-                                    new object[] { "Downloading", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading) },
-                                    new object[] { "Seeding", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Seeding) },
-                                    new object[] { "Active", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
-                                    new object[] { "Paused", allTorrentsForUi.Count(t => t.Status == TorrentStatus.Paused) },
-                                },
-                                label = this.categoryService.GetAll().Select(c => new object[] { c.Name, allTorrentsForUi.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToArray(),
-                            },
+                            filters = this.BuildFilterTree(allTorrentsForUi),
                             stats = new
                             {
                                 max_download = this.configService.MaxDownloadSpeedKbps,
@@ -1066,22 +1056,9 @@ public class DelugeJsonRpcController : ControllerBase
                     return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_filter_tree":
+                case "web.get_filter_tree":
                     var allTorrents = this.torrentService.GetAll().ToList();
-                    var stateCounts = new Dictionary<string, int>
-                    {
-                        { "All", allTorrents.Count },
-                        { "Active", allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
-                        { "Downloading", allTorrents.Count(t => t.Status == TorrentStatus.Downloading) },
-                        { "Seeding", allTorrents.Count(t => t.Status == TorrentStatus.Seeding) },
-                        { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) },
-                    };
-
-                    var filterTree = new Dictionary<string, object>
-                    {
-                        { "state", stateCounts.Select(kvp => new object[] { kvp.Key, kvp.Value }).ToList() },
-                        { "label", this.categoryService.GetAll().Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) }).ToList() },
-                    };
-
+                    var filterTree = this.BuildFilterTree(allTorrents);
                     return this.DelugeResult(new { result = filterTree, error = (object)null, id });
 
                 default:
@@ -1294,5 +1271,59 @@ public class DelugeJsonRpcController : ControllerBase
         {
             return 1099511627776L;
         }
+    }
+
+    private Dictionary<string, object> BuildFilterTree(List<Torrent> allTorrents)
+    {
+        var stateList = new List<object[]>
+        {
+            new object[] { "All", allTorrents.Count },
+            new object[] { "Active", allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
+            new object[] { "Downloading", allTorrents.Count(t => t.Status == TorrentStatus.Downloading) },
+            new object[] { "Seeding", allTorrents.Count(t => t.Status == TorrentStatus.Seeding) },
+            new object[] { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) },
+            new object[] { "Checking", allTorrents.Count(t => t.Status == TorrentStatus.Checking) },
+            new object[] { "Queued", allTorrents.Count(t => t.Status == TorrentStatus.Queued) },
+            new object[] { "Error", allTorrents.Count(t => t.Status == TorrentStatus.Error) },
+        };
+
+        var trackerHosts = allTorrents
+            .Select(GetTrackerHost)
+            .Where(h => !string.IsNullOrWhiteSpace(h))
+            .GroupBy(h => h, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new object[] { g.Key, g.Count() })
+            .ToList();
+
+        var labels = this.categoryService.GetAll()
+            .Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) })
+            .ToList();
+
+        return new Dictionary<string, object>
+        {
+            { "state", stateList },
+            { "tracker_host", trackerHosts },
+            { "label", labels },
+        };
+    }
+
+    private static string GetTrackerHost(Torrent t)
+    {
+        if (string.IsNullOrWhiteSpace(t?.TrackerUrl))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            if (Uri.TryCreate(t.TrackerUrl, UriKind.Absolute, out var uri))
+            {
+                return uri.Host;
+            }
+        }
+        catch
+        {
+        }
+
+        return string.Empty;
     }
 }
