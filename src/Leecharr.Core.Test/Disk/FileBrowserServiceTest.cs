@@ -87,4 +87,38 @@ public class FileBrowserServiceTest
 
         this.diskProvider.Received(1).MoveFolder(current, dest);
     }
+
+    [Test]
+    public void ListDirectory_WhenGetDirectoriesThrowsUnauthorizedAccessException_ReturnsEmptyListingWithoutThrowing()
+    {
+        var target = Path.GetFullPath("/root/secure");
+        this.diskProvider.FolderExists(target).Returns(true);
+        this.diskProvider.GetDirectories(target).Returns(_ => throw new UnauthorizedAccessException("Access denied"));
+        this.diskProvider.GetFiles(target, false).Returns(_ => throw new UnauthorizedAccessException("Access denied"));
+
+        var result = this.service.ListDirectory(target);
+
+        result.Should().NotBeNull();
+        result.Exists.Should().BeTrue();
+        result.Entries.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ListDirectory_WhenGetFilesThrowsUnauthorizedAccessException_ReturnsDirectoriesOnlyWithoutThrowing()
+    {
+        var target = Path.GetFullPath("/downloads/restricted");
+        var subDir = Path.Combine(target, "subdir");
+
+        this.diskProvider.FolderExists(target).Returns(true);
+        this.diskProvider.GetDirectories(target).Returns(new[] { subDir });
+        this.diskProvider.GetFiles(target, false).Returns(_ => throw new UnauthorizedAccessException("Access denied"));
+
+        var result = this.service.ListDirectory(target);
+
+        result.Should().NotBeNull();
+        result.Exists.Should().BeTrue();
+        result.Entries.Should().HaveCount(1);
+        result.Entries[0].Name.Should().Be("subdir");
+        result.Entries[0].IsDirectory.Should().BeTrue();
+    }
 }
