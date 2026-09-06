@@ -121,8 +121,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            var line = rawLine.Trim();
-            if (line.StartsWith('#') || line.StartsWith("//") || line.StartsWith(';'))
+            var line = StripComments(rawLine);
+            if (string.IsNullOrWhiteSpace(line))
             {
                 continue;
             }
@@ -155,9 +155,50 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         }
     }
 
+    private static string StripComments(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return string.Empty;
+        }
+
+        var commentIdx = -1;
+        var hashIdx = line.IndexOf('#');
+        var slashSlashIdx = line.IndexOf("//", System.StringComparison.Ordinal);
+        var semiIdx = line.IndexOf(';');
+
+        if (hashIdx >= 0)
+        {
+            commentIdx = hashIdx;
+        }
+
+        if (slashSlashIdx >= 0 && (commentIdx < 0 || slashSlashIdx < commentIdx))
+        {
+            commentIdx = slashSlashIdx;
+        }
+
+        if (semiIdx >= 0 && (commentIdx < 0 || semiIdx < commentIdx))
+        {
+            commentIdx = semiIdx;
+        }
+
+        if (commentIdx >= 0)
+        {
+            line = line[..commentIdx];
+        }
+
+        return line.Trim();
+    }
+
     private static bool TryParseP2PLine(string line, out IpRange range)
     {
         range = default;
+        line = StripComments(line);
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
+
         var name = string.Empty;
 
         var hyphenIdx = line.IndexOf('-');
@@ -185,32 +226,46 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 }
             }
 
-            if (IPAddress.TryParse(endStr, out var endIp))
+            if (!IPAddress.TryParse(endStr, out var endIp))
             {
-                if (startIp.IsIPv4MappedToIPv6)
+                var lastColon = endStr.LastIndexOf(':');
+                if (lastColon >= 0)
                 {
-                    startIp = startIp.MapToIPv4();
-                }
-
-                if (endIp.IsIPv4MappedToIPv6)
-                {
-                    endIp = endIp.MapToIPv4();
-                }
-
-                if (startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                    endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                {
-                    var sBytes = startIp.GetAddressBytes();
-                    var eBytes = endIp.GetAddressBytes();
-
-                    var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
-                    var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
-
-                    if (startNum <= endNum)
+                    var candidateEnd = endStr[..lastColon].Trim();
+                    if (!IPAddress.TryParse(candidateEnd, out endIp))
                     {
-                        range = new IpRange(startNum, endNum, name);
-                        return true;
+                        return false;
                     }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            if (startIp.IsIPv4MappedToIPv6)
+            {
+                startIp = startIp.MapToIPv4();
+            }
+
+            if (endIp.IsIPv4MappedToIPv6)
+            {
+                endIp = endIp.MapToIPv4();
+            }
+
+            if (startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                var sBytes = startIp.GetAddressBytes();
+                var eBytes = endIp.GetAddressBytes();
+
+                var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
+                var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
+
+                if (startNum <= endNum)
+                {
+                    range = new IpRange(startNum, endNum, name);
+                    return true;
                 }
             }
 
@@ -227,7 +282,19 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 singleCandidate = singleCandidate[(colonIdx + 1)..].Trim();
                 if (!IPAddress.TryParse(singleCandidate, out singleIp))
                 {
-                    return false;
+                    var lastColon = singleCandidate.LastIndexOf(':');
+                    if (lastColon >= 0)
+                    {
+                        var candidateSingle = singleCandidate[..lastColon].Trim();
+                        if (!IPAddress.TryParse(candidateSingle, out singleIp))
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
             else
