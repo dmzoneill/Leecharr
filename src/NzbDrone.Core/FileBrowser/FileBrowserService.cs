@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Configuration;
 
@@ -111,26 +112,41 @@ public class FileBrowserService : IFileBrowserService
         {
             // Root path itself is not readable
         }
-
-        foreach (var filePath in this.diskProvider.GetFiles(target, false))
+        catch (SecurityException)
         {
-            try
+            // Security permission error
+        }
+
+        try
+        {
+            foreach (var filePath in this.diskProvider.GetFiles(target, false))
             {
-                var info = new FileInfo(filePath);
-                entries.Add(new FileBrowserEntry
+                try
                 {
-                    Name = info.Name,
-                    Path = filePath,
-                    IsDirectory = false,
-                    Size = info.Length,
-                    Modified = info.LastWriteTime == DateTime.MinValue ? (DateTime?)null : info.LastWriteTime,
-                    Extension = info.Extension?.TrimStart('.'),
-                });
+                    var info = new FileInfo(filePath);
+                    entries.Add(new FileBrowserEntry
+                    {
+                        Name = info.Name,
+                        Path = filePath,
+                        IsDirectory = false,
+                        Size = info.Length,
+                        Modified = info.LastWriteTime == DateTime.MinValue ? (DateTime?)null : info.LastWriteTime,
+                        Extension = info.Extension?.TrimStart('.'),
+                    });
+                }
+                catch
+                {
+                    // Skip inaccessible files
+                }
             }
-            catch
-            {
-                // Skip inaccessible files
-            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Root path itself is not readable
+        }
+        catch (SecurityException)
+        {
+            // Security permission error
         }
 
         listing.Entries = entries
