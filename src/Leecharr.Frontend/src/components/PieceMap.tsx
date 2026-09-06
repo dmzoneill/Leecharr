@@ -182,10 +182,7 @@ export function PieceMap({
     const targetCanvasW = Math.floor(width * dpr);
     const targetCanvasH = Math.floor(height * dpr);
 
-    if (
-      canvas.width !== targetCanvasW ||
-      canvas.height !== targetCanvasH
-    ) {
+    if (canvas.width !== targetCanvasW || canvas.height !== targetCanvasH) {
       canvas.width = targetCanvasW;
       canvas.height = targetCanvasH;
       canvas.style.width = `${width}px`;
@@ -237,13 +234,7 @@ export function PieceMap({
         ctx.lineWidth = 2;
         ctx.beginPath();
         if (typeof (ctx as any).roundRect === "function") {
-          (ctx as any).roundRect(
-            x - 1,
-            y - 1,
-            blockSize + 2,
-            blockSize + 2,
-            3,
-          );
+          (ctx as any).roundRect(x - 1, y - 1, blockSize + 2, blockSize + 2, 3);
         } else {
           ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
         }

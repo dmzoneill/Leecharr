@@ -88,7 +88,10 @@ export function ApiDocsPage() {
               className="btn btn-outline btn-small"
               onClick={handleCopyKey}
               disabled={copyingKey}
-              title={t("apiDocs.copyApiKeyTooltip", "Copy API Key to clipboard for Swagger Authorize header")}
+              title={t(
+                "apiDocs.copyApiKeyTooltip",
+                "Copy API Key to clipboard for Swagger Authorize header",
+              )}
             >
               {copiedKey
                 ? "✓ API Key Copied"
@@ -103,7 +106,10 @@ export function ApiDocsPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-outline btn-small"
-            title={t("apiDocs.openRawJsonTooltip", "View raw OpenAPI 3.0 specification in JSON format")}
+            title={t(
+              "apiDocs.openRawJsonTooltip",
+              "View raw OpenAPI 3.0 specification in JSON format",
+            )}
           >
             📥 OpenAPI JSON
           </a>
@@ -113,7 +119,10 @@ export function ApiDocsPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-small"
-            title={t("apiDocs.openFullPageTooltip", "Open Swagger UI in a dedicated full browser tab")}
+            title={t(
+              "apiDocs.openFullPageTooltip",
+              "Open Swagger UI in a dedicated full browser tab",
+            )}
           >
             ↗ Open Full Page
           </a>
@@ -134,7 +143,10 @@ export function ApiDocsPage() {
       >
         <iframe
           src="/swagger/index.html"
-          title={t("apiDocs.swaggerDocTitle", "Leecharr REST API Swagger Documentation")}
+          title={t(
+            "apiDocs.swaggerDocTitle",
+            "Leecharr REST API Swagger Documentation",
+          )}
           style={{
             width: "100%",
             height: "calc(100vh - 210px)",
