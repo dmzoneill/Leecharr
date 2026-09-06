@@ -62,7 +62,10 @@ RUN apt-get update && \
         ipset && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /config /downloads
+RUN groupadd -r leecharr --gid=1000 && \
+    useradd -r -g leecharr --uid=1000 -d /app -s /sbin/nologin leecharr && \
+    mkdir -p /config /downloads /app && \
+    chown -R leecharr:leecharr /config /downloads /app
 
 LABEL org.opencontainers.image.title="Leecharr" \
       org.opencontainers.image.description="High-Performance BitTorrent & Media Downloader for Servarr" \
@@ -85,5 +88,7 @@ ENV PATH="$PATH:/root/.dotnet/tools"
 EXPOSE 7889 7890
 
 VOLUME ["/config", "/downloads"]
+
+USER leecharr
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
