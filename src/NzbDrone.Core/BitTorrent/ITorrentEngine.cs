@@ -17,6 +17,4 @@ public interface ITorrentEngine : IDownloadEngine
     bool IsAvailable { get; }
 
     TorrentEngineCapabilities Capabilities { get; }
-
-    Task<EngineHealthCheckResult> ProbeHealthAsync();
 }
