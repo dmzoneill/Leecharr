@@ -127,4 +127,33 @@ public class MediaControllerTest
         fileResult.ContentType.Should().Be(expectedContentType);
         fileResult.FileName.Should().Be(Path.GetFullPath(filePath));
     }
+
+    [Test]
+    public void GetAll_ReturnsAllMetadataAsResources()
+    {
+        var dict = new System.Collections.Generic.Dictionary<int, TorrentMediaMetadata>
+        {
+            [1] = new TorrentMediaMetadata { TorrentId = 1, Title = "Movie 1" },
+            [2] = new TorrentMediaMetadata { TorrentId = 2, Title = "Movie 2" },
+        };
+        this.mediaEnrichmentService.GetAllMetadata().Returns(dict);
+
+        var result = this.controller.GetAll();
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var list = (System.Collections.Generic.List<MediaMetadataResource>)okResult.Value!;
+        list.Should().HaveCount(2);
+        list.Should().Contain(r => r.TorrentId == 1 && r.Title == "Movie 1");
+        list.Should().Contain(r => r.TorrentId == 2 && r.Title == "Movie 2");
+    }
+
+    [Test]
+    public void Delete_CallsDeleteMetadataAndReturnsNoContent()
+    {
+        var result = this.controller.Delete(42);
+
+        this.mediaEnrichmentService.Received(1).DeleteMetadata(42);
+        result.Should().BeOfType<NoContentResult>();
+    }
 }
