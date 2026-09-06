@@ -283,4 +283,42 @@ public class AppLifetimeTest
             }
         }
     }
+
+    [Test]
+    public async Task SpeedPulse_WhenDownloading_BroadcastsCorrectEtaUsingTotalBytes()
+    {
+        var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
+        broadcaster.IsConnected.Returns(true);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(1);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.DownloadSpeed.Returns(1_000_000L); // 1 MB/s
+        mockTask.DownloadedBytes.Returns(50_000_000L);
+        mockTask.Progress.Returns(0.5);
+        mockTask.TotalBytes.Returns(100_000_000L); // 100 MB total -> 50 MB remaining -> 50s ETA
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            signalRBroadcaster: broadcaster);
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(2500);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "speedPulse" &&
+            msg.Body is IEnumerable<object>));
+    }
 }
