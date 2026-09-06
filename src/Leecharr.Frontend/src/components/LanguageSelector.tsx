@@ -1,7 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useI18nStore, languages } from "../i18n";
 
-export const LanguageSelector: React.FC = () => {
+export interface LanguageSelectorProps {
+  align?: "left" | "right";
+  className?: string;
+  showFullLabel?: boolean;
+}
+
+export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
+  align = "right",
+  className = "",
+  showFullLabel = false,
+}) => {
   const { language, setLanguage } = useI18nStore();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -52,7 +62,7 @@ export const LanguageSelector: React.FC = () => {
   };
 
   return (
-    <div className="language-selector" ref={dropdownRef}>
+    <div className={`language-selector ${className}`} ref={dropdownRef}>
       <button
         type="button"
         className="language-selector-btn"
@@ -62,14 +72,20 @@ export const LanguageSelector: React.FC = () => {
         title={`Language: ${activeLang.name} (${activeLang.nativeName})`}
       >
         <span className="language-selector-btn-flag">{activeLang.flag}</span>
-        <span className="language-selector-btn-code">
-          {activeLang.code.toUpperCase()}
-        </span>
+        {showFullLabel ? (
+          <span className="language-selector-btn-full">
+            {activeLang.nativeName} ({activeLang.name})
+          </span>
+        ) : (
+          <span className="language-selector-btn-code">
+            {activeLang.code.toUpperCase()}
+          </span>
+        )}
         <span className="language-selector-caret">▾</span>
       </button>
 
       {isOpen && (
-        <div className="language-selector-dropdown">
+        <div className={`language-selector-dropdown align-${align}`}>
           <div className="language-selector-search-box">
             <input
               ref={inputRef}

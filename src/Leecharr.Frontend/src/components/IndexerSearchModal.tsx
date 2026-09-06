@@ -30,6 +30,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   initialQuery,
   isOpen,
 }) => {
+  const { t } = useTranslation();
   useEscapeKey(onClose, isOpen ?? true);
 
   const [query, setQuery] = useState<string>(initialQuery || "");
@@ -42,7 +43,6 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
 
   useEffect(() => {
     if (initialQuery) {
-      const { t } = useTranslation();
       setQuery(initialQuery);
       setActiveSearchTerm(initialQuery);
     }
@@ -183,7 +183,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               size={18}
               style={{ color: "var(--accent-gold, #FFD166)" }}
             />
-            <h3>Indexer Discovery & Search</h3>
+            <h3>{t("autogen.t_indexer_discovery_search")}</h3>
           </div>
           <button
             type="button"
@@ -237,7 +237,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     size={14}
                     style={{ color: "var(--accent-gold, #FFD166)" }}
                   />
-                  <span>AI Smart Search & Natural Language Filter</span>
+                  <span>
+                    {t("autogen.t_ai_smart_search_natural_language_filter")}
+                  </span>
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -248,7 +250,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       fontFamily: "monospace",
                     }}
                   >
-                    AI
+                    {t("autogen.t_ai")}
                   </span>
                 </div>
                 <div
@@ -288,13 +290,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       color: "var(--text-muted, #C7C5D3)",
                     }}
                   >
-                    Describe what you want in natural language (e.g.{" "}
+                    {t("autogen.t_describe_what_you_want_in_natural_langua")}{" "}
                     <em style={{ color: "var(--accent-gold, #FFD166)" }}>
-                      {'"'}Find Dune Part 2 in 4k bluray freeleech with at least
-                      20 seeders{'"'}
+                      {'"'}
+                      {t("autogen.t_find_dune_part_2_in_4k_bluray_freeleech_")}
+                      {'"'}
                     </em>
-                    ). AI extracts resolution, codec, category, and seeder
-                    threshold.
+                    {t("autogen.t_ai_extracts_resolution_codec_category_an")}
                   </p>
 
                   <div
@@ -311,7 +313,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAiNaturalParse(e);
                       }}
-                      placeholder="Type natural query..."
+                      placeholder={t("autogen.t_type_natural_query")}
                       style={{
                         flex: 1,
                         backgroundColor: "var(--bg-secondary, #171B35)",
@@ -391,7 +393,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                             size={14}
                             style={{ color: "#34d399" }}
                           />
-                          Extracted Filters (Confidence:{" "}
+                          {t("autogen.t_extracted_filters_confidence")}{" "}
                           {Math.round(aiParams.confidenceScore * 100)}%):
                         </span>
                         <button
@@ -408,7 +410,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                             cursor: "pointer",
                           }}
                         >
-                          Apply & Search &rarr;
+                          {t("autogen.t_apply_search_rarr")}
                         </button>
                       </div>
 
@@ -430,7 +432,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            Title: <strong>{aiParams.cleanTitle}</strong>
+                            {t("autogen.t_title")}
+                            <strong>{aiParams.cleanTitle}</strong>
                           </span>
                         )}
                         {aiParams.category && (
@@ -444,7 +447,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            Category: <strong>{aiParams.category}</strong>
+                            {t("autogen.t_category")}
+                            <strong>{aiParams.category}</strong>
                           </span>
                         )}
                         {aiParams.resolution && (
@@ -458,7 +462,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            Res: <strong>{aiParams.resolution}</strong>
+                            {t("autogen.t_res")}
+                            <strong>{aiParams.resolution}</strong>
                           </span>
                         )}
                         {aiParams.quality && (
@@ -472,7 +477,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            Quality: <strong>{aiParams.quality}</strong>
+                            {t("autogen.t_quality")}
+                            <strong>{aiParams.quality}</strong>
                           </span>
                         )}
                         {aiParams.minSeeders > 0 && (
@@ -486,7 +492,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            Seeds: &ge;<strong>{aiParams.minSeeders}</strong>
+                            {t("autogen.t_seeds_ge")}
+                            <strong>{aiParams.minSeeders}</strong>
                           </span>
                         )}
                         {aiParams.freeleechOnly && (
@@ -501,7 +508,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontWeight: 700,
                             }}
                           >
-                            Freeleech Only
+                            {t("autogen.t_freeleech_only")}
                           </span>
                         )}
                       </div>
@@ -516,7 +523,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           <form onSubmit={handleSearch} className="search-form">
             <input
               type="text"
-              placeholder="Search all configured Torznab indexers..."
+              placeholder={t(
+                "autogen.t_search_all_configured_torznab_indexers",
+              )}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="search-input"
@@ -538,14 +547,14 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 checked={freeleechOnly}
                 onChange={(e) => setFreeleechOnly(e.target.checked)}
               />
-              Freeleech Only (100% Ratio Free)
+              {t("autogen.t_freeleech_only_100_ratio_free")}
             </label>
           </div>
 
           <div className="results-list">
             {searchResultsQuery.isLoading ? (
               <p className="text-muted text-center py-4">
-                Searching configured Torznab indexers...
+                {t("autogen.t_searching_configured_torznab_indexers")}
               </p>
             ) : filteredResults.length === 0 ? (
               <p className="text-muted text-center py-4">
@@ -573,28 +582,33 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       <div className="result-title">
                         <strong>{r.title}</strong>
                         {isFl && (
-                          <span className="freeleech-badge">FREELEECH</span>
+                          <span className="freeleech-badge">
+                            {t("autogen.t_freeleech")}
+                          </span>
                         )}
                       </div>
                       <div className="result-meta">
                         <span className="meta-item">
-                          <strong>Indexer:</strong>{" "}
+                          <strong>{t("autogen.t_indexer")}</strong>{" "}
                           {r.indexerName || r.indexer || "Torznab"}
                         </span>
                         <span className="meta-item">
-                          <strong>Category:</strong>{" "}
+                          <strong>{t("autogen.t_category")}</strong>{" "}
                           {(r.categories && r.categories.length > 0
                             ? r.categories.join(", ")
                             : r.category) || "General"}
                         </span>
                         <span className="meta-item">
-                          <strong>Size:</strong> {formatBytes(r.size)}
+                          <strong>{t("autogen.t_size")}</strong>{" "}
+                          {formatBytes(r.size)}
                         </span>
                         <span className="meta-item">
-                          <strong>Seeds:</strong> {r.seeders ?? 0}
+                          <strong>{t("autogen.t_seeds")}</strong>{" "}
+                          {r.seeders ?? 0}
                         </span>
                         <span className="meta-item">
-                          <strong>Leechers:</strong> {r.leechers ?? 0}
+                          <strong>{t("autogen.t_leechers")}</strong>{" "}
+                          {r.leechers ?? 0}
                         </span>
                       </div>
                     </div>

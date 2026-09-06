@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
@@ -5,12 +6,14 @@ import { SslCertificateValidationResult } from "../../api/types";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function HostSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
 
   const [form, setForm] = useState({
     port: 7889,
-    bindAddress: "0.0.0.0",
+    bindAddress: t("settingsTabs.batch2.defaultIp"),
     urlBase: "",
     autoStart: true,
     enableSsl: false,
@@ -30,7 +33,7 @@ export function HostSettingsTab() {
     if (config) {
       setForm({
         port: config.port ?? 7889,
-        bindAddress: config.bindAddress ?? "0.0.0.0",
+        bindAddress: config.bindAddress ?? t("settingsTabs.batch2.defaultIp"),
         urlBase: config.urlBase ?? "",
         autoStart: config.autoStart ?? true,
         enableSsl: config.enableSsl ?? false,
@@ -111,7 +114,7 @@ export function HostSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading host parameters...
+        {t("settingsTabs.host.loading")}
       </div>
     );
   }
@@ -128,8 +131,8 @@ export function HostSettingsTab() {
       />
 
       <SectionCard
-        title="Web Server Runtime & Ports"
-        description="Configure Kestrel HTTP web server hosting parameters and reverse proxy routing."
+        title={t("settingsTabs.host.webServer.title")}
+        description={t("settingsTabs.host.webServer.description")}
       >
         <div
           style={{
@@ -139,26 +142,26 @@ export function HostSettingsTab() {
           }}
         >
           <NumberInput
-            label="HTTP Port"
+            label={t("settingsTabs.host.webServer.port.label")}
             value={form.port}
             onChange={(v) => update("port", v)}
             min={1}
             max={65535}
-            hint="Port for plain HTTP Web UI & REST API traffic (default: 7889)"
+            hint={t("settingsTabs.host.webServer.port.hint")}
           />
 
           <TextInput
-            label="Bind Address"
+            label={t("settingsTabs.host.webServer.bindAddress.label")}
             value={form.bindAddress}
             onChange={(v) => update("bindAddress", v)}
-            hint="IP address/interface to bind web server (0.0.0.0 or * for all interfaces)"
+            hint={t("settingsTabs.host.webServer.bindAddress.hint")}
           />
 
           <TextInput
-            label="URL Base (Sub-path)"
+            label={t("settingsTabs.host.webServer.urlBase.label")}
             value={form.urlBase}
             onChange={(v) => update("urlBase", v)}
-            hint="Prefix for reverse proxies (e.g. /leecharr, leave empty for root /)"
+            hint={t("settingsTabs.host.webServer.urlBase.hint")}
           />
         </div>
 
@@ -170,26 +173,26 @@ export function HostSettingsTab() {
           }}
         >
           <Toggle
-            label="Auto-Resume Torrents on Startup"
+            label={t("settingsTabs.host.webServer.autoStart.label")}
             checked={form.autoStart}
             onChange={(v) => update("autoStart", v)}
-            hint="Automatically restart active torrent swarms upon Leecharr daemon initialization"
+            hint={t("settingsTabs.host.webServer.autoStart.hint")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="SSL & HTTPS Encryption"
-        description="Configure TLS/SSL certificate encryption, dual-listener HTTPS port, and connection verification."
+        title={t("settingsTabs.host.ssl.title")}
+        description={t("settingsTabs.host.ssl.description")}
       >
         <div
           style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
         >
           <Toggle
-            label="Enable SSL (HTTPS)"
+            label={t("settingsTabs.host.ssl.enable.label")}
             checked={form.enableSsl}
             onChange={(v) => update("enableSsl", v)}
-            hint="Activate secure HTTPS web server endpoint with TLS certificate encryption"
+            hint={t("settingsTabs.host.ssl.enable.hint")}
           />
 
           {form.enableSsl && (
@@ -202,12 +205,12 @@ export function HostSettingsTab() {
                 }}
               >
                 <NumberInput
-                  label="SSL / HTTPS Port"
+                  label={t("settingsTabs.host.ssl.port.label")}
                   value={form.sslPort}
                   onChange={(v) => update("sslPort", v)}
                   min={1}
                   max={65535}
-                  hint="Dedicated port for secure HTTPS traffic (default: 7890)"
+                  hint={t("settingsTabs.host.ssl.port.hint")}
                 />
 
                 <div
@@ -218,10 +221,10 @@ export function HostSettingsTab() {
                   }}
                 >
                   <Toggle
-                    label="Redirect HTTP to HTTPS"
+                    label={t("settingsTabs.host.ssl.redirect.label")}
                     checked={form.redirectHttpToHttps}
                     onChange={(v) => update("redirectHttpToHttps", v)}
-                    hint="Automatically redirect plain HTTP requests to the HTTPS port"
+                    hint={t("settingsTabs.host.ssl.redirect.hint")}
                   />
                 </div>
               </div>
@@ -234,25 +237,25 @@ export function HostSettingsTab() {
                 }}
               >
                 <TextInput
-                  label="Certificate Path (.pfx, .crt, .pem)"
+                  label={t("settingsTabs.host.ssl.certPath.label")}
                   value={form.sslCertPath}
                   onChange={(v) => update("sslCertPath", v)}
-                  hint="Path to PKCS#12 (.pfx/.p12) or PEM (.crt/.pem) certificate. Leave blank for auto-generated self-signed certificate."
+                  hint={t("settingsTabs.host.ssl.certPath.hint")}
                 />
 
                 <TextInput
-                  label="Private Key Path (.key) (Optional for PEM)"
+                  label={t("settingsTabs.host.ssl.keyPath.label")}
                   value={form.sslKeyPath}
                   onChange={(v) => update("sslKeyPath", v)}
-                  hint="Path to separate PEM private key (.key). Leave blank if key is bundled in certificate or PFX."
+                  hint={t("settingsTabs.host.ssl.keyPath.hint")}
                 />
 
                 <TextInput
-                  label="Certificate Password (Optional for PFX)"
+                  label={t("settingsTabs.host.ssl.certPassword.label")}
                   value={form.sslCertPassword}
                   onChange={(v) => update("sslCertPassword", v)}
                   type="password"
-                  hint="Decryption passphrase if certificate file is password-protected"
+                  hint={t("settingsTabs.host.ssl.certPassword.hint")}
                 />
               </div>
 
@@ -274,8 +277,8 @@ export function HostSettingsTab() {
                   style={{ minWidth: "160px" }}
                 >
                   {testingSsl
-                    ? "Testing Certificate..."
-                    : "🔒 Test SSL Connection"}
+                    ? t("settingsTabs.host.ssl.test.testing")
+                    : t("settingsTabs.host.ssl.test.button")}
                 </button>
 
                 <span
@@ -321,8 +324,8 @@ export function HostSettingsTab() {
                       }}
                     >
                       {sslTestResult.isValid
-                        ? "SSL Certificate & Configuration Valid"
-                        : "SSL Certificate Validation Issue"}
+                        ? t("settingsTabs.host.ssl.test.validTitle")
+                        : t("settingsTabs.host.ssl.test.invalidTitle")}
                     </strong>
                   </div>
 
@@ -358,7 +361,7 @@ export function HostSettingsTab() {
                             display: "block",
                           }}
                         >
-                          Subject:
+                          {t("settingsTabs.host.ssl.test.fields.subject")}
                         </span>
                         <span
                           style={{
@@ -366,7 +369,8 @@ export function HostSettingsTab() {
                             wordBreak: "break-all",
                           }}
                         >
-                          {sslTestResult.subject || "N/A"}
+                          {sslTestResult.subject ||
+                            t("settingsTabs.host.ssl.test.fields.na")}
                         </span>
                       </div>
                       <div>
@@ -376,7 +380,7 @@ export function HostSettingsTab() {
                             display: "block",
                           }}
                         >
-                          Issuer:
+                          {t("settingsTabs.host.ssl.test.fields.issuer")}
                         </span>
                         <span
                           style={{
@@ -384,7 +388,8 @@ export function HostSettingsTab() {
                             wordBreak: "break-all",
                           }}
                         >
-                          {sslTestResult.issuer || "N/A"}
+                          {sslTestResult.issuer ||
+                            t("settingsTabs.host.ssl.test.fields.na")}
                         </span>
                       </div>
                       <div>
@@ -394,14 +399,14 @@ export function HostSettingsTab() {
                             display: "block",
                           }}
                         >
-                          Valid Until:
+                          {t("settingsTabs.host.ssl.test.fields.validUntil")}
                         </span>
                         <span style={{ color: "var(--accent)" }}>
                           {sslTestResult.validTo
                             ? new Date(
                                 sslTestResult.validTo,
                               ).toLocaleDateString()
-                            : "N/A"}
+                            : t("settingsTabs.host.ssl.test.fields.na")}
                         </span>
                       </div>
                       <div>
@@ -411,7 +416,7 @@ export function HostSettingsTab() {
                             display: "block",
                           }}
                         >
-                          Private Key:
+                          {t("settingsTabs.host.ssl.test.fields.privateKey")}
                         </span>
                         <span
                           style={{
@@ -421,8 +426,8 @@ export function HostSettingsTab() {
                           }}
                         >
                           {sslTestResult.hasPrivateKey
-                            ? "Present (Verified)"
-                            : "Missing"}
+                            ? t("settingsTabs.host.ssl.test.fields.keyPresent")
+                            : t("settingsTabs.host.ssl.test.fields.keyMissing")}
                         </span>
                       </div>
                       {sslTestResult.subjectAlternativeNames?.length > 0 && (
@@ -434,7 +439,7 @@ export function HostSettingsTab() {
                               marginBottom: "0.25rem",
                             }}
                           >
-                            Subject Alternative Names (SANs):
+                            {t("settingsTabs.host.ssl.test.fields.sans")}
                           </span>
                           <div
                             style={{
@@ -480,7 +485,7 @@ export function HostSettingsTab() {
                 }}
               >
                 <strong style={{ color: "var(--accent)" }}>
-                  TLS Certificate Provisioning Note:
+                  {t("settingsTabs.host.ssl.note.title")}
                 </strong>{" "}
                 When Certificate Path is left empty, Leecharr automatically
                 generates, signs, and caches an internal 2048-bit RSA

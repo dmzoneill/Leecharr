@@ -1,9 +1,11 @@
+import { useTranslation } from "../i18n";
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router";
 import { TerminalView } from "../components/terminal/TerminalView";
 import { useBitTorrentConfig } from "../api/hooks";
 
 export function TerminalPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialPath = queryParams.get("path");
@@ -56,7 +58,7 @@ export function TerminalPage() {
           <span style={{ fontSize: "1.5rem" }}>💻</span>
           <div>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
-              System Download CLI
+              {t("autogen.t_system_download_cli")}
             </h2>
             <p
               style={{
@@ -65,8 +67,7 @@ export function TerminalPage() {
                 color: "var(--text-muted)",
               }}
             >
-              Interactive terminal with direct access to inspect download
-              volumes, permissions, and file trees.
+              {t("autogen.t_interactive_terminal_with_direct_access_")}
             </p>
           </div>
         </div>
@@ -86,7 +87,7 @@ export function TerminalPage() {
             style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
             onClick={() => setActivePath(downloadDir)}
           >
-            📥 Downloads Root
+            {t("autogen.t_downloads_root")}
           </button>
 
           <button
@@ -95,7 +96,7 @@ export function TerminalPage() {
             style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
             onClick={() => setActivePath(`${downloadDir}/incomplete`)}
           >
-            ⏳ Incomplete
+            {t("autogen.t_incomplete")}
           </button>
 
           <form
@@ -104,7 +105,7 @@ export function TerminalPage() {
           >
             <input
               type="text"
-              placeholder="Or enter path..."
+              placeholder={t("autogen.t_or_enter_path")}
               value={customPath}
               onChange={(e) => setCustomPath(e.target.value)}
               style={{
@@ -122,7 +123,7 @@ export function TerminalPage() {
               className="btn btn-outline"
               style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem" }}
             >
-              Go
+              {t("autogen.t_go")}
             </button>
           </form>
         </div>

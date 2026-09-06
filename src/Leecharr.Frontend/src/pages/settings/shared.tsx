@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -16,6 +17,8 @@ export function SaveFeedback({
   error: Error | null;
   dirty: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <>
       {isError && (
@@ -39,7 +42,7 @@ export function SaveFeedback({
             fontWeight: 600,
           }}
         >
-          ✓ Changes Saved Successfully
+          {t("settingsTabs.shared.changesSaved")}
         </span>
       )}
     </>
@@ -55,6 +58,7 @@ export function PendingChangesModal({
   onDiscard: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   useEscapeKey(onCancel);
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -69,7 +73,7 @@ export function PendingChangesModal({
         }}
       >
         <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
-          Unsaved Changes
+          {t("settingsTabs.shared.unsavedChangesTitle")}
         </h2>
         <p
           style={{
@@ -88,21 +92,21 @@ export function PendingChangesModal({
             onClick={onCancel}
             type="button"
           >
-            Stay on Page
+            {t("settingsTabs.shared.stayOnPage")}
           </button>
           <button
             className="btn btn-danger btn-small"
             onClick={onDiscard}
             type="button"
           >
-            Discard Changes
+            {t("settingsTabs.shared.discardChanges")}
           </button>
           <button
             className="btn btn-primary btn-small"
             onClick={onSave}
             type="button"
           >
-            Save Changes
+            {t("settingsTabs.categories.modal.saveChanges")}
           </button>
         </div>
       </div>
@@ -151,6 +155,7 @@ export function SaveBar({
   error: Error | null;
   onSave: () => void;
 }) {
+  const { t } = useTranslation();
   const guard = useUnsavedGuard(dirty);
 
   return (
@@ -190,10 +195,10 @@ export function SaveBar({
             style={{ minWidth: "120px" }}
           >
             {isPending
-              ? "Saving Changes..."
+              ? t("settingsTabs.shared.savingChangesBtn")
               : dirty
-                ? "💾 Save Changes"
-                : "✓ No Changes"}
+                ? t("settingsTabs.shared.saveChangesBtn")
+                : t("settingsTabs.shared.noChangesBtn")}
           </button>
           <SaveFeedback
             isPending={isPending}
@@ -208,7 +213,7 @@ export function SaveBar({
             className="badge badge-warning"
             style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
           >
-            ● Unsaved Changes
+            {t("settingsTabs.shared.unsavedChangesBadge")}
           </span>
         )}
       </div>
@@ -235,6 +240,8 @@ export function SectionCard({
   description?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="card"
@@ -505,6 +512,8 @@ export function SelectInput({
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="form-section-title"

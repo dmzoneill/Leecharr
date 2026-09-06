@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
@@ -78,7 +79,8 @@ const PROVIDER_TEMPLATES: Record<
   },
   saml: {
     providerId: "enterprise-saml",
-    name: "Enterprise SAML 2.0",
+    // @ts-ignore
+    name: t("settingsTabs.batch2.enterpriseSaml20"),
     providerType: 1, // SAML
     metadataUrl: "https://idp.example.com/metadata.xml",
     buttonText: "Single Sign-On (SAML)",
@@ -86,6 +88,8 @@ const PROVIDER_TEMPLATES: Record<
 };
 
 export function SecuritySettingsTab() {
+  const { t } = useTranslation();
+
   const navigate = useNavigate();
   const toast = useToast();
   const { showToast } = toast;
@@ -191,7 +195,10 @@ export function SecuritySettingsTab() {
       setRevealedApiKey(res.apiKey);
       setShowApiKey(true);
     } catch (_err) {
-      toast?.showToast("Failed to retrieve unmasked API key", "error");
+      toast?.showToast(
+        t("settingsTabs.batch2.failedToRetrieveUnmaskedApiKey"),
+        "error",
+      );
     } finally {
       setLoadingApiKey(false);
     }
@@ -200,7 +207,7 @@ export function SecuritySettingsTab() {
   const handleCopyApiKey = async () => {
     if (!navigator.clipboard?.writeText) {
       toast?.showToast(
-        "Clipboard API not available in this browser context",
+        t("settingsTabs.batch2.clipboardApiNotAvailable"),
         "error",
       );
       return;
@@ -217,16 +224,19 @@ export function SecuritySettingsTab() {
       }
 
       if (!keyToCopy) {
-        toast?.showToast("No API key available", "error");
+        toast?.showToast(t("settingsTabs.batch2.noApiKeyAvailable"), "error");
         return;
       }
 
       await navigator.clipboard.writeText(keyToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast?.showToast("API key copied to clipboard", "success");
+      toast?.showToast(
+        t("settingsTabs.batch2.apiKeyCopiedToClipboard"),
+        "success",
+      );
     } catch (_err) {
-      toast?.showToast("Failed to copy API key to clipboard", "error");
+      toast?.showToast(t("settingsTabs.batch2.failedToCopyApiKey"), "error");
     }
   };
 
@@ -285,27 +295,36 @@ export function SecuritySettingsTab() {
       setEditingProvider(null);
       setShowSecret(false);
       await loadProviders();
-      showToast("Identity provider saved successfully", "success");
+      showToast(
+        t("settingsTabs.batch2.identityProviderSavedSuccessfully"),
+        "success",
+      );
     } catch (err: any) {
-      showToast(err?.message || "Failed to save identity provider", "error");
+      showToast(
+        err?.message || t("settingsTabs.batch2.failedToSaveIdentityProvider"),
+        "error",
+      );
     }
   };
 
   const handleDeleteProvider = async (id: number) => {
     const ok = await confirm({
-      title: "Remove Identity Provider",
-      message: "Are you sure you want to remove this identity provider?",
+      title: t("settingsTabs.batch2.removeIdentityProvider"),
+      message: t("settingsTabs.batch2.areYouSureRemoveIdp"),
       danger: true,
-      confirmText: "Remove",
+      confirmText: t("settingsTabs.batch2.remove"),
     });
     if (!ok) return;
 
     try {
       await api.deleteIdProvider(id);
       await loadProviders();
-      showToast("Identity provider removed", "success");
+      showToast(t("settingsTabs.batch2.identityProviderRemoved"), "success");
     } catch (err: any) {
-      showToast(err?.message || "Failed to delete identity provider", "error");
+      showToast(
+        err?.message || t("settingsTabs.batch2.failedToDeleteIdentityProvider"),
+        "error",
+      );
     }
   };
 
@@ -319,7 +338,8 @@ export function SecuritySettingsTab() {
     } catch (err: any) {
       setTestResult({
         success: false,
-        message: err?.message || "Connection failed",
+        message:
+          err?.message || t("settingsTabs.notifications.connectionFailed"),
       });
     } finally {
       setTesting(false);
@@ -329,7 +349,7 @@ export function SecuritySettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading security parameters...
+        {t("settingsTabs.batch2.loadingSecurityParameters")}
       </div>
     );
   }
@@ -346,15 +366,15 @@ export function SecuritySettingsTab() {
       />
 
       <SectionCard
-        title="Authentication & Access Gate"
-        description="Configure user login protection for the Web UI and administrative controls."
+        title={t("settingsTabs.batch2.authenticationAndAccessGate")}
+        description={t("settingsTabs.batch2.configureUserLoginProtection")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Web UI Authentication"
+            label={t("settingsTabs.batch2.enableWebUiAuthentication")}
             checked={form.authenticationEnabled}
             onChange={(v) => update("authenticationEnabled", v)}
-            hint="Require login before accessing Web UI"
+            hint={t("settingsTabs.batch2.requireLoginBeforeAccessingWebUi")}
           />
 
           {form.authenticationEnabled && (
@@ -379,38 +399,40 @@ export function SecuritySettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="WebUI Security & Request Origin Protection"
-        description="Prevent Cross-Site Request Forgery (CSRF) and DNS rebinding attacks."
+        title={t("settingsTabs.batch2.webUiSecurityAndRequestOriginProtection")}
+        description={t("settingsTabs.batch2.preventCsrfAndDnsRebindingAttacks")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Cross-Site Request Forgery (CSRF) Protection"
+            label={t("settingsTabs.batch2.enableCsrfProtection")}
             checked={form.csrfProtectionEnabled}
             onChange={(v) => update("csrfProtectionEnabled", v)}
-            hint="Enforces strict origin/referer checks and antiforgery token validation for all state-changing API and WebUI endpoints"
+            hint={t("settingsTabs.batch2.enforcesStrictOriginRefererChecks")}
           />
 
           <Toggle
-            label="Enable Strict Host Header Validation"
+            label={t("settingsTabs.batch2.enableStrictHostHeaderValidation")}
             checked={form.hostHeaderValidationEnabled}
             onChange={(v) => update("hostHeaderValidationEnabled", v)}
-            hint="Prevents DNS rebinding attacks by validating the HTTP Host request header against allowed hostnames"
+            hint={t("settingsTabs.batch2.preventsDnsRebindingAttacks")}
           />
 
           {form.hostHeaderValidationEnabled && (
             <TextInput
-              label="Allowed Host Headers (Whitelist)"
+              label={t("settingsTabs.batch2.allowedHostHeadersWhitelist")}
               value={form.allowedHosts}
               onChange={(v) => update("allowedHosts", v)}
-              hint="Comma-separated list of allowed hostnames/IPs (e.g. localhost, 127.0.0.1, leecharr.lan, torrents.mydomain.com)"
+              hint={t(
+                "settingsTabs.batch2.commaSeparatedListOfAllowedHostnames",
+              )}
             />
           )}
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Identity Providers & Single Sign-On (SSO)"
-        description="Integrate self-hosted IdPs (Authentik, Keycloak, Authelia), Social Logins (Google, GitHub, Apple, Facebook), or Enterprise SAML 2.0."
+        title={t("settingsTabs.batch2.identityProvidersAndSso")}
+        description={t("settingsTabs.batch2.integrateSelfHostedIdps")}
       >
         <div
           style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
@@ -493,7 +515,7 @@ export function SecuritySettingsTab() {
             <div
               style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
             >
-              Loading providers...
+              {t("settingsTabs.batch2.loadingProviders")}
             </div>
           ) : providers.length === 0 ? (
             <div
@@ -565,12 +587,12 @@ export function SecuritySettingsTab() {
                       >
                         Type:{" "}
                         {p.providerType === 0
-                          ? "OIDC"
+                          ? t("settingsTabs.batch2.oidc")
                           : p.providerType === 1
-                            ? "SAML 2.0"
+                            ? t("settingsTabs.batch2.saml20")
                             : p.providerType === 2
-                              ? "Social"
-                              : "Forward-Auth"}{" "}
+                              ? t("settingsTabs.batch2.social")
+                              : t("settingsTabs.batch2.forwardAuth")}{" "}
                         | ID: {p.providerId}{" "}
                         {p.issuerUrl ? `| ${p.issuerUrl}` : ""}
                       </div>
@@ -602,8 +624,10 @@ export function SecuritySettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="REST API Key Security"
-        description="Master API authentication token (X-Api-Key) required for external *arr connections and REST API access."
+        title={t("settingsTabs.batch2.restApiKeySecurity")}
+        description={t(
+          "settingsTabs.batch2.masterApiAuthenticationTokenRequired",
+        )}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div
@@ -611,7 +635,7 @@ export function SecuritySettingsTab() {
           >
             <div style={{ flex: 1 }}>
               <TextInput
-                label="API Key (X-Api-Key)"
+                label={t("settingsTabs.batch2.apiKey")}
                 type={
                   showApiKey
                     ? "text"
@@ -628,7 +652,7 @@ export function SecuritySettingsTab() {
                   setRevealedApiKey(null);
                   update("apiKey", v);
                 }}
-                hint="Pass this key in the X-Api-Key HTTP header for programmatic REST API access"
+                hint={t("settingsTabs.batch2.passThisKeyInXApiKeyHttpHeader")}
                 rightElement={
                   <button
                     type="button"
@@ -640,10 +664,14 @@ export function SecuritySettingsTab() {
                       padding: "0 0.75rem",
                     }}
                     title={
-                      showApiKey ? "Hide API key" : "Show unmasked API key"
+                      showApiKey
+                        ? t("settingsTabs.batch2.hideApiKey")
+                        : t("settingsTabs.batch2.showUnmaskedApiKey")
                     }
                     aria-label={
-                      showApiKey ? "Hide API key" : "Show unmasked API key"
+                      showApiKey
+                        ? t("settingsTabs.batch2.hideApiKey")
+                        : t("settingsTabs.batch2.showUnmaskedApiKey")
                     }
                     disabled={loadingApiKey}
                   >
@@ -658,7 +686,9 @@ export function SecuritySettingsTab() {
               onClick={handleCopyApiKey}
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
-              {copied ? "✓ Copied!" : "📋 Copy"}
+              {copied
+                ? t("settingsTabs.batch2.copied")
+                : t("settingsTabs.batch2.copy")}
             </button>
             <button
               type="button"
@@ -716,7 +746,7 @@ export function SecuritySettingsTab() {
               }}
             >
               {isNewProvider
-                ? "Add Identity Provider"
+                ? t("settingsTabs.batch2.addIdentityProvider")
                 : `Edit ${editingProvider.name}`}
             </h2>
 
@@ -724,40 +754,51 @@ export function SecuritySettingsTab() {
               style={{ display: "flex", flexDirection: "column", gap: "14px" }}
             >
               <Toggle
-                label="Enable Provider"
+                label={t("settingsTabs.batch2.enableProvider")}
                 checked={editingProvider.isEnabled ?? true}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({ ...prev, isEnabled: v }))
                 }
-                hint="Allow users to log in with this provider"
+                hint={t(
+                  "settingsTabs.batch2.allowUsersToLogInWithThisProvider",
+                )}
               />
 
               <TextInput
-                label="Provider Name"
+                label={t("settingsTabs.batch2.providerName")}
                 value={editingProvider.name || ""}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({ ...prev, name: v }))
                 }
-                hint="Display name (e.g. Authentik, Keycloak, Google)"
+                hint={t("settingsTabs.batch2.displayNameExample")}
               />
 
               <TextInput
-                label="Provider Identifier"
+                label={t("settingsTabs.batch2.providerIdentifier")}
                 value={editingProvider.providerId || ""}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({ ...prev, providerId: v }))
                 }
-                hint="Unique URL-safe identifier (e.g. authentik, keycloak, google)"
+                hint={t("settingsTabs.batch2.uniqueUrlSafeIdentifier")}
               />
 
               <SelectInput
-                label="Provider Type"
+                label={t("settingsTabs.batch2.providerType")}
                 value={String(editingProvider.providerType ?? 0)}
                 options={[
-                  { value: "0", label: "OpenID Connect (OIDC)" },
-                  { value: "1", label: "Enterprise SAML 2.0" },
-                  { value: "2", label: "Social OAuth 2.0" },
-                  { value: "3", label: "Forward-Auth (Reverse Proxy)" },
+                  {
+                    value: "0",
+                    label: t("settingsTabs.batch2.openIdConnectOidc"),
+                  },
+                  {
+                    value: "1",
+                    label: t("settingsTabs.batch2.enterpriseSaml20"),
+                  },
+                  { value: "2", label: t("settingsTabs.batch2.socialOauth20") },
+                  {
+                    value: "3",
+                    label: t("settingsTabs.batch2.forwardAuthReverseProxy"),
+                  },
                 ]}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({
@@ -770,16 +811,16 @@ export function SecuritySettingsTab() {
               {editingProvider.providerType !== 1 && (
                 <>
                   <TextInput
-                    label="Issuer URL / Authority"
+                    label={t("settingsTabs.batch2.issuerUrlAuthority")}
                     value={editingProvider.issuerUrl || ""}
                     onChange={(v) =>
                       setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))
                     }
-                    hint="Base URL of IdP (e.g. https://auth.example.com/application/o/leecharr/)"
+                    hint={t("settingsTabs.batch2.baseUrlOfIdp")}
                   />
 
                   <TextInput
-                    label="Client ID"
+                    label={t("settingsTabs.batch2.clientId")}
                     value={editingProvider.clientId || ""}
                     onChange={(v) =>
                       setEditingProvider((prev) => ({ ...prev, clientId: v }))
@@ -787,7 +828,7 @@ export function SecuritySettingsTab() {
                   />
 
                   <TextInput
-                    label="Client Secret"
+                    label={t("settingsTabs.batch2.clientSecret")}
                     type={showSecret ? "text" : "password"}
                     value={editingProvider.clientSecret || ""}
                     onChange={(v) =>
@@ -796,7 +837,9 @@ export function SecuritySettingsTab() {
                         clientSecret: v,
                       }))
                     }
-                    hint="Leave blank or masked to keep current secret"
+                    hint={t(
+                      "settingsTabs.batch2.leaveBlankOrMaskedToKeepCurrentSecret",
+                    )}
                     rightElement={
                       <button
                         type="button"
@@ -900,7 +943,9 @@ export function SecuritySettingsTab() {
                 disabled={testing}
                 style={{ fontSize: "0.85rem" }}
               >
-                {testing ? "Testing..." : "🔍 Test Connection"}
+                {testing
+                  ? t("settingsTabs.notifications.testing")
+                  : "🔍 Test Connection"}
               </button>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button
@@ -911,7 +956,7 @@ export function SecuritySettingsTab() {
                     setShowSecret(false);
                   }}
                 >
-                  Cancel
+                  {t("settingsTabs.categories.modal.cancel")}
                 </button>
                 <button
                   type="button"

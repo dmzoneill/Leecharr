@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useAiConfig,
@@ -19,6 +20,8 @@ import {
 import type { AiConfig, SubsystemProbeResult } from "../../api/types";
 
 export function AiTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: config, isLoading: configLoading } = useAiConfig();
   const saveConfig = useSaveAiConfig();
@@ -75,13 +78,13 @@ export function AiTab() {
         showToast(`Switched active AI engine to ${providerId}.`, "success");
       } else {
         showToast(
-          `Failed to switch AI engine: ${res.error || "Unknown error"}`,
+          `Failed to switch AI engine: ${res.error || t("settingsTabs.notifications.unknownError")}`,
           "error",
         );
       }
     } catch (err: any) {
       showToast(
-        `Failed to switch AI engine: ${err.message || "Unknown error"}`,
+        `Failed to switch AI engine: ${err.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     }
@@ -96,7 +99,10 @@ export function AiTab() {
       });
       setProbeResult(res);
     } catch (err: any) {
-      showToast(`Probe failed: ${err.message || "Unknown error"}`, "error");
+      showToast(
+        `Probe failed: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        "error",
+      );
     } finally {
       setProbeLoadingId(null);
     }
@@ -104,14 +110,11 @@ export function AiTab() {
 
   const handleResetButtonPosition = () => {
     localStorage.removeItem("leecharr_copilot_btn_pos");
-    showToast(
-      "Floating AI Copilot button position reset to default (bottom-right above status bar).",
-      "success",
-    );
+    showToast(t("settingsTabs.ai.resetSuccess"), "success");
   };
 
   if (configLoading) {
-    return <div className="loading">Loading AI configuration...</div>;
+    return <div className="loading">{t("settingsTabs.ai.loading")}</div>;
   }
 
   return (
@@ -147,8 +150,8 @@ export function AiTab() {
 
       {/* Pluggable AI Engine Providers */}
       <SectionCard
-        title="Active AI Engine & Pluggable Providers"
-        description="Select and hot-swap the underlying AI model architecture. Changes apply immediately without restart."
+        title={t("settingsTabs.ai.engineTitle")}
+        description={t("settingsTabs.ai.engineDescription")}
       >
         <div
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
@@ -231,7 +234,7 @@ export function AiTab() {
                               fontWeight: 700,
                             }}
                           >
-                            ACTIVE
+                            {t("settingsTabs.subsystems.statusActive")}
                           </span>
                         )}
                       </div>
@@ -275,7 +278,11 @@ export function AiTab() {
                             : "none",
                         }}
                       />
-                      <span>{isProbing ? "Probing..." : "Test Health"}</span>
+                      <span>
+                        {isProbing
+                          ? t("settingsTabs.subsystems.probing")
+                          : t("settingsTabs.ai.testHealth")}
+                      </span>
                     </button>
 
                     {!isActive && (
@@ -288,7 +295,7 @@ export function AiTab() {
                         className="btn btn-primary btn-small"
                         style={{ fontSize: "0.75rem", fontWeight: 700 }}
                       >
-                        Activate Provider
+                        {t("settingsTabs.ai.activateProvider")}
                       </button>
                     )}
                   </div>
@@ -356,8 +363,8 @@ export function AiTab() {
 
       {/* Provider Connection Parameters */}
       <SectionCard
-        title="Provider Connection & API Credentials"
-        description="Configure endpoints, model tags, and credentials for local sidecar LLMs and cloud intelligence APIs."
+        title={t("settingsTabs.ai.connectionTitle")}
+        description={t("settingsTabs.ai.connectionDescription")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* Ollama */}
@@ -376,7 +383,7 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              🦙 Ollama Local LLM Sidecar Settings
+              {t("settingsTabs.ai.ollamaTitle")}
             </h4>
             <div
               className="form-row"
@@ -387,7 +394,9 @@ export function AiTab() {
               }}
             >
               <div className="form-group">
-                <label style={{ fontSize: "0.75rem" }}>Ollama Server URL</label>
+                <label style={{ fontSize: "0.75rem" }}>
+                  {t("settingsTabs.ai.ollamaUrl")}
+                </label>
                 <input
                   type="text"
                   value={formData.ollamaHost}
@@ -400,7 +409,7 @@ export function AiTab() {
               </div>
               <div className="form-group">
                 <label style={{ fontSize: "0.75rem" }}>
-                  Default Model Name
+                  {t("settingsTabs.ai.defaultModelName")}
                 </label>
                 <input
                   type="text"
@@ -431,7 +440,7 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              ✨ Google Cloud Gemini LLM Settings
+              {t("settingsTabs.ai.geminiTitle")}
             </h4>
             <div
               className="form-row"
@@ -442,19 +451,23 @@ export function AiTab() {
               }}
             >
               <div className="form-group">
-                <label style={{ fontSize: "0.75rem" }}>Gemini API Key</label>
+                <label style={{ fontSize: "0.75rem" }}>
+                  {t("settingsTabs.ai.geminiApiKey")}
+                </label>
                 <input
                   type="password"
                   value={formData.geminiApiKey}
                   onChange={(e) =>
                     setFormData({ ...formData, geminiApiKey: e.target.value })
                   }
-                  placeholder="Enter Google AI Studio API key"
+                  placeholder={t("settingsTabs.ai.geminiApiKeyPlaceholder")}
                   className="form-control"
                 />
               </div>
               <div className="form-group">
-                <label style={{ fontSize: "0.75rem" }}>Gemini Model</label>
+                <label style={{ fontSize: "0.75rem" }}>
+                  {t("settingsTabs.ai.geminiModel")}
+                </label>
                 <select
                   value={formData.geminiModel}
                   onChange={(e) =>
@@ -463,10 +476,14 @@ export function AiTab() {
                   className="form-control"
                 >
                   <option value="gemini-2.0-flash">
-                    Gemini 2.0 Flash (Recommended)
+                    {t("settingsTabs.ai.geminiOptions.flash2")}
                   </option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  <option value="gemini-1.5-flash">
+                    {t("settingsTabs.ai.geminiOptions.flash15")}
+                  </option>
+                  <option value="gemini-1.5-pro">
+                    {t("settingsTabs.ai.geminiOptions.pro15")}
+                  </option>
                 </select>
               </div>
             </div>
@@ -488,11 +505,11 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              🧠 Local ONNX ML Model Path
+              {t("settingsTabs.ai.onnxTitle")}
             </h4>
             <div className="form-group">
               <label style={{ fontSize: "0.75rem" }}>
-                ONNX Model File Path
+                {t("settingsTabs.ai.onnxPath")}
               </label>
               <input
                 type="text"
@@ -510,8 +527,8 @@ export function AiTab() {
 
       {/* Discrete UI Integration & Feature Controls */}
       <SectionCard
-        title="Discrete UI Features & Automation Toggles"
-        description="Control the visibility and behavior of AI assistants, search accordions, and diagnostic cards."
+        title={t("settingsTabs.ai.uiFeaturesTitle")}
+        description={t("settingsTabs.ai.uiFeaturesDescription")}
       >
         <div
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
@@ -542,7 +559,7 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              Enable Floating Draggable AI Copilot Button
+              {t("settingsTabs.ai.enableCopilot")}
             </span>
           </label>
           <span
@@ -583,7 +600,7 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              Enable AI Natural Language Smart Search in Indexer Modal
+              {t("settingsTabs.ai.enableSearch")}
             </span>
           </label>
           <span
@@ -624,7 +641,7 @@ export function AiTab() {
                 color: "var(--text-primary, #F8F4ED)",
               }}
             >
-              Enable AI Swarm Diagnostics Card in Torrent Details
+              {t("settingsTabs.ai.enableDiagnostics")}
             </span>
           </label>
           <span
@@ -651,7 +668,7 @@ export function AiTab() {
               className="btn btn-outline btn-small"
               style={{ fontSize: "0.75rem" }}
             >
-              🎯 Reset Floating Button Position to Default
+              {t("settingsTabs.ai.resetButtonPosition")}
             </button>
           </div>
         </div>

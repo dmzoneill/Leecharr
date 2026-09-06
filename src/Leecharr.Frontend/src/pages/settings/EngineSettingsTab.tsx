@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
@@ -20,6 +21,8 @@ import { useToast } from "../../context/ToastContext";
 import type { EngineProbeResult } from "../../api/types";
 
 export function EngineSettingsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
@@ -136,13 +139,16 @@ export function EngineSettingsTab() {
       {
         onSuccess: () => {
           setDirty(false);
-          showToast("Engine settings saved successfully", "success");
+          showToast(
+            t("settingsTabs.batch2.engineSettingsSavedSuccessfully"),
+            "success",
+          );
         },
         onError: (err: any) => {
           showToast(
             err?.response?.data?.message ||
               err?.message ||
-              "Failed to save engine settings",
+              t("settingsTabs.batch2.failedToSaveEngineSettings"),
             "error",
           );
         },
@@ -170,7 +176,7 @@ export function EngineSettingsTab() {
               err?.response?.data?.error ||
               err?.response?.data?.message ||
               err?.message ||
-              "Failed to switch torrent engine";
+              t("settingsTabs.batch2.failedToSwitchTorrentEngine");
             showToast(errorMsg, "error");
             setSelectedEngineForSwitch(null);
           },
@@ -197,7 +203,7 @@ export function EngineSettingsTab() {
       }
     } catch (err: any) {
       showToast(
-        `Probe failed for ${engineId}: ${err?.message || "Unknown error"}`,
+        `Probe failed for ${engineId}: ${err?.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     } finally {
@@ -208,7 +214,7 @@ export function EngineSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading engine settings...
+        {t("settingsTabs.batch2.loadingEngineSettings")}
       </div>
     );
   }
@@ -231,8 +237,8 @@ export function EngineSettingsTab() {
       />
 
       <SectionCard
-        title="BitTorrent Engine Core & Runtime Hot-Swap"
-        description="Select the active download engine powering all BitTorrent peer swarms and transfers."
+        title={t("settingsTabs.batch2.bitTorrentEngineCore")}
+        description={t("settingsTabs.batch2.selectActiveDownloadEngine")}
       >
         <div
           style={{
@@ -290,7 +296,7 @@ export function EngineSettingsTab() {
                           padding: "0.15rem 0.5rem",
                         }}
                       >
-                        ● Active
+                        {t("settingsTabs.batch2.activeBadge")}
                       </span>
                     ) : (
                       <span
@@ -300,7 +306,9 @@ export function EngineSettingsTab() {
                           padding: "0.15rem 0.5rem",
                         }}
                       >
-                        {eng.isAvailable ? "Ready" : "Unavailable"}
+                        {eng.isAvailable
+                          ? t("settingsTabs.batch2.ready")
+                          : t("settingsTabs.batch2.unavailable")}
                       </span>
                     )}
                   </div>
@@ -338,8 +346,8 @@ export function EngineSettingsTab() {
                     style={{ flex: 1, fontSize: "0.75rem" }}
                   >
                     {probingEngineId === engineId
-                      ? "⏳ Probing..."
-                      : "🔍 Probe Health"}
+                      ? t("settingsTabs.batch2.probing")
+                      : t("settingsTabs.batch2.probeHealth")}
                   </button>
                   {!isActive && (
                     <button
@@ -349,7 +357,7 @@ export function EngineSettingsTab() {
                       disabled={!eng.isAvailable || switchMutation.isPending}
                       style={{ flex: 1, fontSize: "0.75rem" }}
                     >
-                      ⚡ Hot-Swap
+                      {t("settingsTabs.batch2.hotSwap")}
                     </button>
                   )}
                 </div>
@@ -361,8 +369,8 @@ export function EngineSettingsTab() {
 
       {/* Engine-Specific Cards */}
       <SectionCard
-        title="MonoTorrent Managed C# Engine Tuning"
-        description="Fine-tune async RAM write buffers, piece pickers, and FastResume persistence."
+        title={t("settingsTabs.batch2.monoTorrentManagedEngineTuning")}
+        description={t("settingsTabs.batch2.fineTuneAsyncRamWriteBuffers")}
       >
         <div
           style={{
@@ -372,59 +380,70 @@ export function EngineSettingsTab() {
           }}
         >
           <NumberInput
-            label="RAM Write Cache (MB)"
+            label={t("settingsTabs.batch2.ramWriteCacheMb")}
             value={form.diskCacheMb}
             onChange={(v) => update("diskCacheMb", v)}
             min={16}
             max={4096}
             step={16}
             suffix="MB"
-            hint="Dirty block write buffer size before flushing to disk"
+            hint={t("settingsTabs.batch2.dirtyBlockWriteBufferSize")}
           />
 
           <SelectInput
-            label="Disk Cache Policy"
+            label={t("settingsTabs.batch2.diskCachePolicy")}
             value={form.diskCachePolicy}
             onChange={(v) => update("diskCachePolicy", v)}
             options={[
               {
                 value: "ReadsAndWrites",
-                label: "Cache Reads & Writes (Recommended)",
+                label: t("settingsTabs.batch2.cacheReadsAndWrites"),
               },
-              { value: "WritesOnly", label: "Cache Writes Only" },
+              {
+                value: "WritesOnly",
+                label: t("settingsTabs.batch2.cacheWritesOnly"),
+              },
               {
                 value: "None",
-                label: "Disable Memory Caching (Direct Disk I/O)",
+                label: t("settingsTabs.batch2.disableMemoryCaching"),
               },
             ]}
           />
 
           <SelectInput
-            label="Piece Picker Strategy"
+            label={t("settingsTabs.batch2.piecePickerStrategy")}
             value={form.piecePickerStrategy}
             onChange={(v) => update("piecePickerStrategy", v)}
             options={[
               {
                 value: "RarestFirst",
-                label: "Rarest First (Optimal Swarm Distribution)",
+                label: t("settingsTabs.batch2.rarestFirst"),
               },
               {
                 value: "Sequential",
-                label: "Sequential (Head-to-Tail for Instant Inspection)",
+                label: t("settingsTabs.batch2.sequential"),
               },
-              { value: "Streaming", label: "Streaming Buffer Priority" },
-              { value: "Random", label: "Randomized Selection" },
+              {
+                value: "Streaming",
+                label: t("settingsTabs.batch2.streamingBufferPriority"),
+              },
+              {
+                value: "Random",
+                label: t("settingsTabs.batch2.randomizedSelection"),
+              },
             ]}
           />
 
           <NumberInput
-            label="FastResume Autosave Interval (s)"
+            label={t("settingsTabs.batch2.fastResumeAutosaveInterval")}
             value={form.autoSaveFastResumeIntervalSeconds}
             onChange={(v) => update("autoSaveFastResumeIntervalSeconds", v)}
             min={30}
             max={3600}
-            suffix="sec"
-            hint="Interval to persist verified piece bitfields to disk"
+            suffix={t("settingsTabs.batch2.sec")}
+            hint={t(
+              "settingsTabs.batch2.intervalToPersistVerifiedPieceBitfields",
+            )}
           />
         </div>
 
@@ -436,17 +455,17 @@ export function EngineSettingsTab() {
           }}
         >
           <Toggle
-            label="Enable Endgame Mode"
+            label={t("settingsTabs.batch2.enableEndgameMode")}
             checked={form.endGamePickerEnabled}
             onChange={(v) => update("endGamePickerEnabled", v)}
-            hint="Request the final remaining blocks from all available peers simultaneously to avoid stalled finishes"
+            hint={t("settingsTabs.batch2.requestFinalRemainingBlocks")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="libtorrent (Rasterbar) Engine Tuning"
-        description="Configure POSIX threading, OS page caching, and choking algorithms."
+        title={t("settingsTabs.batch2.libtorrentEngineTuning")}
+        description={t("settingsTabs.batch2.configurePosixThreading")}
       >
         <div
           style={{
@@ -456,53 +475,68 @@ export function EngineSettingsTab() {
           }}
         >
           <NumberInput
-            label="SHA-1 Hashing Threads"
+            label={t("settingsTabs.batch2.sha1HashingThreads")}
             value={form.hashingThreads}
             onChange={(v) => update("hashingThreads", v)}
             min={1}
             max={32}
-            hint="Parallel CPU workers for SHA-1 piece checksum validation"
+            hint={t("settingsTabs.batch2.parallelCpuWorkers")}
           />
 
           <NumberInput
-            label="POSIX Async I/O Threads"
+            label={t("settingsTabs.batch2.posixAsyncIoThreads")}
             value={form.aioThreads}
             onChange={(v) => update("aioThreads", v)}
             min={1}
             max={64}
-            hint="libtorrent storage async disk I/O threads"
+            hint={t("settingsTabs.batch2.libtorrentStorageAsyncDiskIoThreads")}
           />
 
           <SelectInput
-            label="Leecher Choking Algorithm"
+            label={t("settingsTabs.batch2.leecherChokingAlgorithm")}
             value={form.chokingAlgorithm}
             onChange={(v) => update("chokingAlgorithm", v)}
             options={[
-              { value: "FixedSlots", label: "Fixed Slots (Standard)" },
-              { value: "RateBased", label: "Rate-Based Dynamic Tit-for-Tat" },
+              {
+                value: "FixedSlots",
+                label: t("settingsTabs.batch2.fixedSlotsStandard"),
+              },
+              {
+                value: "RateBased",
+                label: t("settingsTabs.batch2.rateBasedDynamicTitForTat"),
+              },
               {
                 value: "BittorrentChoker",
-                label: "Strict BitTorrent 1.0 Choker",
+                label: t("settingsTabs.batch2.strictBitTorrent10Choker"),
               },
             ]}
           />
 
           <SelectInput
-            label="Seeder Choking Algorithm"
+            label={t("settingsTabs.batch2.seederChokingAlgorithm")}
             value={form.seedChokingAlgorithm}
             onChange={(v) => update("seedChokingAlgorithm", v)}
             options={[
-              { value: "RoundRobin", label: "Round Robin (Fair Distribution)" },
-              { value: "FastestUpload", label: "Fastest Upload First" },
-              { value: "AntiLeech", label: "Anti-Leech Priority" },
+              {
+                value: "RoundRobin",
+                label: t("settingsTabs.batch2.roundRobinFairDistribution"),
+              },
+              {
+                value: "FastestUpload",
+                label: t("settingsTabs.batch2.fastestUploadFirst"),
+              },
+              {
+                value: "AntiLeech",
+                label: t("settingsTabs.batch2.antiLeechPriority"),
+              },
             ]}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Transmission Daemon Engine Tuning"
-        description="Configure disk block prefetching and internal RPC whitelist."
+        title={t("settingsTabs.batch2.transmissionDaemonEngineTuning")}
+        description={t("settingsTabs.batch2.configureDiskBlockPrefetching")}
       >
         <div
           style={{
@@ -512,17 +546,17 @@ export function EngineSettingsTab() {
           }}
         >
           <Toggle
-            label="Prefetch Adjacent Disk Blocks"
+            label={t("settingsTabs.batch2.prefetchAdjacentDiskBlocks")}
             checked={form.prefetchEnabled}
             onChange={(v) => update("prefetchEnabled", v)}
-            hint="Preload disk blocks into memory to improve upload efficiency"
+            hint={t("settingsTabs.batch2.preloadDiskBlocksIntoMemory")}
           />
 
           <Toggle
-            label="Scrape Paused Torrents"
+            label={t("settingsTabs.batch2.scrapePausedTorrents")}
             checked={form.scrapePausedTorrentsEnabled}
             onChange={(v) => update("scrapePausedTorrentsEnabled", v)}
-            hint="Query tracker seeder/leecher counts even while torrents are paused"
+            hint={t("settingsTabs.batch2.queryTrackerSeederLeecherCounts")}
           />
         </div>
       </SectionCard>
@@ -539,7 +573,7 @@ export function EngineSettingsTab() {
             style={{ maxWidth: 460 }}
           >
             <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
-              Switch Active BitTorrent Engine
+              {t("settingsTabs.batch2.switchActiveBitTorrentEngine")}
             </h2>
             <p
               style={{
@@ -574,7 +608,7 @@ export function EngineSettingsTab() {
                 className="btn btn-outline btn-small"
                 onClick={() => setSelectedEngineForSwitch(null)}
               >
-                Cancel
+                {t("settingsTabs.categories.modal.cancel")}
               </button>
               <button
                 type="button"
@@ -583,8 +617,8 @@ export function EngineSettingsTab() {
                 disabled={switchMutation.isPending}
               >
                 {switchMutation.isPending
-                  ? "Switching Engine..."
-                  : "Confirm Switch"}
+                  ? t("settingsTabs.batch2.switchingEngine")
+                  : t("settingsTabs.batch2.confirmSwitch")}
               </button>
             </div>
           </div>
@@ -630,8 +664,8 @@ export function EngineSettingsTab() {
                 }}
               >
                 {probeResult.isHealthy
-                  ? "HEALTHY / READY"
-                  : "WARNING / UNHEALTHY"}
+                  ? t("settingsTabs.batch2.healthyReady")
+                  : t("settingsTabs.batch2.warningUnhealthy")}
               </span>
             </div>
 
@@ -649,11 +683,11 @@ export function EngineSettingsTab() {
                 lineHeight: 1.4,
               }}
             >
-              <strong>Status:</strong>{" "}
+              <strong>{t("settingsTabs.subsystems.status")}</strong>{" "}
               {probeResult.statusMessage ||
                 (probeResult.isHealthy
-                  ? "Operational"
-                  : "Health check reported issues.")}
+                  ? t("settingsTabs.batch2.operational")
+                  : t("settingsTabs.batch2.healthCheckReportedIssuesTxt"))}
             </div>
 
             {probeResult.dependencyChecks &&
@@ -669,7 +703,7 @@ export function EngineSettingsTab() {
                       letterSpacing: "0.04em",
                     }}
                   >
-                    Dependency Checks
+                    {t("settingsTabs.batch2.dependencyChecks")}
                   </h4>
                   <ul
                     style={{
@@ -692,7 +726,9 @@ export function EngineSettingsTab() {
                             {check.passed ? "✅" : "❌"}{" "}
                             <strong>{check.name}</strong>:{" "}
                             {check.message ||
-                              (check.passed ? "Passed" : "Failed")}
+                              (check.passed
+                                ? t("settingsTabs.batch2.passed")
+                                : t("settingsTabs.batch2.failed"))}
                           </li>
                         );
                       }
@@ -718,7 +754,7 @@ export function EngineSettingsTab() {
                     letterSpacing: "0.04em",
                   }}
                 >
-                  Warnings & Diagnostics
+                  {t("settingsTabs.batch2.warningsAndDiagnostics")}
                 </h4>
                 <ul
                   style={{
@@ -748,7 +784,7 @@ export function EngineSettingsTab() {
                 className="btn btn-primary btn-small"
                 onClick={() => setProbeResult(null)}
               >
-                Close
+                {t("settingsTabs.batch2.close")}
               </button>
             </div>
           </div>
