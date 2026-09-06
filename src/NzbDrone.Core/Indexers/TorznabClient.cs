@@ -32,7 +32,7 @@ public interface ITorznabClient
 
     Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50);
 
-    List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer);
+    List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer = null);
 
     Task<TorznabCapabilities> FetchCapabilitiesAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default);
 
@@ -191,7 +191,7 @@ public class TorznabClient : ITorznabClient
         }
     }
 
-    public List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer)
+    public List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer = null)
     {
         var results = new List<TorznabSearchResult>();
         if (string.IsNullOrWhiteSpace(xml))
@@ -277,7 +277,16 @@ public class TorznabClient : ITorznabClient
                 var isFreeleechAttr = false;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
-                var category = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var catElem in item.Elements().Where(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var catVal = catElem.Value?.Trim();
+                    if (!string.IsNullOrWhiteSpace(catVal))
+                    {
+                        categories.Add(catVal);
+                    }
+                }
 
                 var freeleechElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("freeleech", StringComparison.OrdinalIgnoreCase)) ?? item.Element(TorznabNs + "freeleech");
                 if (freeleechElem != null)
@@ -336,9 +345,10 @@ public class TorznabClient : ITorznabClient
                             magnetUrl = value?.Trim() ?? string.Empty;
                             break;
                         case "category":
-                            if (string.IsNullOrWhiteSpace(category))
+                            var catAttrVal = value?.Trim();
+                            if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
-                                category = value?.Trim() ?? string.Empty;
+                                categories.Add(catAttrVal);
                             }
 
                             break;
@@ -376,7 +386,7 @@ public class TorznabClient : ITorznabClient
                     Leechers = leechers,
                     DownloadVolumeFactor = downloadVolumeFactor,
                     UploadVolumeFactor = uploadVolumeFactor,
-                    Category = category,
+                    Category = string.Join(", ", categories),
                     PublishDate = publishDate,
                     IndexerName = indexer?.Name ?? "Indexer",
                     IndexerId = indexer?.Id ?? 0,
