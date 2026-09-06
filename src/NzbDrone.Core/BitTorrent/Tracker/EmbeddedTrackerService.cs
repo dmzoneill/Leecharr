@@ -35,6 +35,8 @@ public class TrackerPeerState
     public DateTime LastAnnounceUtc { get; set; } = DateTime.UtcNow;
 
     public bool IsSeeder => this.Left == 0;
+
+    public bool Completed { get; set; }
 }
 
 public class SwarmState
@@ -306,12 +308,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                     }
                     else
                     {
-                        if (isCompleted)
+                        var peerExists = swarm.Peers.TryGetValue(peerKey, out var peer);
+                        var wasSeeder = peerExists && (peer.IsSeeder || peer.Completed);
+                        if (!peerExists)
                         {
-                            swarm.DownloadedCount++;
+                            peer = new TrackerPeerState();
+                            swarm.Peers[peerKey] = peer;
                         }
 
-                        var peer = swarm.Peers.GetOrAdd(peerKey, _ => new TrackerPeerState());
                         peer.PeerId = request.PeerIdBytes;
                         peer.Ip = request.RemoteIp;
                         peer.Port = request.Port;
@@ -319,6 +323,12 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                         peer.Downloaded = request.Downloaded;
                         peer.Left = request.Left;
                         peer.LastAnnounceUtc = DateTime.UtcNow;
+
+                        if (isCompleted && !wasSeeder)
+                        {
+                            peer.Completed = true;
+                            swarm.DownloadedCount++;
+                        }
                     }
 
                     break;
