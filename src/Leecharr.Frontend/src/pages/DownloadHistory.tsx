@@ -220,16 +220,16 @@ export default function DownloadHistory() {
             <button
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
-              title={t("history.posterView")}
+              title={t("history.postersView")}
             >
-              {t("history.posters")}
+              {t("history.postersView")}
             </button>
             <button
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               onClick={() => setViewMode("table")}
               title={t("history.tableView")}
             >
-              {t("history.table")}
+              {t("history.tableView")}
             </button>
           </div>
 
@@ -401,8 +401,8 @@ export default function DownloadHistory() {
             }}
           >
             {searchTerm || statusFilter !== "all"
-              ? "No history records match the current search or status filter."
-              : "Downloads and seeded torrents will be permanently captured and enriched with Arr media posters, actors, and stats here."}
+              ? t("history.noMatchingRecords")
+              : t("history.noHistoricalDownloadsDesc")}
           </div>
         </div>
       )}

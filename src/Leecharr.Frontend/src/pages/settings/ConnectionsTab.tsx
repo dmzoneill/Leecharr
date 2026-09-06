@@ -88,7 +88,7 @@ export function ConnectionsTab() {
     });
   };
 
-  if (isLoading) return <div className="loading">Loading connections...</div>;
+  if (isLoading) return <div className="loading">{t("settings.loadingConnections", "Loading connections...")}</div>;
 
   return (
     <>
@@ -326,7 +326,7 @@ export function ConnectionsTab() {
               label={t("settingsTabs.indexers.urlLabel")}
               value={editing.url || ""}
               onChange={(v) => setEditing({ ...editing, url: v })}
-              placeholder={t("settings.httpLocalhost8989")}
+              placeholder="http://localhost:8989"
             />
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
@@ -361,7 +361,7 @@ export function ConnectionsTab() {
                 label={t("settings.webhookHost")}
                 value={editing.webhookHost || ""}
                 onChange={(v) => setEditing({ ...editing, webhookHost: v })}
-                placeholder={t("settings.leecharr")}
+                placeholder="Leecharr"
                 hint="Hostname or IP for *arr to reach Leecharr (leave empty to use default)"
               />
             )}

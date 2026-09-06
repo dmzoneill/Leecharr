@@ -517,7 +517,7 @@ export function App() {
                 onClick={() => guardedNavigate("/activity/metrics")}
                 style={{ cursor: "pointer" }}
               >
-                <StatsIcon size={14} /> <span>{t("nav.stats")}</span>
+                <StatsIcon size={14} /> <span>{t("nav.statistics")}</span>
               </div>
             </>
           )}
@@ -549,7 +549,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <ScheduleIcon size={16} />
-            <span>{t("settings.schedule")}</span>
+            <span>{t("nav.speedSchedule")}</span>
           </div>
 
           {/* Statistics */}
@@ -559,7 +559,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <StatsIcon size={16} />
-            <span>{t("activity.statistics")}</span>
+            <span>{t("nav.statistics")}</span>
           </div>
 
           {/* Tracker Boost */}
@@ -603,7 +603,7 @@ export function App() {
             >
               &gt;_
             </span>
-            <span>{t("nav.terminal")}</span>
+            <span>{t("nav.terminalCli")}</span>
           </div>
 
           {/* File Browser */}
@@ -841,7 +841,7 @@ export function App() {
               }}
               title={t("nav.gettingStarted")}
             >
-              🚀 {t("modals.gettingStarted")}
+              🚀 {t("nav.gettingStarted")}
             </button>
             <button
               className="btn btn-small"
@@ -858,13 +858,13 @@ export function App() {
               }}
               title={t("nav.openTerminal")}
             >
-              {t("nav.cli")}
+              {t("nav.terminalCli")}
             </button>
             <button
               className="btn btn-small btn-success"
               onClick={() => setShowAddModal(true)}
             >
-              + {t("modals.addTorrent")}
+              + {t("nav.addTorrent")}
             </button>
 
             {currentUser?.isAuthenticated && (

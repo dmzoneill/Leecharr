@@ -239,4 +239,50 @@ public class VpnKillSwitchServiceTest
         // Strict fail-closed: must be halted and not bound to default IPAddress.Any
         engine.IsHaltedByKillSwitch.Should().BeTrue();
     }
+
+    [Test]
+    public void EmbeddedTransmissionEngine_WhenKillSwitchTriggered_HaltsAndClearsOnRestore()
+    {
+        var storagePathService = Substitute.For<IStoragePathService>();
+        var categoryService = Substitute.For<ICategoryService>();
+        var diskProvider = Substitute.For<IDiskProvider>();
+
+        using var engine = new EmbeddedTransmissionEngine(
+            this.configService,
+            storagePathService,
+            categoryService,
+            diskProvider,
+            this.eventAggregator);
+
+        engine.IsHaltedByKillSwitch.Should().BeFalse();
+
+        engine.Handle(new VpnKillSwitchTriggeredEvent("wg0"));
+        engine.IsHaltedByKillSwitch.Should().BeTrue();
+
+        engine.Handle(new VpnInterfaceRestoredEvent("wg0"));
+        engine.IsHaltedByKillSwitch.Should().BeFalse();
+    }
+
+    [Test]
+    public void LibTorrentDownloadEngine_WhenKillSwitchTriggered_HaltsAndClearsOnRestore()
+    {
+        var storagePathService = Substitute.For<IStoragePathService>();
+        var categoryService = Substitute.For<ICategoryService>();
+        var diskProvider = Substitute.For<IDiskProvider>();
+
+        using var engine = new LibTorrentDownloadEngine(
+            this.configService,
+            storagePathService,
+            categoryService,
+            diskProvider,
+            this.eventAggregator);
+
+        engine.IsHaltedByKillSwitch.Should().BeFalse();
+
+        engine.Handle(new VpnKillSwitchTriggeredEvent("wg0"));
+        engine.IsHaltedByKillSwitch.Should().BeTrue();
+
+        engine.Handle(new VpnInterfaceRestoredEvent("wg0"));
+        engine.IsHaltedByKillSwitch.Should().BeFalse();
+    }
 }

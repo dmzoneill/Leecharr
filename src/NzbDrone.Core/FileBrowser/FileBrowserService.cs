@@ -215,9 +215,9 @@ public class FileBrowserService : IFileBrowserService
         {
             this.CopyDirectoryRecursive(source, target);
         }
-        else if (File.Exists(source))
+        else if (this.diskProvider.FileExists(source) || File.Exists(source))
         {
-            File.Copy(source, target, overwrite: true);
+            this.diskProvider.CopyFile(source, target, overwrite: true);
         }
     }
 
@@ -236,11 +236,29 @@ public class FileBrowserService : IFileBrowserService
 
         if (this.diskProvider.FolderExists(source))
         {
-            this.diskProvider.MoveFolder(source, target);
+            try
+            {
+                this.diskProvider.MoveFolder(source, target);
+            }
+            catch (IOException)
+            {
+                // Fallback for cross-device / cross-volume moves (EXDEV)
+                this.CopyDirectoryRecursive(source, target);
+                this.diskProvider.DeleteFolder(source, true);
+            }
         }
-        else if (File.Exists(source))
+        else if (this.diskProvider.FileExists(source) || File.Exists(source))
         {
-            this.diskProvider.MoveFile(source, target, overwrite: true);
+            try
+            {
+                this.diskProvider.MoveFile(source, target, overwrite: true);
+            }
+            catch (IOException)
+            {
+                // Fallback for cross-device / cross-volume moves (EXDEV)
+                this.diskProvider.CopyFile(source, target, overwrite: true);
+                this.diskProvider.DeleteFile(source);
+            }
         }
     }
 
@@ -254,7 +272,7 @@ public class FileBrowserService : IFileBrowserService
         foreach (var file in this.diskProvider.GetFiles(sourceDir, false))
         {
             var fileName = Path.GetFileName(file);
-            File.Copy(file, Path.Combine(targetDir, fileName), overwrite: true);
+            this.diskProvider.CopyFile(file, Path.Combine(targetDir, fileName), overwrite: true);
         }
 
         foreach (var subDir in this.diskProvider.GetDirectories(sourceDir))

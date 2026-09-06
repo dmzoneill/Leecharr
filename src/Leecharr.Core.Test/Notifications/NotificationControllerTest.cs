@@ -249,4 +249,33 @@ public class NotificationControllerTest
             Arg.Any<object>(),
             null);
     }
+
+    [Test]
+    public async Task Test_WhenSlackNotification_FormatsSlackPayloadWithTextAndDispatches()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 12,
+            Name = "Slack Channel",
+            Implementation = "Slack",
+            Settings = "{\"url\":\"https://hooks.slack.com/services/T00/B00/X00\"}",
+        };
+
+        this.notificationRepository.Get(12).Returns(notif);
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.Test(12);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://hooks.slack.com/services/T00/B00/X00",
+            Arg.Is<object>(p => p.GetType().GetProperty("text") != null &&
+                                p.GetType().GetProperty("username") != null));
+    }
 }

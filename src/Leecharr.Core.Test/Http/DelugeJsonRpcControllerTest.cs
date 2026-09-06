@@ -526,4 +526,43 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"tracker_host\"");
         json.Should().Contain("\"tracker1.org\",1");
     }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_UpdatesConfigServiceValues()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_config\",\"params\":[{\"max_download_speed\": 500.0, \"max_upload_speed\": 250.0, \"download_location\": \"/mnt/torrents\", \"max_connections_global\": 150}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 500 &&
+            (int)d["MaxUploadSpeedKbps"] == 250 &&
+            (string)d["DownloadDir"] == "/mnt/torrents" &&
+            (int)d["MaxGlobalConnections"] == 150));
+    }
+
+    [Test]
+    public async Task HandleRpc_WebSetConfig_UpdatesConfigServiceValues()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.set_config\",\"params\":[{\"max_active_limit\": 12}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxActiveDownloads"] == 12));
+    }
 }

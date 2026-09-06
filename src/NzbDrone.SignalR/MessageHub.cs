@@ -48,32 +48,32 @@ public class MessageHub : Hub
                 if (!string.IsNullOrWhiteSpace(masterApiKey))
                 {
                     if (httpContext.Request.Headers.TryGetValue("X-Api-Key", out var headerKey) &&
-                        string.Equals(headerKey.ToString(), masterApiKey, StringComparison.Ordinal))
+                        FixedTimeEquals(headerKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (httpContext.Request.Headers.TryGetValue("ApiKey", out var customApiKey) &&
-                             string.Equals(customApiKey.ToString(), masterApiKey, StringComparison.Ordinal))
+                             FixedTimeEquals(customApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (httpContext.Request.Query.TryGetValue("access_token", out var queryToken) &&
-                             string.Equals(queryToken.ToString(), masterApiKey, StringComparison.Ordinal))
+                             FixedTimeEquals(queryToken.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (httpContext.Request.Query.TryGetValue("apikey", out var queryApiKey) &&
-                             string.Equals(queryApiKey.ToString(), masterApiKey, StringComparison.Ordinal))
+                             FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (httpContext.Request.Query.TryGetValue("api_key", out var queryApiKey2) &&
-                             string.Equals(queryApiKey2.ToString(), masterApiKey, StringComparison.Ordinal))
+                             FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (httpContext.Request.Query.TryGetValue("token", out var queryToken2) &&
-                             string.Equals(queryToken2.ToString(), masterApiKey, StringComparison.Ordinal))
+                             FixedTimeEquals(queryToken2.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
@@ -113,5 +113,17 @@ public class MessageHub : Hub
 
         this.logger.Debug("SignalR client disconnected: {0}", this.Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);
+    }
+
+    private static bool FixedTimeEquals(string a, string b)
+    {
+        if (a == null || b == null)
+        {
+            return a == b;
+        }
+
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(a),
+            System.Text.Encoding.UTF8.GetBytes(b));
     }
 }

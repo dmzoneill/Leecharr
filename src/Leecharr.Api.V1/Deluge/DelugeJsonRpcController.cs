@@ -231,6 +231,7 @@ public class DelugeJsonRpcController : ControllerBase
                             "web.get_plugins",
                             "web.get_installed_plugins",
                             "web.get_config",
+                            "web.set_config",
                             "web.get_torrents_status",
                             "core.get_version",
                             "daemon.get_version",
@@ -241,6 +242,8 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.get_config",
                             "core.get_config_values",
                             "core.get_config_value",
+                            "core.set_config",
+                            "core.set_config_values",
                             "core.get_session_status",
                             "core.get_free_space",
                             "core.get_path_free_space",
@@ -523,6 +526,84 @@ public class DelugeJsonRpcController : ControllerBase
                     };
                     singleFullConfig.TryGetValue(singleCfgKey ?? string.Empty, out var foundVal);
                     return this.DelugeResult(new { result = foundVal, error = (object)null, id });
+
+                case "core.set_config":
+                case "core.set_config_values":
+                case "web.set_config":
+                    if (this.configService != null)
+                    {
+                        var cfgUpdates = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                        JsonElement cfgElem = default;
+
+                        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0)
+                        {
+                            cfgElem = paramsElem[0];
+                        }
+                        else if (paramsElem.ValueKind == JsonValueKind.Object)
+                        {
+                            cfgElem = paramsElem;
+                        }
+
+                        if (cfgElem.ValueKind == JsonValueKind.Object)
+                        {
+                            if (cfgElem.TryGetProperty("max_download_speed", out var dlProp) && dlProp.ValueKind == JsonValueKind.Number && dlProp.TryGetDouble(out var dlVal))
+                            {
+                                cfgUpdates["MaxDownloadSpeedKbps"] = (int)Math.Round(dlVal);
+                            }
+
+                            if (cfgElem.TryGetProperty("max_upload_speed", out var ulProp) && ulProp.ValueKind == JsonValueKind.Number && ulProp.TryGetDouble(out var ulVal))
+                            {
+                                cfgUpdates["MaxUploadSpeedKbps"] = (int)Math.Round(ulVal);
+                            }
+
+                            if (cfgElem.TryGetProperty("download_location", out var dlLocProp) && dlLocProp.ValueKind == JsonValueKind.String)
+                            {
+                                cfgUpdates["DownloadDir"] = dlLocProp.GetString();
+                            }
+                            else if (cfgElem.TryGetProperty("move_completed_path", out var mcpProp) && mcpProp.ValueKind == JsonValueKind.String)
+                            {
+                                cfgUpdates["DownloadDir"] = mcpProp.GetString();
+                            }
+
+                            if (cfgElem.TryGetProperty("max_connections_global", out var mcgProp) && mcgProp.ValueKind == JsonValueKind.Number && mcgProp.TryGetInt32(out var mcgVal))
+                            {
+                                cfgUpdates["MaxGlobalConnections"] = mcgVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("max_active_limit", out var malProp) && malProp.ValueKind == JsonValueKind.Number && malProp.TryGetInt32(out var malVal))
+                            {
+                                cfgUpdates["MaxActiveDownloads"] = malVal;
+                            }
+                            else if (cfgElem.TryGetProperty("max_active_downloading", out var madProp) && madProp.ValueKind == JsonValueKind.Number && madProp.TryGetInt32(out var madVal))
+                            {
+                                cfgUpdates["MaxActiveDownloads"] = madVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("max_active_seeding", out var masProp) && masProp.ValueKind == JsonValueKind.Number && masProp.TryGetInt32(out var masVal))
+                            {
+                                cfgUpdates["MaxActiveUploads"] = masVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("listen_ports", out var lpProp))
+                            {
+                                if (lpProp.ValueKind == JsonValueKind.Array && lpProp.GetArrayLength() > 0 && lpProp[0].TryGetInt32(out var portVal))
+                                {
+                                    cfgUpdates["ListeningPort"] = portVal;
+                                }
+                                else if (lpProp.ValueKind == JsonValueKind.Number && lpProp.TryGetInt32(out var pVal))
+                                {
+                                    cfgUpdates["ListeningPort"] = pVal;
+                                }
+                            }
+
+                            if (cfgUpdates.Count > 0)
+                            {
+                                this.configService.SaveConfigDictionary(cfgUpdates);
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.get_session_status":
                     var allT = this.torrentService.GetAll().ToList();
