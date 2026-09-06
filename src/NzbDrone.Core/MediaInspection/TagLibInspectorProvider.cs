@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -1879,92 +1880,200 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         var upper = fileName.ToUpperInvariant();
-        var normalized = upper.Replace('.', ' ').Replace('-', ' ').Replace('_', ' ');
+        var normalized = Regex.Replace(upper, @"[._\-+\[\]\(\)]", " ");
 
-        // Resolution
-        if (upper.Contains("2160P") || upper.Contains("4K") || upper.Contains("UHD"))
+        // Resolution & Dimensions (only if missing)
+        if (string.IsNullOrEmpty(info.Resolution))
         {
-            info.Resolution = "4K UHD (2160p)";
-            info.Width = 3840;
-            info.Height = 2160;
+            if (Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
+            {
+                info.Resolution = "4K UHD (2160p)";
+                if (info.Width == 0)
+                {
+                    info.Width = 3840;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 2160;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
+            {
+                info.Resolution = "1080p";
+                if (info.Width == 0)
+                {
+                    info.Width = 1920;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 1080;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
+            {
+                info.Resolution = "720p";
+                if (info.Width == 0)
+                {
+                    info.Width = 1280;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 720;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(480P|576P|SD)\b"))
+            {
+                info.Resolution = "480p";
+                if (info.Width == 0)
+                {
+                    info.Width = 854;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 480;
+                }
+            }
         }
-        else if (upper.Contains("1080P") || upper.Contains("FHD"))
+        else if (info.Width == 0 || info.Height == 0)
         {
-            info.Resolution = "1080p";
-            info.Width = 1920;
-            info.Height = 1080;
-        }
-        else if (upper.Contains("720P") || upper.Contains("HD"))
-        {
-            info.Resolution = "720p";
-            info.Width = 1280;
-            info.Height = 720;
-        }
-        else if (upper.Contains("480P") || upper.Contains("SD"))
-        {
-            info.Resolution = "480p";
-            info.Width = 854;
-            info.Height = 480;
+            if (Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
+            {
+                if (info.Width == 0)
+                {
+                    info.Width = 3840;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 2160;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
+            {
+                if (info.Width == 0)
+                {
+                    info.Width = 1920;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 1080;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
+            {
+                if (info.Width == 0)
+                {
+                    info.Width = 1280;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 720;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(480P|576P|SD)\b"))
+            {
+                if (info.Width == 0)
+                {
+                    info.Width = 854;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 480;
+                }
+            }
         }
 
-        // HDR
-        if (upper.Contains("DV") || normalized.Contains("DOLBY VISION") || upper.Contains("DOVI"))
+        // HDR (only if missing or SDR)
+        if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
         {
-            info.HdrFormat = "Dolby Vision";
-        }
-        else if (upper.Contains("HDR10+") || normalized.Contains("HDR10 PLUS") || upper.Contains("HDR10PLUS"))
-        {
-            info.HdrFormat = "HDR10+";
-        }
-        else if (upper.Contains("HDR"))
-        {
-            info.HdrFormat = "HDR10";
-        }
-
-        // Video Codec
-        if (upper.Contains("HEVC") || upper.Contains("H.265") || upper.Contains("H265") || upper.Contains("X265"))
-        {
-            info.VideoCodec = "HEVC / H.265";
-        }
-        else if (upper.Contains("AVC") || upper.Contains("H.264") || upper.Contains("H264") || upper.Contains("X264"))
-        {
-            info.VideoCodec = "AVC / H.264";
-        }
-        else if (upper.Contains("AV1"))
-        {
-            info.VideoCodec = "AV1";
+            if (Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s+VISION\b"))
+            {
+                info.HdrFormat = "Dolby Vision";
+            }
+            else if (Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b"))
+            {
+                info.HdrFormat = "HDR10+";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(HDR10|HDR)\b"))
+            {
+                info.HdrFormat = "HDR10";
+            }
+            else if (Regex.IsMatch(normalized, @"\bHLG\b"))
+            {
+                info.HdrFormat = "HLG";
+            }
         }
 
-        // Audio Codec
-        if (upper.Contains("ATMOS"))
+        // Video Codec (only if missing)
+        if (string.IsNullOrEmpty(info.VideoCodec))
         {
-            info.AudioCodec = "Dolby Atmos";
-            info.AudioChannels = "7.1";
+            if (Regex.IsMatch(normalized, @"\b(HEVC|H\s*265|X265)\b"))
+            {
+                info.VideoCodec = "HEVC / H.265";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(AVC|H\s*264|X264)\b"))
+            {
+                info.VideoCodec = "AVC / H.264";
+            }
+            else if (Regex.IsMatch(normalized, @"\bAV1\b"))
+            {
+                info.VideoCodec = "AV1";
+            }
         }
-        else if (upper.Contains("TRUEHD"))
+
+        // Audio Codec & Channels (only if missing)
+        if (string.IsNullOrEmpty(info.AudioCodec) || string.IsNullOrEmpty(info.AudioChannels))
         {
-            info.AudioCodec = "Dolby TrueHD";
-            info.AudioChannels = "7.1";
-        }
-        else if (upper.Contains("DTS-HD") || upper.Contains("DTS-HD MA"))
-        {
-            info.AudioCodec = "DTS-HD MA";
-            info.AudioChannels = "7.1";
-        }
-        else if (upper.Contains("DTS"))
-        {
-            info.AudioCodec = "DTS";
-            info.AudioChannels = "5.1";
-        }
-        else if (upper.Contains("EAC3") || upper.Contains("DDP") || upper.Contains("DD+"))
-        {
-            info.AudioCodec = "E-AC3 / DD+";
-            info.AudioChannels = "5.1";
-        }
-        else if (upper.Contains("AC3") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
-        {
-            info.AudioCodec = "AC3 / Dolby Digital";
-            info.AudioChannels = "5.1";
+            string hintedCodec = null;
+            string hintedChannels = null;
+
+            if (Regex.IsMatch(normalized, @"\bATMOS\b"))
+            {
+                hintedCodec = "Dolby Atmos";
+                hintedChannels = "7.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\bTRUEHD\b"))
+            {
+                hintedCodec = "Dolby TrueHD";
+                hintedChannels = "7.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\bDTS\s*HD(\s*MA)?\b"))
+            {
+                hintedCodec = "DTS-HD MA";
+                hintedChannels = "7.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\bDTS\b"))
+            {
+                hintedCodec = "DTS";
+                hintedChannels = "5.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(EAC3|DDP)\b") || upper.Contains("DD+"))
+            {
+                hintedCodec = "E-AC3 / DD+";
+                hintedChannels = "5.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(AC3|DD\s*5\s*1)\b") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
+            {
+                hintedCodec = "AC3 / Dolby Digital";
+                hintedChannels = "5.1";
+            }
+
+            if (!string.IsNullOrEmpty(hintedCodec) && string.IsNullOrEmpty(info.AudioCodec))
+            {
+                info.AudioCodec = hintedCodec;
+            }
+
+            if (!string.IsNullOrEmpty(hintedChannels) && string.IsNullOrEmpty(info.AudioChannels))
+            {
+                info.AudioChannels = hintedChannels;
+            }
         }
     }
 }
