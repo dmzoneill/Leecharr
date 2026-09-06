@@ -1186,7 +1186,7 @@ public class Aria2RpcController : ControllerBase
             TorrentStatus.Downloading => "active",
             TorrentStatus.Seeding => "active",
             TorrentStatus.Paused => "paused",
-            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Stopped => (t.Progress >= 1.0 || t.DateCompleted.HasValue) ? "complete" : "paused",
             TorrentStatus.Error => "error",
             _ => "waiting",
         };
@@ -1294,7 +1294,7 @@ public class Aria2RpcController : ControllerBase
             TorrentStatus.Downloading => "active",
             TorrentStatus.Seeding => "active",
             TorrentStatus.Paused => "paused",
-            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Stopped => (t.Progress >= 1.0 || t.DateCompleted.HasValue) ? "complete" : "paused",
             TorrentStatus.Error => "error",
             _ => "waiting",
         };

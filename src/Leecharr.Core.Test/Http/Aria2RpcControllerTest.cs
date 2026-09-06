@@ -620,4 +620,96 @@ public class Aria2RpcControllerTest
         var doc = XDocument.Parse(contentResult.Content);
         return doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("string")?.Value;
     }
+
+    [Test]
+    public async Task TellStatus_JsonRpc_WhenStoppedIncomplete_ReturnsPausedStatus()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "IncompleteTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 0.45,
+            DateCompleted = null,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 99,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var status = doc.RootElement.GetProperty("result").GetProperty("status").GetString();
+        status.Should().Be("paused");
+    }
+
+    [Test]
+    public async Task TellStatus_JsonRpc_WhenStoppedComplete_ReturnsCompleteStatus()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "CompleteTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 100,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var status = doc.RootElement.GetProperty("result").GetProperty("status").GetString();
+        status.Should().Be("complete");
+    }
+
+    [Test]
+    public async Task TellStatus_XmlRpc_WhenStoppedIncomplete_ReturnsPausedStatus()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "IncompleteXmlTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 0.2,
+            DateCompleted = null,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetXmlRpcRequest("aria2.tellStatus", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+        var structElem = doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        structElem.Should().NotBeNull();
+        GetStructMember(structElem!, "status").Should().Be("paused");
+    }
 }
