@@ -565,4 +565,123 @@ public class DelugeJsonRpcControllerTest
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
             (int)d["MaxActiveDownloads"] == 12));
     }
+
+    [Test]
+    public async Task HandleRpc_WebUploadTorrent_WithValidBase64_SavesTempFileAndReturnsPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testBytes = new byte[] { 0x64, 0x31, 0x30, 0x3a };
+        var base64 = System.Convert.ToBase64String(testBytes);
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"web.upload_torrent\",\"params\":[\"test.torrent\", \"{base64}\"],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":");
+
+        using var resultDoc = JsonDocument.Parse(json);
+        var path = resultDoc.RootElement.GetProperty("result").GetString();
+        path.Should().NotBeNullOrEmpty();
+        System.IO.File.Exists(path).Should().BeTrue();
+        var written = await System.IO.File.ReadAllBytesAsync(path!);
+        written.Should().Equal(testBytes);
+
+        if (System.IO.File.Exists(path))
+        {
+            System.IO.File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task HandleRpc_WebGetTorrentInfo_ReturnsParsedTorrentMetadata()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_info_test_{System.Guid.NewGuid():N}.torrent");
+        var dummyBytes = new byte[] { 1, 2, 3, 4 };
+        await System.IO.File.WriteAllBytesAsync(tempPath, dummyBytes);
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "abcdef1234567890abcdef1234567890abcdef12",
+            Name = "Test Torrent",
+            TotalSize = 1048576,
+            Comment = "Deluge test comment",
+            IsPrivate = false,
+            Files = new List<ParsedTorrentFile>
+            {
+                new ParsedTorrentFile { Path = "folder/file1.mkv", Size = 1048576 }
+            }
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        try
+        {
+            using var doc = JsonDocument.Parse($"{{\"method\":\"web.get_torrent_info\",\"params\":[\"{tempPath.Replace("\\", "\\\\")}\"],\"id\":1}}");
+            var result = await this.controller.HandleRpc(doc.RootElement);
+
+            result.Should().BeOfType<JsonResult>();
+            var jsonResult = (JsonResult)result;
+            var json = JsonSerializer.Serialize(jsonResult.Value);
+            json.Should().Contain("\"name\":\"Test Torrent\"");
+            json.Should().Contain("\"info_hash\":\"abcdef1234567890abcdef1234567890abcdef12\"");
+            json.Should().Contain("\"total_size\":1048576");
+            json.Should().Contain("\"files_tree\"");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(tempPath))
+            {
+                System.IO.File.Delete(tempPath);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleRpc_WebAddTorrents_AddsTorrentsAndCleansUpTempFiles()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_add_test_{System.Guid.NewGuid():N}.torrent");
+        var dummyBytes = new byte[] { 5, 6, 7, 8 };
+        await System.IO.File.WriteAllBytesAsync(tempPath, dummyBytes);
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "1234567890123456789012345678901234567890",
+            Name = "Add Test Torrent",
+            TotalSize = 2048,
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>())
+            .Returns(Task.FromResult(new Torrent { Id = 42, InfoHash = parsed.InfoHash, TargetRatio = 2.0 }));
+
+        var escapedPath = tempPath.Replace("\\", "\\\\");
+        using var doc = JsonDocument.Parse($"{{\"method\":\"web.add_torrents\",\"params\":[[{{\"path\":\"{escapedPath}\",\"options\":{{\"download_location\":\"/downloads\",\"stop_ratio\":2.0,\"add_paused\":true}}}}]],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            null,
+            "/downloads",
+            true,
+            Arg.Any<byte[]>());
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t => t.TargetRatio == 2.0));
+
+        System.IO.File.Exists(tempPath).Should().BeFalse();
+    }
 }

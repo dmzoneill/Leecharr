@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -233,6 +234,9 @@ public class DelugeJsonRpcController : ControllerBase
                             "web.get_config",
                             "web.set_config",
                             "web.get_torrents_status",
+                            "web.upload_torrent",
+                            "web.get_torrent_info",
+                            "web.add_torrents",
                             "core.get_version",
                             "daemon.get_version",
                             "daemon.info",
@@ -864,6 +868,156 @@ public class DelugeJsonRpcController : ControllerBase
                     }
 
                     return this.DelugeResult(new { result = urlHash, error = (object)null, id });
+
+                case "web.upload_torrent":
+                    string tempTorrentPath = null;
+                    if (paramsElem.ValueKind == JsonValueKind.Array)
+                    {
+                        string b64 = null;
+                        if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.String)
+                        {
+                            b64 = paramsElem[1].GetString();
+                        }
+                        else if (paramsElem.GetArrayLength() >= 1 && paramsElem[0].ValueKind == JsonValueKind.String)
+                        {
+                            b64 = paramsElem[0].GetString();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(b64))
+                        {
+                            var bytes = Convert.FromBase64String(b64);
+                            tempTorrentPath = global::System.IO.Path.Combine(global::System.IO.Path.GetTempPath(), $"deluge_upload_{Guid.NewGuid():N}.torrent");
+                            await global::System.IO.File.WriteAllBytesAsync(tempTorrentPath, bytes);
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = tempTorrentPath, error = (object)null, id });
+
+                case "web.get_torrent_info":
+                    object torrentInfoResult = null;
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
+                    {
+                        var filePath = paramsElem[0].GetString();
+                        if (!string.IsNullOrWhiteSpace(filePath) && global::System.IO.File.Exists(filePath))
+                        {
+                            var bytes = await global::System.IO.File.ReadAllBytesAsync(filePath);
+                            var parsed = this.torrentFileParser.Parse(bytes);
+                            if (parsed != null)
+                            {
+                                var filesList = parsed.Files?.Select(f => (object)new
+                                {
+                                    path = f.Path,
+                                    size = f.Size,
+                                    offset = 0L,
+                                }).ToList() ?? new List<object>();
+
+                                torrentInfoResult = new Dictionary<string, object>
+                                {
+                                    ["name"] = parsed.Name ?? string.Empty,
+                                    ["info_hash"] = parsed.InfoHash ?? string.Empty,
+                                    ["total_size"] = parsed.TotalSize,
+                                    ["comment"] = parsed.Comment ?? string.Empty,
+                                    ["private"] = parsed.IsPrivate,
+                                    ["files_tree"] = new Dictionary<string, object>(),
+                                    ["files"] = filesList,
+                                };
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = torrentInfoResult, error = (object)null, id });
+
+                case "web.add_torrents":
+                    var addTorrentsSuccess = true;
+                    if (paramsElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var torrentItems = new List<JsonElement>();
+                        if (paramsElem.GetArrayLength() >= 1 && paramsElem[0].ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var elem in paramsElem[0].EnumerateArray())
+                            {
+                                if (elem.ValueKind == JsonValueKind.Object)
+                                {
+                                    torrentItems.Add(elem);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (var elem in paramsElem.EnumerateArray())
+                            {
+                                if (elem.ValueKind == JsonValueKind.Object)
+                                {
+                                    torrentItems.Add(elem);
+                                }
+                            }
+                        }
+
+                        foreach (var item in torrentItems)
+                        {
+                            string torrentPath = null;
+                            if (item.TryGetProperty("path", out var pProp))
+                            {
+                                torrentPath = pProp.GetString();
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(torrentPath) && global::System.IO.File.Exists(torrentPath))
+                            {
+                                var bytes = await global::System.IO.File.ReadAllBytesAsync(torrentPath);
+                                var parsed = this.torrentFileParser.Parse(bytes);
+
+                                var isPaused = false;
+                                string savePath = null;
+                                string category = null;
+                                double? targetRatio = null;
+
+                                if (item.TryGetProperty("options", out var opts) && opts.ValueKind == JsonValueKind.Object)
+                                {
+                                    if (opts.TryGetProperty("add_paused", out var ap) && (ap.ValueKind == JsonValueKind.True || ap.ValueKind == JsonValueKind.False))
+                                    {
+                                        isPaused = ap.GetBoolean();
+                                    }
+
+                                    if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
+                                    {
+                                        savePath = dl.GetString();
+                                    }
+                                    else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
+                                    {
+                                        savePath = mcp.GetString();
+                                    }
+
+                                    if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
+                                    {
+                                        category = lbl.GetString();
+                                    }
+
+                                    if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
+                                    {
+                                        targetRatio = sr.GetDouble();
+                                    }
+                                }
+
+                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                                if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
+                                {
+                                    added.TargetRatio = targetRatio.Value;
+                                    await this.torrentService.UpdateAsync(added);
+                                }
+
+                                try
+                                {
+                                    global::System.IO.File.Delete(torrentPath);
+                                }
+                                catch
+                                {
+                                    // Ignore cleanup error
+                                }
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = addTorrentsSuccess, error = (object)null, id });
 
                 case "core.pause_torrent":
                 case "core.pause_torrents":
