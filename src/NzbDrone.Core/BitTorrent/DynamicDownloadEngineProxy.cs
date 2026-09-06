@@ -271,7 +271,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                             }
                         }
 
-                        if (torrent.Status == TorrentStatus.Paused || torrent.Status == TorrentStatus.Stopped)
+                        if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
                         {
                             await targetEngine.PauseTorrentAsync(torrent.Id);
                         }
