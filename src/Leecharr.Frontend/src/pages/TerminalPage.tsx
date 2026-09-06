@@ -58,7 +58,7 @@ export function TerminalPage() {
           <span style={{ fontSize: "1.5rem" }}>💻</span>
           <div>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
-              {t("autogen.t_system_download_cli")}
+              {t("terminal.title")}
             </h2>
             <p
               style={{
@@ -67,7 +67,7 @@ export function TerminalPage() {
                 color: "var(--text-muted)",
               }}
             >
-              {t("autogen.t_interactive_terminal_with_direct_access_")}
+              {t("terminal.executeCommands")}
             </p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function TerminalPage() {
             style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
             onClick={() => setActivePath(downloadDir)}
           >
-            {t("autogen.t_downloads_root")}
+            {t("terminal.downloadsRoot")}
           </button>
 
           <button
@@ -96,7 +96,7 @@ export function TerminalPage() {
             style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
             onClick={() => setActivePath(`${downloadDir}/incomplete`)}
           >
-            {t("autogen.t_incomplete")}
+            {t("terminal.incomplete")}
           </button>
 
           <form
@@ -105,7 +105,7 @@ export function TerminalPage() {
           >
             <input
               type="text"
-              placeholder={t("autogen.t_or_enter_path")}
+              placeholder={t("terminal.enterPath")}
               value={customPath}
               onChange={(e) => setCustomPath(e.target.value)}
               style={{
@@ -123,7 +123,7 @@ export function TerminalPage() {
               className="btn btn-outline"
               style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem" }}
             >
-              {t("autogen.t_go")}
+              {t("terminal.go")}
             </button>
           </form>
         </div>

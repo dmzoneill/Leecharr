@@ -653,10 +653,10 @@ function PeerMap() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_peer_map")}
+              {t("peerMap.title")}
             </h1>
             <span className="badge badge-primary">
-              {peerCount} {t("autogen.t_connected_peers")}
+              {peerCount} {t("peerMap.connectedPeers")}
             </span>
           </div>
           <div
@@ -666,7 +666,7 @@ function PeerMap() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_live_swarm_topology_visualization_connec")}
+            {t("peerMap.subtitle")}
           </div>
         </div>
       </div>
@@ -674,7 +674,7 @@ function PeerMap() {
       {/* Control Toolbar */}
       <div className="peer-map-controls" style={{ flexShrink: 0 }}>
         <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-          <label className="peer-map-label">{t("autogen.t_time_range")}</label>
+          <label className="peer-map-label">{t("peerMap.timeRange")}</label>
           {[1, 6, 12, 24].map((h) => (
             <button
               key={h}
@@ -688,9 +688,7 @@ function PeerMap() {
 
         {/* Swarm Focus Filter */}
         <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-          <label className="peer-map-label">
-            {t("autogen.t_filter_swarm")}
-          </label>
+          <label className="peer-map-label">{t("peerMap.filterSwarm")}</label>
           <select
             value={selectedTorrentFilter}
             onChange={(e) => setSelectedTorrentFilter(e.target.value)}
@@ -704,8 +702,7 @@ function PeerMap() {
             }}
           >
             <option value="all">
-              {t("autogen.t_all_torrents")}
-              {torrentCount})
+              {t("peerMap.allTorrents")} ({torrentCount})
             </option>
             {torrentsList?.map((t) => (
               <option key={t.id} value={t.infoHash}>
@@ -716,8 +713,8 @@ function PeerMap() {
         </div>
 
         <span className="peer-map-stats">
-          📊 {torrentCount} {t("autogen.t_swarms")}
-          {peerCount} {t("autogen.t_peers")}
+          📊 {torrentCount} {t("peerMap.swarms")} • {peerCount}{" "}
+          {t("peerMap.peers")}
         </span>
       </div>
 
@@ -728,21 +725,21 @@ function PeerMap() {
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.center }}
           />
-          {t("autogen.t_leecharr")}
+          {t("peerMap.leecharr")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.torrent }}
           />
-          {t("autogen.t_torrent")}
+          {t("peerMap.torrent")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.peer }}
           />
-          {t("autogen.t_peer")}
+          {t("peerMap.peer")}
         </span>
         <span className="peer-map-legend-item">
           <span
@@ -752,14 +749,14 @@ function PeerMap() {
               borderStyle: "dashed",
             }}
           />
-          {t("autogen.t_encrypted")}
+          {t("peerMap.encrypted")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-line"
             style={{ borderColor: "rgba(255, 255, 255, 0.4)" }}
           />
-          {t("autogen.t_plain")}
+          {t("peerMap.plain")}
         </span>
       </div>
 
@@ -775,19 +772,15 @@ function PeerMap() {
         }}
       >
         {isLoading && (
-          <div className="peer-map-loading">
-            {t("autogen.t_loading_peer_topology")}
-          </div>
+          <div className="peer-map-loading">{t("peerMap.loading")}</div>
         )}
         {!isLoading && isError && (
           <div className="peer-map-empty" style={{ color: "var(--danger)" }}>
-            {t("autogen.t_failed_to_load_peer_topology_data")}
+            {t("peerMap.failedToLoad")}
           </div>
         )}
         {!isLoading && !isError && peerCount === 0 && (
-          <div className="peer-map-empty">
-            {t("autogen.t_no_active_peer_connections_in_the_select")}
-          </div>
+          <div className="peer-map-empty">{t("peerMap.noPeers")}</div>
         )}
         <svg
           ref={svgRef}
@@ -819,7 +812,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleZoomIn}
-            title={t("autogen.t_zoom_in")}
+            title={t("peerMap.zoomIn")}
           >
             ➕
           </button>
@@ -833,7 +826,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleZoomOut}
-            title={t("autogen.t_zoom_out")}
+            title={t("peerMap.zoomOut")}
           >
             ➖
           </button>
@@ -847,7 +840,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleResetZoom}
-            title={t("autogen.t_reset_zoom_center")}
+            title={t("peerMap.resetZoom")}
           >
             ⟲
           </button>
@@ -942,7 +935,7 @@ function PeerMap() {
                 }}
                 onClick={() => navigate("/torrents")}
               >
-                {t("autogen.t_open_in_torrents_view")}
+                {t("peerMap.openInTorrents")}
               </button>
             )}
           </div>

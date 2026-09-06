@@ -333,7 +333,7 @@ export function GettingStartedModal({
                     fontWeight: 600,
                   }}
                 >
-                  {t("autogen.t_setup_guide")}
+                  {t("gettingStarted.setupGuide")}
                 </span>
               </div>
               <div
@@ -381,7 +381,7 @@ export function GettingStartedModal({
                     transition: "all 0.2s",
                   }}
                 >
-                  {t("autogen.t_guide")}
+                  {t("gettingStarted.guideMode")}
                 </button>
                 <button
                   type="button"
@@ -400,7 +400,7 @@ export function GettingStartedModal({
                     transition: "all 0.2s",
                   }}
                 >
-                  {t("autogen.t_live_setup")}
+                  {t("gettingStarted.liveSetupMode")}
                 </button>
               </div>
             )}
@@ -417,9 +417,9 @@ export function GettingStartedModal({
                 borderRadius: "4px",
                 lineHeight: 1,
               }}
-              title={t("autogen.t_close_esc")}
+              title={t("gettingStarted.close")}
             >
-              {t("autogen.t_times")}
+              ✕
             </button>
           </div>
         </div>
@@ -511,7 +511,7 @@ export function GettingStartedModal({
                     color: "var(--text-primary)",
                   }}
                 >
-                  {t("autogen.t_welcome_to_leecharr")}
+                  {t("gettingStarted.welcomeHeading")}
                 </h2>
                 <p
                   style={{
@@ -522,9 +522,8 @@ export function GettingStartedModal({
                     lineHeight: 1.5,
                   }}
                 >
-                  {t("autogen.t_leecharr_is_a_high_performance_bittorren")}
-                  <code>{t("autogen.t_arr")}</code>
-                  {t("autogen.t_ecosystem_with_deep_media_library_enrich")}
+                  {t("gettingStarted.welcomeDesc1")} <code>*arr</code>{" "}
+                  {t("gettingStarted.welcomeDesc2")}
                 </p>
               </div>
 
@@ -554,7 +553,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    {t("autogen.t_port_7889_engine")}
+                    {t("gettingStarted.port7889Title")}
                   </div>
                   <div
                     style={{
@@ -563,7 +562,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    {t("autogen.t_pure_c_bittorrent_engine_running_with_si")}
+                    {t("gettingStarted.port7889Desc")}
                   </div>
                 </div>
 
@@ -586,7 +585,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    {t("autogen.t_media_enrichment")}
+                    {t("gettingStarted.mediaEnrichmentTitle")}
                   </div>
                   <div
                     style={{
@@ -595,7 +594,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    {t("autogen.t_correlates_active_downloads_with_high_re")}
+                    {t("gettingStarted.mediaEnrichmentDesc")}
                   </div>
                 </div>
 
@@ -618,7 +617,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    {t("autogen.t_prowlarr_sync")}
+                    {t("gettingStarted.prowlarrSyncTitle")}
                   </div>
                   <div
                     style={{
@@ -627,7 +626,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    {t("autogen.t_synchronize_torznab_indexers_directly_fr")}
+                    {t("gettingStarted.prowlarrSyncDesc")}
                   </div>
                 </div>
               </div>
@@ -642,14 +641,11 @@ export function GettingStartedModal({
                   color: "var(--text-secondary)",
                 }}
               >
-                💡 <strong>{t("autogen.t_getting_started")}</strong>{" "}
-                {t("autogen.t_follow_these_steps_to_connect")}
-                <strong>{t("autogen.t_prowlarr")}</strong>,{" "}
-                <strong>{t("autogen.t_sonarr")}</strong>,{" "}
-                <strong>{t("autogen.t_radarr")}</strong>
-                {t("autogen.t_and")}
-                <strong>{t("autogen.t_lidarr")}</strong>{" "}
-                {t("autogen.t_so_downloads_and_media_cards_populate_se")}
+                💡 <strong>{t("gettingStarted.tipTitle")}</strong>{" "}
+                {t("gettingStarted.tipDesc")} <strong>Prowlarr</strong>,{" "}
+                <strong>Sonarr</strong>, <strong>Radarr</strong>{" "}
+                {t("gettingStarted.and")} <strong>Lidarr</strong>{" "}
+                {t("gettingStarted.tipConclusion")}
               </div>
             </div>
           )}
@@ -672,7 +668,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    {t("autogen.t_connect_prowlarr_to_automatically_import")}
+                    {t("gettingStarted.prowlarrDesc")}
                   </div>
 
                   <div
@@ -691,7 +687,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      {t("autogen.t_import_indexers_from_prowlarr")}
+                      {t("gettingStarted.prowlarrInstructions1")}
                     </div>
                     <ol
                       style={{
@@ -705,34 +701,25 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        {t("autogen.t_in_prowlarr_go_to")}{" "}
+                        {t("gettingStarted.prowlarrInstructions2")}{" "}
                         <strong>
-                          {t("autogen.t_settings_general_security")}
+                          {t("gettingStarted.prowlarrInstructions3")}
                         </strong>{" "}
-                        {t("autogen.t_and_copy_your")}
-                        <strong>{t("autogen.t_api_key")}</strong>.
+                        {t("gettingStarted.prowlarrInstructions4")}{" "}
+                        <strong>{t("settings.apiKey")}</strong>.
                       </li>
                       <li>
-                        {t("autogen.t_switch_to")}
-                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
-                        {t("autogen.t_above_or_go_to")}{" "}
-                        <strong>{t("autogen.t_settings_indexers")}</strong>).
+                        {t("gettingStarted.prowlarrInstructions5")}{" "}
+                        <strong>{t("gettingStarted.liveSetupMode")}</strong>{" "}
+                        {t("gettingStarted.prowlarrInstructions6")}{" "}
+                        <strong>{t("settings.indexers")}</strong>).
                       </li>
+                      <li>{t("gettingStarted.prowlarrInstructions7")}</li>
                       <li>
-                        {t("autogen.t_enter_your_prowlarr_server_url_e_g")}{" "}
-                        <code>{t("autogen.t_http_localhost_9696")}</code>{" "}
-                        {t("autogen.t_or")}{" "}
-                        <code>{t("autogen.t_http_prowlarr_9696")}</code>
-                        {t("autogen.t_and_paste_your_api_key")}
-                      </li>
-                      <li>
-                        {t("autogen.t_click")}
-                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
-                        {t("autogen.t_and")}{" "}
-                        <strong>{t("autogen.t_save_continue")}</strong>{" "}
-                        {t(
-                          "autogen.t_leecharr_will_automatically_import_and_s",
-                        )}
+                        {t("gettingStarted.next")}{" "}
+                        <strong>{t("gettingStarted.testConnection")}</strong>{" "}
+                        {t("gettingStarted.and")}{" "}
+                        <strong>{t("gettingStarted.saveAndContinue")}</strong>.
                       </li>
                     </ol>
                   </div>
@@ -746,16 +733,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label={t("autogen.t_name")}
+                    label={t("common.name")}
                     value={indexerForm.name || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, name: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder={t("autogen.t_my_prowlarr")}
+                    placeholder="Prowlarr"
                   />
                   <SelectInput
-                    label={t("autogen.t_type")}
+                    label={t("common.type")}
                     value={indexerForm.indexerType || "Prowlarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -777,16 +764,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label={t("autogen.t_url")}
+                    label="URL"
                     value={indexerForm.url || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, url: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder={t("autogen.t_http_localhost_9696")}
+                    placeholder="http://localhost:9696"
                   />
                   <TextInput
-                    label={t("autogen.t_api_key")}
+                    label={t("settings.apiKey")}
                     value={indexerForm.apiKey || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, apiKey: v });
@@ -795,16 +782,16 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <TextInput
-                    label={t("autogen.t_api_path")}
+                    label={t("settingsTabs.indexers.apiPathLabel")}
                     value={indexerForm.apiPath || "/api"}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, apiPath: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder={t("autogen.t_api")}
+                    placeholder="/api"
                   />
                   <TextInput
-                    label={t("autogen.t_categories")}
+                    label={t("settingsTabs.indexers.categoriesLabel")}
                     value={
                       Array.isArray(indexerForm.categories)
                         ? indexerForm.categories.join(",")
@@ -817,7 +804,7 @@ export function GettingStartedModal({
                     placeholder="2000,5000"
                   />
                   <Toggle
-                    label={t("autogen.t_enable")}
+                    label={t("common.enabled")}
                     checked={indexerForm.enable ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enable: v });
@@ -825,7 +812,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_rss")}
+                    label={t("settingsTabs.indexers.rssLabel")}
                     checked={indexerForm.enableRss ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enableRss: v });
@@ -833,7 +820,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_search")}
+                    label={t("common.search")}
                     checked={indexerForm.enableSearch ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enableSearch: v });
@@ -857,8 +844,8 @@ export function GettingStartedModal({
                       }}
                     >
                       {indexerTestResult.success
-                        ? "✓ Connection successful!"
-                        : `✗ ${indexerTestResult.message || "Connection failed"}`}
+                        ? `✓ ${t("gettingStarted.connectedSuccess")}`
+                        : `✗ ${indexerTestResult.message || t("settingsTabs.indexers.connectionFailed")}`}
                     </div>
                   )}
 
@@ -875,8 +862,8 @@ export function GettingStartedModal({
                       disabled={testIndexerMutation.isPending}
                     >
                       {testIndexerMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                        ? t("gettingStarted.testing")
+                        : t("gettingStarted.testConnection")}
                     </button>
                     <button
                       className="btn btn-primary"
@@ -888,8 +875,8 @@ export function GettingStartedModal({
                     >
                       {createIndexerMutation.isPending ||
                       syncProwlarrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                        ? t("gettingStarted.saving")
+                        : t("gettingStarted.saveAndContinue")}
                     </button>
                   </div>
                 </div>
@@ -915,7 +902,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    {t("autogen.t_connect_sonarr_to_leecharr_for_1_1_tv_ep")}
+                    {t("gettingStarted.sonarrDescription")}
                   </div>
 
                   <div
@@ -934,7 +921,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      {t("autogen.t_connect_sonarr_library")}
+                      {t("gettingStarted.instructionsSonarrCardTitle")}
                     </div>
                     <ol
                       style={{
@@ -947,40 +934,12 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
+                      <li>{t("gettingStarted.instructionsInSonarr")}</li>
+                      <li>{t("gettingStarted.instructionsSonarrSetup")}</li>
                       <li>
-                        {t("autogen.t_in_sonarr_go_to")}{" "}
-                        <strong>
-                          {t("autogen.t_settings_general_security")}
-                        </strong>{" "}
-                        {t("autogen.t_and_copy_your")}
-                        <strong>{t("autogen.t_api_key")}</strong>.
-                      </li>
-                      <li>
-                        {t("autogen.t_switch_to")}
-                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
-                        {t("autogen.t_above_or_go_to")}{" "}
-                        <strong>{t("autogen.t_settings_connections")}</strong>).
-                      </li>
-                      <li>
-                        {t("autogen.t_enter_sonarr_url_e_g")}{" "}
-                        <code>{t("autogen.t_http_localhost_8989")}</code>{" "}
-                        {t("autogen.t_or")}{" "}
-                        <code>{t("autogen.t_http_sonarr_8989")}</code>
-                        {t("autogen.t_and_paste_your_api_key")}
-                      </li>
-                      <li>
-                        {t("autogen.t_keep")}
-                        <strong>{t("autogen.t_sync_enabled")}</strong>{" "}
-                        {t("autogen.t_and")}{" "}
-                        <strong>{t("autogen.t_webhook")}</strong>{" "}
-                        {t("autogen.t_active")}
-                      </li>
-                      <li>
-                        {t("autogen.t_click")}
-                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
-                        {t("autogen.t_and")}{" "}
-                        <strong>{t("autogen.t_save_continue")}</strong>{" "}
-                        {t("autogen.t_media_cards_will_enrich_instantly")}
+                        {t("gettingStarted.testConnection")}
+                        {" & "}
+                        {t("gettingStarted.saveAndContinue")}
                       </li>
                     </ol>
                   </div>
@@ -994,16 +953,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label={t("autogen.t_name")}
+                    label={t("gettingStarted.name")}
                     value={sonarrForm.name || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, name: v });
                       setSonarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_sonarr")}
+                    placeholder="Sonarr"
                   />
                   <SelectInput
-                    label={t("autogen.t_type")}
+                    label={t("gettingStarted.type")}
                     value={sonarrForm.arrType || "Sonarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1025,16 +984,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label={t("autogen.t_url")}
+                    label={t("gettingStarted.url")}
                     value={sonarrForm.url || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, url: v });
                       setSonarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_http_localhost_8989")}
+                    placeholder="http://localhost:8989"
                   />
                   <TextInput
-                    label={t("autogen.t_api_key")}
+                    label={t("gettingStarted.apiKey")}
                     value={sonarrForm.apiKey || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, apiKey: v });
@@ -1043,7 +1002,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label={t("autogen.t_enable_connection")}
+                    label={t("gettingStarted.enableConnection")}
                     checked={sonarrForm.enable ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, enable: v });
@@ -1051,7 +1010,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_sync_enabled")}
+                    label={t("gettingStarted.syncEnabled")}
                     checked={sonarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, syncEnabled: v });
@@ -1059,7 +1018,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_auto_add")}
+                    label={t("gettingStarted.autoAdd")}
                     checked={sonarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, enableAutomaticAdd: v });
@@ -1067,7 +1026,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_webhook")}
+                    label={t("gettingStarted.webhook")}
                     checked={sonarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, webhookEnabled: v });
@@ -1076,13 +1035,13 @@ export function GettingStartedModal({
                   />
                   {sonarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label={t("autogen.t_webhook_host")}
+                      label={t("gettingStarted.webhookHost")}
                       value={sonarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setSonarrForm({ ...sonarrForm, webhookHost: v });
                         setSonarrTestResult(null);
                       }}
-                      placeholder={t("autogen.t_leecharr")}
+                      placeholder="leecharr"
                       hint="Hostname or IP for Sonarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1103,8 +1062,11 @@ export function GettingStartedModal({
                       }}
                     >
                       {sonarrTestResult.success
-                        ? "✓ Connection successful!"
-                        : `✗ ${sonarrTestResult.message || "Connection failed"}`}
+                        ? t("gettingStarted.connectionSuccess")
+                        : t("gettingStarted.connectionFailed", {
+                            message:
+                              sonarrTestResult.message || "Connection failed",
+                          })}
                     </div>
                   )}
 
@@ -1123,8 +1085,8 @@ export function GettingStartedModal({
                       disabled={testArrMutation.isPending}
                     >
                       {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                        ? t("gettingStarted.testing")
+                        : t("gettingStarted.testConnection")}
                     </button>
                     <button
                       className="btn btn-primary"
@@ -1132,8 +1094,8 @@ export function GettingStartedModal({
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                        ? t("gettingStarted.saving")
+                        : t("gettingStarted.saveAndContinue")}
                     </button>
                   </div>
                 </div>
@@ -1159,7 +1121,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    {t("autogen.t_connect_radarr_to_leecharr_for_high_res_")}
+                    {t("gettingStarted.radarrDescription")}
                   </div>
 
                   <div
@@ -1178,7 +1140,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      {t("autogen.t_connect_radarr_library")}
+                      {t("gettingStarted.instructionsRadarrCardTitle")}
                     </div>
                     <ol
                       style={{
@@ -1191,32 +1153,12 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
+                      <li>{t("gettingStarted.instructionsInRadarr")}</li>
+                      <li>{t("gettingStarted.instructionsRadarrSetup")}</li>
                       <li>
-                        {t("autogen.t_in_radarr_go_to")}{" "}
-                        <strong>
-                          {t("autogen.t_settings_general_security")}
-                        </strong>{" "}
-                        {t("autogen.t_and_copy_your")}
-                        <strong>{t("autogen.t_api_key")}</strong>.
-                      </li>
-                      <li>
-                        {t("autogen.t_switch_to")}
-                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
-                        {t("autogen.t_above_or_go_to")}{" "}
-                        <strong>{t("autogen.t_settings_connections")}</strong>).
-                      </li>
-                      <li>
-                        {t("autogen.t_enter_radarr_url_e_g")}{" "}
-                        <code>{t("autogen.t_http_localhost_7878")}</code>{" "}
-                        {t("autogen.t_or")}{" "}
-                        <code>{t("autogen.t_http_radarr_7878")}</code>
-                        {t("autogen.t_and_paste_your_api_key")}
-                      </li>
-                      <li>
-                        {t("autogen.t_click")}
-                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
-                        {t("autogen.t_and")}{" "}
-                        <strong>{t("autogen.t_save_continue")}</strong>.
+                        {t("gettingStarted.testConnection")}
+                        {" & "}
+                        {t("gettingStarted.saveAndContinue")}
                       </li>
                     </ol>
                   </div>
@@ -1230,16 +1172,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label={t("autogen.t_name")}
+                    label={t("gettingStarted.name")}
                     value={radarrForm.name || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, name: v });
                       setRadarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_radarr")}
+                    placeholder="Radarr"
                   />
                   <SelectInput
-                    label={t("autogen.t_type")}
+                    label={t("gettingStarted.type")}
                     value={radarrForm.arrType || "Radarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1261,16 +1203,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label={t("autogen.t_url")}
+                    label={t("gettingStarted.url")}
                     value={radarrForm.url || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, url: v });
                       setRadarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_http_localhost_7878")}
+                    placeholder="http://localhost:7878"
                   />
                   <TextInput
-                    label={t("autogen.t_api_key")}
+                    label={t("gettingStarted.apiKey")}
                     value={radarrForm.apiKey || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, apiKey: v });
@@ -1279,7 +1221,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label={t("autogen.t_enable_connection")}
+                    label={t("gettingStarted.enableConnection")}
                     checked={radarrForm.enable ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, enable: v });
@@ -1287,7 +1229,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_sync_enabled")}
+                    label={t("gettingStarted.syncEnabled")}
                     checked={radarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, syncEnabled: v });
@@ -1295,7 +1237,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_auto_add")}
+                    label={t("gettingStarted.autoAdd")}
                     checked={radarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, enableAutomaticAdd: v });
@@ -1303,7 +1245,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_webhook")}
+                    label={t("gettingStarted.webhook")}
                     checked={radarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, webhookEnabled: v });
@@ -1312,13 +1254,13 @@ export function GettingStartedModal({
                   />
                   {radarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label={t("autogen.t_webhook_host")}
+                      label={t("gettingStarted.webhookHost")}
                       value={radarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setRadarrForm({ ...radarrForm, webhookHost: v });
                         setRadarrTestResult(null);
                       }}
-                      placeholder={t("autogen.t_leecharr")}
+                      placeholder="leecharr"
                       hint="Hostname or IP for Radarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1339,8 +1281,11 @@ export function GettingStartedModal({
                       }}
                     >
                       {radarrTestResult.success
-                        ? "✓ Connection successful!"
-                        : `✗ ${radarrTestResult.message || "Connection failed"}`}
+                        ? t("gettingStarted.connectionSuccess")
+                        : t("gettingStarted.connectionFailed", {
+                            message:
+                              radarrTestResult.message || "Connection failed",
+                          })}
                     </div>
                   )}
 
@@ -1359,8 +1304,8 @@ export function GettingStartedModal({
                       disabled={testArrMutation.isPending}
                     >
                       {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                        ? t("gettingStarted.testing")
+                        : t("gettingStarted.testConnection")}
                     </button>
                     <button
                       className="btn btn-primary"
@@ -1368,8 +1313,8 @@ export function GettingStartedModal({
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                        ? t("gettingStarted.saving")
+                        : t("gettingStarted.saveAndContinue")}
                     </button>
                   </div>
                 </div>
@@ -1395,7 +1340,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    {t("autogen.t_connect_lidarr_to_leecharr_for_album_art")}
+                    {t("gettingStarted.lidarrDescription")}
                   </div>
 
                   <div
@@ -1414,7 +1359,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      {t("autogen.t_connect_lidarr_library")}
+                      {t("gettingStarted.instructionsLidarrCardTitle")}
                     </div>
                     <ol
                       style={{
@@ -1427,32 +1372,12 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
+                      <li>{t("gettingStarted.instructionsInLidarr")}</li>
+                      <li>{t("gettingStarted.instructionsLidarrSetup")}</li>
                       <li>
-                        {t("autogen.t_in_lidarr_go_to")}{" "}
-                        <strong>
-                          {t("autogen.t_settings_general_security")}
-                        </strong>{" "}
-                        {t("autogen.t_and_copy_your")}
-                        <strong>{t("autogen.t_api_key")}</strong>.
-                      </li>
-                      <li>
-                        {t("autogen.t_switch_to")}
-                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
-                        {t("autogen.t_above_or_go_to")}{" "}
-                        <strong>{t("autogen.t_settings_connections")}</strong>).
-                      </li>
-                      <li>
-                        {t("autogen.t_enter_lidarr_url_e_g")}{" "}
-                        <code>{t("autogen.t_http_localhost_8686")}</code>{" "}
-                        {t("autogen.t_or")}{" "}
-                        <code>{t("autogen.t_http_lidarr_8686")}</code>
-                        {t("autogen.t_and_paste_your_api_key")}
-                      </li>
-                      <li>
-                        {t("autogen.t_click")}
-                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
-                        {t("autogen.t_and")}{" "}
-                        <strong>{t("autogen.t_save_continue")}</strong>.
+                        {t("gettingStarted.testConnection")}
+                        {" & "}
+                        {t("gettingStarted.saveAndContinue")}
                       </li>
                     </ol>
                   </div>
@@ -1466,16 +1391,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label={t("autogen.t_name")}
+                    label={t("gettingStarted.name")}
                     value={lidarrForm.name || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, name: v });
                       setLidarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_lidarr")}
+                    placeholder="Lidarr"
                   />
                   <SelectInput
-                    label={t("autogen.t_type")}
+                    label={t("gettingStarted.type")}
                     value={lidarrForm.arrType || "Lidarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1497,16 +1422,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label={t("autogen.t_url")}
+                    label={t("gettingStarted.url")}
                     value={lidarrForm.url || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, url: v });
                       setLidarrTestResult(null);
                     }}
-                    placeholder={t("autogen.t_http_localhost_8686")}
+                    placeholder="http://localhost:8686"
                   />
                   <TextInput
-                    label={t("autogen.t_api_key")}
+                    label={t("gettingStarted.apiKey")}
                     value={lidarrForm.apiKey || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, apiKey: v });
@@ -1515,7 +1440,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label={t("autogen.t_enable_connection")}
+                    label={t("gettingStarted.enableConnection")}
                     checked={lidarrForm.enable ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, enable: v });
@@ -1523,7 +1448,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_sync_enabled")}
+                    label={t("gettingStarted.syncEnabled")}
                     checked={lidarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, syncEnabled: v });
@@ -1531,7 +1456,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_auto_add")}
+                    label={t("gettingStarted.autoAdd")}
                     checked={lidarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, enableAutomaticAdd: v });
@@ -1539,7 +1464,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label={t("autogen.t_webhook")}
+                    label={t("gettingStarted.webhook")}
                     checked={lidarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, webhookEnabled: v });
@@ -1548,13 +1473,13 @@ export function GettingStartedModal({
                   />
                   {lidarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label={t("autogen.t_webhook_host")}
+                      label={t("gettingStarted.webhookHost")}
                       value={lidarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setLidarrForm({ ...lidarrForm, webhookHost: v });
                         setLidarrTestResult(null);
                       }}
-                      placeholder={t("autogen.t_leecharr")}
+                      placeholder="leecharr"
                       hint="Hostname or IP for Lidarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1575,8 +1500,11 @@ export function GettingStartedModal({
                       }}
                     >
                       {lidarrTestResult.success
-                        ? "✓ Connection successful!"
-                        : `✗ ${lidarrTestResult.message || "Connection failed"}`}
+                        ? t("gettingStarted.connectionSuccess")
+                        : t("gettingStarted.connectionFailed", {
+                            message:
+                              lidarrTestResult.message || "Connection failed",
+                          })}
                     </div>
                   )}
 
@@ -1595,8 +1523,8 @@ export function GettingStartedModal({
                       disabled={testArrMutation.isPending}
                     >
                       {testArrMutation.isPending
-                        ? "Testing..."
-                        : "Test Connection"}
+                        ? t("gettingStarted.testing")
+                        : t("gettingStarted.testConnection")}
                     </button>
                     <button
                       className="btn btn-primary"
@@ -1604,8 +1532,8 @@ export function GettingStartedModal({
                       disabled={createArrMutation.isPending}
                     >
                       {createArrMutation.isPending
-                        ? "Saving..."
-                        : "Save & Continue"}
+                        ? t("gettingStarted.saving")
+                        : t("gettingStarted.saveAndContinue")}
                     </button>
                   </div>
                 </div>
@@ -1632,7 +1560,7 @@ export function GettingStartedModal({
                   color: "var(--text-primary)",
                 }}
               >
-                {t("autogen.t_you_apos_re_ready_to_download")}
+                {t("gettingStarted.finishTitle")}
               </h2>
               <p
                 style={{
@@ -1643,9 +1571,7 @@ export function GettingStartedModal({
                   lineHeight: 1.5,
                 }}
               >
-                {t("autogen.t_leecharr_is_now_configured_and_actively_")}{" "}
-                <code>7889</code>
-                {t("autogen.t_you_can_grab_torrents_directly_from_inte")}
+                {t("gettingStarted.finishDescription", { port: "7889" })}
               </p>
 
               <div
@@ -1665,7 +1591,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    {t("autogen.t_go_to_queue_torrents")}
+                    {t("gettingStarted.goToQueue")}
                   </button>
                 )}
                 {onNavigateIndexers && (
@@ -1677,7 +1603,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    {t("autogen.t_search_indexers")}
+                    {t("gettingStarted.searchIndexers")}
                   </button>
                 )}
                 {onNavigateSettings && (
@@ -1689,7 +1615,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    {t("autogen.t_view_connections")}
+                    {t("gettingStarted.viewConnections")}
                   </button>
                 )}
               </div>
@@ -1723,7 +1649,7 @@ export function GettingStartedModal({
               checked={dontShowAgain}
               onChange={(e) => handleDontShowChange(e.target.checked)}
             />
-            {t("autogen.t_don_apos_t_show_this_guide_on_startup")}
+            {t("gettingStarted.dontShowAgain")}
           </label>
 
           <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -1732,11 +1658,13 @@ export function GettingStartedModal({
                 className="btn btn-secondary btn-small"
                 onClick={handlePrev}
               >
-                {t("autogen.t_previous")}
+                {t("gettingStarted.previous")}
               </button>
             )}
             <button className="btn btn-primary btn-small" onClick={handleNext}>
-              {currentStep === STEPS.length - 1 ? "Finish & Close" : "Next →"}
+              {currentStep === STEPS.length - 1
+                ? t("gettingStarted.finishAndClose")
+                : t("gettingStarted.next")}
             </button>
           </div>
         </div>

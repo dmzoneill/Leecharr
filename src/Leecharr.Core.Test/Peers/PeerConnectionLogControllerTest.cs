@@ -121,4 +121,53 @@ public class PeerConnectionLogControllerTest
         logs.First().RemoteIp.Should().Be("9.9.9.9");
         logs.First().InfoHash.Should().Be("activehash");
     }
+
+    [Test]
+    public void Purge_ConcurrentWithRecordEvent_DoesNotDropConcurrentlyAddedEvents()
+    {
+        var now = DateTime.UtcNow;
+
+        for (var i = 0; i < 50; i++)
+        {
+            this.historyService.RecordEvent(new PeerConnectionEvent
+            {
+                InfoHash = $"old_{i}",
+                Timestamp = now.AddDays(-10),
+            });
+        }
+
+        var ready = new System.Threading.ManualResetEventSlim(false);
+        var cts = new System.Threading.CancellationTokenSource();
+        var producerTask = Task.Run(() =>
+        {
+            ready.Set();
+            var counter = 0;
+            while (!cts.Token.IsCancellationRequested)
+            {
+                this.historyService.RecordEvent(new PeerConnectionEvent
+                {
+                    InfoHash = $"new_{counter++}",
+                    Timestamp = DateTime.UtcNow,
+                });
+                System.Threading.Thread.Sleep(1);
+            }
+        });
+
+        ready.Wait(TimeSpan.FromSeconds(2));
+        System.Threading.Thread.Sleep(20);
+
+        for (var i = 0; i < 10; i++)
+        {
+            this.historyService.Purge(now.AddDays(-1));
+            System.Threading.Thread.Sleep(5);
+        }
+
+        cts.Cancel();
+        producerTask.Wait(TimeSpan.FromSeconds(2));
+
+        var records = this.historyService.GetRecords();
+        records.Should().NotContain(r => r.InfoHash.StartsWith("old_"));
+        records.Should().OnlyContain(r => r.InfoHash.StartsWith("new_"));
+        records.Should().NotBeEmpty();
+    }
 }

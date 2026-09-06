@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import { usePeers } from "../../api/hooks";
 import { formatBytes, formatSpeed } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
@@ -12,13 +13,16 @@ export function PeersTab({
   torrent?: Torrent;
   torrentId?: number;
 }) {
+  const { t } = useTranslation();
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: peers, isLoading, isError } = usePeers(effectiveId);
 
-  if (isLoading) return <PanelLoading>Loading peers...</PanelLoading>;
-  if (isError) return <PanelEmpty>Failed to load peers.</PanelEmpty>;
+  if (isLoading)
+    return <PanelLoading>{t("torrents.detail.loadingPeers")}</PanelLoading>;
+  if (isError)
+    return <PanelEmpty>{t("torrents.detail.failedToLoadPeers")}</PanelEmpty>;
   if (!peers || peers.length === 0)
-    return <PanelEmpty>No peers connected</PanelEmpty>;
+    return <PanelEmpty>{t("torrents.detail.noPeers")}</PanelEmpty>;
 
   return (
     <div className="detail-panel-table-wrap">
@@ -38,24 +42,36 @@ export function PeersTab({
           }}
         >
           <i className="fas fa-lock" />
-          <span>
-            <strong>BEP 27 Private Swarm:</strong> Peer discovery is restricted
-            exclusively to tracker announces. DHT and PEX peer exchanges are
-            disabled to protect passkey privacy.
-          </span>
+          <span>{t("torrents.detail.peersPrivateBanner")}</span>
         </div>
       )}
       <table className="torrent-table">
         <thead>
           <tr>
-            <th className="torrent-table-th">Address</th>
-            <th className="torrent-table-th">Client</th>
-            <th className="torrent-table-th">Progress</th>
-            <th className="torrent-table-th">Up Speed</th>
-            <th className="torrent-table-th">Down Speed</th>
-            <th className="torrent-table-th">Uploaded</th>
-            <th className="torrent-table-th">Downloaded</th>
-            <th className="torrent-table-th">Flags</th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colAddress")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colClient")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colProgress")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colUpSpeed")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colDownSpeed")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colUploaded")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colDownloaded")}
+            </th>
+            <th className="torrent-table-th">
+              {t("torrents.detail.colFlags")}
+            </th>
           </tr>
         </thead>
         <tbody>

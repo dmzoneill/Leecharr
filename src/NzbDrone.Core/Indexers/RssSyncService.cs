@@ -77,7 +77,7 @@ public class RssSyncService : IRssSyncService
                 foreach (var release in releases)
                 {
                     var releaseId = GetReleaseId(release);
-                    if (!string.IsNullOrEmpty(releaseId) && this.grabbedReleaseIds.ContainsKey(releaseId))
+                    if (this.IsAlreadyGrabbed(release, releaseId))
                     {
                         continue;
                     }
@@ -122,6 +122,25 @@ public class RssSyncService : IRssSyncService
                                     {
                                         var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
                                         var parsed = this.torrentFileParser.Parse(torrentBytes);
+
+                                        if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                        {
+                                            var existingTorrent = this.torrentService?.GetByInfoHash(parsed.InfoHash);
+                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsed.InfoHash);
+
+                                            if (existingTorrent != null || existingHistory != null)
+                                            {
+                                                if (!string.IsNullOrEmpty(releaseId))
+                                                {
+                                                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                                                }
+
+                                                this.grabbedReleaseIds.TryAdd(parsed.InfoHash, 0);
+                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsed.InfoHash);
+                                                break;
+                                            }
+                                        }
+
                                         addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
                                         grabbed = true;
                                     }
@@ -132,7 +151,7 @@ public class RssSyncService : IRssSyncService
                                 this.logger.Error(ex, "Failed to grab release {0}", release.Title);
                             }
 
-                            if (grabbed)
+                            if (grabbed && addedTorrent != null)
                             {
                                 var effectiveMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
                                     ? release.MagnetUrl
@@ -150,6 +169,11 @@ public class RssSyncService : IRssSyncService
                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                 }
 
+                                if (!string.IsNullOrEmpty(addedTorrent.InfoHash))
+                                {
+                                    this.grabbedReleaseIds.TryAdd(addedTorrent.InfoHash, 0);
+                                }
+
                                 grabbedCount++;
                                 break;
                             }
@@ -164,6 +188,58 @@ public class RssSyncService : IRssSyncService
         }
 
         return grabbedCount;
+    }
+
+    private bool IsAlreadyGrabbed(TorznabSearchResult release, string releaseId)
+    {
+        if (!string.IsNullOrEmpty(releaseId) && this.grabbedReleaseIds.ContainsKey(releaseId))
+        {
+            return true;
+        }
+
+        var candidateHash = release?.InfoHash;
+
+        if (string.IsNullOrWhiteSpace(candidateHash) && !string.IsNullOrWhiteSpace(release?.MagnetUrl))
+        {
+            try
+            {
+                candidateHash = MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash;
+            }
+            catch
+            {
+                // Ignore parse errors
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(candidateHash) && release?.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            try
+            {
+                candidateHash = MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash;
+            }
+            catch
+            {
+                // Ignore parse errors
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidateHash))
+        {
+            candidateHash = candidateHash.ToLowerInvariant();
+            if (this.torrentService?.GetByInfoHash(candidateHash) != null ||
+                this.downloadHistoryService?.GetByInfoHash(candidateHash) != null)
+            {
+                if (!string.IsNullOrEmpty(releaseId))
+                {
+                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                }
+
+                this.grabbedReleaseIds.TryAdd(candidateHash, 0);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string GetReleaseId(TorznabSearchResult release)

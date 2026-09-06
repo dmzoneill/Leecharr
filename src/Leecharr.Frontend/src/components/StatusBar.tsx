@@ -101,10 +101,12 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
       <div className="status-bar-content">
         <span className="status-bar-item">
           <InfoIcon size={14} />{" "}
-          {systemStatus?.version ? `v${systemStatus.version}` : "Loading..."}
+          {systemStatus?.version
+            ? `v${systemStatus.version}`
+            : t("statusBar.loading")}
         </span>
         <span className="status-bar-item">
-          <ActivityIcon size={14} /> Uptime:{" "}
+          <ActivityIcon size={14} /> {t("statusBar.uptime")}{" "}
           {systemStatus
             ? formatUptime(
                 systemStatus.uptimeSeconds ??
@@ -123,10 +125,12 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
           style={{ color: hasIssues ? "var(--danger)" : "var(--success)" }}
         >
           {hasIssues ? <ErrorIcon size={14} /> : <InfoIcon size={14} />}
-          Health:{" "}
+          {t("statusBar.health")}{" "}
           {hasIssues
-            ? `${issuesCount} Issue${issuesCount !== 1 ? "s" : ""}`
-            : "OK"}
+            ? issuesCount === 1
+              ? t("statusBar.healthIssues", { count: issuesCount })
+              : t("statusBar.healthIssuesPlural", { count: issuesCount })
+            : t("statusBar.healthOk")}
         </span>
         {(connected !== undefined || isReconnecting !== undefined) && (
           <span
@@ -141,17 +145,17 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
           >
             <WifiIcon size={14} />{" "}
             {isReconnecting
-              ? "Reconnecting..."
+              ? t("statusBar.reconnecting")
               : connected
-                ? "Connected"
-                : "Disconnected"}
+                ? t("statusBar.connected")
+                : t("statusBar.disconnected")}
           </span>
         )}
 
         <div className="status-bar-separator" style={{ flexGrow: 1 }} />
 
         <span className="status-bar-item">
-          <SeedingIcon size={14} /> Active:{" "}
+          <SeedingIcon size={14} /> {t("statusBar.active")}{" "}
           {stats?.activeTorrents ??
             torrents?.filter((t) => {
               const s = (t.status || "").toLowerCase();
@@ -182,21 +186,23 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
           )}
         </span>
         <span className="status-bar-item">
-          <UsersIcon size={14} /> Peers: {totalSeeders} / {totalPeers}
+          <UsersIcon size={14} /> {t("statusBar.peers")} {totalSeeders} /{" "}
+          {totalPeers}
         </span>
         <span className="status-bar-item">
-          <UploadIcon size={14} /> Total Up:{" "}
+          <UploadIcon size={14} /> {t("statusBar.totalUp")}{" "}
           {formatBytes(stats?.totalUploaded ?? 0)}
         </span>
         <span className="status-bar-item">
-          <DownloadIcon size={14} /> Total Down:{" "}
+          <DownloadIcon size={14} /> {t("statusBar.totalDown")}{" "}
           {formatBytes(stats?.totalDownloaded ?? 0)}
         </span>
         <span className="status-bar-item">
-          Ratio: {formatRatio(stats?.averageRatio ?? 0)}
+          {t("statusBar.ratio")} {formatRatio(stats?.averageRatio ?? 0)}
         </span>
         <span className="status-bar-item">
-          <WifiIcon size={14} /> IP: {network?.externalIp || "..."}
+          <WifiIcon size={14} /> {t("statusBar.ip")}{" "}
+          {network?.externalIp || "..."}
         </span>
       </div>
     </footer>

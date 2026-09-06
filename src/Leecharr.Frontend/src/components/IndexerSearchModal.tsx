@@ -183,7 +183,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               size={18}
               style={{ color: "var(--accent-gold, #FFD166)" }}
             />
-            <h3>{t("autogen.t_indexer_discovery_search")}</h3>
+            <h3>{t("indexers.indexerDiscoverySearch")}</h3>
           </div>
           <button
             type="button"
@@ -237,9 +237,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     size={14}
                     style={{ color: "var(--accent-gold, #FFD166)" }}
                   />
-                  <span>
-                    {t("autogen.t_ai_smart_search_natural_language_filter")}
-                  </span>
+                  <span>{t("indexers.aiSmartSearch")}</span>
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -250,7 +248,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       fontFamily: "monospace",
                     }}
                   >
-                    {t("autogen.t_ai")}
+                    {t("indexers.ai")}
                   </span>
                 </div>
                 <div
@@ -262,7 +260,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   }}
                 >
                   <span style={{ fontSize: "0.7rem", fontWeight: 400 }}>
-                    {isAiExpanded ? "Collapse" : "Expand"}
+                    {isAiExpanded
+                      ? t("indexers.collapse")
+                      : t("indexers.expand")}
                   </span>
                   {isAiExpanded ? (
                     <ChevronUpIcon size={14} />
@@ -290,13 +290,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       color: "var(--text-muted, #C7C5D3)",
                     }}
                   >
-                    {t("autogen.t_describe_what_you_want_in_natural_langua")}{" "}
+                    {t("indexers.describeNaturalQuery")}{" "}
                     <em style={{ color: "var(--accent-gold, #FFD166)" }}>
                       {'"'}
-                      {t("autogen.t_find_dune_part_2_in_4k_bluray_freeleech_")}
+                      {t("indexers.naturalQueryExample")}
                       {'"'}
                     </em>
-                    {t("autogen.t_ai_extracts_resolution_codec_category_an")}
+                    {t("indexers.aiExtractsHint")}
                   </p>
 
                   <div
@@ -313,7 +313,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAiNaturalParse(e);
                       }}
-                      placeholder={t("autogen.t_type_natural_query")}
+                      placeholder={t("indexers.typeNaturalQuery")}
                       style={{
                         flex: 1,
                         backgroundColor: "var(--bg-secondary, #171B35)",
@@ -353,8 +353,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       <SparklesIcon size={13} />
                       <span>
                         {naturalSearchMutation.isPending
-                          ? "Parsing..."
-                          : "Extract Intent"}
+                          ? t("indexers.parsing")
+                          : t("indexers.extractIntent")}
                       </span>
                     </button>
                   </div>
@@ -393,7 +393,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                             size={14}
                             style={{ color: "#34d399" }}
                           />
-                          {t("autogen.t_extracted_filters_confidence")}{" "}
+                          {t("indexers.extractedFiltersConfidence")}{" "}
                           {Math.round(aiParams.confidenceScore * 100)}%):
                         </span>
                         <button
@@ -410,7 +410,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                             cursor: "pointer",
                           }}
                         >
-                          {t("autogen.t_apply_search_rarr")}
+                          {t("indexers.applySearch")}
                         </button>
                       </div>
 
@@ -432,7 +432,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            {t("autogen.t_title")}
+                            {t("common.title")}:{" "}
                             <strong>{aiParams.cleanTitle}</strong>
                           </span>
                         )}
@@ -447,7 +447,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            {t("autogen.t_category")}
+                            {t("common.category")}:{" "}
                             <strong>{aiParams.category}</strong>
                           </span>
                         )}
@@ -462,7 +462,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            {t("autogen.t_res")}
+                            {t("indexers.resolution")}:{" "}
                             <strong>{aiParams.resolution}</strong>
                           </span>
                         )}
@@ -477,7 +477,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            {t("autogen.t_quality")}
+                            {t("indexers.quality")}:{" "}
                             <strong>{aiParams.quality}</strong>
                           </span>
                         )}
@@ -492,7 +492,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontFamily: "monospace",
                             }}
                           >
-                            {t("autogen.t_seeds_ge")}
+                            {t("indexers.seedsGe")}{" "}
                             <strong>{aiParams.minSeeders}</strong>
                           </span>
                         )}
@@ -508,7 +508,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontWeight: 700,
                             }}
                           >
-                            {t("autogen.t_freeleech_only")}
+                            {t("indexers.freeleechOnly")}
                           </span>
                         )}
                       </div>
@@ -523,9 +523,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           <form onSubmit={handleSearch} className="search-form">
             <input
               type="text"
-              placeholder={t(
-                "autogen.t_search_all_configured_torznab_indexers",
-              )}
+              placeholder={t("indexers.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="search-input"
@@ -536,7 +534,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               className="btn btn-primary"
               disabled={searchResultsQuery.isLoading}
             >
-              {searchResultsQuery.isLoading ? "Searching..." : "Search"}
+              {searchResultsQuery.isLoading
+                ? t("indexers.searchingBtn")
+                : t("indexers.searchBtn")}
             </button>
           </form>
 
@@ -547,20 +547,20 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 checked={freeleechOnly}
                 onChange={(e) => setFreeleechOnly(e.target.checked)}
               />
-              {t("autogen.t_freeleech_only_100_ratio_free")}
+              {t("indexers.freeleechOnly100")}
             </label>
           </div>
 
           <div className="results-list">
             {searchResultsQuery.isLoading ? (
               <p className="text-muted text-center py-4">
-                {t("autogen.t_searching_configured_torznab_indexers")}
+                {t("indexers.searchingIndexers")}
               </p>
             ) : filteredResults.length === 0 ? (
               <p className="text-muted text-center py-4">
                 {activeSearchTerm
-                  ? "No results found. Try a different search term or category."
-                  : "Type a query and press Search to discover torrents."}
+                  ? t("indexers.noResults")
+                  : t("indexers.searchPrompt")}
               </p>
             ) : (
               filteredResults.map((r, i) => {
@@ -583,31 +583,31 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                         <strong>{r.title}</strong>
                         {isFl && (
                           <span className="freeleech-badge">
-                            {t("autogen.t_freeleech")}
+                            {t("indexers.freeleech")}
                           </span>
                         )}
                       </div>
                       <div className="result-meta">
                         <span className="meta-item">
-                          <strong>{t("autogen.t_indexer")}</strong>{" "}
+                          <strong>{t("indexers.indexer")}:</strong>{" "}
                           {r.indexerName || r.indexer || "Torznab"}
                         </span>
                         <span className="meta-item">
-                          <strong>{t("autogen.t_category")}</strong>{" "}
+                          <strong>{t("common.category")}:</strong>{" "}
                           {(r.categories && r.categories.length > 0
                             ? r.categories.join(", ")
                             : r.category) || "General"}
                         </span>
                         <span className="meta-item">
-                          <strong>{t("autogen.t_size")}</strong>{" "}
+                          <strong>{t("common.size")}:</strong>{" "}
                           {formatBytes(r.size)}
                         </span>
                         <span className="meta-item">
-                          <strong>{t("autogen.t_seeds")}</strong>{" "}
+                          <strong>{t("indexers.seeders")}:</strong>{" "}
                           {r.seeders ?? 0}
                         </span>
                         <span className="meta-item">
-                          <strong>{t("autogen.t_leechers")}</strong>{" "}
+                          <strong>{t("indexers.leechers")}:</strong>{" "}
                           {r.leechers ?? 0}
                         </span>
                       </div>
@@ -617,7 +617,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       onClick={() => handleGrab(r)}
                       disabled={isGrabbing}
                     >
-                      {isGrabbing ? "Grabbing..." : "+ Grab"}
+                      {isGrabbing ? t("indexers.grabbing") : t("indexers.grab")}
                     </button>
                   </div>
                 );

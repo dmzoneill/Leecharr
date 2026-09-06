@@ -179,11 +179,9 @@ function SystemTasks() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_tasks")}
+              {t("system.tasksTitle")}
             </h1>
-            <span className="badge badge-primary">
-              {t("autogen.t_scheduler")}
-            </span>
+            <span className="badge badge-primary">{t("system.scheduler")}</span>
           </div>
           <div
             style={{
@@ -192,7 +190,7 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_scheduled_background_maintenance_jobs_in")}
+            {t("system.tasksSubtitle")}
           </div>
         </div>
 
@@ -201,7 +199,7 @@ function SystemTasks() {
             className="badge badge-primary"
             style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
           >
-            {t("autogen.t_active_jobs")}
+            {t("system.activeJobs")}
             {tasks?.length ?? 0}
           </span>
         </div>
@@ -234,7 +232,7 @@ function SystemTasks() {
               margin: 0,
             }}
           >
-            {t("autogen.t_scheduled_background_tasks")}
+            {t("system.scheduledTasks")}
           </h2>
           <div
             style={{
@@ -243,18 +241,18 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_periodic_routines_maintaining_torrent_sw")}
+            {t("system.scheduledTasksSubtitle")}
           </div>
         </div>
 
         {tasksLoading && (
           <p className="loading" style={{ padding: "1.25rem" }}>
-            {t("autogen.t_loading_tasks")}
+            {t("system.loadingTasks")}
           </p>
         )}
         {!tasksLoading && tasksError && (
           <p className="error" style={{ padding: "1.25rem" }}>
-            {t("autogen.t_failed_to_load_tasks")}
+            {t("system.failedToLoadTasks")}
           </p>
         )}
         {tasks && tasks.length > 0 && (
@@ -262,20 +260,16 @@ function SystemTasks() {
             <table className="torrent-table">
               <thead>
                 <tr>
+                  <th className="torrent-table-th">{t("system.taskName")}</th>
+                  <th className="torrent-table-th">{t("system.interval")}</th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_task_name")}
+                    {t("system.lastExecution")}
                   </th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_execution_interval")}
+                    {t("system.lastDuration")}
                   </th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_last_execution")}
-                  </th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_last_duration")}
-                  </th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_next_execution")}
+                    {t("system.nextExecution")}
                   </th>
                 </tr>
               </thead>
@@ -319,7 +313,7 @@ function SystemTasks() {
         )}
         {tasks && tasks.length === 0 && (
           <p className="torrent-table-empty" style={{ padding: "1.5rem" }}>
-            {t("autogen.t_no_scheduled_tasks_registered")}
+            {t("system.noTasks")}
           </p>
         )}
       </div>
@@ -350,7 +344,7 @@ function SystemTasks() {
               margin: 0,
             }}
           >
-            {t("autogen.t_command_execution_queue")}
+            {t("system.commandQueue")}
           </h2>
           <div
             style={{
@@ -359,18 +353,18 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_history_and_progress_of_interactive_and_")}
+            {t("system.commandQueueSubtitle")}
           </div>
         </div>
 
         {commandsLoading && (
           <p className="loading" style={{ padding: "1.25rem" }}>
-            {t("autogen.t_loading_command_history")}
+            {t("system.loadingCommands")}
           </p>
         )}
         {!commandsLoading && commandsError && (
           <p className="error" style={{ padding: "1.25rem" }}>
-            {t("autogen.t_failed_to_load_commands")}
+            {t("system.failedToLoadCommands")}
           </p>
         )}
         {commands && commands.length > 0 && (
@@ -379,14 +373,12 @@ function SystemTasks() {
               <thead>
                 <tr>
                   <th className="torrent-table-th">
-                    {t("autogen.t_command_status")}
+                    {t("system.commandStatus")}
                   </th>
-                  <th className="torrent-table-th">{t("autogen.t_queued")}</th>
-                  <th className="torrent-table-th">{t("autogen.t_started")}</th>
-                  <th className="torrent-table-th">{t("autogen.t_ended")}</th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_duration")}
-                  </th>
+                  <th className="torrent-table-th">{t("system.queued")}</th>
+                  <th className="torrent-table-th">{t("system.started")}</th>
+                  <th className="torrent-table-th">{t("system.ended")}</th>
+                  <th className="torrent-table-th">{t("system.duration")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -433,7 +425,7 @@ function SystemTasks() {
         )}
         {commands && commands.length === 0 && (
           <p className="torrent-table-empty" style={{ padding: "1.5rem" }}>
-            {t("autogen.t_no_recent_command_executions_in_queue")}
+            {t("system.noCommands")}
           </p>
         )}
       </div>

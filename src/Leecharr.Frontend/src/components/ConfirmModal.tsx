@@ -17,8 +17,8 @@ export function ConfirmModal({
   isOpen,
   title,
   message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  confirmText,
+  cancelText,
   danger = false,
   onConfirm,
   onCancel,
@@ -27,6 +27,22 @@ export function ConfirmModal({
   useEscapeKey(onCancel, isOpen);
 
   if (!isOpen) return null;
+
+  const displayTitle = title
+    ? title.includes(".")
+      ? t(title)
+      : title
+    : t("confirmModal.defaultTitle");
+  const displayCancel = cancelText
+    ? cancelText.includes(".")
+      ? t(cancelText)
+      : cancelText
+    : t("confirmModal.cancel");
+  const displayConfirm = confirmText
+    ? confirmText.includes(".")
+      ? t(confirmText)
+      : confirmText
+    : t("confirmModal.confirm");
 
   return (
     <div
@@ -106,11 +122,7 @@ export function ConfirmModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            {title
-              ? t(title)
-              : danger
-                ? t("Confirm Action")
-                : t("Confirmation")}
+            {displayTitle}
           </h3>
         </div>
 
@@ -151,7 +163,7 @@ export function ConfirmModal({
               cursor: "pointer",
             }}
           >
-            {t(cancelText || "Cancel")}
+            {displayCancel}
           </button>
           <button
             type="button"
@@ -170,7 +182,7 @@ export function ConfirmModal({
               transition: "opacity 0.15s ease",
             }}
           >
-            {t(confirmText || "Confirm")}
+            {displayConfirm}
           </button>
         </div>
       </div>

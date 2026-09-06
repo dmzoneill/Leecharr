@@ -390,4 +390,24 @@ public class WebhookDispatcherTest
         body.Should().Contain("user=user-key-999");
         body.Should().Contain("message=Test+Message");
     }
+
+    [Test]
+    public void RedactHeadersForLogging_RedactsSecretsAndRetainsKeysOnly()
+    {
+        var rawJson = "{\"Authorization\": \"Bearer sk-secret-token-12345\", \"X-Api-Key\": \"super-secret-key-999\"}";
+        var redacted = WebhookDispatcher.RedactHeadersForLogging(rawJson);
+
+        redacted.Should().Contain("Authorization");
+        redacted.Should().Contain("X-Api-Key");
+        redacted.Should().NotContain("sk-secret-token-12345");
+        redacted.Should().NotContain("super-secret-key-999");
+
+        var rawLines = "Authorization: Bearer secret\nX-Token=my-token";
+        var redactedLines = WebhookDispatcher.RedactHeadersForLogging(rawLines);
+
+        redactedLines.Should().Contain("Authorization");
+        redactedLines.Should().Contain("X-Token");
+        redactedLines.Should().NotContain("secret");
+        redactedLines.Should().NotContain("my-token");
+    }
 }

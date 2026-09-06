@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "../../i18n";
 import {
   SparklesIcon,
   ChevronDownIcon,
@@ -21,6 +22,7 @@ interface AiSwarmDiagnosticCardProps {
 export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
   torrent,
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_ai_diag_expanded") === "true";
   });
@@ -98,7 +100,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
             size={14}
             style={{ color: "var(--accent-gold, #FFD166)" }}
           />
-          <span>AI Swarm Health & Diagnostic Insights</span>
+          <span>{t("torrents.detail.diagTitle")}</span>
           {report && (
             <span
               className={`badge ${getSeverityBadgeClass(report.severity)}`}
@@ -122,7 +124,9 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
           }}
         >
           <span style={{ fontSize: "0.75rem", fontWeight: 400 }}>
-            {isExpanded ? "Collapse" : "Expand"}
+            {isExpanded
+              ? t("torrents.detail.diagCollapse")
+              : t("torrents.detail.diagExpand")}
           </span>
           {isExpanded ? (
             <ChevronUpIcon size={14} />
@@ -160,8 +164,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                   color: "var(--text-muted, #C7C5D3)",
                 }}
               >
-                Run instant AI swarm diagnostics to inspect tracker latency,
-                choking bottlenecks, and piece availability.
+                {t("torrents.detail.diagPromptText")}
               </p>
               <button
                 type="button"
@@ -182,7 +185,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                 }}
               >
                 <SparklesIcon size={13} />
-                <span>Diagnose Swarm</span>
+                <span>{t("torrents.detail.diagDiagnoseSwarm")}</span>
               </button>
             </div>
           )}
@@ -205,10 +208,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                   color: "#FFD166",
                 }}
               />
-              <span>
-                Analyzing swarm peers, tracker responses, and piece
-                availability...
-              </span>
+              <span>{t("torrents.detail.diagAnalyzing")}</span>
             </div>
           )}
 
@@ -260,7 +260,8 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                         color: "var(--text-muted, #C7C5D3)",
                       }}
                     >
-                      Swarm: {report.swarmAnalysis} &bull; Tracker:{" "}
+                      {t("torrents.detail.diagSwarm")} {report.swarmAnalysis}{" "}
+                      {t("torrents.detail.diagTracker")}{" "}
                       {report.trackerAnalysis}
                     </div>
                   </div>
@@ -274,7 +275,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                       color: "var(--text-muted, #C7C5D3)",
                     }}
                   >
-                    Health Score
+                    {t("torrents.detail.diagHealthScore")}
                   </span>
                   <div
                     style={{
@@ -300,7 +301,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                       marginBottom: "0.2rem",
                     }}
                   >
-                    Detected Issues & Bottlenecks:
+                    {t("torrents.detail.diagDetectedIssues")}
                   </span>
                   <ul
                     style={{
@@ -327,7 +328,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                       marginBottom: "0.2rem",
                     }}
                   >
-                    Recommendations & Auto-Remediation:
+                    {t("torrents.detail.diagRecommendations")}
                   </span>
                   <ul
                     style={{
@@ -369,9 +370,9 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                     alignItems: "center",
                     gap: "0.3rem",
                   }}
-                  title="Force immediate tracker re-announce"
+                  title={t("torrents.detail.diagReAnnounceTrackers")}
                 >
-                  <span>📡 Re-announce Trackers</span>
+                  <span>{t("torrents.detail.diagReAnnounceTrackers")}</span>
                 </button>
 
                 <button
@@ -390,9 +391,9 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                     alignItems: "center",
                     gap: "0.3rem",
                   }}
-                  title="Verify file pieces against hash map"
+                  title={t("torrents.detail.diagForceRecheck")}
                 >
-                  <span>⚡ Force Recheck</span>
+                  <span>{t("torrents.detail.diagForceRecheck")}</span>
                 </button>
 
                 <button
@@ -412,10 +413,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
                     gap: "0.3rem",
                     marginLeft: "auto",
                   }}
-                  title="Re-run diagnostic analysis"
+                  title={t("torrents.detail.diagReEvaluate")}
                 >
                   <RefreshIcon size={11} />
-                  <span>Re-evaluate</span>
+                  <span>{t("torrents.detail.diagReEvaluate")}</span>
                 </button>
               </div>
             </div>

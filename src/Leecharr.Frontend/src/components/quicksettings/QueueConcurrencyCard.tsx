@@ -2,8 +2,10 @@ import React from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
 import { PlayIcon, SeedingIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
+import { useTranslation } from "../../i18n";
 
 export const QueueConcurrencyCard: React.FC = () => {
+  const { t } = useTranslation();
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
   const { showToast } = useToast();
@@ -19,7 +21,10 @@ export const QueueConcurrencyCard: React.FC = () => {
       },
       {
         onError: (err: any) => {
-          showToast(`Failed to update queue settings: ${err.message}`, "error");
+          showToast(
+            t("quickSettings.failedToUpdateQueue", [err.message]),
+            "error",
+          );
         },
       },
     );
@@ -29,9 +34,11 @@ export const QueueConcurrencyCard: React.FC = () => {
     return (
       <div className="quick-card loading">
         <div className="quick-card-header">
-          <span className="quick-card-title">📋 Queue & Concurrency</span>
+          <span className="quick-card-title">
+            {t("quickSettings.queueConcurrency")}
+          </span>
         </div>
-        <div className="quick-card-body">Loading queue settings...</div>
+        <div className="quick-card-body">{t("quickSettings.loadingQueue")}</div>
       </div>
     );
   }
@@ -53,12 +60,14 @@ export const QueueConcurrencyCard: React.FC = () => {
   return (
     <div className="quick-card">
       <div className="quick-card-header">
-        <span className="quick-card-title">📋 Queue Concurrency</span>
+        <span className="quick-card-title">
+          {t("quickSettings.queueConcurrency")}
+        </span>
         <span
           className="quick-card-subtitle"
           style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}
         >
-          Max active transfers
+          {t("quickSettings.maxActiveTransfers")}
         </span>
       </div>
 
@@ -67,7 +76,7 @@ export const QueueConcurrencyCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <PlayIcon size={12} />
-            <span>Max Active DL:</span>
+            <span>{t("quickSettings.maxActiveDl")}</span>
           </div>
           <div className="quick-stepper">
             <button
@@ -75,7 +84,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               className="stepper-btn"
               onClick={() => changeDl(-1)}
               disabled={activeDl <= 0}
-              title="Decrease max downloads"
+              title={t("quickSettings.decreaseMaxDownloads")}
             >
               −
             </button>
@@ -86,7 +95,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               type="button"
               className="stepper-btn"
               onClick={() => changeDl(1)}
-              title="Increase max downloads"
+              title={t("quickSettings.increaseMaxDownloads")}
             >
               +
             </button>
@@ -97,7 +106,7 @@ export const QueueConcurrencyCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <SeedingIcon size={12} />
-            <span>Max Active Seed:</span>
+            <span>{t("quickSettings.maxActiveSeed")}</span>
           </div>
           <div className="quick-stepper">
             <button
@@ -105,7 +114,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               className="stepper-btn"
               onClick={() => changeSeed(-1)}
               disabled={activeSeed <= 0}
-              title="Decrease max seeds"
+              title={t("quickSettings.decreaseMaxSeeds")}
             >
               −
             </button>
@@ -116,7 +125,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               type="button"
               className="stepper-btn"
               onClick={() => changeSeed(1)}
-              title="Increase max seeds"
+              title={t("quickSettings.increaseMaxSeeds")}
             >
               +
             </button>
@@ -133,7 +142,7 @@ export const QueueConcurrencyCard: React.FC = () => {
                 handleUpdate({ queueStalledEnabled: e.target.checked })
               }
             />
-            <span>Ignore stalled torrents in queue limit</span>
+            <span>{t("quickSettings.ignoreStalled")}</span>
           </label>
         </div>
       </div>

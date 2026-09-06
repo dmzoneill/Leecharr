@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "../../i18n";
 import { TerminalView } from "../terminal/TerminalView";
 import type { Torrent } from "../../api/types";
 
@@ -7,6 +8,7 @@ export interface CliTabProps {
 }
 
 export function CliTab({ torrent }: CliTabProps) {
+  const { t } = useTranslation();
   const savePath = torrent.savePath || torrent.sourcePath || "/downloads";
 
   return (
@@ -42,7 +44,7 @@ export function CliTab({ torrent }: CliTabProps) {
             <div
               style={{ fontWeight: 600, color: "var(--text-primary, #f8f4ed)" }}
             >
-              Torrent Working Directory
+              {t("torrents.detail.workingDirectory")}
             </div>
             <div
               style={{
@@ -50,7 +52,7 @@ export function CliTab({ torrent }: CliTabProps) {
                 fontSize: "0.75rem",
               }}
             >
-              Shell session dropped directly into downloaded files location
+              {t("torrents.detail.workingDirectoryDesc")}
             </div>
           </div>
         </div>
@@ -64,7 +66,7 @@ export function CliTab({ torrent }: CliTabProps) {
             color: "var(--text-secondary)",
           }}
         >
-          <span>💡 Quick tips:</span>
+          <span>{t("torrents.detail.quickTips")}</span>
           <code
             style={{
               backgroundColor: "rgba(255,255,255,0.06)",

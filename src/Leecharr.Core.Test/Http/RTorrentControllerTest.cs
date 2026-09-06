@@ -318,7 +318,7 @@ public class RTorrentControllerTest
                 PieceOffset = 10,
                 PieceCount = 20,
                 Progress = 0.5,
-                Priority = 2,
+                Priority = 4,
             },
         };
 

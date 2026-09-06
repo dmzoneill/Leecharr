@@ -1,7 +1,7 @@
 import React from "react";
+import { useTranslation } from "../i18n";
 import AddTorrentForm, { InputMode } from "./AddTorrentForm";
 import { useEscapeKey } from "../hooks/useEscapeKey";
-import { useTranslation } from "../i18n";
 
 export interface AddTorrentModalProps {
   isOpen?: boolean;
@@ -76,12 +76,13 @@ export function AddTorrentModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            {t("autogen.t_add_create_torrent")}
+            {t("addTorrent.title")}
           </h2>
           <button
             type="button"
             className="modal-close"
             onClick={onClose}
+            aria-label={t("common.close")}
             style={{
               background: "none",
               border: "none",
@@ -91,7 +92,7 @@ export function AddTorrentModal({
               lineHeight: 1,
             }}
           >
-            {t("autogen.t_times")}
+            &times;
           </button>
         </div>
 

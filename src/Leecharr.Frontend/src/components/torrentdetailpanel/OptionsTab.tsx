@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "../../i18n";
 import { useUpdateTorrent } from "../../api/hooks";
 import type { Torrent } from "../../api/types";
 
-const PRIORITY_OPTIONS = [
-  { value: "0", label: "Low" },
-  { value: "1", label: "Normal" },
-  { value: "2", label: "High" },
-];
-
 export function OptionsTab({ torrent }: { torrent: Torrent }) {
+  const { t } = useTranslation();
   const updateTorrent = useUpdateTorrent();
   const lastTorrentIdRef = useRef(torrent.id);
   const [priority, setPriority] = useState(String(torrent.priority ?? 1));
@@ -46,23 +42,25 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   );
   const [dirty, setDirty] = useState(false);
 
-  const resetToTorrent = (t: Torrent) => {
-    setPriority(String(t.priority ?? 1));
-    setUploadLimit(t.uploadLimit ?? 0);
-    setDownloadLimit(t.downloadLimit ?? 0);
-    setInitialSeeding(Boolean(t.initialSeeding));
-    setForceStart(Boolean(t.forceStart));
-    setSequentialDownload(Boolean(t.sequentialDownload));
-    setIsPrivate(Boolean(t.isPrivate));
-    setActive(t.active ?? (t.status !== "paused" && t.status !== "stopped"));
-    setLabel(t.label ?? "");
-    setAnnounceInterval(t.announceInterval || 1800);
-    setNextUpdate(t.nextUpdate || 1800);
-    setThreshold(t.threshold || 1);
-    setSmallTorrentLimit(t.smallTorrentLimit || 50);
-    setTargetRatio(t.targetRatio ?? 0);
-    setTargetSeedTimeMinutes(t.targetSeedTimeMinutes ?? 0);
-    setShareLimitAction(t.shareLimitAction || "Default");
+  const resetToTorrent = (tObj: Torrent) => {
+    setPriority(String(tObj.priority ?? 1));
+    setUploadLimit(tObj.uploadLimit ?? 0);
+    setDownloadLimit(tObj.downloadLimit ?? 0);
+    setInitialSeeding(Boolean(tObj.initialSeeding));
+    setForceStart(Boolean(tObj.forceStart));
+    setSequentialDownload(Boolean(tObj.sequentialDownload));
+    setIsPrivate(Boolean(tObj.isPrivate));
+    setActive(
+      tObj.active ?? (tObj.status !== "paused" && tObj.status !== "stopped"),
+    );
+    setLabel(tObj.label ?? "");
+    setAnnounceInterval(tObj.announceInterval || 1800);
+    setNextUpdate(tObj.nextUpdate || 1800);
+    setThreshold(tObj.threshold || 1);
+    setSmallTorrentLimit(tObj.smallTorrentLimit || 50);
+    setTargetRatio(tObj.targetRatio ?? 0);
+    setTargetSeedTimeMinutes(tObj.targetSeedTimeMinutes ?? 0);
+    setShareLimitAction(tObj.shareLimitAction || "Default");
     setDirty(false);
   };
 
@@ -117,6 +115,12 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
       mark(setter)(parseInt(e.target.value, 10) || 0);
 
+  const priorityOptions = [
+    { value: "0", label: t("torrents.detail.prioLow") },
+    { value: "1", label: t("torrents.detail.prioNormal") },
+    { value: "2", label: t("torrents.detail.prioHigh") },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {/* 3 Balanced Cards Grid */}
@@ -151,7 +155,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               paddingBottom: "0.25rem",
             }}
           >
-            Transfer & Bandwidth Limits
+            {t("torrents.detail.transferLimits")}
           </div>
 
           <div
@@ -164,7 +168,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Queue Priority
+              {t("torrents.detail.queuePriority")}
             </label>
             <select
               className="form-select"
@@ -176,7 +180,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 fontSize: "0.78rem",
               }}
             >
-              {PRIORITY_OPTIONS.map((o) => (
+              {priorityOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -195,10 +199,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               <div
                 style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
               >
-                Download Limit
+                {t("torrents.table.downloadLimit")}
               </div>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
-                0 = Unlimited
+                {t("torrents.detail.unlimitedHint")}
               </div>
             </div>
             <div
@@ -247,10 +251,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               <div
                 style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
               >
-                Upload Limit
+                {t("torrents.table.uploadLimit")}
               </div>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
-                0 = Unlimited
+                {t("torrents.detail.unlimitedHint")}
               </div>
             </div>
             <div
@@ -313,7 +317,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               paddingBottom: "0.25rem",
             }}
           >
-            Seeding & Execution Rules
+            {t("torrents.detail.seedingRules")}
           </div>
 
           <div
@@ -326,7 +330,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Active / Seeding
+              {t("torrents.detail.activeSeeding")}
             </label>
             <label className="toggle-switch">
               <input
@@ -348,7 +352,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Super Seeding (Initial)
+              {t("torrents.detail.superSeeding")}
             </label>
             <label className="toggle-switch">
               <input
@@ -366,7 +370,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Share Goal Action
+              {t("torrents.detail.shareGoalAction")}
             </label>
             <select
               value={shareLimitAction}
@@ -374,13 +378,19 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               className="input-select"
               style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
             >
-              <option value="Default">Follow Global Setting</option>
-              <option value="Pause">Pause Seeding</option>
-              <option value="Remove">Remove Torrent (Keep Data)</option>
-              <option value="RemoveWithData">
-                Remove Torrent & Delete Data
+              <option value="Default">
+                {t("torrents.detail.followGlobal")}
               </option>
-              <option value="SuperSeeding">Switch to Super Seeding</option>
+              <option value="Pause">{t("torrents.detail.pauseSeeding")}</option>
+              <option value="Remove">
+                {t("torrents.detail.removeKeepData")}
+              </option>
+              <option value="RemoveWithData">
+                {t("torrents.detail.removeDeleteData")}
+              </option>
+              <option value="SuperSeeding">
+                {t("torrents.detail.switchSuperSeeding")}
+              </option>
             </select>
           </div>
 
@@ -396,7 +406,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               <label
                 style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
               >
-                Target Ratio
+                {t("torrents.detail.targetRatio")}
               </label>
               <input
                 type="number"
@@ -422,7 +432,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               <label
                 style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
               >
-                Target Seed Time (m)
+                {t("torrents.detail.targetSeedTime")}
               </label>
               <input
                 type="number"
@@ -450,7 +460,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Force Start (Bypass Queue)
+              {t("torrents.detail.forceStart")}
             </label>
             <label className="toggle-switch">
               <input
@@ -472,7 +482,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Sequential Download
+              {t("torrents.detail.sequentialDownload")}
             </label>
             <label className="toggle-switch">
               <input
@@ -505,10 +515,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                   className="fas fa-lock"
                   style={{ color: "#f87171", fontSize: "0.75rem" }}
                 />
-                Private Swarm (BEP 27)
+                {t("torrents.detail.privateSwarmOption")}
               </label>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
-                Strict isolation: disables DHT, PEX, and LPD
+                {t("torrents.detail.privateSwarmHint")}
               </div>
             </div>
             <label className="toggle-switch">
@@ -531,14 +541,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Label
+              {t("torrents.detail.label")}
             </label>
             <input
               type="text"
               className="form-input"
               value={label}
               onChange={(e) => mark(setLabel)(e.target.value)}
-              placeholder="e.g. movies, radarr"
+              placeholder={t("torrents.detail.labelPlaceholder")}
               style={{
                 width: "135px",
                 padding: "0.25rem 0.5rem",
@@ -572,7 +582,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               paddingBottom: "0.25rem",
             }}
           >
-            Tracker & Timing Parameters
+            {t("torrents.detail.trackerTiming")}
           </div>
 
           <div
@@ -585,7 +595,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Announce Interval
+              {t("torrents.detail.announceInterval")}
             </label>
             <div
               style={{
@@ -632,7 +642,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Next Update In
+              {t("torrents.detail.nextUpdateIn", { seconds: nextUpdate })}
             </label>
             <div
               style={{
@@ -679,7 +689,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Availability Threshold
+              {t("torrents.detail.availabilityThreshold")}
             </label>
             <div
               style={{
@@ -726,7 +736,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              Small Torrent Limit
+              {t("torrents.detail.smallTorrentLimit")}
             </label>
             <div
               style={{
@@ -784,8 +794,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           }}
         >
           {dirty
-            ? "● You have unsaved option modifications"
-            : "Options in sync with engine"}
+            ? `● ${t("torrents.detail.unsavedChanges")}`
+            : t("torrents.detail.inSync")}
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {dirty && (
@@ -795,7 +805,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               onClick={handleReset}
               disabled={updateTorrent.isPending}
             >
-              Reset
+              {t("torrents.detail.reset")}
             </button>
           )}
           <button
@@ -804,7 +814,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             onClick={handleSave}
             disabled={!dirty || updateTorrent.isPending}
           >
-            {updateTorrent.isPending ? "Saving..." : "Save Options"}
+            {updateTorrent.isPending
+              ? t("torrents.detail.saving")
+              : t("torrents.detail.saveOptions")}
           </button>
         </div>
       </div>

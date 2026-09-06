@@ -207,12 +207,41 @@ public class WebhookDispatcher : IWebhookDispatcher
 
             if (!addedAny && !trimmed.StartsWith("{"))
             {
-                this.logger.Warn("Could not parse custom headers from input: {0}", customHeadersJson);
+                this.logger.Warn("Could not parse custom headers from input (header keys: {0})", RedactHeadersForLogging(customHeadersJson));
             }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to parse custom headers: {0}", customHeadersJson);
+            this.logger.Warn(ex, "Failed to parse custom headers (header keys: {0})", RedactHeadersForLogging(customHeadersJson));
+        }
+    }
+
+    internal static string RedactHeadersForLogging(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var lines = input.Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var keys = new List<string>();
+            foreach (var line in lines)
+            {
+                var clean = line.Trim().Trim('{', '}', '"');
+                var sep = clean.IndexOfAny(new[] { ':', '=' });
+                if (sep > 0)
+                {
+                    keys.Add(clean.Substring(0, sep).Trim().Trim('"'));
+                }
+            }
+
+            return keys.Count > 0 ? string.Join(", ", keys) : "[unparseable headers]";
+        }
+        catch
+        {
+            return "[redacted]";
         }
     }
 

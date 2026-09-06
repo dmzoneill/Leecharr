@@ -364,12 +364,13 @@ public class TorznabClientTest
       <title>Test.Release.2026.1080p</title>
       <guid>https://indexer.local/details/999</guid>
       <link>https://indexer.local/download/999.torrent</link>
-      <pubDate>Mon, 06 Sep 2026 18:30:00 +0200</pubDate>
+      <pubDate>Sun, 06 Sep 2026 18:30:00 +0200</pubDate>
+      <torznab:attr name=""seeders"" value=""5""/>
     </item>
   </channel>
 </rss>";
 
-        var indexer = new IndexerDefinition { Id = 1, Name = "TrackerTest" };
+        var indexer = new IndexerDefinition { Id = 1, Name = "TrackerTest", MinSeeders = 1 };
         var results = this.client.ParseTorznabFeedXml(xml, indexer);
 
         results.Should().HaveCount(1);

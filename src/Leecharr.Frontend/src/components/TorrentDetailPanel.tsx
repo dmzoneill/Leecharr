@@ -81,6 +81,33 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "log", label: "Engine Log" },
 ];
 
+const getTabLabel = (key: DetailTab, t: (k: string) => string): string => {
+  switch (key) {
+    case "status":
+      return t("torrents.tabs.status");
+    case "details":
+      return t("torrents.tabs.overview");
+    case "files":
+      return t("torrents.tabs.files");
+    case "cli":
+      return t("torrents.tabs.cli");
+    case "peers":
+      return t("torrents.tabs.peers");
+    case "trackers":
+      return t("torrents.tabs.trackers");
+    case "options":
+      return t("torrents.tabs.options");
+    case "piecemap":
+      return t("torrents.tabs.pieces");
+    case "monitoring":
+      return t("torrents.tabs.monitoring");
+    case "log":
+      return t("torrents.tabs.log");
+    default:
+      return key;
+  }
+};
+
 class TabErrorBoundary extends React.Component<
   { children: React.ReactNode; tabKey: string },
   { hasError: boolean; error: Error | null }
@@ -129,6 +156,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   torrentId: initialTorrentId,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const targetId = initialTorrent?.id ?? initialTorrentId ?? 0;
   const { data: fetchedTorrent, isLoading, isError } = useTorrent(targetId);
   const telemetry = useTorrentStore((state) =>
@@ -143,7 +171,6 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const stopSeeding = useStopSeeding();
   const recheckTorrent = useRecheckTorrent();
   const announceTorrent = useAnnounceTorrent();
-  const { t } = useTranslation();
 
   const [tab, setTab] = useState<DetailTab>("status");
   const { height, panelRef, onMouseDown } = usePanelHeight();
@@ -152,7 +179,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
     return (
       <div className="detail-panel" style={{ height }}>
         <div className="detail-panel-loading">
-          Loading torrent specifications...
+          {t("torrents.detail.loading")}
         </div>
       </div>
     );
@@ -162,7 +189,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
     return (
       <div className="detail-panel" style={{ height }}>
         <div className="detail-panel-empty">
-          Failed to load torrent specifications.
+          {t("torrents.detail.failedToLoad")}
         </div>
       </div>
     );
@@ -171,7 +198,9 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   if (!currentTorrent) {
     return (
       <div className="detail-panel" style={{ height }}>
-        <div className="detail-panel-empty">Torrent not found</div>
+        <div className="detail-panel-empty">
+          {t("torrents.detail.notFound")}
+        </div>
       </div>
     );
   }
@@ -214,10 +243,10 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
                 alignItems: "center",
                 gap: "4px",
               }}
-              title="Private Swarm (BEP 27: DHT & PEX Disabled)"
+              title={t("torrents.detail.privateSwarmTooltip")}
             >
               <i className="fas fa-lock" style={{ fontSize: "0.62rem" }} />{" "}
-              Private Swarm (BEP 27)
+              {t("torrents.detail.privateSwarmBadge")}
             </span>
           ) : (
             <span
@@ -231,10 +260,10 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
                 alignItems: "center",
                 gap: "4px",
               }}
-              title="Public Swarm (DHT, PEX, and LPD Active)"
+              title={t("torrents.detail.publicSwarmTooltip")}
             >
               <i className="fas fa-globe" style={{ fontSize: "0.62rem" }} />{" "}
-              Public Swarm
+              {t("torrents.detail.publicSwarmBadge")}
             </span>
           )}
         </div>
@@ -246,7 +275,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               className="btn btn-small btn-success"
               onClick={() => startSeeding.mutate(currentTorrent.id)}
             >
-              Start
+              {t("torrents.actions.start")}
             </button>
           ) : (
             <button
@@ -254,7 +283,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               className="btn btn-small btn-danger"
               onClick={() => stopSeeding.mutate(currentTorrent.id)}
             >
-              Stop
+              {t("torrents.actions.stop")}
             </button>
           )}
 
@@ -262,25 +291,25 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             type="button"
             className="btn btn-small"
             onClick={() => recheckTorrent.mutate(currentTorrent.id)}
-            title="Force recheck torrent piece integrity"
+            title={t("torrents.actions.recheck")}
           >
-            Recheck
+            {t("torrents.actions.recheck")}
           </button>
 
           <button
             type="button"
             className="btn btn-small"
             onClick={() => announceTorrent.mutate(currentTorrent.id)}
-            title="Force announce to all trackers"
+            title={t("torrents.actions.announce")}
           >
-            Announce
+            {t("torrents.actions.announce")}
           </button>
 
           <button
             type="button"
             className="btn btn-small"
             onClick={onClose}
-            title="Close panel"
+            title={t("torrents.actions.close")}
           >
             X
           </button>
@@ -289,15 +318,15 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
 
       {/* 9 Tab Navigation Bar */}
       <div className="detail-panel-tabs">
-        {DETAIL_TABS.map((t) => (
+        {DETAIL_TABS.map((tTab) => (
           <button
-            key={t.key}
+            key={tTab.key}
             type="button"
-            className={`tab-btn${tab === t.key ? " tab-btn-active" : ""}`}
-            onClick={() => setTab(t.key)}
+            className={`tab-btn${tab === tTab.key ? " tab-btn-active" : ""}`}
+            onClick={() => setTab(tTab.key)}
           >
-            {TAB_ICONS[t.key]}
-            <span>{t.label}</span>
+            {TAB_ICONS[tTab.key]}
+            <span>{getTabLabel(tTab.key, t)}</span>
           </button>
         ))}
       </div>

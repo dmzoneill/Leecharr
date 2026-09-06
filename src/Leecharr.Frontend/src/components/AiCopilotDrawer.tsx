@@ -20,6 +20,7 @@ import {
   useAiConfig,
 } from "../api/hooks";
 import type { AiParsedRelease, AiMalwareRiskAssessment } from "../api/types";
+import { useTranslation } from "../i18n";
 
 interface Message {
   id: string;
@@ -39,6 +40,7 @@ interface Position {
 }
 
 export const AiCopilotDrawer: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_copilot_open") === "true";
   });
@@ -93,7 +95,7 @@ export const AiCopilotDrawer: React.FC = () => {
     {
       id: "welcome",
       sender: "bot",
-      text: "👋 Hi! I'm your Leecharr Copilot. I can diagnose stalled swarms, de-obfuscate raw scene releases, analyze security risks, and answer questions about your downloads.",
+      text: t("copilot.welcomeMessage"),
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -299,14 +301,14 @@ export const AiCopilotDrawer: React.FC = () => {
                   touchAction: "none",
                 }
           }
-          title="Click to open AI Copilot or drag to reposition"
+          title={t("copilot.buttonTitle")}
         >
           <SparklesIcon
             size={15}
             style={{ color: "var(--accent-gold, #FFD166)" }}
           />
           <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>
-            AI Copilot
+            {t("copilot.title")}
           </span>
           <span
             style={{
@@ -342,7 +344,7 @@ export const AiCopilotDrawer: React.FC = () => {
             borderTopLeftRadius: isExpanded ? 0 : "12px",
             transition: "all 0.2s ease-in-out",
           }}
-          aria-label="Leecharr AI Copilot Assistant"
+          aria-label={t("copilot.title")}
         >
           {/* Header */}
           <div
@@ -387,7 +389,7 @@ export const AiCopilotDrawer: React.FC = () => {
                       color: "var(--text-primary, #F8F4ED)",
                     }}
                   >
-                    Leecharr Copilot
+                    {t("copilot.title")}
                   </span>
                   <span
                     style={{
@@ -399,7 +401,7 @@ export const AiCopilotDrawer: React.FC = () => {
                       fontFamily: "monospace",
                     }}
                   >
-                    Active
+                    {t("dashboard.statusActive")}
                   </span>
                 </div>
                 <div
@@ -429,7 +431,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   padding: "0.3rem",
                   borderRadius: "4px",
                 }}
-                title={isExpanded ? "Compact view" : "Expand"}
+                title={isExpanded ? t("copilot.compact") : t("copilot.expand")}
               >
                 {isExpanded ? "🗗" : "🗖"}
               </button>
@@ -443,7 +445,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   padding: "0.3rem",
                   borderRadius: "4px",
                 }}
-                title="Minimize Copilot"
+                title={t("copilot.minimize")}
               >
                 <CloseIcon size={16} />
               </button>
@@ -475,7 +477,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              💬 Copilot Chat
+              💬 {t("copilot.tabChat")}
             </button>
             <button
               onClick={() => setActiveTab("parse")}
@@ -490,7 +492,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              🏷️ Parse Release
+              🏷️ {t("copilot.tabParse")}
             </button>
             <button
               onClick={() => setActiveTab("security")}
@@ -505,7 +507,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              🛡️ Risk Scanner
+              🛡️ {t("copilot.tabSecurity")}
             </button>
           </div>
 
@@ -540,7 +542,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     color: "rgba(199, 197, 211, 0.6)",
                   }}
                 >
-                  Quick:
+                  {t("copilot.quick")}
                 </span>
                 <button
                   onClick={() =>
@@ -559,7 +561,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  ⚡ Speed Tips
+                  {t("copilot.speedTips")}
                 </button>
                 <button
                   onClick={() =>
@@ -578,7 +580,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  🧩 Piece Pickers
+                  {t("copilot.piecePickers")}
                 </button>
                 <button
                   onClick={() =>
@@ -597,7 +599,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  🔒 VPN Security
+                  {t("copilot.vpnSecurity")}
                 </button>
               </div>
 
@@ -717,7 +719,9 @@ export const AiCopilotDrawer: React.FC = () => {
                         animation: "spin 1s linear infinite",
                       }}
                     />
-                    <span>Thinking with {activeProvider}...</span>
+                    <span>
+                      {t("copilot.thinking", { provider: activeProvider })}
+                    </span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -739,7 +743,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Ask Leecharr Copilot anything..."
+                  placeholder={t("copilot.inputPlaceholder")}
                   style={{
                     flex: 1,
                     backgroundColor: "#10111A",
@@ -797,7 +801,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     marginBottom: "0.3rem",
                   }}
                 >
-                  Raw Scene Release Title
+                  {t("copilot.rawSceneRelease")}
                 </label>
                 <div
                   style={{
@@ -810,7 +814,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     type="text"
                     value={releaseInput}
                     onChange={(e) => setReleaseInput(e.target.value)}
-                    placeholder="e.g. Dune.Part.Two.2024.2160p.UHD.BluRay.x265.DV.HDR10+.Atmos-FLUX"
+                    placeholder={t("copilot.rawScenePlaceholder")}
                     style={{
                       flex: 1,
                       backgroundColor: "var(--bg-secondary, #171B35)",
@@ -843,7 +847,7 @@ export const AiCopilotDrawer: React.FC = () => {
                           : 1,
                     }}
                   >
-                    <span>De-obfuscate</span>
+                    <span>{t("copilot.deobfuscate")}</span>
                   </button>
                 </div>
               </div>
@@ -1065,13 +1069,13 @@ export const AiCopilotDrawer: React.FC = () => {
                     marginBottom: "0.3rem",
                   }}
                 >
-                  File List to Inspect
+                  {t("copilot.fileListToInspect")}
                 </label>
                 <textarea
                   rows={4}
                   value={securityInput}
                   onChange={(e) => setSecurityInput(e.target.value)}
-                  placeholder="Paste file names, e.g.:&#10;movie.2024.1080p.mkv&#10;sample.mp4&#10;codec_setup.exe.scr"
+                  placeholder={t("copilot.fileListPlaceholder")}
                   style={{
                     width: "100%",
                     backgroundColor: "var(--bg-secondary, #171B35)",
@@ -1110,7 +1114,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   }}
                 >
                   <ShieldCheckIcon size={14} />
-                  <span>Scan for Malicious Traps</span>
+                  <span>{t("copilot.scanTraps")}</span>
                 </button>
               </div>
 
@@ -1161,8 +1165,8 @@ export const AiCopilotDrawer: React.FC = () => {
                         }}
                       >
                         {securityResult.isSuspicious
-                          ? "Threat Detected"
-                          : "Clean & Safe"}
+                          ? t("copilot.threatDetected")
+                          : t("copilot.cleanSafe")}
                       </strong>
                     </div>
                     <span
@@ -1185,8 +1189,8 @@ export const AiCopilotDrawer: React.FC = () => {
                         color: "#fecaca",
                       }}
                     >
-                      {securityResult.threatReasons.map((t, i) => (
-                        <li key={i}>{t}</li>
+                      {securityResult.threatReasons.map((tReason, i) => (
+                        <li key={i}>{tReason}</li>
                       ))}
                     </ul>
                   )}

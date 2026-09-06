@@ -96,7 +96,7 @@ export function TorrentFilterPanel({
           <button
             type="button"
             onClick={onCollapse}
-            title="Hide Filters Sidebar"
+            title={t("torrents.toolbar.hideFilters")}
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               border: "1px solid var(--border-light, rgba(255, 255, 255, 0.1))",
@@ -132,7 +132,9 @@ export function TorrentFilterPanel({
       </ul>
       {onSelectPrivacy && privacyCounts && (
         <>
-          <div className="filter-panel-section">Swarm Type</div>
+          <div className="filter-panel-section">
+            {t("torrents.filters.swarmType")}
+          </div>
           <ul className="filter-panel-list">
             <li>
               <button
@@ -141,7 +143,7 @@ export function TorrentFilterPanel({
                 onClick={() => onSelectPrivacy("All")}
               >
                 <span className="filter-panel-label">
-                  <AllIcon size={13} /> All Swarms
+                  <AllIcon size={13} /> {t("torrents.filters.allSwarms")}
                 </span>
                 <span className="filter-panel-count">{privacyCounts.All}</span>
               </button>
@@ -162,7 +164,7 @@ export function TorrentFilterPanel({
                   }}
                 >
                   <i className="fas fa-lock" style={{ fontSize: "0.7rem" }} />{" "}
-                  Private (BEP 27)
+                  {t("torrents.filters.privateBep27")}
                 </span>
                 <span className="filter-panel-count">
                   {privacyCounts.Private}
@@ -185,7 +187,7 @@ export function TorrentFilterPanel({
                   }}
                 >
                   <i className="fas fa-globe" style={{ fontSize: "0.7rem" }} />{" "}
-                  Public Swarm
+                  {t("torrents.filters.publicSwarm")}
                 </span>
                 <span className="filter-panel-count">
                   {privacyCounts.Public}
@@ -195,7 +197,9 @@ export function TorrentFilterPanel({
           </ul>
         </>
       )}
-      <div className="filter-panel-section">Tracker</div>
+      <div className="filter-panel-section">
+        {t("torrents.filters.tracker")}
+      </div>
       <ul className="filter-panel-list">
         <li>
           <button
@@ -204,7 +208,7 @@ export function TorrentFilterPanel({
             onClick={() => onSelectTracker("All")}
           >
             <span className="filter-panel-label">
-              <AllIcon size={13} /> All
+              <AllIcon size={13} /> {t("torrents.filters.all")}
             </span>
             <span className="filter-panel-count">{count}</span>
           </button>

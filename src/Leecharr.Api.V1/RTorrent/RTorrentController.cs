@@ -206,7 +206,7 @@ public class RTorrentController : ControllerBase
                                 }
                                 else if (cleanField.Equals("f.get_priority", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.priority", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    fRowData.Add(new XElement("value", new XElement("i4", file.Priority)));
+                                    fRowData.Add(new XElement("value", new XElement("i4", ToRTorrentPriority(file.Priority))));
                                 }
                                 else
                                 {
@@ -593,7 +593,7 @@ public class RTorrentController : ControllerBase
                         var files = this.torrentFileService.GetFiles(t.Id).ToList();
                         if (fIdx >= 0 && fIdx < files.Count)
                         {
-                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, fPrio);
+                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, FromRTorrentPriority(fPrio));
                         }
                     }
                 }
@@ -890,5 +890,26 @@ public class RTorrentController : ControllerBase
                                 new XElement("value", new XElement("string", faultString))))))));
 
         return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
+    }
+
+    private static int ToRTorrentPriority(int priority)
+    {
+        return priority switch
+        {
+            <= 0 => 0,
+            1 or 2 or 3 => 1,
+            >= 4 => 2,
+        };
+    }
+
+    private static int FromRTorrentPriority(int priority)
+    {
+        return priority switch
+        {
+            0 => 0,
+            1 => 3,
+            2 => 4,
+            _ => 3,
+        };
     }
 }

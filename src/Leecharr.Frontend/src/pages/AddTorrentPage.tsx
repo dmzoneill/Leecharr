@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "../i18n";
 import AddTorrentForm from "../components/AddTorrentForm";
 
 interface AddTorrentPageProps {
@@ -6,6 +7,7 @@ interface AddTorrentPageProps {
 }
 
 export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
+  const { t } = useTranslation();
   return (
     <div
       className="content-area"
@@ -29,7 +31,7 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
       >
         <div className="page-header-group">
           <h1 className="page-heading" style={{ margin: 0 }}>
-            Add Torrent
+            {t("addTorrent.title")}
           </h1>
         </div>
       </div>

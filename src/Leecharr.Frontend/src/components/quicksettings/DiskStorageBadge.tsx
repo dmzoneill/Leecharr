@@ -1,6 +1,7 @@
 import React from "react";
 import { useDiskSpace } from "../../api/hooks";
 import { formatBytes } from "../../utils/formatters";
+import { useTranslation } from "../../i18n";
 
 interface DiskStorageBadgeProps {
   compact?: boolean;
@@ -13,13 +14,14 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
   onClick,
   className = "",
 }) => {
+  const { t } = useTranslation();
   const { data: diskSpaces, isLoading } = useDiskSpace();
 
   if (isLoading || !diskSpaces || diskSpaces.length === 0) {
     return (
       <div
         className={`disk-storage-badge loading ${className}`}
-        title="Loading storage space..."
+        title={t("quickSettings.loadingStorage")}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -32,7 +34,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
         }}
       >
         <span>💾</span>
-        <span>Storage...</span>
+        <span>{t("quickSettings.storage")}</span>
       </div>
     );
   }
@@ -62,7 +64,12 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
     <div
       className={`disk-storage-badge ${isLowSpace ? "low-space" : ""} ${className}`}
       onClick={onClick}
-      title={`Storage volume: ${displayPath}\nFree: ${formatBytes(freeBytes)} / Total: ${formatBytes(totalBytes)} (${100 - usedPct}% free)`}
+      title={t("quickSettings.storageVolume", [
+        displayPath,
+        formatBytes(freeBytes),
+        formatBytes(totalBytes),
+        (100 - usedPct).toString(),
+      ])}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -89,7 +96,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
           color: isLowSpace ? "#ff6b6b" : "var(--text-primary, #f8f4ed)",
         }}
       >
-        {displayPath}: {formatBytes(freeBytes)} Free
+        {displayPath}: {formatBytes(freeBytes)} {t("quickSettings.free")}
       </span>
       <div
         style={{

@@ -4,7 +4,7 @@ import { useEscapeKey } from "../hooks/useEscapeKey";
 
 export interface PromptModalProps {
   isOpen: boolean;
-  title: string;
+  title?: string;
   message?: string;
   defaultValue?: string;
   placeholder?: string;
@@ -25,8 +25,8 @@ export function PromptModal({
   placeholder = "",
   inputType = "text",
   min,
-  confirmText = "Save",
-  cancelText = "Cancel",
+  confirmText,
+  cancelText,
   validate,
   onConfirm,
   onCancel,
@@ -34,6 +34,22 @@ export function PromptModal({
   const { t } = useTranslation();
 
   useEscapeKey(onCancel, isOpen);
+
+  const displayTitle = title
+    ? title.includes(".")
+      ? t(title)
+      : title
+    : t("promptModal.defaultTitle");
+  const displayCancel = cancelText
+    ? cancelText.includes(".")
+      ? t(cancelText)
+      : cancelText
+    : t("promptModal.cancel");
+  const displayConfirm = confirmText
+    ? confirmText.includes(".")
+      ? t(confirmText)
+      : confirmText
+    : t("promptModal.save");
 
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +158,7 @@ export function PromptModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            {title}
+            {displayTitle}
           </h3>
         </div>
 
@@ -228,7 +244,7 @@ export function PromptModal({
                 cursor: "pointer",
               }}
             >
-              {cancelText}
+              {displayCancel}
             </button>
             <button
               type="submit"
@@ -245,7 +261,7 @@ export function PromptModal({
                 transition: "opacity 0.15s ease",
               }}
             >
-              {confirmText}
+              {displayConfirm}
             </button>
           </div>
         </form>

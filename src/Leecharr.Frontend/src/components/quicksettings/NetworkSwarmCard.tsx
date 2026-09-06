@@ -8,8 +8,10 @@ import {
 } from "../../api/hooks";
 import { UsersIcon, WifiIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
+import { useTranslation } from "../../i18n";
 
 export const NetworkSwarmCard: React.FC = () => {
+  const { t } = useTranslation();
   const { data: netConfig, isLoading: netLoading } = useNetworkConfig();
   const saveNetMutation = useSaveNetworkConfig();
 
@@ -31,7 +33,7 @@ export const NetworkSwarmCard: React.FC = () => {
       {
         onError: (err: any) => {
           showToast(
-            `Failed to update network settings: ${err.message}`,
+            t("quickSettings.failedToUpdateNetwork", [err.message]),
             "error",
           );
         },
@@ -51,7 +53,7 @@ export const NetworkSwarmCard: React.FC = () => {
       {
         onError: (err: any) => {
           showToast(
-            `Failed to update protocol settings: ${err.message}`,
+            t("quickSettings.failedToUpdateProtocol", [err.message]),
             "error",
           );
         },
@@ -63,9 +65,13 @@ export const NetworkSwarmCard: React.FC = () => {
     return (
       <div className="quick-card loading">
         <div className="quick-card-header">
-          <span className="quick-card-title">🛡️ Network & Swarm</span>
+          <span className="quick-card-title">
+            {t("quickSettings.networkSwarms")}
+          </span>
         </div>
-        <div className="quick-card-body">Loading network settings...</div>
+        <div className="quick-card-body">
+          {t("quickSettings.loadingNetwork")}
+        </div>
       </div>
     );
   }
@@ -83,7 +89,9 @@ export const NetworkSwarmCard: React.FC = () => {
   return (
     <div className="quick-card">
       <div className="quick-card-header">
-        <span className="quick-card-title">🛡️ Network & Swarms</span>
+        <span className="quick-card-title">
+          {t("quickSettings.networkSwarms")}
+        </span>
         <button
           type="button"
           className={`quick-vpn-badge ${vpnKillSwitch ? "vpn-active" : ""}`}
@@ -92,11 +100,13 @@ export const NetworkSwarmCard: React.FC = () => {
           }
           title={
             vpnKillSwitch
-              ? `VPN Kill Switch Active (Bound: ${activeInterface}) - Click to disable`
-              : "VPN Kill Switch Disabled - Click to enable"
+              ? t("quickSettings.killSwitchActiveTitle", [activeInterface])
+              : t("quickSettings.killSwitchDisabledTitle")
           }
         >
-          {vpnKillSwitch ? "🛡️ Kill Switch ON" : "Kill Switch OFF"}
+          {vpnKillSwitch
+            ? t("quickSettings.killSwitchOn")
+            : t("quickSettings.killSwitchOff")}
         </button>
       </div>
 
@@ -105,14 +115,16 @@ export const NetworkSwarmCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <UsersIcon size={12} />
-            <span>Max Conns:</span>
+            <span>{t("quickSettings.maxConns")}</span>
           </div>
           <div className="quick-inline-inputs">
             <div
               className="quick-mini-input-group"
-              title="Global maximum peer connections"
+              title={t("quickSettings.globalMaxConnsTitle")}
             >
-              <span className="quick-mini-label">Global:</span>
+              <span className="quick-mini-label">
+                {t("quickSettings.global")}
+              </span>
               <select
                 className="quick-select"
                 value={globalConns}
@@ -131,9 +143,11 @@ export const NetworkSwarmCard: React.FC = () => {
             </div>
             <div
               className="quick-mini-input-group"
-              title="Per-torrent maximum peer connections"
+              title={t("quickSettings.perTorrentMaxConnsTitle")}
             >
-              <span className="quick-mini-label">Per-Torrent:</span>
+              <span className="quick-mini-label">
+                {t("quickSettings.perTorrent")}
+              </span>
               <select
                 className="quick-select"
                 value={perTorrentConns}
@@ -157,12 +171,12 @@ export const NetworkSwarmCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <WifiIcon size={12} />
-            <span>Protocols:</span>
+            <span>{t("quickSettings.protocols")}</span>
           </div>
           <div className="quick-protocol-chips">
             <label
               className={`protocol-chip ${dht ? "active" : ""}`}
-              title="Distributed Hash Table (Trackerless Swarms)"
+              title={t("quickSettings.dhtTitle")}
             >
               <input
                 type="checkbox"
@@ -171,11 +185,11 @@ export const NetworkSwarmCard: React.FC = () => {
                   handleBtUpdate({ enableDht: e.target.checked })
                 }
               />
-              <span>DHT</span>
+              <span>{t("quickSettings.dht")}</span>
             </label>
             <label
               className={`protocol-chip ${pex ? "active" : ""}`}
-              title="Peer Exchange (Fast Swarm Expansion)"
+              title={t("quickSettings.pexTitle")}
             >
               <input
                 type="checkbox"
@@ -184,11 +198,11 @@ export const NetworkSwarmCard: React.FC = () => {
                   handleBtUpdate({ enablePex: e.target.checked })
                 }
               />
-              <span>PEX</span>
+              <span>{t("quickSettings.pex")}</span>
             </label>
             <label
               className={`protocol-chip ${lpd ? "active" : ""}`}
-              title="Local Peer Discovery (LAN Multicast)"
+              title={t("quickSettings.lpdTitle")}
             >
               <input
                 type="checkbox"
@@ -197,7 +211,7 @@ export const NetworkSwarmCard: React.FC = () => {
                   handleBtUpdate({ enableLpd: e.target.checked })
                 }
               />
-              <span>LPD</span>
+              <span>{t("quickSettings.lpd")}</span>
             </label>
           </div>
         </div>

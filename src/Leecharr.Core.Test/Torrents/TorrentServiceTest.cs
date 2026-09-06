@@ -658,4 +658,60 @@ public class TorrentServiceTest
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 500, 250);
         this.torrentRepository.Received(1).Update(updated);
     }
+
+    [Test]
+    public void Get_WhenTaskHasZeroSessionDownloaded_PreservesCompletedDownloadedAndCalculatesRatioFromTotalSize()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Completed Torrent",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 2000,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+        this.torrentRepository.Get(5).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(0); // 0 session downloaded bytes after restart
+        task.UploadedBytes.Returns(500); // 500 session uploaded bytes
+        this.downloadEngine.GetTask(5).Returns(task);
+
+        var result = this.service.Get(5);
+
+        result.Downloaded.Should().Be(1000);
+        result.Uploaded.Should().Be(2000); // Preserves lifetime uploaded
+        result.Ratio.Should().Be(2.0); // 2000 / 1000
+    }
+
+    [Test]
+    public void Get_WhenDownloading_CalculatesEtaFromRemainingProgressAndTotalSize()
+    {
+        var torrent = new Torrent
+        {
+            Id = 6,
+            Name = "Downloading Torrent",
+            TotalSize = 10000,
+            Downloaded = 5000,
+            Progress = 0.5,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentRepository.Get(6).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.5);
+        task.DownloadedBytes.Returns(100); // Only 100 bytes downloaded in this session
+        task.DownloadSpeed.Returns(1000); // 1000 bytes/sec
+        this.downloadEngine.GetTask(6).Returns(task);
+
+        var result = this.service.Get(6);
+
+        // Remaining bytes = 10000 - (10000 * 0.5) = 5000 bytes. ETA = 5000 / 1000 = 5 seconds.
+        result.Eta.Should().Be(5);
+    }
 }

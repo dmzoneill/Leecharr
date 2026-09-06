@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DownloadIcon, UploadIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
+import { useTranslation } from "../../i18n";
 
 const DL_STEPS: number[] = [
   0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
@@ -38,6 +39,7 @@ function formatSpeedLimit(kbps: number): string {
 }
 
 export const BandwidthCard: React.FC = () => {
+  const { t } = useTranslation();
   const { data: config, isLoading } = useSeedingConfig();
   const saveMutation = useSaveSeedingConfig();
   const { showToast } = useToast();
@@ -73,7 +75,10 @@ export const BandwidthCard: React.FC = () => {
       },
       {
         onError: (err: any) => {
-          showToast(`Failed to update speed limit: ${err.message}`, "error");
+          showToast(
+            t("quickSettings.failedToUpdateSpeed", [err.message]),
+            "error",
+          );
         },
       },
     );
@@ -83,9 +88,13 @@ export const BandwidthCard: React.FC = () => {
     return (
       <div className="quick-card loading">
         <div className="quick-card-header">
-          <span className="quick-card-title">⚡ Bandwidth Limits</span>
+          <span className="quick-card-title">
+            {t("quickSettings.bandwidthLimits")}
+          </span>
         </div>
-        <div className="quick-card-body">Loading bandwidth settings...</div>
+        <div className="quick-card-body">
+          {t("quickSettings.loadingBandwidth")}
+        </div>
       </div>
     );
   }
@@ -133,16 +142,21 @@ export const BandwidthCard: React.FC = () => {
   return (
     <div className="quick-card">
       <div className="quick-card-header">
-        <span className="quick-card-title">⚡ Bandwidth Limits</span>
+        <span className="quick-card-title">
+          {t("quickSettings.bandwidthLimits")}
+        </span>
         <button
           type="button"
           className={`quick-pill-btn ${isAltActive ? "active-turtle" : ""}`}
           onClick={() =>
             handleUpdate({ alternativeSpeedEnabled: !isAltActive })
           }
-          title="Toggle temporary Alternative Speed Limits (Turtle Mode)"
+          title={t("quickSettings.turtleModeToggle")}
         >
-          🐢 Turtle Mode: {isAltActive ? "ON" : "OFF"}
+          {t("quickSettings.turtleMode")}{" "}
+          {isAltActive
+            ? t("quickSettings.turtleModeOn")
+            : t("quickSettings.turtleModeOff")}
         </button>
       </div>
 
@@ -151,7 +165,7 @@ export const BandwidthCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <DownloadIcon size={13} />
-            <span>Max DL:</span>
+            <span>{t("quickSettings.maxDl")}</span>
             <span className="quick-control-current">
               {formatSpeedLimit(localDl)}
             </span>
@@ -161,7 +175,7 @@ export const BandwidthCard: React.FC = () => {
               type="button"
               className={`quick-slider-bound ${localDl === 0 ? "active" : ""}`}
               onClick={() => setDlDirect(0)}
-              title="Set Download to Unlimited (∞)"
+              title={t("quickSettings.setDownloadToUnlimited")}
             >
               ∞
             </button>
@@ -177,14 +191,18 @@ export const BandwidthCard: React.FC = () => {
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${dlPercent}%, rgba(255, 255, 255, 0.12) ${dlPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
               }}
-              title={`Max Download: ${formatSpeedLimit(localDl)}`}
-              aria-label="Max Download Speed Limit"
+              title={t("quickSettings.maxDownload", [
+                formatSpeedLimit(localDl),
+              ])}
+              aria-label={t("quickSettings.maxDownloadSpeedLimit")}
             />
             <button
               type="button"
               className={`quick-slider-bound ${localDl === DL_STEPS[DL_STEPS.length - 1] ? "active" : ""}`}
               onClick={() => setDlDirect(DL_STEPS[DL_STEPS.length - 1])}
-              title={`Set Download to Max (${formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1])})`}
+              title={t("quickSettings.setDownloadToMax", [
+                formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
+              ])}
             >
               100M
             </button>
@@ -195,7 +213,7 @@ export const BandwidthCard: React.FC = () => {
         <div className="quick-control-row">
           <div className="quick-control-label">
             <UploadIcon size={13} />
-            <span>Max UL:</span>
+            <span>{t("quickSettings.maxUl")}</span>
             <span className="quick-control-current">
               {formatSpeedLimit(localUl)}
             </span>
@@ -205,7 +223,7 @@ export const BandwidthCard: React.FC = () => {
               type="button"
               className={`quick-slider-bound ${localUl === 0 ? "active" : ""}`}
               onClick={() => setUlDirect(0)}
-              title="Set Upload to Unlimited (∞)"
+              title={t("quickSettings.setUploadToUnlimited")}
             >
               ∞
             </button>
@@ -221,14 +239,16 @@ export const BandwidthCard: React.FC = () => {
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${ulPercent}%, rgba(255, 255, 255, 0.12) ${ulPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
               }}
-              title={`Max Upload: ${formatSpeedLimit(localUl)}`}
-              aria-label="Max Upload Speed Limit"
+              title={t("quickSettings.maxUpload", [formatSpeedLimit(localUl)])}
+              aria-label={t("quickSettings.maxUploadSpeedLimit")}
             />
             <button
               type="button"
               className={`quick-slider-bound ${localUl === UL_STEPS[UL_STEPS.length - 1] ? "active" : ""}`}
               onClick={() => setUlDirect(UL_STEPS[UL_STEPS.length - 1])}
-              title={`Set Upload to Max (${formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1])})`}
+              title={t("quickSettings.setUploadToMax", [
+                formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),
+              ])}
             >
               50M
             </button>
@@ -245,7 +265,7 @@ export const BandwidthCard: React.FC = () => {
                 fontWeight: 600,
               }}
             >
-              🐢 Alternative limits active:
+              {t("quickSettings.altLimitsActive")}
             </span>
             <span
               style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}

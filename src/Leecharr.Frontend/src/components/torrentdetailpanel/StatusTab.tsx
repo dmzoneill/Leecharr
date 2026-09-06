@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "../../i18n";
 import {
   formatBytes,
   formatDate,
@@ -11,6 +12,7 @@ import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
 
 export function StatusTab({ torrent }: { torrent: Torrent }) {
+  const { t } = useTranslation();
   const percent = Math.min(100, Math.max(0, (torrent.progress ?? 0) * 100));
   const isComplete = percent >= 100;
   const isSeeding = (torrent.status || "").toLowerCase() === "seeding";
@@ -48,7 +50,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Status
+            {t("torrents.detail.status")}
           </div>
           <div
             style={{
@@ -87,7 +89,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Download Speed
+            {t("torrents.detail.downloadSpeed")}
           </div>
           <div
             style={{
@@ -109,7 +111,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Upload Speed
+            {t("torrents.detail.uploadSpeed")}
           </div>
           <div
             style={{
@@ -131,7 +133,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Estimated Time (ETA)
+            {t("torrents.detail.eta")}
           </div>
           <div
             style={{
@@ -141,7 +143,10 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               marginTop: "0.15rem",
             }}
           >
-            ⏱ {isComplete ? "Done" : formatSeconds(torrent.eta)}
+            ⏱{" "}
+            {isComplete
+              ? t("torrents.table.completed")
+              : formatSeconds(torrent.eta)}
           </div>
         </div>
 
@@ -153,7 +158,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Share Ratio
+            {t("torrents.detail.shareRatio")}
           </div>
           <div
             style={{
@@ -194,10 +199,14 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
             {formatBytes(torrent.totalSize || 0)})
           </span>
           <span style={{ color: "var(--text-muted)" }}>
-            {formatBytes(
-              Math.max(0, (torrent.totalSize || 0) - (torrent.downloaded || 0)),
-            )}{" "}
-            remaining
+            {t("torrents.detail.remaining", {
+              remaining: formatBytes(
+                Math.max(
+                  0,
+                  (torrent.totalSize || 0) - (torrent.downloaded || 0),
+                ),
+              ),
+            })}
           </span>
         </div>
         <div
@@ -254,37 +263,37 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               marginBottom: "0.2rem",
             }}
           >
-            Transfer Telemetry
+            {t("torrents.detail.transferTelemetry")}
           </div>
           <InfoRow
-            label="Downloaded"
+            label={t("torrents.detail.downloaded")}
             value={formatBytes(torrent.downloaded || 0)}
             mono
           />
           <InfoRow
-            label="Uploaded"
+            label={t("torrents.detail.uploaded")}
             value={formatBytes(torrent.uploaded || 0)}
             mono
           />
           <InfoRow
-            label="Total Size"
+            label={t("torrents.detail.totalSize")}
             value={formatBytes(torrent.totalSize || 0)}
             mono
           />
           <InfoRow
-            label="Download Limit"
+            label={t("torrents.table.downloadLimit")}
             value={
               torrent.downloadLimit > 0
                 ? `${torrent.downloadLimit} KB/s`
-                : "Unlimited"
+                : t("common.unlimited")
             }
           />
           <InfoRow
-            label="Upload Limit"
+            label={t("torrents.table.uploadLimit")}
             value={
               torrent.uploadLimit > 0
                 ? `${torrent.uploadLimit} KB/s`
-                : "Unlimited"
+                : t("common.unlimited")
             }
           />
         </div>
@@ -314,22 +323,22 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               marginBottom: "0.2rem",
             }}
           >
-            Swarm & Network
+            {t("torrents.detail.swarmNetwork")}
           </div>
           <InfoRow
-            label="Connected Seeders"
+            label={t("torrents.detail.connectedSeeders")}
             value={String(torrent.seeders || 0)}
           />
           <InfoRow
-            label="Connected Leechers"
+            label={t("torrents.detail.connectedLeechers")}
             value={String(torrent.leechers || 0)}
           />
           <InfoRow
-            label="Tracker Domain"
+            label={t("torrents.detail.trackerDomain")}
             value={extractTrackerDomain(torrent.trackerUrl)}
           />
           <InfoRow
-            label="Announce Interval"
+            label={t("torrents.detail.announceInterval")}
             value={
               torrent.announceInterval
                 ? `${torrent.announceInterval}s (${Math.round(torrent.announceInterval / 60)}m)`
@@ -337,7 +346,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
             }
           />
           <InfoRow
-            label="Next Update"
+            label={t("torrents.detail.nextUpdate")}
             value={
               torrent.nextUpdate != null
                 ? torrent.nextUpdate > 60
@@ -347,17 +356,17 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
             }
           />
           <InfoRow
-            label="Priority"
+            label={t("torrents.detail.queuePriority")}
             value={
               torrent.priority === 2
-                ? "High"
+                ? t("torrents.detail.prioHigh")
                 : torrent.priority === 1
-                  ? "Normal"
-                  : "Low"
+                  ? t("torrents.detail.prioNormal")
+                  : t("torrents.detail.prioLow")
             }
           />
           <InfoRow
-            label="Flags"
+            label={t("torrents.detail.flags")}
             value={[
               torrent.isPrivate ? "🔒 Private (BEP 27)" : "🌐 Public",
               torrent.sequentialDownload ? "Sequential" : null,
@@ -394,30 +403,36 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               marginBottom: "0.2rem",
             }}
           >
-            Seeding & Lifecycle
+            {t("torrents.detail.seedingLifecycle")}
           </div>
           <InfoRow
-            label="Seeding Time"
+            label={t("torrents.detail.seedingTime")}
             value={formatSeconds(torrent.seedingTime || 0)}
           />
           <InfoRow
-            label="Target Ratio"
+            label={t("torrents.detail.targetRatio")}
             value={
               torrent.targetRatio && torrent.targetRatio > 0
                 ? `${torrent.targetRatio.toFixed(2)}x`
-                : "Global Default"
+                : t("torrents.detail.globalDefault")
             }
           />
-          <InfoRow label="Added" value={formatDate(torrent.dateAdded)} />
           <InfoRow
-            label="Completed"
+            label={t("torrents.detail.added")}
+            value={formatDate(torrent.dateAdded)}
+          />
+          <InfoRow
+            label={t("torrents.detail.completed")}
             value={
               torrent.dateCompleted ? formatDate(torrent.dateCompleted) : "-"
             }
           />
-          <InfoRow label="Last Active" value={formatDate(torrent.lastActive)} />
           <InfoRow
-            label="Category / Label"
+            label={t("torrents.detail.lastActive")}
+            value={formatDate(torrent.lastActive)}
+          />
+          <InfoRow
+            label={t("torrents.detail.categoryLabel")}
             value={`${torrent.category || "Default"} / ${torrent.label || "-"}`}
           />
         </div>

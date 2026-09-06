@@ -10,6 +10,7 @@ import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTranslation } from "../i18n";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -33,6 +34,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   onOpenSearchModal,
   onNavigateTab,
 }) => {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedState, setSelectedState] = useState<string>("All");
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
@@ -239,10 +241,14 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
 
     const ok = await confirm({
-      title: "Delete Selected Torrents",
-      message: `Delete ${validSelectedIds.length} selected torrent(s)?`,
+      title: t("torrents.toolbar.bulkDeleteTitle", {
+        count: validSelectedIds.length,
+      }),
+      message: t("torrents.toolbar.bulkDeleteConfirm", {
+        count: validSelectedIds.length,
+      }),
       danger: true,
-      confirmText: "Delete",
+      confirmText: t("common.delete"),
     });
     if (!ok) return;
 

@@ -10,6 +10,7 @@ import {
 } from "../api/hooks";
 import { extractTrackerDomain } from "../utils/formatters";
 import { calculateAchievements } from "../utils/milestones";
+import { useTranslation } from "../i18n";
 import HealthAlerts from "../components/HealthAlerts";
 
 interface DashboardProps {
@@ -23,6 +24,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateTorrents,
   onNavigateSettings,
 }) => {
+  const { t } = useTranslation();
   const [speedHistory, setSpeedHistory] = useState<
     { dl: number; ul: number; time: number }[]
   >([]);
@@ -134,18 +136,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
         );
         if (prowlarrIndexer) {
           return prowlarrIndexer.enable
-            ? { label: "Connected", color: "var(--success, #22c55e)" }
-            : { label: "Disabled", color: "var(--warning, #eab308)" };
+            ? {
+                label: t("dashboard.statusConnected"),
+                color: "var(--success, #22c55e)",
+              }
+            : {
+                label: t("dashboard.statusDisabled"),
+                color: "var(--warning, #eab308)",
+              };
         }
       }
-      return { label: "Not Configured", color: "var(--text-muted, #7e8092)" };
+      return {
+        label: t("dashboard.statusNotConfigured"),
+        color: "var(--text-muted, #7e8092)",
+      };
     }
 
     if (!conn.enable) {
-      return { label: "Disabled", color: "var(--warning, #eab308)" };
+      return {
+        label: t("dashboard.statusDisabled"),
+        color: "var(--warning, #eab308)",
+      };
     }
 
-    return { label: "Connected", color: "var(--success, #22c55e)" };
+    return {
+      label: t("dashboard.statusConnected"),
+      color: "var(--success, #22c55e)",
+    };
   };
 
   const ecosystemItems = [
@@ -157,20 +174,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: "qBittorrent API",
       icon: "🔌",
       status: {
-        label: "Port 7889 (/api/v2)",
+        label: t("dashboard.portApiV2"),
         color: "var(--success, #22c55e)",
       },
     },
     {
       name: "Deluge RPC",
       icon: "⚡",
-      status: { label: "Port 7889 (/json)", color: "var(--success, #22c55e)" },
+      status: {
+        label: t("dashboard.portJson"),
+        color: "var(--success, #22c55e)",
+      },
     },
     {
       name: "Transmission RPC",
       icon: "🧲",
       status: {
-        label: "Port 7889 (/transmission/rpc)",
+        label: t("dashboard.portTransmissionRpc"),
         color: "var(--success, #22c55e)",
       },
     },
@@ -217,7 +237,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 fontSize: "1rem",
               }}
             >
-              Level {achievements.overallLevel}: {achievements.rankTitle}{" "}
+              {t("dashboard.levelTitle", {
+                level: achievements.overallLevel,
+                rankTitle: achievements.rankTitle,
+              })}{" "}
               <span
                 style={{
                   color: "var(--text-muted, #7e8092)",
@@ -225,7 +248,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   fontWeight: 500,
                 }}
               >
-                {achievements.unlockedCount}/{achievements.totalCount} BADGES
+                {t("dashboard.badgesCount", {
+                  unlockedCount: achievements.unlockedCount,
+                  totalCount: achievements.totalCount,
+                })}
               </span>
             </div>
             <div
@@ -235,9 +261,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginTop: "2px",
               }}
             >
-              🛡 {achievements.totalSwarmGuardians.length} Swarm Guardian
-              {achievements.totalSwarmGuardians.length === 1 ? "" : "s"}{" "}
-              protected &bull; Non-blocking async disk cache running
+              {t("dashboard.swarmGuardians", {
+                count: achievements.totalSwarmGuardians.length,
+                plural:
+                  achievements.totalSwarmGuardians.length === 1 ? "" : "s",
+              })}
             </div>
           </div>
         </div>
@@ -251,7 +279,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             fontWeight: 600,
           }}
         >
-          Queue & Torrents →
+          {t("dashboard.queueAndTorrents")}
         </button>
       </div>
 
@@ -290,7 +318,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginTop: "4px",
             }}
           >
-            Active Torrents
+            {t("dashboard.activeTorrents")}
           </div>
         </div>
 
@@ -321,7 +349,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginTop: "4px",
             }}
           >
-            Total Downloaded
+            {t("dashboard.totalDownloaded")}
           </div>
         </div>
 
@@ -352,7 +380,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginTop: "4px",
             }}
           >
-            Average Ratio
+            {t("dashboard.averageRatio")}
           </div>
         </div>
 
@@ -383,7 +411,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginTop: "4px",
             }}
           >
-            Total Library Size
+            {t("dashboard.totalLibrarySize")}
           </div>
         </div>
       </div>
@@ -408,7 +436,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            Connected Ecosystem
+            {t("dashboard.connectedEcosystem")}
           </span>
           <span
             style={{
@@ -420,7 +448,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onNavigateSettings && onNavigateSettings("connections")
             }
           >
-            Manage Connections ⚙
+            {t("dashboard.manageConnections")}
           </span>
         </div>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
@@ -520,12 +548,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginBottom: "4px",
               }}
             >
-              &bull; Downloading:{" "}
-              {
-                torrents.filter(
+              {t("dashboard.downloadingCount", {
+                count: torrents.filter(
                   (t) => (t.status || "").toLowerCase() === "downloading",
-                ).length
-              }
+                ).length,
+              })}
             </div>
             <div
               style={{
@@ -535,12 +562,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginBottom: "4px",
               }}
             >
-              &bull; Seeding:{" "}
-              {
-                torrents.filter(
+              {t("dashboard.seedingCount", {
+                count: torrents.filter(
                   (t) => (t.status || "").toLowerCase() === "seeding",
-                ).length
-              }
+                ).length,
+              })}
             </div>
             <div
               style={{
@@ -549,12 +575,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 fontWeight: 600,
               }}
             >
-              &bull; Paused:{" "}
-              {
-                torrents.filter(
+              {t("dashboard.pausedCount", {
+                count: torrents.filter(
                   (t) => (t.status || "").toLowerCase() === "paused",
-                ).length
-              }
+                ).length,
+              })}
             </div>
           </div>
         </div>
@@ -572,7 +597,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginBottom: "0.75rem",
             }}
           >
-            Speed Schedule
+            {t("dashboard.speedSchedule")}
           </div>
           <div
             style={{
@@ -584,7 +609,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }}
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>
-              Active Mode:
+              {t("dashboard.activeMode")}
             </span>
             <span
               className="badge"
@@ -594,10 +619,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               {activeLimits?.isThrottled
-                ? "THROTTLED"
+                ? t("dashboard.modeThrottled")
                 : schedulerConfig?.schedulerEnabled
-                  ? "SCHEDULED"
-                  : "NORMAL (24x7)"}
+                  ? t("dashboard.modeScheduled")
+                  : t("dashboard.modeNormal")}
             </span>
           </div>
           <div
@@ -610,14 +635,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }}
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>
-              Upload Limit:
+              {t("dashboard.uploadLimit")}
             </span>
             <span
               style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
             >
               {activeLimits?.maxUploadSpeedKbps
                 ? `${activeLimits.maxUploadSpeedKbps} KB/s`
-                : "Unlimited"}
+                : t("dashboard.unlimited")}
             </span>
           </div>
           <div
@@ -629,14 +654,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }}
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>
-              Download Limit:
+              {t("dashboard.downloadLimit")}
             </span>
             <span
               style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
             >
               {activeLimits?.maxDownloadSpeedKbps
                 ? `${activeLimits.maxDownloadSpeedKbps} KB/s`
-                : "Unlimited"}
+                : t("dashboard.unlimited")}
             </span>
           </div>
         </div>
@@ -654,7 +679,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginBottom: "0.75rem",
             }}
           >
-            Active Indexers & Trackers
+            {t("dashboard.activeIndexersTrackers")}
           </div>
           {activeIndexers.length > 0 ? (
             activeIndexers.slice(0, 2).map((idx) => (
@@ -674,7 +699,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span
                   style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}
                 >
-                  Active
+                  {t("dashboard.statusActive")}
                 </span>
               </div>
             ))
@@ -689,7 +714,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               <span style={{ color: "var(--text-muted, #7e8092)" }}>
-                No Indexers Configured
+                {t("dashboard.noIndexersConfigured")}
               </span>
               <span
                 style={{
@@ -701,7 +726,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onNavigateSettings && onNavigateSettings("indexers")
                 }
               >
-                + Add
+                {t("dashboard.add")}
               </span>
             </div>
           )}
@@ -727,7 +752,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span
                   style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}
                 >
-                  Connected
+                  {t("dashboard.statusConnected")}
                 </span>
               </div>
             ))
@@ -741,12 +766,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>
-                BitTorrent DHT Swarm ↗
+                {t("dashboard.dhtSwarm")}
               </span>
               <span
                 style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}
               >
-                Swarm Ready
+                {t("dashboard.swarmReady")}
               </span>
             </div>
           )}
@@ -771,7 +796,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 color: "var(--text-primary, #f8f4ed)",
               }}
             >
-              Transfer Speed
+              {t("dashboard.transferSpeed")}
             </span>
             <span
               className="badge"
@@ -781,15 +806,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 fontSize: "0.65rem",
               }}
             >
-              &bull; Live (1s)
+              {t("dashboard.live1s")}
             </span>
           </div>
           <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem" }}>
             <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>
-              &bull; Download: {formatSpeed(totalDlSpeed)}
+              {t("dashboard.downloadSpeed", {
+                speed: formatSpeed(totalDlSpeed),
+              })}
             </span>
             <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
-              &bull; Upload: {formatSpeed(totalUlSpeed)}
+              {t("dashboard.uploadSpeed", { speed: formatSpeed(totalUlSpeed) })}
             </span>
           </div>
         </div>

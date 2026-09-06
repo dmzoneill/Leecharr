@@ -22,13 +22,20 @@ export interface TorrentGridCardProps {
 }
 
 export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
-  ({ torrent: t, isSelected, onSelect, onPause, onResume, onDelete }) => {
-    const { t: _t } = useTranslation();
+  ({
+    torrent: tTorrent,
+    isSelected,
+    onSelect,
+    onPause,
+    onResume,
+    onDelete,
+  }) => {
+    const { t } = useTranslation();
     const confirm = useConfirm();
-    const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
+    const telemetry = useTorrentStore((state) => state.telemetry[tTorrent.id]);
     const mergedTorrent = useMemo(
-      () => applyTelemetry(t, telemetry),
-      [t, telemetry],
+      () => applyTelemetry(tTorrent, telemetry),
+      [tTorrent, telemetry],
     );
 
     const statusLower = (mergedTorrent.status || "").toLowerCase();
@@ -103,7 +110,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             {mergedTorrent.isPrivate && (
               <span
                 className="badge"
-                title="Private Torrent (BEP 27: Strict Swarm Isolation, DHT/PEX Disabled)"
+                title={t("torrents.table.privateTooltip")}
                 style={{
                   backgroundColor: "#ef4444",
                   color: "#fff",
@@ -116,7 +123,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 }}
               >
                 <i className="fas fa-lock" style={{ fontSize: "0.58rem" }} />{" "}
-                Private
+                {t("torrents.filters.privateBep27")}
               </span>
             )}
             {mergedTorrent.resolution && (
@@ -205,7 +212,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             {mergedTorrent.isPrivate && (
               <i
                 className="fas fa-lock"
-                title="Private Torrent (BEP 27)"
+                title={t("torrents.table.privateTooltip")}
                 style={{
                   color: "#f87171",
                   marginRight: "6px",
@@ -262,7 +269,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 style={{ color: "var(--accent)", fontWeight: 600 }}
                 title={
                   mergedTorrent.eta && mergedTorrent.eta > 0
-                    ? `ETA: ${formatSeconds(mergedTorrent.eta)}`
+                    ? `${t("torrents.detail.eta")}: ${formatSeconds(mergedTorrent.eta)}`
                     : undefined
                 }
               >
@@ -291,7 +298,9 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 marginLeft: !isDownloading && !isSeeding ? "auto" : undefined,
               }}
             >
-              Ratio: {formatRatio(mergedTorrent.ratio ?? 0)}
+              {t("torrents.grid.ratio", {
+                ratio: formatRatio(mergedTorrent.ratio ?? 0),
+              })}
             </span>
           </div>
 
@@ -311,7 +320,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 style={{ flex: 1 }}
                 onClick={() => onResume(mergedTorrent.id)}
               >
-                <PlayIcon size={11} /> Resume
+                <PlayIcon size={11} /> {t("torrents.grid.resume")}
               </button>
             ) : (
               <button
@@ -319,24 +328,26 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 style={{ flex: 1 }}
                 onClick={() => onPause(mergedTorrent.id)}
               >
-                <StopIcon size={11} /> Pause
+                <StopIcon size={11} /> {t("torrents.grid.pause")}
               </button>
             )}
             <button
               className="btn btn-small btn-danger"
               onClick={async () => {
                 const ok = await confirm({
-                  title: "Remove Torrent",
-                  message: `Remove "${mergedTorrent.name}"?`,
+                  title: t("torrents.grid.removeTitle"),
+                  message: t("torrents.grid.removeConfirm", {
+                    name: mergedTorrent.name,
+                  }),
                   danger: true,
-                  confirmText: "Remove",
+                  confirmText: t("common.delete"),
                 });
                 if (ok) {
                   onDelete({ id: mergedTorrent.id, deleteFiles: false });
                 }
               }}
             >
-              Delete
+              {t("torrents.grid.delete")}
             </button>
           </div>
         </div>
@@ -371,16 +382,19 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   onResume,
   onDelete,
 }) => {
+  const { t } = useTranslation();
   const filteredTorrents = useMemo(() => {
-    return torrents.filter((t) => {
+    return torrents.filter((tTorrent) => {
       if (filter) {
         const q = filter.toLowerCase();
-        const matchName = (t.name || "").toLowerCase().includes(q);
-        const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
+        const matchName = (tTorrent.name || "").toLowerCase().includes(q);
+        const matchMedia = (tTorrent.mediaTitle || "")
+          .toLowerCase()
+          .includes(q);
         if (!matchName && !matchMedia) return false;
       }
       if (stateFilter && stateFilter !== "All") {
-        const st = (t.status || "").toLowerCase();
+        const st = (tTorrent.status || "").toLowerCase();
         const target = stateFilter.toLowerCase();
         if (target === "stopped" || target === "paused") {
           if (st !== "paused" && st !== "stopped" && st !== "idle")
@@ -391,16 +405,16 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
       }
       if (trackerFilter && trackerFilter !== "All") {
         const matchesTracker =
-          (t.trackers &&
-            t.trackers.some(
+          (tTorrent.trackers &&
+            tTorrent.trackers.some(
               (u) => extractTrackerDomain(u) === trackerFilter,
             )) ||
-          extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
+          extractTrackerDomain(tTorrent.trackerUrl || "") === trackerFilter;
         if (!matchesTracker) return false;
       }
       if (privacyFilter && privacyFilter !== "All") {
-        if (privacyFilter === "Private" && !t.isPrivate) return false;
-        if (privacyFilter === "Public" && t.isPrivate) return false;
+        if (privacyFilter === "Private" && !tTorrent.isPrivate) return false;
+        if (privacyFilter === "Public" && tTorrent.isPrivate) return false;
       }
       return true;
     });
@@ -438,8 +452,8 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           }}
         >
           {torrents.length === 0
-            ? "No torrent in the queue"
-            : "No torrents match the selected filter"}
+            ? t("torrents.empty.noTorrents")
+            : t("torrents.empty.noFilterMatches")}
         </h3>
         <p
           style={{
@@ -450,8 +464,8 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           }}
         >
           {torrents.length === 0
-            ? "Add a magnet link or search indexers to begin downloading."
-            : "Try selecting a different filter or clearing search."}
+            ? t("torrents.empty.noMagnetDesc")
+            : t("torrents.empty.noFilterMatchesDesc")}
         </p>
       </div>
     );
@@ -459,11 +473,11 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
 
   return (
     <div className="torrent-grid">
-      {filteredTorrents.map((t) => (
+      {filteredTorrents.map((tTorrent) => (
         <TorrentGridCard
-          key={t.id}
-          torrent={t}
-          isSelected={t.id === selectedId}
+          key={tTorrent.id}
+          torrent={tTorrent}
+          isSelected={tTorrent.id === selectedId}
           onSelect={onSelect}
           onPause={onPause}
           onResume={onResume}

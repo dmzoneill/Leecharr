@@ -61,11 +61,9 @@ function SystemUpdates() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_updates")}
+              {t("system.updatesTitle")}
             </h1>
-            <span className="badge badge-primary">
-              {t("autogen.t_releases")}
-            </span>
+            <span className="badge badge-primary">{t("system.releases")}</span>
           </div>
           <div
             style={{
@@ -74,18 +72,16 @@ function SystemUpdates() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_software_version_history_changelogs_bug_")}
+            {t("system.updatesSubtitle")}
           </div>
         </div>
       </div>
 
-      {isLoading && (
-        <p className="loading">{t("autogen.t_checking_for_updates")}</p>
-      )}
+      {isLoading && <p className="loading">{t("system.checkingForUpdates")}</p>}
 
       {error && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <p className="error">{t("autogen.t_failed_to_check_for_updates")}</p>
+          <p className="error">{t("system.failedToCheckUpdates")}</p>
         </div>
       )}
 
@@ -119,8 +115,8 @@ function SystemUpdates() {
             </span>
             <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>
               {isUpToDate
-                ? "The latest version of Leecharr is already installed"
-                : "A new version of Leecharr is available"}
+                ? t("system.currentVersion")
+                : t("system.updateAvailable")}
             </div>
           </div>
 
@@ -169,7 +165,7 @@ function SystemUpdates() {
                       className="badge badge-seeding"
                       style={{ marginLeft: "auto" }}
                     >
-                      {t("autogen.t_currently_installed")}
+                      {t("system.currentlyInstalled")}
                     </span>
                   )}
                   {update.latest && !update.installed && (
@@ -177,7 +173,7 @@ function SystemUpdates() {
                       className="badge badge-queued"
                       style={{ marginLeft: "auto" }}
                     >
-                      {t("autogen.t_latest_release")}
+                      {t("system.latestRelease")}
                     </span>
                   )}
                 </div>
@@ -196,7 +192,7 @@ function SystemUpdates() {
                           marginBottom: "0.4rem",
                         }}
                       >
-                        {t("autogen.t_new_features")}
+                        {t("system.newFeatures")}
                       </div>
                       <ul
                         style={{
@@ -228,7 +224,7 @@ function SystemUpdates() {
                           marginBottom: "0.4rem",
                         }}
                       >
-                        {t("autogen.t_bug_fixes_improvements")}
+                        {t("system.bugFixesImprovements")}
                       </div>
                       <ul
                         style={{

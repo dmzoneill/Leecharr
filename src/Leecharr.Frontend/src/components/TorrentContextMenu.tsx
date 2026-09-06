@@ -3,6 +3,7 @@ import { useArrConnections, useDownloadHistory } from "../api/hooks";
 import { getMediaDeepLink } from "../utils/arrLinks";
 import { useConfirm } from "../context/ConfirmContext";
 import { PromptModal } from "./PromptModal";
+import { useTranslation } from "../i18n";
 import type { Torrent } from "../api/types";
 
 export interface TorrentContextMenuProps {
@@ -77,6 +78,7 @@ export function TorrentContextMenu({
   onSearchIndexers,
   onNavigateTab,
 }: TorrentContextMenuProps) {
+  const { t } = useTranslation();
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null);
 
@@ -167,7 +169,7 @@ export function TorrentContextMenu({
                   onClose();
                 }}
               >
-                ▶ Resume Download
+                ▶ {t("torrents.contextMenu.resumeDownload")}
               </button>
             ) : (
               <button
@@ -178,7 +180,7 @@ export function TorrentContextMenu({
                   onClose();
                 }}
               >
-                ⏸ Pause Download
+                ⏸ {t("torrents.contextMenu.pauseDownload")}
               </button>
             )}
 
@@ -190,7 +192,7 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              ⚡ Update Tracker (Announce)
+              ⚡ {t("torrents.contextMenu.updateTracker")}
             </button>
             <button
               type="button"
@@ -200,7 +202,7 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              🛡 Force Recheck Integrity
+              🛡 {t("torrents.contextMenu.forceRecheck")}
             </button>
 
             <div className="context-menu-separator" />
@@ -216,7 +218,7 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              🔍 Search on Indexers
+              🔍 {t("torrents.contextMenu.searchIndexers")}
             </button>
 
             <button
@@ -227,7 +229,7 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              🗺️ Track in Peer Map
+              🗺️ {t("torrents.contextMenu.trackInPeerMap")}
             </button>
 
             <div className="context-menu-separator" />
@@ -238,7 +240,7 @@ export function TorrentContextMenu({
               onMouseEnter={() => setOpenSubmenu("copy")}
               onMouseLeave={() => setOpenSubmenu(null)}
             >
-              Copy ▶
+              {t("torrents.contextMenu.copy")} ▶
               {openSubmenu === "copy" && (
                 <div
                   className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
@@ -248,28 +250,28 @@ export function TorrentContextMenu({
                     className="context-menu-item"
                     onClick={() => handleCopy(ct.name)}
                   >
-                    Name
+                    {t("torrents.contextMenu.copyName")}
                   </button>
                   <button
                     type="button"
                     className="context-menu-item"
                     onClick={() => handleCopy(ct.infoHash)}
                   >
-                    Info Hash
+                    {t("torrents.contextMenu.copyInfoHash")}
                   </button>
                   <button
                     type="button"
                     className="context-menu-item"
                     onClick={() => handleCopy(buildMagnetLink(ct))}
                   >
-                    Magnet Link
+                    {t("torrents.contextMenu.copyMagnetLink")}
                   </button>
                   <button
                     type="button"
                     className="context-menu-item"
                     onClick={() => handleCopy(ct.trackerUrl ?? "")}
                   >
-                    Tracker URL
+                    {t("torrents.contextMenu.copyTrackerUrl")}
                   </button>
                 </div>
               )}
@@ -281,7 +283,7 @@ export function TorrentContextMenu({
               onMouseEnter={() => setOpenSubmenu("priority")}
               onMouseLeave={() => setOpenSubmenu(null)}
             >
-              Priority ▶
+              {t("torrents.contextMenu.priority")} ▶
               {openSubmenu === "priority" && (
                 <div
                   className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
@@ -294,7 +296,8 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    {ct.priority === 2 ? "✓ " : ""}High Priority
+                    {ct.priority === 2 ? "✓ " : ""}
+                    {t("torrents.contextMenu.highPriority")}
                   </button>
                   <button
                     type="button"
@@ -304,7 +307,8 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    {ct.priority === 1 ? "✓ " : ""}Normal Priority
+                    {ct.priority === 1 ? "✓ " : ""}
+                    {t("torrents.contextMenu.normalPriority")}
                   </button>
                   <button
                     type="button"
@@ -314,7 +318,8 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    {ct.priority === 0 ? "✓ " : ""}Low Priority
+                    {ct.priority === 0 ? "✓ " : ""}
+                    {t("torrents.contextMenu.lowPriority")}
                   </button>
                 </div>
               )}
@@ -326,7 +331,7 @@ export function TorrentContextMenu({
               onMouseEnter={() => setOpenSubmenu("speed")}
               onMouseLeave={() => setOpenSubmenu(null)}
             >
-              Speed Limit ▶
+              {t("torrents.contextMenu.speedLimit")} ▶
               {openSubmenu === "speed" && (
                 <div
                   className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
@@ -336,12 +341,12 @@ export function TorrentContextMenu({
                     className="context-menu-item"
                     onClick={() => {
                       setPromptConfig({
-                        title: "Set Upload Limit",
-                        message: "Upload limit in KB/s (0 = unlimited):",
+                        title: t("torrents.contextMenu.setUploadLimit"),
+                        message: `${t("torrents.table.uploadLimit")} (KB/s):`,
                         defaultValue: String(ct.uploadLimit || 0),
                         inputType: "number",
                         min: 0,
-                        confirmText: "Save",
+                        confirmText: t("common.save"),
                         validate: (val) => {
                           const num = parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
@@ -359,19 +364,19 @@ export function TorrentContextMenu({
                       });
                     }}
                   >
-                    Set Upload Limit...
+                    {t("torrents.contextMenu.setUploadLimit")}...
                   </button>
                   <button
                     type="button"
                     className="context-menu-item"
                     onClick={() => {
                       setPromptConfig({
-                        title: "Set Download Limit",
-                        message: "Download limit in KB/s (0 = unlimited):",
+                        title: t("torrents.contextMenu.setDownloadLimit"),
+                        message: `${t("torrents.table.downloadLimit")} (KB/s):`,
                         defaultValue: String(ct.downloadLimit || 0),
                         inputType: "number",
                         min: 0,
-                        confirmText: "Save",
+                        confirmText: t("common.save"),
                         validate: (val) => {
                           const num = parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
@@ -389,7 +394,7 @@ export function TorrentContextMenu({
                       });
                     }}
                   >
-                    Set Download Limit...
+                    {t("torrents.contextMenu.setDownloadLimit")}...
                   </button>
                   <button
                     type="button"
@@ -399,7 +404,7 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    Reset to Global Limits
+                    {t("torrents.contextMenu.resetToGlobalLimits")}
                   </button>
                 </div>
               )}
@@ -411,7 +416,7 @@ export function TorrentContextMenu({
               onMouseEnter={() => setOpenSubmenu("queue")}
               onMouseLeave={() => setOpenSubmenu(null)}
             >
-              Queue ▶
+              {t("torrents.contextMenu.queue")} ▶
               {openSubmenu === "queue" && (
                 <div
                   className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
@@ -424,7 +429,7 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    Top
+                    {t("torrents.contextMenu.top")}
                   </button>
                   <button
                     type="button"
@@ -434,7 +439,7 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    Up
+                    {t("torrents.contextMenu.up")}
                   </button>
                   <button
                     type="button"
@@ -444,7 +449,7 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    Down
+                    {t("torrents.contextMenu.down")}
                   </button>
                   <button
                     type="button"
@@ -454,7 +459,7 @@ export function TorrentContextMenu({
                       onClose();
                     }}
                   >
-                    Bottom
+                    {t("torrents.contextMenu.bottom")}
                   </button>
                 </div>
               )}
@@ -468,12 +473,12 @@ export function TorrentContextMenu({
               className="context-menu-item"
               onClick={() => {
                 setPromptConfig({
-                  title: "Set Category / Label",
-                  message: "Set category / label:",
+                  title: t("torrents.contextMenu.setCategory"),
+                  message: `${t("torrents.contextMenu.setCategory")}:`,
                   defaultValue: ct.category ?? ct.label ?? "",
                   inputType: "text",
                   placeholder: "e.g. movies, tv, music",
-                  confirmText: "Save",
+                  confirmText: t("common.save"),
                   onConfirm: (l) => {
                     const trimmed = l.trim();
                     onUpdate({
@@ -486,7 +491,8 @@ export function TorrentContextMenu({
                 });
               }}
             >
-              Set Category...{ct.category ? ` (${ct.category})` : ""}
+              {t("torrents.contextMenu.setCategory")}...
+              {ct.category ? ` (${ct.category})` : ""}
             </button>
             <button
               type="button"
@@ -496,8 +502,9 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              {ct.sequentialDownload ? "Disable" : "Enable"} Sequential Download
-              (Head/Tail Priority)
+              {ct.sequentialDownload
+                ? t("torrents.contextMenu.disableSequential")
+                : t("torrents.contextMenu.enableSequential")}
             </button>
 
             <div className="context-menu-separator" />
@@ -508,7 +515,7 @@ export function TorrentContextMenu({
               onMouseEnter={() => setOpenSubmenu("remove")}
               onMouseLeave={() => setOpenSubmenu(null)}
             >
-              Remove ▶
+              {t("torrents.contextMenu.remove")} ▶
               {openSubmenu === "remove" && (
                 <div
                   className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
@@ -519,15 +526,18 @@ export function TorrentContextMenu({
                     onClick={async () => {
                       onClose();
                       const ok = await confirm({
-                        title: "Remove Torrent",
-                        message: `Remove "${ct.name}"?`,
+                        title: t("torrents.contextMenu.removeTorrent"),
+                        message: t(
+                          "torrents.contextMenu.removeTorrentConfirm",
+                          { name: ct.name },
+                        ),
                         danger: true,
-                        confirmText: "Remove",
+                        confirmText: t("common.delete"),
                       });
                       if (ok) onDelete({ id: ct.id, deleteFiles: false });
                     }}
                   >
-                    Remove Torrent
+                    {t("torrents.contextMenu.removeTorrent")}
                   </button>
                   <button
                     type="button"
@@ -535,15 +545,20 @@ export function TorrentContextMenu({
                     onClick={async () => {
                       onClose();
                       const ok = await confirm({
-                        title: "Remove Torrent and Delete Files",
-                        message: `Remove "${ct.name}" and delete all downloaded data from disk?`,
+                        title: t(
+                          "torrents.contextMenu.removeTorrentAndDeleteFiles",
+                        ),
+                        message: t(
+                          "torrents.contextMenu.removeTorrentAndDeleteFilesConfirm",
+                          { name: ct.name },
+                        ),
                         danger: true,
-                        confirmText: "Delete Files",
+                        confirmText: t("common.delete"),
                       });
                       if (ok) onDelete({ id: ct.id, deleteFiles: true });
                     }}
                   >
-                    Remove Torrent and Delete Files
+                    {t("torrents.contextMenu.removeTorrentAndDeleteFiles")}
                   </button>
                 </div>
               )}
@@ -559,7 +574,7 @@ export function TorrentContextMenu({
           onMouseEnter={() => setOpenSubmenu("columns")}
           onMouseLeave={() => setOpenSubmenu(null)}
         >
-          Columns ▶
+          {t("torrents.contextMenu.columns")} ▶
           {openSubmenu === "columns" && (
             <div
               className={`context-menu context-menu-submenu context-menu-columns ${flipSubmenu ? "flip-left" : ""}`}

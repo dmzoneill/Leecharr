@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useHealthChecks } from "../api/hooks";
+import { useTranslation } from "../i18n";
 
 function HealthAlerts() {
+  const { t } = useTranslation();
   const { data: checks } = useHealthChecks();
   const [dismissed, setDismissed] = useState<string[]>([]);
 
@@ -69,7 +71,7 @@ function HealthAlerts() {
                 opacity: 0.7,
                 padding: "0.2rem 0.4rem",
               }}
-              title="Dismiss alert"
+              title={t("alerts.dismiss")}
             >
               ✕
             </button>
