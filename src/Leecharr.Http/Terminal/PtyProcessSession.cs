@@ -19,47 +19,8 @@ cols = int(sys.argv[2]) if len(sys.argv) > 2 else 80
 rows = int(sys.argv[3]) if len(sys.argv) > 3 else 24
 ctrl_pipe = sys.argv[4] if len(sys.argv) > 4 else None
 
-master, slave = pty.openpty()
-winsize = struct.pack('HHHH', rows, cols, 0, 0)
-try:
-    fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
-except:
-    pass
-
-ctrl_fd = None
-if ctrl_pipe and os.path.exists(ctrl_pipe):
-    try:
-        ctrl_fd = os.open(ctrl_pipe, os.O_RDWR | os.O_NONBLOCK)
-    except:
-        ctrl_fd = None
-
-pid = os.fork()
+pid, master = pty.fork()
 if pid == 0:
-    if ctrl_fd is not None:
-        try:
-            os.close(ctrl_fd)
-        except:
-            pass
-    try:
-        os.close(master)
-    except:
-        pass
-    os.setsid()
-    try:
-        fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
-    except:
-        pass
-    os.dup2(slave, 0)
-    os.dup2(slave, 1)
-    os.dup2(slave, 2)
-    try:
-        max_fd = os.sysconf('SC_OPEN_MAX')
-    except:
-        max_fd = 1024
-    try:
-        os.closerange(3, max_fd)
-    except:
-        pass
     try:
         os.chdir(cwd)
     except:
@@ -68,20 +29,31 @@ if pid == 0:
     os.environ['COLORTERM'] = 'truecolor'
     if 'LANG' not in os.environ:
         os.environ['LANG'] = 'en_US.UTF-8'
+    os.environ['PS1'] = '\\[\\e[1;32m\\]\\u@leecharr\\[\\e[0m\\]:\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ '
     shell_bin = '/bin/bash' if os.path.exists('/bin/bash') else '/bin/sh'
     shell_name = os.path.basename(shell_bin)
-    try:
-        os.execlp(shell_bin, shell_name, '-i')
-    except:
+    if os.path.exists('/bin/bash'):
+        os.execlp('/bin/bash', 'bash', '--noprofile', '--norc', '-i')
+    else:
         os.execlp('/bin/sh', 'sh', '-i')
 else:
+    winsize = struct.pack('HHHH', rows, cols, 0, 0)
     try:
-        os.close(slave)
+        fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
     except:
         pass
+
+    ctrl_fd = None
+    if ctrl_pipe and os.path.exists(ctrl_pipe):
+        try:
+            ctrl_fd = os.open(ctrl_pipe, os.O_RDWR | os.O_NONBLOCK)
+        except:
+            ctrl_fd = None
+
     rfds = [0, master]
     if ctrl_fd is not None:
         rfds.append(ctrl_fd)
+
     while True:
         try:
             r, _, _ = select.select(rfds, [], [])
