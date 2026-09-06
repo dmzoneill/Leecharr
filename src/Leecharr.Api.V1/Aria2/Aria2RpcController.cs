@@ -650,7 +650,8 @@ public class Aria2RpcController : ControllerBase
             case "aria2.changeglobaloption":
                 var coParams = GetCleanParams(parameters);
                 var optDictElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.Object);
-                var gidStr = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.String).GetString();
+                var gidElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.String);
+                var gidStr = gidElem.ValueKind == JsonValueKind.String ? gidElem.GetString() : null;
 
                 if (!string.IsNullOrWhiteSpace(gidStr) && this.torrentService != null)
                 {
