@@ -1598,3 +1598,14 @@ export interface FileBrowserListing {
   defaultPath: string;
   entries: FileBrowserEntry[];
 }
+
+export interface FilePreviewResult {
+  type: "text" | "image" | "binary";
+  name: string;
+  path: string;
+  size: number;
+  extension: string;
+  content?: string;
+  truncated?: boolean;
+  downloadUrl?: string;
+}
