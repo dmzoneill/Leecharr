@@ -713,6 +713,48 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         Directory.Exists(cacheDir).Should().BeFalse();
     }
 
+    [Test]
+    public void GetServarrApiKey_WhenUrlMatchesConfiguredArr_ReturnsApiKey()
+    {
+        var mockArrRepo = Substitute.For<IArrConnectionRepository>();
+        mockArrRepo.All().Returns(new List<ArrConnectionDefinition>
+        {
+            new ArrConnectionDefinition { Url = "http://sonarr.local:8989", ApiKey = "sonarr-key-123" },
+        });
+
+        var enrichmentService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            arrRepository: mockArrRepo);
+
+        var key = enrichmentService.GetServarrApiKey("http://sonarr.local:8989/api/v3/mediacover/1/poster.jpg");
+        key.Should().Be("sonarr-key-123");
+    }
+
+    [Test]
+    public void GetServarrApiKey_WhenUrlDoesNotMatchConfiguredArr_ReturnsNull()
+    {
+        var mockArrRepo = Substitute.For<IArrConnectionRepository>();
+        mockArrRepo.All().Returns(new List<ArrConnectionDefinition>
+        {
+            new ArrConnectionDefinition { Url = "http://sonarr.local:8989", ApiKey = "sonarr-key-123" },
+        });
+
+        var enrichmentService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            arrRepository: mockArrRepo);
+
+        var key = enrichmentService.GetServarrApiKey("http://attacker.com/mediacover/evil.jpg");
+        key.Should().BeNull();
+    }
+
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpRequestMessage CapturedRequest { get; private set; }
