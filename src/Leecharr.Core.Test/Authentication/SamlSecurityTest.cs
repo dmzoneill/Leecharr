@@ -267,11 +267,135 @@ public class SamlSecurityTest
 
     #endregion
 
+    #region SubjectConfirmationData & AudienceRestriction Tests
+
+    [Test]
+    public async Task SamlCallback_WhenSubjectConfirmationRecipientMismatched_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_wrong_recip";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "user@example.com",
+            "User",
+            recipient: "https://evil.com/api/v1/auth/callback/saml/saml1");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)result;
+        unauthorizedResult.StatusCode.Should().Be(401);
+        unauthorizedResult.Value.ToString().Should().Contain("Recipient mismatch");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenSubjectConfirmationExpired_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_expired_sc";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "user@example.com",
+            "User",
+            recipient: "https://leecharr.local/api/v1/auth/callback/saml/saml1",
+            subjectNotOnOrAfter: DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ"));
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)result;
+        unauthorizedResult.StatusCode.Should().Be(401);
+        unauthorizedResult.Value.ToString().Should().Contain("SubjectConfirmation has expired");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenAudienceRestrictionMismatched_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_wrong_aud";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "user@example.com",
+            "User",
+            recipient: "https://leecharr.local/api/v1/auth/callback/saml/saml1",
+            audience: "https://other-app.com/saml/metadata");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)result;
+        unauthorizedResult.StatusCode.Should().Be(401);
+        unauthorizedResult.Value.ToString().Should().Contain("AudienceRestriction does not include this SP");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenValidSubjectConfirmationAndAudience_Succeeds()
+    {
+        const string assertionId = "_assertion_valid_sc_aud";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "alice@example.com",
+            "User",
+            recipient: "https://leecharr.local/api/v1/auth/callback/saml/saml1",
+            audience: "https://leecharr.local/saml/metadata");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername("alice").Returns(new User
+        {
+            Id = 101,
+            Username = "alice",
+            Email = "alice@example.com",
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/torrents");
+
+        result.Should().BeOfType<RedirectResult>();
+        var redirect = (RedirectResult)result;
+        redirect.Url.Should().Be("/torrents");
+    }
+
+    #endregion
+
     private static (string SamlResponseBase64, string CertBase64) CreateSignedSamlResponse(
         string assertionId,
         string nameId,
         string role,
-        bool injectDuplicateAssertion = false)
+        bool injectDuplicateAssertion = false,
+        string recipient = null,
+        string subjectNotOnOrAfter = null,
+        string audience = null)
     {
         using var rsa = RSA.Create(2048);
         var certReq = new CertificateRequest("CN=SamlTestIdP", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -281,6 +405,20 @@ public class SamlSecurityTest
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notBefore = DateTime.UtcNow.AddMinutes(-5).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notOnOrAfter = DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        var subjectConfirmationXml = string.Empty;
+        if (!string.IsNullOrEmpty(recipient) || !string.IsNullOrEmpty(subjectNotOnOrAfter))
+        {
+            var recipAttr = string.IsNullOrEmpty(recipient) ? string.Empty : " Recipient=\"" + recipient + "\"";
+            var notOnOrAfterAttr = string.IsNullOrEmpty(subjectNotOnOrAfter) ? string.Empty : " NotOnOrAfter=\"" + subjectNotOnOrAfter + "\"";
+            subjectConfirmationXml = "<saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\"><saml:SubjectConfirmationData" + recipAttr + notOnOrAfterAttr + "/></saml:SubjectConfirmation>";
+        }
+
+        var audienceRestrictionXml = string.Empty;
+        if (!string.IsNullOrEmpty(audience))
+        {
+            audienceRestrictionXml = "<saml:AudienceRestriction><saml:Audience>" + audience + "</saml:Audience></saml:AudienceRestriction>";
+        }
 
         var xml = $@"<samlp:Response xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol""
                                    xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion""
@@ -293,8 +431,11 @@ public class SamlSecurityTest
     <saml:Issuer>https://idp.example.com</saml:Issuer>
     <saml:Subject>
       <saml:NameID Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"">{nameId}</saml:NameID>
+      {subjectConfirmationXml}
     </saml:Subject>
-    <saml:Conditions NotBefore=""{notBefore}"" NotOnOrAfter=""{notOnOrAfter}""/>
+    <saml:Conditions NotBefore=""{notBefore}"" NotOnOrAfter=""{notOnOrAfter}"">
+      {audienceRestrictionXml}
+    </saml:Conditions>
     <saml:AttributeStatement>
       <saml:Attribute Name=""email"">
         <saml:AttributeValue>{nameId}</saml:AttributeValue>

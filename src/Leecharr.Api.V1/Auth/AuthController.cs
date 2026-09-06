@@ -498,6 +498,65 @@ public class AuthController : ControllerBase
                 }
             }
 
+            var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}".TrimEnd('/');
+            var expectedRecipientWithId = $"{baseUrl}/api/v1/auth/callback/saml/{provider.ProviderId}";
+            var expectedRecipientWithoutId = $"{baseUrl}/api/v1/auth/callback/saml";
+            var expectedEntityId = $"{baseUrl}/saml/metadata";
+
+            // 5. Validate SubjectConfirmationData Recipient and NotOnOrAfter
+            var subjectConfirmations = assertionDoc.Descendants()
+                .Where(e => e.Name.LocalName == "SubjectConfirmation");
+
+            foreach (var sc in subjectConfirmations)
+            {
+                var scData = sc.Elements().FirstOrDefault(e => e.Name.LocalName == "SubjectConfirmationData");
+                if (scData != null)
+                {
+                    var recipient = scData.Attribute("Recipient")?.Value;
+                    if (!string.IsNullOrWhiteSpace(recipient))
+                    {
+                        var matchesRecipient = string.Equals(recipient, expectedRecipientWithId, StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(recipient, expectedRecipientWithoutId, StringComparison.OrdinalIgnoreCase) ||
+                                               (!string.IsNullOrWhiteSpace(providerId) && string.Equals(recipient, $"{baseUrl}/api/v1/auth/callback/saml/{providerId}", StringComparison.OrdinalIgnoreCase));
+
+                        if (!matchesRecipient)
+                        {
+                            return this.Unauthorized("SAML SubjectConfirmationData Recipient mismatch");
+                        }
+                    }
+
+                    var scNotOnOrAfterVal = scData.Attribute("NotOnOrAfter")?.Value;
+                    if (!string.IsNullOrWhiteSpace(scNotOnOrAfterVal) &&
+                        DateTimeOffset.TryParse(scNotOnOrAfterVal, out var scExpiry))
+                    {
+                        if (now >= scExpiry.UtcDateTime + allowedSkew)
+                        {
+                            return this.Unauthorized("SAML SubjectConfirmation has expired (NotOnOrAfter constraint violation)");
+                        }
+                    }
+                }
+            }
+
+            // 6. Validate AudienceRestriction
+            var audienceRestrictions = assertionDoc.Descendants()
+                .Where(e => e.Name.LocalName == "AudienceRestriction");
+
+            foreach (var ar in audienceRestrictions)
+            {
+                var audiences = ar.Elements()
+                    .Where(e => e.Name.LocalName == "Audience")
+                    .Select(e => e.Value?.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v))
+                    .ToList();
+
+                if (audiences.Count > 0 && !audiences.Any(a =>
+                    string.Equals(a, expectedEntityId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(a, baseUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return this.Unauthorized("SAML AudienceRestriction does not include this SP");
+                }
+            }
+
             var nameId = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
             var email = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Attribute" && (e.Attribute("Name")?.Value?.Contains("email", StringComparison.OrdinalIgnoreCase) == true))
                 ?.Elements().FirstOrDefault(e => e.Name.LocalName == "AttributeValue")?.Value ?? nameId;
