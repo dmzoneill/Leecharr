@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -238,13 +239,29 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
 
         var atyp = connectHeader[3];
-        int addrLen = atyp switch
+        int addrLen;
+        if (atyp == 0x01)
         {
-            0x01 => 4,  // IPv4
-            0x04 => 16, // IPv6
-            0x03 => stream.ReadByte(), // Domain length
-            _ => throw new InvalidOperationException($"Unknown SOCKS5 ATYP: {atyp}"),
-        };
+            addrLen = 4; // IPv4
+        }
+        else if (atyp == 0x04)
+        {
+            addrLen = 16; // IPv6
+        }
+        else if (atyp == 0x03)
+        {
+            var lengthBuf = new byte[1];
+            await ReadExactBytesAsync(stream, lengthBuf, 0, 1, cancellationToken);
+            addrLen = lengthBuf[0];
+            if (addrLen == 0)
+            {
+                throw new InvalidOperationException("SOCKS5 proxy returned invalid domain length 0");
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unknown SOCKS5 ATYP: {atyp}");
+        }
 
         var boundAddress = new byte[addrLen + 2]; // address + 2 bytes port
         await ReadExactBytesAsync(stream, boundAddress, 0, boundAddress.Length, cancellationToken);
@@ -275,10 +292,31 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         await stream.WriteAsync(requestBytes, 0, requestBytes.Length, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 
-        // Read response status line
-        var responseBuffer = new byte[1024];
-        var bytesRead = await stream.ReadAsync(responseBuffer, 0, responseBuffer.Length, cancellationToken);
-        var responseText = Encoding.ASCII.GetString(responseBuffer, 0, bytesRead);
+        // Read response headers up to \r\n\r\n
+        var headerBytes = new List<byte>();
+        var buffer = new byte[1];
+
+        while (headerBytes.Count < 8192)
+        {
+            var read = await stream.ReadAsync(buffer, 0, 1, cancellationToken);
+            if (read == 0)
+            {
+                throw new IOException("HTTP CONNECT proxy closed connection during handshake");
+            }
+
+            headerBytes.Add(buffer[0]);
+
+            if (headerBytes.Count >= 4 &&
+                headerBytes[^4] == '\r' &&
+                headerBytes[^3] == '\n' &&
+                headerBytes[^2] == '\r' &&
+                headerBytes[^1] == '\n')
+            {
+                break;
+            }
+        }
+
+        var responseText = Encoding.ASCII.GetString(headerBytes.ToArray());
 
         if (!responseText.StartsWith("HTTP/1.1 200", StringComparison.OrdinalIgnoreCase) &&
             !responseText.StartsWith("HTTP/1.0 200", StringComparison.OrdinalIgnoreCase))
