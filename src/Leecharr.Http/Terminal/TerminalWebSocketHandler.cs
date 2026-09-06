@@ -157,31 +157,49 @@ public static class TerminalWebSocketHandler
                     if (ms.Length > 0)
                     {
                         ms.Seek(0, SeekOrigin.Begin);
-                        using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: cts.Token);
-                        var root = doc.RootElement;
-
-                        if (root.TryGetProperty("type", out var typeProp))
+                        bool isHandled = false;
+                        try
                         {
-                            var type = typeProp.GetString();
-                            if (type == "input" && root.TryGetProperty("data", out var dataProp))
+                            using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: cts.Token);
+                            var root = doc.RootElement;
+
+                            if (root.TryGetProperty("type", out var typeProp))
                             {
-                                var inputStr = dataProp.GetString();
-                                if (!string.IsNullOrEmpty(inputStr))
+                                var type = typeProp.GetString();
+                                if (type == "input" && root.TryGetProperty("data", out var dataProp))
                                 {
-                                    var inputBytes = Encoding.UTF8.GetBytes(inputStr);
-                                    await session.WriteAsync(inputBytes, cts.Token);
+                                    var inputStr = dataProp.GetString();
+                                    if (!string.IsNullOrEmpty(inputStr))
+                                    {
+                                        var inputBytes = Encoding.UTF8.GetBytes(inputStr);
+                                        await session.WriteAsync(inputBytes, cts.Token);
+                                    }
+
+                                    isHandled = true;
+                                }
+                                else if (type == "resize" &&
+                                         root.TryGetProperty("cols", out var colsProp) &&
+                                         root.TryGetProperty("rows", out var rowsProp))
+                                {
+                                    session.Resize(colsProp.GetInt32(), rowsProp.GetInt32());
+                                    isHandled = true;
+                                }
+                                else if (type == "ping")
+                                {
+                                    await SafeSendTextAsync("{\"type\":\"pong\"}", cts.Token);
+                                    isHandled = true;
                                 }
                             }
-                            else if (type == "resize" &&
-                                     root.TryGetProperty("cols", out var colsProp) &&
-                                     root.TryGetProperty("rows", out var rowsProp))
-                            {
-                                session.Resize(colsProp.GetInt32(), rowsProp.GetInt32());
-                            }
-                            else if (type == "ping")
-                            {
-                                await SafeSendTextAsync("{\"type\":\"pong\"}", cts.Token);
-                            }
+                        }
+                        catch (JsonException)
+                        {
+                            // Non-JSON input stream fallback
+                        }
+
+                        if (!isHandled && ms.Length > 0)
+                        {
+                            var rawBytes = ms.ToArray();
+                            await session.WriteAsync(rawBytes, cts.Token);
                         }
                     }
                 }

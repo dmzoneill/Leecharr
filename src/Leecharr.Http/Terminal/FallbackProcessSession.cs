@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace Leecharr.Http.Terminal;
@@ -13,7 +14,10 @@ public sealed class FallbackProcessSession : ITerminalSession
 {
     private readonly Process process;
     private readonly Stream inputStream;
-    private readonly Stream outputStream;
+    private readonly Channel<byte[]> outputChannel;
+    private readonly CancellationTokenSource sessionCts = new();
+    private byte[] pendingChunk;
+    private int pendingOffset;
     private int disposed;
 
     public int ProcessId => this.process.Id;
@@ -24,14 +28,22 @@ public sealed class FallbackProcessSession : ITerminalSession
     {
         this.process = process;
         this.inputStream = process.StandardInput.BaseStream;
-        this.outputStream = process.StandardOutput.BaseStream;
+        this.outputChannel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(500)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = false,
+            SingleReader = true,
+        });
+
+        _ = this.PumpStreamAsync(process.StandardOutput.BaseStream, this.sessionCts.Token);
+        _ = this.PumpStreamAsync(process.StandardError.BaseStream, this.sessionCts.Token);
     }
 
     public static FallbackProcessSession Start(string cwd, int cols, int rows)
     {
         var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var shell = isWindows ? "powershell.exe" : "/bin/sh";
-        var args = isWindows ? "-NoLogo" : "-i";
+        var shell = isWindows ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh");
+        var args = isWindows ? "-NoLogo" : (File.Exists("/bin/bash") ? "--noprofile --norc -i" : "-i");
 
         var startInfo = new ProcessStartInfo
         {
@@ -50,6 +62,9 @@ public sealed class FallbackProcessSession : ITerminalSession
         }
 
         startInfo.EnvironmentVariables["TERM"] = "xterm-256color";
+        startInfo.EnvironmentVariables["COLORTERM"] = "truecolor";
+        startInfo.EnvironmentVariables["LANG"] = "en_US.UTF-8";
+        startInfo.EnvironmentVariables["PS1"] = @"\[\e[1;32m\]\u@leecharr\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ ";
 
         var proc = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to launch fallback terminal process");
@@ -66,7 +81,25 @@ public sealed class FallbackProcessSession : ITerminalSession
 
         try
         {
-            return await this.outputStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            while (this.pendingChunk == null || this.pendingOffset >= this.pendingChunk.Length)
+            {
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.sessionCts.Token);
+                if (!await this.outputChannel.Reader.WaitToReadAsync(linkedCts.Token).ConfigureAwait(false))
+                {
+                    return 0;
+                }
+
+                if (this.outputChannel.Reader.TryRead(out var chunk))
+                {
+                    this.pendingChunk = chunk;
+                    this.pendingOffset = 0;
+                }
+            }
+
+            int toCopy = Math.Min(buffer.Length, this.pendingChunk.Length - this.pendingOffset);
+            this.pendingChunk.AsMemory(this.pendingOffset, toCopy).CopyTo(buffer);
+            this.pendingOffset += toCopy;
+            return toCopy;
         }
         catch
         {
@@ -106,6 +139,10 @@ public sealed class FallbackProcessSession : ITerminalSession
 
         try
         {
+            this.sessionCts.Cancel();
+            this.sessionCts.Dispose();
+            this.outputChannel.Writer.TryComplete();
+
             if (!this.process.HasExited)
             {
                 this.process.Kill(entireProcessTree: true);
@@ -123,5 +160,29 @@ public sealed class FallbackProcessSession : ITerminalSession
     {
         this.Kill();
         return ValueTask.CompletedTask;
+    }
+
+    private async Task PumpStreamAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[4096];
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                if (bytesRead <= 0)
+                {
+                    break;
+                }
+
+                var chunk = new byte[bytesRead];
+                Buffer.BlockCopy(buffer, 0, chunk, 0, bytesRead);
+                await this.outputChannel.Writer.WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            // Stream closed or cancelled
+        }
     }
 }
