@@ -40,6 +40,13 @@ public class TrustedNetworkServiceTest
     [TestCase("::ffff:127.0.0.1", "10.0.0.0/8", true)]
     [TestCase("192.168.1.50", "192.168.1.0/24, 10.0.0.0/8", true)]
     [TestCase("192.168.2.50", "192.168.1.0/24", false)]
+    [TestCase("127.0.0.1", "", true)]
+    [TestCase("::1", "", true)]
+    [TestCase("::ffff:127.0.0.1", "", true)]
+    [TestCase("192.168.1.50", "", false)]
+    [TestCase("10.0.0.5", "", false)]
+    [TestCase("8.8.8.8", "", false)]
+    [TestCase("192.168.1.50", null, false)]
     public void IsTrustedProxy_WithCidrs_ShouldMatchCorrectly(string ipStr, string cidrs, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);

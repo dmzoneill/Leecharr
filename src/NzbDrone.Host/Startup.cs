@@ -104,10 +104,13 @@ public class Startup
                     return BasicAuthenticationOptions.DefaultScheme;
                 }
 
-                // 3. Forward-Auth reverse proxy headers
-                if (req.Headers.ContainsKey("Remote-User") ||
-                    req.Headers.ContainsKey("X-authentik-username") ||
-                    req.Headers.ContainsKey("X-Forwarded-User"))
+                // 3. Forward-Auth reverse proxy headers (only if ForwardAuth is configured)
+                var forwardAuthConfig = configFileProvider.GetValue("ForwardAuthTrustedProxies", string.Empty);
+                var forwardAuthEnabled = configFileProvider.GetValue("EnableForwardAuth", false);
+                if ((!string.IsNullOrWhiteSpace(forwardAuthConfig) || forwardAuthEnabled) &&
+                    (req.Headers.ContainsKey("Remote-User") ||
+                     req.Headers.ContainsKey("X-authentik-username") ||
+                     req.Headers.ContainsKey("X-Forwarded-User")))
                 {
                     return ForwardAuthOptions.DefaultScheme;
                 }
@@ -121,6 +124,7 @@ public class Startup
             options.Cookie.Name = "Leecharr_Auth";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest;
             options.ExpireTimeSpan = TimeSpan.FromDays(30);
             options.SlidingExpiration = true;
             options.LoginPath = "/login";
@@ -225,8 +229,23 @@ public class Startup
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
         };
-        forwardedOptions.KnownIPNetworks.Clear();
-        forwardedOptions.KnownProxies.Clear();
+        var forwardAuthProxiesConfig = configFileProvider.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        if (!string.IsNullOrWhiteSpace(forwardAuthProxiesConfig))
+        {
+            var parts = forwardAuthProxiesConfig.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                if (System.Net.IPAddress.TryParse(part, out var ip))
+                {
+                    forwardedOptions.KnownProxies.Add(ip);
+                }
+                else if (part.Contains('/') && System.Net.IPNetwork.TryParse(part, out var net))
+                {
+                    forwardedOptions.KnownIPNetworks.Add(net);
+                }
+            }
+        }
+
         app.UseForwardedHeaders(forwardedOptions);
 
         app.UseMiddleware<SecurityHeadersMiddleware>();
