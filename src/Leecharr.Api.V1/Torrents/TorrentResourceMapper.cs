@@ -88,10 +88,10 @@ public static class TorrentResourceMapper
             resource.MediaTitle = metadata.Title;
             resource.MediaYear = metadata.Year > 0 ? metadata.Year : null;
             resource.MediaOverview = metadata.Overview;
-            resource.PosterUrl = !string.IsNullOrEmpty(metadata.PosterLocalPath) && System.IO.File.Exists(metadata.PosterLocalPath)
+            resource.PosterUrl = !string.IsNullOrEmpty(metadata.PosterLocalPath) && global::System.IO.File.Exists(metadata.PosterLocalPath)
                 ? $"/api/v1/media/artwork/{model.Id}/poster"
                 : metadata.PosterUrl;
-            resource.BackdropUrl = !string.IsNullOrEmpty(metadata.BackdropLocalPath) && System.IO.File.Exists(metadata.BackdropLocalPath)
+            resource.BackdropUrl = !string.IsNullOrEmpty(metadata.BackdropLocalPath) && global::System.IO.File.Exists(metadata.BackdropLocalPath)
                 ? $"/api/v1/media/artwork/{model.Id}/backdrop"
                 : metadata.BackdropUrl;
             resource.MediaRating = metadata.Rating > 0 ? metadata.Rating : null;
