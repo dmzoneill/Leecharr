@@ -2022,5 +2022,25 @@ public class MonoTorrentDownloadEngineTest
         vpnEngine.GetTask(torrent.Id).Should().BeNull();
     }
 
+    [Test]
+    public async Task BoundSocketConnector_WhenLocalIpv4IsNull_ThrowsNetworkUnreachable()
+    {
+        var connector = new BoundSocketConnector(() => (IPAddress)null, () => IPAddress.IPv6Any);
+        var act = async () => await connector.ConnectAsync(new Uri("http://127.0.0.1:8080"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_WhenLocalIpv6IsNull_ThrowsNetworkUnreachable()
+    {
+        var connector = new BoundSocketConnector(() => IPAddress.Any, () => (IPAddress)null);
+        var act = async () => await connector.ConnectAsync(new Uri("http://[::1]:8080"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
     #endregion
 }
