@@ -528,16 +528,23 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         valA = a.category ?? a.label ?? "";
         valB = b.category ?? b.label ?? "";
       } else if (sortKey === "eta") {
-        valA =
-          a.eta ??
-          (a.downloadSpeed > 0
-            ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed
-            : 9999999);
-        valB =
-          b.eta ??
-          (b.downloadSpeed > 0
-            ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed
-            : 9999999);
+        const etaVal = (t: any) => {
+          if (typeof t.eta === "number" && Number.isFinite(t.eta)) return t.eta;
+          if (
+            t.downloadSpeed > 0 &&
+            typeof t.totalSize === "number" &&
+            typeof t.progress === "number"
+          ) {
+            const rem =
+              t.totalSize * (1 - Math.max(0, Math.min(1, t.progress)));
+            return Number.isFinite(rem)
+              ? rem / t.downloadSpeed
+              : Number.MAX_SAFE_INTEGER;
+          }
+          return Number.MAX_SAFE_INTEGER;
+        };
+        valA = etaVal(a);
+        valB = etaVal(b);
       }
 
       if (valA === valB) return 0;
