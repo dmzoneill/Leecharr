@@ -1580,3 +1580,21 @@ export interface TorrentCreationResult {
   pieceCount: number;
   pieceLength: number;
 }
+
+export interface FileBrowserEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modified: string | null;
+  extension: string | null;
+}
+
+export interface FileBrowserListing {
+  path: string;
+  parent: string;
+  exists: boolean;
+  isRoot: boolean;
+  defaultPath: string;
+  entries: FileBrowserEntry[];
+}

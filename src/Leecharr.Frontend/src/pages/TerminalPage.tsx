@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router";
 import { TerminalView } from "../components/terminal/TerminalView";
 import { useBitTorrentConfig } from "../api/hooks";
 
 export function TerminalPage() {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialPath = queryParams.get("path");
+
   const { data: config } = useBitTorrentConfig();
   const [downloadDir, setDownloadDir] = useState<string>("/downloads");
-  const [activePath, setActivePath] = useState<string>("/downloads");
+  const [activePath, setActivePath] = useState<string>(initialPath || "/downloads");
   const [customPath, setCustomPath] = useState<string>("");
 
   useEffect(() => {
     if (config?.downloadDir) {
       setDownloadDir(config.downloadDir);
-      setActivePath(config.downloadDir);
+      if (!initialPath) {
+        setActivePath(config.downloadDir);
+      }
     }
-  }, [config]);
+  }, [config, initialPath]);
 
   const handleApplyCustom = (e: React.FormEvent) => {
     e.preventDefault();

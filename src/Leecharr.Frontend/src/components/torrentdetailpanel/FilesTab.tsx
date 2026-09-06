@@ -329,6 +329,8 @@ function getDescendantFiles(node: TreeNode): TorrentFileInfo[] {
 export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: number }) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { showToast } = useToast();
+  const savePath = torrent?.savePath || torrent?.sourcePath || null;
+  const [copiedPath, setCopiedPath] = React.useState(false);
   const { data: files, isLoading, isError, refetch: refetchFiles } = useTorrentFiles(effectiveId);
   const setFilePriority = useSetFilePriority();
   const setFilesPriority = useSetFilesPriority();
@@ -622,6 +624,64 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
         </div>
       )}
 
+      {/* PWD Context Banner */}
+      {savePath && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "0.5rem",
+            padding: "0.5rem 0.85rem",
+            backgroundColor: "rgba(23, 27, 53, 0.6)",
+            border: "1px solid var(--border-light, #1c203b)",
+            borderRadius: "6px",
+            fontSize: "0.82rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", overflow: "hidden" }}>
+            <span style={{ fontSize: "0.95rem", flexShrink: 0 }}>📂</span>
+            <span style={{ color: "var(--text-muted, #8a879e)", fontWeight: 600, flexShrink: 0 }}>
+              PWD:
+            </span>
+            <code
+              style={{
+                fontFamily: "monospace",
+                fontSize: "0.78rem",
+                backgroundColor: "rgba(255, 255, 255, 0.06)",
+                padding: "0.15rem 0.45rem",
+                borderRadius: "4px",
+                color: "var(--accent, #ffd166)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={savePath}
+            >
+              {savePath}
+            </code>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{
+              padding: "0.15rem 0.45rem",
+              fontSize: "0.72rem",
+              borderRadius: "4px",
+              flexShrink: 0,
+            }}
+            onClick={() => {
+              navigator.clipboard.writeText(savePath);
+              setCopiedPath(true);
+              setTimeout(() => setCopiedPath(false), 2000);
+            }}
+            title="Copy save path to clipboard"
+          >
+            {copiedPath ? "✓ Copied" : "Copy"}
+          </button>
+        </div>
+      )}
+
       {/* File Controls Toolbar */}
       <div
         style={{
@@ -837,7 +897,7 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
                         }}
-                        title={node.fullPath}
+                        title={savePath ? `${savePath}/${node.fullPath}` : node.fullPath}
                       >
                         {node.name}
                         {isFolder && (

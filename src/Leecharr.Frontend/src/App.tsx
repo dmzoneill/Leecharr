@@ -55,6 +55,7 @@ import SystemNetwork from "./pages/SystemNetwork";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import { TerminalPage } from "./pages/TerminalPage";
+import { FileBrowser } from "./pages/FileBrowser";
 import { LoginPage } from "./pages/LoginPage";
 import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
@@ -229,6 +230,8 @@ export function App() {
     }
   } else if (pathname.startsWith("/terminal")) {
     activeNav = "terminal";
+  } else if (pathname.startsWith("/files")) {
+    activeNav = "files";
   } else if (pathname.startsWith("/system")) {
     activeNav = "system";
     const parts = pathname.split("/");
@@ -591,6 +594,27 @@ export function App() {
               &gt;_
             </span>
             <span>Terminal CLI</span>
+          </div>
+
+          {/* File Browser */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "files" ? "active" : ""}`}
+            onClick={() => guardedNavigate("/files")}
+            style={{ cursor: "pointer" }}
+            title="Browse, create, rename, and delete server files and folders"
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "16px",
+                fontSize: "1rem",
+              }}
+            >
+              📁
+            </span>
+            <span>File Browser</span>
           </div>
 
           {/* Settings */}
@@ -1192,6 +1216,16 @@ export function App() {
                 element={
                   <ErrorBoundary title="Terminal Error">
                     <TerminalPage />
+                  </ErrorBoundary>
+                }
+              />
+
+              {/* File Browser */}
+              <Route
+                path="/files"
+                element={
+                  <ErrorBoundary title="File Browser Error">
+                    <FileBrowser />
                   </ErrorBoundary>
                 }
               />
