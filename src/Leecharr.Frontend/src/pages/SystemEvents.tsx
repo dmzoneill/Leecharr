@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState, useRef, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
@@ -62,6 +63,8 @@ function formatEventTime(iso: string): string {
 }
 
 function RefreshIcon() {
+  const { t } = useTranslation();
+
   return (
     <svg
       width="14"
@@ -117,6 +120,7 @@ function SortArrow({ direction }: { direction: "asc" | "desc" }) {
 }
 
 function EventLevelIcon({ level }: { level: LogLevel }) {
+  const { t } = useTranslation();
   switch (level) {
     case "Info":
       return (
@@ -124,7 +128,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-primary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          INFO
+          {t("autogen.t_info")}
         </span>
       );
     case "Warn":
@@ -133,7 +137,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-queued"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          WARN
+          {t("autogen.t_warn")}
         </span>
       );
     case "Error":
@@ -142,7 +146,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-error"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          ERROR
+          {t("autogen.t_error")}
         </span>
       );
     case "Debug":
@@ -151,7 +155,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          DEBUG
+          {t("autogen.t_debug")}
         </span>
       );
     case "Trace":
@@ -160,13 +164,14 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          TRACE
+          {t("autogen.t_trace")}
         </span>
       );
   }
 }
 
 function SystemEvents() {
+  const { t } = useTranslation();
   const { data: entries, isLoading, isError } = useEventEntries();
   const queryClient = useQueryClient();
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -215,9 +220,11 @@ function SystemEvents() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Events
+              {t("autogen.t_system_events")}
             </h1>
-            <span className="badge badge-primary">Audit Log</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_audit_log")}
+            </span>
           </div>
           <div
             style={{
@@ -226,8 +233,7 @@ function SystemEvents() {
               marginTop: "0.2rem",
             }}
           >
-            Real-time audit log events, application exceptions, and background
-            routine updates
+            {t("autogen.t_real_time_audit_log_events_application_e")}
           </div>
         </div>
 
@@ -242,7 +248,7 @@ function SystemEvents() {
             }}
           >
             <RefreshIcon />
-            <span>Refresh</span>
+            <span>{t("autogen.t_refresh")}</span>
           </button>
           <button
             className="btn btn-outline btn-small"
@@ -254,7 +260,7 @@ function SystemEvents() {
             }}
           >
             <ClearIcon />
-            <span>Clear</span>
+            <span>{t("autogen.t_clear")}</span>
           </button>
         </div>
       </div>
@@ -276,7 +282,7 @@ function SystemEvents() {
             <thead>
               <tr>
                 <th className="torrent-table-th" style={{ width: "90px" }}>
-                  Level
+                  {t("autogen.t_level")}
                 </th>
                 <th
                   className="torrent-table-th"
@@ -286,39 +292,42 @@ function SystemEvents() {
                     cursor: "pointer",
                     userSelect: "none",
                   }}
-                  title="Click to sort by timestamp"
+                  title={t("autogen.t_click_to_sort_by_timestamp")}
                 >
                   <span
                     style={{ display: "inline-flex", alignItems: "center" }}
                   >
-                    Time <SortArrow direction={sortDirection} />
+                    {t("autogen.t_time")}
+                    <SortArrow direction={sortDirection} />
                   </span>
                 </th>
                 <th className="torrent-table-th" style={{ width: "200px" }}>
-                  Component / Logger
+                  {t("autogen.t_component_logger")}
                 </th>
-                <th className="torrent-table-th">Event Message</th>
+                <th className="torrent-table-th">
+                  {t("autogen.t_event_message")}
+                </th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    Loading event stream...
+                    {t("autogen.t_loading_event_stream")}
                   </td>
                 </tr>
               )}
               {!isLoading && isError && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    Failed to load events.
+                    {t("autogen.t_failed_to_load_events")}
                   </td>
                 </tr>
               )}
               {!isLoading && !isError && displayEntries.length === 0 && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    No recent events logged.
+                    {t("autogen.t_no_recent_events_logged")}
                   </td>
                 </tr>
               )}

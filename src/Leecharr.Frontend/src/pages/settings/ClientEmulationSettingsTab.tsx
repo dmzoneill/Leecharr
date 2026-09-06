@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
@@ -33,6 +34,8 @@ const CLIENT_PRESETS: Record<
 };
 
 export function ClientEmulationSettingsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
@@ -45,7 +48,7 @@ export function ClientEmulationSettingsTab() {
 
   const [form, setForm] = useState({
     clientBehaviorEngineEnabled: true,
-    primaryClient: "qBittorrent",
+    primaryClient: t("settingsTabs.downloadClients.typeQBitTorrent"),
     bitTorrentUserAgent: "qBittorrent/4.4.2",
     peerIdPrefix: "-qB4420-",
     behaviorVariation: 0.15,
@@ -71,7 +74,9 @@ export function ClientEmulationSettingsTab() {
 
   useEffect(() => {
     if (btConfig || simConfig || peerConfig) {
-      const primaryClient = simConfig?.primaryClient || "qBittorrent";
+      const primaryClient =
+        simConfig?.primaryClient ||
+        t("settingsTabs.downloadClients.typeQBitTorrent");
       const preset =
         CLIENT_PRESETS[primaryClient] || CLIENT_PRESETS.qBittorrent;
       const bitTorrentUserAgent =
@@ -172,7 +177,7 @@ export function ClientEmulationSettingsTab() {
     const handleError = (err: any) => {
       hasError = true;
       showToast(
-        err?.message || "Failed to save client emulation settings",
+        err?.message || t("settingsTabs.clientEmulation.saveError"),
         "error",
       );
     };
@@ -236,7 +241,7 @@ export function ClientEmulationSettingsTab() {
   if (btLoading || simLoading || peerLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading client emulation settings...
+        {t("settingsTabs.clientEmulation.loading")}
       </div>
     );
   }
@@ -253,8 +258,8 @@ export function ClientEmulationSettingsTab() {
       />
 
       <SectionCard
-        title="Client Profile Emulation & Private Tracker Stealth"
-        description="Emulate real BitTorrent client signatures, peer ID prefixes, and Azureus handshake formats."
+        title={t("settingsTabs.clientEmulation.title")}
+        description={t("settingsTabs.clientEmulation.description")}
       >
         <div
           style={{
@@ -264,50 +269,74 @@ export function ClientEmulationSettingsTab() {
           }}
         >
           <SelectInput
-            label="Primary Emulated Client"
+            label={t("settingsTabs.clientEmulation.primaryClient")}
             value={form.primaryClient}
             onChange={handlePrimaryClientChange}
             options={[
               {
-                value: "qBittorrent",
-                label: "qBittorrent (v4.6+ / libtorrent)",
+                value: t("settingsTabs.downloadClients.typeQBitTorrent"),
+                label: t("settingsTabs.clientEmulation.options.qBittorrent"),
               },
-              { value: "Deluge", label: "Deluge (v2.1+)" },
-              { value: "Transmission", label: "Transmission (v4.0+)" },
-              { value: "uTorrent", label: "uTorrent (v3.5.5 Classic)" },
-              { value: "BiglyBT", label: "BiglyBT / Vuze" },
-              { value: "Leecharr", label: "Leecharr Native (-LC1000-)" },
+              {
+                value: t("settingsTabs.downloadClients.typeDeluge"),
+                label: t("settingsTabs.clientEmulation.options.deluge"),
+              },
+              {
+                value: t("settingsTabs.downloadClients.typeTransmission"),
+                label: t("settingsTabs.clientEmulation.options.transmission"),
+              },
+              {
+                value: "uTorrent",
+                label: t("settingsTabs.clientEmulation.options.uTorrent"),
+              },
+              {
+                value: "BiglyBT",
+                label: t("settingsTabs.clientEmulation.options.biglyBT"),
+              },
+              {
+                value: "Leecharr",
+                label: t("settingsTabs.clientEmulation.options.leecharr"),
+              },
             ]}
-            hint="Determines default User-Agent, extension handshake bitmask, and peer ID structure"
+            hint={t("settingsTabs.clientEmulation.primaryClientHint")}
           />
 
           <SelectInput
-            label="Traffic Pattern Curve"
+            label={t("settingsTabs.clientEmulation.trafficPattern")}
             value={form.trafficPatternProfile}
             onChange={(v) => update("trafficPatternProfile", v)}
             options={[
               {
                 value: "HomeUser",
-                label: "Home Broadband User (Organic Diurnal Curves)",
+                label: t("settingsTabs.clientEmulation.options.homeUser"),
               },
-              { value: "balanced", label: "Balanced Consistent Seedbox" },
-              { value: "burst", label: "Burst / High Throughput" },
-              { value: "stealth", label: "Stealth / Low Profile" },
+              {
+                value: "balanced",
+                label: t("settingsTabs.clientEmulation.options.balanced"),
+              },
+              {
+                value: "burst",
+                label: t("settingsTabs.clientEmulation.options.burst"),
+              },
+              {
+                value: "stealth",
+                label: t("settingsTabs.clientEmulation.options.stealth"),
+              },
             ]}
           />
 
           <TextInput
-            label="Custom Tracker User-Agent"
+            label={t("settingsTabs.clientEmulation.customUserAgent")}
             value={form.bitTorrentUserAgent}
             onChange={(v) => update("bitTorrentUserAgent", v)}
-            hint="HTTP User-Agent sent during tracker announce queries"
+            hint={t("settingsTabs.clientEmulation.customUserAgentHint")}
           />
 
           <TextInput
-            label="Custom Peer ID Prefix"
+            label={t("settingsTabs.clientEmulation.customPeerId")}
             value={form.peerIdPrefix}
             onChange={(v) => update("peerIdPrefix", v)}
-            hint="8-character prefix sent in peer handshake (e.g. -LC1000-)"
+            hint={t("settingsTabs.clientEmulation.customPeerIdHint")}
           />
         </div>
 
@@ -326,25 +355,27 @@ export function ClientEmulationSettingsTab() {
             }}
           >
             <Toggle
-              label="Enable Swarm Intelligence & Heuristics"
+              label={t("settingsTabs.clientEmulation.enableSwarmIntelligence")}
               checked={form.swarmIntelligenceEnabled}
               onChange={(v) => update("swarmIntelligenceEnabled", v)}
-              hint="Dynamically prioritizes unchoking peers with the highest upload reciprocity"
+              hint={t(
+                "settingsTabs.clientEmulation.enableSwarmIntelligenceHint",
+              )}
             />
 
             <Toggle
-              label="Diurnal Time-Based Activity Patterns"
+              label={t("settingsTabs.clientEmulation.diurnalPatterns")}
               checked={form.timeBasedPatterns}
               onChange={(v) => update("timeBasedPatterns", v)}
-              hint="Simulates human usage cycles between day and night hours"
+              hint={t("settingsTabs.clientEmulation.diurnalPatternsHint")}
             />
           </div>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Tracker Query Intervals & Peer Requests"
-        description="Configure announce and scrape frequencies sent to BitTorrent trackers."
+        title={t("settingsTabs.clientEmulation.intervalsTitle")}
+        description={t("settingsTabs.clientEmulation.intervalsDescription")}
       >
         <div
           style={{
@@ -354,42 +385,42 @@ export function ClientEmulationSettingsTab() {
           }}
         >
           <NumberInput
-            label="Announce Interval"
+            label={t("settingsTabs.clientEmulation.announceInterval")}
             value={form.announceIntervalSeconds}
             onChange={(v) => update("announceIntervalSeconds", v)}
             min={60}
             max={7200}
-            suffix="sec"
-            hint="Standard tracker announce cadence"
+            suffix={t("settingsTabs.batch2.sec")}
+            hint={t("settingsTabs.clientEmulation.announceIntervalHint")}
           />
 
           <NumberInput
-            label="Minimum Announce Clamp"
+            label={t("settingsTabs.clientEmulation.minAnnounceClamp")}
             value={form.minAnnounceIntervalSeconds}
             onChange={(v) => update("minAnnounceIntervalSeconds", v)}
             min={30}
             max={1800}
-            suffix="sec"
-            hint="Prevents rapid announce hammer bans"
+            suffix={t("settingsTabs.batch2.sec")}
+            hint={t("settingsTabs.clientEmulation.minAnnounceClampHint")}
           />
 
           <NumberInput
-            label="Scrape Statistics Interval"
+            label={t("settingsTabs.clientEmulation.scrapeInterval")}
             value={form.scrapeIntervalSeconds}
             onChange={(v) => update("scrapeIntervalSeconds", v)}
             min={60}
             max={3600}
-            suffix="sec"
-            hint="Cadence for seeder/leecher counts"
+            suffix={t("settingsTabs.batch2.sec")}
+            hint={t("settingsTabs.clientEmulation.scrapeIntervalHint")}
           />
 
           <NumberInput
-            label="Peers Requested (numwant)"
+            label={t("settingsTabs.clientEmulation.peersRequested")}
             value={form.peerRequestCount}
             onChange={(v) => update("peerRequestCount", v)}
             min={10}
             max={500}
-            hint="Number of peer IPs requested per announce"
+            hint={t("settingsTabs.clientEmulation.peersRequestedHint")}
           />
         </div>
       </SectionCard>

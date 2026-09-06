@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
@@ -9,6 +10,8 @@ import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 import { useToast } from "../../context/ToastContext";
 
 export function DhtSettingsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
@@ -295,7 +298,7 @@ export function DhtSettingsTab() {
                 disabled={!form.enablePex}
                 min={15}
                 max={300}
-                suffix="sec"
+                suffix={t("settingsTabs.batch2.sec")}
               />
               <NumberInput
                 label="Max Peers per PEX Frame"

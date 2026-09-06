@@ -1,3 +1,4 @@
+import { useTranslation, translate } from "../../i18n";
 import { useState } from "react";
 import type {
   NotificationSettings,
@@ -100,8 +101,13 @@ interface NotificationFormState {
 }
 
 function getDefaultFormForImplementation(impl: string): NotificationFormState {
+  const t = translate;
   return {
-    name: impl === "Webhook" ? "Generic Webhook" : impl,
+    // @ts-ignore
+    name:
+      impl === "Webhook"
+        ? t("settingsTabs.notifications.genericWebhook")
+        : impl,
     implementation: impl,
     configContract: `${impl}Settings`,
     enable: true,
@@ -304,35 +310,59 @@ function buildNotificationPayload(
 }
 
 function validateNotificationForm(form: NotificationFormState): string | null {
+  const t = translate;
   if (!form.name.trim()) {
-    return "Notification Name is required";
+    // @ts-ignore
+    return t("settingsTabs.notifications.nameRequired");
   }
 
   switch (form.implementation) {
     case "Discord":
-      if (!form.url.trim()) return "Discord Webhook URL is required";
+      // @ts-ignore
+      if (!form.url.trim())
+        return t("settingsTabs.notifications.discordUrlRequired");
       break;
     case "Telegram":
-      if (!form.token.trim()) return "Telegram Bot Token is required";
-      if (!form.chatId.trim()) return "Telegram Chat ID is required";
+      // @ts-ignore
+      if (!form.token.trim())
+        return t("settingsTabs.notifications.telegramTokenRequired");
+      // @ts-ignore
+      if (!form.chatId.trim())
+        return t("settingsTabs.notifications.telegramChatIdRequired");
       break;
     case "Gotify":
-      if (!form.url.trim()) return "Gotify Server URL is required";
-      if (!form.token.trim()) return "Gotify App Token is required";
+      // @ts-ignore
+      if (!form.url.trim())
+        return t("settingsTabs.notifications.gotifyUrlRequired");
+      // @ts-ignore
+      if (!form.token.trim())
+        return t("settingsTabs.notifications.gotifyTokenRequired");
       break;
     case "Pushover":
-      if (!form.userKey.trim()) return "Pushover User Key is required";
-      if (!form.token.trim()) return "Pushover App Token is required";
+      // @ts-ignore
+      if (!form.userKey.trim())
+        return t("settingsTabs.notifications.pushoverUserKeyRequired");
+      // @ts-ignore
+      if (!form.token.trim())
+        return t("settingsTabs.notifications.pushoverTokenRequired");
       break;
     case "Apprise":
-      if (!form.url.trim()) return "Apprise Target URL is required";
+      // @ts-ignore
+      if (!form.url.trim())
+        return t("settingsTabs.notifications.appriseUrlRequired");
       break;
     case "Webhook":
-      if (!form.url.trim()) return "Webhook URL is required";
+      // @ts-ignore
+      if (!form.url.trim())
+        return t("settingsTabs.notifications.webhookUrlRequired");
       break;
     case "Email":
-      if (!form.server.trim()) return "SMTP Server Host is required";
-      if (!form.recipient.trim()) return "Recipient Email Address is required";
+      // @ts-ignore
+      if (!form.server.trim())
+        return t("settingsTabs.notifications.smtpServerRequired");
+      // @ts-ignore
+      if (!form.recipient.trim())
+        return t("settingsTabs.notifications.recipientEmailRequired");
       break;
   }
 
@@ -345,19 +375,22 @@ function getNotificationSummary(notif: NotificationResource): string {
     if (notif.implementation === "Telegram") {
       return s.chat_id || s.chatId
         ? `Chat ID: ${s.chat_id || s.chatId}`
-        : "Telegram Bot";
+        : // @ts-ignore
+          t("settingsTabs.notifications.telegramBot");
     }
     if (notif.implementation === "Pushover") {
       return s.user
         ? `User: ${String(s.user).substring(0, 6)}...`
-        : "Pushover Alert";
+        : // @ts-ignore
+          t("settingsTabs.notifications.pushoverAlert");
     }
     if (notif.implementation === "Email") {
       return s.recipient
         ? `To: ${s.recipient}`
         : s.server
           ? `${s.server}:${s.port || 587}`
-          : "SMTP Email";
+          : // @ts-ignore
+            t("settingsTabs.notifications.smtpEmail");
     }
     return s.serverUrl || s.url || notif.settings || notif.implementation;
   } catch {
@@ -381,6 +414,8 @@ function getNotificationUrl(notif: NotificationResource): string | null {
 }
 
 export function NotificationsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -425,10 +460,10 @@ export function NotificationsTab() {
       saveSettings(form);
       setDirty(false);
       setSaved(true);
-      showToast("Toast notification preferences saved", "success");
+      showToast(t("settingsTabs.notifications.toastSaved"), "success");
     } catch (err: any) {
       showToast(
-        err?.message || "Failed to save notification preferences",
+        err?.message || t("settingsTabs.notifications.toastSaveFailed"),
         "error",
       );
     }
@@ -479,13 +514,14 @@ export function NotificationsTab() {
             );
           } else {
             showToast(
-              `Test notification for "${name}" failed: ${data.message || "Unknown error"}`,
+              `Test notification for "${name}" failed: ${data.message || t("settingsTabs.notifications.unknownError")}`,
               "error",
             );
           }
         },
         onError: (err: any) => {
-          const msg = err?.message || "Failed to send test notification";
+          const msg =
+            err?.message || t("settingsTabs.notifications.testFailed");
           setTestResults((prev) => ({
             ...prev,
             [id]: { success: false, message: msg },
@@ -494,7 +530,7 @@ export function NotificationsTab() {
         },
       });
     } catch (err: any) {
-      const msg = err?.message || "Failed to send test notification";
+      const msg = err?.message || t("settingsTabs.notifications.testFailed");
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: msg },
@@ -518,22 +554,23 @@ export function NotificationsTab() {
         onSuccess: (data) => {
           setModalTestResult(data);
           if (data.success) {
-            showToast("Test notification sent successfully", "success");
+            showToast(t("settingsTabs.notifications.testSuccess"), "success");
           } else {
             showToast(
-              `Test notification failed: ${data.message || "Unknown error"}`,
+              `Test notification failed: ${data.message || t("settingsTabs.notifications.unknownError")}`,
               "error",
             );
           }
         },
         onError: (err: any) => {
-          const msg = err?.message || "Failed to send test notification";
+          const msg =
+            err?.message || t("settingsTabs.notifications.testFailed");
           setModalTestResult({ success: false, message: msg });
           showToast(`Test notification failed: ${msg}`, "error");
         },
       });
     } catch (err: any) {
-      const msg = err?.message || "Failed to send test notification";
+      const msg = err?.message || t("settingsTabs.notifications.testFailed");
       setModalTestResult({ success: false, message: msg });
       showToast(`Test notification failed: ${msg}`, "error");
     }
@@ -542,10 +579,10 @@ export function NotificationsTab() {
   const handleDelete = async (notif: NotificationResource) => {
     try {
       const ok = await confirm({
-        title: "Delete Notification Connection",
+        title: t("settingsTabs.notifications.deleteTitle"),
         message: `Are you sure you want to delete the notification connection "${notif.name}"?`,
         danger: true,
-        confirmText: "Delete",
+        confirmText: t("settingsTabs.categories.deleteConfirm"),
       });
       if (!ok) return;
 
@@ -554,11 +591,17 @@ export function NotificationsTab() {
           showToast(`Notification "${notif.name}" deleted`, "info");
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to delete notification", "error");
+          showToast(
+            err?.message || t("settingsTabs.notifications.deleteFailed"),
+            "error",
+          );
         },
       });
     } catch (err: any) {
-      showToast(err?.message || "Failed to delete notification", "error");
+      showToast(
+        err?.message || t("settingsTabs.notifications.deleteFailed"),
+        "error",
+      );
     }
   };
 
@@ -580,7 +623,10 @@ export function NotificationsTab() {
             setModalTestResult(null);
           },
           onError: (err: any) => {
-            showToast(err?.message || "Failed to update notification", "error");
+            showToast(
+              err?.message || t("settingsTabs.notifications.updateFailed"),
+              "error",
+            );
           },
         });
       } else {
@@ -591,12 +637,18 @@ export function NotificationsTab() {
             setModalTestResult(null);
           },
           onError: (err: any) => {
-            showToast(err?.message || "Failed to create notification", "error");
+            showToast(
+              err?.message || t("settingsTabs.notifications.createFailed"),
+              "error",
+            );
           },
         });
       }
     } catch (err: any) {
-      showToast(err?.message || "Failed to save notification", "error");
+      showToast(
+        err?.message || t("settingsTabs.notifications.saveFailed"),
+        "error",
+      );
     }
   };
 
@@ -612,76 +664,90 @@ export function NotificationsTab() {
       />
 
       <SectionCard
-        title="UI Toast Notifications"
-        description="Configure in-browser popup toasts and alert positions"
+        title={t("settingsTabs.notifications.toastTitle")}
+        description={t("settingsTabs.notifications.toastDescription")}
       >
         <Toggle
-          label="Enable Notifications"
+          label={t("settingsTabs.notifications.enableToast")}
           checked={form.enabled}
           onChange={(v) => setToastPref("enabled", v)}
-          hint="Show toast notification popups on application events"
+          hint={t("settingsTabs.notifications.enableToastHint")}
         />
         <SelectInput
-          label="Position"
+          label={t("settingsTabs.notifications.position")}
           value={form.position}
           onChange={(v) => setToastPref("position", v)}
           options={[
-            { value: "top-right", label: "Top Right" },
-            { value: "top-left", label: "Top Left" },
-            { value: "bottom-right", label: "Bottom Right" },
-            { value: "bottom-left", label: "Bottom Left" },
+            {
+              value: "top-right",
+              label: t("settingsTabs.notifications.positionTopRight"),
+            },
+            {
+              value: "top-left",
+              label: t("settingsTabs.notifications.positionTopLeft"),
+            },
+            {
+              value: "bottom-right",
+              label: t("settingsTabs.notifications.positionBottomRight"),
+            },
+            {
+              value: "bottom-left",
+              label: t("settingsTabs.notifications.positionBottomLeft"),
+            },
           ]}
           disabled={!form.enabled}
-          hint="Screen corner where notification popups will dock"
+          hint={t("settingsTabs.notifications.positionHint")}
         />
         <NumberInput
-          label="Auto-Dismiss Timeout"
+          label={t("settingsTabs.notifications.timeout")}
           value={form.autoDismissSeconds}
           onChange={(v) => setToastPref("autoDismissSeconds", v)}
           min={1}
           max={60}
-          suffix="seconds"
+          suffix={t("settingsTabs.notifications.timeoutSuffix")}
           disabled={!form.enabled}
-          hint="Duration before toasts automatically fade out"
+          hint={t("settingsTabs.notifications.timeoutHint")}
         />
       </SectionCard>
 
       <SectionCard
-        title="Notification Event Filters"
-        description="Filter specific alert categories"
+        title={t("settingsTabs.notifications.filtersTitle")}
+        description={t("settingsTabs.notifications.filtersDescription")}
       >
         <Toggle
-          label="Information"
+          label={t("settingsTabs.notifications.info")}
           checked={form.showInfo}
           onChange={(v) => setToastPref("showInfo", v)}
-          hint="Informational background event notifications"
+          hint={t("settingsTabs.notifications.infoHint")}
         />
         <Toggle
-          label="Success"
+          label={t("settingsTabs.notifications.success")}
           checked={form.showSuccess}
           onChange={(v) => setToastPref("showSuccess", v)}
-          hint="Successful operations, imports, and torrent actions"
+          hint={t("settingsTabs.notifications.successHint")}
         />
         <Toggle
-          label="Warning"
+          label={t("settingsTabs.notifications.warning")}
           checked={form.showWarning}
           onChange={(v) => setToastPref("showWarning", v)}
-          hint="Tracker timeouts, rate throttling, and disk threshold warnings"
+          hint={t("settingsTabs.notifications.warningHint")}
         />
         <Toggle
-          label="Error"
+          label={t("settingsTabs.notifications.error")}
           checked={form.showError}
           onChange={(v) => setToastPref("showError", v)}
-          hint="Critical failures and network disconnects"
+          hint={t("settingsTabs.notifications.errorHint")}
         />
       </SectionCard>
 
       <SectionCard
-        title="Outbound Webhooks & Notification Services"
-        description="Configure outbound alerts for Discord, Telegram, Gotify, Pushover, Apprise, and Generic Webhooks"
+        title={t("settingsTabs.notifications.outboundTitle")}
+        description={t("settingsTabs.notifications.outboundDescription")}
       >
         {isLoadingNotifications ? (
-          <div className="loading">Loading notifications...</div>
+          <div className="loading">
+            {t("settingsTabs.notifications.loading")}
+          </div>
         ) : (
           <div className="provider-cards">
             {notifications?.map((notif) => {
@@ -709,7 +775,7 @@ export function NotificationsTab() {
                     )}
                     <button
                       className="provider-card-action"
-                      title="Test Notification"
+                      title={t("settingsTabs.notifications.testBtnTitle")}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleTest(notif.id, notif.name);
@@ -719,7 +785,7 @@ export function NotificationsTab() {
                     </button>
                     <button
                       className="provider-card-action provider-card-action-danger"
-                      title="Delete Notification"
+                      title={t("settingsTabs.notifications.deleteBtnTitle")}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(notif);
@@ -735,34 +801,34 @@ export function NotificationsTab() {
                     </span>
                     {notif.enable === false && (
                       <span className="provider-card-badge provider-card-badge-gray">
-                        Disabled
+                        {t("settingsTabs.categories.table.disabled")}
                       </span>
                     )}
                     {notif.onGrab && (
                       <span className="provider-card-badge provider-card-badge-blue">
-                        Grab
+                        {t("settingsTabs.notifications.badgeGrab")}
                       </span>
                     )}
                     {notif.onDownloadComplete && (
                       <span className="provider-card-badge provider-card-badge-blue">
-                        Complete
+                        {t("settingsTabs.notifications.badgeComplete")}
                       </span>
                     )}
                     {notif.onSeedGoalReached && (
                       <span className="provider-card-badge provider-card-badge-blue">
-                        Seed Goal
+                        {t("settingsTabs.notifications.badgeSeedGoal")}
                       </span>
                     )}
                     {notif.onHealthIssue && (
                       <span className="provider-card-badge provider-card-badge-blue">
-                        Health
+                        {t("settingsTabs.notifications.badgeHealth")}
                       </span>
                     )}
                   </div>
                   <div className="provider-card-info">{summary}</div>
                   {testResults[notif.id]?.success === true && (
                     <div className="provider-card-test provider-card-test-ok">
-                      ✓ Connection passed
+                      {t("settingsTabs.indexers.connectionPassed")}
                     </div>
                   )}
                   {testResults[notif.id]?.success === false && (
@@ -770,12 +836,12 @@ export function NotificationsTab() {
                       className="provider-card-test provider-card-test-fail"
                       title={testResults[notif.id]?.message}
                     >
-                      ✕ Connection failed
+                      {t("settingsTabs.indexers.connectionFailed")}
                     </div>
                   )}
                   {testResults[notif.id] === null && (
                     <div className="provider-card-test provider-card-test-pending">
-                      Testing...
+                      {t("settingsTabs.notifications.testing")}
                     </div>
                   )}
                 </div>
@@ -784,7 +850,7 @@ export function NotificationsTab() {
             <div
               className="provider-card-add"
               onClick={handleOpenAddModal}
-              title="Add Notification Connection"
+              title={t("settingsTabs.notifications.addConnection")}
             >
               <span className="provider-card-add-icon">+</span>
             </div>
@@ -817,22 +883,22 @@ export function NotificationsTab() {
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
             >
               {editing.id
-                ? "Edit Notification Connection"
-                : "Add Notification Connection"}
+                ? t("settingsTabs.notifications.editConnection")
+                : t("settingsTabs.notifications.addConnection")}
             </div>
 
             <TextInput
-              label="Name"
+              label={t("settingsTabs.categories.table.name")}
               value={editing.name}
               onChange={(v) => {
                 setEditing({ ...editing, name: v });
                 setModalTestResult(null);
               }}
-              placeholder="e.g. My Discord Alerts"
+              placeholder={t("settingsTabs.notifications.namePlaceholder")}
             />
 
             <SelectInput
-              label="Notification Template"
+              label={t("settingsTabs.notifications.template")}
               value={editing.implementation}
               onChange={handleTypeChange}
               options={[
@@ -841,45 +907,48 @@ export function NotificationsTab() {
                 { value: "Gotify", label: "Gotify" },
                 { value: "Pushover", label: "Pushover" },
                 { value: "Apprise", label: "Apprise" },
-                { value: "Webhook", label: "Generic Webhook" },
+                {
+                  value: "Webhook",
+                  label: t("settingsTabs.notifications.genericWebhook"),
+                },
                 { value: "Email", label: "Email" },
               ]}
-              hint="Select notification platform or webhook format"
+              hint={t("settingsTabs.notifications.templateHint")}
             />
 
             <Toggle
-              label="Enable Connection"
+              label={t("settingsTabs.notifications.enableConnection")}
               checked={editing.enable}
               onChange={(v) => setEditing({ ...editing, enable: v })}
-              hint="Enable or disable outbound alerts for this destination"
+              hint={t("settingsTabs.notifications.enableConnectionHint")}
             />
 
             {/* Platform-specific configuration fields */}
             {editing.implementation === "Discord" && (
               <>
                 <TextInput
-                  label="Discord Webhook URL"
+                  label={t("settingsTabs.notifications.discordUrl")}
                   value={editing.url}
                   onChange={(v) => {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
                   placeholder="https://discord.com/api/webhooks/..."
-                  hint="Discord channel incoming webhook URL"
+                  hint={t("settingsTabs.notifications.discordUrlHint")}
                 />
                 <TextInput
-                  label="Bot Username"
+                  label={t("settingsTabs.notifications.botUsername")}
                   value={editing.username}
                   onChange={(v) => setEditing({ ...editing, username: v })}
                   placeholder="Leecharr"
-                  hint="Optional custom username for Discord bot"
+                  hint={t("settingsTabs.notifications.discordBotUsernameHint")}
                 />
                 <TextInput
-                  label="Avatar URL"
+                  label={t("settingsTabs.notifications.avatarUrl")}
                   value={editing.avatarUrl}
                   onChange={(v) => setEditing({ ...editing, avatarUrl: v })}
                   placeholder="https://..."
-                  hint="Optional URL for Discord webhook avatar icon"
+                  hint={t("settingsTabs.notifications.avatarUrlHint")}
                 />
               </>
             )}
@@ -887,7 +956,7 @@ export function NotificationsTab() {
             {editing.implementation === "Telegram" && (
               <>
                 <TextInput
-                  label="Bot Token"
+                  label={t("settingsTabs.notifications.botToken")}
                   value={editing.token}
                   onChange={(v) => {
                     setEditing({ ...editing, token: v });
@@ -895,17 +964,17 @@ export function NotificationsTab() {
                   }}
                   type="password"
                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-                  hint="Telegram Bot token obtained from @BotFather"
+                  hint={t("settingsTabs.notifications.telegramTokenHint")}
                 />
                 <TextInput
-                  label="Chat ID"
+                  label={t("settingsTabs.notifications.chatId")}
                   value={editing.chatId}
                   onChange={(v) => {
                     setEditing({ ...editing, chatId: v });
                     setModalTestResult(null);
                   }}
                   placeholder="123456789"
-                  hint="Telegram Chat or Channel ID to dispatch messages to"
+                  hint={t("settingsTabs.notifications.chatIdHint")}
                 />
               </>
             )}
@@ -913,17 +982,17 @@ export function NotificationsTab() {
             {editing.implementation === "Gotify" && (
               <>
                 <TextInput
-                  label="Server URL"
+                  label={t("settingsTabs.notifications.serverUrl")}
                   value={editing.url}
                   onChange={(v) => {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
                   placeholder="http://gotify.example.com"
-                  hint="Base URL of your Gotify instance"
+                  hint={t("settingsTabs.notifications.gotifyUrlHint")}
                 />
                 <TextInput
-                  label="Application Token"
+                  label={t("settingsTabs.notifications.appToken")}
                   value={editing.token}
                   onChange={(v) => {
                     setEditing({ ...editing, token: v });
@@ -931,15 +1000,15 @@ export function NotificationsTab() {
                   }}
                   type="password"
                   placeholder="A1b2c3d4e5"
-                  hint="Application token generated in Gotify"
+                  hint={t("settingsTabs.notifications.gotifyTokenHint")}
                 />
                 <NumberInput
-                  label="Priority"
+                  label={t("settingsTabs.notifications.priority")}
                   value={editing.priority}
                   onChange={(v) => setEditing({ ...editing, priority: v })}
                   min={1}
                   max={10}
-                  hint="Notification priority (1-10, default 5)"
+                  hint={t("settingsTabs.notifications.priorityHint")}
                 />
               </>
             )}
@@ -947,26 +1016,30 @@ export function NotificationsTab() {
             {editing.implementation === "Pushover" && (
               <>
                 <TextInput
-                  label="User Key"
+                  label={t("settingsTabs.notifications.userKey")}
                   value={editing.userKey}
                   onChange={(v) => {
                     setEditing({ ...editing, userKey: v });
                     setModalTestResult(null);
                   }}
                   type="password"
-                  placeholder="Your 30-character User Key"
-                  hint="Pushover user or group key"
+                  placeholder={t(
+                    "settingsTabs.notifications.userKeyPlaceholder",
+                  )}
+                  hint={t("settingsTabs.notifications.pushoverUserKeyHint")}
                 />
                 <TextInput
-                  label="Application API Token"
+                  label={t("settingsTabs.notifications.appApiToken")}
                   value={editing.token}
                   onChange={(v) => {
                     setEditing({ ...editing, token: v });
                     setModalTestResult(null);
                   }}
                   type="password"
-                  placeholder="Your 30-character App Token"
-                  hint="Pushover application API token"
+                  placeholder={t(
+                    "settingsTabs.notifications.appTokenPlaceholder",
+                  )}
+                  hint={t("settingsTabs.notifications.pushoverAppTokenHint")}
                 />
               </>
             )}
@@ -974,14 +1047,14 @@ export function NotificationsTab() {
             {editing.implementation === "Apprise" && (
               <>
                 <TextInput
-                  label="Apprise Target URL"
+                  label={t("settingsTabs.notifications.appriseUrl")}
                   value={editing.url}
                   onChange={(v) => {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
                   placeholder="http://localhost:8000/notify"
-                  hint="Apprise API server endpoint or service URL"
+                  hint={t("settingsTabs.notifications.appriseUrlHint")}
                 />
               </>
             )}
@@ -989,17 +1062,17 @@ export function NotificationsTab() {
             {editing.implementation === "Webhook" && (
               <>
                 <TextInput
-                  label="Webhook URL"
+                  label={t("settingsTabs.notifications.webhookUrl")}
                   value={editing.url}
                   onChange={(v) => {
                     setEditing({ ...editing, url: v });
                     setModalTestResult(null);
                   }}
                   placeholder="https://example.com/webhook"
-                  hint="Destination HTTP or HTTPS endpoint"
+                  hint={t("settingsTabs.notifications.webhookUrlHint")}
                 />
                 <SelectInput
-                  label="HTTP Method"
+                  label={t("settingsTabs.notifications.httpMethod")}
                   value={editing.method}
                   onChange={(v) => setEditing({ ...editing, method: v })}
                   options={[
@@ -1008,24 +1081,28 @@ export function NotificationsTab() {
                   ]}
                 />
                 <TextInput
-                  label="Custom Headers (JSON)"
+                  label={t("settingsTabs.notifications.customHeaders")}
                   value={editing.customHeaders}
                   onChange={(v) => setEditing({ ...editing, customHeaders: v })}
                   placeholder='{"Authorization": "Bearer token", "X-Custom": "val"}'
-                  hint="Optional JSON key-value map of HTTP headers"
+                  hint={t("settingsTabs.notifications.customHeadersHint")}
                 />
                 <TextInput
-                  label="Basic Auth Username"
+                  label={t("settingsTabs.notifications.basicAuthUsername")}
                   value={editing.username}
                   onChange={(v) => setEditing({ ...editing, username: v })}
-                  placeholder="Optional HTTP basic auth username"
+                  placeholder={t(
+                    "settingsTabs.notifications.basicAuthUsernamePlaceholder",
+                  )}
                 />
                 <TextInput
-                  label="Basic Auth Password"
+                  label={t("settingsTabs.notifications.basicAuthPassword")}
                   value={editing.password}
                   onChange={(v) => setEditing({ ...editing, password: v })}
                   type="password"
-                  placeholder="Optional HTTP basic auth password"
+                  placeholder={t(
+                    "settingsTabs.notifications.basicAuthPasswordPlaceholder",
+                  )}
                 />
               </>
             )}
@@ -1033,62 +1110,68 @@ export function NotificationsTab() {
             {editing.implementation === "Email" && (
               <>
                 <TextInput
-                  label="SMTP Server"
+                  label={t("settingsTabs.notifications.smtpServer")}
                   value={editing.server}
                   onChange={(v) => {
                     setEditing({ ...editing, server: v });
                     setModalTestResult(null);
                   }}
                   placeholder="smtp.example.com"
-                  hint="Outgoing mail server hostname"
+                  hint={t("settingsTabs.notifications.smtpServerHint")}
                 />
                 <NumberInput
-                  label="Port"
+                  label={t("settingsTabs.notifications.port")}
                   value={editing.port}
                   onChange={(v) => setEditing({ ...editing, port: v })}
                   min={1}
                   max={65535}
-                  hint="SMTP port (e.g. 587, 465, or 25)"
+                  hint={t("settingsTabs.notifications.portHint")}
                 />
                 <Toggle
-                  label="Use SSL / TLS"
+                  label={t("settingsTabs.notifications.useSsl")}
                   checked={editing.useSsl}
                   onChange={(v) => setEditing({ ...editing, useSsl: v })}
                 />
                 <TextInput
-                  label="From Address"
+                  label={t("settingsTabs.notifications.fromAddress")}
                   value={editing.from}
                   onChange={(v) => setEditing({ ...editing, from: v })}
                   placeholder="leecharr@example.com"
-                  hint="Sender email address"
+                  hint={t("settingsTabs.notifications.fromAddressHint")}
                 />
                 <TextInput
-                  label="Recipient Address"
+                  label={t("settingsTabs.notifications.recipientAddress")}
                   value={editing.recipient}
                   onChange={(v) => {
                     setEditing({ ...editing, recipient: v });
                     setModalTestResult(null);
                   }}
                   placeholder="user@example.com"
-                  hint="Destination email address for notifications"
+                  hint={t("settingsTabs.notifications.recipientAddressHint")}
                 />
                 <TextInput
-                  label="SMTP Username"
+                  label={t("settingsTabs.notifications.smtpUsername")}
                   value={editing.username}
                   onChange={(v) => setEditing({ ...editing, username: v })}
-                  placeholder="Optional SMTP authentication username"
+                  placeholder={t(
+                    "settingsTabs.notifications.smtpUsernamePlaceholder",
+                  )}
                 />
                 <TextInput
-                  label="SMTP Password"
+                  label={t("settingsTabs.notifications.smtpPassword")}
                   value={editing.password}
                   onChange={(v) => setEditing({ ...editing, password: v })}
                   type="password"
-                  placeholder="Optional SMTP authentication password"
+                  placeholder={t(
+                    "settingsTabs.notifications.smtpPasswordPlaceholder",
+                  )}
                 />
               </>
             )}
 
-            <SectionTitle>Notification Triggers</SectionTitle>
+            <SectionTitle>
+              {t("settingsTabs.notifications.triggers")}
+            </SectionTitle>
             <div
               style={{
                 display: "grid",
@@ -1097,80 +1180,82 @@ export function NotificationsTab() {
               }}
             >
               <Toggle
-                label="On Grab"
+                label={t("settingsTabs.notifications.onGrab")}
                 checked={editing.onGrab}
                 onChange={(v) => setEditing({ ...editing, onGrab: v })}
-                hint="Torrent or magnet added"
+                hint={t("settingsTabs.notifications.onGrabHint")}
               />
               <Toggle
-                label="On Download Complete"
+                label={t("settingsTabs.notifications.onDownloadComplete")}
                 checked={editing.onDownloadComplete}
                 onChange={(v) =>
                   setEditing({ ...editing, onDownloadComplete: v })
                 }
-                hint="Piece check completes 100%"
+                hint={t("settingsTabs.notifications.onDownloadCompleteHint")}
               />
               <Toggle
-                label="On Seed Goal Reached"
+                label={t("settingsTabs.notifications.onSeedGoalReached")}
                 checked={editing.onSeedGoalReached}
                 onChange={(v) =>
                   setEditing({ ...editing, onSeedGoalReached: v })
                 }
-                hint="Target ratio or seed time met"
+                hint={t("settingsTabs.notifications.onSeedGoalReachedHint")}
               />
               <Toggle
-                label="On Health Issue"
+                label={t("settingsTabs.notifications.onHealthIssue")}
                 checked={editing.onHealthIssue}
                 onChange={(v) => setEditing({ ...editing, onHealthIssue: v })}
-                hint="Errors, tracker timeout, low disk"
+                hint={t("settingsTabs.notifications.onHealthIssueHint")}
               />
               <Toggle
-                label="On Health Restored"
+                label={t("settingsTabs.notifications.onHealthRestored")}
                 checked={editing.onHealthRestored}
                 onChange={(v) =>
                   setEditing({ ...editing, onHealthRestored: v })
                 }
-                hint="Health issue returns to normal"
+                hint={t("settingsTabs.notifications.onHealthRestoredHint")}
               />
               <Toggle
-                label="On Manual Action Required"
+                label={t("settingsTabs.notifications.onManualActionRequired")}
                 checked={editing.onManualInteractionRequired}
                 onChange={(v) =>
                   setEditing({ ...editing, onManualInteractionRequired: v })
                 }
-                hint="Stalled or action needed"
+                hint={t(
+                  "settingsTabs.notifications.onManualActionRequiredHint",
+                )}
               />
               <Toggle
-                label="On Media Inspected"
+                label={t("settingsTabs.notifications.onMediaInspected")}
                 checked={editing.onMediaInspected}
                 onChange={(v) =>
                   setEditing({ ...editing, onMediaInspected: v })
                 }
-                hint="Codecs and stream info inspected"
+                hint={t("settingsTabs.notifications.onMediaInspectedHint")}
               />
               <Toggle
-                label="On Extract Complete"
+                label={t("settingsTabs.notifications.onExtractComplete")}
                 checked={editing.onExtractComplete}
                 onChange={(v) =>
                   setEditing({ ...editing, onExtractComplete: v })
                 }
-                hint="Archive unpack finished"
+                hint={t("settingsTabs.notifications.onExtractCompleteHint")}
               />
               <Toggle
-                label="On Torrent Deleted"
+                label={t("settingsTabs.notifications.onTorrentDeleted")}
                 checked={editing.onTorrentDeleted}
                 onChange={(v) =>
                   setEditing({ ...editing, onTorrentDeleted: v })
                 }
-                hint="Torrent removed from client"
+                hint={t("settingsTabs.notifications.onTorrentDeletedHint")}
               />
               <Toggle
-                label="On Application Update"
+                label={t("settingsTabs.notifications.onApplicationUpdate")}
                 checked={editing.onApplicationUpdate}
                 onChange={(v) =>
                   setEditing({ ...editing, onApplicationUpdate: v })
                 }
-                hint="Leecharr upgraded to new version"
+                hint={t("settingsTabs.notifications.onApplicationUpdateHint")}
               />
             </div>
 
@@ -1189,7 +1274,7 @@ export function NotificationsTab() {
                   gap: "0.5rem",
                 }}
               >
-                <span>Testing notification connection...</span>
+                <span>{t("settingsTabs.notifications.testingConnection")}</span>
               </div>
             )}
 
@@ -1229,8 +1314,8 @@ export function NotificationsTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
                     {modalTestResult.success
-                      ? "Notification Sent Successfully"
-                      : "Notification Test Failed"}
+                      ? t("settingsTabs.notifications.sentSuccessfully")
+                      : t("settingsTabs.notifications.testFailedMsg")}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -1271,8 +1356,8 @@ export function NotificationsTab() {
                 disabled={testDirectMutation.isPending}
               >
                 {testDirectMutation.isPending
-                  ? "Testing..."
-                  : "Test Notification"}
+                  ? t("settingsTabs.notifications.testing")
+                  : t("settingsTabs.notifications.testBtnTitle")}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -1283,7 +1368,7 @@ export function NotificationsTab() {
                     setModalTestResult(null);
                   }}
                 >
-                  Cancel
+                  {t("settingsTabs.categories.modal.cancel")}
                 </button>
                 <button
                   type="button"
@@ -1294,8 +1379,8 @@ export function NotificationsTab() {
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? "Saving..."
-                    : "Save"}
+                    ? t("settingsTabs.categories.modal.saving")
+                    : t("settingsTabs.notifications.save")}
                 </button>
               </div>
             </div>

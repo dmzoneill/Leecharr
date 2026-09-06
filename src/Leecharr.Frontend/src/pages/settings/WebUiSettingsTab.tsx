@@ -5,6 +5,8 @@ import { LanguageSelector } from "../../components/LanguageSelector";
 import { useTranslation, useI18nStore } from "../../i18n";
 
 export function WebUiSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
 
@@ -62,7 +64,7 @@ export function WebUiSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading appearance settings...
+        {t("settingsTabs.webUi.loading")}
       </div>
     );
   }
@@ -108,8 +110,8 @@ export function WebUiSettingsTab() {
       />
 
       <SectionCard
-        title="Language & Localization"
-        description="Select the application display language and text direction."
+        title={t("settingsTabs.webUi.languageSection.title")}
+        description={t("settingsTabs.webUi.languageSection.description")}
       >
         <div style={{ marginBottom: "1.5rem" }}>
           <label
@@ -120,10 +122,10 @@ export function WebUiSettingsTab() {
               color: "var(--text-primary)",
             }}
           >
-            Interface Language
+            {t("settingsTabs.webUi.languageSection.label")}
           </label>
           <div style={{ maxWidth: "280px" }}>
-            <LanguageSelector />
+            <LanguageSelector align="left" showFullLabel />
           </div>
           <p
             style={{
@@ -132,15 +134,14 @@ export function WebUiSettingsTab() {
               color: "var(--text-muted)",
             }}
           >
-            Changes to the interface language are applied immediately across all
-            components.
+            {t("settingsTabs.webUi.languageSection.description")}
           </p>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Visual Theme & Color Palette"
-        description="Customize dark surfaces, contrast, and interactive brand accent colors."
+        title={t("settingsTabs.webUi.themeSection.title")}
+        description={t("settingsTabs.webUi.themeSection.description")}
       >
         <div
           style={{
@@ -151,37 +152,85 @@ export function WebUiSettingsTab() {
           }}
         >
           <SelectInput
-            label="Theme Surface Style"
+            label={t("settingsTabs.webUi.themeSection.surfaceLabel")}
             value={form.themeStyle}
             onChange={(v) => update("themeStyle", v)}
             options={[
-              { value: "dark", label: "Midnight Charcoal (#10111A) [Default]" },
-              { value: "indigo", label: "Deep Indigo Navy (#0B0E1E)" },
-              { value: "oled", label: "Pure Pitch Black OLED (#000000)" },
-              { value: "slate", label: "Slate Charcoal (#0F141C)" },
-              { value: "light", label: "Linen Cream Light (#F5F0E5)" },
+              {
+                value: "dark",
+                label: t("settingsTabs.webUi.themeSection.surfaceOptions.dark"),
+              },
+              {
+                value: "indigo",
+                label: t(
+                  "settingsTabs.webUi.themeSection.surfaceOptions.indigo",
+                ),
+              },
+              {
+                value: "oled",
+                label: t("settingsTabs.webUi.themeSection.surfaceOptions.oled"),
+              },
+              {
+                value: "slate",
+                label: t(
+                  "settingsTabs.webUi.themeSection.surfaceOptions.slate",
+                ),
+              },
+              {
+                value: "light",
+                label: t(
+                  "settingsTabs.webUi.themeSection.surfaceOptions.light",
+                ),
+              },
               {
                 value: "system",
-                label: "Match Operating System (prefers-color-scheme)",
+                label: t(
+                  "settingsTabs.webUi.themeSection.surfaceOptions.system",
+                ),
               },
             ]}
-            hint="Base background, top navigation bar, and elevated card surface tones"
+            hint={t("settingsTabs.webUi.themeSection.surfaceHint")}
           />
 
           <SelectInput
-            label="Brand Accent Palette"
+            label={t("settingsTabs.webUi.themeSection.accentLabel")}
             value={form.colorScheme}
             onChange={(v) => update("colorScheme", v)}
             options={[
-              { value: "auto", label: "Warm Gold / Amber (#FFD166) [Default]" },
-              { value: "blue", label: "Sapphire Blue (#3B82F6)" },
-              { value: "emerald", label: "Emerald Green (#10B981)" },
-              { value: "purple", label: "Amethyst Purple (#8B5CF6)" },
-              { value: "rose", label: "Crimson Rose (#F43F5E)" },
-              { value: "cyan", label: "Electric Cyan (#06B6D4)" },
-              { value: "amber", label: "Deep Amber (#F59E0B)" },
+              {
+                value: "auto",
+                label: t("settingsTabs.webUi.themeSection.accentOptions.auto"),
+              },
+              {
+                value: "blue",
+                label: t("settingsTabs.webUi.themeSection.accentOptions.blue"),
+              },
+              {
+                value: "emerald",
+                label: t(
+                  "settingsTabs.webUi.themeSection.accentOptions.emerald",
+                ),
+              },
+              {
+                value: "purple",
+                label: t(
+                  "settingsTabs.webUi.themeSection.accentOptions.purple",
+                ),
+              },
+              {
+                value: "rose",
+                label: t("settingsTabs.webUi.themeSection.accentOptions.rose"),
+              },
+              {
+                value: "cyan",
+                label: t("settingsTabs.webUi.themeSection.accentOptions.cyan"),
+              },
+              {
+                value: "amber",
+                label: t("settingsTabs.webUi.themeSection.accentOptions.amber"),
+              },
             ]}
-            hint="Interactive action buttons, active tab indicators, speed pulse highlights, and progress bars"
+            hint={t("settingsTabs.webUi.themeSection.accentHint")}
           />
         </div>
 
@@ -225,7 +274,7 @@ export function WebUiSettingsTab() {
                   color: "var(--text-primary)",
                 }}
               >
-                Live Palette Preview
+                {t("settingsTabs.webUi.themeSection.preview.title")}
               </span>
               <span
                 style={{
@@ -241,7 +290,7 @@ export function WebUiSettingsTab() {
               </span>
             </div>
             <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Changes take effect immediately in the preview
+              {t("settingsTabs.webUi.themeSection.preview.note")}
             </span>
           </div>
 
@@ -261,7 +310,7 @@ export function WebUiSettingsTab() {
                   marginBottom: "0.35rem",
                 }}
               >
-                Interactive Buttons
+                {t("settingsTabs.webUi.themeSection.preview.buttons.title")}
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -277,7 +326,7 @@ export function WebUiSettingsTab() {
                     cursor: "pointer",
                   }}
                 >
-                  Primary Action
+                  {t("settingsTabs.webUi.themeSection.preview.buttons.primary")}
                 </button>
                 <button
                   type="button"
@@ -292,7 +341,7 @@ export function WebUiSettingsTab() {
                     cursor: "pointer",
                   }}
                 >
-                  Subtle Outline
+                  {t("settingsTabs.webUi.themeSection.preview.buttons.subtle")}
                 </button>
               </div>
             </div>
@@ -305,7 +354,7 @@ export function WebUiSettingsTab() {
                   marginBottom: "0.35rem",
                 }}
               >
-                Download Progress (72%)
+                {t("settingsTabs.webUi.themeSection.preview.progress.title")}
               </div>
               <div
                 style={{
@@ -335,7 +384,7 @@ export function WebUiSettingsTab() {
                   marginBottom: "0.35rem",
                 }}
               >
-                Speed Metric Badge
+                {t("settingsTabs.webUi.themeSection.preview.speed.title")}
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <span

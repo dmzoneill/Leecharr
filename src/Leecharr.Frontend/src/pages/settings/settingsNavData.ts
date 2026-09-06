@@ -30,21 +30,21 @@ export interface SettingsGroupDefinition {
 export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   {
     id: "general-security",
-    title: "General & Security",
-    shortLabel: "General",
-    description:
-      "Application hosting, interface theming, authentication, and watch folder directory monitoring",
+    title: "settingsTabs.nav.groups.generalSecurity.title",
+    shortLabel: "settingsTabs.nav.groups.generalSecurity.shortLabel",
+    description: "settingsTabs.nav.groups.generalSecurity.description",
     icon: "⚙️",
     pages: [
       {
         id: "host",
         groupId: "general-security",
-        title: "Host & Web Server",
-        shortLabel: "Host & Server",
+        title: "settingsTabs.nav.groups.generalSecurity.pages.host.title",
+        shortLabel:
+          "settingsTabs.nav.groups.generalSecurity.pages.host.shortLabel",
         description:
-          "Configure HTTP listening port, network bind address, and reverse proxy URL sub-path",
+          "settingsTabs.nav.groups.generalSecurity.pages.host.description",
         icon: "🖥️",
-        badge: "Core",
+        badge: "settingsTabs.nav.groups.generalSecurity.pages.host.badge",
         keywords: [
           "port",
           "bind address",
@@ -59,10 +59,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "webui",
         groupId: "general-security",
-        title: "Web UI & Appearance",
-        shortLabel: "Web UI & Themes",
+        title: "settingsTabs.nav.groups.generalSecurity.pages.webui.title",
+        shortLabel:
+          "settingsTabs.nav.groups.generalSecurity.pages.webui.shortLabel",
         description:
-          "Dark/light surfaces, typography contrast, brand accent palettes, and display formatting",
+          "settingsTabs.nav.groups.generalSecurity.pages.webui.description",
         icon: "🎨",
         keywords: [
           "theme",
@@ -79,12 +80,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "security",
         groupId: "general-security",
-        title: "Security & Authentication",
-        shortLabel: "Security & API",
+        title: "settingsTabs.nav.groups.generalSecurity.pages.security.title",
+        shortLabel:
+          "settingsTabs.nav.groups.generalSecurity.pages.security.shortLabel",
         description:
-          "Forms/Basic user authentication and Leecharr REST API key (X-Api-Key) management",
+          "settingsTabs.nav.groups.generalSecurity.pages.security.description",
         icon: "🔒",
-        badge: "Auth",
+        badge: "settingsTabs.nav.groups.generalSecurity.pages.security.badge",
         keywords: [
           "api key",
           "password",
@@ -99,10 +101,12 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "watch-folder",
         groupId: "general-security",
-        title: "Automated Watch Folder",
-        shortLabel: "Watch Folder",
+        title:
+          "settingsTabs.nav.groups.generalSecurity.pages.watchFolder.title",
+        shortLabel:
+          "settingsTabs.nav.groups.generalSecurity.pages.watchFolder.shortLabel",
         description:
-          "Monitor directories for incoming .torrent payload files with automated queue import",
+          "settingsTabs.nav.groups.generalSecurity.pages.watchFolder.description",
         icon: "📁",
         keywords: [
           "watch folder",
@@ -117,19 +121,19 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   },
   {
     id: "storage-queues",
-    title: "Storage & Queues",
-    shortLabel: "Storage",
-    description:
-      "Download staging directories, sparse preallocation, queue concurrency, and automation hooks",
+    title: "settingsTabs.nav.groups.storageQueues.title",
+    shortLabel: "settingsTabs.nav.groups.storageQueues.shortLabel",
+    description: "settingsTabs.nav.groups.storageQueues.description",
     icon: "💾",
     pages: [
       {
         id: "storage",
         groupId: "storage-queues",
-        title: "Download Staging & File Storage",
-        shortLabel: "Storage & Staging",
+        title: "settingsTabs.nav.groups.storageQueues.pages.storage.title",
+        shortLabel:
+          "settingsTabs.nav.groups.storageQueues.pages.storage.shortLabel",
         description:
-          "Incomplete staging paths, sparse disk preallocation mode, POSIX umask, and partial file extensions",
+          "settingsTabs.nav.groups.storageQueues.pages.storage.description",
         icon: "💽",
         keywords: [
           "download dir",
@@ -150,12 +154,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "queue",
         groupId: "storage-queues",
-        title: "Queue & Concurrency Management",
-        shortLabel: "Queue & Limits",
+        title: "settingsTabs.nav.groups.storageQueues.pages.queue.title",
+        shortLabel:
+          "settingsTabs.nav.groups.storageQueues.pages.queue.shortLabel",
         description:
-          "Active download/seed queue limits, stalled transfer timeouts, and share ratio limits",
+          "settingsTabs.nav.groups.storageQueues.pages.queue.description",
         icon: "📊",
-        badge: "Limits",
+        badge: "settingsTabs.nav.groups.storageQueues.pages.queue.badge",
         keywords: [
           "queue size",
           "concurrency",
@@ -173,12 +178,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "categories",
         groupId: "storage-queues",
-        title: "Categories & Path Routing",
-        shortLabel: "Categories",
+        title: "settingsTabs.nav.groups.storageQueues.pages.categories.title",
+        shortLabel:
+          "settingsTabs.nav.groups.storageQueues.pages.categories.shortLabel",
         description:
-          "Manage torrent categories, per-category download save paths, upload/download limits, and auto-stop ratio rules",
+          "settingsTabs.nav.groups.storageQueues.pages.categories.description",
         icon: "🏷️",
-        badge: "Paths",
+        badge: "settingsTabs.nav.groups.storageQueues.pages.categories.badge",
         keywords: [
           "category",
           "categories",
@@ -195,10 +201,12 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "custom-scripts",
         groupId: "storage-queues",
-        title: "Custom Script Execution",
-        shortLabel: "Script Hooks",
+        title:
+          "settingsTabs.nav.groups.storageQueues.pages.customScripts.title",
+        shortLabel:
+          "settingsTabs.nav.groups.storageQueues.pages.customScripts.shortLabel",
         description:
-          "Trigger custom shell/python scripts on download complete and seed goal reached events",
+          "settingsTabs.nav.groups.storageQueues.pages.customScripts.description",
         icon: "📜",
         keywords: [
           "scripts",
@@ -215,22 +223,22 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   },
   {
     id: "bittorrent-engine",
-    title: "BitTorrent Engine",
-    shortLabel: "Engine",
-    description:
-      "Runtime engine hot-swapping, BEP protocol extensions, DHT discovery, client emulation, and tracker server",
+    title: "settingsTabs.nav.groups.bittorrentEngine.title",
+    shortLabel: "settingsTabs.nav.groups.bittorrentEngine.shortLabel",
+    description: "settingsTabs.nav.groups.bittorrentEngine.description",
     icon: "⚡",
-    badge: "Hot-Swap",
+    badge: "settingsTabs.nav.groups.bittorrentEngine.badge",
     pages: [
       {
         id: "engine",
         groupId: "bittorrent-engine",
-        title: "Engine Core & Tuning",
-        shortLabel: "Engine Core",
+        title: "settingsTabs.nav.groups.bittorrentEngine.pages.engine.title",
+        shortLabel:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.engine.shortLabel",
         description:
-          "Select and switch between MonoTorrent, libtorrent (Rasterbar), and Transmission daemon engines",
+          "settingsTabs.nav.groups.bittorrentEngine.pages.engine.description",
         icon: "🔄",
-        badge: "Dynamic",
+        badge: "settingsTabs.nav.groups.bittorrentEngine.pages.engine.badge",
         keywords: [
           "engine",
           "monotorrent",
@@ -245,10 +253,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "protocols",
         groupId: "bittorrent-engine",
-        title: "Protocols & BEP Extensions",
-        shortLabel: "Protocols & BEPs",
+        title: "settingsTabs.nav.groups.bittorrentEngine.pages.protocols.title",
+        shortLabel:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.protocols.shortLabel",
         description:
-          "ut_metadata (BEP 9), PEX (BEP 11), lt_donthave (BEP 54), Fast Extension, uTP LEDBAT, and encryption",
+          "settingsTabs.nav.groups.bittorrentEngine.pages.protocols.description",
         icon: "📡",
         keywords: [
           "bep",
@@ -265,10 +274,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "dht",
         groupId: "bittorrent-engine",
-        title: "DHT & Peer Discovery",
-        shortLabel: "DHT Discovery",
+        title: "settingsTabs.nav.groups.bittorrentEngine.pages.dht.title",
+        shortLabel:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.dht.shortLabel",
         description:
-          "BEP 5 Distributed Hash Table parameters, bootstrap routing nodes, rate limiting, and table sizes",
+          "settingsTabs.nav.groups.bittorrentEngine.pages.dht.description",
         icon: "🌐",
         keywords: [
           "dht",
@@ -284,10 +294,12 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "client-emulation",
         groupId: "bittorrent-engine",
-        title: "Client Emulation & Identity",
-        shortLabel: "Client Emulation",
+        title:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.clientEmulation.title",
+        shortLabel:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.clientEmulation.shortLabel",
         description:
-          "Emulate qBittorrent, Deluge, Transmission, or uTorrent signatures and organic diurnal traffic curves",
+          "settingsTabs.nav.groups.bittorrentEngine.pages.clientEmulation.description",
         icon: "🎭",
         keywords: [
           "client emulation",
@@ -304,12 +316,15 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "tracker-server",
         groupId: "bittorrent-engine",
-        title: "Inbuilt Tracker Server Daemon",
-        shortLabel: "Tracker Server",
+        title:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.trackerServer.title",
+        shortLabel:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.trackerServer.shortLabel",
         description:
-          "Embedded high-performance HTTP (9696) and UDP (6969) BitTorrent tracker server daemon",
+          "settingsTabs.nav.groups.bittorrentEngine.pages.trackerServer.description",
         icon: "🛰️",
-        badge: "Daemon",
+        badge:
+          "settingsTabs.nav.groups.bittorrentEngine.pages.trackerServer.badge",
         keywords: [
           "tracker server",
           "embedded tracker",
@@ -324,19 +339,19 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   },
   {
     id: "network-bandwidth",
-    title: "Network & Bandwidth",
-    shortLabel: "Network",
-    description:
-      "Global speed caps, alternative profiles, 24x7 hourly scheduling matrix, VPN kill-switch, and proxy routing",
+    title: "settingsTabs.nav.groups.networkBandwidth.title",
+    shortLabel: "settingsTabs.nav.groups.networkBandwidth.shortLabel",
+    description: "settingsTabs.nav.groups.networkBandwidth.description",
     icon: "🌐",
     pages: [
       {
         id: "speed",
         groupId: "network-bandwidth",
-        title: "Speed Limits & Bandwidth Profiles",
-        shortLabel: "Speed Limits",
+        title: "settingsTabs.nav.groups.networkBandwidth.pages.speed.title",
+        shortLabel:
+          "settingsTabs.nav.groups.networkBandwidth.pages.speed.shortLabel",
         description:
-          "Global rate limits, alternative speed profiles, and mathematical swarm distribution curves (Pareto/PowerLaw)",
+          "settingsTabs.nav.groups.networkBandwidth.pages.speed.description",
         icon: "🚀",
         keywords: [
           "speed limit",
@@ -351,10 +366,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "schedule",
         groupId: "network-bandwidth",
-        title: "Speed Schedule (24x7 Matrix)",
-        shortLabel: "24x7 Scheduler",
+        title: "settingsTabs.nav.groups.networkBandwidth.pages.schedule.title",
+        shortLabel:
+          "settingsTabs.nav.groups.networkBandwidth.pages.schedule.shortLabel",
         description:
-          "Weekly scheduling matrix to engage alternative throttled rate profiles during peak hours",
+          "settingsTabs.nav.groups.networkBandwidth.pages.schedule.description",
         icon: "🕒",
         keywords: [
           "scheduler",
@@ -368,12 +384,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "network",
         groupId: "network-bandwidth",
-        title: "Network & VPN Kill Switch",
-        shortLabel: "Network & VPN",
+        title: "settingsTabs.nav.groups.networkBandwidth.pages.network.title",
+        shortLabel:
+          "settingsTabs.nav.groups.networkBandwidth.pages.network.shortLabel",
         description:
-          "Interface binding (tun0/wg0), VPN kill-switch protection, listening port, UPnP, and connection limits",
+          "settingsTabs.nav.groups.networkBandwidth.pages.network.description",
         icon: "🛡️",
-        badge: "KillSwitch",
+        badge: "settingsTabs.nav.groups.networkBandwidth.pages.network.badge",
         keywords: [
           "network interface",
           "bind",
@@ -388,10 +405,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "proxy",
         groupId: "network-bandwidth",
-        title: "Proxy & Privacy Routing",
-        shortLabel: "Proxy & Privacy",
+        title: "settingsTabs.nav.groups.networkBandwidth.pages.proxy.title",
+        shortLabel:
+          "settingsTabs.nav.groups.networkBandwidth.pages.proxy.shortLabel",
         description:
-          "Route tracker queries and peer transfers via SOCKS5/HTTP proxies with strict privacy enforcement",
+          "settingsTabs.nav.groups.networkBandwidth.pages.proxy.description",
         icon: "🔀",
         keywords: [
           "proxy",
@@ -407,19 +425,19 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   },
   {
     id: "integrations",
-    title: "Integrations & Servarr",
-    shortLabel: "Integrations",
-    description:
-      "Prowlarr/Torznab indexers, Sonarr/Radarr/Lidarr media managers, external download clients, and UI notifications",
+    title: "settingsTabs.nav.groups.integrations.title",
+    shortLabel: "settingsTabs.nav.groups.integrations.shortLabel",
+    description: "settingsTabs.nav.groups.integrations.description",
     icon: "🔌",
     pages: [
       {
         id: "indexers",
         groupId: "integrations",
-        title: "Torznab & Newznab Indexers",
-        shortLabel: "Indexers & Torznab",
+        title: "settingsTabs.nav.groups.integrations.pages.indexers.title",
+        shortLabel:
+          "settingsTabs.nav.groups.integrations.pages.indexers.shortLabel",
         description:
-          "Connect Prowlarr, Jackett, and standalone Torznab providers for automated multi-indexer searching",
+          "settingsTabs.nav.groups.integrations.pages.indexers.description",
         icon: "🔍",
         keywords: [
           "indexers",
@@ -434,12 +452,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "connections",
         groupId: "integrations",
-        title: "Servarr (*arr) Media Connections",
-        shortLabel: "Servarr (*arr)",
+        title: "settingsTabs.nav.groups.integrations.pages.connections.title",
+        shortLabel:
+          "settingsTabs.nav.groups.integrations.pages.connections.shortLabel",
         description:
-          "Direct integration with Sonarr, Radarr, Lidarr, and Readarr for download grab & import notifications",
+          "settingsTabs.nav.groups.integrations.pages.connections.description",
         icon: "📺",
-        badge: "Media",
+        badge: "settingsTabs.nav.groups.integrations.pages.connections.badge",
         keywords: [
           "servarr",
           "sonarr",
@@ -454,10 +473,12 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "download-clients",
         groupId: "integrations",
-        title: "External Client Compatibility Adapters",
-        shortLabel: "Client Adapters",
+        title:
+          "settingsTabs.nav.groups.integrations.pages.downloadClients.title",
+        shortLabel:
+          "settingsTabs.nav.groups.integrations.pages.downloadClients.shortLabel",
         description:
-          "Connect external qBittorrent, Transmission, and Deluge clients to import active torrent state",
+          "settingsTabs.nav.groups.integrations.pages.downloadClients.description",
         icon: "📥",
         keywords: [
           "download clients",
@@ -471,10 +492,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "notifications",
         groupId: "integrations",
-        title: "Webhooks & Notifications",
-        shortLabel: "Webhooks & Alerts",
+        title: "settingsTabs.nav.groups.integrations.pages.notifications.title",
+        shortLabel:
+          "settingsTabs.nav.groups.integrations.pages.notifications.shortLabel",
         description:
-          "Configure outbound alerts for Discord, Telegram, Gotify, Generic Webhooks, and lifecycle events",
+          "settingsTabs.nav.groups.integrations.pages.notifications.description",
         icon: "🔔",
         keywords: [
           "notifications",
@@ -491,22 +513,22 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
   },
   {
     id: "advanced-ai",
-    title: "Advanced & AI Intelligence",
-    shortLabel: "Advanced & AI",
-    description:
-      "Pluggable engine subsystems, local/cloud AI Copilot models, rolling disk logging, and database maintenance",
+    title: "settingsTabs.nav.groups.advancedAi.title",
+    shortLabel: "settingsTabs.nav.groups.advancedAi.shortLabel",
+    description: "settingsTabs.nav.groups.advancedAi.description",
     icon: "🧠",
-    badge: "AI",
+    badge: "settingsTabs.nav.groups.advancedAi.badge",
     pages: [
       {
         id: "subsystems",
         groupId: "advanced-ai",
-        title: "Pluggable Subsystems Matrix",
-        shortLabel: "Subsystems",
+        title: "settingsTabs.nav.groups.advancedAi.pages.subsystems.title",
+        shortLabel:
+          "settingsTabs.nav.groups.advancedAi.pages.subsystems.shortLabel",
         description:
-          "Zero-downtime hot-swappable providers for BitTorrent engines, archive extractors, media inspectors, and GeoIP",
+          "settingsTabs.nav.groups.advancedAi.pages.subsystems.description",
         icon: "🧩",
-        badge: "Modular",
+        badge: "settingsTabs.nav.groups.advancedAi.pages.subsystems.badge",
         keywords: [
           "subsystems",
           "pluggable",
@@ -521,12 +543,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "ai",
         groupId: "advanced-ai",
-        title: "AI Copilot & Natural Intelligence",
-        shortLabel: "AI Copilot",
-        description:
-          "Local ONNX, Ollama LLM sidecars, and Google Gemini API integration for swarm diagnostics and search",
+        title: "settingsTabs.nav.groups.advancedAi.pages.ai.title",
+        shortLabel: "settingsTabs.nav.groups.advancedAi.pages.ai.shortLabel",
+        description: "settingsTabs.nav.groups.advancedAi.pages.ai.description",
         icon: "✨",
-        badge: "Intelligence",
+        badge: "settingsTabs.nav.groups.advancedAi.pages.ai.badge",
         keywords: [
           "ai",
           "copilot",
@@ -541,10 +562,11 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "logging",
         groupId: "advanced-ai",
-        title: "Logging, Diagnostics & Maintenance",
-        shortLabel: "Logging & Tools",
+        title: "settingsTabs.nav.groups.advancedAi.pages.logging.title",
+        shortLabel:
+          "settingsTabs.nav.groups.advancedAi.pages.logging.shortLabel",
         description:
-          "Disk log levels (Trace..Error), Debug tracing mode, SQLite database VACUUM, and artwork cache purges",
+          "settingsTabs.nav.groups.advancedAi.pages.logging.description",
         icon: "🛠️",
         keywords: [
           "logging",

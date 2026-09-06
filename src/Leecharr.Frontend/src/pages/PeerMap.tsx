@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 import * as d3 from "d3";
@@ -31,6 +32,8 @@ function getTimeRange(hours: number): { start: string; end: string } {
 }
 
 function PeerMap() {
+  const { t } = useTranslation();
+
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hours, setHours] = useState(1);
@@ -650,10 +653,10 @@ function PeerMap() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              Peer Map
+              {t("autogen.t_peer_map")}
             </h1>
             <span className="badge badge-primary">
-              {peerCount} Connected Peers
+              {peerCount} {t("autogen.t_connected_peers")}
             </span>
           </div>
           <div
@@ -663,8 +666,7 @@ function PeerMap() {
               marginTop: "0.2rem",
             }}
           >
-            Live swarm topology visualization connecting Leecharr, active
-            torrents, and remote peers
+            {t("autogen.t_live_swarm_topology_visualization_connec")}
           </div>
         </div>
       </div>
@@ -672,7 +674,7 @@ function PeerMap() {
       {/* Control Toolbar */}
       <div className="peer-map-controls" style={{ flexShrink: 0 }}>
         <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-          <label className="peer-map-label">Time Range:</label>
+          <label className="peer-map-label">{t("autogen.t_time_range")}</label>
           {[1, 6, 12, 24].map((h) => (
             <button
               key={h}
@@ -686,7 +688,9 @@ function PeerMap() {
 
         {/* Swarm Focus Filter */}
         <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-          <label className="peer-map-label">Filter Swarm:</label>
+          <label className="peer-map-label">
+            {t("autogen.t_filter_swarm")}
+          </label>
           <select
             value={selectedTorrentFilter}
             onChange={(e) => setSelectedTorrentFilter(e.target.value)}
@@ -699,7 +703,10 @@ function PeerMap() {
               fontSize: "0.82rem",
             }}
           >
-            <option value="all">All Torrents ({torrentCount})</option>
+            <option value="all">
+              {t("autogen.t_all_torrents")}
+              {torrentCount})
+            </option>
             {torrentsList?.map((t) => (
               <option key={t.id} value={t.infoHash}>
                 {t.name}
@@ -709,7 +716,8 @@ function PeerMap() {
         </div>
 
         <span className="peer-map-stats">
-          📊 {torrentCount} swarms • 👥 {peerCount} peers
+          📊 {torrentCount} {t("autogen.t_swarms")}
+          {peerCount} {t("autogen.t_peers")}
         </span>
       </div>
 
@@ -720,21 +728,21 @@ function PeerMap() {
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.center }}
           />
-          Leecharr
+          {t("autogen.t_leecharr")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.torrent }}
           />
-          Torrent
+          {t("autogen.t_torrent")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-dot"
             style={{ background: NODE_COLORS.peer }}
           />
-          Peer
+          {t("autogen.t_peer")}
         </span>
         <span className="peer-map-legend-item">
           <span
@@ -744,14 +752,14 @@ function PeerMap() {
               borderStyle: "dashed",
             }}
           />
-          Encrypted
+          {t("autogen.t_encrypted")}
         </span>
         <span className="peer-map-legend-item">
           <span
             className="peer-map-legend-line"
             style={{ borderColor: "rgba(255, 255, 255, 0.4)" }}
           />
-          Plain
+          {t("autogen.t_plain")}
         </span>
       </div>
 
@@ -767,16 +775,18 @@ function PeerMap() {
         }}
       >
         {isLoading && (
-          <div className="peer-map-loading">Loading peer topology...</div>
+          <div className="peer-map-loading">
+            {t("autogen.t_loading_peer_topology")}
+          </div>
         )}
         {!isLoading && isError && (
           <div className="peer-map-empty" style={{ color: "var(--danger)" }}>
-            Failed to load peer topology data.
+            {t("autogen.t_failed_to_load_peer_topology_data")}
           </div>
         )}
         {!isLoading && !isError && peerCount === 0 && (
           <div className="peer-map-empty">
-            No active peer connections in the selected time range.
+            {t("autogen.t_no_active_peer_connections_in_the_select")}
           </div>
         )}
         <svg
@@ -809,7 +819,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleZoomIn}
-            title="Zoom In"
+            title={t("autogen.t_zoom_in")}
           >
             ➕
           </button>
@@ -823,7 +833,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleZoomOut}
-            title="Zoom Out"
+            title={t("autogen.t_zoom_out")}
           >
             ➖
           </button>
@@ -837,7 +847,7 @@ function PeerMap() {
               backdropFilter: "blur(4px)",
             }}
             onClick={handleResetZoom}
-            title="Reset Zoom & Center"
+            title={t("autogen.t_reset_zoom_center")}
           >
             ⟲
           </button>
@@ -932,7 +942,7 @@ function PeerMap() {
                 }}
                 onClick={() => navigate("/torrents")}
               >
-                Open in Torrents View →
+                {t("autogen.t_open_in_torrents_view")}
               </button>
             )}
           </div>

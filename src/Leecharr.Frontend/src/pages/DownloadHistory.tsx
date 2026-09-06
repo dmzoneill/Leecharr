@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState } from "react";
 import {
   useDownloadHistory,
@@ -42,6 +43,8 @@ function formatDuration(seconds: number): string {
 }
 
 export default function DownloadHistory() {
+  const { t } = useTranslation();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
@@ -199,7 +202,8 @@ export default function DownloadHistory() {
       >
         <div className="page-header-group">
           <h1 className="page-heading" style={{ margin: 0 }}>
-            Historical Downloads ({totalCount})
+            {t("autogen.t_historical_downloads")}
+            {totalCount})
           </h1>
         </div>
 
@@ -217,16 +221,16 @@ export default function DownloadHistory() {
             <button
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
-              title="Poster Card Grid View"
+              title={t("autogen.t_poster_card_grid_view")}
             >
-              🎬 Posters
+              {t("autogen.t_posters")}
             </button>
             <button
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               onClick={() => setViewMode("table")}
-              title="Detailed Table View"
+              title={t("autogen.t_detailed_table_view")}
             >
-              📋 Table
+              {t("autogen.t_table")}
             </button>
           </div>
 
@@ -234,7 +238,7 @@ export default function DownloadHistory() {
             className="btn btn-success"
             onClick={handleReconcile}
             disabled={reconcileMutation.isPending}
-            title="Scan all active downloads, ensure all torrents are accounted for in history, and fetch metadata from Sonarr/Radarr/Lidarr"
+            title={t("autogen.t_scan_all_active_downloads_ensure_all_tor")}
           >
             {reconcileMutation.isPending
               ? "Reconciling..."
@@ -245,18 +249,18 @@ export default function DownloadHistory() {
             className="btn btn-outline"
             onClick={handleEnrichAll}
             disabled={enrichAllMutation.isPending || totalCount === 0}
-            title="Fetch and update rich media metadata and posters from connected Sonarr/Radarr/Lidarr instances"
+            title={t("autogen.t_fetch_and_update_rich_media_metadata_and")}
           >
-            ⚡ Sync Arr Metadata
+            {t("autogen.t_sync_arr_metadata")}
           </button>
 
           <button
             className="btn btn-outline"
             onClick={handleClearAll}
             disabled={clearMutation.isPending || totalCount === 0}
-            title="Clear all history entries"
+            title={t("autogen.t_clear_all_history_entries")}
           >
-            Clear History
+            {t("autogen.t_clear_history")}
           </button>
         </div>
       </div>
@@ -316,7 +320,9 @@ export default function DownloadHistory() {
           <input
             type="text"
             className="form-control"
-            placeholder="Filter history by title, actor, genre, hash..."
+            placeholder={t(
+              "autogen.t_filter_history_by_title_actor_genre_hash",
+            )}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -338,7 +344,7 @@ export default function DownloadHistory() {
                 padding: "0.35rem 0.5rem",
                 borderRadius: "6px",
               }}
-              title="Clear search filter"
+              title={t("autogen.t_clear_search_filter")}
             >
               ✕
             </button>
@@ -353,7 +359,7 @@ export default function DownloadHistory() {
           style={{ padding: "3rem", textAlign: "center", borderRadius: "8px" }}
         >
           <div className="loading">
-            Loading download history & rich metadata...
+            {t("autogen.t_loading_download_history_rich_metadata")}
           </div>
         </div>
       )}
@@ -368,7 +374,7 @@ export default function DownloadHistory() {
             borderRadius: "8px",
           }}
         >
-          Failed to load download history.
+          {t("autogen.t_failed_to_load_download_history")}
         </div>
       )}
 
@@ -389,7 +395,7 @@ export default function DownloadHistory() {
               marginBottom: "0.5rem",
             }}
           >
-            No Historical Downloads
+            {t("autogen.t_no_historical_downloads")}
           </div>
           <div
             className="empty-state-text"
@@ -720,19 +726,19 @@ export default function DownloadHistory() {
                     }}
                   >
                     <div>
-                      <span>Size: </span>
+                      <span>{t("autogen.t_size")}</span>
                       <strong style={{ color: "var(--text-primary)" }}>
                         {formatBytes(item.totalSize)}
                       </strong>
                     </div>
                     <div>
-                      <span>Uploaded: </span>
+                      <span>{t("autogen.t_uploaded")}</span>
                       <strong style={{ color: "var(--text-primary)" }}>
                         {formatBytes(item.uploaded)}
                       </strong>
                     </div>
                     <div>
-                      <span>Ratio: </span>
+                      <span>{t("autogen.t_ratio")}</span>
                       <strong
                         style={{
                           color:
@@ -745,7 +751,7 @@ export default function DownloadHistory() {
                       </strong>
                     </div>
                     <div>
-                      <span>Added: </span>
+                      <span>{t("autogen.t_added")}</span>
                       <strong style={{ color: "var(--text-primary)" }}>
                         {formatDate(item.dateAdded).split(" ")[0]}
                       </strong>
@@ -775,9 +781,9 @@ export default function DownloadHistory() {
                         gap: "0.35rem",
                       }}
                       onClick={() => setSearchModalQuery(item.title)}
-                      title="Search again on Indexers"
+                      title={t("autogen.t_search_again_on_indexers")}
                     >
-                      <span>🔍</span> <span>Search</span>
+                      <span>🔍</span> <span>{t("autogen.t_search")}</span>
                     </button>
                     <button
                       className="btn btn-primary"
@@ -800,7 +806,7 @@ export default function DownloadHistory() {
                           : "Re-add to active queue"
                       }
                     >
-                      <span>🔄</span> <span>Re-add</span>
+                      <span>🔄</span> <span>{t("autogen.t_re_add")}</span>
                     </button>
                     <button
                       className="btn btn-outline"
@@ -812,7 +818,9 @@ export default function DownloadHistory() {
                         justifyContent: "center",
                       }}
                       onClick={() => setSelectedDetailItem(item)}
-                      title="View full media details, actors, and Arr links"
+                      title={t(
+                        "autogen.t_view_full_media_details_actors_and_arr_l",
+                      )}
                     >
                       ℹ️
                     </button>
@@ -866,24 +874,26 @@ export default function DownloadHistory() {
                     textAlign: "left",
                   }}
                 >
-                  <th style={{ padding: "0.75rem 1rem" }}>Release & Media</th>
+                  <th style={{ padding: "0.75rem 1rem" }}>
+                    {t("autogen.t_release_media")}
+                  </th>
                   <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Size
+                    {t("autogen.t_size")}
                   </th>
                   <th style={{ padding: "0.75rem 1rem", width: "120px" }}>
-                    Uploaded
+                    {t("autogen.t_uploaded")}
                   </th>
                   <th style={{ padding: "0.75rem 1rem", width: "90px" }}>
-                    Ratio
+                    {t("autogen.t_ratio")}
                   </th>
                   <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Seed Time
+                    {t("autogen.t_seed_time")}
                   </th>
                   <th style={{ padding: "0.75rem 1rem", width: "130px" }}>
-                    Date Added
+                    {t("autogen.t_date_added")}
                   </th>
                   <th style={{ padding: "0.75rem 1rem", width: "100px" }}>
-                    Status
+                    {t("autogen.t_status")}
                   </th>
                   <th
                     style={{
@@ -893,7 +903,7 @@ export default function DownloadHistory() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Actions
+                    {t("autogen.t_actions")}
                   </th>
                 </tr>
               </thead>
@@ -1033,7 +1043,7 @@ export default function DownloadHistory() {
                                   onClick={() =>
                                     setSearchTerm(item.primaryTracker || "")
                                   }
-                                  title="Filter by tracker"
+                                  title={t("autogen.t_filter_by_tracker")}
                                 >
                                   • {item.primaryTracker}
                                 </span>
@@ -1085,7 +1095,8 @@ export default function DownloadHistory() {
                               color: "var(--text-muted, #777)",
                             }}
                           >
-                            Removed {formatDate(item.dateRemoved)}
+                            {t("autogen.t_removed")}
+                            {formatDate(item.dateRemoved)}
                           </div>
                         )}
                       </td>
@@ -1130,10 +1141,12 @@ export default function DownloadHistory() {
                               whiteSpace: "nowrap",
                             }}
                             onClick={() => setSelectedDetailItem(item)}
-                            title="View synopsis, actors, and Arr links"
+                            title={t(
+                              "autogen.t_view_synopsis_actors_and_arr_links",
+                            )}
                           >
                             <span>ℹ️</span>
-                            <span>Details</span>
+                            <span>{t("autogen.t_details")}</span>
                           </button>
                           <button
                             className="btn btn-outline"
@@ -1146,10 +1159,12 @@ export default function DownloadHistory() {
                               whiteSpace: "nowrap",
                             }}
                             onClick={() => setSearchModalQuery(item.title)}
-                            title="Search for this release again on configured indexers"
+                            title={t(
+                              "autogen.t_search_for_this_release_again_on_configu",
+                            )}
                           >
                             <span>🔍</span>
-                            <span>Search</span>
+                            <span>{t("autogen.t_search")}</span>
                           </button>
                           <button
                             className="btn btn-primary"
@@ -1173,7 +1188,7 @@ export default function DownloadHistory() {
                             }
                           >
                             <span>🔄</span>
-                            <span>Re-add</span>
+                            <span>{t("autogen.t_re_add")}</span>
                           </button>
                           <button
                             className="btn btn-outline"
@@ -1187,7 +1202,7 @@ export default function DownloadHistory() {
                               whiteSpace: "nowrap",
                             }}
                             onClick={() => handleDelete(item.id, item.title)}
-                            title="Delete historical record"
+                            title={t("autogen.t_delete_historical_record")}
                           >
                             ✕
                           </button>
@@ -1387,9 +1402,9 @@ export default function DownloadHistory() {
                         fontSize: "0.75rem",
                         padding: "0.25rem 0.5rem",
                       }}
-                      title="View on IMDb"
+                      title={t("autogen.t_view_on_imdb")}
                     >
-                      IMDb ↗
+                      {t("autogen.t_imdb")}
                     </a>
 
                     {/* TMDb link */}
@@ -1412,9 +1427,9 @@ export default function DownloadHistory() {
                           fontSize: "0.75rem",
                           padding: "0.25rem 0.5rem",
                         }}
-                        title="View on The Movie Database (TMDb)"
+                        title={t("autogen.t_view_on_the_movie_database_tmdb")}
                       >
-                        TMDb ↗
+                        {t("autogen.t_tmdb")}
                       </a>
                     )}
 
@@ -1435,9 +1450,9 @@ export default function DownloadHistory() {
                           fontSize: "0.75rem",
                           padding: "0.25rem 0.5rem",
                         }}
-                        title="View on TheTVDB"
+                        title={t("autogen.t_view_on_thetvdb")}
                       >
-                        TheTVDB ↗
+                        {t("autogen.t_thetvdb")}
                       </a>
                     )}
 
@@ -1466,9 +1481,9 @@ export default function DownloadHistory() {
                           fontSize: "0.75rem",
                           padding: "0.25rem 0.5rem",
                         }}
-                        title="Search title on Prowlarr"
+                        title={t("autogen.t_search_title_on_prowlarr")}
                       >
-                        Prowlarr ↗
+                        {t("autogen.t_prowlarr")}
                       </a>
                     )}
                   </div>
@@ -1556,7 +1571,7 @@ export default function DownloadHistory() {
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Overview
+                    {t("autogen.t_overview")}
                   </h4>
                   <p
                     style={{
@@ -1584,7 +1599,7 @@ export default function DownloadHistory() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      Cast & Characters
+                      {t("autogen.t_cast_characters")}
                     </h4>
                     <div
                       style={{
@@ -1695,7 +1710,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Info Hash
+                    {t("autogen.t_info_hash")}
                   </div>
                   <code
                     style={{
@@ -1715,7 +1730,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Final Ratio
+                    {t("autogen.t_final_ratio")}
                   </div>
                   <div
                     style={{
@@ -1738,7 +1753,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Total Uploaded
+                    {t("autogen.t_total_uploaded")}
                   </div>
                   <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                     {formatBytes(selectedDetailItem.uploaded)}
@@ -1752,7 +1767,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Total Size
+                    {t("autogen.t_total_size")}
                   </div>
                   <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                     {formatBytes(selectedDetailItem.totalSize)}
@@ -1766,7 +1781,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Seeding Duration
+                    {t("autogen.t_seeding_duration")}
                   </div>
                   <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                     {formatDuration(selectedDetailItem.seedingTime)}
@@ -1780,7 +1795,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Primary Tracker
+                    {t("autogen.t_primary_tracker")}
                   </div>
                   <div
                     style={{
@@ -1813,7 +1828,7 @@ export default function DownloadHistory() {
                       color: "var(--text-muted, #888)",
                     }}
                   >
-                    Added Date
+                    {t("autogen.t_added_date")}
                   </div>
                   <div style={{ fontSize: "0.85rem" }}>
                     {formatDate(selectedDetailItem.dateAdded)}
@@ -1835,10 +1850,12 @@ export default function DownloadHistory() {
                   className="btn btn-outline"
                   onClick={() => handleEnrich(selectedDetailItem)}
                   disabled={enrichMutation.isPending}
-                  title="Query connected Arr instance again to refresh metadata"
+                  title={t(
+                    "autogen.t_query_connected_arr_instance_again_to_re",
+                  )}
                   style={{ fontSize: "0.85rem" }}
                 >
-                  ⚡ Re-enrich Metadata
+                  {t("autogen.t_re_enrich_metadata")}
                 </button>
 
                 <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -1849,7 +1866,7 @@ export default function DownloadHistory() {
                       setSelectedDetailItem(null);
                     }}
                   >
-                    🔍 Search Indexers
+                    {t("autogen.t_search_indexers")}
                   </button>
                   <button
                     className="btn btn-primary"
@@ -1864,7 +1881,7 @@ export default function DownloadHistory() {
                       selectedDetailItem.status === "Active"
                     }
                   >
-                    🔄 Re-add Torrent
+                    {t("autogen.t_re_add_torrent")}
                   </button>
                 </div>
               </div>

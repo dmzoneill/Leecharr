@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState } from "react";
 import {
   useSubsystems,
@@ -13,6 +14,8 @@ import type {
 import { SectionCard } from "./shared";
 
 export function SubsystemsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const {
     data: subsystems,
@@ -44,7 +47,10 @@ export function SubsystemsTab() {
       const res = await probeProvider.mutateAsync({ subsystemId, providerId });
       setProbeResult(res);
     } catch (err: any) {
-      showToast(`Probe failed: ${err.message || "Unknown error"}`, "error");
+      showToast(
+        `Probe failed: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        "error",
+      );
     } finally {
       setProbeLoadingKey(null);
     }
@@ -67,20 +73,24 @@ export function SubsystemsTab() {
         setSelectedForSwitch(null);
       } else {
         showToast(
-          `Failed to switch provider: ${res.error || "Unknown error"}`,
+          `Failed to switch provider: ${res.error || t("settingsTabs.notifications.unknownError")}`,
           "error",
         );
       }
     } catch (err: any) {
       showToast(
-        `Failed to switch provider: ${err.message || "Unknown error"}`,
+        `Failed to switch provider: ${err.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     }
   };
 
   if (isLoading) {
-    return <div className="loading">Loading pluggable subsystems...</div>;
+    return (
+      <div className="loading">
+        {t("settingsTabs.subsystems.loadingPluggable")}
+      </div>
+    );
   }
 
   if (isError) {
@@ -91,7 +101,7 @@ export function SubsystemsTab() {
           onClick={() => refetch()}
           style={{ marginLeft: "1rem", padding: "0.25rem 0.75rem" }}
         >
-          Retry
+          {t("settingsTabs.subsystems.retry")}
         </button>
       </div>
     );
@@ -131,7 +141,7 @@ export function SubsystemsTab() {
               fontSize: "1.25rem",
             }}
           >
-            Pluggable Architecture & Subsystem Hot-Swapping
+            {t("settingsTabs.subsystems.architectureTitle")}
           </h2>
           <p
             style={{
@@ -174,7 +184,7 @@ export function SubsystemsTab() {
                 transition: "all 0.2s ease",
               }}
             >
-              {cat === "all" ? "All Subsystems" : cat}
+              {cat === "all" ? t("settingsTabs.subsystems.allSubsystems") : cat}
             </button>
           ))}
         </div>
@@ -270,7 +280,7 @@ export function SubsystemsTab() {
                               letterSpacing: "0.03em",
                             }}
                           >
-                            ACTIVE
+                            {t("settingsTabs.subsystems.statusActive")}
                           </span>
                         ) : provider.isAvailable ? (
                           <span
@@ -283,7 +293,7 @@ export function SubsystemsTab() {
                               fontWeight: 600,
                             }}
                           >
-                            READY
+                            {t("settingsTabs.subsystems.statusReady")}
                           </span>
                         ) : (
                           <span
@@ -296,7 +306,7 @@ export function SubsystemsTab() {
                               fontWeight: 600,
                             }}
                           >
-                            EMULATED
+                            {t("settingsTabs.subsystems.statusEmulated")}
                           </span>
                         )}
                       </div>
@@ -390,7 +400,9 @@ export function SubsystemsTab() {
                         cursor: "pointer",
                       }}
                     >
-                      {isProbing ? "Probing..." : "🔍 Test / Probe"}
+                      {isProbing
+                        ? t("settingsTabs.subsystems.probing")
+                        : t("settingsTabs.subsystems.testProbe")}
                     </button>
 
                     {!provider.isActive && (
@@ -411,7 +423,7 @@ export function SubsystemsTab() {
                           cursor: "pointer",
                         }}
                       >
-                        ⚡ Switch
+                        {t("settingsTabs.subsystems.switch")}
                       </button>
                     )}
                   </div>
@@ -454,7 +466,7 @@ export function SubsystemsTab() {
                 color: "var(--text-primary, #f8f4ed)",
               }}
             >
-              Hot-Swap Subsystem Provider
+              {t("settingsTabs.subsystems.hotSwapTitle")}
             </h3>
 
             <p
@@ -506,7 +518,7 @@ export function SubsystemsTab() {
                   cursor: "pointer",
                 }}
               >
-                Cancel
+                {t("settingsTabs.categories.modal.cancel")}
               </button>
               <button
                 type="button"
@@ -523,8 +535,8 @@ export function SubsystemsTab() {
                 }}
               >
                 {switchSubsystem.isPending
-                  ? "Switching..."
-                  : "Confirm Hot-Swap"}
+                  ? t("settingsTabs.subsystems.switching")
+                  : t("settingsTabs.subsystems.confirmHotSwap")}
               </button>
             </div>
           </div>
@@ -566,7 +578,7 @@ export function SubsystemsTab() {
               }}
             >
               <h3 style={{ margin: 0, color: "var(--text-primary, #f8f4ed)" }}>
-                Provider Diagnostic Probe
+                {t("settingsTabs.subsystems.probeDiagnosticTitle")}
               </h3>
               <span
                 style={{
@@ -581,8 +593,8 @@ export function SubsystemsTab() {
                 }}
               >
                 {probeResult.isHealthy
-                  ? "HEALTHY / READY"
-                  : "WARNING / UNHEALTHY"}
+                  ? t("settingsTabs.batch2.healthyReady")
+                  : t("settingsTabs.batch2.warningUnhealthy")}
               </span>
             </div>
 
@@ -592,7 +604,8 @@ export function SubsystemsTab() {
                 fontSize: "0.9rem",
               }}
             >
-              <strong>Status:</strong> {probeResult.statusMessage}
+              <strong>{t("settingsTabs.subsystems.status")}</strong>{" "}
+              {probeResult.statusMessage}
             </p>
 
             {probeResult.dependencyChecks &&
@@ -605,7 +618,7 @@ export function SubsystemsTab() {
                       fontWeight: 600,
                     }}
                   >
-                    Dependency Verification:
+                    {t("settingsTabs.subsystems.dependencyVerification")}
                   </span>
                   <ul
                     style={{
@@ -633,7 +646,7 @@ export function SubsystemsTab() {
                     fontWeight: 600,
                   }}
                 >
-                  Diagnostics & Warnings:
+                  {t("settingsTabs.subsystems.diagnosticsWarnings")}
                 </span>
                 <ul
                   style={{
@@ -669,7 +682,7 @@ export function SubsystemsTab() {
                   cursor: "pointer",
                 }}
               >
-                Close
+                {t("settingsTabs.batch2.close")}
               </button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 
@@ -137,6 +138,8 @@ function statusClass(status: string): string {
 }
 
 function SystemTasks() {
+  const { t } = useTranslation();
+
   const {
     data: tasks,
     isLoading: tasksLoading,
@@ -176,9 +179,11 @@ function SystemTasks() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Tasks
+              {t("autogen.t_system_tasks")}
             </h1>
-            <span className="badge badge-primary">Scheduler</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_scheduler")}
+            </span>
           </div>
           <div
             style={{
@@ -187,8 +192,7 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Scheduled background maintenance jobs, integration sync intervals,
-            and command execution queue
+            {t("autogen.t_scheduled_background_maintenance_jobs_in")}
           </div>
         </div>
 
@@ -197,7 +201,8 @@ function SystemTasks() {
             className="badge badge-primary"
             style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
           >
-            Active Jobs: {tasks?.length ?? 0}
+            {t("autogen.t_active_jobs")}
+            {tasks?.length ?? 0}
           </span>
         </div>
       </div>
@@ -229,7 +234,7 @@ function SystemTasks() {
               margin: 0,
             }}
           >
-            Scheduled Background Tasks
+            {t("autogen.t_scheduled_background_tasks")}
           </h2>
           <div
             style={{
@@ -238,19 +243,18 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Periodic routines maintaining torrent swarm state, webhook sync, and
-            system cleanup
+            {t("autogen.t_periodic_routines_maintaining_torrent_sw")}
           </div>
         </div>
 
         {tasksLoading && (
           <p className="loading" style={{ padding: "1.25rem" }}>
-            Loading tasks...
+            {t("autogen.t_loading_tasks")}
           </p>
         )}
         {!tasksLoading && tasksError && (
           <p className="error" style={{ padding: "1.25rem" }}>
-            Failed to load tasks.
+            {t("autogen.t_failed_to_load_tasks")}
           </p>
         )}
         {tasks && tasks.length > 0 && (
@@ -258,11 +262,21 @@ function SystemTasks() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Task Name</th>
-                  <th className="torrent-table-th">Execution Interval</th>
-                  <th className="torrent-table-th">Last Execution</th>
-                  <th className="torrent-table-th">Last Duration</th>
-                  <th className="torrent-table-th">Next Execution</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_task_name")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_execution_interval")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_last_execution")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_last_duration")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_next_execution")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -305,7 +319,7 @@ function SystemTasks() {
         )}
         {tasks && tasks.length === 0 && (
           <p className="torrent-table-empty" style={{ padding: "1.5rem" }}>
-            No scheduled tasks registered.
+            {t("autogen.t_no_scheduled_tasks_registered")}
           </p>
         )}
       </div>
@@ -336,7 +350,7 @@ function SystemTasks() {
               margin: 0,
             }}
           >
-            Command Execution Queue
+            {t("autogen.t_command_execution_queue")}
           </h2>
           <div
             style={{
@@ -345,18 +359,18 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            History and progress of interactive and scheduled command runs
+            {t("autogen.t_history_and_progress_of_interactive_and_")}
           </div>
         </div>
 
         {commandsLoading && (
           <p className="loading" style={{ padding: "1.25rem" }}>
-            Loading command history...
+            {t("autogen.t_loading_command_history")}
           </p>
         )}
         {!commandsLoading && commandsError && (
           <p className="error" style={{ padding: "1.25rem" }}>
-            Failed to load commands.
+            {t("autogen.t_failed_to_load_commands")}
           </p>
         )}
         {commands && commands.length > 0 && (
@@ -364,11 +378,15 @@ function SystemTasks() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Command / Status</th>
-                  <th className="torrent-table-th">Queued</th>
-                  <th className="torrent-table-th">Started</th>
-                  <th className="torrent-table-th">Ended</th>
-                  <th className="torrent-table-th">Duration</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_command_status")}
+                  </th>
+                  <th className="torrent-table-th">{t("autogen.t_queued")}</th>
+                  <th className="torrent-table-th">{t("autogen.t_started")}</th>
+                  <th className="torrent-table-th">{t("autogen.t_ended")}</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_duration")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -415,7 +433,7 @@ function SystemTasks() {
         )}
         {commands && commands.length === 0 && (
           <p className="torrent-table-empty" style={{ padding: "1.5rem" }}>
-            No recent command executions in queue.
+            {t("autogen.t_no_recent_command_executions_in_queue")}
           </p>
         )}
       </div>
