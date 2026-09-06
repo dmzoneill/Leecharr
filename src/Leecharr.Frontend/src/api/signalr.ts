@@ -1,4 +1,5 @@
 import * as signalR from "@microsoft/signalr";
+import { apiClient } from "./client";
 
 export type MessageHandler = (message: {
   name: string;
@@ -66,7 +67,9 @@ class SignalRManager {
           : "";
 
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${urlBase}/signalr/messages`)
+        .withUrl(`${urlBase}/signalr/messages`, {
+          accessTokenFactory: () => apiClient.getApiKey() || "",
+        })
         .withAutomaticReconnect(new ExponentialBackoffRetryPolicy())
         .build();
 
