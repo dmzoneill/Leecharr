@@ -17,6 +17,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
     private readonly Dictionary<int, HashSet<int>> pendingPieces = new();
     private readonly SemaphoreSlim flushLock = new(1, 1);
     private readonly Timer flushTimer;
+    private bool disposed;
 
     public PieceMapSignalREventHandler(IBroadcastSignalRMessage signalRBroadcaster, int flushIntervalMs = 250)
     {
@@ -24,18 +25,39 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         this.flushTimer = new Timer(
             async _ =>
             {
-                if (!await this.flushLock.WaitAsync(0))
+                if (this.disposed)
                 {
                     return;
                 }
 
                 try
                 {
-                    this.Flush();
+                    if (!await this.flushLock.WaitAsync(0))
+                    {
+                        return;
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+
+                try
+                {
+                    if (!this.disposed)
+                    {
+                        this.Flush();
+                    }
                 }
                 finally
                 {
-                    this.flushLock.Release();
+                    try
+                    {
+                        this.flushLock.Release();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
                 }
             },
             null,
@@ -45,7 +67,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
 
     public void Handle(PieceVerifiedEvent message)
     {
-        if (message == null || this.signalRBroadcaster == null || !this.signalRBroadcaster.IsConnected)
+        if (this.disposed || message == null || this.signalRBroadcaster == null || !this.signalRBroadcaster.IsConnected)
         {
             return;
         }
@@ -105,8 +127,30 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
 
     public void Dispose()
     {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        this.disposed = true;
         this.flushTimer?.Dispose();
-        this.flushLock.Dispose();
+
+        try
+        {
+            this.flushLock.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
         this.Flush();
+
+        try
+        {
+            this.flushLock.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 }
