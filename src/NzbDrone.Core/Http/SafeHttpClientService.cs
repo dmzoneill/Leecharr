@@ -227,6 +227,18 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
                 return true;
             }
 
+            // 10.0.0.0/8 (Private network)
+            if (bytes[0] == 10)
+            {
+                return true;
+            }
+
+            // 100.64.0.0/10 (Carrier-grade NAT)
+            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+            {
+                return true;
+            }
+
             // 127.0.0.0/8 (Loopback)
             if (bytes[0] == 127)
             {
@@ -235,6 +247,18 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
             // 169.254.0.0/16 (Link-local / Cloud metadata: 169.254.169.254)
             if (bytes[0] == 169 && bytes[1] == 254)
+            {
+                return true;
+            }
+
+            // 172.16.0.0/12 (Private network)
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+            {
+                return true;
+            }
+
+            // 192.168.0.0/16 (Private network)
+            if (bytes[0] == 192 && bytes[1] == 168)
             {
                 return true;
             }
@@ -253,6 +277,13 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             }
 
             var bytes = ip.GetAddressBytes();
+
+            // fc00::/7 (Unique Local Address)
+            if ((bytes[0] & 0xfe) == 0xfc)
+            {
+                return true;
+            }
+
             // fe80::/10 (Link-local)
             if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80)
             {

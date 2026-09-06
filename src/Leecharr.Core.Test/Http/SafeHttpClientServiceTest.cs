@@ -109,9 +109,23 @@ public class SafeHttpClientServiceTest
         this.service.IsBlockedIp(IPAddress.IPv6Any).Should().BeTrue();
         this.service.IsBlockedIp(IPAddress.Parse("fe80::1")).Should().BeTrue();
 
+        // RFC1918 Private IPv4 and CGNAT
+        this.service.IsBlockedIp(IPAddress.Parse("10.0.0.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("172.16.0.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("172.31.255.255")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("192.168.1.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("100.64.0.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("100.127.255.255")).Should().BeTrue();
+
+        // IPv6 ULA
+        this.service.IsBlockedIp(IPAddress.Parse("fc00::1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("fd00::1")).Should().BeTrue();
+
         // IPv4-mapped IPv6 bypass attempts
         this.service.IsBlockedIp(IPAddress.Parse("::ffff:127.0.0.1")).Should().BeTrue();
         this.service.IsBlockedIp(IPAddress.Parse("::ffff:169.254.169.254")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("::ffff:192.168.1.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("::ffff:10.0.0.1")).Should().BeTrue();
 
         // Public IPs should not be blocked
         this.service.IsBlockedIp(IPAddress.Parse("8.8.8.8")).Should().BeFalse();
