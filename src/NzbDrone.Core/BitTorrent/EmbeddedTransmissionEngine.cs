@@ -206,7 +206,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 if (this.tasks.TryGetValue(torrentId, out var task) && task.Status == TorrentStatus.Paused)
                 {
-                    task.Status = TorrentStatus.Downloading;
+                    task.Status = task.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
                 }
             }
 
