@@ -578,7 +578,7 @@ public class ConfigService : IConfigService
         {
             var newCache = this.cache != null
                 ? new Dictionary<string, string>(this.cache, StringComparer.OrdinalIgnoreCase)
-                : allConfig.ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
+                : allConfig.ToDictionary(c => c.Key, c => c.Value.Value, StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in toInsert)
             {
