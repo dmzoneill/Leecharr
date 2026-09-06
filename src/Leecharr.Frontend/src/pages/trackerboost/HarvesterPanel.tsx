@@ -12,6 +12,7 @@ import {
 import { formatBytes, formatRatio } from "../../utils/formatters";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
+import { useTranslation } from "../../i18n";
 import type { UnifiedDownloadItem } from "./types";
 
 export interface HarvesterPanelProps {
@@ -27,6 +28,7 @@ export function HarvesterPanel({
   selectedKey,
   onSelectKey,
 }: HarvesterPanelProps) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [downloadFilter, setDownloadFilter] = useState<

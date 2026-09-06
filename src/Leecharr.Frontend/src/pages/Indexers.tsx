@@ -8,6 +8,7 @@ import {
 } from "../api/hooks";
 import { formatBytes, formatDate } from "../utils/formatters";
 import { useToast } from "../context/ToastContext";
+import { useTranslation } from "../i18n";
 import type { ReleaseInfo, IndexerDefinition } from "../api/types";
 
 interface IndexersProps {
@@ -21,6 +22,7 @@ export const Indexers: React.FC<IndexersProps> = ({
   onSelectIndexer,
   onNavigateSettings,
 }) => {
+  const { t } = useTranslation();
   const { data: indexers, isLoading: isIndexersLoading } = useIndexers();
   const testIndexerMutation = useTestIndexer();
   const updateIndexerMutation = useUpdateIndexer();
