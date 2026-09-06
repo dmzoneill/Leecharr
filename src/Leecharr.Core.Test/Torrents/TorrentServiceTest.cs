@@ -618,4 +618,17 @@ public class TorrentServiceTest
             }
         }
     }
+
+    [Test]
+    public void Torrent_CumulativeSeedingTimeSeconds_Calculates_SeedTimeMinutes_And_SeedingTimeSeconds()
+    {
+        var torrent = new Torrent
+        {
+            CumulativeSeedingTimeSeconds = 3665,
+            DateCompleted = DateTime.UtcNow.AddDays(-10),
+        };
+
+        torrent.SeedingTimeSeconds.Should().Be(3665);
+        torrent.SeedTimeMinutes.Should().Be(61);
+    }
 }

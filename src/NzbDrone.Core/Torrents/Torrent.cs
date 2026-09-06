@@ -84,7 +84,9 @@ public class Torrent : ModelBase
 
     public List<int> TagIds { get; set; } = new();
 
-    public int SeedTimeMinutes => this.DateCompleted.HasValue ? (int)Math.Max(0, (DateTime.UtcNow - this.DateCompleted.Value).TotalMinutes) : 0;
+    public long CumulativeSeedingTimeSeconds { get; set; }
 
-    public long SeedingTimeSeconds => this.DateCompleted.HasValue ? (long)Math.Max(0, (DateTime.UtcNow - this.DateCompleted.Value).TotalSeconds) : 0;
+    public int SeedTimeMinutes => (int)(this.CumulativeSeedingTimeSeconds / 60);
+
+    public long SeedingTimeSeconds => this.CumulativeSeedingTimeSeconds;
 }
