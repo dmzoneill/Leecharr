@@ -411,7 +411,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             {
                 info.Resolution = "720p";
             }
-            else if (info.Height >= 480)
+            else if (info.Width >= 640 || info.Height >= 400)
             {
                 info.Resolution = "480p";
             }

@@ -303,4 +303,33 @@ sleep 300
         info.DurationSeconds.Should().Be(7200.0);
         info.SubtitleTracks.Should().ContainSingle().Which.Should().Contain("Full English SDH");
     }
+
+    [TestCase(720, 400)]
+    [TestCase(720, 360)]
+    [TestCase(640, 360)]
+    [TestCase(640, 480)]
+    public void ParseMediaInfoJson_WhenSdCroppedOrWidescreen_Derives480pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+  ""media"": {{
+    ""track"": [
+      {{
+        ""@type"": ""General"",
+        ""Format"": ""Matroska"",
+        ""Duration"": 3600.0
+      }},
+      {{
+        ""@type"": ""Video"",
+        ""Format"": ""AVC"",
+        ""Width"": {width},
+        ""Height"": {height}
+      }}
+    ]
+  }}
+}}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("480p");
+    }
 }
