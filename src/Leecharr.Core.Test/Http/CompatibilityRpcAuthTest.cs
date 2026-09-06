@@ -192,6 +192,54 @@ public class CompatibilityRpcAuthTest
     }
 
     [Test]
+    public void Synology_WhenHardcodedSessionTokenProvided_Returns401()
+    {
+        var controller = new SynologyDownloadStationController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?_sid=leecharr-synology-session-id");
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var infoResult = controller.Info("getInfo");
+        infoResult.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Test]
+    public void Synology_WhenAuthenticatedViaAuth_SessionTokenGrantsAccess()
+    {
+        var controller = new SynologyDownloadStationController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.Auth(api: "SYNO.API.Auth", method: "login", passwd: "master_api_key_xyz");
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)loginResult;
+        var dataProp = okResult.Value!.GetType().GetProperty("data")!.GetValue(okResult.Value)!;
+        var sidProp = dataProp.GetType().GetProperty("sid")!.GetValue(dataProp)!.ToString();
+        sidProp.Should().NotBeNullOrWhiteSpace();
+        sidProp.Should().NotBe("leecharr-synology-session-id");
+
+        var authedContext = new DefaultHttpContext();
+        authedContext.Request.QueryString = new QueryString($"?_sid={sidProp}");
+        controller.ControllerContext = new ControllerContext { HttpContext = authedContext };
+
+        var infoResult = controller.Info("getInfo");
+        infoResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
     public async Task Hadouken_WhenUnauthenticated_Returns401()
     {
         var controller = new HadoukenRpcController(
