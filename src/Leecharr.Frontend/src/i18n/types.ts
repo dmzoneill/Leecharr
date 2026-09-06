@@ -141,8 +141,8 @@ export interface I18nTorrents {
   turtleOff: string;
   turtleOn: string;
   filterTorrents: string;
-  table: string;
-  grid: string;
+  table: string | Record<string, string>;
+  grid: string | Record<string, string>;
   noTorrentsInQueue: string;
   noTorrentsMatchingFilter: string;
   addTorrentPrompt: string;
@@ -682,6 +682,7 @@ export interface I18nApiDocs {
 }
 
 export interface I18nTranslations {
+  [key: string]: any;
   common: I18nCommon;
   nav: I18nNav;
   dashboard: I18nDashboard;
@@ -707,6 +708,12 @@ export interface I18nTranslations {
   autogen?: any;
   filebrowser?: any;
   indexers: I18nIndexers;
+  errors?: any;
+  copilot?: any;
+  confirmModal?: any;
+  gettingStarted?: any;
+  promptModal?: any;
+  statusBar?: any;
   app?: any;
   settingsTabs: {
     loadingSpeedLimitParameters: string;
@@ -1838,6 +1845,7 @@ export interface I18nTranslations {
       enableSearchHint: string;
       enableDiagnostics: string;
       enableDiagnosticsHint: string;
+      runDiagnosticDesc?: string;
       resetButtonPosition: string;
       unknownError: string;
     };
