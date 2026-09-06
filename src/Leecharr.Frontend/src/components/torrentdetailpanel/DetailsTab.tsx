@@ -1,6 +1,19 @@
-import { useDownloadHistory, useArrConnections, useIndexers } from "../../api/hooks";
-import { formatBytes, formatDate, normalizeGenres } from "../../utils/formatters";
-import { getMediaDeepLink, getImdbUrl, getTmdbUrl, getProwlarrUrl } from "../../utils/arrLinks";
+import {
+  useDownloadHistory,
+  useArrConnections,
+  useIndexers,
+} from "../../api/hooks";
+import {
+  formatBytes,
+  formatDate,
+  normalizeGenres,
+} from "../../utils/formatters";
+import {
+  getMediaDeepLink,
+  getImdbUrl,
+  getTmdbUrl,
+  getProwlarrUrl,
+} from "../../utils/arrLinks";
 import { getTorrentBadges, calculateHnrStatus } from "../../utils/milestones";
 import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
@@ -13,12 +26,15 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
   // Find corresponding enriched history entry by infoHash or name match
   const historyMatch = history?.find(
     (h) =>
-      (torrent.infoHash && h.infoHash?.toLowerCase() === torrent.infoHash.toLowerCase()) ||
-      h.title?.toLowerCase() === torrent.name?.toLowerCase()
+      (torrent.infoHash &&
+        h.infoHash?.toLowerCase() === torrent.infoHash.toLowerCase()) ||
+      h.title?.toLowerCase() === torrent.name?.toLowerCase(),
   );
 
   const meta = historyMatch?.metadata;
-  const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
+  const arrLink = historyMatch
+    ? getMediaDeepLink(historyMatch, arrConnections)
+    : null;
   const imdbUrl = getImdbUrl(meta?.imdbId, meta?.title || torrent.name);
   const tmdbUrl = getTmdbUrl(meta?.tmdbId, meta?.mediaType);
   const prowlarrUrl = getProwlarrUrl(indexers, meta?.title || torrent.name);
@@ -39,7 +55,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
     ],
     ["Tracker", torrent.trackerUrl ?? "-"],
   ];
-  if (torrent.creationDate) rows.push(["Created", formatDate(torrent.creationDate)]);
+  if (torrent.creationDate)
+    rows.push(["Created", formatDate(torrent.creationDate)]);
   if (torrent.createdBy) rows.push(["Created By", torrent.createdBy]);
   if (torrent.comment) rows.push(["Comment", torrent.comment]);
   if (torrent.sourcePath) rows.push(["Source Path", torrent.sourcePath]);
@@ -61,7 +78,9 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             border: "1px solid var(--border-color, #333)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             {meta?.posterUrl && (
               <img
                 src={meta.posterUrl}
@@ -76,7 +95,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             )}
             <div>
               <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                {meta?.title || torrent.name} {meta?.year ? `(${meta.year})` : ""}
+                {meta?.title || torrent.name}{" "}
+                {meta?.year ? `(${meta.year})` : ""}
               </div>
               {(() => {
                 const genresList = normalizeGenres(meta?.genres);
@@ -197,7 +217,9 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             flexWrap: "wrap",
           }}
         >
-          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Badges:</span>
+          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
+            Badges:
+          </span>
           {badges.length === 0 ? (
             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
               Building ratio...
@@ -222,7 +244,9 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>HNR:</span>
+          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
+            HNR:
+          </span>
           <span
             className={`badge ${hnr.isCleared ? "badge-success" : "badge-warning"}`}
             style={{ fontSize: "0.7rem", padding: "0.1rem 0.35rem" }}
@@ -233,7 +257,10 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
       </div>
 
       {/* Stream Specifications if present */}
-      {(torrent.resolution || torrent.videoCodec || torrent.audioCodec || torrent.hdrFormat) && (
+      {(torrent.resolution ||
+        torrent.videoCodec ||
+        torrent.audioCodec ||
+        torrent.hdrFormat) && (
         <div
           style={{
             display: "flex",
@@ -305,7 +332,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
                 fontWeight: 700,
               }}
             >
-              {torrent.audioCodec} {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
+              {torrent.audioCodec}{" "}
+              {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
             </span>
           )}
         </div>
@@ -327,7 +355,8 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             color: "var(--accent, #ffd166)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
-            borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            borderBottom:
+              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
             paddingBottom: "0.25rem",
             marginBottom: "0.4rem",
           }}

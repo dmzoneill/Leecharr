@@ -88,8 +88,12 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
           changed = true;
           nextTelemetry[u.id] = {
             ...(nextTelemetry[u.id] || {}),
-            uploadSpeed: u.uploadSpeed ?? u.upSpeed ?? nextTelemetry[u.id]?.uploadSpeed,
-            downloadSpeed: u.downloadSpeed ?? u.downSpeed ?? nextTelemetry[u.id]?.downloadSpeed,
+            uploadSpeed:
+              u.uploadSpeed ?? u.upSpeed ?? nextTelemetry[u.id]?.uploadSpeed,
+            downloadSpeed:
+              u.downloadSpeed ??
+              u.downSpeed ??
+              nextTelemetry[u.id]?.downloadSpeed,
             progress: u.progress ?? nextTelemetry[u.id]?.progress,
             uploaded: u.uploaded ?? nextTelemetry[u.id]?.uploaded,
             downloaded: u.downloaded ?? nextTelemetry[u.id]?.downloaded,
@@ -123,7 +127,8 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       return { selectedIds: next };
     }),
   selectAllIds: (ids) => set({ selectedIds: new Set(ids) }),
-  clearSelection: () => set({ selectedIds: new Set(), selectedTorrentId: null }),
+  clearSelection: () =>
+    set({ selectedIds: new Set(), selectedTorrentId: null }),
   removeTorrent: (id: number) =>
     set((state) => {
       const nextSelected = new Set(state.selectedIds);
@@ -134,31 +139,60 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       delete nextPieceMaps[id];
       return {
         selectedIds: nextSelected,
-        selectedTorrentId: state.selectedTorrentId === id ? null : state.selectedTorrentId,
+        selectedTorrentId:
+          state.selectedTorrentId === id ? null : state.selectedTorrentId,
         telemetry: nextTelemetry,
         pieceMaps: nextPieceMaps,
       };
     }),
 }));
 
-export function applyTelemetry(torrent: Torrent, telemetry?: TorrentTelemetry): Torrent {
-  if (!telemetry) return torrent;
+export function applyTelemetry(
+  torrent: Torrent,
+  telemetry?: TorrentTelemetry,
+): Torrent {
+  const effectiveStatus = (telemetry?.status ?? torrent.status)?.toLowerCase();
+  const isInactive =
+    effectiveStatus === "paused" ||
+    effectiveStatus === "stopped" ||
+    effectiveStatus === "error" ||
+    effectiveStatus === "queued";
+
+  if (!telemetry) {
+    if (isInactive) {
+      return {
+        ...torrent,
+        downloadSpeed: 0,
+        uploadSpeed: 0,
+        eta: 0,
+        seeders: 0,
+        leechers: 0,
+      };
+    }
+    return torrent;
+  }
+
   return {
     ...torrent,
-    uploadSpeed: telemetry.uploadSpeed ?? torrent.uploadSpeed,
-    downloadSpeed: telemetry.downloadSpeed ?? torrent.downloadSpeed,
+    uploadSpeed: isInactive
+      ? 0
+      : (telemetry.uploadSpeed ?? torrent.uploadSpeed),
+    downloadSpeed: isInactive
+      ? 0
+      : (telemetry.downloadSpeed ?? torrent.downloadSpeed),
     progress: telemetry.progress ?? torrent.progress,
     uploaded: telemetry.uploaded ?? torrent.uploaded,
     downloaded: telemetry.downloaded ?? torrent.downloaded,
     ratio: telemetry.ratio ?? torrent.ratio,
-    eta:
-      typeof telemetry.eta === "number"
+    eta: isInactive
+      ? 0
+      : typeof telemetry.eta === "number"
         ? telemetry.eta
         : telemetry.eta
           ? Number(telemetry.eta)
           : torrent.eta,
     status: telemetry.status ?? torrent.status,
-    seeders: telemetry.seeders ?? torrent.seeders,
-    leechers: telemetry.leechers ?? torrent.leechers,
+    seeders: isInactive ? 0 : (telemetry.seeders ?? torrent.seeders),
+    leechers: isInactive ? 0 : (telemetry.leechers ?? torrent.leechers),
   };
 }

@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   useAddTorrent,
   useIndexers,
@@ -71,7 +77,9 @@ export function AddTorrentForm({
   // Indexer Search State
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [activeSearchTerm, setActiveSearchTerm] = useState(initialQuery);
-  const [selectedIndexerId, setSelectedIndexerId] = useState<number | undefined>(undefined);
+  const [selectedIndexerId, setSelectedIndexerId] = useState<
+    number | undefined
+  >(undefined);
   const [downloadingGuid, setDownloadingGuid] = useState<string | null>(null);
 
   // Torrent Creator State
@@ -85,7 +93,8 @@ export function AddTorrentForm({
   const [createWebSeeds, setCreateWebSeeds] = useState("");
   const [createOutputPath, setCreateOutputPath] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [createResult, setCreateResult] = useState<TorrentCreationResult | null>(null);
+  const [createResult, setCreateResult] =
+    useState<TorrentCreationResult | null>(null);
 
   const { data: indexers } = useIndexers();
   const enabledIndexers = indexers?.filter((i) => i.enable) || [];
@@ -95,7 +104,7 @@ export function AddTorrentForm({
       query: activeSearchTerm,
       indexerId: selectedIndexerId,
     },
-    mode === "search" && Boolean(activeSearchTerm.trim())
+    mode === "search" && Boolean(activeSearchTerm.trim()),
   );
 
   const downloadReleaseMutation = useDownloadIndexerRelease();
@@ -129,7 +138,9 @@ export function AddTorrentForm({
   }, [categories, selectedCategory]);
 
   const addFiles = useCallback((incoming: FileList | File[]) => {
-    const torrentFiles = Array.from(incoming).filter((f) => f.name.endsWith(".torrent"));
+    const torrentFiles = Array.from(incoming).filter((f) =>
+      f.name.endsWith(".torrent"),
+    );
     if (torrentFiles.length === 0) return;
     setFiles((prev) => {
       const existing = new Set(prev.map((f) => f.name));
@@ -164,7 +175,7 @@ export function AddTorrentForm({
       setIsDragOver(false);
       addFiles(e.dataTransfer.files);
     },
-    [addFiles]
+    [addFiles],
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,7 +193,10 @@ export function AddTorrentForm({
         {
           onSuccess: (result: AddTorrentResult) => {
             if (result && result.failed && result.failed.length === 0) {
-              showToast(`Added ${result.added.length} torrent(s) successfully`, "success");
+              showToast(
+                `Added ${result.added.length} torrent(s) successfully`,
+                "success",
+              );
               if (onSuccess) onSuccess();
               if (onClose) onClose();
               return;
@@ -193,7 +207,7 @@ export function AddTorrentForm({
               setResultMessage(
                 `${result.added.length} added, ${result.failed.length} skipped: ${result.failed
                   .map((f) => `${f.fileName} (${f.reason})`)
-                  .join("; ")}`
+                  .join("; ")}`,
               );
             } else {
               showToast("Torrent(s) added successfully", "success");
@@ -204,7 +218,7 @@ export function AddTorrentForm({
           onError: (err) => {
             showToast(`Failed to upload torrents: ${err.message}`, "error");
           },
-        }
+        },
       );
     } else if (mode === "magnet" && magnetLink.trim()) {
       addTorrent.mutate(
@@ -219,7 +233,7 @@ export function AddTorrentForm({
           onError: (err) => {
             showToast(`Failed to add magnet: ${err.message}`, "error");
           },
-        }
+        },
       );
     }
   };
@@ -252,9 +266,12 @@ export function AddTorrentForm({
         },
         onError: (err) => {
           setDownloadingGuid(null);
-          showToast(`Failed to add release: ${err.message || "Unknown error"}`, "error");
+          showToast(
+            `Failed to add release: ${err.message || "Unknown error"}`,
+            "error",
+          );
         },
-      }
+      },
     );
   };
 
@@ -305,8 +322,13 @@ export function AddTorrentForm({
   };
 
   const isMagnetValid = magnetLink.trim().startsWith("magnet:?");
-  const magnetPreview = useMemo(() => parseMagnetPreview(magnetLink), [magnetLink]);
-  const canSubmit = (mode === "file" && files.length > 0) || (mode === "magnet" && isMagnetValid);
+  const magnetPreview = useMemo(
+    () => parseMagnetPreview(magnetLink),
+    [magnetLink],
+  );
+  const canSubmit =
+    (mode === "file" && files.length > 0) ||
+    (mode === "magnet" && isMagnetValid);
 
   return (
     <div
@@ -339,8 +361,10 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor: mode === "file" ? "var(--accent, #ffd166)" : "transparent",
-            color: mode === "file" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor:
+              mode === "file" ? "var(--accent, #ffd166)" : "transparent",
+            color:
+              mode === "file" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -356,8 +380,10 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor: mode === "magnet" ? "var(--accent, #ffd166)" : "transparent",
-            color: mode === "magnet" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor:
+              mode === "magnet" ? "var(--accent, #ffd166)" : "transparent",
+            color:
+              mode === "magnet" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -373,8 +399,10 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor: mode === "search" ? "var(--accent, #ffd166)" : "transparent",
-            color: mode === "search" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor:
+              mode === "search" ? "var(--accent, #ffd166)" : "transparent",
+            color:
+              mode === "search" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -390,8 +418,10 @@ export function AddTorrentForm({
             fontSize: "0.9rem",
             padding: "0.45rem 1rem",
             borderRadius: "6px",
-            backgroundColor: mode === "create" ? "var(--accent, #ffd166)" : "transparent",
-            color: mode === "create" ? "#000000" : "var(--text-secondary, #c7c5d3)",
+            backgroundColor:
+              mode === "create" ? "var(--accent, #ffd166)" : "transparent",
+            color:
+              mode === "create" ? "#000000" : "var(--text-secondary, #c7c5d3)",
             border: "none",
             fontWeight: 600,
             cursor: "pointer",
@@ -445,7 +475,9 @@ export function AddTorrentForm({
             <div style={{ fontSize: "2.5rem", marginBottom: "0.6rem" }}>📤</div>
             {files.length > 0 ? (
               <div>
-                <span style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}>
+                <span
+                  style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}
+                >
                   {files.length === 1
                     ? `${files[0].name} selected`
                     : `${files.length} torrent files selected`}
@@ -656,7 +688,9 @@ export function AddTorrentForm({
                   : "1px solid var(--border-light, rgba(255, 255, 255, 0.15))",
                 backgroundColor: "var(--bg-primary, #10111a)",
                 boxShadow:
-                  magnetLink.trim() && isMagnetValid ? "0 0 0 1px rgba(34, 197, 94, 0.2)" : "none",
+                  magnetLink.trim() && isMagnetValid
+                    ? "0 0 0 1px rgba(34, 197, 94, 0.2)"
+                    : "none",
                 transition: "all 0.2s ease",
               }}
             >
@@ -677,7 +711,8 @@ export function AddTorrentForm({
                   outline: "none",
                   boxShadow: "none",
                   color: "inherit",
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontFamily:
+                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                   fontSize: "0.85rem",
                   lineHeight: "1.45",
                   resize: isModal ? "vertical" : "none",
@@ -701,11 +736,15 @@ export function AddTorrentForm({
               {magnetLink.trim() && (
                 <span
                   style={{
-                    color: isMagnetValid ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
+                    color: isMagnetValid
+                      ? "var(--success, #22c55e)"
+                      : "var(--danger, #ef4444)",
                     fontWeight: 600,
                   }}
                 >
-                  {isMagnetValid ? "✓ Valid Magnet Format" : "✗ Must start with magnet:?"}
+                  {isMagnetValid
+                    ? "✓ Valid Magnet Format"
+                    : "✗ Must start with magnet:?"}
                 </span>
               )}
             </div>
@@ -761,21 +800,22 @@ export function AddTorrentForm({
                     </span>
                   </div>
                 )}
-                {magnetPreview?.trackerCount !== undefined && magnetPreview.trackerCount > 0 && (
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <span
-                      style={{
-                        color: "var(--text-muted, #7e8092)",
-                        minWidth: "75px",
-                      }}
-                    >
-                      Trackers:
-                    </span>
-                    <span style={{ color: "#4ade80" }}>
-                      {magnetPreview.trackerCount} bundled tracker(s)
-                    </span>
-                  </div>
-                )}
+                {magnetPreview?.trackerCount !== undefined &&
+                  magnetPreview.trackerCount > 0 && (
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <span
+                        style={{
+                          color: "var(--text-muted, #7e8092)",
+                          minWidth: "75px",
+                        }}
+                      >
+                        Trackers:
+                      </span>
+                      <span style={{ color: "#4ade80" }}>
+                        {magnetPreview.trackerCount} bundled tracker(s)
+                      </span>
+                    </div>
+                  )}
               </div>
             )}
           </div>
@@ -815,8 +855,8 @@ export function AddTorrentForm({
                   margin: "0 auto 1.25rem",
                 }}
               >
-                Connect Jackett, Prowlarr, Torznab, or Newznab indexers in Settings to search
-                releases directly.
+                Connect Jackett, Prowlarr, Torznab, or Newznab indexers in
+                Settings to search releases directly.
               </p>
             </div>
           ) : (
@@ -862,7 +902,9 @@ export function AddTorrentForm({
                     className="form-control"
                     value={selectedIndexerId ?? ""}
                     onChange={(e) =>
-                      setSelectedIndexerId(e.target.value ? Number(e.target.value) : undefined)
+                      setSelectedIndexerId(
+                        e.target.value ? Number(e.target.value) : undefined,
+                      )
                     }
                     style={{
                       backgroundColor: "var(--bg-primary, #10111a)",
@@ -873,7 +915,9 @@ export function AddTorrentForm({
                       fontSize: "0.85rem",
                     }}
                   >
-                    <option value="">All Indexers ({enabledIndexers.length})</option>
+                    <option value="">
+                      All Indexers ({enabledIndexers.length})
+                    </option>
                     {enabledIndexers.map((idx) => (
                       <option key={idx.id} value={idx.id}>
                         {idx.name} ({idx.indexerType})
@@ -906,7 +950,9 @@ export function AddTorrentForm({
               >
                 {searchResults.isFetching && (
                   <div style={{ padding: "3rem", textAlign: "center" }}>
-                    <div className="loading">Searching configured indexers...</div>
+                    <div className="loading">
+                      Searching configured indexers...
+                    </div>
                   </div>
                 )}
 
@@ -919,7 +965,8 @@ export function AddTorrentForm({
                     }}
                   >
                     Search failed:{" "}
-                    {(searchResults.error as Error)?.message || "Check indexer connection"}
+                    {(searchResults.error as Error)?.message ||
+                      "Check indexer connection"}
                   </div>
                 )}
 
@@ -953,231 +1000,248 @@ export function AddTorrentForm({
                   </div>
                 )}
 
-                {!searchResults.isFetching && (searchResults.data?.length ?? 0) > 0 && (
-                  <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr
-                        style={{
-                          borderBottom: "1px solid var(--border-light, #1c203b)",
-                          textAlign: "left",
-                          fontSize: "0.8rem",
-                          color: "var(--text-muted, #7e8092)",
-                          position: "sticky",
-                          top: 0,
-                          backgroundColor: "var(--bg-secondary, #171b35)",
-                          zIndex: 2,
-                        }}
-                      >
-                        <th style={{ padding: "0.65rem 0.85rem" }}>Title</th>
-                        <th
+                {!searchResults.isFetching &&
+                  (searchResults.data?.length ?? 0) > 0 && (
+                    <table
+                      className="table"
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <thead>
+                        <tr
                           style={{
-                            padding: "0.65rem 0.85rem",
-                            width: "130px",
+                            borderBottom:
+                              "1px solid var(--border-light, #1c203b)",
+                            textAlign: "left",
+                            fontSize: "0.8rem",
+                            color: "var(--text-muted, #7e8092)",
+                            position: "sticky",
+                            top: 0,
+                            backgroundColor: "var(--bg-secondary, #171b35)",
+                            zIndex: 2,
                           }}
                         >
-                          Indexer
-                        </th>
-                        <th
-                          style={{
-                            padding: "0.65rem 0.85rem",
-                            width: "100px",
-                          }}
-                        >
-                          Size
-                        </th>
-                        <th
-                          style={{
-                            padding: "0.65rem 0.85rem",
-                            width: "95px",
-                          }}
-                        >
-                          Peers
-                        </th>
-                        <th
-                          style={{
-                            padding: "0.65rem 0.85rem",
-                            width: "100px",
-                          }}
-                        >
-                          Date
-                        </th>
-                        <th
-                          style={{
-                            padding: "0.65rem 0.85rem",
-                            width: "90px",
-                            textAlign: "right",
-                          }}
-                        >
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {searchResults.data?.map((rel) => {
-                        const itemKey = rel.guid || rel.infoHash || rel.title;
-                        const isDownloading = downloadingGuid === itemKey;
-                        const isFl =
-                          Boolean(rel.isFreeleech) ||
-                          rel.downloadVolumeFactor === 0 ||
-                          (rel.category || "").toLowerCase().includes("freeleech") ||
-                          (rel.categories || []).some((c) =>
-                            c.toLowerCase().includes("freeleech")
-                          ) ||
-                          (rel.downloadUrl || "").toLowerCase().includes("freeleech") ||
-                          (rel.magnetUrl || "").toLowerCase().includes("freeleech");
-                        const catList =
-                          rel.categories && rel.categories.length > 0
-                            ? rel.categories
-                            : rel.category
-                              ? rel.category
-                                  .split(",")
-                                  .map((c) => c.trim())
-                                  .filter(Boolean)
-                              : [];
-
-                        return (
-                          <tr
-                            key={itemKey}
+                          <th style={{ padding: "0.65rem 0.85rem" }}>Title</th>
+                          <th
                             style={{
-                              borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                              fontSize: "0.85rem",
+                              padding: "0.65rem 0.85rem",
+                              width: "130px",
                             }}
                           >
-                            <td style={{ padding: "0.65rem 0.85rem" }}>
-                              <div
-                                style={{
-                                  fontWeight: 500,
-                                  wordBreak: "break-word",
-                                }}
-                              >
-                                {rel.title}
-                                {isFl && (
-                                  <span
-                                    className="badge"
-                                    style={{
-                                      marginLeft: "0.5rem",
-                                      fontSize: "0.65rem",
-                                      padding: "0.1rem 0.4rem",
-                                      borderRadius: "3px",
-                                      backgroundColor: "rgba(34, 197, 94, 0.15)",
-                                      color: "var(--success, #22c55e)",
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    FREELEECH
-                                  </span>
-                                )}
-                              </div>
-                              {catList.length > 0 && (
+                            Indexer
+                          </th>
+                          <th
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              width: "100px",
+                            }}
+                          >
+                            Size
+                          </th>
+                          <th
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              width: "95px",
+                            }}
+                          >
+                            Peers
+                          </th>
+                          <th
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              width: "100px",
+                            }}
+                          >
+                            Date
+                          </th>
+                          <th
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              width: "90px",
+                              textAlign: "right",
+                            }}
+                          >
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchResults.data?.map((rel) => {
+                          const itemKey = rel.guid || rel.infoHash || rel.title;
+                          const isDownloading = downloadingGuid === itemKey;
+                          const isFl =
+                            Boolean(rel.isFreeleech) ||
+                            rel.downloadVolumeFactor === 0 ||
+                            (rel.category || "")
+                              .toLowerCase()
+                              .includes("freeleech") ||
+                            (rel.categories || []).some((c) =>
+                              c.toLowerCase().includes("freeleech"),
+                            ) ||
+                            (rel.downloadUrl || "")
+                              .toLowerCase()
+                              .includes("freeleech") ||
+                            (rel.magnetUrl || "")
+                              .toLowerCase()
+                              .includes("freeleech");
+                          const catList =
+                            rel.categories && rel.categories.length > 0
+                              ? rel.categories
+                              : rel.category
+                                ? rel.category
+                                    .split(",")
+                                    .map((c) => c.trim())
+                                    .filter(Boolean)
+                                : [];
+
+                          return (
+                            <tr
+                              key={itemKey}
+                              style={{
+                                borderBottom:
+                                  "1px solid rgba(255, 255, 255, 0.05)",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              <td style={{ padding: "0.65rem 0.85rem" }}>
                                 <div
                                   style={{
-                                    display: "flex",
-                                    gap: "0.3rem",
-                                    marginTop: "0.25rem",
+                                    fontWeight: 500,
+                                    wordBreak: "break-word",
                                   }}
                                 >
-                                  {catList.slice(0, 3).map((c, i) => (
+                                  {rel.title}
+                                  {isFl && (
                                     <span
-                                      key={i}
-                                      className="badge badge-secondary"
+                                      className="badge"
                                       style={{
+                                        marginLeft: "0.5rem",
                                         fontSize: "0.65rem",
-                                        padding: "0.1rem 0.35rem",
+                                        padding: "0.1rem 0.4rem",
                                         borderRadius: "3px",
-                                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                        backgroundColor:
+                                          "rgba(34, 197, 94, 0.15)",
+                                        color: "var(--success, #22c55e)",
+                                        fontWeight: 700,
                                       }}
                                     >
-                                      {c}
+                                      FREELEECH
                                     </span>
-                                  ))}
+                                  )}
                                 </div>
-                              )}
-                            </td>
+                                {catList.length > 0 && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: "0.3rem",
+                                      marginTop: "0.25rem",
+                                    }}
+                                  >
+                                    {catList.slice(0, 3).map((c, i) => (
+                                      <span
+                                        key={i}
+                                        className="badge badge-secondary"
+                                        style={{
+                                          fontSize: "0.65rem",
+                                          padding: "0.1rem 0.35rem",
+                                          borderRadius: "3px",
+                                          backgroundColor:
+                                            "rgba(255, 255, 255, 0.08)",
+                                        }}
+                                      >
+                                        {c}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
 
-                            <td style={{ padding: "0.65rem 0.85rem" }}>
-                              <span
-                                className="badge badge-primary"
+                              <td style={{ padding: "0.65rem 0.85rem" }}>
+                                <span
+                                  className="badge badge-primary"
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    borderRadius: "4px",
+                                    backgroundColor:
+                                      "rgba(255, 209, 102, 0.15)",
+                                    color: "var(--accent, #ffd166)",
+                                  }}
+                                >
+                                  {rel.indexerName || rel.indexer || "Indexer"}
+                                </span>
+                              </td>
+
+                              <td
                                 style={{
-                                  fontSize: "0.75rem",
-                                  borderRadius: "4px",
-                                  backgroundColor: "rgba(255, 209, 102, 0.15)",
-                                  color: "var(--accent, #ffd166)",
+                                  padding: "0.65rem 0.85rem",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                {rel.indexerName || rel.indexer || "Indexer"}
-                              </span>
-                            </td>
+                                {formatBytes(rel.size)}
+                              </td>
 
-                            <td
-                              style={{
-                                padding: "0.65rem 0.85rem",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {formatBytes(rel.size)}
-                            </td>
-
-                            <td
-                              style={{
-                                padding: "0.65rem 0.85rem",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <span
+                              <td
                                 style={{
-                                  color: "var(--success, #22c55e)",
-                                  fontWeight: 600,
+                                  padding: "0.65rem 0.85rem",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                ▲ {rel.seeders ?? 0}
-                              </span>{" "}
-                              <span
+                                <span
+                                  style={{
+                                    color: "var(--success, #22c55e)",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  ▲ {rel.seeders ?? 0}
+                                </span>{" "}
+                                <span
+                                  style={{
+                                    color: "var(--text-muted, #7e8092)",
+                                    marginLeft: "0.2rem",
+                                  }}
+                                >
+                                  ▼ {rel.leechers ?? 0}
+                                </span>
+                              </td>
+
+                              <td
                                 style={{
+                                  padding: "0.65rem 0.85rem",
+                                  fontSize: "0.8rem",
                                   color: "var(--text-muted, #7e8092)",
-                                  marginLeft: "0.2rem",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                ▼ {rel.leechers ?? 0}
-                              </span>
-                            </td>
+                                {rel.publishDate
+                                  ? formatDate(rel.publishDate)
+                                  : "-"}
+                              </td>
 
-                            <td
-                              style={{
-                                padding: "0.65rem 0.85rem",
-                                fontSize: "0.8rem",
-                                color: "var(--text-muted, #7e8092)",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {rel.publishDate ? formatDate(rel.publishDate) : "-"}
-                            </td>
-
-                            <td
-                              style={{
-                                padding: "0.65rem 0.85rem",
-                                textAlign: "right",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                className="btn btn-success"
+                              <td
                                 style={{
-                                  fontSize: "0.78rem",
-                                  padding: "0.3rem 0.65rem",
-                                  borderRadius: "4px",
+                                  padding: "0.65rem 0.85rem",
+                                  textAlign: "right",
                                 }}
-                                onClick={() => handleAddRelease(rel)}
-                                disabled={isDownloading}
                               >
-                                {isDownloading ? "Adding..." : "+ Add"}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
+                                <button
+                                  type="button"
+                                  className="btn btn-success"
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    padding: "0.3rem 0.65rem",
+                                    borderRadius: "4px",
+                                  }}
+                                  onClick={() => handleAddRelease(rel)}
+                                  disabled={isDownloading}
+                                >
+                                  {isDownloading ? "Adding..." : "+ Add"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
               </div>
             </div>
           )}
@@ -1197,7 +1261,13 @@ export function AddTorrentForm({
             gap: "1rem",
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
             <div>
               <label
                 style={{
@@ -1259,7 +1329,13 @@ export function AddTorrentForm({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
             <div>
               <label
                 style={{
@@ -1274,7 +1350,9 @@ export function AddTorrentForm({
               </label>
               <select
                 value={createPieceLength}
-                onChange={(e) => setCreatePieceLength(parseInt(e.target.value, 10))}
+                onChange={(e) =>
+                  setCreatePieceLength(parseInt(e.target.value, 10))
+                }
                 className="form-input"
                 style={{
                   width: "100%",
@@ -1303,7 +1381,12 @@ export function AddTorrentForm({
             </div>
 
             <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingTop: "1.2rem" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                paddingTop: "1.2rem",
+              }}
             >
               <input
                 type="checkbox"
@@ -1313,7 +1396,11 @@ export function AddTorrentForm({
               />
               <label
                 htmlFor="createPrivateCheck"
-                style={{ fontSize: "0.85rem", color: "var(--text-secondary)", cursor: "pointer" }}
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                }}
               >
                 <strong>Private Torrent</strong> (BEP 27 - Disables DHT & PEX)
               </label>
@@ -1382,7 +1469,13 @@ export function AddTorrentForm({
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
             <div>
               <label
                 style={{
@@ -1458,20 +1551,31 @@ export function AddTorrentForm({
             >
               {createResult.success ? (
                 <div>
-                  <div style={{ fontWeight: 700, color: "#10b981", marginBottom: "0.25rem" }}>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "#10b981",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
                     ✓ Torrent file created successfully!
                   </div>
                   <div>
                     <strong>Info Hash:</strong>{" "}
-                    <code style={{ wordBreak: "break-all" }}>{createResult.infoHash}</code>
+                    <code style={{ wordBreak: "break-all" }}>
+                      {createResult.infoHash}
+                    </code>
                   </div>
                   <div>
-                    <strong>Total Size:</strong> {formatBytes(createResult.totalSize)} (
-                    {createResult.pieceCount} pieces @ {formatBytes(createResult.pieceLength)})
+                    <strong>Total Size:</strong>{" "}
+                    {formatBytes(createResult.totalSize)} (
+                    {createResult.pieceCount} pieces @{" "}
+                    {formatBytes(createResult.pieceLength)})
                   </div>
                   {createResult.outputPath && (
                     <div style={{ marginTop: "0.25rem" }}>
-                      <strong>Saved To:</strong> <code>{createResult.outputPath}</code>
+                      <strong>Saved To:</strong>{" "}
+                      <code>{createResult.outputPath}</code>
                     </div>
                   )}
                 </div>
@@ -1554,7 +1658,9 @@ export function AddTorrentForm({
               }}
             >
               <option value="">
-                {categories && categories.length > 0 ? "(None)" : "(No categories configured)"}
+                {categories && categories.length > 0
+                  ? "(None)"
+                  : "(No categories configured)"}
               </option>
               {categories?.map((c) => (
                 <option key={c.id} value={c.name}>

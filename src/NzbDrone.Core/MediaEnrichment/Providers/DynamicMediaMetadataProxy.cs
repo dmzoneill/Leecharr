@@ -162,9 +162,50 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         }
     }
 
-    public Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
     {
-        return Volatile.Read(ref this.activeProvider).FetchMetadataAsync(title, category, year);
+        var provider = Volatile.Read(ref this.activeProvider);
+        if (provider != null)
+        {
+            var result = await provider.FetchMetadataAsync(title, category, year);
+            if (result != null && !string.IsNullOrEmpty(result.PosterUrl))
+            {
+                return result;
+            }
+
+            foreach (var fallback in this.availableProviders.Where(p => p != provider))
+            {
+                try
+                {
+                    var fallbackResult = await fallback.FetchMetadataAsync(title, category, year);
+                    if (fallbackResult != null && !string.IsNullOrEmpty(fallbackResult.PosterUrl))
+                    {
+                        if (result != null)
+                        {
+                            result.PosterUrl ??= fallbackResult.PosterUrl;
+                            result.BackdropUrl ??= fallbackResult.BackdropUrl;
+                            result.Overview = string.IsNullOrEmpty(result.Overview) ? fallbackResult.Overview : result.Overview;
+                            result.Rating = result.Rating > 0 ? result.Rating : fallbackResult.Rating;
+                            result.Genres = string.IsNullOrEmpty(result.Genres) ? fallbackResult.Genres : result.Genres;
+                            return result;
+                        }
+
+                        return fallbackResult;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Fallback provider {0} failed for {1}", fallback.ProviderId, title);
+                }
+            }
+
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     public void Dispose()

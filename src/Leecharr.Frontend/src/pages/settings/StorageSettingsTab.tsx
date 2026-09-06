@@ -23,7 +23,8 @@ export function StorageSettingsTab() {
       setForm({
         downloadDir: config.downloadDir || "/downloads",
         enableIncompleteDir: config.enableIncompleteDir ?? true,
-        incompleteDownloadDir: config.incompleteDownloadDir || "/downloads/incomplete",
+        incompleteDownloadDir:
+          config.incompleteDownloadDir || "/downloads/incomplete",
         preallocationMode: config.preallocationMode || "Sparse",
         renamePartialFiles: config.renamePartialFiles ?? true,
         incompleteExtension: config.incompleteExtension || ".!leech",
@@ -33,7 +34,10 @@ export function StorageSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -53,7 +57,7 @@ export function StorageSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
@@ -117,11 +121,13 @@ export function StorageSettingsTab() {
               options={[
                 {
                   value: "Sparse",
-                  label: "Sparse Allocation (Instant Non-Blocking, Recommended)",
+                  label:
+                    "Sparse Allocation (Instant Non-Blocking, Recommended)",
                 },
                 {
                   value: "Full",
-                  label: "Full Preallocation (Zero-fill, Prevents Fragmentation)",
+                  label:
+                    "Full Preallocation (Zero-fill, Prevents Fragmentation)",
                 },
                 { value: "Off", label: "Disabled / Compact (Grow On Write)" },
               ]}

@@ -51,6 +51,14 @@ public static class MediaMetadataResourceMapper
             return null;
         }
 
+        var posterUrl = !string.IsNullOrEmpty(model.PosterLocalPath) && System.IO.File.Exists(model.PosterLocalPath)
+            ? $"/api/v1/media/artwork/{model.TorrentId}/poster"
+            : model.PosterUrl;
+
+        var backdropUrl = !string.IsNullOrEmpty(model.BackdropLocalPath) && System.IO.File.Exists(model.BackdropLocalPath)
+            ? $"/api/v1/media/artwork/{model.TorrentId}/backdrop"
+            : model.BackdropUrl;
+
         return new MediaMetadataResource
         {
             Id = model.Id,
@@ -60,9 +68,9 @@ public static class MediaMetadataResourceMapper
             Title = model.Title,
             Year = model.Year,
             Overview = model.Overview,
-            PosterUrl = model.PosterUrl,
+            PosterUrl = posterUrl,
             PosterLocalPath = model.PosterLocalPath,
-            BackdropUrl = model.BackdropUrl,
+            BackdropUrl = backdropUrl,
             BackdropLocalPath = model.BackdropLocalPath,
             MediaInfoJson = model.MediaInfoJson,
             Genres = string.IsNullOrWhiteSpace(model.Genres)

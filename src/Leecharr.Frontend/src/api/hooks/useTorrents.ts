@@ -88,7 +88,11 @@ export function useTorrentFiles(torrentId: number) {
 
 export function useSetFilePriority() {
   const queryClient = useQueryClient();
-  return useMutation<void, Error, { torrentId: number; fileId: number; priority: number }>({
+  return useMutation<
+    void,
+    Error,
+    { torrentId: number; fileId: number; priority: number }
+  >({
     mutationFn: ({ torrentId, fileId, priority }) =>
       apiClient.put(`/torrent/${torrentId}/files/${fileId}/priority`, {
         priority,
@@ -114,8 +118,8 @@ export function useSetFilesPriority() {
         files.map((f) =>
           apiClient.put(`/torrent/${torrentId}/files/${f.fileId}/priority`, {
             priority: f.priority,
-          })
-        )
+          }),
+        ),
       );
     },
     onSuccess: (_, vars) => {
@@ -162,7 +166,8 @@ export function useCategories() {
 export function useCreateCategory() {
   const queryClient = useQueryClient();
   return useMutation<Category, Error, Partial<Category>>({
-    mutationFn: (data: Partial<Category>) => apiClient.post("/categories", data),
+    mutationFn: (data: Partial<Category>) =>
+      apiClient.post("/categories", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
@@ -191,7 +196,11 @@ export function useDeleteCategory() {
 
 export function useAddTorrentTracker() {
   const queryClient = useQueryClient();
-  return useMutation<TrackerEntry, Error, { torrentId: number; url: string; tier?: number }>({
+  return useMutation<
+    TrackerEntry,
+    Error,
+    { torrentId: number; url: string; tier?: number }
+  >({
     mutationFn: ({ torrentId, url, tier }) =>
       apiClient.post(`/torrent/${torrentId}/trackers`, {
         url,
@@ -215,7 +224,10 @@ export function useAnnounceTorrentTracker() {
     { torrentId: number; trackerId: number }
   >({
     mutationFn: ({ torrentId, trackerId }) =>
-      apiClient.post(`/torrent/${torrentId}/trackers/${trackerId}/announce`, {}),
+      apiClient.post(
+        `/torrent/${torrentId}/trackers/${trackerId}/announce`,
+        {},
+      ),
     onSuccess: (_, { torrentId }) => {
       queryClient.invalidateQueries({
         queryKey: ["torrents", torrentId, "trackers"],
@@ -240,7 +252,10 @@ export function useAddTorrent() {
         if (input.category) formData.append("category", input.category);
         if (isPaused) formData.append("paused", "true");
         if (input.savePath) formData.append("savePath", input.savePath);
-        return apiClient.postForm<AddTorrentResult>("/torrents/upload", formData);
+        return apiClient.postForm<AddTorrentResult>(
+          "/torrents/upload",
+          formData,
+        );
       }
       return apiClient.post("/torrents", {
         magnetLink: input.magnetLink,
@@ -267,8 +282,16 @@ export function useUpdateTorrent() {
 export function useDeleteTorrent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, deleteFiles = false }: { id: number; deleteFiles?: boolean }) =>
-      apiClient.delete(`/torrent/${id}${deleteFiles ? "?deleteFiles=true" : ""}`),
+    mutationFn: ({
+      id,
+      deleteFiles = false,
+    }: {
+      id: number;
+      deleteFiles?: boolean;
+    }) =>
+      apiClient.delete(
+        `/torrent/${id}${deleteFiles ? "?deleteFiles=true" : ""}`,
+      ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["torrents"] }),
   });
 }
@@ -419,15 +442,18 @@ export function useCreateSpeedSchedule() {
   const queryClient = useQueryClient();
   return useMutation<SpeedScheduleEntry, Error, Partial<SpeedScheduleEntry>>({
     mutationFn: (schedule) => apiClient.post("/speedschedule", schedule),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
   });
 }
 
 export function useUpdateSpeedSchedule() {
   const queryClient = useQueryClient();
   return useMutation<SpeedScheduleEntry, Error, SpeedScheduleEntry>({
-    mutationFn: (schedule) => apiClient.put(`/speedschedule/${schedule.id}`, schedule),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
+    mutationFn: (schedule) =>
+      apiClient.put(`/speedschedule/${schedule.id}`, schedule),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
   });
 }
 
@@ -435,7 +461,8 @@ export function useDeleteSpeedSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/speedschedule/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["speedschedule"] }),
   });
 }
 
@@ -479,7 +506,11 @@ export function useActivePeers() {
   });
 }
 
-export function useDownloadHistory(params?: { query?: string; status?: string; limit?: number }) {
+export function useDownloadHistory(params?: {
+  query?: string;
+  status?: string;
+  limit?: number;
+}) {
   const interval = useRefetchInterval();
   const searchParams = new URLSearchParams();
   if (params?.query) searchParams.set("query", params.query);
@@ -489,7 +520,8 @@ export function useDownloadHistory(params?: { query?: string; status?: string; l
 
   return useQuery<DownloadHistoryEntry[]>({
     queryKey: ["downloadhistory", params?.query, params?.status, params?.limit],
-    queryFn: () => apiClient.get(`/downloadhistory${queryString ? `?${queryString}` : ""}`),
+    queryFn: () =>
+      apiClient.get(`/downloadhistory${queryString ? `?${queryString}` : ""}`),
     refetchInterval: interval,
   });
 }
@@ -547,18 +579,20 @@ export function useEnrichAllHistory() {
 
 export function useReconcileDownloadHistory() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; processedCount: number }, Error, void>({
-    mutationFn: () => apiClient.post("/downloadhistory/reconcile"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+  return useMutation<{ success: boolean; processedCount: number }, Error, void>(
+    {
+      mutationFn: () => apiClient.post("/downloadhistory/reconcile"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      },
     },
-  });
+  );
 }
 
 export function useIndexerSearch(
   params: { query: string; category?: string; indexerId?: number },
-  enabled = true
+  enabled = true,
 ) {
   const searchParams = new URLSearchParams();
   searchParams.set("query", params.query);
@@ -567,7 +601,13 @@ export function useIndexerSearch(
   const queryString = searchParams.toString();
 
   return useQuery<ReleaseInfo[]>({
-    queryKey: ["indexers", "search", params.query, params.category, params.indexerId],
+    queryKey: [
+      "indexers",
+      "search",
+      params.query,
+      params.category,
+      params.indexerId,
+    ],
     queryFn: () => apiClient.get(`/indexers/search?${queryString}`),
     enabled: enabled && Boolean(params.query?.trim()),
     staleTime: 30_000,
@@ -608,7 +648,11 @@ export function useInspectTorrentTrackers(torrentId: number, enabled = true) {
   });
 }
 
-export function useInspectHashTrackers(infoHash: string, name = "", enabled = true) {
+export function useInspectHashTrackers(
+  infoHash: string,
+  name = "",
+  enabled = true,
+) {
   return useQuery<TorrentTrackerInspectionResult>({
     queryKey: ["trackerboost", "check-hash", infoHash],
     queryFn: () => {
@@ -656,38 +700,45 @@ export function useScanTrackerBoostTrackers() {
 
 export function useHarvestDownloadTrackers() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>({
-    mutationFn: () => apiClient.post("/trackerboost/harvest/downloads"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>(
+    {
+      mutationFn: () => apiClient.post("/trackerboost/harvest/downloads"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      },
     },
-  });
+  );
 }
 
 export function useHarvestProwlarrTrackers() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>({
-    mutationFn: () => apiClient.post("/trackerboost/harvest/prowlarr"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>(
+    {
+      mutationFn: () => apiClient.post("/trackerboost/harvest/prowlarr"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      },
     },
-  });
+  );
 }
 
 export function useHarvestFeedTrackers() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>({
-    mutationFn: () => apiClient.post("/trackerboost/harvest/feeds"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+  return useMutation<{ success: boolean; harvestedCount: number }, Error, void>(
+    {
+      mutationFn: () => apiClient.post("/trackerboost/harvest/feeds"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      },
     },
-  });
+  );
 }
 
 export function useBoostTorrent() {
   const queryClient = useQueryClient();
   return useMutation<SwarmBoostResult, Error, number>({
-    mutationFn: (torrentId) => apiClient.post(`/trackerboost/boost/${torrentId}`),
+    mutationFn: (torrentId) =>
+      apiClient.post(`/trackerboost/boost/${torrentId}`),
     onSuccess: (_, torrentId) => {
       queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
       queryClient.invalidateQueries({
@@ -701,10 +752,16 @@ export function useBoostTorrent() {
 
 export function useBoostHash() {
   const queryClient = useQueryClient();
-  return useMutation<SwarmBoostResult, Error, { infoHash: string; name?: string }>({
+  return useMutation<
+    SwarmBoostResult,
+    Error,
+    { infoHash: string; name?: string }
+  >({
     mutationFn: (vars) => {
       const search = vars.name ? `?name=${encodeURIComponent(vars.name)}` : "";
-      return apiClient.post(`/trackerboost/boost-hash/${vars.infoHash}${search}`);
+      return apiClient.post(
+        `/trackerboost/boost-hash/${vars.infoHash}${search}`,
+      );
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
@@ -774,8 +831,13 @@ export function useDeleteTrackerBoostTracker() {
 
 export function useBulkImportTrackerBoostTrackers() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; importedCount: number }, Error, { trackersText: string }>({
-    mutationFn: (payload) => apiClient.post("/trackerboost/trackers/bulk", payload),
+  return useMutation<
+    { success: boolean; importedCount: number },
+    Error,
+    { trackersText: string }
+  >({
+    mutationFn: (payload) =>
+      apiClient.post("/trackerboost/trackers/bulk", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
@@ -788,7 +850,8 @@ export const useDownloadPlusPlusTrackers = useTrackerBoostTrackers;
 export const useScanDownloadPlusPlusTrackers = useScanTrackerBoostTrackers;
 export const useAddDownloadPlusPlusTracker = useAddTrackerBoostTracker;
 export const useDeleteDownloadPlusPlusTracker = useDeleteTrackerBoostTracker;
-export const useBulkImportDownloadPlusPlusTrackers = useBulkImportTrackerBoostTrackers;
+export const useBulkImportDownloadPlusPlusTrackers =
+  useBulkImportTrackerBoostTrackers;
 
 export function useTrackerMetrics(refetchInterval: number | false = 4000) {
   return useQuery<TrackerMetric[]>({
@@ -798,7 +861,9 @@ export function useTrackerMetrics(refetchInterval: number | false = 4000) {
   });
 }
 
-export function useTrackerMetricsSummary(refetchInterval: number | false = 4000) {
+export function useTrackerMetricsSummary(
+  refetchInterval: number | false = 4000,
+) {
   return useQuery<TrackerMetricsSummary>({
     queryKey: ["trackermetrics", "summary"],
     queryFn: () => apiClient.get("/trackermetrics/summary"),
@@ -817,7 +882,8 @@ export function useTrackerMetric(id: number) {
 export function useTrackerMetricHistory(id: number, hours = 24) {
   return useQuery<TrackerMetricSnapshot[]>({
     queryKey: ["trackermetrics", id, "history", hours],
-    queryFn: () => apiClient.get(`/trackermetrics/${id}/history?hours=${hours}`),
+    queryFn: () =>
+      apiClient.get(`/trackermetrics/${id}/history?hours=${hours}`),
     enabled: id > 0,
   });
 }
@@ -825,7 +891,8 @@ export function useTrackerMetricHistory(id: number, hours = 24) {
 export function useResetTrackerMetric() {
   const queryClient = useQueryClient();
   return useMutation<{ success: boolean; message: string }, Error, number>({
-    mutationFn: (id: number) => apiClient.post(`/trackermetrics/${id}/reset`, {}),
+    mutationFn: (id: number) =>
+      apiClient.post(`/trackermetrics/${id}/reset`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trackermetrics"] });
     },
@@ -861,7 +928,8 @@ export function useActiveTorrentEngine() {
 export function useSwitchTorrentEngine() {
   const queryClient = useQueryClient();
   return useMutation<SwitchEngineResult, Error, SwitchEngineRequest>({
-    mutationFn: (req: SwitchEngineRequest) => apiClient.post("/torrentengine/switch", req),
+    mutationFn: (req: SwitchEngineRequest) =>
+      apiClient.post("/torrentengine/switch", req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
@@ -872,7 +940,8 @@ export function useSwitchTorrentEngine() {
 
 export function useProbeTorrentEngine() {
   return useMutation<EngineProbeResult, Error, string>({
-    mutationFn: (engineId: string) => apiClient.post(`/torrentengine/${engineId}/probe`, {}),
+    mutationFn: (engineId: string) =>
+      apiClient.post(`/torrentengine/${engineId}/probe`, {}),
   });
 }
 
@@ -914,13 +983,22 @@ export function useSwitchSubsystem() {
 }
 
 export function useProbeSubsystemProvider() {
-  return useMutation<SubsystemProbeResult, Error, { subsystemId: string; providerId: string }>({
+  return useMutation<
+    SubsystemProbeResult,
+    Error,
+    { subsystemId: string; providerId: string }
+  >({
     mutationFn: (vars) =>
-      apiClient.post(`/subsystems/${vars.subsystemId}/probe/${vars.providerId}`, {}),
+      apiClient.post(
+        `/subsystems/${vars.subsystemId}/probe/${vars.providerId}`,
+        {},
+      ),
   });
 }
 
-export function useTorrentEngineMetrics(refetchInterval: number | false = 2000) {
+export function useTorrentEngineMetrics(
+  refetchInterval: number | false = 2000,
+) {
   return useQuery<TorrentEngineMetrics>({
     queryKey: ["system", "resources", "engine"],
     queryFn: () => apiClient.get("/system/resources/engine"),
@@ -936,7 +1014,10 @@ export function usePerTorrentMetrics(refetchInterval: number | false = 2000) {
   });
 }
 
-export function useTorrentResourceMetrics(id: number, refetchInterval: number | false = 2000) {
+export function useTorrentResourceMetrics(
+  id: number,
+  refetchInterval: number | false = 2000,
+) {
   return useQuery<TorrentResourceMetrics>({
     queryKey: ["system", "resources", "torrents", id],
     queryFn: () => apiClient.get(`/system/resources/torrents/${id}`),

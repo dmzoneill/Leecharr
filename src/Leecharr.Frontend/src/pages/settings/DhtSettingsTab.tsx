@@ -66,7 +66,10 @@ export function DhtSettingsTab() {
     }
   }, [btConfig, protoConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -77,7 +80,8 @@ export function DhtSettingsTab() {
     (!btConfig || saveBtMutation.isSuccess) &&
     (!protoConfig || saveProtoMutation.isSuccess) &&
     (saveBtMutation.isSuccess || saveProtoMutation.isSuccess);
-  const error = (saveBtMutation.error || saveProtoMutation.error) as Error | null;
+  const error = (saveBtMutation.error ||
+    saveProtoMutation.error) as Error | null;
 
   const handleSave = () => {
     let pending = (btConfig ? 1 : 0) + (protoConfig ? 1 : 0);
@@ -93,7 +97,10 @@ export function DhtSettingsTab() {
 
     const handleError = (err: any) => {
       hasError = true;
-      showToast(err?.message || "Failed to save DHT discovery settings", "error");
+      showToast(
+        err?.message || "Failed to save DHT discovery settings",
+        "error",
+      );
     };
 
     if (btConfig) {
@@ -109,7 +116,7 @@ export function DhtSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
     if (protoConfig) {
@@ -132,7 +139,7 @@ export function DhtSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
   };

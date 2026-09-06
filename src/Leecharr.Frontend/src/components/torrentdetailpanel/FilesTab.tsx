@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useTorrentFiles, useSetFilePriority, useSetFilesPriority } from "../../api/hooks";
+import {
+  useTorrentFiles,
+  useSetFilePriority,
+  useSetFilesPriority,
+} from "../../api/hooks";
 import { formatBytes } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 import { useToast } from "../../context/ToastContext";
@@ -85,14 +89,18 @@ function getFileIcon(name: string, isFolder: boolean, isOpen: boolean): string {
 
 function extractFileMediaBadges(
   filename: string,
-  torrent?: Torrent
+  torrent?: Torrent,
 ): { label: string; bg: string; fg: string }[] {
   const badges: { label: string; bg: string; fg: string }[] = [];
   const lower = filename.toLowerCase();
   const ext = lower.split(".").pop() || "";
 
   if (["mkv", "mp4", "avi", "mov", "m4v"].includes(ext)) {
-    if (lower.includes("2160p") || lower.includes("4k") || torrent?.resolution === "2160p") {
+    if (
+      lower.includes("2160p") ||
+      lower.includes("4k") ||
+      torrent?.resolution === "2160p"
+    ) {
       badges.push({
         label: "4K UHD",
         bg: "rgba(37, 99, 235, 0.25)",
@@ -126,7 +134,9 @@ function extractFileMediaBadges(
     }
     if (
       lower.includes("hdr") ||
-      (torrent?.hdrFormat && torrent.hdrFormat !== "SDR" && !torrent.hdrFormat.includes("DV"))
+      (torrent?.hdrFormat &&
+        torrent.hdrFormat !== "SDR" &&
+        !torrent.hdrFormat.includes("DV"))
     ) {
       badges.push({
         label: "HDR",
@@ -146,7 +156,11 @@ function extractFileMediaBadges(
         bg: "rgba(79, 70, 229, 0.25)",
         fg: "#a5b4fc",
       });
-    } else if (lower.includes("avc") || lower.includes("x264") || lower.includes("h.264")) {
+    } else if (
+      lower.includes("avc") ||
+      lower.includes("x264") ||
+      lower.includes("h.264")
+    ) {
       badges.push({
         label: "AVC",
         bg: "rgba(79, 70, 229, 0.2)",
@@ -326,12 +340,23 @@ function getDescendantFiles(node: TreeNode): TorrentFileInfo[] {
   return files;
 }
 
-export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: number }) {
+export function FilesTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { showToast } = useToast();
   const savePath = torrent?.savePath || torrent?.sourcePath || null;
   const [copiedPath, setCopiedPath] = React.useState(false);
-  const { data: files, isLoading, isError, refetch: refetchFiles } = useTorrentFiles(effectiveId);
+  const {
+    data: files,
+    isLoading,
+    isError,
+    refetch: refetchFiles,
+  } = useTorrentFiles(effectiveId);
   const setFilePriority = useSetFilePriority();
   const setFilesPriority = useSetFilesPriority();
 
@@ -343,7 +368,9 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
   const [renameInput, setRenameInput] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
 
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [filterQuery, setFilterQuery] = useState("");
   const [initializedTree, setInitializedTree] = useState(false);
 
@@ -358,12 +385,20 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
 
   const handleStartRename = (node: TreeNode, e: React.MouseEvent) => {
     e.stopPropagation();
-    setRenamingNode({ fullPath: node.fullPath, isFolder: node.isFolder, name: node.name });
+    setRenamingNode({
+      fullPath: node.fullPath,
+      isFolder: node.isFolder,
+      name: node.name,
+    });
     setRenameInput(node.name);
   };
 
   const handleConfirmRename = async () => {
-    if (!renamingNode || !renameInput.trim() || renameInput === renamingNode.name) {
+    if (
+      !renamingNode ||
+      !renameInput.trim() ||
+      renameInput === renamingNode.name
+    ) {
       setRenamingNode(null);
       return;
     }
@@ -381,9 +416,17 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
       const newFullPath = segments.join("/");
 
       if (renamingNode.isFolder) {
-        await api.renameTorrentFolder(infoHash, renamingNode.fullPath, newFullPath);
+        await api.renameTorrentFolder(
+          infoHash,
+          renamingNode.fullPath,
+          newFullPath,
+        );
       } else {
-        await api.renameTorrentFile(infoHash, renamingNode.fullPath, newFullPath);
+        await api.renameTorrentFile(
+          infoHash,
+          renamingNode.fullPath,
+          newFullPath,
+        );
       }
 
       showToast(`Successfully renamed to '${renameInput.trim()}'`, "success");
@@ -456,7 +499,7 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
       if (effectiveId <= 0) return;
       setFilePriority.mutate({ torrentId: effectiveId, fileId, priority });
     },
-    [effectiveId, setFilePriority]
+    [effectiveId, setFilePriority],
   );
 
   const handleBatchSetPriority = useCallback(
@@ -467,7 +510,7 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
         files: targetFiles.map((f) => ({ fileId: f.id, priority })),
       });
     },
-    [effectiveId, setFilesPriority]
+    [effectiveId, setFilesPriority],
   );
 
   const handleToggleNodeCheckbox = useCallback(
@@ -475,11 +518,13 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
       const targetFiles = getDescendantFiles(node);
       if (targetFiles.length === 0) return;
 
-      const anyActive = targetFiles.some((f) => normalizePriority(f.priority) !== 0);
+      const anyActive = targetFiles.some(
+        (f) => normalizePriority(f.priority) !== 0,
+      );
       const newPriority = anyActive ? 0 : 3; // Toggle between Skip (0) and Normal (3)
       handleBatchSetPriority(targetFiles, newPriority);
     },
-    [handleBatchSetPriority]
+    [handleBatchSetPriority],
   );
 
   if (isLoading) return <PanelLoading>Loading files...</PanelLoading>;
@@ -490,9 +535,10 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
   const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
   const totalCompletedBytes = files.reduce(
     (acc, f) => acc + (f.bytesCompleted ?? f.size * (f.progress ?? 0)),
-    0
+    0,
   );
-  const overallProgress = totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
+  const overallProgress =
+    totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
 
   // Flatten visible tree rows based on expanded state and filter query
   const flatRows: TreeNode[] = [];
@@ -504,7 +550,10 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
         !q ||
         node.name.toLowerCase().includes(q) ||
         node.fullPath.toLowerCase().includes(q) ||
-        (node.isFolder && getDescendantFiles(node).some((f) => f.path.toLowerCase().includes(q)));
+        (node.isFolder &&
+          getDescendantFiles(node).some((f) =>
+            f.path.toLowerCase().includes(q),
+          ));
 
       if (!matchesFilter) continue;
 
@@ -614,11 +663,14 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                   fontWeight: 700,
                 }}
               >
-                {torrent.audioCodec} {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
+                {torrent.audioCodec}{" "}
+                {torrent.audioChannels ? `(${torrent.audioChannels})` : ""}
               </span>
             )}
           </div>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-muted, #8a879e)" }}>
+          <span
+            style={{ fontSize: "0.7rem", color: "var(--text-muted, #8a879e)" }}
+          >
             TagLib# & Pure EBML Stream Parser
           </span>
         </div>
@@ -639,9 +691,22 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
             fontSize: "0.82rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", overflow: "hidden" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              overflow: "hidden",
+            }}
+          >
             <span style={{ fontSize: "0.95rem", flexShrink: 0 }}>📂</span>
-            <span style={{ color: "var(--text-muted, #8a879e)", fontWeight: 600, flexShrink: 0 }}>
+            <span
+              style={{
+                color: "var(--text-muted, #8a879e)",
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
               PWD:
             </span>
             <code
@@ -699,7 +764,9 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ color: "var(--text-secondary, #C7C5D3)" }}>
-            <strong style={{ color: "var(--text-primary, #F8F4ED)" }}>{totalFilesCount}</strong>{" "}
+            <strong style={{ color: "var(--text-primary, #F8F4ED)" }}>
+              {totalFilesCount}
+            </strong>{" "}
             files ({formatBytes(totalBytes)} total)
           </span>
           <span
@@ -753,8 +820,14 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
       </div>
 
       {/* Hierarchical File Tree Table */}
-      <div className="detail-panel-table-wrap" style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-        <table className="torrent-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div
+        className="detail-panel-table-wrap"
+        style={{ flex: 1, overflow: "auto", minHeight: 0 }}
+      >
+        <table
+          className="torrent-table"
+          style={{ width: "100%", borderCollapse: "collapse" }}
+        >
           <thead>
             <tr
               style={{
@@ -765,19 +838,30 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                 borderBottom: "1px solid var(--border, #23284B)",
               }}
             >
-              <th className="torrent-table-th" style={{ width: 36, textAlign: "center" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 36, textAlign: "center" }}
+              >
                 <input
                   type="checkbox"
-                  checked={files.every((f) => normalizePriority(f.priority) !== 0)}
+                  checked={files.every(
+                    (f) => normalizePriority(f.priority) !== 0,
+                  )}
                   ref={(input) => {
                     if (input) {
-                      const someActive = files.some((f) => normalizePriority(f.priority) !== 0);
-                      const allActive = files.every((f) => normalizePriority(f.priority) !== 0);
+                      const someActive = files.some(
+                        (f) => normalizePriority(f.priority) !== 0,
+                      );
+                      const allActive = files.every(
+                        (f) => normalizePriority(f.priority) !== 0,
+                      );
                       input.indeterminate = someActive && !allActive;
                     }
                   }}
                   onChange={() => {
-                    const allActive = files.every((f) => normalizePriority(f.priority) !== 0);
+                    const allActive = files.every(
+                      (f) => normalizePriority(f.priority) !== 0,
+                    );
                     handleBatchSetPriority(files, allActive ? 0 : 3);
                   }}
                   title="Toggle all files selective download"
@@ -786,13 +870,22 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
               <th className="torrent-table-th" style={{ textAlign: "left" }}>
                 File / Folder Name
               </th>
-              <th className="torrent-table-th" style={{ width: 90, textAlign: "right" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 90, textAlign: "right" }}
+              >
                 Size
               </th>
-              <th className="torrent-table-th" style={{ width: 140, textAlign: "left" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 140, textAlign: "left" }}
+              >
                 Progress
               </th>
-              <th className="torrent-table-th" style={{ width: 130, textAlign: "center" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: 130, textAlign: "center" }}
+              >
                 Priority
               </th>
             </tr>
@@ -804,8 +897,12 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
               const isExpanded = expandedPaths.has(node.fullPath);
 
               // Checkbox state
-              const allChecked = descendantFiles.every((f) => normalizePriority(f.priority) !== 0);
-              const someChecked = descendantFiles.some((f) => normalizePriority(f.priority) !== 0);
+              const allChecked = descendantFiles.every(
+                (f) => normalizePriority(f.priority) !== 0,
+              );
+              const someChecked = descendantFiles.some(
+                (f) => normalizePriority(f.priority) !== 0,
+              );
               const isIndeterminate = someChecked && !allChecked;
 
               // Priority for node
@@ -813,7 +910,7 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                 ? descendantFiles.every(
                     (f) =>
                       normalizePriority(f.priority) ===
-                      normalizePriority(descendantFiles[0]?.priority)
+                      normalizePriority(descendantFiles[0]?.priority),
                   )
                   ? normalizePriority(descendantFiles[0]?.priority)
                   : -1
@@ -826,7 +923,9 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                   key={node.id}
                   className="torrent-table-row"
                   style={{
-                    backgroundColor: isFolder ? "rgba(23, 27, 53, 0.4)" : "transparent",
+                    backgroundColor: isFolder
+                      ? "rgba(23, 27, 53, 0.4)"
+                      : "transparent",
                     borderBottom: "1px solid rgba(35, 40, 75, 0.5)",
                     fontSize: "0.8rem",
                   }}
@@ -876,7 +975,9 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                           {isExpanded ? "▼" : "▶"}
                         </button>
                       ) : (
-                        <span style={{ width: "12px", display: "inline-block" }} />
+                        <span
+                          style={{ width: "12px", display: "inline-block" }}
+                        />
                       )}
 
                       <span style={{ fontSize: "0.95rem" }}>
@@ -892,12 +993,17 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                               : isFolder
                                 ? "var(--text-primary, #F8F4ED)"
                                 : "var(--text-secondary, #C7C5D3)",
-                          textDecoration: currentPriority === 0 ? "line-through" : "none",
+                          textDecoration:
+                            currentPriority === 0 ? "line-through" : "none",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
                         }}
-                        title={savePath ? `${savePath}/${node.fullPath}` : node.fullPath}
+                        title={
+                          savePath
+                            ? `${savePath}/${node.fullPath}`
+                            : node.fullPath
+                        }
                       >
                         {node.name}
                         {isFolder && (
@@ -929,8 +1035,12 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                           marginLeft: "6px",
                           opacity: 0.6,
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.opacity = "1")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.opacity = "0.6")
+                        }
                       >
                         ✏️
                       </button>
@@ -945,23 +1055,25 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                             flexShrink: 0,
                           }}
                         >
-                          {extractFileMediaBadges(node.name, torrent).map((b, idx) => (
-                            <span
-                              key={idx}
-                              style={{
-                                fontSize: "0.62rem",
-                                fontWeight: 700,
-                                padding: "0.05rem 0.3rem",
-                                borderRadius: "3px",
-                                backgroundColor: b.bg,
-                                color: b.fg,
-                                border: `1px solid ${b.fg}40`,
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {b.label}
-                            </span>
-                          ))}
+                          {extractFileMediaBadges(node.name, torrent).map(
+                            (b, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontSize: "0.62rem",
+                                  fontWeight: 700,
+                                  padding: "0.05rem 0.3rem",
+                                  borderRadius: "3px",
+                                  backgroundColor: b.bg,
+                                  color: b.fg,
+                                  border: `1px solid ${b.fg}40`,
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {b.label}
+                              </span>
+                            ),
+                          )}
                         </div>
                       )}
                     </div>
@@ -1097,7 +1209,13 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.1rem", color: "var(--text-primary)" }}>
+            <h3
+              style={{
+                margin: "0 0 1rem",
+                fontSize: "1.1rem",
+                color: "var(--text-primary)",
+              }}
+            >
               Rename {renamingNode.isFolder ? "Folder" : "File"}
             </h3>
             <p
@@ -1107,7 +1225,10 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                 marginBottom: "0.75rem",
               }}
             >
-              Original Path: <code style={{ wordBreak: "break-all" }}>{renamingNode.fullPath}</code>
+              Original Path:{" "}
+              <code style={{ wordBreak: "break-all" }}>
+                {renamingNode.fullPath}
+              </code>
             </p>
             <input
               type="text"
@@ -1130,7 +1251,13 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                 if (e.key === "Escape") setRenamingNode(null);
               }}
             />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.75rem",
+              }}
+            >
               <button
                 type="button"
                 className="btn btn-outline"
@@ -1143,7 +1270,11 @@ export function FilesTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?
                 type="button"
                 className="btn btn-primary"
                 onClick={handleConfirmRename}
-                disabled={isRenaming || !renameInput.trim() || renameInput === renamingNode.name}
+                disabled={
+                  isRenaming ||
+                  !renameInput.trim() ||
+                  renameInput === renamingNode.name
+                }
               >
                 {isRenaming ? "Renaming..." : "Save Name"}
               </button>

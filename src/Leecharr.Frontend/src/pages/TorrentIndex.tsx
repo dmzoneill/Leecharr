@@ -40,7 +40,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [filter, setFilter] = useState<string>("");
 
   const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
-  const setSelectedTorrentId = useTorrentStore((state) => state.setSelectedTorrentId);
+  const setSelectedTorrentId = useTorrentStore(
+    (state) => state.setSelectedTorrentId,
+  );
   const selectedIds = useTorrentStore((state) => state.selectedIds);
   const toggleSelectedId = useTorrentStore((state) => state.toggleSelectedId);
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
@@ -101,7 +103,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       const st = (t.status || "").toLowerCase();
       if (st === "downloading") counts.Downloading++;
       else if (st === "seeding" || st === "completed") counts.Seeding++;
-      else if (st === "paused" || st === "stopped" || st === "idle") counts.Paused++;
+      else if (st === "paused" || st === "stopped" || st === "idle")
+        counts.Paused++;
       else if (st === "queued") counts.Queued++;
       else if (st === "error") counts.Error++;
     }
@@ -184,7 +187,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkStart = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
@@ -201,7 +206,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkStop = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
@@ -218,7 +225,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkDelete = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
@@ -285,7 +294,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           setShowQuickSettings(false);
           localStorage.setItem("leecharr_quick_settings_open", "false");
         }}
-        onNavigateSettings={(tab) => onNavigateTab && onNavigateTab("settings", tab)}
+        onNavigateSettings={(tab) =>
+          onNavigateTab && onNavigateTab("settings", tab)
+        }
       />
       <div className="torrent-content-layout">
         {!isFilterCollapsed && (

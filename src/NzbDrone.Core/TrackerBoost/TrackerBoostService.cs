@@ -1894,6 +1894,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return (false, 0, 0, 0);
         }
     }
+
     public void CleanExpiredBoostHistory(TimeSpan? maxAge = null)
     {
         var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromHours(24));

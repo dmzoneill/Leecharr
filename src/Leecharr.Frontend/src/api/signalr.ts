@@ -1,6 +1,10 @@
 import * as signalR from "@microsoft/signalr";
 
-export type MessageHandler = (message: { name: string; body: unknown; action?: number }) => void;
+export type MessageHandler = (message: {
+  name: string;
+  body: unknown;
+  action?: number;
+}) => void;
 
 export type ReconnectingHandler = (error?: Error) => void;
 export type ReconnectedHandler = (connectionId?: string) => void;
@@ -19,7 +23,9 @@ export class ExponentialBackoffRetryPolicy implements signalR.IRetryPolicy {
     this.initialDelayMs = initialDelayMs;
   }
 
-  public nextRetryDelayInMilliseconds(retryContext: signalR.RetryContext): number | null {
+  public nextRetryDelayInMilliseconds(
+    retryContext: signalR.RetryContext,
+  ): number | null {
     // Immediate retry on initial disconnect
     if (retryContext.previousRetryCount === 0) {
       return 0;
@@ -157,7 +163,10 @@ class SignalRManager {
   public async startWithRetry(): Promise<void> {
     this.isStopped = false;
 
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
       return;
     }
 

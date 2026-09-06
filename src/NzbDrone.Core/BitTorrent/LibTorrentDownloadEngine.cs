@@ -313,13 +313,34 @@ public class LibTorrentDownloadTask : IDownloadTask
 
     public double Progress { get; set; }
 
-    public long DownloadSpeed { get; set; }
+    public long DownloadSpeed
+    {
+        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.downloadSpeed;
+        set => this.downloadSpeed = value;
+    }
 
-    public long UploadSpeed { get; set; }
+    public long UploadSpeed
+    {
+        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.uploadSpeed;
+        set => this.uploadSpeed = value;
+    }
 
-    public int ConnectedSeeders { get; set; } = 5;
+    public int ConnectedSeeders
+    {
+        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.connectedSeeders;
+        set => this.connectedSeeders = value;
+    }
 
-    public int ConnectedLeechers { get; set; } = 2;
+    public int ConnectedLeechers
+    {
+        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.connectedLeechers;
+        set => this.connectedLeechers = value;
+    }
+
+    private long downloadSpeed;
+    private long uploadSpeed;
+    private int connectedSeeders = 5;
+    private int connectedLeechers = 2;
 
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 

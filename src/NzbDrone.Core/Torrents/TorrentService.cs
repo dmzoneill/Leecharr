@@ -708,6 +708,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             var old = torrent.Status;
             torrent.Status = TorrentStatus.Paused;
+            torrent.DownloadSpeed = 0;
+            torrent.UploadSpeed = 0;
+            torrent.Eta = 0;
+            torrent.Seeders = 0;
+            torrent.Leechers = 0;
             this.torrentRepository.Update(torrent);
 
             try
@@ -845,11 +850,23 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.Progress = task.Progress;
             torrent.Downloaded = task.DownloadedBytes;
             torrent.Uploaded = task.UploadedBytes;
-            torrent.DownloadSpeed = task.DownloadSpeed;
-            torrent.UploadSpeed = task.UploadSpeed;
-            torrent.Seeders = task.ConnectedSeeders;
-            torrent.Leechers = task.ConnectedLeechers;
+
+            var isInactive = torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+            torrent.DownloadSpeed = isInactive ? 0 : task.DownloadSpeed;
+            torrent.UploadSpeed = isInactive ? 0 : task.UploadSpeed;
+            torrent.Seeders = isInactive ? 0 : task.ConnectedSeeders;
+            torrent.Leechers = isInactive ? 0 : task.ConnectedLeechers;
             torrent.Ratio = task.DownloadedBytes > 0 ? (double)task.UploadedBytes / task.DownloadedBytes : 0.0;
+
+            if (isInactive || torrent.DownloadSpeed <= 0 || torrent.Progress >= 1.0)
+            {
+                torrent.Eta = 0;
+            }
+            else
+            {
+                var remainingBytes = Math.Max(0, torrent.TotalSize - torrent.Downloaded);
+                torrent.Eta = remainingBytes / torrent.DownloadSpeed;
+            }
 
             if (oldStatus != torrent.Status)
             {
@@ -885,6 +902,14 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 torrent.DateCompleted = DateTime.UtcNow;
                 this.torrentRepository.Update(torrent);
             }
+        }
+        else if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued)
+        {
+            torrent.DownloadSpeed = 0;
+            torrent.UploadSpeed = 0;
+            torrent.Eta = 0;
+            torrent.Seeders = 0;
+            torrent.Leechers = 0;
         }
 
         if (string.IsNullOrWhiteSpace(torrent.TrackerUrl) && this.trackerEntryRepository != null)

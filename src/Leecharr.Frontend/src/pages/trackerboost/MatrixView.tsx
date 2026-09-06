@@ -8,12 +8,20 @@ export interface MatrixViewProps {
   onInspectTorrent?: (infoHash: string) => void;
 }
 
-export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps) {
-  const { data: matrixData, isLoading: matrixLoading } = useTrackerBoostMatrix();
+export function MatrixView({
+  torrentMetaMap,
+  onInspectTorrent,
+}: MatrixViewProps) {
+  const { data: matrixData, isLoading: matrixLoading } =
+    useTrackerBoostMatrix();
   const { data: torrents } = useTorrents();
 
-  const [matrixViewMode, setMatrixViewMode] = useState<"by_torrent" | "by_tracker">("by_torrent");
-  const [matrixLayoutMode, setMatrixLayoutMode] = useState<"grid" | "table">("grid");
+  const [matrixViewMode, setMatrixViewMode] = useState<
+    "by_torrent" | "by_tracker"
+  >("by_torrent");
+  const [matrixLayoutMode, setMatrixLayoutMode] = useState<"grid" | "table">(
+    "grid",
+  );
   const [matrixSearch, setMatrixSearch] = useState("");
 
   const filteredMatrixTorrents = useMemo(() => {
@@ -26,7 +34,7 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
         (meta?.mediaTitle && meta.mediaTitle.toLowerCase().includes(q)) ||
         (t.infoHash || "").toLowerCase().includes(q) ||
         (t.trackers || []).some((tr) =>
-          (tr.trackerHost || tr.trackerUrl || "").toLowerCase().includes(q)
+          (tr.trackerHost || tr.trackerUrl || "").toLowerCase().includes(q),
         )
       );
     });
@@ -39,7 +47,9 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
       return (
         (tr.trackerUrl || "").toLowerCase().includes(q) ||
         (tr.host || "").toLowerCase().includes(q) ||
-        (tr.registeredTorrentNames || []).some((n) => (n || "").toLowerCase().includes(q))
+        (tr.registeredTorrentNames || []).some((n) =>
+          (n || "").toLowerCase().includes(q),
+        )
       );
     });
   }, [matrixData?.trackers, matrixSearch]);
@@ -71,8 +81,8 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
             Swarm Cross-Matrix Explorer
           </h2>
           <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-            Bi-directional mapping between library torrents and verified BitTorrent tracker
-            endpoints
+            Bi-directional mapping between library torrents and verified
+            BitTorrent tracker endpoints
           </div>
         </div>
 
@@ -218,7 +228,8 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                           justifyContent: "center",
                           padding: "1rem",
                           textAlign: "center",
-                          background: "linear-gradient(180deg, #2a2620 0%, #151412 100%)",
+                          background:
+                            "linear-gradient(180deg, #2a2620 0%, #151412 100%)",
                         }}
                       >
                         <span
@@ -365,11 +376,17 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                         {t.infoHash ? `${t.infoHash.slice(0, 10)}...` : ""}
                       </span>
                       <div style={{ display: "flex", gap: "0.35rem" }}>
-                        <span className="badge badge-primary" style={{ fontSize: "0.7rem" }}>
+                        <span
+                          className="badge badge-primary"
+                          style={{ fontSize: "0.7rem" }}
+                        >
                           {t.attachedTrackersCount} Attached
                         </span>
                         {t.verifiedTrackersCount > 0 && (
-                          <span className="badge badge-success" style={{ fontSize: "0.7rem" }}>
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: "0.7rem" }}
+                          >
                             {t.verifiedTrackersCount} Verified
                           </span>
                         )}
@@ -399,7 +416,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                             fontFamily: "monospace",
                           }}
                         >
-                          <TrackerFavicon urlOrHost={tr.trackerHost || tr.trackerUrl} size={13} />
+                          <TrackerFavicon
+                            urlOrHost={tr.trackerHost || tr.trackerUrl}
+                            size={13}
+                          />
                           <span>{tr.trackerHost || tr.trackerUrl}</span>
                           {(tr.seeders > 0 || tr.leechers > 0) && (
                             <span style={{ opacity: 0.85 }}>
@@ -473,7 +493,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
               backgroundColor: "var(--bg-secondary, rgba(0,0,0,0.2))",
             }}
           >
-            <table className="torrent-table" style={{ width: "100%", fontSize: "0.85rem" }}>
+            <table
+              className="torrent-table"
+              style={{ width: "100%", fontSize: "0.85rem" }}
+            >
               <thead
                 style={{
                   position: "sticky",
@@ -492,18 +515,26 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                   <th className="torrent-table-th" style={{ width: "43%" }}>
                     Scraped & Attached Trackers
                   </th>
-                  <th className="torrent-table-th" style={{ width: "10%", textAlign: "right" }}>
+                  <th
+                    className="torrent-table-th"
+                    style={{ width: "10%", textAlign: "right" }}
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMatrixTorrents.map((t) => {
-                  const meta = torrentMetaMap.get((t.infoHash || "").toLowerCase());
+                  const meta = torrentMetaMap.get(
+                    (t.infoHash || "").toLowerCase(),
+                  );
                   const displayTitle = meta?.mediaTitle || t.torrentName;
 
                   return (
-                    <tr key={t.torrentId || t.infoHash} className="torrent-table-row">
+                    <tr
+                      key={t.torrentId || t.infoHash}
+                      className="torrent-table-row"
+                    >
                       <td>
                         <div
                           style={{
@@ -758,7 +789,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                         marginTop: "0.15rem",
                       }}
                     >
-                      <span className="badge badge-secondary" style={{ fontSize: "0.68rem" }}>
+                      <span
+                        className="badge badge-secondary"
+                        style={{ fontSize: "0.68rem" }}
+                      >
                         {tr.protocol}
                       </span>
                       {tr.latencyMs > 0 && (
@@ -793,9 +827,13 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                 }}
               >
                 {tr.registeredTorrentNames.map((name, idx) => {
-                  const matchedTorrent = (torrents ?? []).find((t) => t.name === name);
+                  const matchedTorrent = (torrents ?? []).find(
+                    (t) => t.name === name,
+                  );
                   const meta = matchedTorrent
-                    ? torrentMetaMap.get((matchedTorrent.infoHash || "").toLowerCase())
+                    ? torrentMetaMap.get(
+                        (matchedTorrent.infoHash || "").toLowerCase(),
+                      )
                     : undefined;
                   return (
                     <div
@@ -847,7 +885,8 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                       color: "var(--text-muted)",
                     }}
                   >
-                    No library torrents currently registered on this tracker endpoint.
+                    No library torrents currently registered on this tracker
+                    endpoint.
                   </span>
                 )}
               </div>
@@ -879,7 +918,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
             backgroundColor: "var(--bg-secondary, rgba(0,0,0,0.2))",
           }}
         >
-          <table className="torrent-table" style={{ width: "100%", fontSize: "0.85rem" }}>
+          <table
+            className="torrent-table"
+            style={{ width: "100%", fontSize: "0.85rem" }}
+          >
             <thead
               style={{
                 position: "sticky",
@@ -905,7 +947,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
             </thead>
             <tbody>
               {filteredMatrixTrackers.map((tr) => (
-                <tr key={tr.trackerId || tr.trackerUrl} className="torrent-table-row">
+                <tr
+                  key={tr.trackerId || tr.trackerUrl}
+                  className="torrent-table-row"
+                >
                   <td>
                     <div
                       style={{
@@ -927,7 +972,10 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                     </div>
                   </td>
                   <td>
-                    <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                    <span
+                      className="badge badge-secondary"
+                      style={{ fontSize: "0.75rem" }}
+                    >
                       {tr.protocol}
                     </span>
                   </td>
@@ -943,9 +991,13 @@ export function MatrixView({ torrentMetaMap, onInspectTorrent }: MatrixViewProps
                       }}
                     >
                       {tr.registeredTorrentNames.map((name, idx) => {
-                        const matchedTorrent = (torrents ?? []).find((t) => t.name === name);
+                        const matchedTorrent = (torrents ?? []).find(
+                          (t) => t.name === name,
+                        );
                         const meta = matchedTorrent
-                          ? torrentMetaMap.get((matchedTorrent.infoHash || "").toLowerCase())
+                          ? torrentMetaMap.get(
+                              (matchedTorrent.infoHash || "").toLowerCase(),
+                            )
                           : undefined;
                         return (
                           <span

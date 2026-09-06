@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useNetworkConfig, useSaveNetworkConfig, useNetworkStatus } from "../../api/hooks";
+import {
+  useNetworkConfig,
+  useSaveNetworkConfig,
+  useNetworkStatus,
+} from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function NetworkSettingsTab() {
@@ -42,7 +46,10 @@ export function NetworkSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -66,7 +73,7 @@ export function NetworkSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
@@ -122,13 +129,16 @@ export function NetworkSettingsTab() {
               Local IP: <strong>{netStatus.localIp || "0.0.0.0"}</strong>
             </div>
             <div>
-              Public IP: <strong>{netStatus.externalIp || "Not Detected"}</strong>
+              Public IP:{" "}
+              <strong>{netStatus.externalIp || "Not Detected"}</strong>
             </div>
             <div>
-              UPnP Active: <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
+              UPnP Active:{" "}
+              <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
             </div>
             <div>
-              Active Port Mappings: <strong>{netStatus.portMappings?.length ?? 0}</strong>
+              Active Port Mappings:{" "}
+              <strong>{netStatus.portMappings?.length ?? 0}</strong>
             </div>
           </div>
         </div>

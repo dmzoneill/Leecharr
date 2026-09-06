@@ -37,6 +37,7 @@ public static class TorrentResourceMapper
             return null;
         }
 
+        var isInactive = model.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
         var resource = new TorrentResource
         {
             Id = model.Id,
@@ -54,11 +55,11 @@ public static class TorrentResourceMapper
             Uploaded = model.Uploaded,
             Ratio = model.Ratio,
             Progress = model.Progress,
-            DownloadSpeed = model.DownloadSpeed,
-            UploadSpeed = model.UploadSpeed,
-            Eta = model.Eta,
-            Seeders = model.Seeders,
-            Leechers = model.Leechers,
+            DownloadSpeed = isInactive ? 0 : model.DownloadSpeed,
+            UploadSpeed = isInactive ? 0 : model.UploadSpeed,
+            Eta = isInactive ? 0 : model.Eta,
+            Seeders = isInactive ? 0 : model.Seeders,
+            Leechers = isInactive ? 0 : model.Leechers,
             SavePath = model.SavePath,
             Category = model.Category,
             Label = model.Label,
@@ -87,8 +88,12 @@ public static class TorrentResourceMapper
             resource.MediaTitle = metadata.Title;
             resource.MediaYear = metadata.Year > 0 ? metadata.Year : null;
             resource.MediaOverview = metadata.Overview;
-            resource.PosterUrl = metadata.PosterUrl;
-            resource.BackdropUrl = metadata.BackdropUrl;
+            resource.PosterUrl = !string.IsNullOrEmpty(metadata.PosterLocalPath) && System.IO.File.Exists(metadata.PosterLocalPath)
+                ? $"/api/v1/media/artwork/{model.Id}/poster"
+                : metadata.PosterUrl;
+            resource.BackdropUrl = !string.IsNullOrEmpty(metadata.BackdropLocalPath) && System.IO.File.Exists(metadata.BackdropLocalPath)
+                ? $"/api/v1/media/artwork/{model.Id}/backdrop"
+                : metadata.BackdropUrl;
             resource.MediaRating = metadata.Rating > 0 ? metadata.Rating : null;
 
             if (!string.IsNullOrEmpty(metadata.MediaInfoJson))

@@ -6,9 +6,7 @@ export function useFileListing(path?: string) {
   return useQuery<FileBrowserListing>({
     queryKey: ["files", "listing", path ?? ""],
     queryFn: () =>
-      apiClient.get(
-        `/files${path ? `?path=${encodeURIComponent(path)}` : ""}`,
-      ),
+      apiClient.get(`/files${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   });
 }
 
@@ -17,8 +15,7 @@ export function useCreateDirectory() {
   return useMutation({
     mutationFn: (dirPath: string) =>
       apiClient.post(`/files/mkdir`, { path: dirPath }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["files", "listing"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
   });
 }
 
@@ -27,8 +24,7 @@ export function useRenameFileEntry() {
   return useMutation({
     mutationFn: ({ path, newName }: { path: string; newName: string }) =>
       apiClient.put(`/files/rename`, { path, newName }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["files", "listing"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
   });
 }
 
@@ -36,10 +32,7 @@ export function useDeleteFileEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (filePath: string) =>
-      apiClient.delete(
-        `/files?path=${encodeURIComponent(filePath)}`,
-      ),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["files", "listing"] }),
+      apiClient.delete(`/files?path=${encodeURIComponent(filePath)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
   });
 }

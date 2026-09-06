@@ -24,7 +24,10 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
   ({ torrent: t, isSelected, onSelect, onPause, onResume, onDelete }) => {
     const confirm = useConfirm();
     const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
-    const mergedTorrent = useMemo(() => applyTelemetry(t, telemetry), [t, telemetry]);
+    const mergedTorrent = useMemo(
+      () => applyTelemetry(t, telemetry),
+      [t, telemetry],
+    );
 
     const statusLower = (mergedTorrent.status || "").toLowerCase();
     const isDownloading = statusLower === "downloading";
@@ -41,7 +44,9 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
           cursor: "pointer",
           overflow: "hidden",
           borderRadius: "6px",
-          border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+          border: isSelected
+            ? "1px solid var(--accent)"
+            : "1px solid var(--border)",
           backgroundColor: "var(--bg-secondary)",
           transition: "all 0.15s ease-in-out",
         }}
@@ -72,7 +77,9 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 color: "var(--text-muted)",
               }}
             >
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎬</div>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
+                🎬
+              </div>
               <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>
                 {mergedTorrent.mediaTitle || mergedTorrent.name}
               </div>
@@ -106,7 +113,8 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                   boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
                 }}
               >
-                <i className="fas fa-lock" style={{ fontSize: "0.58rem" }} /> Private
+                <i className="fas fa-lock" style={{ fontSize: "0.58rem" }} />{" "}
+                Private
               </span>
             )}
             {mergedTorrent.resolution && (
@@ -258,7 +266,13 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               >
                 ↓ {formatSpeed(mergedTorrent.downloadSpeed)}
                 {mergedTorrent.eta && mergedTorrent.eta > 0 && (
-                  <span style={{ fontWeight: 400, opacity: 0.85, marginLeft: "4px" }}>
+                  <span
+                    style={{
+                      fontWeight: 400,
+                      opacity: 0.85,
+                      marginLeft: "4px",
+                    }}
+                  >
                     ({formatSeconds(mergedTorrent.eta)})
                   </span>
                 )}
@@ -326,7 +340,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );
 TorrentGridCard.displayName = "TorrentGridCard";
 
@@ -367,14 +381,18 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
         const st = (t.status || "").toLowerCase();
         const target = stateFilter.toLowerCase();
         if (target === "stopped" || target === "paused") {
-          if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
+          if (st !== "paused" && st !== "stopped" && st !== "idle")
+            return false;
         } else if (st !== target) {
           return false;
         }
       }
       if (trackerFilter && trackerFilter !== "All") {
         const matchesTracker =
-          (t.trackers && t.trackers.some((u) => extractTrackerDomain(u) === trackerFilter)) ||
+          (t.trackers &&
+            t.trackers.some(
+              (u) => extractTrackerDomain(u) === trackerFilter,
+            )) ||
           extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
         if (!matchesTracker) return false;
       }
@@ -404,7 +422,11 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           boxShadow: "none",
         }}
       >
-        <div style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}>📁</div>
+        <div
+          style={{ fontSize: "3.5rem", marginBottom: "1rem", opacity: 0.85 }}
+        >
+          📁
+        </div>
         <h3
           style={{
             color: "var(--text-primary, #f8f4ed)",

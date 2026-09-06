@@ -7,7 +7,14 @@ import {
   useSwitchTorrentEngine,
   useProbeTorrentEngine,
 } from "../../api/hooks";
-import { SaveBar, SectionCard, NumberInput, TextInput, SelectInput, Toggle } from "./shared";
+import {
+  SaveBar,
+  SectionCard,
+  NumberInput,
+  TextInput,
+  SelectInput,
+  Toggle,
+} from "./shared";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useToast } from "../../context/ToastContext";
 import type { EngineProbeResult } from "../../api/types";
@@ -22,7 +29,9 @@ export function EngineSettingsTab() {
   const switchMutation = useSwitchTorrentEngine();
   const probeMutation = useProbeTorrentEngine();
 
-  const [probeResult, setProbeResult] = useState<EngineProbeResult | null>(null);
+  const [probeResult, setProbeResult] = useState<EngineProbeResult | null>(
+    null,
+  );
   const [probingEngineId, setProbingEngineId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -49,18 +58,26 @@ export function EngineSettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
-  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<string | null>(null);
-  useEscapeKey(() => setSelectedEngineForSwitch(null), Boolean(selectedEngineForSwitch));
+  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<
+    string | null
+  >(null);
+  useEscapeKey(
+    () => setSelectedEngineForSwitch(null),
+    Boolean(selectedEngineForSwitch),
+  );
   useEscapeKey(() => setProbeResult(null), Boolean(probeResult));
 
   useEffect(() => {
     if (config) {
       setForm({
         activeTorrentEngine: config.activeTorrentEngine || "MonoTorrent",
-        diskCacheMb: config.diskCacheBytes ? Math.round(config.diskCacheBytes / (1024 * 1024)) : 64,
+        diskCacheMb: config.diskCacheBytes
+          ? Math.round(config.diskCacheBytes / (1024 * 1024))
+          : 64,
         diskCachePolicy: config.diskCachePolicy || "ReadsAndWrites",
         fastResumeMode: config.fastResumeMode || "BestEffort",
-        autoSaveFastResumeIntervalSeconds: config.autoSaveFastResumeIntervalSeconds ?? 300,
+        autoSaveFastResumeIntervalSeconds:
+          config.autoSaveFastResumeIntervalSeconds ?? 300,
         piecePickerStrategy: config.piecePickerStrategy || "RarestFirst",
         endGamePickerEnabled: config.endGamePickerEnabled ?? true,
         staleRequestTimeoutSeconds: config.staleRequestTimeoutSeconds ?? 20,
@@ -81,7 +98,10 @@ export function EngineSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -95,7 +115,8 @@ export function EngineSettingsTab() {
         diskCacheBytes: form.diskCacheMb * 1024 * 1024,
         diskCachePolicy: form.diskCachePolicy,
         fastResumeMode: form.fastResumeMode,
-        autoSaveFastResumeIntervalSeconds: form.autoSaveFastResumeIntervalSeconds,
+        autoSaveFastResumeIntervalSeconds:
+          form.autoSaveFastResumeIntervalSeconds,
         piecePickerStrategy: form.piecePickerStrategy,
         endGamePickerEnabled: form.endGamePickerEnabled,
         staleRequestTimeoutSeconds: form.staleRequestTimeoutSeconds,
@@ -119,11 +140,13 @@ export function EngineSettingsTab() {
         },
         onError: (err: any) => {
           showToast(
-            err?.response?.data?.message || err?.message || "Failed to save engine settings",
-            "error"
+            err?.response?.data?.message ||
+              err?.message ||
+              "Failed to save engine settings",
+            "error",
           );
         },
-      }
+      },
     );
   };
 
@@ -137,17 +160,21 @@ export function EngineSettingsTab() {
             setSelectedEngineForSwitch(null);
             update("activeTorrentEngine", targetEngine);
             showToast(
-              res?.message || `Switched active torrent engine to ${targetEngine}`,
-              "success"
+              res?.message ||
+                `Switched active torrent engine to ${targetEngine}`,
+              "success",
             );
           },
           onError: (err: any) => {
             const errorMsg =
-              err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to switch torrent engine";
+              err?.response?.data?.error ||
+              err?.response?.data?.message ||
+              err?.message ||
+              "Failed to switch torrent engine";
             showToast(errorMsg, "error");
             setSelectedEngineForSwitch(null);
           },
-        }
+        },
       );
     }
   };
@@ -158,12 +185,21 @@ export function EngineSettingsTab() {
       const res = await probeMutation.mutateAsync(engineId);
       setProbeResult(res);
       if (res.isHealthy) {
-        showToast(res.statusMessage || `${engineId} is healthy and operational.`, "success");
+        showToast(
+          res.statusMessage || `${engineId} is healthy and operational.`,
+          "success",
+        );
       } else {
-        showToast(res.statusMessage || `${engineId} health check reported issues.`, "error");
+        showToast(
+          res.statusMessage || `${engineId} health check reported issues.`,
+          "error",
+        );
       }
     } catch (err: any) {
-      showToast(`Probe failed for ${engineId}: ${err?.message || "Unknown error"}`, "error");
+      showToast(
+        `Probe failed for ${engineId}: ${err?.message || "Unknown error"}`,
+        "error",
+      );
     } finally {
       setProbingEngineId(null);
     }
@@ -216,8 +252,12 @@ export function EngineSettingsTab() {
                 style={{
                   padding: "1rem",
                   borderRadius: "8px",
-                  backgroundColor: isActive ? "var(--bg-card-hover)" : "var(--bg-primary)",
-                  border: isActive ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  backgroundColor: isActive
+                    ? "var(--bg-card-hover)"
+                    : "var(--bg-primary)",
+                  border: isActive
+                    ? "2px solid var(--accent)"
+                    : "1px solid var(--border)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -297,7 +337,9 @@ export function EngineSettingsTab() {
                     disabled={probingEngineId !== null}
                     style={{ flex: 1, fontSize: "0.75rem" }}
                   >
-                    {probingEngineId === engineId ? "⏳ Probing..." : "🔍 Probe Health"}
+                    {probingEngineId === engineId
+                      ? "⏳ Probing..."
+                      : "🔍 Probe Health"}
                   </button>
                   {!isActive && (
                     <button
@@ -487,8 +529,15 @@ export function EngineSettingsTab() {
 
       {/* Hot-Swap Modal */}
       {selectedEngineForSwitch && (
-        <div className="modal-overlay" onClick={() => setSelectedEngineForSwitch(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedEngineForSwitch(null)}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 460 }}
+          >
             <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
               Switch Active BitTorrent Engine
             </h2>
@@ -509,8 +558,8 @@ export function EngineSettingsTab() {
                 lineHeight: 1.4,
               }}
             >
-              All in-flight download bitfields and statistics will be atomically checkpointed and
-              migrated without interrupting disk payloads.
+              All in-flight download bitfields and statistics will be atomically
+              checkpointed and migrated without interrupting disk payloads.
             </p>
             <div
               style={{
@@ -533,7 +582,9 @@ export function EngineSettingsTab() {
                 onClick={handleSwitchConfirm}
                 disabled={switchMutation.isPending}
               >
-                {switchMutation.isPending ? "Switching Engine..." : "Confirm Switch"}
+                {switchMutation.isPending
+                  ? "Switching Engine..."
+                  : "Confirm Switch"}
               </button>
             </div>
           </div>
@@ -543,7 +594,11 @@ export function EngineSettingsTab() {
       {/* Probe Diagnostic Results Modal */}
       {probeResult && (
         <div className="modal-overlay" onClick={() => setProbeResult(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 520 }}
+          >
             <div
               style={{
                 display: "flex",
@@ -552,12 +607,20 @@ export function EngineSettingsTab() {
                 marginBottom: "1rem",
               }}
             >
-              <h2 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "1.2rem",
+                  color: "var(--text-primary)",
+                }}
+              >
                 Probe Results: {probeResult.engineId}
               </h2>
               <span
                 style={{
-                  backgroundColor: probeResult.isHealthy ? "#27ae60" : "#e74c3c",
+                  backgroundColor: probeResult.isHealthy
+                    ? "#27ae60"
+                    : "#e74c3c",
                   color: "#ffffff",
                   padding: "0.2rem 0.55rem",
                   borderRadius: "4px",
@@ -566,7 +629,9 @@ export function EngineSettingsTab() {
                   letterSpacing: "0.03em",
                 }}
               >
-                {probeResult.isHealthy ? "HEALTHY / READY" : "WARNING / UNHEALTHY"}
+                {probeResult.isHealthy
+                  ? "HEALTHY / READY"
+                  : "WARNING / UNHEALTHY"}
               </span>
             </div>
 
@@ -586,55 +651,60 @@ export function EngineSettingsTab() {
             >
               <strong>Status:</strong>{" "}
               {probeResult.statusMessage ||
-                (probeResult.isHealthy ? "Operational" : "Health check reported issues.")}
+                (probeResult.isHealthy
+                  ? "Operational"
+                  : "Health check reported issues.")}
             </div>
 
-            {probeResult.dependencyChecks && probeResult.dependencyChecks.length > 0 && (
-              <div style={{ marginBottom: "1rem" }}>
-                <h4
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    margin: "0 0 0.4rem 0",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  Dependency Checks
-                </h4>
-                <ul
-                  style={{
-                    margin: "0.35rem 0 0 0",
-                    paddingLeft: "1.2rem",
-                    fontSize: "0.83rem",
-                    color: "var(--text-secondary)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {probeResult.dependencyChecks.map((check, idx) => {
-                    if (typeof check === "object" && check !== null) {
+            {probeResult.dependencyChecks &&
+              probeResult.dependencyChecks.length > 0 && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <h4
+                    style={{
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      color: "var(--text-secondary)",
+                      margin: "0 0 0.4rem 0",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Dependency Checks
+                  </h4>
+                  <ul
+                    style={{
+                      margin: "0.35rem 0 0 0",
+                      paddingLeft: "1.2rem",
+                      fontSize: "0.83rem",
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {probeResult.dependencyChecks.map((check, idx) => {
+                      if (typeof check === "object" && check !== null) {
+                        return (
+                          <li
+                            key={idx}
+                            style={{
+                              color: check.passed ? "#2ecc71" : "#e74c3c",
+                            }}
+                          >
+                            {check.passed ? "✅" : "❌"}{" "}
+                            <strong>{check.name}</strong>:{" "}
+                            {check.message ||
+                              (check.passed ? "Passed" : "Failed")}
+                          </li>
+                        );
+                      }
                       return (
-                        <li
-                          key={idx}
-                          style={{
-                            color: check.passed ? "#2ecc71" : "#e74c3c",
-                          }}
-                        >
-                          {check.passed ? "✅" : "❌"} <strong>{check.name}</strong>:{" "}
-                          {check.message || (check.passed ? "Passed" : "Failed")}
+                        <li key={idx} style={{ color: "#2ecc71" }}>
+                          ✅ {check}
                         </li>
                       );
-                    }
-                    return (
-                      <li key={idx} style={{ color: "#2ecc71" }}>
-                        ✅ {check}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
+                    })}
+                  </ul>
+                </div>
+              )}
 
             {probeResult.warnings && probeResult.warnings.length > 0 && (
               <div style={{ marginBottom: "1rem" }}>

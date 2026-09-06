@@ -34,14 +34,19 @@ function PeerMap() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hours, setHours] = useState(1);
-  const [selectedTorrentFilter, setSelectedTorrentFilter] = useState<string>("all");
+  const [selectedTorrentFilter, setSelectedTorrentFilter] =
+    useState<string>("all");
   const [selectedNode, setSelectedNode] = useState<SimNode | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const navigate = useNavigate();
 
   const { data: torrentsList } = useTorrents();
   const range = useMemo(() => getTimeRange(hours), [hours]);
-  const { data: graphData, isLoading, isError } = usePeerGraph(range.start, range.end);
+  const {
+    data: graphData,
+    isLoading,
+    isError,
+  } = usePeerGraph(range.start, range.end);
 
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -96,13 +101,21 @@ function PeerMap() {
 
     if (selectedTorrentFilter !== "all") {
       const targetTorrentNode = rawNodes.find(
-        (n) => n.id === selectedTorrentFilter || n.infoHash === selectedTorrentFilter
+        (n) =>
+          n.id === selectedTorrentFilter ||
+          n.infoHash === selectedTorrentFilter,
       );
       if (targetTorrentNode) {
         const connectedPeerIds = new Set(
           rawLinks
-            .filter((l) => l.source === targetTorrentNode.id || l.target === targetTorrentNode.id)
-            .map((l) => (l.source === targetTorrentNode.id ? l.target : l.source))
+            .filter(
+              (l) =>
+                l.source === targetTorrentNode.id ||
+                l.target === targetTorrentNode.id,
+            )
+            .map((l) =>
+              l.source === targetTorrentNode.id ? l.target : l.source,
+            ),
         );
         connectedPeerIds.add(targetTorrentNode.id);
         const centerId = rawNodes.find((n) => n.type === "center")?.id;
@@ -111,7 +124,8 @@ function PeerMap() {
         rawNodes = rawNodes.filter((n) => connectedPeerIds.has(n.id));
         rawLinks = rawLinks.filter(
           (l) =>
-            connectedPeerIds.has(l.source as string) && connectedPeerIds.has(l.target as string)
+            connectedPeerIds.has(l.source as string) &&
+            connectedPeerIds.has(l.target as string),
         );
       }
     }
@@ -127,7 +141,11 @@ function PeerMap() {
     const numPeers = nodes.filter((n) => n.type === "peer").length;
 
     // Dynamic radius based on torrent count to avoid cluster overlap
-    const baseTorrentRadius = Math.max(220, Math.min(width, height) * 0.35, numTorrents * 12);
+    const baseTorrentRadius = Math.max(
+      220,
+      Math.min(width, height) * 0.35,
+      numTorrents * 12,
+    );
     const peerDistance = Math.max(90, Math.min(130, 800 / (numPeers || 1)));
 
     // Preserve existing node coordinates for warm-start force simulation
@@ -152,8 +170,14 @@ function PeerMap() {
         } else {
           // Peer: place near parent torrent if found
           const connectedLink = links.find((l) => {
-            const s = typeof l.source === "object" ? (l.source as SimNode).id : l.source;
-            const t = typeof l.target === "object" ? (l.target as SimNode).id : l.target;
+            const s =
+              typeof l.source === "object"
+                ? (l.source as SimNode).id
+                : l.source;
+            const t =
+              typeof l.target === "object"
+                ? (l.target as SimNode).id
+                : l.target;
             return s === n.id || t === n.id;
           });
           const torrentId = connectedLink
@@ -167,7 +191,9 @@ function PeerMap() {
                 ? (connectedLink.source as SimNode).id
                 : connectedLink.source
             : null;
-          const parent = torrentId ? nodes.find((node) => node.id === torrentId) : null;
+          const parent = torrentId
+            ? nodes.find((node) => node.id === torrentId)
+            : null;
           if (parent && parent.x !== undefined && parent.y !== undefined) {
             n.x = parent.x + (Math.random() - 0.5) * 40;
             n.y = parent.y + (Math.random() - 0.5) * 40;
@@ -242,32 +268,43 @@ function PeerMap() {
           d3
             .forceLink<SimNode, SimLink>(links)
             .id((d) => d.id)
-            .distance((d) => (d.type === "seeds" ? baseTorrentRadius : peerDistance))
-            .strength((d) => (d.type === "seeds" ? 0.6 : 0.8))
+            .distance((d) =>
+              d.type === "seeds" ? baseTorrentRadius : peerDistance,
+            )
+            .strength((d) => (d.type === "seeds" ? 0.6 : 0.8)),
         )
         .force(
           "charge",
           d3
             .forceManyBody<SimNode>()
-            .strength((d) => (d.type === "center" ? -1200 : d.type === "torrent" ? -500 : -200))
-            .distanceMax(Math.max(width, height) * 1.5)
+            .strength((d) =>
+              d.type === "center" ? -1200 : d.type === "torrent" ? -500 : -200,
+            )
+            .distanceMax(Math.max(width, height) * 1.5),
         )
         .force("center", d3.forceCenter(width / 2, height / 2).strength(0.06))
         .force(
           "collision",
           d3
             .forceCollide<SimNode>()
-            .radius((d) => (d.type === "center" ? 48 : d.type === "torrent" ? 42 : 24))
-            .iterations(2)
+            .radius((d) =>
+              d.type === "center" ? 48 : d.type === "torrent" ? 42 : 24,
+            )
+            .iterations(2),
         );
       simRef.current = simulation;
     } else {
       simulation.nodes(nodes);
-      const linkForce = simulation.force("link") as d3.ForceLink<SimNode, SimLink>;
+      const linkForce = simulation.force("link") as d3.ForceLink<
+        SimNode,
+        SimLink
+      >;
       if (linkForce) {
         linkForce
           .id((d) => d.id)
-          .distance((d) => (d.type === "seeds" ? baseTorrentRadius : peerDistance))
+          .distance((d) =>
+            d.type === "seeds" ? baseTorrentRadius : peerDistance,
+          )
           .strength((d) => (d.type === "seeds" ? 0.6 : 0.8))
           .links(links);
       }
@@ -275,7 +312,9 @@ function PeerMap() {
       if (centerForce) {
         centerForce.x(width / 2).y(height / 2);
       }
-      const chargeForce = simulation.force("charge") as d3.ForceManyBody<SimNode>;
+      const chargeForce = simulation.force(
+        "charge",
+      ) as d3.ForceManyBody<SimNode>;
       if (chargeForce) {
         chargeForce.distanceMax(Math.max(width, height) * 1.5);
       }
@@ -290,24 +329,36 @@ function PeerMap() {
     const link = linkGroup
       .selectAll<SVGLineElement, SimLink>("line")
       .data(links, (d: SimLink) => {
-        const s = typeof d.source === "object" ? (d.source as SimNode).id : d.source;
-        const t = typeof d.target === "object" ? (d.target as SimNode).id : d.target;
+        const s =
+          typeof d.source === "object" ? (d.source as SimNode).id : d.source;
+        const t =
+          typeof d.target === "object" ? (d.target as SimNode).id : d.target;
         return `${s}->${t}`;
       })
       .join(
         (enter) =>
           enter
             .append("line")
-            .attr("stroke", (d) => LINK_COLORS[d.type] || "rgba(255, 255, 255, 0.2)")
+            .attr(
+              "stroke",
+              (d) => LINK_COLORS[d.type] || "rgba(255, 255, 255, 0.2)",
+            )
             .attr("stroke-width", (d) => (d.type === "seeds" ? 2 : 1.2))
-            .attr("stroke-dasharray", (d) => (d.type === "encrypted" ? "4,4" : "none"))
+            .attr("stroke-dasharray", (d) =>
+              d.type === "encrypted" ? "4,4" : "none",
+            )
             .attr("opacity", 0.7),
         (update) =>
           update
-            .attr("stroke", (d) => LINK_COLORS[d.type] || "rgba(255, 255, 255, 0.2)")
+            .attr(
+              "stroke",
+              (d) => LINK_COLORS[d.type] || "rgba(255, 255, 255, 0.2)",
+            )
             .attr("stroke-width", (d) => (d.type === "seeds" ? 2 : 1.2))
-            .attr("stroke-dasharray", (d) => (d.type === "encrypted" ? "4,4" : "none")),
-        (exit) => exit.remove()
+            .attr("stroke-dasharray", (d) =>
+              d.type === "encrypted" ? "4,4" : "none",
+            ),
+        (exit) => exit.remove(),
       );
 
     const drag = d3
@@ -339,7 +390,10 @@ function PeerMap() {
       .data(nodes, (d: SimNode) => d.id)
       .join(
         (enter) => {
-          const gEnter = enter.append("g").attr("class", "node").style("cursor", "pointer");
+          const gEnter = enter
+            .append("g")
+            .attr("class", "node")
+            .style("cursor", "pointer");
 
           gEnter
             .append("circle")
@@ -410,7 +464,8 @@ function PeerMap() {
             .attr("fill", "#27ae60");
 
           gEnter.append("title").text((d) => {
-            if (d.type === "center") return "Leecharr Instance (Click for details)";
+            if (d.type === "center")
+              return "Leecharr Instance (Click for details)";
             if (d.type === "torrent")
               return `Torrent: ${d.label}\n${d.infoHash || ""}\n(Click to view details)`;
             return `Peer: ${d.label}${d.isEncrypted ? " (encrypted)" : ""}\n(Click for details)`;
@@ -427,7 +482,8 @@ function PeerMap() {
           });
 
           update.select("title").text((d) => {
-            if (d.type === "center") return "Leecharr Instance (Click for details)";
+            if (d.type === "center")
+              return "Leecharr Instance (Click for details)";
             if (d.type === "torrent")
               return `Torrent: ${d.label}\n${d.infoHash || ""}\n(Click to view details)`;
             return `Peer: ${d.label}${d.isEncrypted ? " (encrypted)" : ""}\n(Click for details)`;
@@ -435,7 +491,7 @@ function PeerMap() {
 
           return update;
         },
-        (exit) => exit.remove()
+        (exit) => exit.remove(),
       );
 
     node
@@ -448,8 +504,10 @@ function PeerMap() {
         const neighborIds = new Set<string>();
         neighborIds.add(d.id);
         links.forEach((l) => {
-          const sId = typeof l.source === "object" ? (l.source as SimNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as SimNode).id : l.target;
+          const sId =
+            typeof l.source === "object" ? (l.source as SimNode).id : l.source;
+          const tId =
+            typeof l.target === "object" ? (l.target as SimNode).id : l.target;
           if (sId === d.id) neighborIds.add(tId as string);
           if (tId === d.id) neighborIds.add(sId as string);
         });
@@ -465,13 +523,25 @@ function PeerMap() {
           .transition()
           .duration(150)
           .attr("opacity", (l) => {
-            const sId = typeof l.source === "object" ? (l.source as SimNode).id : l.source;
-            const tId = typeof l.target === "object" ? (l.target as SimNode).id : l.target;
+            const sId =
+              typeof l.source === "object"
+                ? (l.source as SimNode).id
+                : l.source;
+            const tId =
+              typeof l.target === "object"
+                ? (l.target as SimNode).id
+                : l.target;
             return sId === d.id || tId === d.id ? 1 : 0.05;
           })
           .attr("stroke-width", (l) => {
-            const sId = typeof l.source === "object" ? (l.source as SimNode).id : l.source;
-            const tId = typeof l.target === "object" ? (l.target as SimNode).id : l.target;
+            const sId =
+              typeof l.source === "object"
+                ? (l.source as SimNode).id
+                : l.source;
+            const tId =
+              typeof l.target === "object"
+                ? (l.target as SimNode).id
+                : l.target;
             return sId === d.id || tId === d.id ? 2.5 : 1;
           });
       })
@@ -523,13 +593,19 @@ function PeerMap() {
 
   const handleZoomIn = () => {
     if (svgRef.current && zoomRef.current) {
-      d3.select(svgRef.current).transition().duration(250).call(zoomRef.current.scaleBy, 1.35);
+      d3.select(svgRef.current)
+        .transition()
+        .duration(250)
+        .call(zoomRef.current.scaleBy, 1.35);
     }
   };
 
   const handleZoomOut = () => {
     if (svgRef.current && zoomRef.current) {
-      d3.select(svgRef.current).transition().duration(250).call(zoomRef.current.scaleBy, 0.75);
+      d3.select(svgRef.current)
+        .transition()
+        .duration(250)
+        .call(zoomRef.current.scaleBy, 0.75);
     }
   };
 
@@ -542,8 +618,10 @@ function PeerMap() {
     }
   };
 
-  const torrentCount = graphData?.nodes.filter((n) => n.type === "torrent").length ?? 0;
-  const peerCount = graphData?.nodes.filter((n) => n.type === "peer").length ?? 0;
+  const torrentCount =
+    graphData?.nodes.filter((n) => n.type === "torrent").length ?? 0;
+  const peerCount =
+    graphData?.nodes.filter((n) => n.type === "peer").length ?? 0;
 
   return (
     <div
@@ -568,11 +646,15 @@ function PeerMap() {
         }}
       >
         <div className="page-header-group">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <h1 className="page-heading" style={{ margin: 0 }}>
               Peer Map
             </h1>
-            <span className="badge badge-primary">{peerCount} Connected Peers</span>
+            <span className="badge badge-primary">
+              {peerCount} Connected Peers
+            </span>
           </div>
           <div
             style={{
@@ -581,7 +663,8 @@ function PeerMap() {
               marginTop: "0.2rem",
             }}
           >
-            Live swarm topology visualization connecting Leecharr, active torrents, and remote peers
+            Live swarm topology visualization connecting Leecharr, active
+            torrents, and remote peers
           </div>
         </div>
       </div>
@@ -633,15 +716,24 @@ function PeerMap() {
       {/* Legend */}
       <div className="peer-map-legend" style={{ flexShrink: 0 }}>
         <span className="peer-map-legend-item">
-          <span className="peer-map-legend-dot" style={{ background: NODE_COLORS.center }} />
+          <span
+            className="peer-map-legend-dot"
+            style={{ background: NODE_COLORS.center }}
+          />
           Leecharr
         </span>
         <span className="peer-map-legend-item">
-          <span className="peer-map-legend-dot" style={{ background: NODE_COLORS.torrent }} />
+          <span
+            className="peer-map-legend-dot"
+            style={{ background: NODE_COLORS.torrent }}
+          />
           Torrent
         </span>
         <span className="peer-map-legend-item">
-          <span className="peer-map-legend-dot" style={{ background: NODE_COLORS.peer }} />
+          <span
+            className="peer-map-legend-dot"
+            style={{ background: NODE_COLORS.peer }}
+          />
           Peer
         </span>
         <span className="peer-map-legend-item">
@@ -674,7 +766,9 @@ function PeerMap() {
           height: "100%",
         }}
       >
-        {isLoading && <div className="peer-map-loading">Loading peer topology...</div>}
+        {isLoading && (
+          <div className="peer-map-loading">Loading peer topology...</div>
+        )}
         {!isLoading && isError && (
           <div className="peer-map-empty" style={{ color: "var(--danger)" }}>
             Failed to load peer topology data.
@@ -822,7 +916,9 @@ function PeerMap() {
                   marginBottom: "0.75rem",
                 }}
               >
-                <code style={{ wordBreak: "break-all" }}>{selectedNode.infoHash}</code>
+                <code style={{ wordBreak: "break-all" }}>
+                  {selectedNode.infoHash}
+                </code>
               </div>
             )}
 

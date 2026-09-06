@@ -27,8 +27,12 @@ export function ConnectionsTab() {
   const [editing, setEditing] = useState<Partial<ArrConnection> | null>(null);
 
   useEscapeKey(() => setEditing(null), Boolean(editing));
-  const [testResults, setTestResults] = useState<Record<number, ArrTestResult | null>>({});
-  const [modalTestResult, setModalTestResult] = useState<ArrTestResult | null>(null);
+  const [testResults, setTestResults] = useState<
+    Record<number, ArrTestResult | null>
+  >({});
+  const [modalTestResult, setModalTestResult] = useState<ArrTestResult | null>(
+    null,
+  );
 
   const defaultConnection: Partial<ArrConnection> = {
     name: "Sonarr",
@@ -76,7 +80,8 @@ export function ConnectionsTab() {
     setModalTestResult(null);
     testDirectMutation.mutate(editing, {
       onSuccess: (data) => setModalTestResult(data),
-      onError: (err) => setModalTestResult({ success: false, message: err.message }),
+      onError: (err) =>
+        setModalTestResult({ success: false, message: err.message }),
     });
   };
 
@@ -149,7 +154,11 @@ export function ConnectionsTab() {
 
         <div className="provider-cards">
           {connections?.map((conn) => (
-            <div key={conn.id} className="provider-card" onClick={() => handleOpenModal(conn)}>
+            <div
+              key={conn.id}
+              className="provider-card"
+              onClick={() => handleOpenModal(conn)}
+            >
               <div className="provider-card-actions">
                 {conn.url && (
                   <a
@@ -188,9 +197,13 @@ export function ConnectionsTab() {
                     if (!ok) return;
 
                     deleteMutation.mutate(conn.id, {
-                      onSuccess: () => showToast(`Connection "${conn.name}" deleted`, "info"),
+                      onSuccess: () =>
+                        showToast(`Connection "${conn.name}" deleted`, "info"),
                       onError: (err: any) =>
-                        showToast(err?.message || "Failed to delete connection", "error"),
+                        showToast(
+                          err?.message || "Failed to delete connection",
+                          "error",
+                        ),
                     });
                   }}
                 >
@@ -203,21 +216,31 @@ export function ConnectionsTab() {
                   {conn.arrType}
                 </span>
                 {conn.enable === false && (
-                  <span className="provider-card-badge provider-card-badge-gray">Disabled</span>
+                  <span className="provider-card-badge provider-card-badge-gray">
+                    Disabled
+                  </span>
                 )}
                 {conn.syncEnabled && (
-                  <span className="provider-card-badge provider-card-badge-blue">Sync</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    Sync
+                  </span>
                 )}
                 {conn.enableAutomaticAdd && (
-                  <span className="provider-card-badge provider-card-badge-blue">Auto Add</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    Auto Add
+                  </span>
                 )}
                 {conn.webhookEnabled && (
-                  <span className="provider-card-badge provider-card-badge-blue">Webhook</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    Webhook
+                  </span>
                 )}
               </div>
               <div className="provider-card-info">{conn.url}</div>
               {testResults[conn.id]?.success === true && (
-                <div className="provider-card-test provider-card-test-ok">✓ Connection passed</div>
+                <div className="provider-card-test provider-card-test-ok">
+                  ✓ Connection passed
+                </div>
               )}
               {testResults[conn.id]?.success === false && (
                 <div
@@ -228,7 +251,9 @@ export function ConnectionsTab() {
                 </div>
               )}
               {testResults[conn.id] === null && (
-                <div className="provider-card-test provider-card-test-pending">Testing...</div>
+                <div className="provider-card-test provider-card-test-pending">
+                  Testing...
+                </div>
               )}
             </div>
           ))}
@@ -254,7 +279,10 @@ export function ConnectionsTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
               {editing.id ? "Edit Connection" : "Add Connection"}
             </div>
             <TextInput
@@ -275,7 +303,10 @@ export function ConnectionsTab() {
                 setEditing({
                   ...editing,
                   arrType: v,
-                  name: editing.name && editing.name !== editing.arrType ? editing.name : v,
+                  name:
+                    editing.name && editing.name !== editing.arrType
+                      ? editing.name
+                      : v,
                   url: defaults[v] || editing.url || "",
                   implementation: `${v}Connection`,
                 });
@@ -311,7 +342,9 @@ export function ConnectionsTab() {
             <Toggle
               label="Auto Add"
               checked={editing.enableAutomaticAdd ?? true}
-              onChange={(v) => setEditing({ ...editing, enableAutomaticAdd: v })}
+              onChange={(v) =>
+                setEditing({ ...editing, enableAutomaticAdd: v })
+              }
             />
             <Toggle
               label="Webhook"
@@ -365,7 +398,9 @@ export function ConnectionsTab() {
                     ? "var(--success, #28a745)"
                     : "var(--danger, #dc3545)",
                   border: `1px solid ${
-                    modalTestResult.success ? "rgba(40, 167, 69, 0.35)" : "rgba(220, 53, 69, 0.35)"
+                    modalTestResult.success
+                      ? "rgba(40, 167, 69, 0.35)"
+                      : "rgba(220, 53, 69, 0.35)"
                   }`,
                 }}
               >
@@ -380,7 +415,9 @@ export function ConnectionsTab() {
                 </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
-                    {modalTestResult.success ? "Connection Successful" : "Connection Failed"}
+                    {modalTestResult.success
+                      ? "Connection Successful"
+                      : "Connection Failed"}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -417,18 +454,27 @@ export function ConnectionsTab() {
                 onClick={handleModalTest}
                 disabled={testDirectMutation.isPending}
               >
-                {testDirectMutation.isPending ? "Testing..." : "Test Connection"}
+                {testDirectMutation.isPending
+                  ? "Testing..."
+                  : "Test Connection"}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="btn btn-outline btn-small" onClick={() => setEditing(null)}>
+                <button
+                  className="btn btn-outline btn-small"
+                  onClick={() => setEditing(null)}
+                >
                   Cancel
                 </button>
                 <button
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
                 >
-                  {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
             </div>

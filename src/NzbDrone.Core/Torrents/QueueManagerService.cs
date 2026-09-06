@@ -158,6 +158,11 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         {
                             var oldStatus = torrent.Status;
                             torrent.Status = TorrentStatus.Queued;
+                            torrent.DownloadSpeed = 0;
+                            torrent.UploadSpeed = 0;
+                            torrent.Eta = 0;
+                            torrent.Seeders = 0;
+                            torrent.Leechers = 0;
                             this.torrentRepository.Update(torrent);
 
                             try
@@ -248,6 +253,11 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         {
                             var oldStatus = torrent.Status;
                             torrent.Status = TorrentStatus.Queued;
+                            torrent.DownloadSpeed = 0;
+                            torrent.UploadSpeed = 0;
+                            torrent.Eta = 0;
+                            torrent.Seeders = 0;
+                            torrent.Leechers = 0;
                             this.torrentRepository.Update(torrent);
 
                             try

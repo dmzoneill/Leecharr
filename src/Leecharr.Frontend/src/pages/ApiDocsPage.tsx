@@ -32,7 +32,10 @@ export function ApiDocsPage() {
   };
 
   return (
-    <div className="content-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div
+      className="content-area"
+      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+    >
       {/* Header Banner */}
       <div
         className="card"
@@ -65,8 +68,8 @@ export function ApiDocsPage() {
               fontSize: "0.85rem",
             }}
           >
-            Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API v1. Test endpoints,
-            inspect JSON schemas, and automate downloads.
+            Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API
+            v1. Test endpoints, inspect JSON schemas, and automate downloads.
           </p>
         </div>
 
@@ -85,7 +88,11 @@ export function ApiDocsPage() {
               disabled={copyingKey}
               title="Copy API Key to clipboard for Swagger Authorize header"
             >
-              {copiedKey ? "✓ API Key Copied" : copyingKey ? "⏳ Copying..." : "📋 Copy API Key"}
+              {copiedKey
+                ? "✓ API Key Copied"
+                : copyingKey
+                  ? "⏳ Copying..."
+                  : "📋 Copy API Key"}
             </button>
           )}
 
