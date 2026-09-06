@@ -276,8 +276,29 @@ public class PiecePicker
         if (sequentialMode)
         {
             // Sequential with Head / Tail priority
-            var headThreshold = Math.Min(4, this.pieceCount);
-            var tailThreshold = Math.Max(0, this.pieceCount - 2);
+            int headThreshold;
+            int tailThreshold;
+
+            if (this.pieceCount <= 2)
+            {
+                headThreshold = this.pieceCount;
+                tailThreshold = this.pieceCount;
+            }
+            else if (this.pieceCount <= 4)
+            {
+                headThreshold = 1;
+                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
+            }
+            else if (this.pieceCount <= 6)
+            {
+                headThreshold = 2;
+                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
+            }
+            else
+            {
+                headThreshold = 4;
+                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
+            }
 
             var headPieces = validPieces.Where(i => i < headThreshold).OrderBy(i => i);
             var tailPieces = validPieces.Where(i => i >= tailThreshold).OrderBy(i => i);

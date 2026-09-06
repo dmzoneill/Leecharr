@@ -218,15 +218,26 @@ public class PiecePickerTest
     [Test]
     public void PickBlocks_SequentialMode_HandlesSmallTorrentsUnder6Pieces()
     {
-        // 4 pieces
-        var picker = new PiecePicker(4, 16384, 65536);
-        var fullBitfield = Enumerable.Repeat(true, 4).ToArray();
+        // 4 pieces: head [0], tail [2, 3], rest [1] -> [0, 2, 3, 1]
+        var picker4 = new PiecePicker(4, 16384, 65536);
+        var fullBitfield4 = Enumerable.Repeat(true, 4).ToArray();
+        var requests4 = picker4.PickBlocks(fullBitfield4, 4, sequentialMode: true);
+        var pieces4 = requests4.Select(r => r.PieceIndex).Distinct().ToList();
+        pieces4.Should().ContainInOrder(0, 2, 3, 1);
 
-        var requests = picker.PickBlocks(fullBitfield, 4, sequentialMode: true);
+        // 5 pieces: head [0, 1], tail [3, 4], rest [2] -> [0, 1, 3, 4, 2]
+        var picker5 = new PiecePicker(5, 16384, 81920);
+        var fullBitfield5 = Enumerable.Repeat(true, 5).ToArray();
+        var requests5 = picker5.PickBlocks(fullBitfield5, 5, sequentialMode: true);
+        var pieces5 = requests5.Select(r => r.PieceIndex).Distinct().ToList();
+        pieces5.Should().ContainInOrder(0, 1, 3, 4, 2);
 
-        requests.Should().HaveCount(4);
-        var pieces = requests.Select(r => r.PieceIndex).Distinct().ToList();
-        pieces.Should().ContainInOrder(0, 1, 2, 3);
+        // 6 pieces: head [0, 1], tail [4, 5], rest [2, 3] -> [0, 1, 4, 5, 2, 3]
+        var picker6 = new PiecePicker(6, 16384, 98304);
+        var fullBitfield6 = Enumerable.Repeat(true, 6).ToArray();
+        var requests6 = picker6.PickBlocks(fullBitfield6, 6, sequentialMode: true);
+        var pieces6 = requests6.Select(r => r.PieceIndex).Distinct().ToList();
+        pieces6.Should().ContainInOrder(0, 1, 4, 5, 2, 3);
     }
 
     [Test]
