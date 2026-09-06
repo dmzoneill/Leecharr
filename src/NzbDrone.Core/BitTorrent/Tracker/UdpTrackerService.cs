@@ -487,6 +487,11 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 return true;
             }
+
+            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+            {
+                return true;
+            }
         }
         else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
         {
