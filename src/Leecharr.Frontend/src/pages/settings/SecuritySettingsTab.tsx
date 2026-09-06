@@ -867,7 +867,7 @@ export function SecuritySettingsTab() {
                   />
 
                   <TextInput
-                    label="OAuth Scopes"
+                    label={t("settings.oAuthScopes")}
                     value={editingProvider.scopes || "openid profile email"}
                     onChange={(v) =>
                       setEditingProvider((prev) => ({ ...prev, scopes: v }))
@@ -879,7 +879,7 @@ export function SecuritySettingsTab() {
 
               {editingProvider.providerType === 1 && (
                 <TextInput
-                  label="IdP Metadata URL / XML Endpoint"
+                  label={t("settings.idPMetadataURLXMLEndpoin")}
                   value={editingProvider.metadataUrl || ""}
                   onChange={(v) =>
                     setEditingProvider((prev) => ({ ...prev, metadataUrl: v }))
@@ -889,7 +889,7 @@ export function SecuritySettingsTab() {
               )}
 
               <TextInput
-                label="Role Mapping Rules (JSON)"
+                label={t("settings.roleMappingRulesJSON")}
                 value={editingProvider.roleMappingRules || ""}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({
@@ -901,7 +901,7 @@ export function SecuritySettingsTab() {
               />
 
               <TextInput
-                label="Button Text"
+                label={t("settings.buttonText")}
                 value={editingProvider.buttonText || ""}
                 onChange={(v) =>
                   setEditingProvider((prev) => ({ ...prev, buttonText: v }))

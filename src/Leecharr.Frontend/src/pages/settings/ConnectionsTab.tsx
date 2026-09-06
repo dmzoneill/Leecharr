@@ -93,8 +93,8 @@ export function ConnectionsTab() {
   return (
     <>
       <SectionCard
-        title="Arr Media Management Connections"
-        description="Integrate with Sonarr, Radarr, and Lidarr for automated import and download client synchronization"
+        title={t("settings.arrMediaManagementConnectio")}
+        description={t("settings.integrateWithSonarrRadarr")}
       >
         <div
           style={{
@@ -190,7 +190,7 @@ export function ConnectionsTab() {
                 </button>
                 <button
                   className="provider-card-action provider-card-action-danger"
-                  title="Delete Connection"
+                  title={t("settings.deleteConnection")}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const ok = await confirm({
@@ -265,7 +265,7 @@ export function ConnectionsTab() {
           <div
             className="provider-card-add"
             onClick={() => handleOpenModal(defaultConnection)}
-            title="Add Arr Connection"
+            title={t("settings.addArrConnection")}
           >
             <span className="provider-card-add-icon">+</span>
           </div>
@@ -294,7 +294,7 @@ export function ConnectionsTab() {
               label={t("settingsTabs.categories.table.name")}
               value={editing.name || ""}
               onChange={(v) => setEditing({ ...editing, name: v })}
-              placeholder="Sonarr"
+              placeholder={t("settings.sonarr")}
             />
             <SelectInput
               label={t("settingsTabs.indexers.typeLabel")}
@@ -326,7 +326,7 @@ export function ConnectionsTab() {
               label={t("settingsTabs.indexers.urlLabel")}
               value={editing.url || ""}
               onChange={(v) => setEditing({ ...editing, url: v })}
-              placeholder="http://localhost:8989"
+              placeholder={t("settings.httpLocalhost8989")}
             />
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
@@ -340,28 +340,28 @@ export function ConnectionsTab() {
               onChange={(v) => setEditing({ ...editing, enable: v })}
             />
             <Toggle
-              label="Sync Enabled"
+              label={t("settings.syncEnabled")}
               checked={editing.syncEnabled ?? true}
               onChange={(v) => setEditing({ ...editing, syncEnabled: v })}
             />
             <Toggle
-              label="Auto Add"
+              label={t("settings.autoAdd")}
               checked={editing.enableAutomaticAdd ?? true}
               onChange={(v) =>
                 setEditing({ ...editing, enableAutomaticAdd: v })
               }
             />
             <Toggle
-              label="Webhook"
+              label={t("settings.webhook")}
               checked={editing.webhookEnabled ?? true}
               onChange={(v) => setEditing({ ...editing, webhookEnabled: v })}
             />
             {editing.webhookEnabled !== false && (
               <TextInput
-                label="Webhook Host"
+                label={t("settings.webhookHost")}
                 value={editing.webhookHost || ""}
                 onChange={(v) => setEditing({ ...editing, webhookHost: v })}
-                placeholder="leecharr"
+                placeholder={t("settings.leecharr")}
                 hint="Hostname or IP for *arr to reach Leecharr (leave empty to use default)"
               />
             )}
