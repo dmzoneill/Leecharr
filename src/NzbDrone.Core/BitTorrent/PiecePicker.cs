@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace NzbDrone.Core.BitTorrent;
 
@@ -46,7 +45,10 @@ public class PiecePicker
     private readonly long totalSize;
     private readonly PieceState[] pieces;
     private readonly int[] swarmAvailability;
-    private readonly Dictionary<string, DateTime> inFlightBlocks = new();
+    private readonly Dictionary<long, DateTime> inFlightBlocks = new();
+
+    private int totalActiveBlocks;
+    private int remainingActiveBlocks;
 
     public PiecePicker(int pieceCount, int pieceLength, long totalSize, TimeSpan? requestTimeout = null)
     {
@@ -93,6 +95,9 @@ public class PiecePicker
                 TotalBlocks = totalBlocks,
                 BlockBitfield = new bool[totalBlocks],
             };
+
+            this.totalActiveBlocks += totalBlocks;
+            this.remainingActiveBlocks += totalBlocks;
         }
     }
 
@@ -114,6 +119,8 @@ public class PiecePicker
     public int PieceLength => this.pieceLength;
 
     public long TotalSize => this.totalSize;
+
+    private static long GetBlockKey(int pieceIndex, int blockIndex) => ((long)pieceIndex << 32) | (uint)blockIndex;
 
     public void UpdatePeerAvailability(bool[] peerBitfield, bool isAdd)
     {
@@ -169,7 +176,28 @@ public class PiecePicker
         {
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
-                this.pieces[pieceIndex].Priority = priority;
+                var piece = this.pieces[pieceIndex];
+                if (piece.Priority != priority)
+                {
+                    if (piece.Priority > 0 && priority == 0)
+                    {
+                        this.totalActiveBlocks -= piece.TotalBlocks;
+                        if (!piece.IsComplete)
+                        {
+                            this.remainingActiveBlocks -= piece.TotalBlocks - piece.ReceivedBlocks;
+                        }
+                    }
+                    else if (piece.Priority == 0 && priority > 0)
+                    {
+                        this.totalActiveBlocks += piece.TotalBlocks;
+                        if (!piece.IsComplete)
+                        {
+                            this.remainingActiveBlocks += piece.TotalBlocks - piece.ReceivedBlocks;
+                        }
+                    }
+
+                    piece.Priority = priority;
+                }
             }
         }
     }
@@ -178,19 +206,19 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            var activePieces = this.pieces.Where(p => p.Priority > 0 && !p.IsComplete).ToList();
-            var remainingBlocks = activePieces.Sum(p => p.TotalBlocks - p.ReceivedBlocks);
-            if (remainingBlocks <= 0)
-            {
-                return false;
-            }
-
-            var totalActiveBlocks = this.pieces.Where(p => p.Priority > 0).Sum(p => p.TotalBlocks);
-            // Only enter endgame if torrent had more than 30 blocks initially and is near completion,
-            // or if all remaining blocks are already in flight.
-            return (totalActiveBlocks > 30 && remainingBlocks <= 30) ||
-                   (this.inFlightBlocks.Count >= remainingBlocks);
+            return this.IsEndgameModeCore();
         }
+    }
+
+    private bool IsEndgameModeCore()
+    {
+        if (this.remainingActiveBlocks <= 0)
+        {
+            return false;
+        }
+
+        return (this.totalActiveBlocks > 30 && this.remainingActiveBlocks <= 30) ||
+               (this.inFlightBlocks.Count >= this.remainingActiveBlocks);
     }
 
     public List<BlockRequest> PickBlocks(bool[] peerBitfield, int maxRequests, bool sequentialMode = false)
@@ -220,8 +248,8 @@ public class PiecePicker
                         continue;
                     }
 
-                    var blockKey = $"{pieceIndex}:{blockIdx}";
-                    var isEndgame = this.IsEndgameMode();
+                    var blockKey = GetBlockKey(pieceIndex, blockIdx);
+                    var isEndgame = this.IsEndgameModeCore();
 
                     if (!isEndgame && this.inFlightBlocks.TryGetValue(blockKey, out var requestedAt))
                     {
@@ -275,26 +303,53 @@ public class PiecePicker
 
         if (sequentialMode)
         {
-            // Sequential with Head / Tail priority
             var headThreshold = Math.Min(4, this.pieceCount);
             var tailThreshold = Math.Max(0, this.pieceCount - 2);
 
-            var headPieces = validPieces.Where(i => i < headThreshold).OrderBy(i => i);
-            var tailPieces = validPieces.Where(i => i >= tailThreshold).OrderBy(i => i);
-            var rest = validPieces.Where(i => i >= headThreshold && i < tailThreshold).OrderBy(i => i);
+            var prioritized = new List<int>(validPieces.Count);
+            for (var idx = 0; idx < validPieces.Count; idx++)
+            {
+                var pieceIdx = validPieces[idx];
+                if (pieceIdx < headThreshold)
+                {
+                    prioritized.Add(pieceIdx);
+                }
+            }
 
-            var prioritized = new List<int>();
-            prioritized.AddRange(headPieces);
-            prioritized.AddRange(tailPieces);
-            prioritized.AddRange(rest);
-            return prioritized.Distinct().ToList();
+            for (var idx = 0; idx < validPieces.Count; idx++)
+            {
+                var pieceIdx = validPieces[idx];
+                if (pieceIdx >= tailThreshold && pieceIdx >= headThreshold)
+                {
+                    prioritized.Add(pieceIdx);
+                }
+            }
+
+            for (var idx = 0; idx < validPieces.Count; idx++)
+            {
+                var pieceIdx = validPieces[idx];
+                if (pieceIdx >= headThreshold && pieceIdx < tailThreshold)
+                {
+                    prioritized.Add(pieceIdx);
+                }
+            }
+
+            return prioritized;
         }
 
-        // Rarest-First: sort by swarm availability, then by higher piece priority
-        return validPieces
-            .OrderByDescending(i => this.pieces[i].Priority)
-            .ThenBy(i => this.swarmAvailability[i])
-            .ToList();
+        // Rarest-First: sort in-place by piece priority descending, then by swarm availability ascending
+        validPieces.Sort((a, b) =>
+        {
+            var pCompare = this.pieces[b].Priority.CompareTo(this.pieces[a].Priority);
+            if (pCompare != 0)
+            {
+                return pCompare;
+            }
+
+            return this.swarmAvailability[a].CompareTo(this.swarmAvailability[b]);
+        });
+
+        return validPieces;
     }
 
     public bool MarkBlockReceived(int pieceIndex, int blockOffset, int length)
@@ -325,13 +380,17 @@ public class PiecePicker
                 return false;
             }
 
-            var blockKey = $"{pieceIndex}:{blockIdx}";
+            var blockKey = GetBlockKey(pieceIndex, blockIdx);
             this.inFlightBlocks.Remove(blockKey);
 
             if (!piece.BlockBitfield[blockIdx])
             {
                 piece.BlockBitfield[blockIdx] = true;
                 piece.ReceivedBlocks++;
+                if (piece.Priority > 0)
+                {
+                    this.remainingActiveBlocks = Math.Max(0, this.remainingActiveBlocks - 1);
+                }
 
                 if (piece.ReceivedBlocks >= piece.TotalBlocks)
                 {
@@ -350,8 +409,26 @@ public class PiecePicker
         {
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
-                this.pieces[pieceIndex].IsVerified = true;
-                this.pieces[pieceIndex].IsComplete = true;
+                var piece = this.pieces[pieceIndex];
+                if (!piece.IsComplete)
+                {
+                    var unreceived = piece.TotalBlocks - piece.ReceivedBlocks;
+                    if (piece.Priority > 0)
+                    {
+                        this.remainingActiveBlocks = Math.Max(0, this.remainingActiveBlocks - unreceived);
+                    }
+
+                    piece.ReceivedBlocks = piece.TotalBlocks;
+                    for (var b = 0; b < piece.TotalBlocks; b++)
+                    {
+                        piece.BlockBitfield[b] = true;
+                        this.inFlightBlocks.Remove(GetBlockKey(pieceIndex, b));
+                    }
+
+                    piece.IsComplete = true;
+                }
+
+                piece.IsVerified = true;
             }
         }
     }
@@ -363,6 +440,11 @@ public class PiecePicker
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
                 var piece = this.pieces[pieceIndex];
+                if (piece.Priority > 0)
+                {
+                    this.remainingActiveBlocks += piece.ReceivedBlocks;
+                }
+
                 piece.IsComplete = false;
                 piece.IsVerified = false;
                 piece.ReceivedBlocks = 0;
@@ -370,7 +452,7 @@ public class PiecePicker
 
                 for (var i = 0; i < piece.TotalBlocks; i++)
                 {
-                    this.inFlightBlocks.Remove($"{pieceIndex}:{i}");
+                    this.inFlightBlocks.Remove(GetBlockKey(pieceIndex, i));
                 }
             }
         }
@@ -386,7 +468,7 @@ public class PiecePicker
             }
 
             var blockIdx = blockOffset / DefaultBlockSize;
-            this.inFlightBlocks.Remove($"{pieceIndex}:{blockIdx}");
+            this.inFlightBlocks.Remove(GetBlockKey(pieceIndex, blockIdx));
         }
     }
 
@@ -396,10 +478,15 @@ public class PiecePicker
         {
             var effectiveTimeout = timeout ?? this.RequestTimeout;
             var cutoff = DateTime.UtcNow - effectiveTimeout;
-            var expired = this.inFlightBlocks
-                .Where(kvp => kvp.Value <= cutoff)
-                .Select(kvp => kvp.Key)
-                .ToList();
+            var expired = new List<long>();
+
+            foreach (var kvp in this.inFlightBlocks)
+            {
+                if (kvp.Value <= cutoff)
+                {
+                    expired.Add(kvp.Key);
+                }
+            }
 
             foreach (var key in expired)
             {
@@ -433,7 +520,15 @@ public class PiecePicker
                 return 0.0;
             }
 
-            var verifiedCount = this.pieces.Count(p => p.IsVerified);
+            var verifiedCount = 0;
+            for (var i = 0; i < this.pieceCount; i++)
+            {
+                if (this.pieces[i].IsVerified)
+                {
+                    verifiedCount++;
+                }
+            }
+
             return (double)verifiedCount / this.pieceCount;
         }
     }

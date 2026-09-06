@@ -727,5 +727,22 @@ public class PiecePickerTest
         picker.GetAvailability().Should().Equal(new[] { 1, 2, 3, 4, 5 });
     }
 
+    [Test]
+    public void PickBlocks_LargeTorrent_PerformsFastBlockPickingWithoutLockStarvation()
+    {
+        // 10,000 pieces of 2MB (128 blocks each) = 20 GB torrent
+        var picker = new PiecePicker(10000, 2097152, 20971520000L);
+        var peerBitfield = new bool[10000];
+        for (var i = 0; i < 100; i++)
+        {
+            peerBitfield[i] = true;
+        }
+
+        var requests = picker.PickBlocks(peerBitfield, 50);
+        requests.Should().HaveCount(50);
+        picker.InFlightBlockCount.Should().Be(50);
+        picker.IsEndgameMode().Should().BeFalse();
+    }
+
     #endregion
 }
