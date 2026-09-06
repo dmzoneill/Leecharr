@@ -268,7 +268,10 @@ export function AiTab() {
                         gap: "0.3rem",
                         fontSize: "0.75rem",
                       }}
-                      title={t("settingsTabs.ai.runDiagnosticDesc", "Run live diagnostic probe and model test")}
+                      title={t(
+                        "settingsTabs.ai.runDiagnosticDesc",
+                        "Run live diagnostic probe and model test",
+                      )}
                     >
                       <RefreshIcon
                         size={12}

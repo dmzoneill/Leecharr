@@ -103,7 +103,6 @@ interface NotificationFormState {
 function getDefaultFormForImplementation(impl: string): NotificationFormState {
   const t = translate;
   return {
-    // @ts-ignore
     name:
       impl === "Webhook"
         ? t("settingsTabs.notifications.genericWebhook")
@@ -312,55 +311,43 @@ function buildNotificationPayload(
 function validateNotificationForm(form: NotificationFormState): string | null {
   const t = translate;
   if (!form.name.trim()) {
-    // @ts-ignore
     return t("settingsTabs.notifications.nameRequired");
   }
 
   switch (form.implementation) {
     case "Discord":
-      // @ts-ignore
       if (!form.url.trim())
         return t("settingsTabs.notifications.discordUrlRequired");
       break;
     case "Telegram":
-      // @ts-ignore
       if (!form.token.trim())
         return t("settingsTabs.notifications.telegramTokenRequired");
-      // @ts-ignore
       if (!form.chatId.trim())
         return t("settingsTabs.notifications.telegramChatIdRequired");
       break;
     case "Gotify":
-      // @ts-ignore
       if (!form.url.trim())
         return t("settingsTabs.notifications.gotifyUrlRequired");
-      // @ts-ignore
       if (!form.token.trim())
         return t("settingsTabs.notifications.gotifyTokenRequired");
       break;
     case "Pushover":
-      // @ts-ignore
       if (!form.userKey.trim())
         return t("settingsTabs.notifications.pushoverUserKeyRequired");
-      // @ts-ignore
       if (!form.token.trim())
         return t("settingsTabs.notifications.pushoverTokenRequired");
       break;
     case "Apprise":
-      // @ts-ignore
       if (!form.url.trim())
         return t("settingsTabs.notifications.appriseUrlRequired");
       break;
     case "Webhook":
-      // @ts-ignore
       if (!form.url.trim())
         return t("settingsTabs.notifications.webhookUrlRequired");
       break;
     case "Email":
-      // @ts-ignore
       if (!form.server.trim())
         return t("settingsTabs.notifications.smtpServerRequired");
-      // @ts-ignore
       if (!form.recipient.trim())
         return t("settingsTabs.notifications.recipientEmailRequired");
       break;
@@ -369,28 +356,28 @@ function validateNotificationForm(form: NotificationFormState): string | null {
   return null;
 }
 
-function getNotificationSummary(notif: NotificationResource): string {
+function getNotificationSummary(
+  notif: NotificationResource,
+  t: (key: string, ...args: any[]) => string,
+): string {
   try {
     const s = JSON.parse(notif.settings || "{}");
     if (notif.implementation === "Telegram") {
       return s.chat_id || s.chatId
         ? `Chat ID: ${s.chat_id || s.chatId}`
-        : // @ts-ignore
-          t("settingsTabs.notifications.telegramBot");
+        : t("settingsTabs.notifications.telegramBot");
     }
     if (notif.implementation === "Pushover") {
       return s.user
         ? `User: ${String(s.user).substring(0, 6)}...`
-        : // @ts-ignore
-          t("settingsTabs.notifications.pushoverAlert");
+        : t("settingsTabs.notifications.pushoverAlert");
     }
     if (notif.implementation === "Email") {
       return s.recipient
         ? `To: ${s.recipient}`
         : s.server
           ? `${s.server}:${s.port || 587}`
-          : // @ts-ignore
-            t("settingsTabs.notifications.smtpEmail");
+          : t("settingsTabs.notifications.smtpEmail");
     }
     return s.serverUrl || s.url || notif.settings || notif.implementation;
   } catch {
@@ -752,7 +739,7 @@ export function NotificationsTab() {
           <div className="provider-cards">
             {notifications?.map((notif) => {
               const externalUrl = getNotificationUrl(notif);
-              const summary = getNotificationSummary(notif);
+              const summary = getNotificationSummary(notif, t);
               return (
                 <div
                   key={notif.id}

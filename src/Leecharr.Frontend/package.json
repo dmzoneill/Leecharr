@@ -8,6 +8,7 @@
     "build": "webpack --mode production",
     "lint": "eslint src/ && npm run lint:i18n",
     "lint:i18n": "node scripts/lint-i18n.js",
+    "sync:i18n": "node scripts/sync-i18n.js",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests configured\""
   },

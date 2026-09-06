@@ -88,7 +88,12 @@ export function ConnectionsTab() {
     });
   };
 
-  if (isLoading) return <div className="loading">{t("settings.loadingConnections", "Loading connections...")}</div>;
+  if (isLoading)
+    return (
+      <div className="loading">
+        {t("settings.loadingConnections", "Loading connections...")}
+      </div>
+    );
 
   return (
     <>

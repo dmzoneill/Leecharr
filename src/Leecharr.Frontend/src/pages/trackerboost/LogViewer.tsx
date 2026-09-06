@@ -93,13 +93,17 @@ export function LogViewer() {
             value={logCategoryFilter}
             onChange={(e) => setLogCategoryFilter(e.target.value)}
           >
-            <option value="all">{t("trackerBoost.allCategories", "All Categories")}</option>
+            <option value="all">
+              {t("trackerBoost.allCategories", "All Categories")}
+            </option>
             <option value="Scrape">🔍 Scrapes</option>
             <option value="Health">🩺 Health Probes</option>
             <option value="Discovery">📡 Discovery</option>
             <option value="Inject">⚡ Injections</option>
             <option value="Cycle">⚙️ Daemon Cycles</option>
-            <option value="General">{t("trackerBoost.general", "General")}</option>
+            <option value="General">
+              {t("trackerBoost.general", "General")}
+            </option>
           </select>
 
           <select
@@ -112,7 +116,9 @@ export function LogViewer() {
             value={logLevelFilter}
             onChange={(e) => setLogLevelFilter(e.target.value)}
           >
-            <option value="all">{t("trackerBoost.allLevels", "All Levels")}</option>
+            <option value="all">
+              {t("trackerBoost.allLevels", "All Levels")}
+            </option>
             <option value="Success">🟢 Success</option>
             <option value="Info">🔵 Info</option>
             <option value="Warn">🟡 Warning</option>
@@ -127,7 +133,10 @@ export function LogViewer() {
               padding: "0.4rem 0.75rem",
               fontSize: "0.82rem",
             }}
-            placeholder={t("trackerBoost.searchLogs", "Search logs, hosts, hashes...")}
+            placeholder={t(
+              "trackerBoost.searchLogs",
+              "Search logs, hosts, hashes...",
+            )}
             value={logSearch}
             onChange={(e) => setLogSearch(e.target.value)}
           />
