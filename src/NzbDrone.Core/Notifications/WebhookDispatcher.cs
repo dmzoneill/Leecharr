@@ -207,13 +207,68 @@ public class WebhookDispatcher : IWebhookDispatcher
 
             if (!addedAny && !trimmed.StartsWith("{"))
             {
-                this.logger.Warn("Could not parse custom headers from input: {0}", customHeadersJson);
+                this.logger.Warn("Could not parse custom headers from input (header names): {0}", SanitizeHeadersForLogging(customHeadersJson));
             }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to parse custom headers: {0}", customHeadersJson);
+            this.logger.Warn(ex, "Failed to parse custom headers (header names): {0}", SanitizeHeadersForLogging(customHeadersJson));
         }
+    }
+
+    internal static string SanitizeHeadersForLogging(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = input.Trim();
+
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var keys = doc.RootElement.EnumerateObject().Select(p => p.Name).ToList();
+                    return string.Join(", ", keys);
+                }
+            }
+            catch
+            {
+                // Fall through to line/token key extraction
+            }
+        }
+
+        var lines = trimmed.Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var extractedKeys = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var cleanLine = line.Trim().Trim('"', '{', '}', ';');
+            if (string.IsNullOrWhiteSpace(cleanLine) || cleanLine.StartsWith("#") || cleanLine.StartsWith("//"))
+            {
+                continue;
+            }
+
+            var sepIdx = cleanLine.IndexOfAny(new[] { ':', '=' });
+            if (sepIdx >= 0)
+            {
+                var key = cleanLine.Substring(0, sepIdx).Trim().Trim('"');
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    extractedKeys.Add(key);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(cleanLine))
+            {
+                extractedKeys.Add(cleanLine);
+            }
+        }
+
+        return string.Join(", ", extractedKeys);
     }
 
     private void AddHeader(HttpRequestMessage request, string key, string value)

@@ -390,4 +390,54 @@ public class WebhookDispatcherTest
         body.Should().Contain("user=user-key-999");
         body.Should().Contain("message=Test+Message");
     }
+    #region Header Sanitization Tests
+
+    [Test]
+    public void SanitizeHeadersForLogging_WithBearerToken_RedactsTokenAndLeavesOnlyHeaderName()
+    {
+        var input = "Authorization: Bearer sk-1234567890abcdef";
+        var sanitized = WebhookDispatcher.SanitizeHeadersForLogging(input);
+        sanitized.Should().Be("Authorization");
+        sanitized.Should().NotContain("Bearer");
+        sanitized.Should().NotContain("sk-1234567890abcdef");
+    }
+
+    [Test]
+    public void SanitizeHeadersForLogging_WithApiKey_RedactsValue()
+    {
+        var input = "X-Api-Key=super_secret_token_value";
+        var sanitized = WebhookDispatcher.SanitizeHeadersForLogging(input);
+        sanitized.Should().Be("X-Api-Key");
+        sanitized.Should().NotContain("super_secret_token_value");
+    }
+
+    [Test]
+    public void SanitizeHeadersForLogging_WithJsonHeaders_RedactsValuesAndReturnsOnlyKeys()
+    {
+        var input = "{\"Authorization\":\"Bearer secret-token\",\"X-Api-Key\":\"secret-key\"}";
+        var sanitized = WebhookDispatcher.SanitizeHeadersForLogging(input);
+        sanitized.Should().Be("Authorization, X-Api-Key");
+        sanitized.Should().NotContain("secret-token");
+        sanitized.Should().NotContain("secret-key");
+    }
+
+    [Test]
+    public void SanitizeHeadersForLogging_WithMultipleLineHeaders_ExtractsOnlyKeys()
+    {
+        var input = "Authorization: Bearer key1\r\nX-Secret: secret2";
+        var sanitized = WebhookDispatcher.SanitizeHeadersForLogging(input);
+        sanitized.Should().Be("Authorization, X-Secret");
+        sanitized.Should().NotContain("key1");
+        sanitized.Should().NotContain("secret2");
+    }
+
+    [Test]
+    public void SanitizeHeadersForLogging_WhenInputNullOrEmpty_ReturnsEmpty()
+    {
+        WebhookDispatcher.SanitizeHeadersForLogging(null).Should().Be(string.Empty);
+        WebhookDispatcher.SanitizeHeadersForLogging(string.Empty).Should().Be(string.Empty);
+        WebhookDispatcher.SanitizeHeadersForLogging("   ").Should().Be(string.Empty);
+    }
+
+    #endregion
 }
