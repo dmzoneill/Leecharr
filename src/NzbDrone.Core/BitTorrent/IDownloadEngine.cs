@@ -79,6 +79,10 @@ public interface IDownloadTask
 
     TorrentStatus Status { get; }
 
+    long TotalBytes => 0;
+
+    long TotalSize => this.TotalBytes;
+
     long DownloadedBytes { get; }
 
     long UploadedBytes { get; }

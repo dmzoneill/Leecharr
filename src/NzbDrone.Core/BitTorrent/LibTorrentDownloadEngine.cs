@@ -305,6 +305,8 @@ public class LibTorrentDownloadTask : IDownloadTask
 
     public long TotalSize { get; }
 
+    public long TotalBytes => this.TotalSize;
+
     public TorrentStatus Status { get; set; } = TorrentStatus.Downloading;
 
     public long DownloadedBytes { get; set; }
