@@ -622,6 +622,28 @@ public class Aria2RpcControllerTest
             (int)d["MaxDownloadSpeedKbps"] == 1024 && (int)d["MaxUploadSpeedKbps"] == 512));
     }
 
+    [Test]
+    public async Task GetGlobalOption_XmlRpc_ReturnsConfiguredLimits()
+    {
+        this.configService.DownloadDir.Returns("/custom/downloads");
+        this.configService.MaxDownloadSpeedKbps.Returns(2048);
+        this.configService.MaxUploadSpeedKbps.Returns(1024);
+
+        this.SetXmlRpcRequest("aria2.getGlobalOption");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structElem = doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        structElem.Should().NotBeNull();
+
+        GetStructMember(structElem!, "dir").Should().Be("/custom/downloads");
+        GetStructMember(structElem!, "max-overall-download-limit").Should().Be((2048 * 1024).ToString());
+        GetStructMember(structElem!, "max-overall-upload-limit").Should().Be((1024 * 1024).ToString());
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
