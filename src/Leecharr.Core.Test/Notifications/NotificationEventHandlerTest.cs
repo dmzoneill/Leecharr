@@ -560,4 +560,43 @@ public class NotificationEventHandlerTest
         NotificationEventHandler.ResolveCustomHeaders(string.Empty).Should().BeNull();
         NotificationEventHandler.ResolveCustomHeaders(null).Should().BeNull();
     }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_ExecutesScriptTorrentAddedFilename()
+    {
+        this.configService.ScriptTorrentAddedFilename.Returns("/scripts/added.sh");
+        var torrent = new Torrent { Id = 1, Name = "New Torrent" };
+
+        this.handler.Handle(new TorrentAddedEvent(torrent));
+
+        await Task.Delay(100);
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync("/scripts/added.sh", torrent, "OnGrab");
+    }
+
+    [Test]
+    public async Task Handle_TorrentDownloadCompletedEvent_ExecutesScriptTorrentDoneFilename()
+    {
+        this.configService.ScriptTorrentDoneFilename.Returns("/scripts/done.sh");
+        var torrent = new Torrent { Id = 2, Name = "Done Torrent" };
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        await Task.Delay(100);
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync("/scripts/done.sh", torrent, "OnDownloadComplete");
+    }
+
+    [Test]
+    public async Task Handle_TorrentSeedGoalReachedEvent_ExecutesScriptTorrentDoneSeedingFilename()
+    {
+        this.configService.ScriptTorrentDoneSeedingFilename.Returns("/scripts/seeding_done.sh");
+        var torrent = new Torrent { Id = 3, Name = "Seeded Torrent" };
+
+        this.handler.Handle(new TorrentSeedGoalReachedEvent(torrent));
+
+        await Task.Delay(100);
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync("/scripts/seeding_done.sh", torrent, "OnSeedGoalReached");
+    }
 }

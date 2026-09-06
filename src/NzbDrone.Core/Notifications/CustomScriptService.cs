@@ -60,6 +60,7 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables["TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
                 startInfo.EnvironmentVariables["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
                 startInfo.EnvironmentVariables["TORRENT_SIZE"] = torrent.TotalSize.ToString();
+                startInfo.EnvironmentVariables["TORRENT_SIZE_BYTES"] = torrent.TotalSize.ToString();
                 startInfo.EnvironmentVariables["TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
                 startInfo.EnvironmentVariables["TORRENT_STATUS"] = torrent.Status.ToString();
 
@@ -69,6 +70,7 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString();
+                startInfo.EnvironmentVariables["LEECHARR_TORRENT_SIZE_BYTES"] = torrent.TotalSize.ToString();
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
                 startInfo.EnvironmentVariables["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
 
