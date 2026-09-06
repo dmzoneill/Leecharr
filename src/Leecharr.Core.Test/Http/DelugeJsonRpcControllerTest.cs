@@ -405,4 +405,58 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":250000000000");
     }
+
+    [Test]
+    public async Task HandleRpc_SetTorrentOptions_WithRateLimits_SetsLimitsInKbpsWithoutMultiplier()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_options\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"], {\"max_download_speed\": 500, \"max_upload_speed\": 250}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.DownloadLimit.Should().Be(500);
+        torrent.UploadLimit.Should().Be(250);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_ReturnsMaxDownloadAndUploadSpeed()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            DownloadLimit = 500,
+            UploadLimit = 250,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, [\"name\", \"max_download_speed\", \"max_upload_speed\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"max_download_speed\":500");
+        json.Should().Contain("\"max_upload_speed\":250");
+    }
 }
