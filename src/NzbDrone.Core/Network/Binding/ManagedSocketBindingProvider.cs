@@ -77,7 +77,8 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         }
         else
         {
-            this.logger.Warn("Could not find matching IP address for interface '{0}' and family {1}", interfaceName, socket.AddressFamily);
+            this.logger.Error("Kill-switch activated: VPN interface '{0}' has no valid IP for address family {1}", interfaceName, socket.AddressFamily);
+            throw new InvalidOperationException($"VPN interface '{interfaceName}' has no valid IP for address family {socket.AddressFamily} (kill-switch active)");
         }
     }
 
