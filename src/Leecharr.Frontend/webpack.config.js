@@ -94,6 +94,6 @@ module.exports = (env, argv) => {
         },
       ],
     },
-    devtool: isDev ? "eval-source-map" : "source-map",
+    devtool: isDev ? "eval-source-map" : false,
   };
 };
