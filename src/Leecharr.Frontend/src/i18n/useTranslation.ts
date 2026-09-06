@@ -1,5 +1,18 @@
 import { useCallback } from "react";
 import { useI18nStore } from "./i18nStore";
+import en from "./locales/en";
+
+function lookupKey(obj: any, keys: string[]): string | null {
+  let value: any = obj;
+  for (const k of keys) {
+    if (value && typeof value === "object" && k in value) {
+      value = value[k];
+    } else {
+      return null;
+    }
+  }
+  return typeof value === "string" ? value : null;
+}
 
 export const useTranslation = () => {
   const translations = useI18nStore((state) => state.translations);
@@ -7,18 +20,17 @@ export const useTranslation = () => {
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => {
       const keys = key.split(".");
-      let value: any = translations;
+      // 1. Look up in active translations
+      let value = lookupKey(translations, keys);
 
-      for (const k of keys) {
-        if (value && typeof value === "object" && k in value) {
-          value = value[k];
-        } else {
-          return key; // Fallback to key itself if not found
-        }
+      // 2. Fall back to English if missing
+      if (!value && translations !== en) {
+        value = lookupKey(en, keys);
       }
 
-      if (typeof value !== "string") {
-        return key;
+      // 3. Fall back to raw key if still not found
+      if (!value) {
+        value = key;
       }
 
       if (params) {
@@ -27,7 +39,7 @@ export const useTranslation = () => {
             new RegExp(`{{\\s*${paramKey}\\s*}}`, "g"),
             String(paramValue),
           );
-        }, value);
+        }, value!);
       }
 
       return value;
