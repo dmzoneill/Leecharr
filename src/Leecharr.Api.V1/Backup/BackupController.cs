@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Xml.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Authorization;
@@ -353,7 +354,7 @@ public class BackupController : Controller
                             if (string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
                             {
                                 var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
-                                entry.ExtractToFile(destPath, overwrite: true);
+                                ValidateAndExtractConfigXml(entry, destPath);
                             }
                             else if (string.Equals(fileName, "leecharr_postgres.sql", StringComparison.OrdinalIgnoreCase))
                             {
@@ -437,9 +438,13 @@ public class BackupController : Controller
                     foreach (var entry in zip.Entries)
                     {
                         var fileName = Path.GetFileName(entry.FullName);
-                        if (string.Equals(fileName, "leecharr.db", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(fileName, "leecharr.db-wal", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
+                            ValidateAndExtractConfigXml(entry, destPath);
+                        }
+                        else if (string.Equals(fileName, "leecharr.db", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(fileName, "leecharr.db-wal", StringComparison.OrdinalIgnoreCase))
                         {
                             var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
                             entry.ExtractToFile(destPath, overwrite: true);
@@ -490,19 +495,69 @@ public class BackupController : Controller
         }
     }
 
+    private static bool ContainsUnsafeCharacters(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        return value.IndexOfAny(new[] { '"', '\'', '\\', ';', '&', '|', '`', '$', '(', ')', '<', '>', '\n', '\r', '\0' }) >= 0
+            || value.TrimStart().StartsWith("-");
+    }
+
+    private static void ValidateAndExtractConfigXml(ZipArchiveEntry entry, string destinationPath)
+    {
+        using var reader = new StreamReader(entry.Open());
+        var xmlContent = reader.ReadToEnd();
+        var doc = XDocument.Parse(xmlContent);
+        foreach (var elem in doc.Descendants())
+        {
+            if (ContainsUnsafeCharacters(elem.Value))
+            {
+                throw new InvalidOperationException($"Invalid or unsafe characters in configuration element '{elem.Name.LocalName}'.");
+            }
+        }
+
+        global::System.IO.File.WriteAllText(destinationPath, xmlContent);
+    }
+
     private bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
     {
+        if (ContainsUnsafeCharacters(host) || ContainsUnsafeCharacters(user) || ContainsUnsafeCharacters(dbName) || ContainsUnsafeCharacters(outputPath))
+        {
+            this.logger.Warn("pg_dump invocation rejected due to unsafe characters in parameters.");
+            return false;
+        }
+
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = pgDumpExe,
-                Arguments = $"--clean --if-exists -h \"{host}\" -p {port} -U \"{user}\" -d \"{dbName}\" -f \"{outputPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            psi.ArgumentList.Add("--clean");
+            psi.ArgumentList.Add("--if-exists");
+            psi.ArgumentList.Add("-h");
+            psi.ArgumentList.Add(host);
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add(port.ToString());
+
+            if (!string.IsNullOrEmpty(user))
+            {
+                psi.ArgumentList.Add("-U");
+                psi.ArgumentList.Add(user);
+            }
+
+            psi.ArgumentList.Add("-d");
+            psi.ArgumentList.Add(dbName);
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add(outputPath);
 
             if (!string.IsNullOrEmpty(password))
             {
@@ -527,17 +582,38 @@ public class BackupController : Controller
 
     private bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
     {
+        if (ContainsUnsafeCharacters(host) || ContainsUnsafeCharacters(user) || ContainsUnsafeCharacters(dbName) || ContainsUnsafeCharacters(sqlScriptPath))
+        {
+            this.logger.Warn("psql restore invocation rejected due to unsafe characters in parameters.");
+            return false;
+        }
+
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = psqlExe,
-                Arguments = $"-h \"{host}\" -p {port} -U \"{user}\" -d \"{dbName}\" -f \"{sqlScriptPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            psi.ArgumentList.Add("-h");
+            psi.ArgumentList.Add(host);
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add(port.ToString());
+
+            if (!string.IsNullOrEmpty(user))
+            {
+                psi.ArgumentList.Add("-U");
+                psi.ArgumentList.Add(user);
+            }
+
+            psi.ArgumentList.Add("-d");
+            psi.ArgumentList.Add(dbName);
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add(sqlScriptPath);
 
             if (!string.IsNullOrEmpty(password))
             {

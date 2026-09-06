@@ -160,6 +160,19 @@ public class BackupControllerTest
     }
 
     [Test]
+    public void Restore_WhenConfigXmlContainsInjectedOptions_RejectsRestoration()
+    {
+        var fileName = "Leecharr_backup_20260904_120000.zip";
+        var maliciousConfig = "<Config><PostgresHost>localhost</PostgresHost><PostgresMainDb>-f /config/config.xml</PostgresMainDb></Config>";
+        this.CreateSampleBackup(fileName, dbContent: "sample-db", configContent: maliciousConfig);
+
+        var result = this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+    }
+
+    [Test]
     public void Create_WhenSQLiteDatabaseInWalMode_CheckpointsWalAndIncludesWalInArchive()
     {
         var dbPath = Path.Combine(this.testTempDir, "leecharr.db");
