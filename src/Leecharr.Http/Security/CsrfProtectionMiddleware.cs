@@ -10,12 +10,44 @@ namespace Leecharr.Http.Security;
 
 public class CsrfProtectionMiddleware
 {
+    private static readonly string[] DefaultAuthBypassPaths = new[]
+    {
+        "/auth/login",
+        "/auth/callback",
+        "/auth/authenticate",
+        "/api/v1/auth/login",
+        "/api/v1/auth/callback",
+        "/api/v2/auth/login",
+        "/api/auth/authenticate",
+        "/nzbvortex/api/v1/auth/login",
+    };
+
     private readonly RequestDelegate next;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public CsrfProtectionMiddleware(RequestDelegate next)
     {
         this.next = next;
+    }
+
+    public static bool IsAuthPath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        foreach (var bypassPath in DefaultAuthBypassPaths)
+        {
+            if (path.Equals(bypassPath, StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith(bypassPath + "/", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains(bypassPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task InvokeAsync(HttpContext context, IConfigService configService)
@@ -30,7 +62,9 @@ public class CsrfProtectionMiddleware
                 !HttpMethods.IsOptions(method) &&
                 !HttpMethods.IsTrace(method))
             {
-                // Explicit authorization headers and automated RPC clients bypass CSRF check
+                var path = context.Request.Path.Value ?? string.Empty;
+
+                // Explicit authorization headers, automated RPC clients, and authentication endpoints bypass CSRF check
                 var hasExplicitAuthHeader =
                     context.Request.Headers.ContainsKey("X-Api-Key") ||
                     context.Request.Headers.ContainsKey("ApiKey") ||
@@ -39,7 +73,7 @@ public class CsrfProtectionMiddleware
                       authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
                     context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
 
-                if (!hasExplicitAuthHeader)
+                if (!hasExplicitAuthHeader && !IsAuthPath(path))
                 {
                     // 1. Check Sec-Fetch-Site (Modern browser defense)
                     if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&

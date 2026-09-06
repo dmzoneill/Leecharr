@@ -271,6 +271,60 @@ public class SecurityMiddlewareTest
         nextCalled.Should().BeTrue();
     }
 
+    [TestCase("/api/v1/auth/login")]
+    [TestCase("/auth/login")]
+    [TestCase("/api/v1/auth/callback/saml")]
+    [TestCase("/auth/callback")]
+    [TestCase("/api/v2/auth/login")]
+    [TestCase("/api/auth/authenticate")]
+    [TestCase("/nzbvortex/api/v1/auth/login")]
+    public async Task CsrfProtectionMiddleware_AllowsAuthEndpointsWithoutOriginOrReferer(string path)
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Path = path;
+        context.Request.Host = new HostString("localhost:7889");
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_BlocksNonAuthEndpointWithoutOriginOrReferer()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Path = "/api/v1/torrents/add";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Response.Body = new MemoryStream();
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeFalse();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
     [Test]
     public async Task SecurityHeadersMiddleware_EmitsStandardSecurityHeadersOnHttp()
     {
