@@ -277,6 +277,27 @@ public class TorznabClientTest
         results[1].MagnetUrl.Should().StartWith("magnet:?");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenFeedContainsBothCategoryTagAndMultipleCategoryAttributes_CollectsAllCategories()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Multi.Category.Movie.2024.1080p</title>
+      <category>Movies/HD</category>
+      <torznab:attr name=""category"" value=""2000""/>
+      <torznab:attr name=""category"" value=""2040""/>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+        results.Should().HaveCount(1);
+        results[0].Category.Should().Be("Movies/HD, 2000, 2040");
+    }
+
     #endregion
 
     #region Torznab Capabilities Parsing (t=caps)

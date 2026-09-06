@@ -274,7 +274,23 @@ public class TorznabClient : ITorznabClient
                 var isFreeleechAttr = false;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
-                var category = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var categories = new List<string>();
+                foreach (var catElem in item.Elements().Where(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var catVal = catElem.Value?.Trim();
+                    if (!string.IsNullOrWhiteSpace(catVal))
+                    {
+                        var parts = catVal.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var part in parts)
+                        {
+                            var trimmed = part.Trim();
+                            if (!string.IsNullOrWhiteSpace(trimmed) && !categories.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                            {
+                                categories.Add(trimmed);
+                            }
+                        }
+                    }
+                }
 
                 var freeleechElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("freeleech", StringComparison.OrdinalIgnoreCase)) ?? item.Element(TorznabNs + "freeleech");
                 if (freeleechElem != null)
@@ -333,9 +349,18 @@ public class TorznabClient : ITorznabClient
                             magnetUrl = value?.Trim() ?? string.Empty;
                             break;
                         case "category":
-                            if (string.IsNullOrWhiteSpace(category))
+                            var catAttrVal = value?.Trim();
+                            if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
-                                category = value?.Trim() ?? string.Empty;
+                                var parts = catAttrVal.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                                foreach (var part in parts)
+                                {
+                                    var trimmed = part.Trim();
+                                    if (!string.IsNullOrWhiteSpace(trimmed) && !categories.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                                    {
+                                        categories.Add(trimmed);
+                                    }
+                                }
                             }
 
                             break;
@@ -373,7 +398,7 @@ public class TorznabClient : ITorznabClient
                     Leechers = leechers,
                     DownloadVolumeFactor = downloadVolumeFactor,
                     UploadVolumeFactor = uploadVolumeFactor,
-                    Category = category,
+                    Category = categories.Count > 0 ? string.Join(", ", categories) : string.Empty,
                     PublishDate = publishDate,
                     IndexerName = indexer?.Name ?? "Indexer",
                     IndexerId = indexer?.Id ?? 0,
