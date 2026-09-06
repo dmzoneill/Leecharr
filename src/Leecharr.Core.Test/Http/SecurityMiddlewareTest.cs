@@ -292,7 +292,7 @@ public class SecurityMiddlewareTest
         context.Response.Headers["X-Content-Type-Options"].ToString().Should().Be("nosniff");
         context.Response.Headers["Referrer-Policy"].ToString().Should().Be("strict-origin-when-cross-origin");
         context.Response.Headers["Permissions-Policy"].ToString().Should().Be("geolocation=(), camera=(), microphone=(), payment=()");
-        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
+        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
         context.Response.Headers.ContainsKey("Strict-Transport-Security").Should().BeFalse();
     }
 
@@ -310,7 +310,7 @@ public class SecurityMiddlewareTest
         context.Response.Headers["X-Frame-Options"].ToString().Should().Be("SAMEORIGIN");
         context.Response.Headers["X-Content-Type-Options"].ToString().Should().Be("nosniff");
         context.Response.Headers["Referrer-Policy"].ToString().Should().Be("strict-origin-when-cross-origin");
-        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
+        context.Response.Headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';");
         context.Response.Headers["Strict-Transport-Security"].ToString().Should().Be("max-age=31536000; includeSubDomains");
     }
 

@@ -21,7 +21,7 @@ public class SecurityHeadersMiddleware
     public const string PermissionsPolicyValue = "geolocation=(), camera=(), microphone=(), payment=()";
 
     public const string ContentSecurityPolicyHeader = "Content-Security-Policy";
-    public const string ContentSecurityPolicyValue = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';";
+    public const string ContentSecurityPolicyValue = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';";
 
     public const string StrictTransportSecurityHeader = "Strict-Transport-Security";
     public const string StrictTransportSecurityValue = "max-age=31536000; includeSubDomains";
