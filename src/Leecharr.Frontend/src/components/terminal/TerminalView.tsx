@@ -51,7 +51,7 @@ export function TerminalView({
     // Create xterm instance matching Leecharr dark aesthetics
     const term = new Terminal({
       cursorBlink: true,
-      cursorStyle: "bar",
+      cursorStyle: "block",
       fontSize: 13,
       lineHeight: 1.25,
       fontFamily:
@@ -130,6 +130,9 @@ export function TerminalView({
         term.writeln(`\x1b[90m📂 Working directory: ${cwd}\x1b[0m\r\n`);
       }
       fitAddon.fit();
+      if (autoFocus) {
+        term.focus();
+      }
 
       // Send initial size
       ws.send(
