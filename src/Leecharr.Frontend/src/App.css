@@ -4842,3 +4842,32 @@ input[type="number"].form-input::-webkit-inner-spin-button {
   background-color: rgba(255, 255, 255, 0.1) !important;
   color: var(--text-primary, #f8f4ed) !important;
 }
+
+/* RTL Support */
+[dir="rtl"] {
+  text-align: right;
+}
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+[dir="rtl"] .pl-3 {
+  padding-left: 0;
+  padding-right: 0.75rem;
+}
+[dir="rtl"] .pr-3 {
+  padding-right: 0;
+  padding-left: 0.75rem;
+}
+[dir="rtl"] .right-0 {
+  right: auto;
+  left: 0;
+}
+[dir="rtl"] .left-0 {
+  left: auto;
+  right: 0;
+}

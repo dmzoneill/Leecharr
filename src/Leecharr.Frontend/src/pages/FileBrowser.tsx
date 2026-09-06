@@ -14,6 +14,8 @@ import {
 import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
+import { useI18nStore } from "../i18n";
+import { languages } from "../i18n";
 
 interface FileManagerFile {
   name: string;
@@ -38,6 +40,9 @@ function getPathSegments(path: string): { label: string; fullPath: string }[] {
 }
 
 export function FileBrowser() {
+  const { language } = useI18nStore();
+  const activeLang = languages.find((l) => l.code === language);
+  const cuboneLanguage = activeLang?.cuboneLanguage || "en-US";
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { showToast } = useToast();
@@ -530,6 +535,7 @@ export function FileBrowser() {
         }}
       >
         <FileManager
+          language={cuboneLanguage}
           key={activePath}
           className="leecharr-file-manager"
           files={files}
