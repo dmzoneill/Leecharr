@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using System.Xml;
 using System.Xml.Linq;
 using NLog;
@@ -142,9 +143,7 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&cat={string.Join(",", indexer.Categories)}";
             }
 
-            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
-                ? queryParams
-                : uriBuilder.Query.TrimStart('?') + "&" + queryParams;
+            MergeQueryParams(uriBuilder, queryParams);
 
             this.logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
 
@@ -180,9 +179,7 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&cat={string.Join(",", indexer.Categories)}";
             }
 
-            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
-                ? queryParams
-                : uriBuilder.Query.TrimStart('?') + "&" + queryParams;
+            MergeQueryParams(uriBuilder, queryParams);
 
             var xml = await this.httpClient.GetStringAsync(uriBuilder.Uri);
             return this.ParseTorznabFeedXml(xml, indexer);
@@ -247,10 +244,16 @@ public class TorznabClient : ITorznabClient
                     || e.Name.LocalName.Equals("published", StringComparison.OrdinalIgnoreCase)
                     || e.Name.LocalName.Equals("updated", StringComparison.OrdinalIgnoreCase))?.Value;
                 var publishDate = DateTime.UtcNow;
-                if (!string.IsNullOrWhiteSpace(pubDateStr) &&
-                    DateTime.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsedPubDate))
+                if (!string.IsNullOrWhiteSpace(pubDateStr))
                 {
-                    publishDate = parsedPubDate;
+                    if (DateTimeOffset.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDto))
+                    {
+                        publishDate = parsedDto.UtcDateTime;
+                    }
+                    else if (DateTime.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsedPubDate))
+                    {
+                        publishDate = parsedPubDate;
+                    }
                 }
 
                 long size = 0;
@@ -485,9 +488,7 @@ public class TorznabClient : ITorznabClient
                 query += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
             }
 
-            uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
-                ? query
-                : uriBuilder.Query.TrimStart('?') + "&" + query;
+            MergeQueryParams(uriBuilder, query);
 
             this.logger.Debug("Fetching Torznab capabilities: {0}", uriBuilder.Uri);
 
@@ -662,9 +663,7 @@ public class TorznabClient : ITorznabClient
                 capsQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
             }
 
-            capsUriBuilder.Query = string.IsNullOrEmpty(capsUriBuilder.Query)
-                ? capsQuery
-                : capsUriBuilder.Query.TrimStart('?') + "&" + capsQuery;
+            MergeQueryParams(capsUriBuilder, capsQuery);
 
             using var capsReq = new HttpRequestMessage(HttpMethod.Get, capsUriBuilder.Uri);
             var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
@@ -696,9 +695,7 @@ public class TorznabClient : ITorznabClient
                 searchQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
             }
 
-            searchUriBuilder.Query = string.IsNullOrEmpty(searchUriBuilder.Query)
-                ? searchQuery
-                : searchUriBuilder.Query.TrimStart('?') + "&" + searchQuery;
+            MergeQueryParams(searchUriBuilder, searchQuery);
 
             using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUriBuilder.Uri);
             var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
@@ -735,5 +732,21 @@ public class TorznabClient : ITorznabClient
             this.logger.Warn(ex, "Torznab connection test failed for {0} ({1})", indexer.Name, indexer.Url);
             return TorznabTestResult.Fail(ex.Message);
         }
+    }
+
+    private static void MergeQueryParams(UriBuilder uriBuilder, string queryParams)
+    {
+        var existingParams = HttpUtility.ParseQueryString(uriBuilder.Query);
+        var newParams = HttpUtility.ParseQueryString(queryParams);
+
+        foreach (string key in newParams.AllKeys)
+        {
+            if (key != null)
+            {
+                existingParams[key] = newParams[key];
+            }
+        }
+
+        uriBuilder.Query = existingParams.ToString();
     }
 }
