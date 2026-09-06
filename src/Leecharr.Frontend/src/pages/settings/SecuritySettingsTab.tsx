@@ -79,8 +79,7 @@ const PROVIDER_TEMPLATES: Record<
   },
   saml: {
     providerId: "enterprise-saml",
-    // @ts-ignore
-    name: t("settingsTabs.batch2.enterpriseSaml20"),
+    name: "Enterprise SAML 2.0",
     providerType: 1, // SAML
     metadataUrl: "https://idp.example.com/metadata.xml",
     buttonText: "Single Sign-On (SAML)",
