@@ -99,6 +99,19 @@ public class PeerConnectionLogControllerTest
     }
 
     [Test]
+    public void Purge_WhenBeforeIsNull_ClearsAllEvents()
+    {
+        var now = DateTime.UtcNow;
+        this.historyService.RecordEvent(new PeerConnectionEvent { InfoHash = "hash1", Timestamp = now });
+        this.historyService.RecordEvent(new PeerConnectionEvent { InfoHash = "hash2", Timestamp = now });
+
+        this.historyService.Purge(null);
+
+        var remaining = this.historyService.GetRecords();
+        remaining.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task GetActive_ReturnsLiveTaskPeers()
     {
         var torrent = new Torrent { Id = 1, Name = "Active Torrent", InfoHash = "activehash" };

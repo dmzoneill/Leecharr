@@ -93,13 +93,17 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService
         }
 
         var threshold = before.Value;
-        var remaining = this.eventQueue.Where(r => r.Timestamp >= threshold).ToList();
+        var kept = new List<PeerConnectionEvent>();
 
-        while (this.eventQueue.TryDequeue(out _))
+        while (this.eventQueue.TryDequeue(out var item))
         {
+            if (item.Timestamp >= threshold)
+            {
+                kept.Add(item);
+            }
         }
 
-        foreach (var item in remaining)
+        foreach (var item in kept)
         {
             this.eventQueue.Enqueue(item);
         }
