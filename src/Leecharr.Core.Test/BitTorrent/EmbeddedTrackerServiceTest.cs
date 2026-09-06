@@ -854,4 +854,56 @@ public class EmbeddedTrackerServiceTest
         result.Success.Should().BeFalse();
         result.FailureReason.Should().Contain("Invalid port");
     }
+
+    [Test]
+    public void Announce_CompletedEvent_OnlyIncrementsDownloadedCountOncePerPeer()
+    {
+        var infoHash = new byte[20];
+        Array.Fill(infoHash, (byte)2);
+
+        // 1. Initial leecher announce
+        var leecherReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.50"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 5000,
+        };
+        this.trackerService.Announce(leecherReq);
+
+        // 2. Leecher completes download
+        var completedReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.50"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Event = "completed",
+            Left = 0,
+        };
+        var res1 = this.trackerService.Announce(completedReq);
+        res1.Success.Should().BeTrue();
+
+        var scrape1 = this.trackerService.Scrape(new List<byte[]> { infoHash });
+        scrape1.Should().NotBeNull();
+        scrape1.Files.Should().NotBeEmpty();
+        scrape1.Files[0].Downloaded.Should().Be(1);
+
+        // 3. Re-announcing completed should NOT increment downloaded count again
+        var reannounceCompletedReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.50"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Event = "completed",
+            Left = 0,
+        };
+        var res2 = this.trackerService.Announce(reannounceCompletedReq);
+        res2.Success.Should().BeTrue();
+
+        var scrape2 = this.trackerService.Scrape(new List<byte[]> { infoHash });
+        scrape2.Files[0].Downloaded.Should().Be(1);
+    }
 }
