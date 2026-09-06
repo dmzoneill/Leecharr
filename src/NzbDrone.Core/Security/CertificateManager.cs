@@ -341,6 +341,8 @@ public class CertificateManager : ICertificateManager
 
         public bool AuthenticationEnabled => false;
 
+        public bool TerminalAccessEnabled => false;
+
         public string LogLevel => "info";
 
         public string UrlBase => string.Empty;

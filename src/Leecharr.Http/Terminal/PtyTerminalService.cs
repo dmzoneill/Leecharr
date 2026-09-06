@@ -66,6 +66,6 @@ public class PtyTerminalService : IPtyTerminalService
 
     private bool IsTerminalAccessPermitted()
     {
-        return true;
+        return this.configFileProvider?.TerminalAccessEnabled == true;
     }
 }
