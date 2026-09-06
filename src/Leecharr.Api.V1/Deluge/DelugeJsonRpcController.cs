@@ -926,14 +926,30 @@ public class DelugeJsonRpcController : ControllerBase
 
                                 if (opts.TryGetProperty("max_download_speed", out var mds))
                                 {
-                                    t.DownloadLimit = (int)(mds.GetInt64() * 1024);
-                                    hasOtherUpdates = true;
+                                    if (mds.ValueKind == JsonValueKind.Number && mds.TryGetDouble(out var dlVal))
+                                    {
+                                        t.DownloadLimit = dlVal > 0 ? (int)Math.Round(dlVal) : 0;
+                                        hasOtherUpdates = true;
+                                    }
+                                    else if (mds.ValueKind == JsonValueKind.Null)
+                                    {
+                                        t.DownloadLimit = 0;
+                                        hasOtherUpdates = true;
+                                    }
                                 }
 
                                 if (opts.TryGetProperty("max_upload_speed", out var mus))
                                 {
-                                    t.UploadLimit = (int)(mus.GetInt64() * 1024);
-                                    hasOtherUpdates = true;
+                                    if (mus.ValueKind == JsonValueKind.Number && mus.TryGetDouble(out var ulVal))
+                                    {
+                                        t.UploadLimit = ulVal > 0 ? (int)Math.Round(ulVal) : 0;
+                                        hasOtherUpdates = true;
+                                    }
+                                    else if (mus.ValueKind == JsonValueKind.Null)
+                                    {
+                                        t.UploadLimit = 0;
+                                        hasOtherUpdates = true;
+                                    }
                                 }
 
                                 if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
@@ -1243,6 +1259,8 @@ public class DelugeJsonRpcController : ControllerBase
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", false },
             { "stop_ratio", t.TargetRatio },
+            { "max_download_speed", t.DownloadLimit <= 0 ? -1.0 : (double)t.DownloadLimit },
+            { "max_upload_speed", t.UploadLimit <= 0 ? -1.0 : (double)t.UploadLimit },
             { "private", t.IsPrivate },
             { "is_private", t.IsPrivate },
         };

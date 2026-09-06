@@ -631,4 +631,31 @@ public class TorrentServiceTest
         torrent.SeedingTimeSeconds.Should().Be(3665);
         torrent.SeedTimeMinutes.Should().Be(61);
     }
+
+    [Test]
+    public async Task UpdateAsync_WhenRateLimitsChangeWithoutCategoryChange_InvokesSetTorrentRateLimitsAsyncOnDownloadEngine()
+    {
+        var existing = new Torrent
+        {
+            Id = 10,
+            Category = "movies",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+        this.torrentRepository.Get(10).Returns(existing);
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(callInfo => callInfo.Arg<Torrent>());
+
+        var updated = new Torrent
+        {
+            Id = 10,
+            Category = "movies",
+            DownloadLimit = 500,
+            UploadLimit = 250,
+        };
+
+        await this.service.UpdateAsync(updated);
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 500, 250);
+        this.torrentRepository.Received(1).Update(updated);
+    }
 }
