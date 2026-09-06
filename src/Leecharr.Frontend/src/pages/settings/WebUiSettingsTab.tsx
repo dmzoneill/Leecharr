@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
+import {
+  useTheme,
+  ThemeStyle,
+  AccentPalette,
+} from "../../context/ThemeContext";
 import { SaveBar, SectionCard, SelectInput } from "./shared";
 
 export function WebUiSettingsTab() {
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
+  const { setThemeStyle, setColorScheme } = useTheme();
 
   const [form, setForm] = useState({
     themeStyle: "dark",
@@ -29,15 +35,11 @@ export function WebUiSettingsTab() {
   ) => {
     setForm((prev) => {
       const next = { ...prev, [key]: val };
-      // Apply immediate live preview
-      let theme = next.themeStyle;
-      if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
+      if (key === "themeStyle") {
+        setThemeStyle(val as ThemeStyle);
+      } else if (key === "colorScheme") {
+        setColorScheme(val as AccentPalette);
       }
-      document.documentElement.setAttribute("data-theme", theme);
-      document.documentElement.setAttribute("data-accent", next.colorScheme);
       return next;
     });
     setDirty(true);

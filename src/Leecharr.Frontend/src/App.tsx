@@ -63,6 +63,7 @@ import { AddTorrentModal } from "./components/AddTorrentModal";
 import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
+import { useTheme, ThemeStyle, AccentPalette } from "./context/ThemeContext";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
@@ -104,29 +105,23 @@ export function App() {
 
   const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
+  const { setThemeStyle, setColorScheme } = useTheme();
 
   useEffect(() => {
-    const applyTheme = () => {
-      let theme = generalConfig?.themeStyle || "dark";
-      if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
+    if (generalConfig) {
+      if (generalConfig.themeStyle) {
+        setThemeStyle(generalConfig.themeStyle as ThemeStyle);
       }
-      const accent = generalConfig?.colorScheme || "auto";
-      document.documentElement.setAttribute("data-theme", theme);
-      document.documentElement.setAttribute("data-accent", accent);
-    };
-
-    applyTheme();
-
-    if (generalConfig?.themeStyle === "system") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-      const handler = () => applyTheme();
-      mediaQuery.addEventListener("change", handler);
-      return () => mediaQuery.removeEventListener("change", handler);
+      if (generalConfig.colorScheme) {
+        setColorScheme(generalConfig.colorScheme as AccentPalette);
+      }
     }
-  }, [generalConfig?.themeStyle, generalConfig?.colorScheme]);
+  }, [
+    generalConfig?.themeStyle,
+    generalConfig?.colorScheme,
+    setThemeStyle,
+    setColorScheme,
+  ]);
 
   const loadUser = async () => {
     try {

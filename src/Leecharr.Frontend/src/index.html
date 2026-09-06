@@ -4,6 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a1c23" />
+    <script>
+      (function () {
+        try {
+          var style =
+            localStorage.getItem("leecharr-theme-style") ||
+            localStorage.getItem("leecharr-theme") ||
+            "dark";
+          var accent = localStorage.getItem("leecharr-accent") || "auto";
+          var resolved = style;
+          if (style === "system") {
+            resolved =
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          }
+          document.documentElement.setAttribute("data-theme", resolved);
+          document.documentElement.setAttribute("data-accent", accent);
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Leecharr</title>
   </head>
