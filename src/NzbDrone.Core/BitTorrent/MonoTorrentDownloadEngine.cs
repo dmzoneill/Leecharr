@@ -1946,7 +1946,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var resolved = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(family)
             ?? this.ResolveInterfaceIp(iface, family);
 
-        return resolved ?? (family == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any);
+        return resolved;
     }
 
     private IPAddress ResolveInterfaceIp(string interfaceName, AddressFamily family)
