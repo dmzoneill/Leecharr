@@ -1391,9 +1391,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var torrentName = manager.Torrent?.Name ?? infoHash;
 
         var isMultiFile = manager.Torrent != null && manager.Torrent.Files.Count > 1;
+        var basePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
         var sourcePath = isMultiFile
-            ? (manager.ContainingDirectory ?? Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName))
-            : Path.Combine(this.storagePathService.GetIncompleteDirectory(), torrentName);
+            ? (manager.ContainingDirectory ?? Path.Combine(basePath, torrentName))
+            : (manager.Files != null && manager.Files.Count > 0
+                ? manager.Files[0].FullPath
+                : Path.Combine(basePath, torrentName));
 
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;

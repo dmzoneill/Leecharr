@@ -1702,6 +1702,40 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task OnTorrentCompletedAsync_SingleFileTorrent_WhenIncompleteDirDisabled_UsesDirectSavePathAsSourcePath()
+    {
+        this.configService.EnableIncompleteDir.Returns(false);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("DirectMovie.mkv");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        string expectedSourcePath = Path.Combine(this.testDownloadDir, "DirectMovie.mkv");
+        string capturedSource = null;
+        string movedDest;
+
+        this.storagePathService
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "DirectMovie.mkv", out movedDest)
+            .Returns(x =>
+            {
+                x[3] = Path.Combine(this.testDownloadDir, "DirectMovie.mkv");
+                return true;
+            });
+
+        var torrent = new CoreTorrent
+        {
+            Id = 115,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "DirectMovie.mkv",
+            Status = TorrentStatus.Stopped,
+            Category = "movies",
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.OnTorrentCompletedAsync(115, torrent.InfoHash, task.Manager);
+
+        capturedSource.Should().Be(expectedSourcePath);
+    }
+
+    [Test]
     public async Task OnTorrentCompletedAsync_MultiFileTorrent_PassesContainingDirectoryAsSourcePath()
     {
         var torrentBytes = CreateSampleMultiFileTorrentBytes("MultiSeasonFolder");
