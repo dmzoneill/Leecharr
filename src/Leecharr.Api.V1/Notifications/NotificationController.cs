@@ -208,7 +208,7 @@ public class NotificationController : Controller
         {
             try
             {
-                NotificationEventHandler.SendEmailNotification(notif.Settings, "Test", null, null, payload);
+                NotificationEventHandler.SendEmailNotification(notif.Settings, "Test", null, null, payload, throwExceptions: true);
                 return this.Ok(new NotificationTestResult
                 {
                     Success = true,

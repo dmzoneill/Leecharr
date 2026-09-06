@@ -838,10 +838,17 @@ public class NotificationEventHandler :
         return genericPayload;
     }
 
-    public static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload)
+    internal static Action<System.Net.Mail.MailMessage, string, int, bool, System.Net.NetworkCredential> CustomSmtpSender { get; set; }
+
+    public static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload, bool throwExceptions = false)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
+            if (throwExceptions)
+            {
+                throw new InvalidOperationException("Email notification settings are empty.");
+            }
+
             return;
         }
 
@@ -904,6 +911,21 @@ public class NotificationEventHandler :
 
             if (string.IsNullOrWhiteSpace(to))
             {
+                if (throwExceptions)
+                {
+                    throw new InvalidOperationException("Recipient email address ('to') is required.");
+                }
+
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                if (throwExceptions)
+                {
+                    throw new InvalidOperationException("SMTP server hostname ('server' or 'host') is required.");
+                }
+
                 return;
             }
 
@@ -914,6 +936,13 @@ public class NotificationEventHandler :
                 : ExtractMessage(genericPayload, $"Event: {eventType}"));
 
             using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
+
+            if (CustomSmtpSender != null)
+            {
+                CustomSmtpSender(mail, host, port, ssl, !string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass) ? new System.Net.NetworkCredential(user, pass) : null);
+                return;
+            }
+
             using var client = new System.Net.Mail.SmtpClient(host, port)
             {
                 EnableSsl = ssl,
@@ -929,6 +958,11 @@ public class NotificationEventHandler :
         }
         catch (Exception ex)
         {
+            if (throwExceptions)
+            {
+                throw;
+            }
+
             LogManager.GetCurrentClassLogger().Warn(ex, "Failed to send email notification for event {0}", eventType);
         }
     }

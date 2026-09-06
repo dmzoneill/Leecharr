@@ -143,8 +143,48 @@ public class NotificationControllerTest
             Arg.Any<object>());
     }
 
+    [TearDown]
+    public void TearDown()
+    {
+        NotificationEventHandler.CustomSmtpSender = null;
+    }
+
     [Test]
-    public async Task Test_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    public async Task Test_WhenEmailNotification_WithValidSettings_DispatchesEmailAndReturnsSuccess()
+    {
+        var emailSent = false;
+        NotificationEventHandler.CustomSmtpSender = (mail, host, port, ssl, creds) =>
+        {
+            emailSent = true;
+        };
+
+        var notif = new NotificationDefinition
+        {
+            Id = 3,
+            Name = "Email Alerts",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"user@example.com\"}",
+        };
+
+        this.notificationRepository.Get(3).Returns(notif);
+
+        var actionResult = await this.controller.Test(3);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+        testResult!.Message.Should().Be("Email test notification sent successfully.");
+        emailSent.Should().BeTrue();
+
+        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+    }
+
+    [Test]
+    public async Task Test_WhenEmailNotification_MissingRecipient_ReturnsFailure()
     {
         var notif = new NotificationDefinition
         {
@@ -162,16 +202,40 @@ public class NotificationControllerTest
         okResult.Should().NotBeNull();
         var testResult = okResult!.Value as NotificationTestResult;
         testResult.Should().NotBeNull();
-        testResult!.Success.Should().BeTrue();
-        testResult!.Message.Should().Be("Email test notification sent successfully.");
-
-        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
-            Arg.Any<string>(),
-            Arg.Any<object>());
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().Contain("Recipient email address ('to') is required.");
     }
 
     [Test]
-    public async Task TestDirect_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    public async Task Test_WhenEmailNotification_SmtpDeliveryFails_ReturnsFailure()
+    {
+        NotificationEventHandler.CustomSmtpSender = (mail, host, port, ssl, creds) =>
+        {
+            throw new System.Net.Mail.SmtpException("Connection refused");
+        };
+
+        var notif = new NotificationDefinition
+        {
+            Id = 3,
+            Name = "Email Alerts",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"user@example.com\"}",
+        };
+
+        this.notificationRepository.Get(3).Returns(notif);
+
+        var actionResult = await this.controller.Test(3);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().Contain("Connection refused");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenEmailNotification_MissingRecipient_ReturnsFailure()
     {
         var resource = new NotificationResource
         {
@@ -186,12 +250,35 @@ public class NotificationControllerTest
         okResult.Should().NotBeNull();
         var testResult = okResult!.Value as NotificationTestResult;
         testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().Contain("Recipient email address ('to') is required.");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenEmailNotification_WithValidSettings_DispatchesEmailAndReturnsSuccess()
+    {
+        var emailSent = false;
+        NotificationEventHandler.CustomSmtpSender = (mail, host, port, ssl, creds) =>
+        {
+            emailSent = true;
+        };
+
+        var resource = new NotificationResource
+        {
+            Name = "Email Alerts Direct",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"user@example.com\"}",
+        };
+
+        var actionResult = await this.controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
         testResult!.Success.Should().BeTrue();
         testResult!.Message.Should().Be("Email test notification sent successfully.");
-
-        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
-            Arg.Any<string>(),
-            Arg.Any<object>());
+        emailSent.Should().BeTrue();
     }
 
     [Test]

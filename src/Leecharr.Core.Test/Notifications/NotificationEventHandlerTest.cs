@@ -323,6 +323,49 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
+    public void SendEmailNotification_WithNullOrEmptySettings_WhenThrowExceptions_ThrowsInvalidOperationException()
+    {
+        var act1 = () => NotificationEventHandler.SendEmailNotification(null, "Test", null, null, new { Message = "Test" }, throwExceptions: true);
+        var act2 = () => NotificationEventHandler.SendEmailNotification(string.Empty, "Test", null, null, new { Message = "Test" }, throwExceptions: true);
+
+        act1.Should().Throw<InvalidOperationException>().WithMessage("*empty*");
+        act2.Should().Throw<InvalidOperationException>().WithMessage("*empty*");
+    }
+
+    [Test]
+    public void SendEmailNotification_WithoutRecipient_WhenThrowExceptions_ThrowsInvalidOperationException()
+    {
+        var settings = "{\"server\":\"smtp.example.com\",\"port\":587}";
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" }, throwExceptions: true);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Recipient*");
+    }
+
+    [Test]
+    public void SendEmailNotification_WithValidSettingsAndCustomSender_DispatchesEmail()
+    {
+        var emailSent = false;
+        NotificationEventHandler.CustomSmtpSender = (mail, host, port, ssl, creds) =>
+        {
+            emailSent = true;
+            mail.To.ToString().Should().Be("dest@example.com");
+            host.Should().Be("smtp.example.com");
+            port.Should().Be(587);
+        };
+
+        try
+        {
+            var settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"dest@example.com\"}";
+            NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test Message" }, throwExceptions: true);
+            emailSent.Should().BeTrue();
+        }
+        finally
+        {
+            NotificationEventHandler.CustomSmtpSender = null;
+        }
+    }
+
+    [Test]
     public async Task Handle_TorrentStatusChangedEvent_WhenStoppedAndCompleted_DoesNotFireSeedGoalReached()
     {
         var notification = new NotificationDefinition
