@@ -316,4 +316,31 @@ public class UdpTrackerServiceTest
         await this.udpTrackerService.StopAsync();
         this.udpTrackerService.IsRunning.Should().BeFalse();
     }
+
+    [Test]
+    public void HandlePacket_Announce_DifferentClientIp_ReturnsErrorResponse()
+    {
+        // 1. Connect first with 127.0.0.1
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, new IPEndPoint(IPAddress.Loopback, 12345));
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        // 2. Announce using the same connectionId from a different IP (10.0.0.1)
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1); // Action = Announce
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 2); // TransactionId = 2
+
+        var spoofedIp = IPAddress.Parse("10.0.0.1");
+        var response = this.udpTrackerService.HandlePacket(announcePacket, new IPEndPoint(spoofedIp, 54321));
+
+        response.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(3); // Action = Error
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(2); // TransactionId = 2
+        Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Connection ID expired or invalid");
+    }
 }
