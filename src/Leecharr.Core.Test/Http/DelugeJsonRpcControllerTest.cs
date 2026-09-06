@@ -431,4 +431,61 @@ public class DelugeJsonRpcControllerTest
         torrent.UploadLimit.Should().Be(50);
         await this.torrentService.Received(1).UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleRpc_SetTorrentFilePriorities_MapsDelugePrioritiesToInternal()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 5, InfoHash = "delugeprio123", Name = "T" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 51, TorrentId = 5, Path = "f0.mkv" },
+            new TorrentFile { Id = 52, TorrentId = 5, Path = "f1.mkv" },
+            new TorrentFile { Id = 53, TorrentId = 5, Path = "f2.mkv" },
+            new TorrentFile { Id = 54, TorrentId = 5, Path = "f3.mkv" },
+        };
+
+        this.torrentService.GetByInfoHash("delugeprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(5).Returns(files);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_file_priorities\",\"params\":[\"delugeprio123\",[0,1,4,7]],\"id\":15}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.torrentFileService.Received(1).SetPriorityAsync(51, 0); // 0 -> 0
+        await this.torrentFileService.Received(1).SetPriorityAsync(52, 1); // 1 -> 1
+        await this.torrentFileService.Received(1).SetPriorityAsync(53, 3); // 4 -> 3
+        await this.torrentFileService.Received(1).SetPriorityAsync(54, 4); // 7 -> 4
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentStatus_MapsInternalPrioritiesToDelugeProtocol()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 5, InfoHash = "delugeprio123", Name = "T", Status = TorrentStatus.Downloading };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 51, TorrentId = 5, Path = "f0.mkv", Priority = 0 },
+            new TorrentFile { Id = 52, TorrentId = 5, Path = "f1.mkv", Priority = 1 },
+            new TorrentFile { Id = 53, TorrentId = 5, Path = "f2.mkv", Priority = 3 },
+            new TorrentFile { Id = 54, TorrentId = 5, Path = "f3.mkv", Priority = 4 },
+        };
+
+        this.torrentService.GetByInfoHash("delugeprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(5).Returns(files);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrent_status\",\"params\":[\"delugeprio123\",[\"file_priorities\"]],\"id\":16}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain(string.Emptyfile_priorities":[0,1,4,7]");
+    }
 }

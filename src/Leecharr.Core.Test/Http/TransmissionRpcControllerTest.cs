@@ -901,4 +901,94 @@ public class TransmissionRpcControllerTest
         torrents[1]["queuePosition"].Should().Be(2);
         torrents[1].ContainsKey("doneDate").Should().BeTrue();
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_FilePriorities_MapsCorrectInternalPriorities()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 10, Name = "TorrentWithFiles" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 101, TorrentId = 10, Path = "f1.mkv", Priority = 3 },
+            new TorrentFile { Id = 102, TorrentId = 10, Path = "f2.mkv", Priority = 3 },
+            new TorrentFile { Id = 103, TorrentId = 10, Path = "f3.mkv", Priority = 3 },
+            new TorrentFile { Id = 104, TorrentId = 10, Path = "f4.mkv", Priority = 3 },
+            new TorrentFile { Id = 105, TorrentId = 10, Path = "f5.mkv", Priority = 0 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(10).Returns(files);
+
+        using var argsDoc = JsonDocument.Parse("{\"ids\":[10],\"files-unwanted\":[0],\"priority-low\":[1],\"priority-normal\":[2],\"priority-high\":[3],\"files-wanted\":[4]}");
+        var args = new Dictionary<string, JsonElement>();
+        foreach (var prop in argsDoc.RootElement.EnumerateObject())
+        {
+            args[prop.Name] = prop.Value;
+        }
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentFileService.Received(1).SetPriorityAsync(101, 0); // files-unwanted -> 0
+        await this.torrentFileService.Received(1).SetPriorityAsync(102, 1); // priority-low -> 1
+        await this.torrentFileService.Received(1).SetPriorityAsync(103, 3); // priority-normal -> 3
+        await this.torrentFileService.Received(1).SetPriorityAsync(104, 4); // priority-high -> 4
+        await this.torrentFileService.Received(1).SetPriorityAsync(105, 3); // files-wanted -> 3
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_MapsPrioritiesToTransmissionProtocol()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 20, Name = "TorrentPriorityGet", Status = TorrentStatus.Downloading };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 201, TorrentId = 20, Path = "f0.mkv", Priority = 0 },
+            new TorrentFile { Id = 202, TorrentId = 20, Path = "f1.mkv", Priority = 1 },
+            new TorrentFile { Id = 203, TorrentId = 20, Path = "f3.mkv", Priority = 3 },
+            new TorrentFile { Id = 204, TorrentId = 20, Path = "f4.mkv", Priority = 4 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(20).Returns(files);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        var responseArgs = response!.Arguments as Dictionary<string, object>;
+        var torrents = responseArgs!["torrents"] as List<Dictionary<string, object>>;
+        var tDict = torrents![0];
+
+        var priorities = tDict["priorities"] as List<int>;
+        priorities.Should().Equal(new List<int> { 0, -1, 0, 1 });
+
+        var fileStats = tDict["fileStats"] as List<Dictionary<string, object>>;
+        fileStats![0]["priority"].Should().Be(0);
+        fileStats[0]["wanted"].Should().Be(false);
+        fileStats[1]["priority"].Should().Be(-1);
+        fileStats[1]["wanted"].Should().Be(true);
+        fileStats[2]["priority"].Should().Be(0);
+        fileStats[2]["wanted"].Should().Be(true);
+        fileStats[3]["priority"].Should().Be(1);
+        fileStats[3]["wanted"].Should().Be(true);
+    }
 }

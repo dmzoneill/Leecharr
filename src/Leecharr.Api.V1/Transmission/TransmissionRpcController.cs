@@ -431,7 +431,7 @@ public class TransmissionRpcController : ControllerBase
                                         var idx = item.GetInt32();
                                         if (idx >= 0 && idx < files.Count)
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 1);
+                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
                                         }
                                     }
                                 }
@@ -447,7 +447,7 @@ public class TransmissionRpcController : ControllerBase
                                         var idx = item.GetInt32();
                                         if (idx >= 0 && idx < files.Count)
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 2);
+                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 4);
                                         }
                                     }
                                 }
@@ -463,7 +463,7 @@ public class TransmissionRpcController : ControllerBase
                                         var idx = item.GetInt32();
                                         if (idx >= 0 && idx < files.Count)
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 0);
+                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 1);
                                         }
                                     }
                                 }
@@ -479,7 +479,7 @@ public class TransmissionRpcController : ControllerBase
                                         var idx = item.GetInt32();
                                         if (idx >= 0 && idx < files.Count)
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 1);
+                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
                                         }
                                     }
                                 }
@@ -952,10 +952,10 @@ public class TransmissionRpcController : ControllerBase
             {
                 { "bytesCompleted", f.BytesCompleted },
                 { "wanted", f.Priority > 0 },
-                { "priority", f.Priority },
+                { "priority", MapToTransmissionPriority(f.Priority) },
             }).ToList();
 
-            priorities = files.Select(f => f.Priority).ToList();
+            priorities = files.Select(f => MapToTransmissionPriority(f.Priority)).ToList();
             sizeWhenDone = files.Count > 0 ? files.Where(f => f.Priority > 0).Sum(f => f.Size) : t.TotalSize;
         }
         else
@@ -1040,5 +1040,15 @@ public class TransmissionRpcController : ControllerBase
         }
 
         return dict;
+    }
+
+    private static int MapToTransmissionPriority(int priority)
+    {
+        return priority switch
+        {
+            1 or 2 => -1,
+            4 or 5 => 1,
+            _ => 0,
+        };
     }
 }

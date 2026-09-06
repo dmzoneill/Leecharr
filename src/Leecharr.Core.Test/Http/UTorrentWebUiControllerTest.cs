@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.UTorrent;
@@ -113,5 +114,67 @@ public class UTorrentWebUiControllerTest
 
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync(magnet, "tv-shows", "/downloads/custom", false);
+    }
+
+    [Test]
+    public async Task HandleWebUi_SetPrio_MapsUTorrentPrioritiesToInternal()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent { Id = 42, InfoHash = "utprio123" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 42, Path = "f0.mkv" },
+            new TorrentFile { Id = 2, TorrentId = 42, Path = "f1.mkv" },
+            new TorrentFile { Id = 3, TorrentId = 42, Path = "f2.mkv" },
+            new TorrentFile { Id = 4, TorrentId = 42, Path = "f3.mkv" },
+        };
+
+        this.torrentService.GetByInfoHash("utprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        await this.controller.HandleWebUi(null!, "setprio", "utprio123", p: "0", f: "0", null!, null!, null!, null!);
+        await this.torrentFileService.Received(1).SetPriorityAsync(1, 0); // 0 -> 0
+
+        await this.controller.HandleWebUi(null!, "setprio", "utprio123", p: "1", f: "1", null!, null!, null!, null!);
+        await this.torrentFileService.Received(1).SetPriorityAsync(2, 1); // 1 -> 1
+
+        await this.controller.HandleWebUi(null!, "setprio", "utprio123", p: "2", f: "2", null!, null!, null!, null!);
+        await this.torrentFileService.Received(1).SetPriorityAsync(3, 3); // 2 -> 3 (Normal)
+
+        await this.controller.HandleWebUi(null!, "setprio", "utprio123", p: "3", f: "3", null!, null!, null!, null!);
+        await this.torrentFileService.Received(1).SetPriorityAsync(4, 4); // 3 -> 4 (High)
+    }
+
+    [Test]
+    public async Task HandleWebUi_GetFiles_MapsInternalPrioritiesToUTorrentProtocol()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "GET";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent { Id = 42, InfoHash = "utprio123" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 42, Path = "f0.mkv", Priority = 0, Size = 100, BytesCompleted = 0 },
+            new TorrentFile { Id = 2, TorrentId = 42, Path = "f1.mkv", Priority = 1, Size = 100, BytesCompleted = 50 },
+            new TorrentFile { Id = 3, TorrentId = 42, Path = "f2.mkv", Priority = 3, Size = 100, BytesCompleted = 100 },
+            new TorrentFile { Id = 4, TorrentId = 42, Path = "f3.mkv", Priority = 4, Size = 100, BytesCompleted = 100 },
+        };
+
+        this.torrentService.GetByInfoHash("utprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var result = await this.controller.HandleWebUi(null!, "getfiles", "utprio123", null!, null!, null!, null!, null!, null!);
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+
+        var json = System.Text.Json.JsonSerializer.Serialize(okResult.Value);
+        json.Should().Contain("[\"f0.mkv\",100,0,0]");
+        json.Should().Contain("[\"f1.mkv\",100,50,1]");
+        json.Should().Contain("[\"f2.mkv\",100,100,2]");
+        json.Should().Contain("[\"f3.mkv\",100,100,3]");
     }
 }

@@ -952,7 +952,8 @@ public class DelugeJsonRpcController : ControllerBase
                                     {
                                         if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                            var internalPrio = MapFromDelugePriority(prio);
+                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, internalPrio);
                                         }
 
                                         fIdx++;
@@ -985,7 +986,8 @@ public class DelugeJsonRpcController : ControllerBase
                                 {
                                     if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                     {
-                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                        var internalPrio = MapFromDelugePriority(prio);
+                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, internalPrio);
                                     }
 
                                     fIdx++;
@@ -1197,7 +1199,7 @@ public class DelugeJsonRpcController : ControllerBase
                 { "offset", f.PieceOffset },
             }).ToList();
 
-            filePriorities = files.Select(f => f.Priority).ToList();
+            filePriorities = files.Select(f => MapToDelugePriority(f.Priority)).ToList();
             fileProgress = files.Select(f => f.Progress).ToList();
         }
         else
@@ -1280,5 +1282,29 @@ public class DelugeJsonRpcController : ControllerBase
         {
             return 1099511627776L;
         }
+    }
+
+    private static int MapFromDelugePriority(int priority)
+    {
+        return priority switch
+        {
+            0 => 0,
+            1 => 1,
+            4 => 3,
+            7 => 4,
+            _ => priority <= 0 ? 0 : priority <= 2 ? 1 : priority <= 5 ? 3 : 4,
+        };
+    }
+
+    private static int MapToDelugePriority(int priority)
+    {
+        return priority switch
+        {
+            0 => 0,
+            1 or 2 => 1,
+            3 => 4,
+            >= 4 => 7,
+            _ => 4,
+        };
     }
 }

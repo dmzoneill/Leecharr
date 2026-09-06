@@ -318,7 +318,7 @@ public class RTorrentControllerTest
                 PieceOffset = 10,
                 PieceCount = 20,
                 Progress = 0.5,
-                Priority = 2,
+                Priority = 4,
             },
         };
 
@@ -355,5 +355,65 @@ public class RTorrentControllerTest
         contentResult.Content.Should().Contain("<i8>10</i8>");
         contentResult.Content.Should().Contain("<i8>29</i8>");
         contentResult.Content.Should().Contain("<i4>2</i4>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetPriority_MapsRTorrentPrioritiesToInternal()
+    {
+        var torrent = new Torrent { Id = 10, InfoHash = "4444444444444444444444444444444444444444", Name = "T" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 10, Path = "f0.mkv" },
+            new TorrentFile { Id = 2, TorrentId = 10, Path = "f1.mkv" },
+            new TorrentFile { Id = 3, TorrentId = 10, Path = "f2.mkv" },
+        };
+
+        this.torrentService.GetByInfoHash("4444444444444444444444444444444444444444").Returns(torrent);
+        this.torrentFileService.GetFiles(10).Returns(files);
+
+        var xml0 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>f.priority.set</methodName>
+              <params>
+                <param><value><string>4444444444444444444444444444444444444444</string></value></param>
+                <param><value><i4>0</i4></value></param>
+                <param><value><i4>0</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml0);
+        await this.controller.HandleXmlRpc();
+        await this.torrentFileService.Received(1).SetPriorityAsync(1, 0); // 0 -> 0
+
+        var xml1 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>f.priority.set</methodName>
+              <params>
+                <param><value><string>4444444444444444444444444444444444444444</string></value></param>
+                <param><value><i4>1</i4></value></param>
+                <param><value><i4>1</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml1);
+        await this.controller.HandleXmlRpc();
+        await this.torrentFileService.Received(1).SetPriorityAsync(2, 3); // 1 -> 3 (Normal)
+
+        var xml2 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>f.set_priority</methodName>
+              <params>
+                <param><value><string>4444444444444444444444444444444444444444</string></value></param>
+                <param><value><i4>2</i4></value></param>
+                <param><value><i4>2</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml2);
+        await this.controller.HandleXmlRpc();
+        await this.torrentFileService.Received(1).SetPriorityAsync(3, 4); // 2 -> 4 (High)
     }
 }

@@ -442,4 +442,58 @@ public class QBittorrentApiControllerTest
         torrent1.TargetSeedTimeMinutes.Should().Be(120);
         torrent1.ShareLimitAction.Should().Be("Remove");
     }
+
+    [Test]
+    public async Task FilePrio_MapsQBittorrentPrioritiesToInternal()
+    {
+        var torrent = new Torrent { Id = 10, InfoHash = "qbtprio123", Name = "T" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 10, Path = "f0.mkv" },
+            new TorrentFile { Id = 2, TorrentId = 10, Path = "f1.mkv" },
+            new TorrentFile { Id = 3, TorrentId = 10, Path = "f2.mkv" },
+            new TorrentFile { Id = 4, TorrentId = 10, Path = "f3.mkv" },
+        };
+
+        this.torrentService.GetByInfoHash("qbtprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(10).Returns(files);
+
+        await this.controller.FilePrio("qbtprio123", "0", 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(1, 0); // 0 -> 0
+
+        await this.controller.FilePrio("qbtprio123", "1", 1);
+        await this.torrentFileService.Received(1).SetPriorityAsync(2, 3); // 1 -> 3 (Normal)
+
+        await this.controller.FilePrio("qbtprio123", "2", 6);
+        await this.torrentFileService.Received(1).SetPriorityAsync(3, 4); // 6 -> 4 (High)
+
+        await this.controller.FilePrio("qbtprio123", "3", 7);
+        await this.torrentFileService.Received(1).SetPriorityAsync(4, 5); // 7 -> 5 (Maximal)
+    }
+
+    [Test]
+    public void GetFiles_MapsInternalPrioritiesToQBittorrentProtocol()
+    {
+        var torrent = new Torrent { Id = 10, InfoHash = "qbtprio123", Name = "T" };
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 10, Path = "f0.mkv", Priority = 0 },
+            new TorrentFile { Id = 2, TorrentId = 10, Path = "f1.mkv", Priority = 3 },
+            new TorrentFile { Id = 3, TorrentId = 10, Path = "f2.mkv", Priority = 4 },
+            new TorrentFile { Id = 4, TorrentId = 10, Path = "f3.mkv", Priority = 5 },
+        };
+
+        this.torrentService.GetByInfoHash("qbtprio123").Returns(torrent);
+        this.torrentFileService.GetFiles(10).Returns(files);
+
+        var result = this.controller.GetFiles("qbtprio123");
+        result.Should().BeOfType<ActionResult<List<Dictionary<string, object>>>>();
+        var okResult = result.Result as OkObjectResult;
+        var list = okResult!.Value as List<Dictionary<string, object>>;
+
+        list![0]["priority"].Should().Be(0);
+        list[1]["priority"].Should().Be(1);
+        list[2]["priority"].Should().Be(6);
+        list[3]["priority"].Should().Be(7);
+    }
 }

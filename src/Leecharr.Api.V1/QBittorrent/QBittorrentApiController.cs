@@ -756,7 +756,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["name"] = f.Path,
             ["size"] = f.Size,
             ["progress"] = f.Progress,
-            ["priority"] = f.Priority,
+            ["priority"] = MapToQBittorrentPriority(f.Priority),
             ["is_seed"] = f.Progress >= 1.0,
             ["piece_range"] = new[] { f.PieceOffset, f.PieceOffset + f.PieceCount - 1 },
         }).ToList();
@@ -1512,11 +1512,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 var files = this.torrentFileService.GetFiles(t.Id).ToList();
                 var idStrings = id.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                var internalPriority = MapFromQBittorrentPriority(priority);
                 foreach (var idStr in idStrings)
                 {
                     if (int.TryParse(idStr, out var fileIndex) && fileIndex >= 0 && fileIndex < files.Count)
                     {
-                        await this.torrentFileService.SetPriorityAsync(files[fileIndex].Id, priority);
+                        await this.torrentFileService.SetPriorityAsync(files[fileIndex].Id, internalPriority);
                     }
                 }
             }
@@ -1689,4 +1690,27 @@ public class QBitSessionSyncState
     public object Lock { get; } = new();
 
     public DateTime LastAccessed { get; set; } = DateTime.UtcNow;
+
+    private static int MapFromQBittorrentPriority(int priority)
+    {
+        return priority switch
+        {
+            0 => 0,
+            1 => 3,
+            6 => 4,
+            7 => 5,
+            _ => 3,
+        };
+    }
+
+    private static int MapToQBittorrentPriority(int priority)
+    {
+        return priority switch
+        {
+            0 => 0,
+            4 => 6,
+            >= 5 => 7,
+            _ => 1,
+        };
+    }
 }
