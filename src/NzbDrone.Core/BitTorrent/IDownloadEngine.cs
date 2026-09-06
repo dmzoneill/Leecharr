@@ -108,6 +108,8 @@ public interface IDownloadTask
     bool IsStalled => false;
 
     int PieceLength => 0;
+
+    long TotalSize => 0;
 }
 
 public class PeerInfo

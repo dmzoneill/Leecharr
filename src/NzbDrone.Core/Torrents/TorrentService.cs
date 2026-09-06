@@ -22,6 +22,7 @@ namespace NzbDrone.Core.Torrents;
 public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>
 {
     private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
+    private readonly ConcurrentDictionary<int, long> lastSessionUploaded = new ConcurrentDictionary<int, long>();
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository fileRepository;
     private readonly ICategoryService categoryService;
@@ -597,6 +598,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 this.deletionLocks.TryRemove(id, out _);
             }
+
+            this.lastSessionUploaded.TryRemove(id, out _);
         }
     }
 
@@ -843,13 +846,42 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.Status = task.Status;
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
-            torrent.Downloaded = task.DownloadedBytes;
-            torrent.Uploaded = task.UploadedBytes;
+
+            if (torrent.TotalSize > 0)
+            {
+                torrent.Downloaded = (long)(torrent.TotalSize * Math.Clamp(task.Progress, 0.0, 1.0));
+            }
+            else if (task.DownloadedBytes > 0)
+            {
+                torrent.Downloaded = task.DownloadedBytes;
+            }
+
+            var sessionUploaded = task.UploadedBytes;
+            if (this.lastSessionUploaded.TryGetValue(torrent.Id, out var lastUploaded))
+            {
+                if (sessionUploaded >= lastUploaded)
+                {
+                    torrent.Uploaded += sessionUploaded - lastUploaded;
+                }
+                else
+                {
+                    torrent.Uploaded += sessionUploaded;
+                }
+            }
+            else
+            {
+                torrent.Uploaded += sessionUploaded;
+            }
+
+            this.lastSessionUploaded[torrent.Id] = sessionUploaded;
+
             torrent.DownloadSpeed = task.DownloadSpeed;
             torrent.UploadSpeed = task.UploadSpeed;
             torrent.Seeders = task.ConnectedSeeders;
             torrent.Leechers = task.ConnectedLeechers;
-            torrent.Ratio = task.DownloadedBytes > 0 ? (double)task.UploadedBytes / task.DownloadedBytes : 0.0;
+
+            var baseBytes = torrent.Downloaded > 0 ? torrent.Downloaded : torrent.TotalSize;
+            torrent.Ratio = baseBytes > 0 ? (double)torrent.Uploaded / baseBytes : 0.0;
 
             if (oldStatus != torrent.Status)
             {

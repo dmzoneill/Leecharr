@@ -2534,6 +2534,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public int PieceLength => this.Manager?.Torrent?.PieceLength ?? this.Picker?.PieceLength ?? 0;
 
+    public long TotalSize => this.Manager?.Torrent?.Size ?? this.initialTorrent?.Size ?? 0;
+
     public bool[] PieceBitfield
     {
         get

@@ -618,4 +618,81 @@ public class TorrentServiceTest
             }
         }
     }
+
+    [Test]
+    public void SyncWithEngine_PreservesCumulativeDownloadedAndUploadedAndCalculatesRatioCorrectly()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.ErrorMessage.Returns((string)null);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(0);
+        task.UploadedBytes.Returns(500);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(1000);
+        task.ConnectedSeeders.Returns(10);
+        task.ConnectedLeechers.Returns(5);
+
+        var torrent = new Torrent
+        {
+            Id = 501,
+            Name = "Seeding ISO",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 2000,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+            InfoHash = "3344556677889900112233445566778899001122",
+        };
+
+        this.torrentRepository.Get(501).Returns(torrent);
+        this.downloadEngine.GetTask(501).Returns(task);
+
+        var result1 = this.service.Get(501);
+        result1.Downloaded.Should().Be(1000);
+        result1.Uploaded.Should().Be(2500);
+        result1.Ratio.Should().Be(2.5);
+
+        // Subsequent sync with increased session upload
+        task.UploadedBytes.Returns(700);
+        var result2 = this.service.Get(501);
+        result2.Downloaded.Should().Be(1000);
+        result2.Uploaded.Should().Be(2700);
+        result2.Ratio.Should().Be(2.7);
+    }
+
+    [Test]
+    public void SyncWithEngine_WhenPartialDownloadInProgress_UpdatesDownloadedFromTotalSizeAndProgress()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.ErrorMessage.Returns((string)null);
+        task.Progress.Returns(0.5);
+        task.DownloadedBytes.Returns(3000);
+        task.UploadedBytes.Returns(1000);
+        task.DownloadSpeed.Returns(50000);
+        task.UploadSpeed.Returns(10000);
+        task.ConnectedSeeders.Returns(8);
+        task.ConnectedLeechers.Returns(4);
+
+        var torrent = new Torrent
+        {
+            Id = 502,
+            Name = "Downloading ISO",
+            TotalSize = 10000,
+            Downloaded = 2000,
+            Uploaded = 0,
+            Progress = 0.2,
+            Status = TorrentStatus.Downloading,
+            InfoHash = "4455667788990011223344556677889900112233",
+        };
+
+        this.torrentRepository.Get(502).Returns(torrent);
+        this.downloadEngine.GetTask(502).Returns(task);
+
+        var result = this.service.Get(502);
+        result.Downloaded.Should().Be(5000);
+        result.Uploaded.Should().Be(1000);
+        result.Ratio.Should().Be(0.2);
+    }
 }
