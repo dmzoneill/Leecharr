@@ -448,7 +448,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         factories = factories.WithSocketConnectorCreator(() => new BoundSocketConnector(
             () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
-            () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6)));
+            () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
+            this.networkBindingService,
+            () => this.configService.BindInterface));
 
         this.engine = new ClientEngine(engineSettings, factories);
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
@@ -2918,21 +2920,39 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 {
     private readonly Func<IPAddress> getLocalIpv4;
     private readonly Func<IPAddress> getLocalIpv6;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly Func<string> getInterfaceName;
 
-    public BoundSocketConnector(IPAddress localIpv4, IPAddress localIpv6 = null)
-        : this(() => localIpv4, () => localIpv6)
+    public BoundSocketConnector(
+        IPAddress localIpv4,
+        IPAddress localIpv6 = null,
+        INetworkBindingService networkBindingService = null,
+        Func<string> getInterfaceName = null)
+        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName)
     {
     }
 
-    public BoundSocketConnector(Func<IPAddress> getLocalIpv4, Func<IPAddress> getLocalIpv6 = null)
+    public BoundSocketConnector(
+        Func<IPAddress> getLocalIpv4,
+        Func<IPAddress> getLocalIpv6 = null,
+        INetworkBindingService networkBindingService = null,
+        Func<string> getInterfaceName = null)
     {
         this.getLocalIpv4 = getLocalIpv4 ?? (() => IPAddress.Any);
         this.getLocalIpv6 = getLocalIpv6 ?? (() => IPAddress.IPv6Any);
+        this.networkBindingService = networkBindingService;
+        this.getInterfaceName = getInterfaceName ?? (() => null);
     }
 
     public async ReusableTasks.ReusableTask<System.Net.Sockets.Socket> ConnectAsync(Uri uri, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(uri);
+
+        var activeProvider = this.networkBindingService?.ActiveProvider;
+        if (activeProvider is IProxyTunnelBindingProvider proxyProvider)
+        {
+            return await proxyProvider.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
+        }
 
         IPAddress[] addresses;
         if (IPAddress.TryParse(uri.Host, out var parsedIp))
@@ -2946,6 +2966,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 
         var localV4 = this.getLocalIpv4();
         var localV6 = this.getLocalIpv6();
+        var ifaceName = this.getInterfaceName?.Invoke();
 
         Exception lastException = null;
         foreach (var address in addresses)
@@ -2958,28 +2979,35 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             var socket = new System.Net.Sockets.Socket(address.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
             try
             {
-                if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
                 {
-                    if (localV4 == null)
-                    {
-                        throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
-                    }
-
-                    if (!localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
-                    {
-                        socket.Bind(new IPEndPoint(localV4, 0));
-                    }
+                    this.networkBindingService.BindSocket(socket, ifaceName);
                 }
-                else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                else
                 {
-                    if (localV6 == null)
+                    if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     {
-                        throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
-                    }
+                        if (localV4 == null)
+                        {
+                            throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
+                        }
 
-                    if (!localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
+                        if (!localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
+                        {
+                            socket.Bind(new IPEndPoint(localV4, 0));
+                        }
+                    }
+                    else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
                     {
-                        socket.Bind(new IPEndPoint(localV6, 0));
+                        if (localV6 == null)
+                        {
+                            throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
+                        }
+
+                        if (!localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
+                        {
+                            socket.Bind(new IPEndPoint(localV6, 0));
+                        }
                     }
                 }
 
