@@ -29,6 +29,7 @@ import { LogTab } from "./torrentdetailpanel/LogTab";
 import { CliTab } from "./torrentdetailpanel/CliTab";
 import PieceMap from "./PieceMap";
 import type { Torrent } from "../api/types";
+import { useTranslation } from "../i18n";
 
 export type DetailTab =
   | "status"
@@ -147,6 +148,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const { height, panelRef, onMouseDown } = usePanelHeight();
 
   if (isLoading && !currentTorrent) {
+    const { t } = useTranslation();
     return (
       <div className="detail-panel" style={{ height }}>
         <div className="detail-panel-loading">
