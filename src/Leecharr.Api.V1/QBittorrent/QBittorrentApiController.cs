@@ -322,7 +322,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["max_ratio"] = t.TargetRatio,
                 ["max_seeding_time"] = t.TargetSeedTimeMinutes * 60,
                 ["ratio_limit"] = t.TargetRatio > 0 ? t.TargetRatio : -2.0,
-                ["seeding_time_limit"] = t.TargetSeedTimeMinutes > 0 ? t.TargetSeedTimeMinutes : -2,
+                ["seeding_time_limit"] = t.TargetSeedTimeMinutes > 0 ? t.TargetSeedTimeMinutes * 60 : -2,
                 ["seeding_time"] = t.SeedingTimeSeconds,
                 ["last_activity"] = new DateTimeOffset(t.LastActive ?? t.DateAdded).ToUnixTimeSeconds(),
                 ["is_private"] = t.IsPrivate,
@@ -387,7 +387,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                         if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
                         {
-                            added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
+                            added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
                             needsUpdate = true;
                         }
 
@@ -427,7 +427,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                             if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
                             {
-                                added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
+                                added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
                                 needsUpdate = true;
                             }
 
@@ -480,7 +480,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                         if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
                         {
-                            added.TargetSeedTimeMinutes = seedingTimeLimit.Value;
+                            added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
                             needsUpdate = true;
                         }
 
@@ -520,7 +520,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
             if (seedingTimeLimit.HasValue)
             {
-                torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? seedingTimeLimit.Value : 0;
+                torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? (int)(seedingTimeLimit.Value / 60) : 0;
                 updated = true;
             }
 
