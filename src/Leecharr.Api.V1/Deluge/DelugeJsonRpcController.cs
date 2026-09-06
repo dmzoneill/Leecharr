@@ -1237,7 +1237,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
             { "all_time_download", t.Downloaded },
             { "active_time", (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds },
-            { "seeding_time", t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0 },
+            { "seeding_time", t.SeedingTimeSeconds },
             { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
             { "is_auto_managed", true },
             { "stop_at_ratio", t.TargetRatio > 0 },
