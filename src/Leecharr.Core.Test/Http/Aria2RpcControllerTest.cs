@@ -644,6 +644,176 @@ public class Aria2RpcControllerTest
         GetStructMember(structElem!, "max-overall-upload-limit").Should().Be((1024 * 1024).ToString());
     }
 
+    [Test]
+    public async Task ChangeOption_XmlRpc_UpdatesTorrentLimitsAndPriority()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "LimitTorrent",
+            InfoHash = FullInfoHash,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 101, TorrentId = 42, Path = "f1.txt", Priority = 0 },
+            new() { Id = 102, TorrentId = 42, Path = "f2.txt", Priority = 1 },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var doc = new XDocument(
+            new XElement(
+                "methodCall",
+                new XElement("methodName", "aria2.changeOption"),
+                new XElement(
+                    "params",
+                    new XElement("param", new XElement("value", new XElement("string", ExpectedGid))),
+                    new XElement(
+                        "param",
+                        new XElement(
+                            "value",
+                            new XElement(
+                                "struct",
+                                new XElement("member", new XElement("name", "max-download-limit"), new XElement("value", new XElement("string", "2097152"))),
+                                new XElement("member", new XElement("name", "max-upload-limit"), new XElement("value", new XElement("string", "1048576"))),
+                                new XElement("member", new XElement("name", "select-file"), new XElement("value", new XElement("string", "1")))))))));
+
+        this.SetXmlRequestBody(doc.ToString());
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetXmlRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        torrent.DownloadLimit.Should().Be(2048);
+        torrent.UploadLimit.Should().Be(1024);
+        await this.torrentService.Received().UpdateAsync(torrent);
+        await this.torrentFileService.Received().SetPriorityAsync(101, 1);
+        await this.torrentFileService.Received().SetPriorityAsync(102, 0);
+    }
+
+    [Test]
+    public async Task ChangeGlobalOption_XmlRpc_UpdatesConfigService()
+    {
+        var doc = new XDocument(
+            new XElement(
+                "methodCall",
+                new XElement("methodName", "aria2.changeGlobalOption"),
+                new XElement(
+                    "params",
+                    new XElement(
+                        "param",
+                        new XElement(
+                            "value",
+                            new XElement(
+                                "struct",
+                                new XElement("member", new XElement("name", "max-overall-download-limit"), new XElement("value", new XElement("string", "4194304"))),
+                                new XElement("member", new XElement("name", "max-overall-upload-limit"), new XElement("value", new XElement("string", "2097152")))))))));
+
+        this.SetXmlRequestBody(doc.ToString());
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetXmlRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 4096 && (int)d["MaxUploadSpeedKbps"] == 2048));
+    }
+
+    [Test]
+    public async Task ChangePosition_XmlRpc_MovesQueue()
+    {
+        var torrent = new Torrent { Id = 55, Name = "QueueTorrent", InfoHash = FullInfoHash };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var doc = new XDocument(
+            new XElement(
+                "methodCall",
+                new XElement("methodName", "aria2.changePosition"),
+                new XElement(
+                    "params",
+                    new XElement("param", new XElement("value", new XElement("string", ExpectedGid))),
+                    new XElement("param", new XElement("value", new XElement("int", 0))),
+                    new XElement("param", new XElement("value", new XElement("string", "POS_SET"))))));
+
+        this.SetXmlRequestBody(doc.ToString());
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var resDoc = XDocument.Parse(contentResult.Content);
+        var intVal = resDoc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("int")?.Value;
+        intVal.Should().Be("1");
+
+        await this.torrentService.Received().MoveQueueAsync(55, "top");
+    }
+
+    [Test]
+    public async Task GetOption_JsonRpc_ReturnsTorrentSpecificOptions()
+    {
+        var torrent = new Torrent
+        {
+            Id = 60,
+            Name = "SpecificTorrent",
+            InfoHash = FullInfoHash,
+            SavePath = "/custom/path",
+            DownloadLimit = 512,
+            UploadLimit = 256,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 100,
+              "method": "aria2.getOption",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var result = doc.RootElement.GetProperty("result");
+
+        result.GetProperty("dir").GetString().Should().Be("/custom/path");
+        result.GetProperty("max-download-limit").GetString().Should().Be((512 * 1024).ToString());
+        result.GetProperty("max-upload-limit").GetString().Should().Be((256 * 1024).ToString());
+    }
+
+    [Test]
+    public async Task GetOption_XmlRpc_ReturnsTorrentSpecificOptions()
+    {
+        var torrent = new Torrent
+        {
+            Id = 61,
+            Name = "SpecificTorrentXml",
+            InfoHash = FullInfoHash,
+            SavePath = "/xml/path",
+            DownloadLimit = 1024,
+            UploadLimit = 512,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetXmlRpcRequest("aria2.getOption", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structElem = doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        structElem.Should().NotBeNull();
+
+        GetStructMember(structElem!, "dir").Should().Be("/xml/path");
+        GetStructMember(structElem!, "max-download-limit").Should().Be((1024 * 1024).ToString());
+        GetStructMember(structElem!, "max-upload-limit").Should().Be((512 * 1024).ToString());
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);

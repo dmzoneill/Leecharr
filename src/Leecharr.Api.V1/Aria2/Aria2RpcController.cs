@@ -605,12 +605,35 @@ public class Aria2RpcController : ControllerBase
                 return Array.Empty<object>();
 
             case "aria2.getglobaloption":
-            case "aria2.getoption":
                 return new Dictionary<string, string>
                 {
                     { "dir", this.configService.DownloadDir ?? "/downloads" },
                     { "max-overall-download-limit", (this.configService.MaxDownloadSpeedKbps * 1024).ToString() },
                     { "max-overall-upload-limit", (this.configService.MaxUploadSpeedKbps * 1024).ToString() },
+                    { "max-download-limit", "0" },
+                    { "max-upload-limit", "0" },
+                };
+
+            case "aria2.getoption":
+                var goParams = GetCleanParams(parameters);
+                var goGid = goParams.Count > 0 && goParams[0].ValueKind == JsonValueKind.String ? goParams[0].GetString() : null;
+                var goTorrent = !string.IsNullOrWhiteSpace(goGid) ? this.FindByGid(goGid) : null;
+                if (goTorrent != null)
+                {
+                    var optDir = !string.IsNullOrWhiteSpace(goTorrent.SavePath)
+                        ? goTorrent.SavePath
+                        : (this.configService.DownloadDir ?? "/downloads");
+                    return new Dictionary<string, string>
+                    {
+                        { "dir", optDir },
+                        { "max-download-limit", (goTorrent.DownloadLimit * 1024).ToString() },
+                        { "max-upload-limit", (goTorrent.UploadLimit * 1024).ToString() },
+                    };
+                }
+
+                return new Dictionary<string, string>
+                {
+                    { "dir", this.configService.DownloadDir ?? "/downloads" },
                     { "max-download-limit", "0" },
                     { "max-upload-limit", "0" },
                 };
@@ -865,6 +888,34 @@ public class Aria2RpcController : ControllerBase
         return list;
     }
 
+    private static Dictionary<string, string> GetXmlRpcStructOptions(global::System.Xml.Linq.XDocument xmlDoc)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var structElem = xmlDoc?.Root?.Element("params")?.Elements("param")
+            .Select(p => p.Element("value")?.Element("struct"))
+            .FirstOrDefault(s => s != null);
+        if (structElem != null)
+        {
+            foreach (var member in structElem.Elements("member"))
+            {
+                var name = member.Element("name")?.Value;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    var val = member.Element("value")?.Element("string")?.Value
+                              ?? member.Element("value")?.Element("int")?.Value
+                              ?? member.Element("value")?.Element("i4")?.Value
+                              ?? member.Element("value")?.Value;
+                    if (val != null)
+                    {
+                        dict[name] = val;
+                    }
+                }
+            }
+        }
+
+        return dict;
+    }
+
     private async Task<IActionResult> HandleXmlRpcAsync(string method, global::System.Xml.Linq.XDocument xmlDoc)
     {
         var resultElement = await this.ExecuteXmlRpcMethodAsync(method, xmlDoc);
@@ -942,7 +993,6 @@ public class Aria2RpcController : ControllerBase
                         new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString()))));
 
             case "aria2.getglobaloption":
-            case "aria2.getoption":
                 return new global::System.Xml.Linq.XElement(
                     "struct",
                     new global::System.Xml.Linq.XElement(
@@ -965,6 +1015,30 @@ public class Aria2RpcController : ControllerBase
                         "member",
                         new global::System.Xml.Linq.XElement("name", "max-upload-limit"),
                         new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0"))));
+
+            case "aria2.getoption":
+                var optGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
+                var optTorrent = this.FindByGid(optGid);
+                var optDir = (optTorrent != null && !string.IsNullOrWhiteSpace(optTorrent.SavePath))
+                    ? optTorrent.SavePath
+                    : downloadDir;
+                var optDlLimit = (optTorrent != null ? optTorrent.DownloadLimit * 1024 : 0).ToString();
+                var optUlLimit = (optTorrent != null ? optTorrent.UploadLimit * 1024 : 0).ToString();
+
+                return new global::System.Xml.Linq.XElement(
+                    "struct",
+                    new global::System.Xml.Linq.XElement(
+                        "member",
+                        new global::System.Xml.Linq.XElement("name", "dir"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", optDir))),
+                    new global::System.Xml.Linq.XElement(
+                        "member",
+                        new global::System.Xml.Linq.XElement("name", "max-download-limit"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", optDlLimit))),
+                    new global::System.Xml.Linq.XElement(
+                        "member",
+                        new global::System.Xml.Linq.XElement("name", "max-upload-limit"),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", optUlLimit))));
 
             case "aria2.tellactive":
                 var activeList = this.torrentService.GetAll()
@@ -1070,6 +1144,94 @@ public class Aria2RpcController : ControllerBase
                 }
 
                 return new global::System.Xml.Linq.XElement("string", unpauseGid);
+
+            case "aria2.changeposition":
+                if (stringParams.Count >= 3)
+                {
+                    var cpGid = stringParams[0];
+                    if (int.TryParse(stringParams[1], out var cpOffset))
+                    {
+                        var cpHow = stringParams[2]?.ToLowerInvariant();
+                        var t = this.FindByGid(cpGid);
+                        if (t != null)
+                        {
+                            var dir = "down";
+                            if (cpHow == "pos_set" && cpOffset == 0)
+                            {
+                                dir = "top";
+                            }
+                            else if (cpHow == "pos_end")
+                            {
+                                dir = "bottom";
+                            }
+                            else if (cpOffset < 0)
+                            {
+                                dir = "up";
+                            }
+
+                            await this.torrentService.MoveQueueAsync(t.Id, dir);
+                            return new global::System.Xml.Linq.XElement("int", 1);
+                        }
+                    }
+                }
+
+                return new global::System.Xml.Linq.XElement("int", 0);
+
+            case "aria2.changeoption":
+            case "aria2.changeglobaloption":
+                var optDict = GetXmlRpcStructOptions(xmlDoc);
+                var changeGid = stringParams.Count > 0 ? stringParams[0] : null;
+
+                if (!string.IsNullOrWhiteSpace(changeGid) && this.torrentService != null)
+                {
+                    var t = this.FindByGid(changeGid);
+                    if (t != null && optDict.Count > 0)
+                    {
+                        if (optDict.TryGetValue("max-download-limit", out var tdlStr) && int.TryParse(tdlStr, out var tdlBps))
+                        {
+                            t.DownloadLimit = tdlBps / 1024;
+                        }
+
+                        if (optDict.TryGetValue("max-upload-limit", out var tulStr) && int.TryParse(tulStr, out var tulBps))
+                        {
+                            t.UploadLimit = tulBps / 1024;
+                        }
+
+                        await this.torrentService.UpdateAsync(t);
+
+                        if (optDict.TryGetValue("select-file", out var sfStr) && this.torrentFileService != null && !string.IsNullOrWhiteSpace(sfStr))
+                        {
+                            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                            var selectedIndices = ParseAria2FileIndices(sfStr);
+                            for (var fIdx = 0; fIdx < files.Count; fIdx++)
+                            {
+                                var prio = selectedIndices.Contains(fIdx + 1) ? 1 : 0;
+                                await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                            }
+                        }
+                    }
+                }
+
+                if (optDict.Count > 0)
+                {
+                    var updateDict = new Dictionary<string, object>();
+                    if (optDict.TryGetValue("max-overall-download-limit", out var dlOptStr) && int.TryParse(dlOptStr, out var dlBps))
+                    {
+                        updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
+                    }
+
+                    if (optDict.TryGetValue("max-overall-upload-limit", out var ulOptStr) && int.TryParse(ulOptStr, out var ulBps))
+                    {
+                        updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
+                    }
+
+                    if (updateDict.Count > 0)
+                    {
+                        this.configService.SaveConfigDictionary(updateDict);
+                    }
+                }
+
+                return new global::System.Xml.Linq.XElement("string", "OK");
 
             case "system.multicall":
                 var multicallDataElem = new global::System.Xml.Linq.XElement("data");
