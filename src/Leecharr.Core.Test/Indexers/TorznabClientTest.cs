@@ -159,6 +159,27 @@ public class TorznabClientTest
         results[0].Title.Should().Be("High Seeds");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenItemContainsBothRssCategoryAndTorznabCategoryAttrs_CollectsAllCategories()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Movies.HD.Sample</title>
+      <category>Movies/HD</category>
+      <torznab:attr name=""category"" value=""2000""/>
+      <torznab:attr name=""category"" value=""2040""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        results[0].Category.Should().Be("Movies/HD, 2000, 2040");
+    }
+
     [TestCase("")]
     [TestCase(null)]
     [TestCase("   ")]
