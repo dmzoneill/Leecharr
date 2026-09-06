@@ -1,9 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.EnvironmentInfo;
 
@@ -34,6 +34,7 @@ public class UpdateResource : RestResource
 }
 
 [V1ApiController("update")]
+[Authorize(Policy = "RequireAdmin")]
 public class UpdateController : Controller
 {
     [HttpGet]

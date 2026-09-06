@@ -1,5 +1,6 @@
 using System;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.FileBrowser;
 
@@ -18,6 +19,7 @@ public class FileBrowserRenameRequest
 }
 
 [V1ApiController("files")]
+[Authorize(Policy = "RequireAdmin")]
 public class FileBrowserController : Controller
 {
     private readonly IFileBrowserService fileBrowserService;

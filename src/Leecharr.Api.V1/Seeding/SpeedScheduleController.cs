@@ -1,17 +1,18 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Bandwidth;
 
 namespace Leecharr.Api.V1.Seeding;
 
 [V1ApiController("speedschedule")]
+[Authorize(Policy = "RequireOperator")]
 public class SpeedScheduleController : Controller
 {
     private readonly ISpeedScheduleRepository speedScheduleRepository;

@@ -1,14 +1,15 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Linq;
 using System.Reflection;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;
 
+[Authorize(Policy = "RequireAdmin")]
 public abstract class ConfigController<TResource> : Controller
     where TResource : RestResource, new()
 {

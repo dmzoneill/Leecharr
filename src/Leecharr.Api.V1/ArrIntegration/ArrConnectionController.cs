@@ -1,17 +1,18 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.ArrIntegration;
 
 namespace Leecharr.Api.V1.ArrIntegration;
 
 [V1ApiController("arrconnections")]
+[Authorize(Policy = "RequireOperator")]
 public class ArrConnectionController : Controller
 {
     private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };

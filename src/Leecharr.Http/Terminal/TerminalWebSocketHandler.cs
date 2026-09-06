@@ -24,7 +24,7 @@ public static class TerminalWebSocketHandler
 
         if (context.User?.Identity?.IsAuthenticated == true)
         {
-            return true;
+            return context.User.IsInRole("Admin") || context.User.HasClaim(global::System.Security.Claims.ClaimTypes.Role, "Admin");
         }
 
         return RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
@@ -38,12 +38,26 @@ public static class TerminalWebSocketHandler
     {
         configFileProvider ??= context.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider;
 
-        if (!IsAuthorized(context, configFileProvider))
+        if (configFileProvider?.AuthenticationEnabled == true)
         {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await context.Response.WriteAsync("Authentication required for terminal access.");
-            await context.Response.CompleteAsync();
-            return;
+            var user = context.User;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                if (!user.IsInRole("Admin") && !user.HasClaim(global::System.Security.Claims.ClaimTypes.Role, "Admin"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Admin role required for terminal access.");
+                    await context.Response.CompleteAsync();
+                    return;
+                }
+            }
+            else if (!RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsync("Authentication required for terminal access.");
+                await context.Response.CompleteAsync();
+                return;
+            }
         }
 
         if (!context.WebSockets.IsWebSocketRequest)

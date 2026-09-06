@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
@@ -13,6 +13,7 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.ArrIntegration;
 
 [V1ApiController("arrsync")]
+[Authorize(Policy = "RequireOperator")]
 public class ArrSyncController : Controller
 {
     private static readonly HttpClient DefaultHttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };

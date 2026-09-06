@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Indexers;
@@ -13,6 +13,7 @@ namespace Leecharr.Api.V1.Indexers;
 
 [V1ApiController("rssrules")]
 [Route("api/v1/rssrule")]
+[Authorize(Policy = "RequireOperator")]
 public class RssRuleController : Controller
 {
     private readonly IRssRuleRepository rssRuleRepository;

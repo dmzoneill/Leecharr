@@ -1,5 +1,4 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Http;
@@ -18,6 +18,7 @@ namespace Leecharr.Api.V1.Indexers;
 
 [V1ApiController("indexers")]
 [Route("api/v1/indexer")]
+[Authorize(Policy = "RequireOperator")]
 public class IndexerController : Controller
 {
     private readonly IIndexerRepository indexerRepository;

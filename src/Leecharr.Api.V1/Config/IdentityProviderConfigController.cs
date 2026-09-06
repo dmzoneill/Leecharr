@@ -1,11 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentValidation;
 using Leecharr.Http;
 using Leecharr.Http.Authentication;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Authentication;
 
@@ -41,6 +41,7 @@ public class IdentityProviderResource : RestResource
 }
 
 [V1ApiController("config/auth/providers")]
+[Authorize(Policy = "RequireAdmin")]
 public class IdentityProviderConfigController : RestController<IdentityProviderResource>
 {
     private readonly IIdentityProviderService providerService;

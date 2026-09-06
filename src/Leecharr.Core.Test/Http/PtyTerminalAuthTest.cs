@@ -95,17 +95,33 @@ public class PtyTerminalAuthTest
     }
 
     [Test]
-    public void IsAuthorized_WhenUserPrincipalAuthenticated_ReturnsTrue()
+    public void IsAuthorized_WhenUserPrincipalAuthenticatedAsAdmin_ReturnsTrue()
     {
         var context = new DefaultHttpContext();
         context.Request.Path = "/ws/terminal";
         var identity = new ClaimsIdentity("CookieAuth");
         identity.AddClaim(new Claim(ClaimTypes.Name, "admin"));
+        identity.AddClaim(new Claim(ClaimTypes.Role, "Admin"));
         context.User = new ClaimsPrincipal(identity);
 
         var isAuthorized = TerminalWebSocketHandler.IsAuthorized(context, this.configFileProvider);
 
         isAuthorized.Should().BeTrue();
+    }
+
+    [Test]
+    public void IsAuthorized_WhenUserPrincipalAuthenticatedAsNonAdmin_ReturnsFalse()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        var identity = new ClaimsIdentity("CookieAuth");
+        identity.AddClaim(new Claim(ClaimTypes.Name, "regularuser"));
+        identity.AddClaim(new Claim(ClaimTypes.Role, "User"));
+        context.User = new ClaimsPrincipal(identity);
+
+        var isAuthorized = TerminalWebSocketHandler.IsAuthorized(context, this.configFileProvider);
+
+        isAuthorized.Should().BeFalse();
     }
 
     [Test]

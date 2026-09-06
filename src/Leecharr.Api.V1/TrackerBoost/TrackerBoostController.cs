@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.TrackerBoost;
 
@@ -12,6 +12,7 @@ namespace Leecharr.Api.V1.TrackerBoost;
 
 [V1ApiController("trackerboost")]
 [Route("api/v1/downloadplusplus")]
+[Authorize(Policy = "RequireOperator")]
 public class TrackerBoostController : Controller
 {
     private readonly ITrackerBoostService trackerBoostService;

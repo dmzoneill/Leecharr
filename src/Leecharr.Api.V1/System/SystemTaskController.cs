@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
@@ -54,6 +54,7 @@ public class CommandResource : RestResource
 }
 
 [V1ApiController("system/task")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemTaskController : Controller
 {
     private readonly IManageCommandQueue commandQueueManager;
@@ -153,6 +154,7 @@ public class SystemTaskController : Controller
 }
 
 [V1ApiController("system/command")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemCommandController : Controller
 {
     private readonly IManageCommandQueue commandQueueManager;

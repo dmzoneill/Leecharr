@@ -321,10 +321,18 @@ public class Startup
                 var configFileProvider = context.RequestServices.GetRequiredService<IConfigFileProvider>();
                 if (configFileProvider.AuthenticationEnabled)
                 {
-                    var isAuthenticated = (context.User?.Identity?.IsAuthenticated == true) ||
-                                          RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
-
-                    if (!isAuthenticated)
+                    var user = context.User;
+                    if (user?.Identity?.IsAuthenticated == true)
+                    {
+                        if (!user.IsInRole("Admin") && !user.HasClaim(System.Security.Claims.ClaimTypes.Role, "Admin"))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            await context.Response.WriteAsync("Admin role required for terminal access.");
+                            await context.Response.CompleteAsync();
+                            return;
+                        }
+                    }
+                    else if (!RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Authentication required for terminal access.");

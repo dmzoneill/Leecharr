@@ -1,9 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Tags;
 
@@ -15,6 +15,7 @@ public class TagResource : RestResource
 }
 
 [V1ApiController("tag")]
+[Authorize(Policy = "RequireOperator")]
 public class TagController : Controller
 {
     private readonly ITagRepository tagRepository;

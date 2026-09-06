@@ -1,11 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.DownloadClients;
@@ -14,6 +14,7 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.DownloadClients;
 
 [V1ApiController("downloadclientsync")]
+[Authorize(Policy = "RequireOperator")]
 public class DownloadClientSyncController : Controller
 {
     private readonly IDownloadClientRepository clientRepository;
