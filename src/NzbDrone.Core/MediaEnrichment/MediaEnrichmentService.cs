@@ -405,7 +405,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                         url.StartsWith(c.Url.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                         !string.IsNullOrWhiteSpace(c.ApiKey));
 
-                    return matched?.ApiKey ?? connections.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.ApiKey))?.ApiKey;
+                    return matched?.ApiKey;
                 }
             }
         }

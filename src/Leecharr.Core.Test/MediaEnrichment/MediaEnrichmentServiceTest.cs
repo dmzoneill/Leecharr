@@ -578,6 +578,75 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
             Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task CacheArtworkAsync_WhenUntrustedExternalUrlContainsMediacover_DoesNotIncludeXApiKeyHeader()
+    {
+        var arrRepository = Substitute.For<IArrConnectionRepository>();
+        var arrConn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Url = "https://sonarr.example.com",
+            ApiKey = "servarr-secret-key-xyz",
+            ArrType = "Sonarr",
+        };
+        arrRepository.All().Returns(new[] { arrConn });
+
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var validJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+        safeHttpClient.DownloadBytesAsync(
+            Arg.Any<Uri>(),
+            Arg.Any<long>(),
+            Arg.Any<IDictionary<string, string>>(),
+            Arg.Any<CancellationToken>())
+            .Returns(validJpeg);
+
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            arrRepository: arrRepository,
+            safeHttpClientService: safeHttpClient);
+
+        var url = "https://attacker.com/mediacover/poster.jpg";
+        var result = await customService.CacheArtworkAsync(url, 203, "poster");
+
+        result.Should().NotBeNull();
+        File.Exists(result).Should().BeTrue();
+
+        await safeHttpClient.Received(1).DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == url),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h == null || !h.ContainsKey("X-Api-Key")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void GetServarrApiKey_WhenUrlDoesNotMatchArrConnection_ReturnsNull()
+    {
+        var arrRepository = Substitute.For<IArrConnectionRepository>();
+        var arrConn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Url = "https://sonarr.example.com",
+            ApiKey = "servarr-secret-key-xyz",
+            ArrType = "Sonarr",
+        };
+        arrRepository.All().Returns(new[] { arrConn });
+
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            arrRepository: arrRepository);
+
+        var result = customService.GetServarrApiKey("https://attacker.com/mediacover/poster.jpg");
+        result.Should().BeNull();
+    }
+
     [TestCase("http://169.254.169.254/latest/meta-data/")]
     [TestCase("http://127.0.0.1:8080/admin/secrets.json")]
     [TestCase("http://localhost:5000/keys")]
