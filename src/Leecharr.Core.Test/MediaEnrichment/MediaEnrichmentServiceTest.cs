@@ -829,4 +829,25 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
             m.MediaInfoJson != null &&
             m.MediaInfoJson.Contains("AVC")));
     }
+
+    [Test]
+    public async Task ServarrSyncMetadataProvider_WhenNoArrConnections_ReturnsNull()
+    {
+        var provider = new ServarrSyncMetadataProvider();
+        var result = await provider.FetchMetadataAsync("Unknown.Movie.2024.1080p", "movies");
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ServarrSyncMetadataProvider_WhenArrLookupMisses_ReturnsNull()
+    {
+        var arrRepository = Substitute.For<IArrConnectionRepository>();
+        arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition>());
+
+        var provider = new ServarrSyncMetadataProvider(arrRepository);
+        var result = await provider.FetchMetadataAsync("NonExistent.Show.S01E01.1080p", "tv");
+
+        result.Should().BeNull();
+    }
 }

@@ -102,15 +102,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             }
         }
 
-        // Fallback placeholder if no linked Arr has the item yet
-        return new MediaMetadata
-        {
-            Title = cleanTitle,
-            Year = year ?? 0,
-            MediaType = preferredType == "Radarr" ? "Movie" : preferredType == "Lidarr" ? "Music" : "TV",
-            Overview = $"Metadata synchronized from Servarr instance for {cleanTitle}.",
-            Rating = 8.0,
-        };
+        // If no linked Arr has the item, return null to signal no match
+        return null;
     }
 
     private async Task<MediaMetadata> LookupFromArrAsync(ArrConnectionDefinition conn, string title)
