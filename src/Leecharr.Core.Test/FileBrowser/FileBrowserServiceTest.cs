@@ -71,4 +71,43 @@ public class FileBrowserServiceTest
         result.Exists.Should().BeTrue();
         result.Entries.Should().BeEmpty();
     }
+
+    [Test]
+    public void Rename_WhenTargetFileExists_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/movie/cd1.flac";
+        var dest = "/downloads/movie/cd2.flac";
+        this.diskProvider.FileExists(dest).Returns(true);
+
+        var action = () => this.service.Rename(source, "cd2.flac");
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Destination '{dest}' already exists.");
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [TestCase(".")]
+    [TestCase("..")]
+    [TestCase("   ")]
+    public void Rename_WhenNewNameIsInvalid_ThrowsArgumentException(string invalidName)
+    {
+        var source = "/downloads/movie/cd1.flac";
+
+        var action = () => this.service.Rename(source, invalidName);
+
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Test]
+    public void Rename_WhenDestinationDoesNotExist_MovesFileWithOverwriteFalse()
+    {
+        var source = "/downloads/movie/cd1.flac";
+        var dest = "/downloads/movie/cd2.flac";
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(dest).Returns(false);
+        this.diskProvider.FolderExists(dest).Returns(false);
+
+        this.service.Rename(source, "cd2.flac");
+
+        this.diskProvider.Received(1).MoveFile(source, dest, false);
+    }
 }
