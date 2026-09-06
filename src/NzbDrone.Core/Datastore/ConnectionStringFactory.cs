@@ -46,7 +46,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
     private string BuildSqliteConnectionString(string dataFolder)
     {
         var dbPath = Path.Combine(dataFolder, "leecharr.db");
-        return $"Data Source={dbPath};";
+        return $"Data Source={dbPath};Foreign Keys=True;";
     }
 
     private string BuildPostgresConnectionString()

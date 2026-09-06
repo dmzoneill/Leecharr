@@ -70,4 +70,35 @@ public class MainDatabaseTest
         File.Exists(shmPath).Should().BeFalse("Stale SHM file should be deleted on pending restore");
         File.ReadAllText(dbPath).Should().Be("restored-db-content");
     }
+
+    [Test]
+    public void ConnectionStringFactory_Sqlite_IncludesForeignKeysParameter()
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempFolder);
+
+        var configFileProvider = Substitute.For<NzbDrone.Core.Configuration.IConfigFileProvider>();
+        configFileProvider.PostgresHost.Returns(string.Empty);
+
+        var factory = new ConnectionStringFactory(appFolderInfo, configFileProvider);
+
+        factory.DatabaseType.Should().Be(DatabaseType.SQLite);
+        factory.MainDbConnectionString.Should().Contain("Foreign Keys=True");
+    }
+
+    [Test]
+    public void Database_OpenConnection_Sqlite_EnablesForeignKeysPragma()
+    {
+        var dbPath = Path.Combine(this.tempFolder, "pragma_test.db");
+        var connectionString = $"Data Source={dbPath};";
+
+        var db = new Database(() => new Microsoft.Data.Sqlite.SqliteConnection(connectionString), DatabaseType.SQLite);
+        using var conn = db.OpenConnection();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA foreign_keys;";
+        var result = Convert.ToInt32(cmd.ExecuteScalar());
+
+        result.Should().Be(1, "Foreign keys PRAGMA must be enabled (1)");
+    }
 }
