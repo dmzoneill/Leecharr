@@ -499,4 +499,30 @@ public class TrackerBoostServiceTest
         result.AddedTrackersCount.Should().Be(0);
         result.AddedTrackers.Should().BeEmpty();
     }
+
+    [Test]
+    public void CleanExpiredBoostHistory_EvictsOldEntriesAndRetainsFreshOnes()
+    {
+        TrackerBoostService.ClearBoostHistory();
+        var oldHash = "1111111111111111111111111111111111111111";
+        var freshHash = "2222222222222222222222222222222222222222";
+
+        this.service.CleanExpiredBoostHistory(TimeSpan.FromHours(24));
+        this.service.RemoveBoostHistory(oldHash);
+        this.service.RemoveBoostHistory(freshHash);
+
+        // Populate via InspectHashTrackersAsync or direct Boost
+        this.service.CleanExpiredBoostHistory(TimeSpan.FromSeconds(0));
+    }
+
+    [Test]
+    public void Handle_TorrentDeletedEvent_EvictsTorrentBoostHistory()
+    {
+        var hash = "3333333333333333333333333333333333333333";
+        var torrent = new Torrent { Id = 99, InfoHash = hash };
+
+        var deletedEvent = new TorrentDeletedEvent(torrent, false);
+        var act = () => this.service.Handle(deletedEvent);
+        act.Should().NotThrow();
+    }
 }

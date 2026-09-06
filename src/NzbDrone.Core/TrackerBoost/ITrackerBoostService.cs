@@ -60,4 +60,8 @@ public interface ITrackerBoostService
     void ClearScrapeCache();
 
     int ScrapeCacheCount { get; }
+
+    void CleanExpiredBoostHistory(System.TimeSpan? maxAge = null);
+
+    void RemoveBoostHistory(string infoHash);
 }
