@@ -2068,5 +2068,59 @@ public class MonoTorrentDownloadEngineTest
             .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
     }
 
+    [Test]
+    public async Task BoundSocketConnector_WhenProxyTunnelActive_DelegatesToConnectTunnelAsync()
+    {
+        var mockProxyProvider = Substitute.For<NzbDrone.Core.Network.Binding.IProxyTunnelBindingProvider>();
+        using var dummySocket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+        mockProxyProvider.ConnectTunnelAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(dummySocket));
+
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        mockBindingService.ActiveProvider.Returns(mockProxyProvider);
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Any,
+            () => IPAddress.IPv6Any,
+            mockBindingService,
+            () => null);
+
+        var socket = await connector.ConnectAsync(new Uri("http://target.peer.org:6881"), CancellationToken.None);
+
+        socket.Should().BeSameAs(dummySocket);
+        await mockProxyProvider.Received(1).ConnectTunnelAsync("target.peer.org", 6881, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_WhenBindingServiceAndInterfaceConfigured_BindsSocketViaService()
+    {
+        var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        try
+        {
+            var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+            var mockProvider = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingProvider>();
+            mockBindingService.ActiveProvider.Returns(mockProvider);
+
+            var connector = new BoundSocketConnector(
+                () => IPAddress.Loopback,
+                () => IPAddress.IPv6Loopback,
+                mockBindingService,
+                () => "lo");
+
+            using var socket = await connector.ConnectAsync(new Uri($"http://127.0.0.1:{port}"), CancellationToken.None);
+
+            socket.Should().NotBeNull();
+            socket.Connected.Should().BeTrue();
+            mockBindingService.Received(1).BindSocket(Arg.Any<System.Net.Sockets.Socket>(), "lo");
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
     #endregion
 }
