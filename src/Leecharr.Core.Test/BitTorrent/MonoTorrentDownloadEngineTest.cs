@@ -1957,7 +1957,7 @@ public class MonoTorrentDownloadEngineTest
 
         foreach (var file in parsed.Files)
         {
-            var expectedFilePath = Path.Combine(this.testIncompleteDir, file.Path);
+            var expectedFilePath = Path.Combine(this.testIncompleteDir, "MultiPrealloc", file.Path);
             File.Exists(expectedFilePath).Should().BeTrue();
             new FileInfo(expectedFilePath).Length.Should().Be(file.Length);
         }

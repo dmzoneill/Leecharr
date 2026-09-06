@@ -2099,17 +2099,26 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
             {
+                var isMultiFile = parsedTorrent.Files.Count > 1;
                 foreach (var file in parsedTorrent.Files)
                 {
-                    var fullPath = Path.Combine(workingPath, file.Path);
+                    var fullPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
+                        ? Path.Combine(workingPath, parsedTorrent.Name, file.Path)
+                        : Path.Combine(workingPath, file.Path);
                     this.PreallocateSingleFile(fullPath, file.Length, isFull);
                 }
             }
             else if (manager?.Files != null && manager.Files.Count > 0)
             {
+                var isMultiFile = manager.Files.Count > 1;
+                var torrentName = manager.Torrent?.Name;
                 foreach (var file in manager.Files)
                 {
-                    var fullPath = Path.Combine(workingPath, file.Path);
+                    var fullPath = !string.IsNullOrWhiteSpace(file.FullPath)
+                        ? file.FullPath
+                        : (isMultiFile && !string.IsNullOrEmpty(torrentName)
+                            ? Path.Combine(workingPath, torrentName, file.Path)
+                            : Path.Combine(workingPath, file.Path));
                     this.PreallocateSingleFile(fullPath, file.Length, isFull);
                 }
             }
@@ -2142,7 +2151,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             using var fs = new FileStream(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
             if (fs.Length < expectedLength)
             {
-                fs.SetLength(expectedLength);
+                if (isFull)
+                {
+                    fs.Seek(0, SeekOrigin.End);
+                    const int bufferSize = 1024 * 1024; // 1 MB buffer
+                    var buffer = new byte[bufferSize];
+                    long bytesRemaining = expectedLength - fs.Length;
+                    while (bytesRemaining > 0)
+                    {
+                        int toWrite = (int)Math.Min(bytesRemaining, bufferSize);
+                        fs.Write(buffer, 0, toWrite);
+                        bytesRemaining -= toWrite;
+                    }
+
+                    fs.Flush(flushToDisk: true);
+                }
+                else
+                {
+                    fs.SetLength(expectedLength);
+                }
             }
         }
         catch (Exception ex)
