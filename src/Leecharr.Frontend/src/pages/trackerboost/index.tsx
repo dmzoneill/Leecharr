@@ -195,7 +195,7 @@ export function TrackerBoost() {
           <div className="stat-value">
             {status?.totalTrackersMonitored ?? 0}
           </div>
-          <div className="stat-label">Trackers Monitored</div>
+          <div className="stat-label">{t("trackerBoost.trackersMonitored", "Trackers Monitored")}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: "var(--success)" }}>
@@ -207,13 +207,13 @@ export function TrackerBoost() {
           <div className="stat-value" style={{ color: "var(--accent)" }}>
             {status?.activeTorrentTrackersCount ?? 0}
           </div>
-          <div className="stat-label">Harvested from Swarms</div>
+          <div className="stat-label">{t("trackerBoost.harvestedFromSwarms", "Harvested from Swarms")}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: "#38bdf8" }}>
             {status?.torrentsBoostedCount ?? 0}
           </div>
-          <div className="stat-label">Swarms Boosted</div>
+          <div className="stat-label">{t("trackerBoost.swarmsBoosted", "Swarms Boosted")}</div>
         </div>
       </div>
 

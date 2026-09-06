@@ -13,10 +13,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Transmission;
 
@@ -60,6 +62,8 @@ public class TransmissionRpcController : ControllerBase
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IDiskProvider diskProvider;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public static void RecordRemovedId(int id)
@@ -117,7 +121,9 @@ public class TransmissionRpcController : ControllerBase
         IDiskSpaceService diskSpaceService = null,
         ISafeHttpClientService safeHttpClientService = null,
         IConfigFileProvider configFileProvider = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        IDownloadEngine downloadEngine = null,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -127,6 +133,8 @@ public class TransmissionRpcController : ControllerBase
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.configFileProvider = configFileProvider;
         this.diskProvider = diskProvider;
+        this.downloadEngine = downloadEngine;
+        this.trackerEntryRepository = trackerEntryRepository;
     }
 
     [HttpGet]
@@ -984,8 +992,8 @@ public class TransmissionRpcController : ControllerBase
         if (needsFiles)
         {
             var files = this.torrentFileService.GetFiles(t.Id).ToList();
-            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
-            TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
+            var taskForFiles = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
+            TorrentFileProgressEnricher.Enrich(t, files, taskForFiles);
 
             fileCount = files.Count;
             filesList = files.Select(f => new Dictionary<string, object>
@@ -1026,6 +1034,145 @@ public class TransmissionRpcController : ControllerBase
         var addedDate = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
         var doneDate = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
         var isError = t.Status == TorrentStatus.Error;
+
+        var trackersList = new List<object>();
+        var trackerStatsList = new List<object>();
+        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+        if (dbTrackers.Count > 0)
+        {
+            for (int i = 0; i < dbTrackers.Count; i++)
+            {
+                var trk = dbTrackers[i];
+                trackersList.Add(new
+                {
+                    announce = trk.Url ?? string.Empty,
+                    id = trk.Id > 0 ? trk.Id : i + 1,
+                    scrape = string.Empty,
+                    tier = trk.Tier,
+                });
+                trackerStatsList.Add(new
+                {
+                    announce = trk.Url ?? string.Empty,
+                    id = trk.Id > 0 ? trk.Id : i + 1,
+                    scrape = string.Empty,
+                    tier = trk.Tier,
+                    host = trk.Url ?? string.Empty,
+                    isBackup = false,
+                    lastAnnouncePeerCount = trk.Seeders + trk.Leechers,
+                    lastAnnounceResult = trk.ErrorMessage ?? "Success",
+                    lastAnnounceStartTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    lastAnnounceSucceeded = string.IsNullOrEmpty(trk.ErrorMessage) && trk.Status != 2,
+                    lastAnnounceTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    lastAnnounceTimedOut = false,
+                    lastScrapeResult = string.Empty,
+                    lastScrapeStartTime = 0L,
+                    lastScrapeSucceeded = true,
+                    lastScrapeTime = 0L,
+                    lastScrapeTimedOut = false,
+                    leecherCount = trk.Leechers,
+                    nextAnnounceTime = trk.NextAnnounce.HasValue ? new DateTimeOffset(trk.NextAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    nextScrapeTime = 0L,
+                    scrapeResponse = string.Empty,
+                    seederCount = trk.Seeders,
+                    downloadCount = trk.Downloaded,
+                });
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
+        {
+            trackersList.Add(new
+            {
+                announce = t.TrackerUrl,
+                id = 1,
+                scrape = string.Empty,
+                tier = 0,
+            });
+            trackerStatsList.Add(new
+            {
+                announce = t.TrackerUrl,
+                id = 1,
+                scrape = string.Empty,
+                tier = 0,
+                host = t.TrackerUrl,
+                isBackup = false,
+                lastAnnouncePeerCount = t.Seeders + t.Leechers,
+                lastAnnounceResult = "Success",
+                lastAnnounceStartTime = addedDate,
+                lastAnnounceSucceeded = true,
+                lastAnnounceTime = addedDate,
+                lastAnnounceTimedOut = false,
+                lastScrapeResult = string.Empty,
+                lastScrapeStartTime = 0L,
+                lastScrapeSucceeded = true,
+                lastScrapeTime = 0L,
+                lastScrapeTimedOut = false,
+                leecherCount = t.Leechers,
+                nextAnnounceTime = addedDate + 1800,
+                nextScrapeTime = 0L,
+                scrapeResponse = string.Empty,
+                seederCount = t.Seeders,
+                downloadCount = 0L,
+            });
+        }
+
+        var peersList = new List<object>();
+        var downloadTask = this.downloadEngine?.GetTask(t.Id);
+        var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
+        foreach (var p in swarmPeers)
+        {
+            peersList.Add(new
+            {
+                address = p.Ip ?? string.Empty,
+                clientName = p.Client ?? string.Empty,
+                clientIsChoked = true,
+                clientIsInterested = true,
+                flagStr = p.Flags ?? string.Empty,
+                isDownloadingFrom = p.DownloadSpeed > 0,
+                isEncrypted = p.IsEncrypted,
+                isIncoming = false,
+                isUploadingTo = p.UploadSpeed > 0,
+                isUTP = p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true,
+                peerIsChoked = false,
+                peerIsInterested = false,
+                port = p.Port,
+                progress = p.Progress,
+                rateToClient = p.DownloadSpeed,
+                rateToPeer = p.UploadSpeed,
+            });
+        }
+
+        var pieceLength = t.PieceLength > 0 ? t.PieceLength : (downloadTask?.PieceLength > 0 ? downloadTask.PieceLength : 0);
+        var pieceCount = t.PieceCount > 0
+            ? t.PieceCount
+            : (pieceLength > 0 ? (int)Math.Ceiling((double)t.TotalSize / pieceLength) : 0);
+
+        string piecesBase64 = string.Empty;
+        var bitfield = downloadTask?.PieceBitfield;
+        if (bitfield != null && bitfield.Length > 0)
+        {
+            int numBytes = (bitfield.Length + 7) / 8;
+            byte[] bytes = new byte[numBytes];
+            for (int i = 0; i < bitfield.Length; i++)
+            {
+                if (bitfield[i])
+                {
+                    bytes[i / 8] |= (byte)(0x80 >> (i % 8));
+                }
+            }
+
+            piecesBase64 = Convert.ToBase64String(bytes);
+        }
+        else if (t.Progress >= 1.0 && pieceCount > 0)
+        {
+            int numBytes = (pieceCount + 7) / 8;
+            byte[] bytes = new byte[numBytes];
+            for (int i = 0; i < numBytes; i++)
+            {
+                bytes[i] = 0xFF;
+            }
+
+            piecesBase64 = Convert.ToBase64String(bytes);
+        }
 
         var dict = new Dictionary<string, object>
         {
@@ -1075,6 +1222,16 @@ public class TransmissionRpcController : ControllerBase
             { "files", filesList },
             { "fileStats", fileStats },
             { "priorities", priorities },
+            { "trackers", trackersList },
+            { "trackerStats", trackerStatsList },
+            { "peers", peersList },
+            { "peersFrom", new { fromCache = 0, fromDht = 0, fromIncoming = 0, fromLpd = 0, fromPex = 0, fromTracker = t.Seeders + t.Leechers } },
+            { "pieceCount", pieceCount },
+            { "pieceSize", pieceLength },
+            { "pieces", piecesBase64 },
+            { "creator", t.CreatedBy ?? string.Empty },
+            { "comment", t.Comment ?? string.Empty },
+            { "dateCreated", addedDate },
         };
 
         if (requestedFields != null && requestedFields.Count > 0)

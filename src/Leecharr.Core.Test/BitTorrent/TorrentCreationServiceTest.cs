@@ -413,4 +413,53 @@ public class TorrentCreationServiceTest
         result.Success.Should().BeTrue();
         File.Exists(result.OutputPath).Should().BeTrue();
     }
+
+    [TestCase(1000)]
+    [TestCase(30000)]
+    [TestCase(8192)]
+    [TestCase(134217728)]
+    public async Task CreateTorrentAsync_WhenPieceLengthInvalid_ReturnsFailure(int pieceLength)
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[65536]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            PieceLength = pieceLength,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Piece length must be a power of 2 between 16 KB");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WithMultipleTrackers_CreatesSeparateTiersPerBEP12()
+    {
+        var sourceFile = Path.Combine(this.testDir, "data.bin");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Trackers = new List<string>
+            {
+                "http://tracker1.com/announce",
+                "http://tracker2.com/announce",
+            },
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+
+        var loaded = MonoTorrent.Torrent.Load(result.TorrentFileBytes);
+        loaded.AnnounceUrls.Count.Should().Be(2);
+        loaded.AnnounceUrls[0].Should().Contain("http://tracker1.com/announce");
+        loaded.AnnounceUrls[1].Should().Contain("http://tracker2.com/announce");
+    }
 }

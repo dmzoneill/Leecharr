@@ -265,28 +265,21 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                 }
                 else if (string.Equals(trackType, "Audio", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (string.IsNullOrEmpty(info.AudioCodec))
+                    var audioFmt = string.Empty;
+                    if (track.TryGetProperty("Format_Commercial_IfAny", out var commFmt))
                     {
-                        var audioFmt = string.Empty;
-                        if (track.TryGetProperty("Format_Commercial_IfAny", out var commFmt))
-                        {
-                            audioFmt = commFmt.GetString();
-                        }
-                        else if (track.TryGetProperty("Format", out var aFmt))
-                        {
-                            audioFmt = aFmt.GetString();
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(audioFmt))
-                        {
-                            info.AudioCodec = audioFmt;
-                        }
+                        audioFmt = commFmt.GetString();
+                    }
+                    else if (track.TryGetProperty("Format", out var aFmt))
+                    {
+                        audioFmt = aFmt.GetString();
                     }
 
-                    if (string.IsNullOrEmpty(info.AudioChannels) && track.TryGetProperty("Channels", out var chanProp) &&
+                    string channelsStr = null;
+                    if (track.TryGetProperty("Channels", out var chanProp) &&
                         TryGetInt(chanProp, out var channels))
                     {
-                        info.AudioChannels = channels switch
+                        channelsStr = channels switch
                         {
                             1 => "1.0",
                             2 => "2.0",
@@ -296,16 +289,32 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                         };
                     }
 
-                    if (info.AudioSampleRate == 0 && track.TryGetProperty("SamplingRate", out var srProp) &&
-                        TryGetInt(srProp, out var sampleRate))
-                    {
-                        info.AudioSampleRate = sampleRate;
-                    }
+                    var incomingScore = GetAudioCodecScore(audioFmt);
+                    var currentScore = GetAudioCodecScore(info.AudioCodec);
 
-                    if (info.AudioBitDepth == 0 && track.TryGetProperty("BitDepth", out var bdProp) &&
-                        TryGetInt(bdProp, out var bitDepth))
+                    if (string.IsNullOrEmpty(info.AudioCodec) || incomingScore > currentScore)
                     {
-                        info.AudioBitDepth = bitDepth;
+                        if (!string.IsNullOrWhiteSpace(audioFmt))
+                        {
+                            info.AudioCodec = audioFmt;
+                        }
+
+                        if (!string.IsNullOrEmpty(channelsStr))
+                        {
+                            info.AudioChannels = channelsStr;
+                        }
+
+                        if (track.TryGetProperty("SamplingRate", out var srProp) &&
+                            TryGetInt(srProp, out var sampleRate))
+                        {
+                            info.AudioSampleRate = sampleRate;
+                        }
+
+                        if (track.TryGetProperty("BitDepth", out var bdProp) &&
+                            TryGetInt(bdProp, out var bitDepth))
+                        {
+                            info.AudioBitDepth = bitDepth;
+                        }
                     }
                 }
                 else if (string.Equals(trackType, "Text", StringComparison.OrdinalIgnoreCase))
@@ -393,6 +402,79 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
 
         value = 0;
         return false;
+    }
+
+    private static int GetAudioCodecScore(string codec)
+    {
+        if (string.IsNullOrWhiteSpace(codec))
+        {
+            return 0;
+        }
+
+        if (codec.Contains("TrueHD", StringComparison.OrdinalIgnoreCase) || codec.Contains("Atmos", StringComparison.OrdinalIgnoreCase))
+        {
+            return 50;
+        }
+
+        if (codec.Contains("DTS:X", StringComparison.OrdinalIgnoreCase))
+        {
+            return 46;
+        }
+
+        if (codec.Contains("DTS-HD", StringComparison.OrdinalIgnoreCase))
+        {
+            return 45;
+        }
+
+        if (codec.Contains("FLAC", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("ALAC", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("Apple Lossless", StringComparison.OrdinalIgnoreCase))
+        {
+            return 35;
+        }
+
+        if (codec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("EAC3", StringComparison.OrdinalIgnoreCase))
+        {
+            return 25;
+        }
+
+        if (codec.Contains("DTS", StringComparison.OrdinalIgnoreCase))
+        {
+            return 20;
+        }
+
+        if (codec.Contains("AC3", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("Dolby Digital", StringComparison.OrdinalIgnoreCase))
+        {
+            return 15;
+        }
+
+        if (codec.Contains("Opus", StringComparison.OrdinalIgnoreCase))
+        {
+            return 12;
+        }
+
+        if (codec.Contains("AAC", StringComparison.OrdinalIgnoreCase))
+        {
+            return 10;
+        }
+
+        if (codec.Contains("Vorbis", StringComparison.OrdinalIgnoreCase))
+        {
+            return 8;
+        }
+
+        if (codec.Contains("MP3", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("MPEG", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("PCM", StringComparison.OrdinalIgnoreCase))
+        {
+            return 5;
+        }
+
+        return 1;
     }
 
     private string FindBinary()

@@ -91,7 +91,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
               ref={inputRef}
               type="text"
               className="language-selector-search-input"
-              placeholder="Search language..."
+              placeholder={t("common.searchLanguage", "Search language...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -132,7 +132,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
               );
             })}
             {filteredLanguages.length === 0 && (
-              <li className="language-selector-empty">No languages found</li>
+              <li className="language-selector-empty">{t("common.noLanguagesFound", "No languages found")}</li>
             )}
           </ul>
         </div>

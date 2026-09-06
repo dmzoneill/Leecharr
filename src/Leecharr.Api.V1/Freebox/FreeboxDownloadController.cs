@@ -246,6 +246,8 @@ public class FreeboxDownloadController : ControllerBase
                 {
                     TorrentStatus.Downloading => "downloading",
                     TorrentStatus.Seeding => "seeding",
+                    TorrentStatus.Completed => "done",
+                    TorrentStatus.Checking => "checking",
                     TorrentStatus.Paused => "stopped",
                     TorrentStatus.Stopped => isDone ? "done" : "stopped",
                     TorrentStatus.Error => "error",
