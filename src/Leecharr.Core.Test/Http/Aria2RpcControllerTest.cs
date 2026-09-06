@@ -597,6 +597,31 @@ public class Aria2RpcControllerTest
         dataElem!.Elements("value").Should().BeEmpty();
     }
 
+    [Test]
+    public async Task ChangeGlobalOption_JsonRpc_WithoutGid_SucceedsAndUpdatesConfig()
+    {
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "aria2.changeGlobalOption",
+              "params": [
+                {
+                  "max-overall-download-limit": "1048576",
+                  "max-overall-upload-limit": "524288"
+                }
+              ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetJsonRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 1024 && (int)d["MaxUploadSpeedKbps"] == 512));
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
