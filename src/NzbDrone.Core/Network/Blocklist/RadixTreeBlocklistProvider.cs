@@ -93,8 +93,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            var line = rawLine.Trim();
-            if (line.StartsWith('#') || line.StartsWith("//") || line.StartsWith(';'))
+            var line = StripComments(rawLine);
+            if (string.IsNullOrWhiteSpace(line))
             {
                 continue;
             }
@@ -135,6 +135,41 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             Volatile.Write(ref this.ipv6Root, new RadixNode());
             this.ruleCount = 0;
         }
+    }
+
+    private static string StripComments(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return string.Empty;
+        }
+
+        var commentIdx = -1;
+        var hashIdx = line.IndexOf('#');
+        var slashSlashIdx = line.IndexOf("//", System.StringComparison.Ordinal);
+        var semiIdx = line.IndexOf(';');
+
+        if (hashIdx >= 0)
+        {
+            commentIdx = hashIdx;
+        }
+
+        if (slashSlashIdx >= 0 && (commentIdx < 0 || slashSlashIdx < commentIdx))
+        {
+            commentIdx = slashSlashIdx;
+        }
+
+        if (semiIdx >= 0 && (commentIdx < 0 || semiIdx < commentIdx))
+        {
+            commentIdx = semiIdx;
+        }
+
+        if (commentIdx >= 0)
+        {
+            line = line[..commentIdx];
+        }
+
+        return line.Trim();
     }
 
     private static bool TryExtractRule(string line, out string rule)
