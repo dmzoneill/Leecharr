@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.FileBrowser;
@@ -52,11 +53,13 @@ public class FileBrowserService : IFileBrowserService
 {
     private readonly IDiskProvider diskProvider;
     private readonly IConfigService configService;
+    private readonly IAppFolderInfo appFolderInfo;
 
-    public FileBrowserService(IDiskProvider diskProvider, IConfigService configService)
+    public FileBrowserService(IDiskProvider diskProvider, IConfigService configService, IAppFolderInfo appFolderInfo = null)
     {
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
     }
 
     public FileBrowserListing ListDirectory(string path)
@@ -79,6 +82,7 @@ public class FileBrowserService : IFileBrowserService
         }
 
         var entries = new List<FileBrowserEntry>();
+        var allowedRoots = this.GetAllowedRoots();
 
         try
         {
@@ -87,6 +91,12 @@ public class FileBrowserService : IFileBrowserService
                 try
                 {
                     var info = new DirectoryInfo(dirPath);
+                    var linkTarget = info.ResolveLinkTarget(true);
+                    if (linkTarget != null && !IsWithinAllowedRoots(Path.GetFullPath(linkTarget.FullName), allowedRoots))
+                    {
+                        continue;
+                    }
+
                     entries.Add(new FileBrowserEntry
                     {
                         Name = info.Name,
@@ -113,6 +123,12 @@ public class FileBrowserService : IFileBrowserService
                 try
                 {
                     var info = new FileInfo(filePath);
+                    var linkTarget = info.ResolveLinkTarget(true);
+                    if (linkTarget != null && !IsWithinAllowedRoots(Path.GetFullPath(linkTarget.FullName), allowedRoots))
+                    {
+                        continue;
+                    }
+
                     entries.Add(new FileBrowserEntry
                     {
                         Name = info.Name,
@@ -162,6 +178,7 @@ public class FileBrowserService : IFileBrowserService
 
         var parent = this.GetParentPath(current);
         var dest = Path.Combine(parent, newName);
+        this.ResolvePath(dest);
 
         if (string.Equals(Path.GetFullPath(current), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
         {
@@ -194,6 +211,12 @@ public class FileBrowserService : IFileBrowserService
     {
         var target = this.ResolvePath(path);
 
+        var roots = this.GetAllowedRoots();
+        if (roots.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Cannot delete the root directory.");
+        }
+
         if (this.diskProvider.FolderExists(target))
         {
             this.diskProvider.DeleteFolder(target, true);
@@ -211,14 +234,101 @@ public class FileBrowserService : IFileBrowserService
             return this.GetDefaultPath();
         }
 
+        string fullPath;
         try
         {
-            return Path.GetFullPath(path);
+            fullPath = Path.GetFullPath(path);
         }
         catch
         {
-            return path;
+            throw new UnauthorizedAccessException($"Invalid path: {path}");
         }
+
+        var allowedRoots = this.GetAllowedRoots();
+        if (!IsWithinAllowedRoots(fullPath, allowedRoots))
+        {
+            throw new UnauthorizedAccessException($"Access to path '{path}' is not permitted.");
+        }
+
+        if (!this.IsSymlinkTargetAllowed(fullPath, allowedRoots))
+        {
+            throw new UnauthorizedAccessException($"Path '{path}' resolves to a location outside allowed directories.");
+        }
+
+        return fullPath;
+    }
+
+    private bool IsSymlinkTargetAllowed(string fullPath, List<string> allowedRoots)
+    {
+        try
+        {
+            var current = fullPath;
+            while (!string.IsNullOrEmpty(current))
+            {
+                if (this.diskProvider.FolderExists(current))
+                {
+                    var dirInfo = new DirectoryInfo(current);
+                    var linkTarget = dirInfo.ResolveLinkTarget(true);
+                    if (linkTarget != null)
+                    {
+                        var resolved = Path.GetFullPath(linkTarget.FullName);
+                        if (!IsWithinAllowedRoots(resolved, allowedRoots))
+                        {
+                            return false;
+                        }
+                    }
+
+                    break;
+                }
+                else if (this.diskProvider.FileExists(current))
+                {
+                    var fileInfo = new FileInfo(current);
+                    var linkTarget = fileInfo.ResolveLinkTarget(true);
+                    if (linkTarget != null)
+                    {
+                        var resolved = Path.GetFullPath(linkTarget.FullName);
+                        if (!IsWithinAllowedRoots(resolved, allowedRoots))
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                current = Path.GetDirectoryName(current);
+            }
+        }
+        catch
+        {
+            // Ignore resolution errors
+        }
+
+        return true;
+    }
+
+    private List<string> GetAllowedRoots()
+    {
+        var roots = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.DownloadDir))
+        {
+            roots.Add(Path.GetFullPath(this.configService.DownloadDir));
+        }
+        else
+        {
+            roots.Add(Path.GetFullPath("/downloads"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.IncompleteDownloadDir))
+        {
+            roots.Add(Path.GetFullPath(this.configService.IncompleteDownloadDir));
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.appFolderInfo?.AppDataFolder))
+        {
+            roots.Add(Path.GetFullPath(this.appFolderInfo.AppDataFolder));
+        }
+
+        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private string GetDefaultPath()
@@ -229,24 +339,74 @@ public class FileBrowserService : IFileBrowserService
             return Path.GetFullPath(this.configService.DownloadDir);
         }
 
-        var fallback = Directory.Exists("/downloads") ? "/downloads" : Path.GetFullPath(".");
-        return fallback;
+        if (this.diskProvider.FolderExists("/downloads"))
+        {
+            return Path.GetFullPath("/downloads");
+        }
+
+        var roots = this.GetAllowedRoots();
+        var existingRoot = roots.FirstOrDefault(r => this.diskProvider.FolderExists(r));
+        if (existingRoot != null)
+        {
+            return existingRoot;
+        }
+
+        return roots.FirstOrDefault() ?? Path.GetFullPath("/downloads");
     }
 
     private string GetParentPath(string path)
     {
+        var roots = this.GetAllowedRoots();
+        if (roots.Any(r => string.Equals(r, path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return path;
+        }
+
         var root = Path.GetPathRoot(path);
         if (!string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase))
         {
             return path;
         }
 
-        return Path.GetDirectoryName(path) ?? path;
+        var parent = Path.GetDirectoryName(path);
+        if (parent != null && IsWithinAllowedRoots(parent, roots))
+        {
+            return parent;
+        }
+
+        return path;
     }
 
     private bool IsRootPath(string path)
     {
+        var roots = this.GetAllowedRoots();
+        if (roots.Any(r => string.Equals(r, path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
         var root = Path.GetPathRoot(path);
         return !string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWithinAllowedRoots(string path, IEnumerable<string> allowedRoots)
+    {
+        var normalized = Path.GetFullPath(path);
+        foreach (var root in allowedRoots)
+        {
+            var normalizedRoot = Path.GetFullPath(root);
+            if (normalized.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var rootWithSep = normalizedRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (normalized.StartsWith(rootWithSep, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
