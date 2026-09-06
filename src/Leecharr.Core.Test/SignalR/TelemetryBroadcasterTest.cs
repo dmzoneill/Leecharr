@@ -113,4 +113,24 @@ public class TelemetryBroadcasterTest
         // Unblock worker to clean up
         tcs.SetResult();
     }
+
+    [Test]
+    public void PieceMapSignalREventHandler_DisposeDuringFlush_DoesNotThrow()
+    {
+        var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
+        broadcaster.IsConnected.Returns(true);
+
+        for (int i = 0; i < 20; i++)
+        {
+            var handler = new PieceMapSignalREventHandler(broadcaster, flushIntervalMs: 5);
+            for (int p = 0; p < 50; p++)
+            {
+                handler.Handle(new PieceVerifiedEvent(1, p));
+            }
+
+            // Dispose immediately while periodic timer may be triggering or active
+            Action act = () => handler.Dispose();
+            act.Should().NotThrow();
+        }
+    }
 }
