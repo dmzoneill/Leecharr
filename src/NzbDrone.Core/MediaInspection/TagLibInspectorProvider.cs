@@ -345,6 +345,28 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     }
 
                     break;
+
+                case 0x55B7: // TransferCharacteristics
+                    var tc = ReadEbmlUInt(header, offset, elemSize);
+                    if (tc == 16 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HDR10";
+                    }
+                    else if (tc == 18 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HLG";
+                    }
+
+                    break;
+
+                case 0x55B8: // Primaries
+                    var primaries = ReadEbmlUInt(header, offset, elemSize);
+                    if (primaries == 9 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HDR10";
+                    }
+
+                    break;
             }
 
             offset += elemSize;
@@ -479,7 +501,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             || id == 0x1654AE6B
             || id == 0xAE
             || id == 0xE0
-            || id == 0xE1;
+            || id == 0xE1
+            || id == 0x55B0
+            || id == 0x55BB;
     }
 
     private static bool ReadElementId(byte[] data, ref int offset, out uint id, out int idLen)
@@ -1522,6 +1546,27 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (cType == "dvcC" || cType == "dvvC")
             {
                 info.HdrFormat = "Dolby Vision";
+            }
+            else if (cType == "colr" && childOffset + 16 <= childLimit && childOffset + 16 <= data.Length)
+            {
+                string colrType = System.Text.Encoding.ASCII.GetString(data, childOffset + 8, 4);
+                if (colrType == "nclx")
+                {
+                    ushort primaries = (ushort)((data[childOffset + 12] << 8) | data[childOffset + 13]);
+                    ushort transferChar = (ushort)((data[childOffset + 14] << 8) | data[childOffset + 15]);
+                    if (transferChar == 16 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HDR10";
+                    }
+                    else if (transferChar == 18 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HLG";
+                    }
+                    else if (primaries == 9 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    {
+                        info.HdrFormat = "HDR10";
+                    }
+                }
             }
 
             childOffset += (int)cSize;

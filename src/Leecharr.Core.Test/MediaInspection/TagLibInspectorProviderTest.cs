@@ -316,6 +316,55 @@ public class TagLibInspectorProviderTest
         result.SubtitleTracks.Should().Contain("WebVTT");
     }
 
+    [Test]
+    public void Inspect_Matroska_WithHdr10ColourElement_DetectsHdr10()
+    {
+        var ebmlData = CreateMatroskaHeaderWithColour("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, 16, 9);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "sample.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("HDR10");
+        result.Resolution.Should().Be("4K UHD (2160p)");
+    }
+
+    [Test]
+    public void Inspect_Matroska_WithHlgColourElement_DetectsHlg()
+    {
+        var ebmlData = CreateMatroskaHeaderWithColour("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, 18, 9);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "sample.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("HLG");
+    }
+
+    [Test]
+    public void Inspect_Mp4_WithColrBox_DetectsHdr10()
+    {
+        var colrBox = CreateColrBox(9, 16, 9);
+        var videoEntry = CreateVisualSampleEntryWithExtraBox("hvc1", 3840, 2160, colrBox);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+        var moov = CreateMoovBox(videoTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("HDR10");
+    }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,
@@ -581,6 +630,96 @@ public class TagLibInspectorProviderTest
 
         var payload = ms.ToArray();
         return CreateMp4Box(format, payload);
+    }
+
+    private static byte[] CreateVisualSampleEntryWithExtraBox(string format, ushort width, ushort height, byte[] extraBox)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[6], 0, 6);
+        ms.Write(new byte[] { 0, 1 }, 0, 2);
+        ms.Write(new byte[16], 0, 16);
+        ms.WriteByte((byte)(width >> 8));
+        ms.WriteByte((byte)(width & 0xFF));
+        ms.WriteByte((byte)(height >> 8));
+        ms.WriteByte((byte)(height & 0xFF));
+        ms.Write(new byte[] { 0x00, 0x48, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0, 0, 0, 0, 0, 1 }, 0, 14);
+        ms.Write(new byte[32], 0, 32);
+        ms.Write(new byte[] { 0x00, 0x18, 0xFF, 0xFF }, 0, 4);
+
+        if (extraBox != null && extraBox.Length > 0)
+        {
+            ms.Write(extraBox, 0, extraBox.Length);
+        }
+
+        var payload = ms.ToArray();
+        return CreateMp4Box(format, payload);
+    }
+
+    private static byte[] CreateColrBox(ushort primaries, ushort transferCharacteristics, ushort matrixCoefficients)
+    {
+        using var ms = new MemoryStream();
+        var nclxBytes = Encoding.ASCII.GetBytes("nclx");
+        ms.Write(nclxBytes, 0, 4);
+        ms.WriteByte((byte)(primaries >> 8));
+        ms.WriteByte((byte)(primaries & 0xFF));
+        ms.WriteByte((byte)(transferCharacteristics >> 8));
+        ms.WriteByte((byte)(transferCharacteristics & 0xFF));
+        ms.WriteByte((byte)(matrixCoefficients >> 8));
+        ms.WriteByte((byte)(matrixCoefficients & 0xFF));
+        ms.WriteByte(1); // full range flag
+        return CreateMp4Box("colr", ms.ToArray());
+    }
+
+    private static byte[] CreateMatroskaHeaderWithColour(string docType, string videoCodecId, int width, int height, ulong transferChar, ulong primaries)
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header (0x1A45DFA3)
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment (0x18538067)
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Tracks (0x1654AE6B)
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // 4. Video TrackEntry (0xAE)
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+
+        // Video Settings (0xE0)
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        // Colour Settings (0x55B0)
+        WriteId(ms, 0x55B0);
+        WriteSize(ms, -1);
+        if (transferChar > 0)
+        {
+            WriteEbmlUInt(ms, 0x55B7, transferChar);
+        }
+
+        if (primaries > 0)
+        {
+            WriteEbmlUInt(ms, 0x55B8, primaries);
+        }
+
+        return ms.ToArray();
     }
 
     private static byte[] CreateAudioSampleEntry(string format, ushort channels, ushort sampleSize, uint sampleRate)
