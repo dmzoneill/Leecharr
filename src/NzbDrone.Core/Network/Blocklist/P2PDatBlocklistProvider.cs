@@ -265,7 +265,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         for (var i = 1; i < sorted.Count; i++)
         {
             var next = sorted[i];
-            if (next.Start <= current.End + 1)
+            if (current.End == uint.MaxValue || next.Start <= current.End + 1)
             {
                 current = new IpRange(current.Start, Math.Max(current.End, next.End), current.Name);
             }
