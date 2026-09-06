@@ -145,7 +145,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                 var insertSql = TableMapping.GetInsertSql(this.table, insertList[0]);
                 var querySql = isSqlite
                     ? insertSql + "; SELECT last_insert_rowid()"
-                    : insertSql + " RETURNING "Idstring.Empty;
+                    : insertSql + " RETURNING \"Id\"";
 
                 foreach (var model in insertList)
                 {
