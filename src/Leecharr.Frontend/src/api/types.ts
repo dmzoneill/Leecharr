@@ -61,7 +61,7 @@ export interface Torrent {
   overview?: string | null;
   mediaRating?: number | null;
   rating?: number | null;
-  genres?: string[];
+  genres?: string[] | string | null;
   trackers?: string[];
   source?: string | null;
   targetRatio?: number;
@@ -762,7 +762,7 @@ export interface TrackerServerTorrent {
   mediaTitle?: string | null;
   year?: number | null;
   rating?: number | null;
-  genres?: string[];
+  genres?: string[] | string | null;
   source?: string | null;
   totalSize?: number;
   ratio?: number;
@@ -914,7 +914,7 @@ export interface MediaMetadata {
   posterUrl?: string | null;
   fanartUrl?: string | null;
   bannerUrl?: string | null;
-  genres?: string[];
+  genres?: string[] | string | null;
   actors?: MediaActor[];
   studioOrNetwork?: string | null;
   rating?: number | null;
@@ -1153,7 +1153,7 @@ export interface MediaMetadata {
   fanartUrl?: string | null;
   backdropUrl?: string | null;
   bannerUrl?: string | null;
-  genres?: string[];
+  genres?: string[] | string | null;
   actors?: MediaActor[];
   studioOrNetwork?: string | null;
   rating?: number | null;
