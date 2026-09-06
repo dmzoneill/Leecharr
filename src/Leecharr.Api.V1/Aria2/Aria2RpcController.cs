@@ -951,11 +951,11 @@ public class Aria2RpcController : ControllerBase
                     new global::System.Xml.Linq.XElement(
                         "member",
                         new global::System.Xml.Linq.XElement("name", "max-overall-download-limit"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0"))),
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (this.configService.MaxDownloadSpeedKbps * 1024).ToString()))),
                     new global::System.Xml.Linq.XElement(
                         "member",
                         new global::System.Xml.Linq.XElement("name", "max-overall-upload-limit"),
-                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", "0"))));
+                        new global::System.Xml.Linq.XElement("value", new global::System.Xml.Linq.XElement("string", (this.configService.MaxUploadSpeedKbps * 1024).ToString()))));
 
             case "aria2.tellactive":
                 var activeList = this.torrentService.GetAll()
