@@ -1,12 +1,21 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.HealthCheck;
 using NzbDrone.Core.HealthCheck.Checks;
+using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.MediaEnrichment.Providers;
+using NzbDrone.Core.MediaInspection;
+using NzbDrone.Core.Network.Binding;
 
 namespace Leecharr.Core.Test.HealthCheck;
 
@@ -24,14 +33,14 @@ public class HealthCheckTest
     }
 
     [Test]
-    public void NoArrConnectionsCheck_ReturnsWarning_WhenNoConnectionsConfigured()
+    public void NoArrConnectionsCheck_ReturnsNotice_WhenNoConnectionsConfigured()
     {
         this.arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>());
 
         var check = new NoArrConnectionsCheck(this.arrRepo);
         var result = check.Check();
 
-        Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Warning));
+        Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Notice));
         Assert.That(result.Source, Is.EqualTo("NoArrConnections"));
         Assert.That(result.Message, Does.Contain("No *arr connections configured"));
     }
@@ -75,6 +84,102 @@ public class HealthCheckTest
         var result = check.Check();
 
         Assert.That(result.Type, Is.EqualTo(HealthCheckResultType.Ok));
+    }
+
+    [Test]
+    public void EngineHealthCheck_ReturnsOk_WhenEngineIsHealthy()
+    {
+        var engine = Substitute.For<IDownloadEngine>();
+        engine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new EngineHealthCheck(engine);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("EngineHealth");
+    }
+
+    [Test]
+    public void EngineHealthCheck_ReturnsError_WhenEngineIsUnhealthy()
+    {
+        var engine = Substitute.For<IDownloadEngine>();
+        engine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = false, StatusMessage = "Engine failed" }));
+
+        var check = new EngineHealthCheck(engine);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Message.Should().Contain("Engine failed");
+    }
+
+    [Test]
+    public void NetworkBindingHealthCheck_ReturnsOk_WhenHealthy()
+    {
+        var manager = Substitute.For<INetworkBindingManager>();
+        manager.ActiveProviderId.Returns("ManagedSocket");
+        manager.ProbeProviderAsync("ManagedSocket").Returns(Task.FromResult(new NetworkBindingHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new NetworkBindingHealthCheck(manager);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("NetworkBindingHealth");
+    }
+
+    [Test]
+    public void HttpTransportHealthCheck_ReturnsOk_WhenHealthy()
+    {
+        var manager = Substitute.For<IHttpTransportManager>();
+        manager.ActiveProviderId.Returns("SocketsHttpHandler");
+        manager.ProbeProviderAsync("SocketsHttpHandler").Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new HttpTransportHealthCheck(manager);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("HttpTransportHealth");
+    }
+
+    [Test]
+    public void ExtractorHealthCheck_ReturnsOk_WhenHealthy()
+    {
+        var manager = Substitute.For<IArchiveExtractorManager>();
+        manager.ActiveProviderId.Returns("SharpCompress");
+        manager.ProbeProviderAsync("SharpCompress", Arg.Any<CancellationToken>()).Returns(Task.FromResult(new ExtractorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new ExtractorHealthCheck(manager);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("ExtractorHealth");
+    }
+
+    [Test]
+    public void MediaMetadataHealthCheck_ReturnsOk_WhenHealthy()
+    {
+        var manager = Substitute.For<IMediaMetadataManager>();
+        manager.ActiveProviderId.Returns("ServarrSync");
+        manager.ProbeProviderAsync("ServarrSync").Returns(Task.FromResult(new MediaMetadataHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new MediaMetadataHealthCheck(manager);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("MediaMetadataHealth");
+    }
+
+    [Test]
+    public void MediaInspectorHealthCheck_ReturnsOk_WhenHealthy()
+    {
+        var manager = Substitute.For<IMediaInspectorManager>();
+        manager.ActiveProviderId.Returns("TagLib");
+        manager.ProbeProviderAsync("TagLib", Arg.Any<CancellationToken>()).Returns(Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var check = new MediaInspectorHealthCheck(manager);
+        var result = check.Check();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("MediaInspectorHealth");
     }
 
     [Test]
