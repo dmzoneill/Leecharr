@@ -8,6 +8,7 @@ import {
   useRenameFileEntry,
   useDeleteFileEntry,
   useBatchDeleteFiles,
+  usePasteFiles,
   useFilePreview,
 } from "../api/hooks";
 import { formatBytes } from "../utils/formatters";
@@ -60,6 +61,7 @@ export function FileBrowser() {
   const renameMutation = useRenameFileEntry();
   const deleteMutation = useDeleteFileEntry();
   const batchDeleteMutation = useBatchDeleteFiles();
+  const pasteMutation = usePasteFiles();
   const { data: previewData, isLoading: isPreviewLoading } = useFilePreview(
     previewPath || undefined,
     !!previewPath,
@@ -253,6 +255,50 @@ export function FileBrowser() {
         handleDownloadFile(file.path);
       }
     });
+  };
+
+  const handleCut = (selectedFiles: FileManagerFile[]) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    showToast(
+      `Cut ${selectedFiles.length} item${selectedFiles.length === 1 ? "" : "s"}. Navigate to a destination folder to Paste.`,
+      "info",
+    );
+  };
+
+  const handleCopy = (selectedFiles: FileManagerFile[]) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    showToast(
+      `Copied ${selectedFiles.length} item${selectedFiles.length === 1 ? "" : "s"}. Navigate to a destination folder to Paste.`,
+      "info",
+    );
+  };
+
+  const handlePaste = async (
+    copiedFiles: FileManagerFile[],
+    destinationFolder: FileManagerFile,
+    operationType: "copy" | "move",
+  ) => {
+    if (!copiedFiles || copiedFiles.length === 0) return;
+    try {
+      const dest = destinationFolder?.path || activePath || "/downloads";
+      await pasteMutation.mutateAsync({
+        sources: copiedFiles.map((f) => f.path),
+        destination: dest,
+        operation: operationType,
+      });
+      showToast(
+        `${operationType === "move" ? "Moved" : "Copied"} ${copiedFiles.length} item${copiedFiles.length === 1 ? "" : "s"} to "${destinationFolder?.name || dest}"`,
+        "success",
+      );
+      refetch();
+    } catch (err: any) {
+      showToast(err?.message || `Failed to ${operationType} item(s)`, "error");
+    }
+  };
+
+  const handleFileUploaded = () => {
+    showToast("File uploaded successfully", "success");
+    refetch();
   };
 
   const segments = getPathSegments(currentPath || listing?.path || "/");
@@ -494,11 +540,17 @@ export function FileBrowser() {
           enableFilePreview={false}
           height="100%"
           permissions={{
-            upload: false,
             create: true,
+            upload: true,
+            move: true,
+            copy: true,
             rename: true,
-            delete: true,
             download: true,
+            delete: true,
+          }}
+          fileUploadConfig={{
+            url: `/api/v1/files/upload?path=${encodeURIComponent(activePath)}`,
+            method: "POST",
           }}
           onFolderChange={handleFolderChange}
           onFileOpen={handleFileOpen}
@@ -506,6 +558,10 @@ export function FileBrowser() {
           onRename={handleRename}
           onDelete={handleDelete}
           onDownload={handleDownload}
+          onCut={handleCut}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onFileUploaded={handleFileUploaded}
           onRefresh={() => refetch()}
         />
       </div>
