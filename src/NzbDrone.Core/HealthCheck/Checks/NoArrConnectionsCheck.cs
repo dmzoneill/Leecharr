@@ -19,7 +19,7 @@ public class NoArrConnectionsCheck : IHealthCheck
         var connections = this.arrRepo.GetEnabled();
         if (!connections.Any())
         {
-            return HealthCheckResult.Warning(
+            return HealthCheckResult.Notice(
                 "NoArrConnections",
                 "No *arr connections configured. Connect Sonarr, Radarr, or Lidarr in Settings > Connections to enable deep media enrichment and posters.");
         }
