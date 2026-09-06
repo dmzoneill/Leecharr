@@ -341,13 +341,13 @@ public class FloodApiController : ControllerBase, IActionFilter
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
                 eta = t.Eta,
-                status = new[] { this.MapToFloodStatus(t.Status) },
+                status = new[] { this.MapToFloodStatus(t.Status, t) },
                 tags = string.IsNullOrWhiteSpace(t.Category)
                     ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
                     : new[] { t.Category },
                 directory = t.SavePath ?? string.Empty,
-                isPrivate = false,
-                isInitialSeeding = false,
+                isPrivate = t.IsPrivate,
+                isInitialSeeding = t.InitialSeeding,
                 isSequential = t.SequentialDownload,
                 seedsConnected = t.Seeders,
                 seedsTotal = t.Seeders,
@@ -359,14 +359,14 @@ public class FloodApiController : ControllerBase, IActionFilter
         return this.Ok(new { torrents = dict });
     }
 
-    private string MapToFloodStatus(TorrentStatus status)
+    private string MapToFloodStatus(TorrentStatus status, Torrent t)
     {
         return status switch
         {
             TorrentStatus.Downloading => "downloading",
             TorrentStatus.Seeding => "seeding",
             TorrentStatus.Paused => "stopped",
-            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Stopped => (t != null && (t.Progress >= 1.0 || t.DateCompleted.HasValue)) ? "complete" : "stopped",
             _ => "inactive",
         };
     }

@@ -654,4 +654,71 @@ public class Aria2RpcControllerTest
         await this.torrentFileService.Received(1).SetPriorityAsync(1, 3);
         await this.torrentFileService.Received(1).SetPriorityAsync(2, 0);
     }
+
+    [Test]
+    public async Task TellStatus_WhenStoppedAndIncomplete_ReturnsPaused()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "Incomplete.Stopped",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 0.45,
+            TotalSize = 1000,
+            Downloaded = 450,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody(3901191"""
+            {
+              "jsonrpc": "2.0",
+              "id": 101,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(ok.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("paused");
+    }
+
+    [Test]
+    public async Task TellStatus_WhenStoppedAndComplete_ReturnsComplete()
+    {
+        var torrent = new Torrent
+        {
+            Id = 100,
+            Name = "Complete.Stopped",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+            TotalSize = 1000,
+            Downloaded = 1000,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody(3901191"""
+            {
+              "jsonrpc": "2.0",
+              "id": 102,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(ok.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("complete");
+    }
 }
