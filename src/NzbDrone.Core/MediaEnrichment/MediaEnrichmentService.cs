@@ -55,7 +55,6 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     private readonly IMediaMetadataService mediaMetadataService;
     private readonly IArrConnectionRepository arrRepository;
     private readonly ISafeHttpClientService safeHttpClientService;
-    private readonly HttpClient httpClient;
     private readonly Logger logger;
 
     public MediaEnrichmentService(
@@ -78,7 +77,6 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         this.mediaMetadataService = mediaMetadataService;
         this.arrRepository = arrRepository;
         this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : (transportEngine != null ? new SafeHttpClientService(transportEngine) : new SafeHttpClientService()));
-        this.httpClient = httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) } : new HttpClient { Timeout = TimeSpan.FromSeconds(15) });
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -336,28 +334,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             }
             catch (Exception ex)
             {
-                this.logger.Debug(ex, "SafeHttpClient blocked or failed downloading artwork from {0}, trying direct client fallback", url);
-                try
-                {
-                    using var req = new HttpRequestMessage(HttpMethod.Get, uri);
-                    if (customHeaders != null)
-                    {
-                        foreach (var (header, value) in customHeaders)
-                        {
-                            req.Headers.TryAddWithoutValidation(header, value);
-                        }
-                    }
-
-                    using var resp = await this.httpClient.SendAsync(req);
-                    if (resp.IsSuccessStatusCode)
-                    {
-                        bytes = await resp.Content.ReadAsByteArrayAsync();
-                    }
-                }
-                catch (Exception directEx)
-                {
-                    this.logger.Warn(directEx, "Direct fallback failed to download artwork from {0}", url);
-                }
+                this.logger.Warn(ex, "Failed downloading artwork from {0}", url);
+                return null;
             }
 
             if (bytes == null || !IsValidImage(bytes))
