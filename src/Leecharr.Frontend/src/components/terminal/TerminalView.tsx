@@ -101,10 +101,11 @@ export function TerminalView({
     }
 
     // Build WebSocket URL
+    const sanitizedCwd = (cwd || "").replace(/[\x00-\x1F\x7F\x1B]/g, "").trim();
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const apiKey = apiClient.getApiKey();
     const params = new URLSearchParams({
-      cwd: cwd || "",
+      cwd: sanitizedCwd,
       cols: Math.max(10, term.cols || 80).toString(),
       rows: Math.max(5, term.rows || 24).toString(),
     });
@@ -126,8 +127,10 @@ export function TerminalView({
       setConnected(true);
       setConnecting(false);
       term.writeln("\x1b[1;33m⚡ Connected to Leecharr Native Shell\x1b[0m");
-      if (cwd) {
-        term.writeln(`\x1b[90m📂 Working directory: ${cwd}\x1b[0m\r\n`);
+      if (sanitizedCwd) {
+        term.writeln(
+          `\x1b[90m📂 Working directory: ${sanitizedCwd}\x1b[0m\r\n`,
+        );
       }
       fitAddon.fit();
 

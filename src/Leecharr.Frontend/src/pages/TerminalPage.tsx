@@ -3,14 +3,28 @@ import { useLocation } from "react-router";
 import { TerminalView } from "../components/terminal/TerminalView";
 import { useBitTorrentConfig } from "../api/hooks";
 
+const SAFE_PATH_REGEX = /^[a-zA-Z0-9_\-./ ]+$/;
+
+function sanitizeInitialPath(rawPath: string | null): string | null {
+  if (!rawPath) return null;
+  const stripped = rawPath.replace(/[\x00-\x1F\x7F\x1B]/g, "").trim();
+  if (!stripped || !SAFE_PATH_REGEX.test(stripped)) {
+    return null;
+  }
+  return stripped;
+}
+
 export function TerminalPage() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const initialPath = queryParams.get("path");
+  const rawPath = queryParams.get("path");
+  const initialPath = sanitizeInitialPath(rawPath);
 
   const { data: config } = useBitTorrentConfig();
   const [downloadDir, setDownloadDir] = useState<string>("/downloads");
-  const [activePath, setActivePath] = useState<string>(initialPath || "/downloads");
+  const [activePath, setActivePath] = useState<string>(
+    initialPath || "/downloads",
+  );
   const [customPath, setCustomPath] = useState<string>("");
 
   useEffect(() => {
@@ -24,8 +38,9 @@ export function TerminalPage() {
 
   const handleApplyCustom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customPath.trim()) {
-      setActivePath(customPath.trim());
+    const sanitized = sanitizeInitialPath(customPath);
+    if (sanitized) {
+      setActivePath(sanitized);
     }
   };
 

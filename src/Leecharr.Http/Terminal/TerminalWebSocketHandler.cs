@@ -57,17 +57,25 @@ public static class TerminalWebSocketHandler
         string requestedCwd = context.Request.Query["cwd"];
         string cwd = null;
 
-        if (!string.IsNullOrWhiteSpace(requestedCwd) && Directory.Exists(requestedCwd))
+        if (!string.IsNullOrWhiteSpace(requestedCwd))
         {
-            cwd = requestedCwd;
+            var cleaned = new string(requestedCwd.Where(ch => !char.IsControl(ch) && ch != '\x1b').ToArray()).Trim();
+            if (!string.IsNullOrWhiteSpace(cleaned) && Directory.Exists(cleaned))
+            {
+                cwd = cleaned;
+            }
         }
-        else if (!string.IsNullOrWhiteSpace(configService.DownloadDir) && Directory.Exists(configService.DownloadDir))
+
+        if (cwd == null)
         {
-            cwd = configService.DownloadDir;
-        }
-        else
-        {
-            cwd = Directory.GetCurrentDirectory();
+            if (!string.IsNullOrWhiteSpace(configService.DownloadDir) && Directory.Exists(configService.DownloadDir))
+            {
+                cwd = configService.DownloadDir;
+            }
+            else
+            {
+                cwd = Directory.GetCurrentDirectory();
+            }
         }
 
         int cols = int.TryParse(context.Request.Query["cols"], out int c) ? Math.Max(10, c) : 100;
