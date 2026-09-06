@@ -53,6 +53,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        python3 \
         transmission-daemon \
         libtorrent-rasterbar-dev \
         p7zip-full \
