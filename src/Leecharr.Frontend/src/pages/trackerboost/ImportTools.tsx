@@ -49,7 +49,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const handleHarvestDownloads = () => {
     harvestDownloads.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Harvested ${res.harvestedCount} new trackers from active downloads`, "success");
+        showToast(
+          `Harvested ${res.harvestedCount} new trackers from active downloads`,
+          "success",
+        );
       },
       onError: (err) => {
         showToast(`Failed to harvest from downloads: ${err.message}`, "error");
@@ -60,7 +63,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const handleHarvestProwlarr = () => {
     harvestProwlarr.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Harvested ${res.harvestedCount} trackers from Prowlarr`, "success");
+        showToast(
+          `Harvested ${res.harvestedCount} trackers from Prowlarr`,
+          "success",
+        );
       },
       onError: (err) => {
         showToast(`Failed to harvest from Prowlarr: ${err.message}`, "error");
@@ -71,7 +77,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const handleHarvestFeeds = () => {
     harvestFeeds.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Harvested ${res.harvestedCount} trackers from public feeds`, "success");
+        showToast(
+          `Harvested ${res.harvestedCount} trackers from public feeds`,
+          "success",
+        );
       },
       onError: (err) => {
         showToast(`Failed to harvest from feeds: ${err.message}`, "error");
@@ -95,21 +104,37 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     const lines = bulkImportText
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter((l) => l.startsWith("http://") || l.startsWith("https://") || l.startsWith("udp://"));
+      .filter(
+        (l) =>
+          l.startsWith("http://") ||
+          l.startsWith("https://") ||
+          l.startsWith("udp://"),
+      );
 
     if (lines.length === 0) {
-      showToast("No valid http://, https://, or udp:// tracker URLs found.", "error");
+      showToast(
+        "No valid http://, https://, or udp:// tracker URLs found.",
+        "error",
+      );
       return;
     }
 
     setIsBulkImporting(true);
     try {
-      const res = await bulkImportTrackers.mutateAsync({ trackersText: lines.join("\n") });
+      const res = await bulkImportTrackers.mutateAsync({
+        trackersText: lines.join("\n"),
+      });
       handleClose();
       setBulkImportText("");
-      showToast(`Successfully processed ${lines.length} trackers (${res.importedCount} added)!`, "success");
+      showToast(
+        `Successfully processed ${lines.length} trackers (${res.importedCount} added)!`,
+        "success",
+      );
     } catch (err: any) {
-      showToast(`Failed to bulk import trackers: ${err?.message || "Unknown error"}`, "error");
+      showToast(
+        `Failed to bulk import trackers: ${err?.message || "Unknown error"}`,
+        "error",
+      );
     } finally {
       setIsBulkImporting(false);
     }
@@ -123,7 +148,9 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Automation Toggles */}
       <div className="card" style={{ padding: "1.25rem" }}>
-        <h3 style={{ margin: "0 0 0.5rem 0" }}>⚡ Automation & Background Optimization</h3>
+        <h3 style={{ margin: "0 0 0.5rem 0" }}>
+          ⚡ Automation & Background Optimization
+        </h3>
         <p
           style={{
             fontSize: "0.85rem",
@@ -131,8 +158,9 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             margin: "0 0 1rem 0",
           }}
         >
-          TrackerBoost runs as a background service to constantly discover new trackers, monitor
-          health, and optimize swarms across Leecharr and connected download clients.
+          TrackerBoost runs as a background service to constantly discover new
+          trackers, monitor health, and optimize swarms across Leecharr and
+          connected download clients.
         </p>
 
         <div
@@ -161,8 +189,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 Automatic Background Swarm Boosting (Enabled by Default)
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Periodically queries candidate trackers and automatically injects verified positive
-                matches into active downloads.
+                Periodically queries candidate trackers and automatically
+                injects verified positive matches into active downloads.
               </div>
             </div>
           </label>
@@ -186,8 +214,9 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 Automatic Swarm Tracker Harvesting (Enabled by Default)
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Continuously extracts and catalogues new public tracker endpoints from downloading
-                torrents to grow the tracker database.
+                Continuously extracts and catalogues new public tracker
+                endpoints from downloading torrents to grow the tracker
+                database.
               </div>
             </div>
           </label>
@@ -211,8 +240,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 Scrape Verification Guard (Strict Mode)
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Only injects trackers that respond with active seeders or leechers for the specific
-                info_hash, preventing client clutter.
+                Only injects trackers that respond with active seeders or
+                leechers for the specific info_hash, preventing client clutter.
               </div>
             </div>
           </label>
@@ -229,8 +258,9 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             margin: "0 0 1rem 0",
           }}
         >
-          TrackerBoost coordinates with your download clients (qBittorrent, Transmission, Deluge) to
-          inject verified trackers into active physical downloads.
+          TrackerBoost coordinates with your download clients (qBittorrent,
+          Transmission, Deluge) to inject verified trackers into active physical
+          downloads.
         </p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {(downloadClients ?? [])
@@ -246,8 +276,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             ))}
           {enabledClientsCount === 0 && (
             <span style={{ fontSize: "0.85rem", color: "var(--warning)" }}>
-              No download agents currently configured. Add qBittorrent or Transmission in Settings
-              ⚙️ to boost real downloads.
+              No download agents currently configured. Add qBittorrent or
+              Transmission in Settings ⚙️ to boost real downloads.
             </span>
           )}
         </div>
@@ -265,7 +295,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
           }}
         >
           <h3 style={{ margin: "0" }}>Manual Discovery & Import Triggers</h3>
-          <button className="btn btn-primary" onClick={() => setLocalShowModal(true)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setLocalShowModal(true)}
+          >
             📥 Bulk Import Trackers
           </button>
         </div>
@@ -282,28 +315,36 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             onClick={handleHarvestDownloads}
             disabled={harvestDownloads.isPending}
           >
-            {harvestDownloads.isPending ? "⏳ Harvesting Swarms..." : "🔄 Harvest Live Swarms"}
+            {harvestDownloads.isPending
+              ? "⏳ Harvesting Swarms..."
+              : "🔄 Harvest Live Swarms"}
           </button>
           <button
             className="btn btn-action"
             onClick={handleHarvestProwlarr}
             disabled={harvestProwlarr.isPending}
           >
-            {harvestProwlarr.isPending ? "⏳ Syncing Prowlarr..." : "🔄 Sync Prowlarr Trackers"}
+            {harvestProwlarr.isPending
+              ? "⏳ Syncing Prowlarr..."
+              : "🔄 Sync Prowlarr Trackers"}
           </button>
           <button
             className="btn btn-action"
             onClick={handleHarvestFeeds}
             disabled={harvestFeeds.isPending}
           >
-            {harvestFeeds.isPending ? "⏳ Syncing Feeds..." : "🌐 Sync Curated Feeds"}
+            {harvestFeeds.isPending
+              ? "⏳ Syncing Feeds..."
+              : "🌐 Sync Curated Feeds"}
           </button>
           <button
             className="btn btn-action"
             onClick={handleScanAll}
             disabled={scanTrackers.isPending}
           >
-            {scanTrackers.isPending ? "⏳ Probing Trackers..." : "📡 Probe All Trackers"}
+            {scanTrackers.isPending
+              ? "⏳ Probing Trackers..."
+              : "📡 Probe All Trackers"}
           </button>
         </div>
       </div>
@@ -366,8 +407,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 margin: 0,
               }}
             >
-              Paste tracker announce URLs (one per line). Supported protocols: <code>udp://</code>,{" "}
-              <code>http://</code>, <code>https://</code>.
+              Paste tracker announce URLs (one per line). Supported protocols:{" "}
+              <code>udp://</code>, <code>http://</code>, <code>https://</code>.
             </p>
 
             <textarea
@@ -386,7 +427,11 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 gap: "0.5rem",
               }}
             >
-              <button type="button" className="btn btn-action" onClick={handleClose}>
+              <button
+                type="button"
+                className="btn btn-action"
+                onClick={handleClose}
+              >
                 Cancel
               </button>
               <button

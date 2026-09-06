@@ -29,7 +29,8 @@ function getNiceMax(value: number): number {
 
 function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(DEFAULT_SVG_WIDTH);
+  const [containerWidth, setContainerWidth] =
+    useState<number>(DEFAULT_SVG_WIDTH);
   const [history, setHistory] = useState<SpeedDataPoint[]>([]);
   const seededRef = useRef(false);
   const prevRef = useRef<{
@@ -64,10 +65,12 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     if (!serverHistory || seededRef.current) return;
     seededRef.current = true;
 
-    const points: SpeedDataPoint[] = serverHistory.slice(-maxPoints).map((s) => ({
-      uploadSpeed: Number(s.uploadSpeed) || 0,
-      downloadSpeed: Number(s.downloadSpeed) || 0,
-    }));
+    const points: SpeedDataPoint[] = serverHistory
+      .slice(-maxPoints)
+      .map((s) => ({
+        uploadSpeed: Number(s.uploadSpeed) || 0,
+        downloadSpeed: Number(s.downloadSpeed) || 0,
+      }));
     setHistory(points);
   }, [serverHistory, maxPoints]);
 
@@ -104,7 +107,10 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     return { value, y };
   });
 
-  const toPoints = (data: SpeedDataPoint[], key: "uploadSpeed" | "downloadSpeed"): string => {
+  const toPoints = (
+    data: SpeedDataPoint[],
+    key: "uploadSpeed" | "downloadSpeed",
+  ): string => {
     if (data.length === 0) return "";
     return data
       .map((point, i) => {
@@ -116,11 +122,16 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
       .join(" ");
   };
 
-  const toAreaPath = (data: SpeedDataPoint[], key: "uploadSpeed" | "downloadSpeed"): string => {
+  const toAreaPath = (
+    data: SpeedDataPoint[],
+    key: "uploadSpeed" | "downloadSpeed",
+  ): string => {
     if (data.length < 2) return "";
     const bottom = PADDING.top + chartHeight;
     const firstX = PADDING.left;
-    const lastX = PADDING.left + ((data.length - 1) / Math.max(1, maxPoints - 1)) * chartWidth;
+    const lastX =
+      PADDING.left +
+      ((data.length - 1) / Math.max(1, maxPoints - 1)) * chartWidth;
 
     const linePoints = data
       .map((point, i) => {
@@ -153,7 +164,8 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
       className="card"
       style={{
         borderRadius: "8px",
-        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+        boxShadow:
+          "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
         border: "1px solid rgba(255, 255, 255, 0.08)",
         marginBottom: "1.25rem",
         padding: "1rem 1.25rem",
@@ -205,7 +217,10 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
           </span>
         </div>
 
-        <div className="speed-graph-legend" style={{ margin: 0, display: "flex", gap: "1rem" }}>
+        <div
+          className="speed-graph-legend"
+          style={{ margin: 0, display: "flex", gap: "1rem" }}
+        >
           <span
             className="speed-graph-legend-item"
             style={{
@@ -249,7 +264,10 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
                 display: "inline-block",
               }}
             />
-            Download: <strong style={{ color: "#e74c3c" }}>{formatSpeed(currentDownload)}</strong>
+            Download:{" "}
+            <strong style={{ color: "#e74c3c" }}>
+              {formatSpeed(currentDownload)}
+            </strong>
           </span>
         </div>
       </div>
@@ -316,7 +334,9 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
 
           {/* Area Fills */}
           {uploadArea && <path d={uploadArea} fill="url(#speedUploadGrad)" />}
-          {downloadArea && <path d={downloadArea} fill="url(#speedDownloadGrad)" />}
+          {downloadArea && (
+            <path d={downloadArea} fill="url(#speedDownloadGrad)" />
+          )}
 
           {/* Polylines */}
           {uploadPoints && (

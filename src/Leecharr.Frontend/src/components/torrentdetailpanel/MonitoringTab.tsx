@@ -35,7 +35,8 @@ function MiniChart({
     }
   }
   const avgVal = countVal > 0 ? sumVal / countVal : 0;
-  const niceMax = maxVal > 0 ? maxVal * 1.15 : unit === "count" ? 10 : 1024 * 100;
+  const niceMax =
+    maxVal > 0 ? maxVal * 1.15 : unit === "count" ? 10 : 1024 * 100;
 
   const pts = data
     .map((v, i) => {
@@ -78,15 +79,25 @@ function MiniChart({
           fontSize: "0.78rem",
         }}
       >
-        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{title}</span>
+        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+          {title}
+        </span>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-            Peak: <strong style={{ color: "var(--text-secondary)" }}>{formatTick(maxVal)}</strong>
+            Peak:{" "}
+            <strong style={{ color: "var(--text-secondary)" }}>
+              {formatTick(maxVal)}
+            </strong>
           </span>
           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-            Avg: <strong style={{ color: "var(--text-secondary)" }}>{formatTick(avgVal)}</strong>
+            Avg:{" "}
+            <strong style={{ color: "var(--text-secondary)" }}>
+              {formatTick(avgVal)}
+            </strong>
           </span>
-          <span style={{ fontWeight: 700, color, fontSize: "0.85rem" }}>{value}</span>
+          <span style={{ fontWeight: 700, color, fontSize: "0.85rem" }}>
+            {value}
+          </span>
         </div>
       </div>
 
@@ -191,7 +202,11 @@ function MiniChart({
 
         {/* Filled polygon */}
         {areaPts && (
-          <polygon points={areaPts} fill={`url(#${gradId})`} clipPath={`url(#${clipId})`} />
+          <polygon
+            points={areaPts}
+            fill={`url(#${gradId})`}
+            clipPath={`url(#${clipId})`}
+          />
         )}
 
         {/* Line stroke */}
@@ -210,7 +225,13 @@ function MiniChart({
   );
 }
 
-export function MonitoringTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: number }) {
+export function MonitoringTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: history } = useTorrentSpeedHistory(effectiveId);
   const histRef = useRef<{ up: number[]; down: number[]; peers: number[] }>({
@@ -258,19 +279,28 @@ export function MonitoringTab({ torrent, torrentId }: { torrent?: Torrent; torre
       if (dt >= 1) {
         const push = (arr: number[], val: number) => {
           const next = [...arr, val];
-          return next.length > MAX_PTS ? next.slice(next.length - MAX_PTS) : next;
+          return next.length > MAX_PTS
+            ? next.slice(next.length - MAX_PTS)
+            : next;
         };
         histRef.current.up = push(
           histRef.current.up,
-          Math.max(0, torrent.uploadSpeed || (torrent.uploaded - prev.uploaded) / dt)
+          Math.max(
+            0,
+            torrent.uploadSpeed || (torrent.uploaded - prev.uploaded) / dt,
+          ),
         );
         histRef.current.down = push(
           histRef.current.down,
-          Math.max(0, torrent.downloadSpeed || (torrent.downloaded - prev.downloaded) / dt)
+          Math.max(
+            0,
+            torrent.downloadSpeed ||
+              (torrent.downloaded - prev.downloaded) / dt,
+          ),
         );
         histRef.current.peers = push(
           histRef.current.peers,
-          (torrent.seeders || 0) + (torrent.leechers || 0)
+          (torrent.seeders || 0) + (torrent.leechers || 0),
         );
         setTick((t) => t + 1);
       }
@@ -335,12 +365,16 @@ export function MonitoringTab({ torrent, torrentId }: { torrent?: Torrent; torre
         }}
       >
         <div>
-          <span style={{ color: "var(--text-muted)" }}>Active Swarm Peers: </span>
-          <strong style={{ color: "#60a5fa" }}>{totalPeers}</strong> ({torrent?.seeders || 0} seeds,{" "}
-          {torrent?.leechers || 0} leechers)
+          <span style={{ color: "var(--text-muted)" }}>
+            Active Swarm Peers:{" "}
+          </span>
+          <strong style={{ color: "#60a5fa" }}>{totalPeers}</strong> (
+          {torrent?.seeders || 0} seeds, {torrent?.leechers || 0} leechers)
         </div>
         <div>
-          <span style={{ color: "var(--text-muted)" }}>Session Downloaded: </span>
+          <span style={{ color: "var(--text-muted)" }}>
+            Session Downloaded:{" "}
+          </span>
           <strong style={{ color: "var(--text-primary)" }}>
             {formatBytes(torrent?.downloaded || 0)}
           </strong>

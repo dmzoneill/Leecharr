@@ -48,7 +48,10 @@ export function TrackerServerSettingsTab() {
     }
   }, [config]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -73,7 +76,7 @@ export function TrackerServerSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
@@ -283,7 +286,9 @@ export function TrackerServerSettingsTab() {
                   label="HTTP Tracker Port"
                   value={form.trackerHttpPort}
                   onChange={(v) => update("trackerHttpPort", v)}
-                  disabled={!form.trackerServerEnabled || !form.trackerHttpEnabled}
+                  disabled={
+                    !form.trackerServerEnabled || !form.trackerHttpEnabled
+                  }
                   min={1}
                   max={65535}
                   hint="e.g. http://your-ip:6969/announce"
@@ -301,7 +306,9 @@ export function TrackerServerSettingsTab() {
                   label="UDP Tracker Port"
                   value={form.trackerUdpPort}
                   onChange={(v) => update("trackerUdpPort", v)}
-                  disabled={!form.trackerServerEnabled || !form.trackerUdpEnabled}
+                  disabled={
+                    !form.trackerServerEnabled || !form.trackerUdpEnabled
+                  }
                   min={1}
                   max={65535}
                   hint="e.g. udp://your-ip:6969/announce"

@@ -6,7 +6,13 @@ import {
   useSaveSeedingConfig,
 } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
-import { SaveBar, SectionCard, NumberInput, SelectInput, Toggle } from "./shared";
+import {
+  SaveBar,
+  SectionCard,
+  NumberInput,
+  SelectInput,
+  Toggle,
+} from "./shared";
 import { CategorySettingsTab } from "./CategorySettingsTab";
 
 export function QueueSettingsTab() {
@@ -42,13 +48,17 @@ export function QueueSettingsTab() {
         globalSeedRatioLimit: seedConfig?.globalSeedRatioLimit ?? 0,
         globalShareLimitAction: btConfig?.globalShareLimitAction || "Pause",
         autoShutdownAction: btConfig?.autoShutdownAction || "None",
-        autoShutdownCondition: btConfig?.autoShutdownCondition || "WhenDownloadsComplete",
+        autoShutdownCondition:
+          btConfig?.autoShutdownCondition || "WhenDownloadsComplete",
       });
       setDirty(false);
     }
   }, [btConfig, seedConfig]);
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -59,7 +69,8 @@ export function QueueSettingsTab() {
     (!btConfig || saveBtMutation.isSuccess) &&
     (!seedConfig || saveSeedMutation.isSuccess) &&
     (saveBtMutation.isSuccess || saveSeedMutation.isSuccess);
-  const error = (saveBtMutation.error || saveSeedMutation.error) as Error | null;
+  const error = (saveBtMutation.error ||
+    saveSeedMutation.error) as Error | null;
 
   const handleSave = () => {
     let pending = (btConfig ? 1 : 0) + (seedConfig ? 1 : 0);
@@ -94,7 +105,7 @@ export function QueueSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
     if (seedConfig) {
@@ -106,7 +117,7 @@ export function QueueSettingsTab() {
         {
           onSuccess: handleSuccess,
           onError: handleError,
-        }
+        },
       );
     }
   };
@@ -232,7 +243,10 @@ export function QueueSettingsTab() {
             options={[
               { value: "Pause", label: "Pause Seeding" },
               { value: "Remove", label: "Remove Torrent (Keep Data Files)" },
-              { value: "RemoveWithData", label: "Remove Torrent & Delete Data" },
+              {
+                value: "RemoveWithData",
+                label: "Remove Torrent & Delete Data",
+              },
               { value: "SuperSeeding", label: "Switch to Super Seeding" },
             ]}
             hint="Automated lifecycle trigger executed when torrents meet target seed goals."
@@ -271,8 +285,14 @@ export function QueueSettingsTab() {
             onChange={(v) => update("autoShutdownCondition", v)}
             disabled={form.autoShutdownAction === "None"}
             options={[
-              { value: "WhenDownloadsComplete", label: "When Active Downloads Complete" },
-              { value: "WhenAllTorrentsComplete", label: "When All Torrents Finish (Queue Empty)" },
+              {
+                value: "WhenDownloadsComplete",
+                label: "When Active Downloads Complete",
+              },
+              {
+                value: "WhenAllTorrentsComplete",
+                label: "When All Torrents Finish (Queue Empty)",
+              },
             ]}
             hint="Condition required to trigger the selected power management action."
           />

@@ -163,15 +163,18 @@ export function useCreateArrConnection() {
   const queryClient = useQueryClient();
   return useMutation<ArrConnection, Error, Partial<ArrConnection>>({
     mutationFn: (connection) => apiClient.post("/arrconnections", connection),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
   });
 }
 
 export function useUpdateArrConnection() {
   const queryClient = useQueryClient();
   return useMutation<ArrConnection, Error, ArrConnection>({
-    mutationFn: (connection) => apiClient.put(`/arrconnections/${connection.id}`, connection),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
+    mutationFn: (connection) =>
+      apiClient.put(`/arrconnections/${connection.id}`, connection),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
   });
 }
 
@@ -179,7 +182,8 @@ export function useDeleteArrConnection() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/arrconnections/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["arrconnections"] }),
   });
 }
 
@@ -191,7 +195,8 @@ export function useTestArrConnection() {
 
 export function useTestDirectArrConnection() {
   return useMutation<ArrTestResult, Error, Partial<ArrConnection>>({
-    mutationFn: (connection) => apiClient.post("/arrconnections/test", connection),
+    mutationFn: (connection) =>
+      apiClient.post("/arrconnections/test", connection),
   });
 }
 
@@ -215,25 +220,35 @@ export function useDownloadClients() {
 
 export function useCreateDownloadClient() {
   const queryClient = useQueryClient();
-  return useMutation<DownloadClientDefinition, Error, Partial<DownloadClientDefinition>>({
+  return useMutation<
+    DownloadClientDefinition,
+    Error,
+    Partial<DownloadClientDefinition>
+  >({
     mutationFn: (client) => apiClient.post("/downloadclients", client),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
   });
 }
 
 export function useUpdateDownloadClient() {
   const queryClient = useQueryClient();
-  return useMutation<DownloadClientDefinition, Error, DownloadClientDefinition>({
-    mutationFn: (client) => apiClient.put(`/downloadclients/${client.id}`, client),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
-  });
+  return useMutation<DownloadClientDefinition, Error, DownloadClientDefinition>(
+    {
+      mutationFn: (client) =>
+        apiClient.put(`/downloadclients/${client.id}`, client),
+      onSuccess: () =>
+        queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
+    },
+  );
 }
 
 export function useDeleteDownloadClient() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/downloadclients/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["downloadclients"] }),
   });
 }
 
@@ -244,7 +259,11 @@ export function useTestDownloadClient() {
 }
 
 export function useTestDirectDownloadClient() {
-  return useMutation<DownloadClientTestResult, Error, Partial<DownloadClientDefinition>>({
+  return useMutation<
+    DownloadClientTestResult,
+    Error,
+    Partial<DownloadClientDefinition>
+  >({
     mutationFn: (client) => apiClient.post("/downloadclients/test", client),
   });
 }
@@ -270,7 +289,8 @@ export function useDownloadClientItems(clientId: number) {
 export function useImportDownloadClientTorrent(clientId: number) {
   const queryClient = useQueryClient();
   return useMutation<Torrent, Error, string>({
-    mutationFn: (infoHash) => apiClient.post(`/downloadclients/${clientId}/import/${infoHash}`),
+    mutationFn: (infoHash) =>
+      apiClient.post(`/downloadclients/${clientId}/import/${infoHash}`),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["downloadclients", clientId, "items"],
@@ -284,7 +304,10 @@ export function useImportDownloadClientTorrents(clientId: number) {
   const queryClient = useQueryClient();
   return useMutation<SyncResult, Error, string[]>({
     mutationFn: (infoHashes) =>
-      apiClient.post(`/downloadclients/${clientId}/import`, { infoHashes, hashes: infoHashes }),
+      apiClient.post(`/downloadclients/${clientId}/import`, {
+        infoHashes,
+        hashes: infoHashes,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["downloadclients", clientId, "items"],
@@ -340,7 +363,11 @@ export function useTestDirectIndexer() {
 
 export function useSyncProwlarr() {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean; syncedCount: number }, Error, { url: string; apiKey: string }>({
+  return useMutation<
+    { success: boolean; syncedCount: number },
+    Error,
+    { url: string; apiKey: string }
+  >({
     mutationFn: (data: { url: string; apiKey: string }) =>
       apiClient.post("/indexers/sync-prowlarr", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["indexers"] }),

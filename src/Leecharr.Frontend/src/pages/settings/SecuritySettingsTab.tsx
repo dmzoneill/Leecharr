@@ -5,10 +5,16 @@ import { api } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
-import { IdentityProviderDefinition, IdentityProviderType } from "../../api/types";
+import {
+  IdentityProviderDefinition,
+  IdentityProviderType,
+} from "../../api/types";
 import { SaveBar, SectionCard, SelectInput, TextInput, Toggle } from "./shared";
 
-const PROVIDER_TEMPLATES: Record<string, Partial<IdentityProviderDefinition>> = {
+const PROVIDER_TEMPLATES: Record<
+  string,
+  Partial<IdentityProviderDefinition>
+> = {
   authentik: {
     providerId: "authentik",
     name: "Authentik",
@@ -123,7 +129,8 @@ export function SecuritySettingsTab() {
         authenticationEnabled: config.authenticationEnabled ?? false,
         apiKey: config.apiKey ?? "",
         csrfProtectionEnabled: config.csrfProtectionEnabled ?? true,
-        hostHeaderValidationEnabled: config.hostHeaderValidationEnabled ?? false,
+        hostHeaderValidationEnabled:
+          config.hostHeaderValidationEnabled ?? false,
         allowedHosts: config.allowedHosts ?? "",
       });
       setDirty(false);
@@ -148,7 +155,10 @@ export function SecuritySettingsTab() {
     }
   };
 
-  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => {
+  const update = <K extends keyof typeof form>(
+    key: K,
+    val: (typeof form)[K],
+  ) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setDirty(true);
   };
@@ -156,7 +166,9 @@ export function SecuritySettingsTab() {
   const generateApiKey = () => {
     const bytes = new Uint8Array(16);
     window.crypto.getRandomValues(bytes);
-    const key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     setRevealedApiKey(key);
     setShowApiKey(true);
     update("apiKey", key);
@@ -187,7 +199,10 @@ export function SecuritySettingsTab() {
 
   const handleCopyApiKey = async () => {
     if (!navigator.clipboard?.writeText) {
-      toast?.showToast("Clipboard API not available in this browser context", "error");
+      toast?.showToast(
+        "Clipboard API not available in this browser context",
+        "error",
+      );
       return;
     }
 
@@ -228,12 +243,13 @@ export function SecuritySettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
-      }
+      },
     );
   };
 
   const handleOpenAdd = (templateKey = "authentik") => {
-    const template = PROVIDER_TEMPLATES[templateKey] || PROVIDER_TEMPLATES.authentik;
+    const template =
+      PROVIDER_TEMPLATES[templateKey] || PROVIDER_TEMPLATES.authentik;
     setEditingProvider({
       ...template,
       isEnabled: true,
@@ -253,7 +269,12 @@ export function SecuritySettingsTab() {
   };
 
   const handleSaveProvider = async () => {
-    if (!editingProvider || !editingProvider.providerId || !editingProvider.name) return;
+    if (
+      !editingProvider ||
+      !editingProvider.providerId ||
+      !editingProvider.name
+    )
+      return;
 
     try {
       if (isNewProvider) {
@@ -345,10 +366,12 @@ export function SecuritySettingsTab() {
                 border: "1px solid var(--border)",
               }}
             >
-              <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                Authentication is enabled. Local users accessing Leecharr over LAN or reverse proxy
-                will authenticate using local credentials or configured SSO / Identity Providers
-                below.
+              <div
+                style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
+              >
+                Authentication is enabled. Local users accessing Leecharr over
+                LAN or reverse proxy will authenticate using local credentials
+                or configured SSO / Identity Providers below.
               </div>
             </div>
           )}
@@ -389,7 +412,9 @@ export function SecuritySettingsTab() {
         title="Identity Providers & Single Sign-On (SSO)"
         description="Integrate self-hosted IdPs (Authentik, Keycloak, Authelia), Social Logins (Google, GitHub, Apple, Facebook), or Enterprise SAML 2.0."
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           <div
             style={{
               display: "flex",
@@ -399,7 +424,9 @@ export function SecuritySettingsTab() {
               gap: "0.5rem",
             }}
           >
-            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            <div
+              style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
+            >
               Configured Identity Providers ({providers.length})
             </div>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -463,7 +490,9 @@ export function SecuritySettingsTab() {
           </div>
 
           {loadingProviders ? (
-            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            <div
+              style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
+            >
               Loading providers...
             </div>
           ) : providers.length === 0 ? (
@@ -478,8 +507,9 @@ export function SecuritySettingsTab() {
                 fontSize: "0.9rem",
               }}
             >
-              No Identity Providers configured yet. Click one of the buttons above to add Authentik,
-              Keycloak, Authelia, Google, GitHub, Apple, or SAML 2.0.
+              No Identity Providers configured yet. Click one of the buttons
+              above to add Authentik, Keycloak, Authelia, Google, GitHub, Apple,
+              or SAML 2.0.
             </div>
           ) : (
             <div
@@ -541,7 +571,8 @@ export function SecuritySettingsTab() {
                             : p.providerType === 2
                               ? "Social"
                               : "Forward-Auth"}{" "}
-                        | ID: {p.providerId} {p.issuerUrl ? `| ${p.issuerUrl}` : ""}
+                        | ID: {p.providerId}{" "}
+                        {p.issuerUrl ? `| ${p.issuerUrl}` : ""}
                       </div>
                     </div>
                   </div>
@@ -575,11 +606,19 @@ export function SecuritySettingsTab() {
         description="Master API authentication token (X-Api-Key) required for external *arr connections and REST API access."
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
+          >
             <div style={{ flex: 1 }}>
               <TextInput
                 label="API Key (X-Api-Key)"
-                type={showApiKey ? "text" : form.apiKey.includes("*") ? "text" : "password"}
+                type={
+                  showApiKey
+                    ? "text"
+                    : form.apiKey.includes("*")
+                      ? "text"
+                      : "password"
+                }
                 value={
                   showApiKey && revealedApiKey && form.apiKey.includes("*")
                     ? revealedApiKey
@@ -595,9 +634,17 @@ export function SecuritySettingsTab() {
                     type="button"
                     className="btn btn-outline"
                     onClick={handleToggleShowApiKey}
-                    style={{ whiteSpace: "nowrap", height: "36px", padding: "0 0.75rem" }}
-                    title={showApiKey ? "Hide API key" : "Show unmasked API key"}
-                    aria-label={showApiKey ? "Hide API key" : "Show unmasked API key"}
+                    style={{
+                      whiteSpace: "nowrap",
+                      height: "36px",
+                      padding: "0 0.75rem",
+                    }}
+                    title={
+                      showApiKey ? "Hide API key" : "Show unmasked API key"
+                    }
+                    aria-label={
+                      showApiKey ? "Hide API key" : "Show unmasked API key"
+                    }
                     disabled={loadingApiKey}
                   >
                     {loadingApiKey ? "..." : showApiKey ? "🙈 Hide" : "👁️ Show"}
@@ -668,28 +715,38 @@ export function SecuritySettingsTab() {
                 margin: "0 0 16px 0",
               }}
             >
-              {isNewProvider ? "Add Identity Provider" : `Edit ${editingProvider.name}`}
+              {isNewProvider
+                ? "Add Identity Provider"
+                : `Edit ${editingProvider.name}`}
             </h2>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+            >
               <Toggle
                 label="Enable Provider"
                 checked={editingProvider.isEnabled ?? true}
-                onChange={(v) => setEditingProvider((prev) => ({ ...prev, isEnabled: v }))}
+                onChange={(v) =>
+                  setEditingProvider((prev) => ({ ...prev, isEnabled: v }))
+                }
                 hint="Allow users to log in with this provider"
               />
 
               <TextInput
                 label="Provider Name"
                 value={editingProvider.name || ""}
-                onChange={(v) => setEditingProvider((prev) => ({ ...prev, name: v }))}
+                onChange={(v) =>
+                  setEditingProvider((prev) => ({ ...prev, name: v }))
+                }
                 hint="Display name (e.g. Authentik, Keycloak, Google)"
               />
 
               <TextInput
                 label="Provider Identifier"
                 value={editingProvider.providerId || ""}
-                onChange={(v) => setEditingProvider((prev) => ({ ...prev, providerId: v }))}
+                onChange={(v) =>
+                  setEditingProvider((prev) => ({ ...prev, providerId: v }))
+                }
                 hint="Unique URL-safe identifier (e.g. authentik, keycloak, google)"
               />
 
@@ -715,14 +772,18 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label="Issuer URL / Authority"
                     value={editingProvider.issuerUrl || ""}
-                    onChange={(v) => setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))}
+                    onChange={(v) =>
+                      setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))
+                    }
                     hint="Base URL of IdP (e.g. https://auth.example.com/application/o/leecharr/)"
                   />
 
                   <TextInput
                     label="Client ID"
                     value={editingProvider.clientId || ""}
-                    onChange={(v) => setEditingProvider((prev) => ({ ...prev, clientId: v }))}
+                    onChange={(v) =>
+                      setEditingProvider((prev) => ({ ...prev, clientId: v }))
+                    }
                   />
 
                   <TextInput
@@ -741,9 +802,21 @@ export function SecuritySettingsTab() {
                         type="button"
                         className="btn btn-outline"
                         onClick={() => setShowSecret((prev) => !prev)}
-                        style={{ whiteSpace: "nowrap", height: "36px", padding: "0 0.75rem" }}
-                        title={showSecret ? "Hide client secret" : "Show client secret"}
-                        aria-label={showSecret ? "Hide client secret" : "Show client secret"}
+                        style={{
+                          whiteSpace: "nowrap",
+                          height: "36px",
+                          padding: "0 0.75rem",
+                        }}
+                        title={
+                          showSecret
+                            ? "Hide client secret"
+                            : "Show client secret"
+                        }
+                        aria-label={
+                          showSecret
+                            ? "Hide client secret"
+                            : "Show client secret"
+                        }
                       >
                         {showSecret ? "🙈 Hide" : "👁️ Show"}
                       </button>
@@ -753,7 +826,9 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label="OAuth Scopes"
                     value={editingProvider.scopes || "openid profile email"}
-                    onChange={(v) => setEditingProvider((prev) => ({ ...prev, scopes: v }))}
+                    onChange={(v) =>
+                      setEditingProvider((prev) => ({ ...prev, scopes: v }))
+                    }
                     hint="Space-separated list of scopes (e.g. openid profile email groups)"
                   />
                 </>
@@ -763,7 +838,9 @@ export function SecuritySettingsTab() {
                 <TextInput
                   label="IdP Metadata URL / XML Endpoint"
                   value={editingProvider.metadataUrl || ""}
-                  onChange={(v) => setEditingProvider((prev) => ({ ...prev, metadataUrl: v }))}
+                  onChange={(v) =>
+                    setEditingProvider((prev) => ({ ...prev, metadataUrl: v }))
+                  }
                   hint="SAML 2.0 IdP Federation Metadata URL"
                 />
               )}
@@ -783,7 +860,9 @@ export function SecuritySettingsTab() {
               <TextInput
                 label="Button Text"
                 value={editingProvider.buttonText || ""}
-                onChange={(v) => setEditingProvider((prev) => ({ ...prev, buttonText: v }))}
+                onChange={(v) =>
+                  setEditingProvider((prev) => ({ ...prev, buttonText: v }))
+                }
                 hint="Text rendered on login button"
               />
 
@@ -834,7 +913,11 @@ export function SecuritySettingsTab() {
                 >
                   Cancel
                 </button>
-                <button type="button" className="btn btn-primary" onClick={handleSaveProvider}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveProvider}
+                >
                   Save Provider
                 </button>
               </div>

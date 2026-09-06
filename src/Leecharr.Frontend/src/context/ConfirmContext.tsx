@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 export interface ConfirmOptions {
@@ -9,7 +15,9 @@ export interface ConfirmOptions {
   danger?: boolean;
 }
 
-export type ConfirmDialogFn = (options: ConfirmOptions | string) => Promise<boolean>;
+export type ConfirmDialogFn = (
+  options: ConfirmOptions | string,
+) => Promise<boolean>;
 
 interface ConfirmContextType {
   confirm: ConfirmDialogFn;
@@ -17,7 +25,9 @@ interface ConfirmContextType {
 
 const ConfirmContext = createContext<ConfirmContextType | undefined>(undefined);
 
-export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     options: ConfirmOptions;

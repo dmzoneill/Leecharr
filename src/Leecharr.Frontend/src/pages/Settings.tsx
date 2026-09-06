@@ -75,13 +75,17 @@ function SettingsContent() {
   }, [rawSection]);
 
   const activeGroup = useMemo(
-    () => SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) || SETTINGS_GROUPS[0],
-    [resolved.groupId]
+    () =>
+      SETTINGS_GROUPS.find((g) => g.id === resolved.groupId) ||
+      SETTINGS_GROUPS[0],
+    [resolved.groupId],
   );
 
   const activePage = useMemo(
-    () => activeGroup.pages.find((p) => p.id === resolved.pageId) || activeGroup.pages[0],
-    [activeGroup, resolved.pageId]
+    () =>
+      activeGroup.pages.find((p) => p.id === resolved.pageId) ||
+      activeGroup.pages[0],
+    [activeGroup, resolved.pageId],
   );
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -213,7 +217,10 @@ function SettingsContent() {
   };
 
   return (
-    <div className="content-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div
+      className="content-area"
+      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+    >
       {/* 1. Header Banner & Quick Filter Search */}
       <div
         className="card"
@@ -246,7 +253,9 @@ function SettingsContent() {
               {activeGroup.title}
             </span>
             <span>&rsaquo;</span>
-            <span style={{ color: "var(--accent)", fontWeight: 700 }}>{activePage.shortLabel}</span>
+            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+              {activePage.shortLabel}
+            </span>
           </div>
           <h1
             className="page-heading"
@@ -361,7 +370,8 @@ function SettingsContent() {
                 color: "var(--text-primary)",
               }}
             >
-              Search Results for &ldquo;{searchQuery}&rdquo; ({searchResults.length}{" "}
+              Search Results for &ldquo;{searchQuery}&rdquo; (
+              {searchResults.length}{" "}
               {searchResults.length === 1 ? "page" : "pages"} found)
             </span>
             <button
@@ -382,8 +392,8 @@ function SettingsContent() {
                 color: "var(--text-muted)",
               }}
             >
-              No settings match your query. Try keywords like <em>port</em>, <em>vpn</em>,{" "}
-              <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
+              No settings match your query. Try keywords like <em>port</em>,{" "}
+              <em>vpn</em>, <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
             </div>
           ) : (
             <div
@@ -410,10 +420,12 @@ function SettingsContent() {
                     transition: "border-color 0.15s ease",
                   }}
                   onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLElement).style.borderColor = "var(--accent)")
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "var(--accent)")
                   }
                   onMouseLeave={(e) =>
-                    ((e.currentTarget as HTMLElement).style.borderColor = "var(--border)")
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "var(--border)")
                   }
                 >
                   <div>

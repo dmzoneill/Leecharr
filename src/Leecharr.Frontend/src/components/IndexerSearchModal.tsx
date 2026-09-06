@@ -32,7 +32,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   useEscapeKey(onClose, isOpen ?? true);
 
   const [query, setQuery] = useState<string>(initialQuery || "");
-  const [activeSearchTerm, setActiveSearchTerm] = useState<string>(initialQuery || "");
+  const [activeSearchTerm, setActiveSearchTerm] = useState<string>(
+    initialQuery || "",
+  );
   const [freeleechOnly, setFreeleechOnly] = useState<boolean>(false);
   const [minSeedersFilter, setMinSeedersFilter] = useState<number>(0);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
 
   const searchResultsQuery = useIndexerSearch(
     { query: activeSearchTerm },
-    Boolean(activeSearchTerm.trim())
+    Boolean(activeSearchTerm.trim()),
   );
   const downloadReleaseMutation = useDownloadIndexerRelease();
 
@@ -65,7 +67,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   const naturalSearchMutation = useAiNaturalSearch();
 
   useEffect(() => {
-    localStorage.setItem("leecharr_ai_search_expanded", isAiExpanded ? "true" : "false");
+    localStorage.setItem(
+      "leecharr_ai_search_expanded",
+      isAiExpanded ? "true" : "false",
+    );
   }, [isAiExpanded]);
 
   // Safe to return early now — all hooks have been called above.
@@ -81,13 +86,14 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         onSuccess: (params) => {
           setAiParams(params);
         },
-      }
+      },
     );
   };
 
   const handleApplyAiParams = () => {
     if (!aiParams) return;
-    const cleanSearch = aiParams.cleanTitle || aiParams.cleanQuery || naturalQuery;
+    const cleanSearch =
+      aiParams.cleanTitle || aiParams.cleanQuery || naturalQuery;
     setQuery(cleanSearch);
     if (aiParams.freeleechOnly) {
       setFreeleechOnly(true);
@@ -126,9 +132,12 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         },
         onError: (err) => {
           setDownloadingKey(null);
-          showToast(`Failed to grab release: ${err.message || "Unknown error"}`, "error");
+          showToast(
+            `Failed to grab release: ${err.message || "Unknown error"}`,
+            "error",
+          );
         },
-      }
+      },
     );
   };
 
@@ -142,13 +151,16 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
 
   const rawResults = searchResultsQuery.data || [];
   const filteredResults = rawResults.filter((r) => {
-    if (minSeedersFilter > 0 && (r.seeders ?? 0) < minSeedersFilter) return false;
+    if (minSeedersFilter > 0 && (r.seeders ?? 0) < minSeedersFilter)
+      return false;
     if (freeleechOnly) {
       const isFl =
         Boolean(r.isFreeleech) ||
         r.downloadVolumeFactor === 0 ||
         (r.category || "").toLowerCase().includes("freeleech") ||
-        (r.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
+        (r.categories || []).some((c) =>
+          c.toLowerCase().includes("freeleech"),
+        ) ||
         (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
         (r.magnetUrl || "").toLowerCase().includes("freeleech");
       return isFl;
@@ -165,10 +177,18 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       >
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <SparklesIcon size={18} style={{ color: "var(--accent-gold, #FFD166)" }} />
+            <SparklesIcon
+              size={18}
+              style={{ color: "var(--accent-gold, #FFD166)" }}
+            />
             <h3>Indexer Discovery & Search</h3>
           </div>
-          <button type="button" className="btn-close" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="btn-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <CloseIcon size={18} />
           </button>
         </div>
@@ -211,7 +231,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     gap: "0.4rem",
                   }}
                 >
-                  <SparklesIcon size={14} style={{ color: "var(--accent-gold, #FFD166)" }} />
+                  <SparklesIcon
+                    size={14}
+                    style={{ color: "var(--accent-gold, #FFD166)" }}
+                  />
                   <span>AI Smart Search & Natural Language Filter</span>
                   <span
                     style={{
@@ -237,7 +260,11 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   <span style={{ fontSize: "0.7rem", fontWeight: 400 }}>
                     {isAiExpanded ? "Collapse" : "Expand"}
                   </span>
-                  {isAiExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+                  {isAiExpanded ? (
+                    <ChevronUpIcon size={14} />
+                  ) : (
+                    <ChevronDownIcon size={14} />
+                  )}
                 </div>
               </button>
 
@@ -261,9 +288,11 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   >
                     Describe what you want in natural language (e.g.{" "}
                     <em style={{ color: "var(--accent-gold, #FFD166)" }}>
-                      {'"'}Find Dune Part 2 in 4k bluray freeleech with at least 20 seeders{'"'}
+                      {'"'}Find Dune Part 2 in 4k bluray freeleech with at least
+                      20 seeders{'"'}
                     </em>
-                    ). AI extracts resolution, codec, category, and seeder threshold.
+                    ). AI extracts resolution, codec, category, and seeder
+                    threshold.
                   </p>
 
                   <div
@@ -295,7 +324,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAiNaturalParse()}
-                      disabled={!naturalQuery.trim() || naturalSearchMutation.isPending}
+                      disabled={
+                        !naturalQuery.trim() || naturalSearchMutation.isPending
+                      }
                       style={{
                         padding: "0.4rem 0.75rem",
                         backgroundColor: "#23284B",
@@ -308,12 +339,18 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                         display: "flex",
                         alignItems: "center",
                         gap: "0.3rem",
-                        opacity: !naturalQuery.trim() || naturalSearchMutation.isPending ? 0.5 : 1,
+                        opacity:
+                          !naturalQuery.trim() ||
+                          naturalSearchMutation.isPending
+                            ? 0.5
+                            : 1,
                       }}
                     >
                       <SparklesIcon size={13} />
                       <span>
-                        {naturalSearchMutation.isPending ? "Parsing..." : "Extract Intent"}
+                        {naturalSearchMutation.isPending
+                          ? "Parsing..."
+                          : "Extract Intent"}
                       </span>
                     </button>
                   </div>
@@ -348,7 +385,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                             gap: "0.3rem",
                           }}
                         >
-                          <CheckCircleIcon size={14} style={{ color: "#34d399" }} />
+                          <CheckCircleIcon
+                            size={14}
+                            style={{ color: "#34d399" }}
+                          />
                           Extracted Filters (Confidence:{" "}
                           {Math.round(aiParams.confidenceScore * 100)}%):
                         </span>
@@ -519,7 +559,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   Boolean(r.isFreeleech) ||
                   r.downloadVolumeFactor === 0 ||
                   (r.category || "").toLowerCase().includes("freeleech") ||
-                  (r.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
+                  (r.categories || []).some((c) =>
+                    c.toLowerCase().includes("freeleech"),
+                  ) ||
                   (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
                   (r.magnetUrl || "").toLowerCase().includes("freeleech");
 
@@ -528,11 +570,14 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     <div className="result-details">
                       <div className="result-title">
                         <strong>{r.title}</strong>
-                        {isFl && <span className="freeleech-badge">FREELEECH</span>}
+                        {isFl && (
+                          <span className="freeleech-badge">FREELEECH</span>
+                        )}
                       </div>
                       <div className="result-meta">
                         <span className="meta-item">
-                          <strong>Indexer:</strong> {r.indexerName || r.indexer || "Torznab"}
+                          <strong>Indexer:</strong>{" "}
+                          {r.indexerName || r.indexer || "Torznab"}
                         </span>
                         <span className="meta-item">
                           <strong>Category:</strong>{" "}

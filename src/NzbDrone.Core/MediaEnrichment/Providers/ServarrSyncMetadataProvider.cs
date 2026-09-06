@@ -185,15 +185,27 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         {
             foreach (var img in images.EnumerateArray())
             {
-                var coverType = img.TryGetProperty("coverType", out var ct) ? ct.GetString() : string.Empty;
-                var url = img.TryGetProperty("remoteUrl", out var ru) ? ru.GetString() :
-                          img.TryGetProperty("url", out var lu) ? lu.GetString() : null;
+                var coverType = img.TryGetProperty("coverType", out var ct) && ct.ValueKind == JsonValueKind.String ? ct.GetString() : string.Empty;
+                string url = null;
+                if (img.TryGetProperty("remoteUrl", out var ru) && ru.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(ru.GetString()))
+                {
+                    url = ru.GetString();
+                }
+                else if (img.TryGetProperty("url", out var lu) && lu.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(lu.GetString()))
+                {
+                    url = lu.GetString();
+                }
 
-                if (!string.IsNullOrEmpty(url))
+                if (!string.IsNullOrWhiteSpace(url))
                 {
                     if (url.StartsWith("/"))
                     {
                         url = $"{baseUrl}{url}";
+                        if (!string.IsNullOrWhiteSpace(conn.ApiKey) && !url.Contains("apikey=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var separator = url.Contains('?') ? "&" : "?";
+                            url = $"{url}{separator}apikey={Uri.EscapeDataString(conn.ApiKey)}";
+                        }
                     }
 
                     if (string.Equals(coverType, "poster", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(meta.PosterUrl))
