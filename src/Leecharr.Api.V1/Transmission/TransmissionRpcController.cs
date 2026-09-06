@@ -201,6 +201,8 @@ public class TransmissionRpcController : ControllerBase
                             { "speed-limit-up", this.configService.MaxUploadSpeedKbps },
                             { "speed-limit-down-enabled", this.configService.MaxDownloadSpeedKbps > 0 },
                             { "speed-limit-up-enabled", this.configService.MaxUploadSpeedKbps > 0 },
+                            { "seedRatioLimit", this.configService.GlobalSeedRatioLimit },
+                            { "seedRatioLimited", this.configService.GlobalSeedRatioLimit > 0 },
                             { "alt-speed-enabled", this.configService.AlternativeSpeedEnabled },
                             { "alt-speed-down", this.configService.AltDownloadSpeedKbps },
                             { "alt-speed-up", this.configService.AltUploadSpeedKbps },
@@ -235,9 +237,38 @@ public class TransmissionRpcController : ControllerBase
                             updates["MaxDownloadSpeedKbps"] = dlLimit.GetInt32();
                         }
 
+                        if (request.Arguments.TryGetValue("speed-limit-down-enabled", out var dlLimitEnabled) && (dlLimitEnabled.ValueKind == JsonValueKind.True || dlLimitEnabled.ValueKind == JsonValueKind.False))
+                        {
+                            if (!dlLimitEnabled.GetBoolean())
+                            {
+                                updates["MaxDownloadSpeedKbps"] = 0;
+                            }
+                        }
+
                         if (request.Arguments.TryGetValue("speed-limit-up", out var upLimit) && upLimit.ValueKind == JsonValueKind.Number)
                         {
                             updates["MaxUploadSpeedKbps"] = upLimit.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("speed-limit-up-enabled", out var upLimitEnabled) && (upLimitEnabled.ValueKind == JsonValueKind.True || upLimitEnabled.ValueKind == JsonValueKind.False))
+                        {
+                            if (!upLimitEnabled.GetBoolean())
+                            {
+                                updates["MaxUploadSpeedKbps"] = 0;
+                            }
+                        }
+
+                        if (request.Arguments.TryGetValue("seedRatioLimit", out var seedRatioLimit) && seedRatioLimit.ValueKind == JsonValueKind.Number)
+                        {
+                            updates["GlobalSeedRatioLimit"] = seedRatioLimit.GetDouble();
+                        }
+
+                        if (request.Arguments.TryGetValue("seedRatioLimited", out var seedRatioLimited) && (seedRatioLimited.ValueKind == JsonValueKind.True || seedRatioLimited.ValueKind == JsonValueKind.False))
+                        {
+                            if (!seedRatioLimited.GetBoolean())
+                            {
+                                updates["GlobalSeedRatioLimit"] = 0.0;
+                            }
                         }
 
                         if (request.Arguments.TryGetValue("alt-speed-down", out var altDl) && altDl.ValueKind == JsonValueKind.Number)
@@ -385,14 +416,30 @@ public class TransmissionRpcController : ControllerBase
                                 t.TargetSeedTimeMinutes = idleVal.GetInt32();
                             }
 
-                            if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal))
+                            if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal) && dlLimitVal.ValueKind == JsonValueKind.Number)
                             {
                                 t.DownloadLimit = dlLimitVal.GetInt32();
                             }
 
-                            if (request.Arguments.TryGetValue("uploadLimit", out var ulLimitVal))
+                            if (request.Arguments.TryGetValue("downloadLimited", out var dlLimitedVal) && (dlLimitedVal.ValueKind == JsonValueKind.True || dlLimitedVal.ValueKind == JsonValueKind.False))
+                            {
+                                if (!dlLimitedVal.GetBoolean())
+                                {
+                                    t.DownloadLimit = 0;
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("uploadLimit", out var ulLimitVal) && ulLimitVal.ValueKind == JsonValueKind.Number)
                             {
                                 t.UploadLimit = ulLimitVal.GetInt32();
+                            }
+
+                            if (request.Arguments.TryGetValue("uploadLimited", out var ulLimitedVal) && (ulLimitedVal.ValueKind == JsonValueKind.True || ulLimitedVal.ValueKind == JsonValueKind.False))
+                            {
+                                if (!ulLimitedVal.GetBoolean())
+                                {
+                                    t.UploadLimit = 0;
+                                }
                             }
 
                             if (request.Arguments.TryGetValue("location", out var locVal) && locVal.ValueKind == JsonValueKind.String)
@@ -1017,6 +1064,11 @@ public class TransmissionRpcController : ControllerBase
             { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
             { "seedIdleLimit", t.TargetSeedTimeMinutes },
             { "seedIdleMode", t.TargetSeedTimeMinutes > 0 ? 1 : 0 },
+            { "downloadLimit", t.DownloadLimit },
+            { "uploadLimit", t.UploadLimit },
+            { "downloadLimited", t.DownloadLimit > 0 },
+            { "uploadLimited", t.UploadLimit > 0 },
+            { "honorsSessionLimits", true },
             { "fileCount", fileCount },
             { "file-count", fileCount },
             { "isPrivate", t.IsPrivate },
