@@ -632,6 +632,46 @@ public class TagLibInspectorProviderTest
         return CreateMp4Box("moov", ms.ToArray());
     }
 
+    [Test]
+    public void ApplyFilenameHints_WhenDimensionsAlreadySet_DoesNotOverwriteWithFilenameResolution()
+    {
+        var info = new MediaContainerInfo
+        {
+            Width = 1920,
+            Height = 800,
+            Resolution = "1080p",
+            VideoCodec = "AV1",
+            AudioCodec = "E-AC3",
+            AudioChannels = "5.1",
+            HdrFormat = "HDR10+",
+        };
+
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.Title.2024.2160p.UHD.HEVC.Atmos.TrueHD.DV.x265.mkv");
+
+        info.Width.Should().Be(1920);
+        info.Height.Should().Be(800);
+        info.VideoCodec.Should().Be("AV1");
+        info.AudioCodec.Should().Be("E-AC3");
+        info.AudioChannels.Should().Be("5.1");
+        info.HdrFormat.Should().Be("HDR10+");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenPropertiesEmpty_PopulatesFromFilename()
+    {
+        var info = new MediaContainerInfo();
+
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.Title.2024.1080p.x265.DTS.HDR.mkv");
+
+        info.Width.Should().Be(1920);
+        info.Height.Should().Be(1080);
+        info.Resolution.Should().Be("1080p");
+        info.VideoCodec.Should().Be("HEVC / H.265");
+        info.AudioCodec.Should().Be("DTS");
+        info.AudioChannels.Should().Be("5.1");
+        info.HdrFormat.Should().Be("HDR10");
+    }
+
     private sealed class UnseekableStream : Stream
     {
         private readonly byte[] data;

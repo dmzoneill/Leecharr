@@ -1836,90 +1836,120 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         var upper = fileName.ToUpperInvariant();
         var normalized = upper.Replace('.', ' ').Replace('-', ' ').Replace('_', ' ');
 
-        // Resolution
-        if (upper.Contains("2160P") || upper.Contains("4K") || upper.Contains("UHD"))
+        // Resolution: only apply if dimensions were not already discovered from stream
+        if (info.Width <= 0 || info.Height <= 0)
         {
-            info.Resolution = "4K UHD (2160p)";
-            info.Width = 3840;
-            info.Height = 2160;
-        }
-        else if (upper.Contains("1080P") || upper.Contains("FHD"))
-        {
-            info.Resolution = "1080p";
-            info.Width = 1920;
-            info.Height = 1080;
-        }
-        else if (upper.Contains("720P") || upper.Contains("HD"))
-        {
-            info.Resolution = "720p";
-            info.Width = 1280;
-            info.Height = 720;
-        }
-        else if (upper.Contains("480P") || upper.Contains("SD"))
-        {
-            info.Resolution = "480p";
-            info.Width = 854;
-            info.Height = 480;
-        }
-
-        // HDR
-        if (upper.Contains("DV") || normalized.Contains("DOLBY VISION") || upper.Contains("DOVI"))
-        {
-            info.HdrFormat = "Dolby Vision";
-        }
-        else if (upper.Contains("HDR10+") || normalized.Contains("HDR10 PLUS") || upper.Contains("HDR10PLUS"))
-        {
-            info.HdrFormat = "HDR10+";
-        }
-        else if (upper.Contains("HDR"))
-        {
-            info.HdrFormat = "HDR10";
+            if (upper.Contains("2160P") || upper.Contains("4K") || upper.Contains("UHD"))
+            {
+                info.Resolution ??= "4K UHD (2160p)";
+                info.Width = 3840;
+                info.Height = 2160;
+            }
+            else if (upper.Contains("1080P") || upper.Contains("FHD"))
+            {
+                info.Resolution ??= "1080p";
+                info.Width = 1920;
+                info.Height = 1080;
+            }
+            else if (upper.Contains("720P") || upper.Contains("HD"))
+            {
+                info.Resolution ??= "720p";
+                info.Width = 1280;
+                info.Height = 720;
+            }
+            else if (upper.Contains("480P") || upper.Contains("SD"))
+            {
+                info.Resolution ??= "480p";
+                info.Width = 854;
+                info.Height = 480;
+            }
         }
 
-        // Video Codec
-        if (upper.Contains("HEVC") || upper.Contains("H.265") || upper.Contains("H265") || upper.Contains("X265"))
+        // HDR: only apply if not already discovered or defaults to SDR
+        if (string.IsNullOrEmpty(info.HdrFormat) || string.Equals(info.HdrFormat, "SDR", StringComparison.OrdinalIgnoreCase))
         {
-            info.VideoCodec = "HEVC / H.265";
-        }
-        else if (upper.Contains("AVC") || upper.Contains("H.264") || upper.Contains("H264") || upper.Contains("X264"))
-        {
-            info.VideoCodec = "AVC / H.264";
-        }
-        else if (upper.Contains("AV1"))
-        {
-            info.VideoCodec = "AV1";
+            if (upper.Contains("DV") || normalized.Contains("DOLBY VISION") || upper.Contains("DOVI"))
+            {
+                info.HdrFormat = "Dolby Vision";
+            }
+            else if (upper.Contains("HDR10+") || normalized.Contains("HDR10 PLUS") || upper.Contains("HDR10PLUS"))
+            {
+                info.HdrFormat = "HDR10+";
+            }
+            else if (upper.Contains("HDR"))
+            {
+                info.HdrFormat = "HDR10";
+            }
         }
 
-        // Audio Codec
-        if (upper.Contains("ATMOS"))
+        // Video Codec: only apply if empty
+        if (string.IsNullOrEmpty(info.VideoCodec))
         {
-            info.AudioCodec = "Dolby Atmos";
-            info.AudioChannels = "7.1";
+            if (upper.Contains("HEVC") || upper.Contains("H.265") || upper.Contains("H265") || upper.Contains("X265"))
+            {
+                info.VideoCodec = "HEVC / H.265";
+            }
+            else if (upper.Contains("AVC") || upper.Contains("H.264") || upper.Contains("H264") || upper.Contains("X264"))
+            {
+                info.VideoCodec = "AVC / H.264";
+            }
+            else if (upper.Contains("AV1"))
+            {
+                info.VideoCodec = "AV1";
+            }
         }
-        else if (upper.Contains("TRUEHD"))
+
+        // Audio Codec: only apply if empty
+        if (string.IsNullOrEmpty(info.AudioCodec))
         {
-            info.AudioCodec = "Dolby TrueHD";
-            info.AudioChannels = "7.1";
-        }
-        else if (upper.Contains("DTS-HD") || upper.Contains("DTS-HD MA"))
-        {
-            info.AudioCodec = "DTS-HD MA";
-            info.AudioChannels = "7.1";
-        }
-        else if (upper.Contains("DTS"))
-        {
-            info.AudioCodec = "DTS";
-            info.AudioChannels = "5.1";
-        }
-        else if (upper.Contains("EAC3") || upper.Contains("DDP") || upper.Contains("DD+"))
-        {
-            info.AudioCodec = "E-AC3 / DD+";
-            info.AudioChannels = "5.1";
-        }
-        else if (upper.Contains("AC3") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
-        {
-            info.AudioCodec = "AC3 / Dolby Digital";
-            info.AudioChannels = "5.1";
+            if (upper.Contains("ATMOS"))
+            {
+                info.AudioCodec = "Dolby Atmos";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "7.1";
+                }
+            }
+            else if (upper.Contains("TRUEHD"))
+            {
+                info.AudioCodec = "Dolby TrueHD";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "7.1";
+                }
+            }
+            else if (upper.Contains("DTS-HD") || upper.Contains("DTS-HD MA"))
+            {
+                info.AudioCodec = "DTS-HD MA";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "7.1";
+                }
+            }
+            else if (upper.Contains("DTS"))
+            {
+                info.AudioCodec = "DTS";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
+            else if (upper.Contains("EAC3") || upper.Contains("DDP") || upper.Contains("DD+"))
+            {
+                info.AudioCodec = "E-AC3 / DD+";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
+            else if (upper.Contains("AC3") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
+            {
+                info.AudioCodec = "AC3 / Dolby Digital";
+                if (string.IsNullOrEmpty(info.AudioChannels))
+                {
+                    info.AudioChannels = "5.1";
+                }
+            }
         }
     }
 }
