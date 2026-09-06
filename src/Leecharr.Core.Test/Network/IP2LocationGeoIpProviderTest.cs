@@ -137,6 +137,26 @@ public class IP2LocationGeoIpProviderTest
     }
 
     [Test]
+    public async Task LookupAsync_WithHighestBoundaryIp_ResolvesCorrectly()
+    {
+        CreateSampleBinaryDatabase(this.tempDbFile);
+        var diskMock = Substitute.For<IDiskProvider>();
+        diskMock.FileExists(this.tempDbFile).Returns(true);
+
+        using var provider = new TestableIP2LocationGeoIpProvider(this.tempDbFile, diskMock, this.appFolderInfo);
+
+        var ipv4Result = await provider.LookupAsync("255.255.255.254");
+        ipv4Result.Should().NotBeNull();
+        ipv4Result.CountryCode.Should().Be("GB");
+
+        var ipv4TermResult = await provider.LookupAsync("255.255.255.255");
+        ipv4TermResult.Should().NotBeNull();
+
+        var ipv6TermResult = await provider.LookupAsync("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff");
+        ipv6TermResult.Should().NotBeNull();
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_WhenDatabaseValid_ReturnsHealthy()
     {
         CreateSampleBinaryDatabase(this.tempDbFile);

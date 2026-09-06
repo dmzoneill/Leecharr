@@ -151,7 +151,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                     var ipNum = BitConverter.ToUInt32(ipBytes, 0);
 
                     var low = 0L;
-                    var high = (long)this.ipv4Count;
+                    var high = (long)this.ipv4Count - 1L;
                     var rowSize = (long)this.dbColumn * 4;
 
                     while (low <= high)
@@ -188,7 +188,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                     var ipNum = new BigInteger(parsedIp.GetAddressBytes(), isUnsigned: true, isBigEndian: true);
 
                     var low = 0L;
-                    var high = (long)this.ipv6Count;
+                    var high = (long)this.ipv6Count - 1L;
                     var rowSize = 16L + ((long)(this.dbColumn - 1) * 4);
 
                     while (low <= high)
