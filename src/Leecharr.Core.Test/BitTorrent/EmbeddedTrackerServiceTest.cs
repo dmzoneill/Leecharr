@@ -830,4 +830,28 @@ public class EmbeddedTrackerServiceTest
         var resp2 = this.trackerService.ProcessAnnounce(req2);
         ((BEncodedDictionary)BEncodedValue.Decode(resp2)).ContainsKey("failure reason").Should().BeFalse();
     }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    [TestCase(65536)]
+    [TestCase(99999)]
+    public void Announce_InvalidPort_ReturnsFailure(int invalidPort)
+    {
+        var infoHash = new byte[20];
+        Array.Fill(infoHash, (byte)1);
+
+        var request = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.100"),
+            Port = invalidPort,
+            PeerIdBytes = new byte[20],
+            Left = 1000,
+        };
+
+        var result = this.trackerService.Announce(request);
+
+        result.Success.Should().BeFalse();
+        result.FailureReason.Should().Contain("Invalid port");
+    }
 }
