@@ -4,12 +4,15 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using NLog;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Security;
 
 public static class RpcAuthenticationHelper
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
     public static bool FixedTimeEquals(string a, string b)
     {
         if (a == null || b == null)
@@ -62,11 +65,12 @@ public static class RpcAuthenticationHelper
             }
         }
 
-        // 3. Check query parameters: apikey or api_key or token or access_token
+        // 3. Check query parameters: apikey or api_key or token or access_token (legacy compatibility with warning)
         if (context.Request.Query.TryGetValue("apikey", out var queryApiKey) && !string.IsNullOrWhiteSpace(queryApiKey))
         {
             if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
             {
+                Logger.Warn("API key supplied via URL query parameter on {0}. Please use X-Api-Key header or Authorization: Bearer token instead.", context.Request?.Path.Value);
                 return true;
             }
         }
@@ -75,6 +79,7 @@ public static class RpcAuthenticationHelper
         {
             if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryAccessToken.ToString(), masterApiKey))
             {
+                Logger.Warn("API key supplied via URL query parameter on {0}. Please use X-Api-Key header or Authorization: Bearer token instead.", context.Request?.Path.Value);
                 return true;
             }
         }
@@ -83,6 +88,7 @@ public static class RpcAuthenticationHelper
         {
             if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
             {
+                Logger.Warn("API key supplied via URL query parameter on {0}. Please use X-Api-Key header or Authorization: Bearer token instead.", context.Request?.Path.Value);
                 return true;
             }
         }
@@ -91,11 +97,12 @@ public static class RpcAuthenticationHelper
         {
             if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryToken.ToString(), masterApiKey))
             {
+                Logger.Warn("API key supplied via URL query parameter on {0}. Please use X-Api-Key header or Authorization: Bearer token instead.", context.Request?.Path.Value);
                 return true;
             }
         }
 
-        // 4. Check HTTP Basic Auth (Authorization: Basic ...)
+        // 4. Check HTTP Basic Auth (Authorization: Basic ...) - only as password
         if (context.Request.Headers.TryGetValue("Authorization", out var authHeaderVal) && !string.IsNullOrWhiteSpace(authHeaderVal))
         {
             var authHeader = authHeaderVal.ToString();
@@ -105,12 +112,9 @@ public static class RpcAuthenticationHelper
                 {
                     var creds = Encoding.UTF8.GetString(Convert.FromBase64String(authHeader["Basic ".Length..].Trim()));
                     var parts = creds.Split(':', 2);
-                    var username = parts[0];
                     var password = parts.Length > 1 ? parts[1] : string.Empty;
 
-                    if (!string.IsNullOrWhiteSpace(masterApiKey) &&
-                        (FixedTimeEquals(password, masterApiKey) ||
-                         FixedTimeEquals(username, masterApiKey)))
+                    if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(password, masterApiKey))
                     {
                         return true;
                     }

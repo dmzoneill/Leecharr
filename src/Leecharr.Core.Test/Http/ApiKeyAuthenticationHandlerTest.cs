@@ -65,11 +65,11 @@ public class ApiKeyAuthenticationHandlerTest
     }
 
     [Test]
-    public async Task AuthenticateAsync_WithValidApiKeyInQuery_ReturnsSuccess()
+    public async Task AuthenticateAsync_WithValidCustomApiKeyInHeader_ReturnsSuccess()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
-        this.configFileProvider.ApiKey.Returns("test-secret-key");
-        this.httpContext.Request.QueryString = new QueryString("?apikey=test-secret-key");
+        this.configFileProvider.ApiKey.Returns("secret-api-key-123");
+        this.httpContext.Request.Headers["ApiKey"] = "secret-api-key-123";
 
         var result = await this.handler.AuthenticateAsync();
 
@@ -77,27 +77,30 @@ public class ApiKeyAuthenticationHandlerTest
     }
 
     [Test]
-    public async Task AuthenticateAsync_WithValidAccessTokenInQuery_ReturnsSuccess()
+    public async Task AuthenticateAsync_WithValidBearerTokenInAuthorizationHeader_ReturnsSuccess()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
-        this.configFileProvider.ApiKey.Returns("test-secret-key");
-        this.httpContext.Request.QueryString = new QueryString("?access_token=test-secret-key");
+        this.configFileProvider.ApiKey.Returns("secret-api-key-123");
+        this.httpContext.Request.Headers["Authorization"] = "Bearer secret-api-key-123";
 
         var result = await this.handler.AuthenticateAsync();
 
         result.Succeeded.Should().BeTrue();
     }
 
-    [Test]
-    public async Task AuthenticateAsync_WithValidApiKey2InQuery_ReturnsSuccess()
+    [TestCase("?apikey=test-secret-key")]
+    [TestCase("?access_token=test-secret-key")]
+    [TestCase("?api_key=test-secret-key")]
+    [TestCase("?token=test-secret-key")]
+    public async Task AuthenticateAsync_WithApiKeyInQuery_ReturnsNoResult(string queryString)
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("test-secret-key");
-        this.httpContext.Request.QueryString = new QueryString("?api_key=test-secret-key");
+        this.httpContext.Request.QueryString = new QueryString(queryString);
 
         var result = await this.handler.AuthenticateAsync();
 
-        result.Succeeded.Should().BeTrue();
+        result.None.Should().BeTrue();
     }
 
     [Test]

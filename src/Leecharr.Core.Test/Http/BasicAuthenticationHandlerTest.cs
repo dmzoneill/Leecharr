@@ -76,4 +76,18 @@ public class BasicAuthenticationHandlerTest
 
         result.Succeeded.Should().BeFalse();
     }
+
+    [Test]
+    public async Task AuthenticateAsync_WithApiKeyAsUsernameAndWrongPassword_ReturnsFail()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("valid-password");
+
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("valid-password:wrong-password"));
+        this.httpContext.Request.Headers["Authorization"] = "Basic " + encoded;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeFalse();
+    }
 }

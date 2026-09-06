@@ -55,9 +55,9 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
             var configuredApiKey = this.configFileProvider.ApiKey;
 
-            // Allow auth if password or username matches API key or authentication is disabled
+            // Allow auth if password matches API key or authentication is disabled (username cannot be the API key)
             if (!this.configFileProvider.AuthenticationEnabled ||
-                (!string.IsNullOrWhiteSpace(configuredApiKey) && (RpcAuthenticationHelper.FixedTimeEquals(password, configuredApiKey) || RpcAuthenticationHelper.FixedTimeEquals(username, configuredApiKey))))
+                (!string.IsNullOrWhiteSpace(configuredApiKey) && RpcAuthenticationHelper.FixedTimeEquals(password, configuredApiKey)))
             {
                 var claims = new[]
                 {
