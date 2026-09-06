@@ -65,6 +65,8 @@ public interface IDownloadEngine
     void CheckTrackerHealth()
     {
     }
+
+    Task<EngineHealthCheckResult> ProbeHealthAsync() => Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
 }
 
 public interface IDownloadTask
