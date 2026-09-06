@@ -139,7 +139,7 @@ public class FileBrowserController : Controller
         }
 
         var fullPath = this.fileBrowserService.ResolvePath(path);
-        if (!System.IO.File.Exists(fullPath))
+        if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
         }
@@ -157,7 +157,7 @@ public class FileBrowserController : Controller
         }
 
         var fullPath = this.fileBrowserService.ResolvePath(path);
-        if (!System.IO.File.Exists(fullPath))
+        if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
         }

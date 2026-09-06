@@ -51,11 +51,11 @@ public static class MediaMetadataResourceMapper
             return null;
         }
 
-        var posterUrl = !string.IsNullOrEmpty(model.PosterLocalPath) && System.IO.File.Exists(model.PosterLocalPath)
+        var posterUrl = !string.IsNullOrEmpty(model.PosterLocalPath) && global::System.IO.File.Exists(model.PosterLocalPath)
             ? $"/api/v1/media/artwork/{model.TorrentId}/poster"
             : model.PosterUrl;
 
-        var backdropUrl = !string.IsNullOrEmpty(model.BackdropLocalPath) && System.IO.File.Exists(model.BackdropLocalPath)
+        var backdropUrl = !string.IsNullOrEmpty(model.BackdropLocalPath) && global::System.IO.File.Exists(model.BackdropLocalPath)
             ? $"/api/v1/media/artwork/{model.TorrentId}/backdrop"
             : model.BackdropUrl;
 
