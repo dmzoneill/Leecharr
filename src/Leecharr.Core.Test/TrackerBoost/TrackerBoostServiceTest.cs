@@ -525,4 +525,39 @@ public class TrackerBoostServiceTest
         var act = () => this.service.Handle(deletedEvent);
         act.Should().NotThrow();
     }
+
+    [Test]
+    public void BuildScrapeUrl_WhenHostContainsAnnounce_PreservesHostnameAndReplacesPathSegment()
+    {
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+        var announceUrl = "http://announce.torrents.org/announce";
+
+        var scrapeUrl = TrackerBoostService.BuildScrapeUrl(announceUrl, hexHash);
+
+        scrapeUrl.Should().NotBeNull();
+        scrapeUrl.Should().StartWith("http://announce.torrents.org/scrape?info_hash=");
+    }
+
+    [Test]
+    public void BuildScrapeUrl_WhenTrackerHasQueryParamsAndHostHasAnnounce_PreservesQueryParamsAndHost()
+    {
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+        var announceUrl = "https://tracker.announce.com:8443/custom/announce?passkey=xyz123";
+
+        var scrapeUrl = TrackerBoostService.BuildScrapeUrl(announceUrl, hexHash);
+
+        scrapeUrl.Should().NotBeNull();
+        scrapeUrl.Should().StartWith("https://tracker.announce.com:8443/custom/scrape?passkey=xyz123&info_hash=");
+    }
+
+    [Test]
+    public void BuildScrapeUrl_WhenAnnounceNotPresentInPath_ReturnsNull()
+    {
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+        var announceUrl = "http://announce.torrents.org/other_endpoint";
+
+        var scrapeUrl = TrackerBoostService.BuildScrapeUrl(announceUrl, hexHash);
+
+        scrapeUrl.Should().BeNull();
+    }
 }
