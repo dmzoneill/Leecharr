@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
@@ -510,7 +511,50 @@ public class RssSyncServiceTest
 
         var grabbedCount = await this.service.SyncRssFeedsAsync();
         grabbedCount.Should().Be(1);
-        await this.torrentService.Received(1).AddFromMagnetAsync(release.DownloadUrl);
+        await this.torrentService.Received(1).AddFromMagnetAsync(release.DownloadUrl, null, null);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenRuleHasCategoryId_PassesCategoryNameAndSavePathToTorrentService()
+    {
+        var categoryService = Substitute.For<ICategoryService>();
+        categoryService.Get(10).Returns(new Category { Id = 10, Name = "TV", SavePath = "/downloads/tv" });
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            categoryService: categoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "TV Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+            CategoryId = 10,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:category-test",
+            Title = "Severance.S01E01.1080p",
+            Category = "10",
+            MagnetUrl = "magnet:?xt=urn:btih:FEDCBA0987654321FEDCBA0987654321FEDCBA09",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+        await this.torrentService.Received(1).AddFromMagnetAsync(release.MagnetUrl, "TV", "/downloads/tv");
     }
 
     #endregion
