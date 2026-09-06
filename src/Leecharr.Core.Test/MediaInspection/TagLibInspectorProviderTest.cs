@@ -365,6 +365,60 @@ public class TagLibInspectorProviderTest
         result.HdrFormat.Should().Be("HDR10");
     }
 
+    [Test]
+    public void ApplyFilenameHints_DoesNotOverwriteVerifiedDimensionsCodecsOrChannels()
+    {
+        var info = new MediaContainerInfo
+        {
+            ContainerFormat = "Matroska (MKV)",
+            Width = 1920,
+            Height = 800,
+            Resolution = "1080p",
+            VideoCodec = "HEVC (H.265)",
+            AudioCodec = "AAC",
+            AudioChannels = "2.0",
+            HdrFormat = "HDR10",
+        };
+
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.Title.2023.1080p.WEBRip.x264.DTS.DV.mkv");
+
+        info.Width.Should().Be(1920);
+        info.Height.Should().Be(800);
+        info.Resolution.Should().Be("1080p");
+        info.VideoCodec.Should().Be("HEVC (H.265)");
+        info.AudioCodec.Should().Be("AAC");
+        info.AudioChannels.Should().Be("2.0");
+        info.HdrFormat.Should().Be("HDR10");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_AvoidsSubstringFalsePositivesOnOrdinaryTitles()
+    {
+        var info = new MediaContainerInfo
+        {
+            ContainerFormat = "Matroska (MKV)",
+        };
+
+        TagLibInspectorProvider.ApplyFilenameHints(info, "The.Adventures.of.Tintin.DVDRip.x264.mkv");
+
+        info.HdrFormat.Should().BeNull();
+        info.VideoCodec.Should().Be("AVC / H.264");
+
+        var sdhInfo = new MediaContainerInfo
+        {
+            ContainerFormat = "Matroska (MKV)",
+            Resolution = "1080p",
+            Width = 1920,
+            Height = 1080,
+        };
+
+        TagLibInspectorProvider.ApplyFilenameHints(sdhInfo, "Show.S01E01.1080p.WEBRip.x265.SDH.mkv");
+
+        sdhInfo.Resolution.Should().Be("1080p");
+        sdhInfo.Width.Should().Be(1920);
+        sdhInfo.Height.Should().Be(1080);
+    }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,
