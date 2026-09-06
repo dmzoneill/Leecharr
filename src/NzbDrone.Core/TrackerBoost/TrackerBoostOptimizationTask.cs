@@ -5,12 +5,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.TrackerBoost;
 
-public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, IDisposable
+public class TrackerBoostOptimizationCommand : Command
 {
+}
+
+public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, IExecute<TrackerBoostOptimizationCommand>, IDisposable
+{
+    public void Execute(TrackerBoostOptimizationCommand message)
+    {
+        this.ExecuteAsync().GetAwaiter().GetResult();
+    }
+
     private readonly ITrackerBoostService trackerBoostService;
     private readonly Logger logger;
     private readonly SemaphoreSlim executionLock = new(1, 1);

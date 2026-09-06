@@ -8,8 +8,16 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Messaging.Commands;
 
 namespace NzbDrone.Core.Indexers;
+
+public class ProwlarrSyncCommand : Command
+{
+    public string ProwlarrUrl { get; set; }
+
+    public string ApiKey { get; set; }
+}
 
 public class ProwlarrIndexerDto
 {
@@ -56,8 +64,32 @@ public interface IProwlarrSyncService
     Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey);
 }
 
-public class ProwlarrSyncService : IProwlarrSyncService
+public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCommand>
 {
+    public void Execute(ProwlarrSyncCommand message)
+    {
+        var url = message?.ProwlarrUrl;
+        var apiKey = message?.ApiKey;
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            var prowlarrIndexer = this.repository.All().FirstOrDefault(i =>
+                (!string.IsNullOrWhiteSpace(i.Implementation) && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)));
+
+            if (prowlarrIndexer != null)
+            {
+                url = prowlarrIndexer.Url;
+                apiKey = prowlarrIndexer.ApiKey;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(apiKey))
+        {
+            this.SyncFromProwlarrAsync(url, apiKey).GetAwaiter().GetResult();
+        }
+    }
+
     private readonly IIndexerRepository repository;
     private readonly HttpClient httpClient;
     private readonly ITorznabClient torznabClient;

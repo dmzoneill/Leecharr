@@ -8,9 +8,14 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Indexers;
+
+public class RssSyncCommand : Command
+{
+}
 
 public interface IRssSyncService
 {
@@ -19,8 +24,13 @@ public interface IRssSyncService
     bool MatchesRule(TorznabSearchResult release, RssRule rule);
 }
 
-public class RssSyncService : IRssSyncService
+public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>
 {
+    public void Execute(RssSyncCommand message)
+    {
+        this.SyncRssFeedsAsync().GetAwaiter().GetResult();
+    }
+
     private readonly IIndexerRepository indexerRepository;
     private readonly IRssRuleRepository rssRuleRepository;
     private readonly ITorznabClient torznabClient;

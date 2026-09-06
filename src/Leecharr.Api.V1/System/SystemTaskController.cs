@@ -140,6 +140,8 @@ public class SystemTaskController : Controller
             [4] = "Backup",
             [5] = "ProwlarrSync",
             [6] = "SessionCleanup",
+            [7] = "BlocklistUpdate",
+            [8] = "TrackerBoostOptimization",
         };
 
         var dbTask = this.scheduledTaskRepository?.Get(id);

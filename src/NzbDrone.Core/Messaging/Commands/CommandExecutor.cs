@@ -40,6 +40,7 @@ public class CommandExecutor : ICommandExecutor
         {
             command.Status = CommandStatus.Running;
             command.StartedAt = DateTime.UtcNow;
+            this.repository.Update(command);
 
             var commandType = FindCommandType(command.Name);
             if (commandType == null)
@@ -102,7 +103,9 @@ public class CommandExecutor : ICommandExecutor
                     }
                 })
                 .FirstOrDefault(t =>
-                    t.Name == n &&
+                    (t.Name.Equals(n, StringComparison.OrdinalIgnoreCase) ||
+                     t.Name.Equals(n + "Command", StringComparison.OrdinalIgnoreCase) ||
+                     (n.EndsWith("Task", StringComparison.OrdinalIgnoreCase) && t.Name.Equals(n[..^4] + "Command", StringComparison.OrdinalIgnoreCase))) &&
                     t.IsClass &&
                     !t.IsAbstract &&
                     typeof(Command).IsAssignableFrom(t)));

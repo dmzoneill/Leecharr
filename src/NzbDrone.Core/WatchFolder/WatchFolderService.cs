@@ -10,10 +10,15 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.WatchFolder;
+
+public class WatchFolderScanCommand : Command
+{
+}
 
 public interface IWatchFolderService : IDisposable
 {
@@ -34,8 +39,13 @@ public interface IWatchFolderService : IDisposable
     void OnFileSystemWatcherRenamed(object sender, RenamedEventArgs e);
 }
 
-public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>, IHandle<ConfigFileSavedEvent>
+public class WatchFolderService : IWatchFolderService, IExecute<WatchFolderScanCommand>, IHandle<ConfigSavedEvent>, IHandle<ConfigFileSavedEvent>
 {
+    public void Execute(WatchFolderScanCommand message)
+    {
+        this.ScanWatchFolderAsync().GetAwaiter().GetResult();
+    }
+
     private readonly IConfigService configService;
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;

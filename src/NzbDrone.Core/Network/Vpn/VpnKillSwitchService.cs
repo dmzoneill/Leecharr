@@ -8,12 +8,22 @@ using System.Net.Sockets;
 using System.Threading;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network.Vpn;
 
-public class VpnKillSwitchService : IVpnKillSwitchService
+public class VpnKillSwitchCheckCommand : Command
 {
+}
+
+public class VpnKillSwitchService : IVpnKillSwitchService, IExecute<VpnKillSwitchCheckCommand>
+{
+    public void Execute(VpnKillSwitchCheckCommand message)
+    {
+        this.CheckVpnState();
+    }
+
     private readonly INetworkSettingsRepository repository;
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
