@@ -102,16 +102,46 @@ export function FileBrowser() {
     );
   };
 
+  const activePath = useMemo(() => {
+    return currentPath || listing?.path || "/downloads";
+  }, [currentPath, listing]);
+
   const files: FileManagerFile[] = useMemo(() => {
-    if (!listing?.entries) return [];
-    return listing.entries.map((entry) => ({
-      name: entry.name,
-      isDirectory: entry.isDirectory,
-      path: entry.path,
-      size: entry.size,
-      updatedAt: entry.modified || undefined,
-    }));
-  }, [listing]);
+    if (!listing) return [];
+
+    const fileMap = new Map<string, FileManagerFile>();
+
+    // 1. Ensure all ancestor folders exist in the file list so react-file-manager's
+    // directory tree and path resolution can locate the current directory and its ancestors
+    const targetPath = listing.path || currentPath || "";
+    if (targetPath && targetPath !== "/") {
+      const parts = targetPath.split("/").filter(Boolean);
+      let accumulated = "";
+      for (const part of parts) {
+        accumulated += `/${part}`;
+        fileMap.set(accumulated, {
+          name: part,
+          isDirectory: true,
+          path: accumulated,
+        });
+      }
+    }
+
+    // 2. Add all directory entries returned for the current listing
+    if (listing.entries) {
+      for (const entry of listing.entries) {
+        fileMap.set(entry.path, {
+          name: entry.name,
+          isDirectory: entry.isDirectory,
+          path: entry.path,
+          size: entry.size,
+          updatedAt: entry.modified || undefined,
+        });
+      }
+    }
+
+    return Array.from(fileMap.values());
+  }, [listing, currentPath]);
 
   const dirStats = useMemo(() => {
     let folderCount = 0;
@@ -130,7 +160,7 @@ export function FileBrowser() {
   }, [listing]);
 
   const handleFolderChange = (newPath: string) => {
-    navigateTo(newPath);
+    navigateTo(newPath || "/");
   };
 
   const handleFileOpen = (file: FileManagerFile) => {
@@ -149,11 +179,13 @@ export function FileBrowser() {
     if (!trimmed) return;
     try {
       const parent = parentFolder?.path || currentPath || listing?.path || "/";
-      const targetPath = parent.endsWith("/")
-        ? `${parent}${trimmed}`
-        : `${parent}/${trimmed}`;
+      const targetPath =
+        parent === "/" || parent.endsWith("/")
+          ? `${parent}${trimmed}`
+          : `${parent}/${trimmed}`;
       await mkdirMutation.mutateAsync(targetPath);
       showToast(`Created folder "${trimmed}"`, "success");
+      refetch();
     } catch (err: any) {
       showToast(err?.message || "Failed to create folder", "error");
     }
@@ -168,6 +200,7 @@ export function FileBrowser() {
         newName: trimmed,
       });
       showToast(`Renamed to "${trimmed}"`, "success");
+      refetch();
     } catch (err: any) {
       showToast(err?.message || "Failed to rename", "error");
     }
@@ -207,6 +240,7 @@ export function FileBrowser() {
         await batchDeleteMutation.mutateAsync(selectedFiles.map((f) => f.path));
         showToast(`Deleted ${count} items`, "info");
       }
+      refetch();
     } catch (err: any) {
       showToast(err?.message || "Failed to delete item(s)", "error");
     }
@@ -450,14 +484,22 @@ export function FileBrowser() {
         }}
       >
         <FileManager
+          key={activePath}
           className="leecharr-file-manager"
           files={files}
-          initialPath={currentPath || listing?.path || ""}
+          initialPath={activePath}
           primaryColor="#ffd166"
           collapsibleNav={true}
-          defaultNavExpanded={false}
-          enableFilePreview={true}
+          defaultNavExpanded={true}
+          enableFilePreview={false}
           height="100%"
+          permissions={{
+            upload: false,
+            create: true,
+            rename: true,
+            delete: true,
+            download: true,
+          }}
           onFolderChange={handleFolderChange}
           onFileOpen={handleFileOpen}
           onCreateFolder={handleCreateFolder}
