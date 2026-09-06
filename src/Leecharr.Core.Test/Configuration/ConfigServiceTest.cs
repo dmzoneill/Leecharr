@@ -90,6 +90,7 @@ public class ConfigServiceTest
         this.service.ActiveArchiveExtractor.Should().Be("SharpCompress");
         this.service.ActiveMediaInspector.Should().Be("TagLib");
         this.service.DiskWriteCacheSizeMb.Should().Be(128);
+        this.service.DiskCacheBytes.Should().Be(128 * 1024 * 1024);
         this.service.ListeningPort.Should().Be(51413);
         this.service.EnableDht.Should().BeTrue();
         this.service.EnablePex.Should().BeTrue();
@@ -101,6 +102,18 @@ public class ConfigServiceTest
         this.service.AutoEnrichEnabled.Should().BeTrue();
         this.service.SchedulerMonday.Should().BeTrue();
         this.service.GlobalSeedRatioLimit.Should().Be(0.0);
+    }
+
+    [Test]
+    public void DiskCacheBytes_ReflectsCustomDiskWriteCacheSizeMb_WhenDiskCacheBytesUnset()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "DiskWriteCacheSizeMb", 512 }
+        });
+
+        this.service.DiskWriteCacheSizeMb.Should().Be(512);
+        this.service.DiskCacheBytes.Should().Be(512 * 1024 * 1024);
     }
 
     [Test]

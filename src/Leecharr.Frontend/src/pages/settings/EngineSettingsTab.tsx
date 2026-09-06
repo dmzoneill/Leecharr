@@ -39,7 +39,7 @@ export function EngineSettingsTab() {
 
   const [form, setForm] = useState({
     activeTorrentEngine: "MonoTorrent",
-    diskCacheMb: 64,
+    diskCacheMb: 128,
     diskCachePolicy: "ReadsAndWrites",
     fastResumeMode: "BestEffort",
     autoSaveFastResumeIntervalSeconds: 300,
