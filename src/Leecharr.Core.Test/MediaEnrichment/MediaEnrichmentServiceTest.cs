@@ -14,6 +14,7 @@ using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaEnrichment.Providers;
@@ -731,4 +732,101 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     #endregion
+    [Test]
+    public async Task Handle_TorrentDownloadCompletedEvent_WhenMediaFileExists_InspectsFileAndPopulatesMediaInfoJson()
+    {
+        var torrentDir = Path.Combine(this.tempDirectory, "downloads", "TestMovie");
+        Directory.CreateDirectory(torrentDir);
+        var mediaFile = Path.Combine(torrentDir, "TestMovie.mkv");
+        await File.WriteAllTextAsync(mediaFile, "dummy media content");
+
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "TestMovie",
+            SavePath = torrentDir,
+            Status = TorrentStatus.Seeding,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 55, Path = "TestMovie.mkv", Size = 500_000_000 },
+        };
+
+        var fileRepo = Substitute.For<ITorrentFileRepository>();
+        fileRepo.GetByTorrentId(55).Returns(files);
+
+        var containerInfo = new MediaContainerInfo
+        {
+            ContainerFormat = "Matroska",
+            VideoCodec = "HEVC",
+            Resolution = "3840x2160",
+            HdrFormat = "HDR10",
+            AudioCodec = "EAC3",
+            AudioChannels = "5.1",
+        };
+
+        this.inspector.InspectFile(mediaFile).Returns(containerInfo);
+
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            torrentFileRepository: fileRepo);
+
+        customService.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        await Task.Delay(200);
+
+        this.inspector.Received(1).InspectFile(mediaFile);
+        this.repository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 55 &&
+            m.MediaInfoJson != null &&
+            m.MediaInfoJson.Contains("HEVC") &&
+            m.MediaInfoJson.Contains("HDR10")));
+    }
+
+    [Test]
+    public async Task Handle_ArchiveExtractionCompletedEvent_WhenExtractedMediaExists_InspectsExtractedMedia()
+    {
+        var extractDir = Path.Combine(this.tempDirectory, "extracted", "ExtractedMovie");
+        Directory.CreateDirectory(extractDir);
+        var mediaFile = Path.Combine(extractDir, "ExtractedMovie.mp4");
+        await File.WriteAllTextAsync(mediaFile, "dummy extracted media content");
+
+        var torrent = new Torrent
+        {
+            Id = 66,
+            Name = "ExtractedMovie",
+            SavePath = Path.Combine(this.tempDirectory, "downloads"),
+            Status = TorrentStatus.Seeding,
+        };
+
+        var containerInfo = new MediaContainerInfo
+        {
+            ContainerFormat = "QuickTime / MOV",
+            VideoCodec = "AVC",
+            Resolution = "1920x1080",
+            AudioCodec = "AAC",
+        };
+
+        this.inspector.InspectFile(mediaFile).Returns(containerInfo);
+
+        this.service.Handle(new ArchiveExtractionCompletedEvent
+        {
+            Torrent = torrent,
+            ArchivePath = Path.Combine(this.tempDirectory, "downloads", "ExtractedMovie.rar"),
+            DestinationDirectory = extractDir,
+        });
+
+        await Task.Delay(200);
+
+        this.inspector.Received(1).InspectFile(mediaFile);
+        this.repository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 66 &&
+            m.MediaInfoJson != null &&
+            m.MediaInfoJson.Contains("AVC")));
+    }
 }

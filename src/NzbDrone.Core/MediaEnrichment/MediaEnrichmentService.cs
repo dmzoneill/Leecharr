@@ -11,6 +11,7 @@ using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.MediaEnrichment.Providers;
@@ -45,7 +46,7 @@ public interface IMediaEnrichmentService
     Task<string> CacheArtworkAsync(string url, int torrentId, string type);
 }
 
-public class MediaEnrichmentService : IMediaEnrichmentService
+public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<ArchiveExtractionCompletedEvent>
 {
     private readonly ITorrentMediaMetadataRepository repository;
     private readonly IMediaContainerInspector inspector;
@@ -56,7 +57,15 @@ public class MediaEnrichmentService : IMediaEnrichmentService
     private readonly IArrConnectionRepository arrRepository;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
+    private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly ITorrentFileService torrentFileService;
     private readonly Logger logger;
+
+    private static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".m2ts", ".vob", ".ogv",
+        ".mp3", ".flac", ".aac", ".wav", ".ogg", ".m4a", ".wma", ".opus", ".ape", ".alac",
+    };
 
     public MediaEnrichmentService(
         ITorrentMediaMetadataRepository repository,
@@ -68,7 +77,9 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         IArrConnectionRepository arrRepository = null,
         ISafeHttpClientService safeHttpClientService = null,
         HttpClient httpClient = null,
-        IHttpTransportEngine transportEngine = null)
+        IHttpTransportEngine transportEngine = null,
+        ITorrentFileRepository torrentFileRepository = null,
+        ITorrentFileService torrentFileService = null)
     {
         this.repository = repository;
         this.inspector = inspector;
@@ -79,7 +90,136 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         this.arrRepository = arrRepository;
         this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : (transportEngine != null ? new SafeHttpClientService(transportEngine) : new SafeHttpClientService()));
         this.httpClient = httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) } : new HttpClient { Timeout = TimeSpan.FromSeconds(15) });
+        this.torrentFileRepository = torrentFileRepository;
+        this.torrentFileService = torrentFileService;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public static bool IsMediaFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(path);
+        return !string.IsNullOrEmpty(ext) && MediaExtensions.Contains(ext);
+    }
+
+    public void Handle(TorrentDownloadCompletedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var torrent = message.Torrent;
+                var savePath = torrent.SavePath;
+                if (string.IsNullOrEmpty(savePath))
+                {
+                    return;
+                }
+
+                IEnumerable<TorrentFile> files = null;
+                if (this.torrentFileService != null)
+                {
+                    files = this.torrentFileService.GetFiles(torrent.Id);
+                }
+                else if (this.torrentFileRepository != null)
+                {
+                    files = this.torrentFileRepository.GetByTorrentId(torrent.Id);
+                }
+
+                string primaryMediaPath = null;
+
+                if (files != null && files.Any())
+                {
+                    var isSingleFile = File.Exists(savePath);
+                    var primaryMediaFile = files
+                        .Where(f => IsMediaFile(f.Path))
+                        .OrderByDescending(f => f.Size)
+                        .FirstOrDefault();
+
+                    if (primaryMediaFile != null)
+                    {
+                        var candidatePath = isSingleFile && string.Equals(Path.GetFileName(savePath), primaryMediaFile.Path, StringComparison.OrdinalIgnoreCase)
+                            ? savePath
+                            : Path.Combine(savePath, primaryMediaFile.Path);
+
+                        if (File.Exists(candidatePath))
+                        {
+                            primaryMediaPath = candidatePath;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(primaryMediaPath) && File.Exists(savePath) && IsMediaFile(savePath))
+                {
+                    primaryMediaPath = savePath;
+                }
+                else if (string.IsNullOrEmpty(primaryMediaPath) && Directory.Exists(savePath))
+                {
+                    var mediaFiles = Directory.EnumerateFiles(savePath, "*.*", SearchOption.AllDirectories)
+                        .Where(IsMediaFile)
+                        .Select(p => new FileInfo(p))
+                        .OrderByDescending(fi => fi.Length)
+                        .FirstOrDefault();
+
+                    if (mediaFiles != null)
+                    {
+                        primaryMediaPath = mediaFiles.FullName;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(primaryMediaPath) && File.Exists(primaryMediaPath))
+                {
+                    this.logger.Info("Inspecting completed media file {0} for torrent {1}", primaryMediaPath, torrent.Name);
+                    await this.EnrichTorrentAsync(torrent, primaryMediaPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to inspect completed media for torrent {0}", message.Torrent.Name);
+            }
+        });
+    }
+
+    public void Handle(ArchiveExtractionCompletedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var destDir = message.DestinationDirectory;
+                if (!string.IsNullOrEmpty(destDir) && Directory.Exists(destDir))
+                {
+                    var mediaFile = Directory.EnumerateFiles(destDir, "*.*", SearchOption.AllDirectories)
+                        .Where(IsMediaFile)
+                        .Select(p => new FileInfo(p))
+                        .OrderByDescending(fi => fi.Length)
+                        .FirstOrDefault();
+
+                    if (mediaFile != null)
+                    {
+                        this.logger.Info("Inspecting extracted media file {0} for torrent {1}", mediaFile.FullName, message.Torrent.Name);
+                        await this.EnrichTorrentAsync(message.Torrent, mediaFile.FullName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to inspect extracted media for torrent {0}", message.Torrent.Name);
+            }
+        });
     }
 
     public async Task<TorrentMediaMetadata> EnrichTorrentAsync(Torrent torrent, string filePath = null)
