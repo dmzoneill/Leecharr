@@ -160,7 +160,10 @@ export function PromptModal({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column" }}
+        >
           <input
             ref={inputRef}
             type={inputType}

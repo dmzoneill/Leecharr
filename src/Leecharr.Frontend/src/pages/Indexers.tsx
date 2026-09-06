@@ -45,7 +45,7 @@ export const Indexers: React.FC<IndexersProps> = ({
       query: activeSearchTerm,
       indexerId: currentIndexerId,
     },
-    Boolean(activeSearchTerm.trim())
+    Boolean(activeSearchTerm.trim()),
   );
 
   const handleSearch = (e: React.FormEvent) => {
@@ -75,9 +75,12 @@ export const Indexers: React.FC<IndexersProps> = ({
         },
         onError: (err) => {
           setDownloadingGuid(null);
-          showToast(`Failed to grab: ${err.message || "Unknown error"}`, "error");
+          showToast(
+            `Failed to grab: ${err.message || "Unknown error"}`,
+            "error",
+          );
         },
-      }
+      },
     );
   };
 
@@ -87,7 +90,10 @@ export const Indexers: React.FC<IndexersProps> = ({
       onSuccess: (res) => {
         setTestingId(null);
         if (res.success) {
-          showToast(`Connection to indexer verified (${res.responseTimeMs || 0}ms)`, "success");
+          showToast(
+            `Connection to indexer verified (${res.responseTimeMs || 0}ms)`,
+            "success",
+          );
         } else {
           showToast(`Indexer test failed: ${res.message}`, "error");
         }
@@ -109,10 +115,10 @@ export const Indexers: React.FC<IndexersProps> = ({
         onSuccess: () => {
           showToast(
             `Indexer "${indexer.name}" ${!indexer.enable ? "enabled" : "disabled"}`,
-            "success"
+            "success",
           );
         },
-      }
+      },
     );
   };
 
@@ -123,15 +129,20 @@ export const Indexers: React.FC<IndexersProps> = ({
           Boolean(r.isFreeleech) ||
           r.downloadVolumeFactor === 0 ||
           (r.category || "").toLowerCase().includes("freeleech") ||
-          (r.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
+          (r.categories || []).some((c) =>
+            c.toLowerCase().includes("freeleech"),
+          ) ||
           (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
-          (r.magnetUrl || "").toLowerCase().includes("freeleech")
+          (r.magnetUrl || "").toLowerCase().includes("freeleech"),
       )
     : rawResults;
 
   if (isIndexersLoading) {
     return (
-      <div className="content-area" style={{ padding: "2rem", textAlign: "center" }}>
+      <div
+        className="content-area"
+        style={{ padding: "2rem", textAlign: "center" }}
+      >
         <div className="loading">Loading configured indexers...</div>
       </div>
     );
@@ -160,12 +171,18 @@ export const Indexers: React.FC<IndexersProps> = ({
         }}
       >
         <div>
-          <h1 className="page-heading" style={{ margin: 0, fontSize: "1.4rem" }}>
+          <h1
+            className="page-heading"
+            style={{ margin: 0, fontSize: "1.4rem" }}
+          >
             {currentIndexer
               ? `Indexer: ${currentIndexer.name}`
               : "Multi-Indexer Search & Discovery"}
           </h1>
-          <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>
+          <p
+            className="text-muted"
+            style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}
+          >
             {currentIndexer
               ? `Direct query endpoint for ${currentIndexer.indexerType} (${currentIndexer.url})`
               : "Unified Torznab & Newznab search across all linked indexers with Freeleech detection."}
@@ -181,7 +198,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                 onClick={() => handleTest(currentIndexer.id)}
                 disabled={testingId === currentIndexer.id}
               >
-                {testingId === currentIndexer.id ? "Testing..." : "⚡ Test Connection"}
+                {testingId === currentIndexer.id
+                  ? "Testing..."
+                  : "⚡ Test Connection"}
               </button>
               <button
                 type="button"
@@ -226,8 +245,9 @@ export const Indexers: React.FC<IndexersProps> = ({
           }}
         >
           <div>
-            <strong>⚠️ No indexers configured.</strong> You need to add a Torznab indexer or sync
-            with Prowlarr in Settings &gt; Indexers to search for releases.
+            <strong>⚠️ No indexers configured.</strong> You need to add a
+            Torznab indexer or sync with Prowlarr in Settings &gt; Indexers to
+            search for releases.
           </div>
           <button
             type="button"
@@ -306,7 +326,10 @@ export const Indexers: React.FC<IndexersProps> = ({
           flexShrink: 0,
         }}
       >
-        <form onSubmit={handleSearch} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <form
+          onSubmit={handleSearch}
+          style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}
+        >
           <input
             type="text"
             placeholder={
@@ -339,7 +362,9 @@ export const Indexers: React.FC<IndexersProps> = ({
               borderRadius: "6px",
             }}
           >
-            {searchResults.isFetching ? "Searching swarms..." : "Search Releases"}
+            {searchResults.isFetching
+              ? "Searching swarms..."
+              : "Search Releases"}
           </button>
         </form>
 
@@ -393,7 +418,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                 style={{ fontSize: "1rem", color: "var(--accent, #ffd166)" }}
               >
                 Querying{" "}
-                {currentIndexer ? currentIndexer.name : `${enabledIndexers.length} active indexers`}
+                {currentIndexer
+                  ? currentIndexer.name
+                  : `${enabledIndexers.length} active indexers`}
                 ...
               </div>
             </div>
@@ -408,43 +435,48 @@ export const Indexers: React.FC<IndexersProps> = ({
               }}
             >
               Search query failed:{" "}
-              {(searchResults.error as Error)?.message || "Check indexer connection"}
+              {(searchResults.error as Error)?.message ||
+                "Check indexer connection"}
             </div>
           )}
 
-          {!searchResults.isFetching && !searchResults.isError && !activeSearchTerm && (
-            <div
-              style={{
-                padding: "4rem 2rem",
-                textAlign: "center",
-                color: "var(--text-muted, #7e8092)",
-              }}
-            >
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>🔍</div>
+          {!searchResults.isFetching &&
+            !searchResults.isError &&
+            !activeSearchTerm && (
               <div
                 style={{
-                  fontWeight: 600,
-                  fontSize: "1.05rem",
-                  color: "var(--text-primary, #f8f4ed)",
-                  marginBottom: "0.25rem",
+                  padding: "4rem 2rem",
+                  textAlign: "center",
+                  color: "var(--text-muted, #7e8092)",
                 }}
               >
-                {currentIndexer
-                  ? `Ready to search ${currentIndexer.name}`
-                  : "Ready to search all indexers"}
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>
+                  🔍
+                </div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: "1.05rem",
+                    color: "var(--text-primary, #f8f4ed)",
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  {currentIndexer
+                    ? `Ready to search ${currentIndexer.name}`
+                    : "Ready to search all indexers"}
+                </div>
+                <p
+                  style={{
+                    maxWidth: "480px",
+                    margin: "0 auto",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Enter keywords above to search releases, compare seeds/peers,
+                  and one-click grab directly into your download queue.
+                </p>
               </div>
-              <p
-                style={{
-                  maxWidth: "480px",
-                  margin: "0 auto",
-                  fontSize: "0.85rem",
-                }}
-              >
-                Enter keywords above to search releases, compare seeds/peers, and one-click grab
-                directly into your download queue.
-              </p>
-            </div>
-          )}
+            )}
 
           {!searchResults.isFetching &&
             !searchResults.isError &&
@@ -457,7 +489,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                   color: "var(--text-muted, #7e8092)",
                 }}
               >
-                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📭</div>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>
+                  📭
+                </div>
                 <div
                   style={{
                     fontWeight: 600,
@@ -484,205 +518,227 @@ export const Indexers: React.FC<IndexersProps> = ({
               </div>
             )}
 
-          {!searchResults.isFetching && !searchResults.isError && filtered.length > 0 && (
-            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid var(--border-light, #1c203b)",
-                    textAlign: "left",
-                    fontSize: "0.8rem",
-                    color: "var(--text-muted, #7e8092)",
-                    position: "sticky",
-                    top: 0,
-                    backgroundColor: "var(--bg-primary, #10111a)",
-                    zIndex: 2,
-                  }}
-                >
-                  <th style={{ padding: "0.75rem 1rem" }}>Title & Categories</th>
-                  <th style={{ padding: "0.75rem 1rem", width: "140px" }}>Indexer</th>
-                  <th style={{ padding: "0.75rem 1rem", width: "110px" }}>Size</th>
-                  <th style={{ padding: "0.75rem 1rem", width: "110px" }}>Seeds / Leech</th>
-                  <th style={{ padding: "0.75rem 1rem", width: "130px" }}>Published</th>
-                  <th
+          {!searchResults.isFetching &&
+            !searchResults.isError &&
+            filtered.length > 0 && (
+              <table
+                className="table"
+                style={{ width: "100%", borderCollapse: "collapse" }}
+              >
+                <thead>
+                  <tr
                     style={{
-                      padding: "0.75rem 1rem",
-                      width: "100px",
-                      textAlign: "right",
+                      borderBottom: "1px solid var(--border-light, #1c203b)",
+                      textAlign: "left",
+                      fontSize: "0.8rem",
+                      color: "var(--text-muted, #7e8092)",
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "var(--bg-primary, #10111a)",
+                      zIndex: 2,
                     }}
                   >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((rel) => {
-                  const itemKey = rel.guid || rel.infoHash || rel.title;
-                  const isDownloading = downloadingGuid === itemKey;
-                  const isFree =
-                    Boolean(rel.isFreeleech) ||
-                    rel.downloadVolumeFactor === 0 ||
-                    (rel.category || "").toLowerCase().includes("freeleech") ||
-                    (rel.categories || []).some((c) => c.toLowerCase().includes("freeleech")) ||
-                    (rel.downloadUrl || "").toLowerCase().includes("freeleech") ||
-                    (rel.magnetUrl || "").toLowerCase().includes("freeleech");
-                  const catList =
-                    rel.categories && rel.categories.length > 0
-                      ? rel.categories
-                      : rel.category
-                        ? rel.category
-                            .split(",")
-                            .map((c) => c.trim())
-                            .filter(Boolean)
-                        : [];
-
-                  return (
-                    <tr
-                      key={itemKey}
+                    <th style={{ padding: "0.75rem 1rem" }}>
+                      Title & Categories
+                    </th>
+                    <th style={{ padding: "0.75rem 1rem", width: "140px" }}>
+                      Indexer
+                    </th>
+                    <th style={{ padding: "0.75rem 1rem", width: "110px" }}>
+                      Size
+                    </th>
+                    <th style={{ padding: "0.75rem 1rem", width: "110px" }}>
+                      Seeds / Leech
+                    </th>
+                    <th style={{ padding: "0.75rem 1rem", width: "130px" }}>
+                      Published
+                    </th>
+                    <th
                       style={{
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                        fontSize: "0.85rem",
+                        padding: "0.75rem 1rem",
+                        width: "100px",
+                        textAlign: "right",
                       }}
                     >
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        <div
-                          style={{
-                            fontWeight: 500,
-                            color: "var(--text-primary, #f8f4ed)",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {rel.title}
-                          {isFree && (
-                            <span
-                              className="badge"
-                              style={{
-                                marginLeft: "0.5rem",
-                                fontSize: "0.65rem",
-                                padding: "0.1rem 0.4rem",
-                                borderRadius: "3px",
-                                backgroundColor: "rgba(34, 197, 94, 0.15)",
-                                color: "var(--success, #22c55e)",
-                                fontWeight: 700,
-                              }}
-                            >
-                              FREELEECH
-                            </span>
-                          )}
-                        </div>
-                        {catList.length > 0 && (
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((rel) => {
+                    const itemKey = rel.guid || rel.infoHash || rel.title;
+                    const isDownloading = downloadingGuid === itemKey;
+                    const isFree =
+                      Boolean(rel.isFreeleech) ||
+                      rel.downloadVolumeFactor === 0 ||
+                      (rel.category || "")
+                        .toLowerCase()
+                        .includes("freeleech") ||
+                      (rel.categories || []).some((c) =>
+                        c.toLowerCase().includes("freeleech"),
+                      ) ||
+                      (rel.downloadUrl || "")
+                        .toLowerCase()
+                        .includes("freeleech") ||
+                      (rel.magnetUrl || "").toLowerCase().includes("freeleech");
+                    const catList =
+                      rel.categories && rel.categories.length > 0
+                        ? rel.categories
+                        : rel.category
+                          ? rel.category
+                              .split(",")
+                              .map((c) => c.trim())
+                              .filter(Boolean)
+                          : [];
+
+                    return (
+                      <tr
+                        key={itemKey}
+                        style={{
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        <td style={{ padding: "0.75rem 1rem" }}>
                           <div
                             style={{
-                              display: "flex",
-                              gap: "0.3rem",
-                              marginTop: "0.3rem",
+                              fontWeight: 500,
+                              color: "var(--text-primary, #f8f4ed)",
+                              wordBreak: "break-word",
                             }}
                           >
-                            {catList.slice(0, 3).map((c, i) => (
+                            {rel.title}
+                            {isFree && (
                               <span
-                                key={i}
-                                className="badge badge-secondary"
+                                className="badge"
                                 style={{
+                                  marginLeft: "0.5rem",
                                   fontSize: "0.65rem",
-                                  padding: "0.1rem 0.35rem",
+                                  padding: "0.1rem 0.4rem",
                                   borderRadius: "3px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.06)",
+                                  backgroundColor: "rgba(34, 197, 94, 0.15)",
+                                  color: "var(--success, #22c55e)",
+                                  fontWeight: 700,
                                 }}
                               >
-                                {c}
+                                FREELEECH
                               </span>
-                            ))}
+                            )}
                           </div>
-                        )}
-                      </td>
+                          {catList.length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.3rem",
+                                marginTop: "0.3rem",
+                              }}
+                            >
+                              {catList.slice(0, 3).map((c, i) => (
+                                <span
+                                  key={i}
+                                  className="badge badge-secondary"
+                                  style={{
+                                    fontSize: "0.65rem",
+                                    padding: "0.1rem 0.35rem",
+                                    borderRadius: "3px",
+                                    backgroundColor:
+                                      "rgba(255, 255, 255, 0.06)",
+                                  }}
+                                >
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
 
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        <span
-                          className="badge"
+                        <td style={{ padding: "0.75rem 1rem" }}>
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "0.15rem 0.5rem",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(255, 209, 102, 0.12)",
+                              color: "var(--accent, #ffd166)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {rel.indexerName || rel.indexer || "Indexer"}
+                          </span>
+                        </td>
+
+                        <td
                           style={{
-                            fontSize: "0.75rem",
-                            padding: "0.15rem 0.5rem",
-                            borderRadius: "4px",
-                            backgroundColor: "rgba(255, 209, 102, 0.12)",
-                            color: "var(--accent, #ffd166)",
-                            fontWeight: 600,
+                            padding: "0.75rem 1rem",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          {rel.indexerName || rel.indexer || "Indexer"}
-                        </span>
-                      </td>
+                          {formatBytes(rel.size)}
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatBytes(rel.size)}
-                      </td>
-
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <span
+                        <td
                           style={{
-                            color: "var(--success, #22c55e)",
-                            fontWeight: 600,
+                            padding: "0.75rem 1rem",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          ▲ {rel.seeders ?? 0}
-                        </span>{" "}
-                        <span
+                          <span
+                            style={{
+                              color: "var(--success, #22c55e)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ▲ {rel.seeders ?? 0}
+                          </span>{" "}
+                          <span
+                            style={{
+                              color: "var(--text-muted, #7e8092)",
+                              marginLeft: "0.25rem",
+                            }}
+                          >
+                            ▼ {rel.leechers ?? 0}
+                          </span>
+                        </td>
+
+                        <td
                           style={{
+                            padding: "0.75rem 1rem",
+                            fontSize: "0.8rem",
                             color: "var(--text-muted, #7e8092)",
-                            marginLeft: "0.25rem",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          ▼ {rel.leechers ?? 0}
-                        </span>
-                      </td>
+                          {rel.publishDate ? formatDate(rel.publishDate) : "-"}
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          fontSize: "0.8rem",
-                          color: "var(--text-muted, #7e8092)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {rel.publishDate ? formatDate(rel.publishDate) : "-"}
-                      </td>
-
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          textAlign: "right",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="btn btn-success"
+                        <td
                           style={{
-                            fontSize: "0.78rem",
-                            padding: "0.35rem 0.75rem",
-                            borderRadius: "4px",
-                            fontWeight: 600,
+                            padding: "0.75rem 1rem",
+                            textAlign: "right",
                           }}
-                          onClick={() => handleGrab(rel)}
-                          disabled={isDownloading}
                         >
-                          {isDownloading ? "Grabbing..." : "+ Grab"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                          <button
+                            type="button"
+                            className="btn btn-success"
+                            style={{
+                              fontSize: "0.78rem",
+                              padding: "0.35rem 0.75rem",
+                              borderRadius: "4px",
+                              fontWeight: 600,
+                            }}
+                            onClick={() => handleGrab(rel)}
+                            disabled={isDownloading}
+                          >
+                            {isDownloading ? "Grabbing..." : "+ Grab"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
         </div>
       </div>
     </div>

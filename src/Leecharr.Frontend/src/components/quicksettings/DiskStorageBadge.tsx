@@ -42,16 +42,21 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
     diskSpaces.find(
       (d) =>
         (d.path && d.path.toLowerCase().includes("download")) ||
-        (d.label && d.label.toLowerCase().includes("download"))
+        (d.label && d.label.toLowerCase().includes("download")),
     ) ?? diskSpaces[0];
   const freeBytes = primary.freeSpace ?? 0;
   const totalBytes = primary.totalSpace ?? 1;
   const usedBytes = Math.max(0, totalBytes - freeBytes);
-  const usedPct = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100)));
+  const usedPct = Math.min(
+    100,
+    Math.max(0, Math.round((usedBytes / totalBytes) * 100)),
+  );
   const isLowSpace = freeBytes < 20 * 1024 * 1024 * 1024 || usedPct >= 90; // < 20GB or > 90% full
 
   const displayPath =
-    primary.path && primary.path !== "/" ? primary.path : primary.label || "/downloads";
+    primary.path && primary.path !== "/"
+      ? primary.path
+      : primary.label || "/downloads";
 
   return (
     <div
@@ -63,7 +68,9 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
         alignItems: "center",
         gap: "6px",
         padding: compact ? "2px 8px" : "4px 10px",
-        backgroundColor: isLowSpace ? "rgba(235, 87, 87, 0.15)" : "rgba(255, 255, 255, 0.05)",
+        backgroundColor: isLowSpace
+          ? "rgba(235, 87, 87, 0.15)"
+          : "rgba(255, 255, 255, 0.05)",
         border: isLowSpace
           ? "1px solid rgba(235, 87, 87, 0.4)"
           : "1px solid rgba(255, 255, 255, 0.08)",

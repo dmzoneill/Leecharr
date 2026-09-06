@@ -11,8 +11,17 @@ import {
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
-import type { DownloadClientDefinition, DownloadClientTestResult } from "../../api/types";
-import { TextInput, SelectInput, Toggle, NumberInput, SectionCard } from "./shared";
+import type {
+  DownloadClientDefinition,
+  DownloadClientTestResult,
+} from "../../api/types";
+import {
+  TextInput,
+  SelectInput,
+  Toggle,
+  NumberInput,
+  SectionCard,
+} from "./shared";
 
 export function DownloadClientsTab() {
   const { showToast } = useToast();
@@ -24,12 +33,14 @@ export function DownloadClientsTab() {
   const testMutation = useTestDownloadClient();
   const testDirectMutation = useTestDirectDownloadClient();
   const syncMutation = useDownloadClientSync();
-  const [editing, setEditing] = useState<Partial<DownloadClientDefinition> | null>(null);
+  const [editing, setEditing] =
+    useState<Partial<DownloadClientDefinition> | null>(null);
   useEscapeKey(() => setEditing(null), Boolean(editing));
-  const [testResults, setTestResults] = useState<Record<number, DownloadClientTestResult | null>>(
-    {}
-  );
-  const [modalTestResult, setModalTestResult] = useState<DownloadClientTestResult | null>(null);
+  const [testResults, setTestResults] = useState<
+    Record<number, DownloadClientTestResult | null>
+  >({});
+  const [modalTestResult, setModalTestResult] =
+    useState<DownloadClientTestResult | null>(null);
 
   const defaultClient: Partial<DownloadClientDefinition> = {
     name: "",
@@ -90,7 +101,8 @@ export function DownloadClientsTab() {
     });
   };
 
-  if (isLoading) return <div className="loading">Loading download clients...</div>;
+  if (isLoading)
+    return <div className="loading">Loading download clients...</div>;
 
   return (
     <>
@@ -115,10 +127,13 @@ export function DownloadClientsTab() {
                 onSuccess: (res) =>
                   showToast(
                     `Sync Complete: ${res.syncedCount || 0} torrents synchronized.`,
-                    "success"
+                    "success",
                   ),
                 onError: (err: any) =>
-                  showToast(`Sync failed: ${err?.message || "Unknown error"}`, "error"),
+                  showToast(
+                    `Sync failed: ${err?.message || "Unknown error"}`,
+                    "error",
+                  ),
               });
             }}
             disabled={syncMutation.isPending}
@@ -130,7 +145,11 @@ export function DownloadClientsTab() {
 
         <div className="provider-cards">
           {clients?.map((client) => (
-            <div key={client.id} className="provider-card" onClick={() => handleOpenModal(client)}>
+            <div
+              key={client.id}
+              className="provider-card"
+              onClick={() => handleOpenModal(client)}
+            >
               <div className="provider-card-actions">
                 {client.host && (
                   <a
@@ -170,9 +189,15 @@ export function DownloadClientsTab() {
 
                     deleteMutation.mutate(client.id, {
                       onSuccess: () =>
-                        showToast(`Download client "${client.name}" deleted`, "info"),
+                        showToast(
+                          `Download client "${client.name}" deleted`,
+                          "info",
+                        ),
                       onError: (err: any) =>
-                        showToast(err?.message || "Failed to delete download client", "error"),
+                        showToast(
+                          err?.message || "Failed to delete download client",
+                          "error",
+                        ),
                     });
                   }}
                 >
@@ -185,20 +210,28 @@ export function DownloadClientsTab() {
                   {client.clientType}
                 </span>
                 {client.enable && (
-                  <span className="provider-card-badge provider-card-badge-blue">Enabled</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    Enabled
+                  </span>
                 )}
                 {!client.enable && (
-                  <span className="provider-card-badge provider-card-badge-gray">Disabled</span>
+                  <span className="provider-card-badge provider-card-badge-gray">
+                    Disabled
+                  </span>
                 )}
                 {client.useSsl && (
-                  <span className="provider-card-badge provider-card-badge-amber">SSL</span>
+                  <span className="provider-card-badge provider-card-badge-amber">
+                    SSL
+                  </span>
                 )}
               </div>
               <div className="provider-card-info">
                 {client.host}:{client.port}
               </div>
               {testResults[client.id]?.success === true && (
-                <div className="provider-card-test provider-card-test-ok">✓ Connection passed</div>
+                <div className="provider-card-test provider-card-test-ok">
+                  ✓ Connection passed
+                </div>
               )}
               {testResults[client.id]?.success === false && (
                 <div
@@ -209,7 +242,9 @@ export function DownloadClientsTab() {
                 </div>
               )}
               {testResults[client.id] === null && (
-                <div className="provider-card-test provider-card-test-pending">Testing...</div>
+                <div className="provider-card-test provider-card-test-pending">
+                  Testing...
+                </div>
               )}
             </div>
           ))}
@@ -235,7 +270,10 @@ export function DownloadClientsTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
               {editing.id ? "Edit Download Client" : "Add Download Client"}
             </div>
             <TextInput
@@ -342,7 +380,8 @@ export function DownloadClientsTab() {
                 }}
               >
                 <span>
-                  Testing connection to {editing.host || "localhost"}:{editing.port || 8080}...
+                  Testing connection to {editing.host || "localhost"}:
+                  {editing.port || 8080}...
                 </span>
               </div>
             )}
@@ -365,7 +404,9 @@ export function DownloadClientsTab() {
                     ? "var(--success, #28a745)"
                     : "var(--danger, #dc3545)",
                   border: `1px solid ${
-                    modalTestResult.success ? "rgba(40, 167, 69, 0.35)" : "rgba(220, 53, 69, 0.35)"
+                    modalTestResult.success
+                      ? "rgba(40, 167, 69, 0.35)"
+                      : "rgba(220, 53, 69, 0.35)"
                   }`,
                 }}
               >
@@ -380,7 +421,9 @@ export function DownloadClientsTab() {
                 </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
-                    {modalTestResult.success ? "Connection Successful" : "Connection Failed"}
+                    {modalTestResult.success
+                      ? "Connection Successful"
+                      : "Connection Failed"}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -417,18 +460,27 @@ export function DownloadClientsTab() {
                 onClick={handleModalTest}
                 disabled={testDirectMutation.isPending}
               >
-                {testDirectMutation.isPending ? "Testing..." : "Test Connection"}
+                {testDirectMutation.isPending
+                  ? "Testing..."
+                  : "Test Connection"}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="btn btn-outline btn-small" onClick={() => setEditing(null)}>
+                <button
+                  className="btn btn-outline btn-small"
+                  onClick={() => setEditing(null)}
+                >
                   Cancel
                 </button>
                 <button
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
                 >
-                  {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
             </div>

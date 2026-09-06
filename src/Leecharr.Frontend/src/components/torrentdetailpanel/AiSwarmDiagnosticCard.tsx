@@ -8,13 +8,19 @@ import {
   RefreshIcon,
 } from "../icons/AiIcons";
 import type { Torrent, AiDiagnosticReport } from "../../api/types";
-import { useAiDiagnoseTorrent, useAnnounceTorrent, useRecheckTorrent } from "../../api/hooks";
+import {
+  useAiDiagnoseTorrent,
+  useAnnounceTorrent,
+  useRecheckTorrent,
+} from "../../api/hooks";
 
 interface AiSwarmDiagnosticCardProps {
   torrent: Torrent;
 }
 
-export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ torrent }) => {
+export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
+  torrent,
+}) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_ai_diag_expanded") === "true";
   });
@@ -25,7 +31,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
   const recheckMutation = useRecheckTorrent();
 
   useEffect(() => {
-    localStorage.setItem("leecharr_ai_diag_expanded", isExpanded ? "true" : "false");
+    localStorage.setItem(
+      "leecharr_ai_diag_expanded",
+      isExpanded ? "true" : "false",
+    );
   }, [isExpanded]);
 
   useEffect(() => {
@@ -85,7 +94,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <SparklesIcon size={14} style={{ color: "var(--accent-gold, #FFD166)" }} />
+          <SparklesIcon
+            size={14}
+            style={{ color: "var(--accent-gold, #FFD166)" }}
+          />
           <span>AI Swarm Health & Diagnostic Insights</span>
           {report && (
             <span
@@ -112,7 +124,11 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
           <span style={{ fontSize: "0.75rem", fontWeight: 400 }}>
             {isExpanded ? "Collapse" : "Expand"}
           </span>
-          {isExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+          {isExpanded ? (
+            <ChevronUpIcon size={14} />
+          ) : (
+            <ChevronDownIcon size={14} />
+          )}
         </div>
       </button>
 
@@ -144,8 +160,8 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
                   color: "var(--text-muted, #C7C5D3)",
                 }}
               >
-                Run instant AI swarm diagnostics to inspect tracker latency, choking bottlenecks,
-                and piece availability.
+                Run instant AI swarm diagnostics to inspect tracker latency,
+                choking bottlenecks, and piece availability.
               </p>
               <button
                 type="button"
@@ -189,7 +205,10 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
                   color: "#FFD166",
                 }}
               />
-              <span>Analyzing swarm peers, tracker responses, and piece availability...</span>
+              <span>
+                Analyzing swarm peers, tracker responses, and piece
+                availability...
+              </span>
             </div>
           )}
 
@@ -241,7 +260,8 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({ to
                         color: "var(--text-muted, #C7C5D3)",
                       }}
                     >
-                      Swarm: {report.swarmAnalysis} &bull; Tracker: {report.trackerAnalysis}
+                      Swarm: {report.swarmAnalysis} &bull; Tracker:{" "}
+                      {report.trackerAnalysis}
                     </div>
                   </div>
                 </div>

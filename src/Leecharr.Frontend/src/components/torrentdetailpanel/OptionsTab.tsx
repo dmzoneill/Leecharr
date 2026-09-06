@@ -13,24 +13,37 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const lastTorrentIdRef = useRef(torrent.id);
   const [priority, setPriority] = useState(String(torrent.priority ?? 1));
   const [uploadLimit, setUploadLimit] = useState(torrent.uploadLimit ?? 0);
-  const [downloadLimit, setDownloadLimit] = useState(torrent.downloadLimit ?? 0);
-  const [initialSeeding, setInitialSeeding] = useState(Boolean(torrent.initialSeeding));
+  const [downloadLimit, setDownloadLimit] = useState(
+    torrent.downloadLimit ?? 0,
+  );
+  const [initialSeeding, setInitialSeeding] = useState(
+    Boolean(torrent.initialSeeding),
+  );
   const [forceStart, setForceStart] = useState(Boolean(torrent.forceStart));
-  const [sequentialDownload, setSequentialDownload] = useState(Boolean(torrent.sequentialDownload));
+  const [sequentialDownload, setSequentialDownload] = useState(
+    Boolean(torrent.sequentialDownload),
+  );
   const [isPrivate, setIsPrivate] = useState(Boolean(torrent.isPrivate));
   const [active, setActive] = useState(
-    torrent.active ?? (torrent.status !== "paused" && torrent.status !== "stopped")
+    torrent.active ??
+      (torrent.status !== "paused" && torrent.status !== "stopped"),
   );
   const [label, setLabel] = useState(torrent.label ?? "");
-  const [announceInterval, setAnnounceInterval] = useState(torrent.announceInterval || 1800);
+  const [announceInterval, setAnnounceInterval] = useState(
+    torrent.announceInterval || 1800,
+  );
   const [nextUpdate, setNextUpdate] = useState(torrent.nextUpdate || 1800);
   const [threshold, setThreshold] = useState(torrent.threshold || 1);
-  const [smallTorrentLimit, setSmallTorrentLimit] = useState(torrent.smallTorrentLimit || 50);
+  const [smallTorrentLimit, setSmallTorrentLimit] = useState(
+    torrent.smallTorrentLimit || 50,
+  );
   const [targetRatio, setTargetRatio] = useState(torrent.targetRatio ?? 0);
   const [targetSeedTimeMinutes, setTargetSeedTimeMinutes] = useState(
-    torrent.targetSeedTimeMinutes ?? 0
+    torrent.targetSeedTimeMinutes ?? 0,
   );
-  const [shareLimitAction, setShareLimitAction] = useState(torrent.shareLimitAction || "Default");
+  const [shareLimitAction, setShareLimitAction] = useState(
+    torrent.shareLimitAction || "Default",
+  );
   const [dirty, setDirty] = useState(false);
 
   const resetToTorrent = (t: Torrent) => {
@@ -86,7 +99,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         targetSeedTimeMinutes,
         shareLimitAction,
       },
-      { onSuccess: () => setDirty(false) }
+      { onSuccess: () => setDirty(false) },
     );
   };
 
@@ -100,8 +113,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
       setter(v);
       setDirty(true);
     };
-  const numChange = (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    mark(setter)(parseInt(e.target.value, 10) || 0);
+  const numChange =
+    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      mark(setter)(parseInt(e.target.value, 10) || 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -132,7 +146,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom:
+                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
             }}
           >
@@ -146,7 +161,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Queue Priority
             </label>
             <select
@@ -175,10 +192,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <div>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+              <div
+                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+              >
                 Download Limit
               </div>
-              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>0 = Unlimited</div>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                0 = Unlimited
+              </div>
             </div>
             <div
               style={{
@@ -223,8 +244,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <div>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Upload Limit</div>
-              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>0 = Unlimited</div>
+              <div
+                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+              >
+                Upload Limit
+              </div>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                0 = Unlimited
+              </div>
             </div>
             <div
               style={{
@@ -281,7 +308,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom:
+                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
             }}
           >
@@ -295,7 +323,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Active / Seeding
             </label>
             <label className="toggle-switch">
@@ -315,7 +345,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Super Seeding (Initial)
             </label>
             <label className="toggle-switch">
@@ -328,8 +360,12 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             </label>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}
+          >
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Share Goal Action
             </label>
             <select
@@ -341,14 +377,25 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               <option value="Default">Follow Global Setting</option>
               <option value="Pause">Pause Seeding</option>
               <option value="Remove">Remove Torrent (Keep Data)</option>
-              <option value="RemoveWithData">Remove Torrent & Delete Data</option>
+              <option value="RemoveWithData">
+                Remove Torrent & Delete Data
+              </option>
               <option value="SuperSeeding">Switch to Super Seeding</option>
             </select>
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.2rem",
+              }}
+            >
+              <label
+                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+              >
                 Target Ratio
               </label>
               <input
@@ -356,21 +403,36 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 step="0.1"
                 min="0"
                 value={targetRatio}
-                onChange={(e) => mark(setTargetRatio)(parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  mark(setTargetRatio)(parseFloat(e.target.value) || 0)
+                }
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
                 placeholder="0 = global"
               />
             </div>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.2rem",
+              }}
+            >
+              <label
+                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+              >
                 Target Seed Time (m)
               </label>
               <input
                 type="number"
                 min="0"
                 value={targetSeedTimeMinutes}
-                onChange={(e) => mark(setTargetSeedTimeMinutes)(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) =>
+                  mark(setTargetSeedTimeMinutes)(
+                    parseInt(e.target.value, 10) || 0,
+                  )
+                }
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
                 placeholder="0 = global"
@@ -385,7 +447,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Force Start (Bypass Queue)
             </label>
             <label className="toggle-switch">
@@ -405,7 +469,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Sequential Download
             </label>
             <label className="toggle-switch">
@@ -435,7 +501,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                   gap: "5px",
                 }}
               >
-                <i className="fas fa-lock" style={{ color: "#f87171", fontSize: "0.75rem" }} />
+                <i
+                  className="fas fa-lock"
+                  style={{ color: "#f87171", fontSize: "0.75rem" }}
+                />
                 Private Swarm (BEP 27)
               </label>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
@@ -459,7 +528,11 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Label</label>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
+              Label
+            </label>
             <input
               type="text"
               className="form-input"
@@ -494,7 +567,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom:
+                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
               paddingBottom: "0.25rem",
             }}
           >
@@ -508,7 +582,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Announce Interval
             </label>
             <div
@@ -553,7 +629,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Next Update In
             </label>
             <div
@@ -598,7 +676,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Availability Threshold
             </label>
             <div
@@ -643,7 +723,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               alignItems: "center",
             }}
           >
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            <label
+              style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+            >
               Small Torrent Limit
             </label>
             <div
@@ -701,7 +783,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             color: dirty ? "var(--warning, #f59e0b)" : "var(--text-muted)",
           }}
         >
-          {dirty ? "● You have unsaved option modifications" : "Options in sync with engine"}
+          {dirty
+            ? "● You have unsaved option modifications"
+            : "Options in sync with engine"}
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {dirty && (

@@ -331,7 +331,10 @@ export function App() {
         msg.name === "categoryDeleted" ||
         msg.name === "subsystemSwitched"
       ) {
-        if (msg.name === "torrentDeleted" || (msg.name === "torrent" && msg.action === "Deleted")) {
+        if (
+          msg.name === "torrentDeleted" ||
+          (msg.name === "torrent" && msg.action === "Deleted")
+        ) {
           const body = msg.body as any;
           if (Array.isArray(body)) {
             for (const item of body) {
@@ -974,6 +977,7 @@ export function App() {
                       onPause={handlePause}
                       onResume={handleResume}
                       onDelete={handleDelete}
+                      onRefresh={refreshServerData}
                       onOpenAddModal={() => setShowAddModal(true)}
                       onOpenSearchModal={() => setShowSearchModal(true)}
                       onNavigateTab={(nav, subNav) => {

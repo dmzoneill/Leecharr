@@ -59,7 +59,13 @@ function sourceBadgeStyle(source?: string): React.CSSProperties {
   }
 }
 
-export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: number }) {
+export function LogTab({
+  torrent,
+  torrentId,
+}: {
+  torrent?: Torrent;
+  torrentId?: number;
+}) {
   const [isLive, setIsLive] = useState(true);
   const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [sourceFilter, setSourceFilter] = useState<string>("ALL");
@@ -95,7 +101,10 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
         return false;
       }
       const entrySource = (entry.source || "Engine").toLowerCase();
-      if (sourceFilter !== "ALL" && entrySource !== sourceFilter.toLowerCase()) {
+      if (
+        sourceFilter !== "ALL" &&
+        entrySource !== sourceFilter.toLowerCase()
+      ) {
         return false;
       }
       if (searchTerm) {
@@ -113,10 +122,14 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
     const text = filteredLogs
       .map(
         (l) =>
-          `[${formatDate(l.timestamp || l.timeStamp || null)}] [${(l.level || "INFO").toUpperCase()}] [${l.source || "Engine"}] ${l.message || ""}`
+          `[${formatDate(l.timestamp || l.timeStamp || null)}] [${(l.level || "INFO").toUpperCase()}] [${l.source || "Engine"}] ${l.message || ""}`,
       )
       .join("\n");
-    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      navigator.clipboard.writeText
+    ) {
       navigator.clipboard
         .writeText(text)
         .then(() => {
@@ -131,7 +144,8 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
 
   if (isLoading && logs.length === 0)
     return <PanelLoading>Loading seeder & tracker log entries...</PanelLoading>;
-  if (isError && logs.length === 0) return <PanelEmpty>Failed to load log entries.</PanelEmpty>;
+  if (isError && logs.length === 0)
+    return <PanelEmpty>Failed to load log entries.</PanelEmpty>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
@@ -157,7 +171,9 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
               fontWeight: 500,
               padding: "0.15rem 0.4rem",
               borderRadius: "10px",
-              backgroundColor: isLive ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
+              backgroundColor: isLive
+                ? "rgba(34, 197, 94, 0.15)"
+                : "rgba(148, 163, 184, 0.15)",
               color: isLive ? "#4ade80" : "#94a3b8",
               border: `1px solid ${isLive ? "rgba(34, 197, 94, 0.3)" : "rgba(148, 163, 184, 0.3)"}`,
             }}
@@ -260,23 +276,36 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
         >
           <thead>
             <tr style={{ backgroundColor: "#161b22" }}>
-              <th className="torrent-table-th" style={{ width: "130px", padding: "0.3rem 0.4rem" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: "130px", padding: "0.3rem 0.4rem" }}
+              >
                 Time
               </th>
-              <th className="torrent-table-th" style={{ width: "65px", padding: "0.3rem 0.4rem" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: "65px", padding: "0.3rem 0.4rem" }}
+              >
                 Level
               </th>
-              <th className="torrent-table-th" style={{ width: "85px", padding: "0.3rem 0.4rem" }}>
+              <th
+                className="torrent-table-th"
+                style={{ width: "85px", padding: "0.3rem 0.4rem" }}
+              >
                 Source
               </th>
-              <th className="torrent-table-th" style={{ padding: "0.3rem 0.4rem" }}>
+              <th
+                className="torrent-table-th"
+                style={{ padding: "0.3rem 0.4rem" }}
+              >
                 Event Details
               </th>
             </tr>
           </thead>
           <tbody
             style={{
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             }}
           >
             {filteredLogs.length === 0 ? (
@@ -289,7 +318,9 @@ export function LogTab({ torrent, torrentId }: { torrent?: Torrent; torrentId?: 
                     padding: "1.5rem",
                   }}
                 >
-                  {logs.length === 0 ? "No events recorded yet" : "No logs match filter"}
+                  {logs.length === 0
+                    ? "No events recorded yet"
+                    : "No logs match filter"}
                 </td>
               </tr>
             ) : (

@@ -88,8 +88,12 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
           changed = true;
           nextTelemetry[u.id] = {
             ...(nextTelemetry[u.id] || {}),
-            uploadSpeed: u.uploadSpeed ?? u.upSpeed ?? nextTelemetry[u.id]?.uploadSpeed,
-            downloadSpeed: u.downloadSpeed ?? u.downSpeed ?? nextTelemetry[u.id]?.downloadSpeed,
+            uploadSpeed:
+              u.uploadSpeed ?? u.upSpeed ?? nextTelemetry[u.id]?.uploadSpeed,
+            downloadSpeed:
+              u.downloadSpeed ??
+              u.downSpeed ??
+              nextTelemetry[u.id]?.downloadSpeed,
             progress: u.progress ?? nextTelemetry[u.id]?.progress,
             uploaded: u.uploaded ?? nextTelemetry[u.id]?.uploaded,
             downloaded: u.downloaded ?? nextTelemetry[u.id]?.downloaded,
@@ -123,7 +127,8 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       return { selectedIds: next };
     }),
   selectAllIds: (ids) => set({ selectedIds: new Set(ids) }),
-  clearSelection: () => set({ selectedIds: new Set(), selectedTorrentId: null }),
+  clearSelection: () =>
+    set({ selectedIds: new Set(), selectedTorrentId: null }),
   removeTorrent: (id: number) =>
     set((state) => {
       const nextSelected = new Set(state.selectedIds);
@@ -134,14 +139,18 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       delete nextPieceMaps[id];
       return {
         selectedIds: nextSelected,
-        selectedTorrentId: state.selectedTorrentId === id ? null : state.selectedTorrentId,
+        selectedTorrentId:
+          state.selectedTorrentId === id ? null : state.selectedTorrentId,
         telemetry: nextTelemetry,
         pieceMaps: nextPieceMaps,
       };
     }),
 }));
 
-export function applyTelemetry(torrent: Torrent, telemetry?: TorrentTelemetry): Torrent {
+export function applyTelemetry(
+  torrent: Torrent,
+  telemetry?: TorrentTelemetry,
+): Torrent {
   if (!telemetry) return torrent;
   return {
     ...torrent,

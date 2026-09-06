@@ -1,10 +1,18 @@
 export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes == null || isNaN(Number(bytes)) || !isFinite(Number(bytes)) || Number(bytes) <= 0) {
+  if (
+    bytes == null ||
+    isNaN(Number(bytes)) ||
+    !isFinite(Number(bytes)) ||
+    Number(bytes) <= 0
+  ) {
     return "0 B";
   }
   const n = Number(bytes);
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
-  const i = Math.max(0, Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024))));
+  const i = Math.max(
+    0,
+    Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024))),
+  );
   const val = n / Math.pow(1024, i);
   return `${val.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
@@ -76,7 +84,9 @@ export function extractTrackerDomain(url: string | null | undefined): string {
   return "Unknown";
 }
 
-export function normalizeGenres(genres: string[] | string | undefined | null): string[] {
+export function normalizeGenres(
+  genres: string[] | string | undefined | null,
+): string[] {
   if (!genres) return [];
   if (Array.isArray(genres)) return genres;
   if (typeof genres === "string") {

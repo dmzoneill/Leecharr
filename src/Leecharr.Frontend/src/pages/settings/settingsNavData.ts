@@ -421,7 +421,15 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
         description:
           "Connect Prowlarr, Jackett, and standalone Torznab providers for automated multi-indexer searching",
         icon: "🔍",
-        keywords: ["indexers", "prowlarr", "jackett", "torznab", "newznab", "search", "rss sync"],
+        keywords: [
+          "indexers",
+          "prowlarr",
+          "jackett",
+          "torznab",
+          "newznab",
+          "search",
+          "rss sync",
+        ],
       },
       {
         id: "connections",
@@ -554,7 +562,10 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
 ];
 
 // Helper: Resolve legacy URLs and aliases to exact (groupId, pageId)
-export const LEGACY_SETTINGS_MAP: Record<string, { groupId: SettingsGroupId; pageId: string }> = {
+export const LEGACY_SETTINGS_MAP: Record<
+  string,
+  { groupId: SettingsGroupId; pageId: string }
+> = {
   general: { groupId: "general-security", pageId: "host" },
   host: { groupId: "general-security", pageId: "host" },
   webui: { groupId: "general-security", pageId: "webui" },

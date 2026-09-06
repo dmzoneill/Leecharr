@@ -45,8 +45,10 @@ export function HarvesterPanel({
     return unifiedItems.filter((item) => {
       if (downloadFilter === "public" && item.isPrivate) return false;
       if (downloadFilter === "private" && !item.isPrivate) return false;
-      if (downloadFilter === "real" && item.sourceType !== "real_client") return false;
-      if (downloadFilter === "leecharr" && item.sourceType !== "leecharr") return false;
+      if (downloadFilter === "real" && item.sourceType !== "real_client")
+        return false;
+      if (downloadFilter === "leecharr" && item.sourceType !== "leecharr")
+        return false;
       if (downloadSearch.trim()) {
         const q = downloadSearch.toLowerCase();
         const name = (item.name || "").toLowerCase();
@@ -71,7 +73,7 @@ export function HarvesterPanel({
     refetch: refetchTorrentInspect,
   } = useInspectTorrentTrackers(
     selectedItem?.id ?? 0,
-    Boolean(selectedItem?.id && selectedItem.id > 0)
+    Boolean(selectedItem?.id && selectedItem.id > 0),
   );
 
   const {
@@ -81,11 +83,13 @@ export function HarvesterPanel({
   } = useInspectHashTrackers(
     selectedItem?.infoHash ?? "",
     selectedItem?.name ?? "",
-    Boolean(!selectedItem?.id && selectedItem?.infoHash)
+    Boolean(!selectedItem?.id && selectedItem?.infoHash),
   );
 
   const inspection = selectedItem?.id ? torrentInspection : hashInspection;
-  const inspectionLoading = selectedItem?.id ? torrentInspectLoading : hashInspectLoading;
+  const inspectionLoading = selectedItem?.id
+    ? torrentInspectLoading
+    : hashInspectLoading;
 
   const handleScanAll = () => {
     scanTrackers.mutate(undefined, {
@@ -101,7 +105,10 @@ export function HarvesterPanel({
   const handleHarvestDownloads = () => {
     harvestDownloads.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Harvested ${res.harvestedCount} new trackers from active downloads`, "success");
+        showToast(
+          `Harvested ${res.harvestedCount} new trackers from active downloads`,
+          "success",
+        );
       },
       onError: (err) => {
         showToast(`Failed to harvest from downloads: ${err.message}`, "error");
@@ -129,7 +136,7 @@ export function HarvesterPanel({
           onError: (err) => {
             showToast(`Failed to boost: ${err.message}`, "error");
           },
-        }
+        },
       );
     }
   };
@@ -150,18 +157,24 @@ export function HarvesterPanel({
         onError: (err) => {
           showToast(`Failed to inject tracker: ${err.message}`, "error");
         },
-      }
+      },
     );
   };
 
   const handleBoostAll = () => {
     boostAll.mutate(undefined, {
       onSuccess: (resList) => {
-        const totalAdded = resList.reduce((sum, r) => sum + r.addedTrackersCount, 0);
-        const totalSeeds = resList.reduce((sum, r) => sum + r.totalSeedersFound, 0);
+        const totalAdded = resList.reduce(
+          (sum, r) => sum + r.addedTrackersCount,
+          0,
+        );
+        const totalSeeds = resList.reduce(
+          (sum, r) => sum + r.totalSeedersFound,
+          0,
+        );
         showToast(
           `Boosted ${resList.length} swarms: injected ${totalAdded} verified trackers (+${totalSeeds} seeds discovered)`,
-          "success"
+          "success",
         );
       },
       onError: (err) => {
@@ -220,7 +233,9 @@ export function HarvesterPanel({
             disabled={harvestDownloads.isPending}
             title="Extract and discover tracker URLs from active download swarms in Leecharr and download clients"
           >
-            {harvestDownloads.isPending ? "🔄 Harvesting..." : "🔄 Harvest from Live Swarms"}
+            {harvestDownloads.isPending
+              ? "🔄 Harvesting..."
+              : "🔄 Harvest from Live Swarms"}
           </button>
 
           <button
@@ -418,11 +433,13 @@ export function HarvesterPanel({
                       }}
                     >
                       <span>
-                        {formatBytes(item.totalSize)} • Ratio: {formatRatio(item.ratio)}
+                        {formatBytes(item.totalSize)} • Ratio:{" "}
+                        {formatRatio(item.ratio)}
                       </span>
                       <span
                         style={{
-                          color: item.seeders > 0 ? "var(--success)" : "inherit",
+                          color:
+                            item.seeders > 0 ? "var(--success)" : "inherit",
                         }}
                       >
                         {item.seeders} Seeds
@@ -436,7 +453,10 @@ export function HarvesterPanel({
                         alignItems: "center",
                       }}
                     >
-                      <span className="badge badge-secondary" style={{ fontSize: "0.7rem" }}>
+                      <span
+                        className="badge badge-secondary"
+                        style={{ fontSize: "0.7rem" }}
+                      >
                         {item.clientName}
                       </span>
                       {!item.isPrivate ? (
@@ -519,13 +539,21 @@ export function HarvesterPanel({
                       flexWrap: "wrap",
                     }}
                   >
-                    <h2 style={{ fontSize: "1.1rem", margin: 0 }}>{selectedItem.name}</h2>
+                    <h2 style={{ fontSize: "1.1rem", margin: 0 }}>
+                      {selectedItem.name}
+                    </h2>
                     {selectedItem.isPrivate ? (
-                      <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                      <span
+                        className="badge badge-secondary"
+                        style={{ fontSize: "0.75rem" }}
+                      >
                         🔒 Private Swarm
                       </span>
                     ) : (
-                      <span className="badge badge-success" style={{ fontSize: "0.75rem" }}>
+                      <span
+                        className="badge badge-success"
+                        style={{ fontSize: "0.75rem" }}
+                      >
                         🌐 Public Swarm
                       </span>
                     )}
@@ -545,7 +573,9 @@ export function HarvesterPanel({
                     className="btn btn-action"
                     style={{ fontSize: "0.85rem" }}
                     onClick={() =>
-                      selectedItem.id ? refetchTorrentInspect() : refetchHashInspect()
+                      selectedItem.id
+                        ? refetchTorrentInspect()
+                        : refetchHashInspect()
                     }
                     title="Re-scrape candidate trackers for this info_hash"
                   >
@@ -582,9 +612,10 @@ export function HarvesterPanel({
                 >
                   <span style={{ fontSize: "1.25rem" }}>🔒</span>
                   <div>
-                    <strong>Private Tracker Swarm:</strong> Cross-swarm public tracker injection is
-                    protected and disabled to comply with BitTorrent private tracker rules (BEP 27).
-                    Attached private trackers and health metrics are displayed below.
+                    <strong>Private Tracker Swarm:</strong> Cross-swarm public
+                    tracker injection is protected and disabled to comply with
+                    BitTorrent private tracker rules (BEP 27). Attached private
+                    trackers and health metrics are displayed below.
                   </div>
                 </div>
               )}
@@ -637,7 +668,8 @@ export function HarvesterPanel({
                     color: "var(--text-muted)",
                   }}
                 >
-                  Scraping candidate trackers for hash {(selectedItem?.infoHash || "").slice(0, 8)}...
+                  Scraping candidate trackers for hash{" "}
+                  {(selectedItem?.infoHash || "").slice(0, 8)}...
                 </div>
               ) : (
                 <div
@@ -661,22 +693,40 @@ export function HarvesterPanel({
                       }}
                     >
                       <tr>
-                        <th className="torrent-table-th" style={{ width: "35%" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ width: "35%" }}
+                        >
                           Tracker URL
                         </th>
-                        <th className="torrent-table-th" style={{ width: "10%" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ width: "10%" }}
+                        >
                           Protocol
                         </th>
-                        <th className="torrent-table-th" style={{ width: "10%" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ width: "10%" }}
+                        >
                           Latency
                         </th>
-                        <th className="torrent-table-th" style={{ width: "25%" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ width: "25%" }}
+                        >
                           Status / Detection
                         </th>
-                        <th className="torrent-table-th" style={{ width: "15%" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ width: "15%" }}
+                        >
                           Peers
                         </th>
-                        <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                        <th
+                          className="torrent-table-th"
+                          style={{ textAlign: "right" }}
+                        >
                           Action
                         </th>
                       </tr>
@@ -688,7 +738,10 @@ export function HarvesterPanel({
                           className="torrent-table-row"
                           style={{
                             opacity:
-                              det.healthStatus === "Offline" || det.healthStatus === 3 ? 0.6 : 1,
+                              det.healthStatus === "Offline" ||
+                              det.healthStatus === 3
+                                ? 0.6
+                                : 1,
                           }}
                         >
                           <td
@@ -706,12 +759,18 @@ export function HarvesterPanel({
                                 gap: "0.45rem",
                               }}
                             >
-                              <TrackerFavicon urlOrHost={det.trackerUrl} size={15} />
+                              <TrackerFavicon
+                                urlOrHost={det.trackerUrl}
+                                size={15}
+                              />
                               <span>{det.trackerUrl}</span>
                             </div>
                           </td>
                           <td>
-                            <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                            <span
+                              className="badge badge-secondary"
+                              style={{ fontSize: "0.75rem" }}
+                            >
                               {det.protocol}
                             </span>
                           </td>
@@ -720,11 +779,17 @@ export function HarvesterPanel({
                           </td>
                           <td>
                             {det.isAttached ? (
-                              <span className="badge badge-primary" style={{ fontSize: "0.75rem" }}>
+                              <span
+                                className="badge badge-primary"
+                                style={{ fontSize: "0.75rem" }}
+                              >
                                 Attached
                               </span>
                             ) : det.isVerified ? (
-                              <span className="badge badge-success" style={{ fontSize: "0.75rem" }}>
+                              <span
+                                className="badge badge-success"
+                                style={{ fontSize: "0.75rem" }}
+                              >
                                 ✓ Verified Match
                               </span>
                             ) : (
@@ -739,7 +804,10 @@ export function HarvesterPanel({
                           <td>
                             <span
                               style={{
-                                color: det.seeders > 0 ? "var(--success)" : "inherit",
+                                color:
+                                  det.seeders > 0
+                                    ? "var(--success)"
+                                    : "inherit",
                                 fontWeight: 600,
                               }}
                             >
@@ -748,7 +816,10 @@ export function HarvesterPanel({
                             /{" "}
                             <span
                               style={{
-                                color: det.leechers > 0 ? "var(--accent)" : "inherit",
+                                color:
+                                  det.leechers > 0
+                                    ? "var(--accent)"
+                                    : "inherit",
                               }}
                             >
                               {det.leechers} leeches
@@ -785,12 +856,15 @@ export function HarvesterPanel({
                             ) : det.isVerified ? (
                               <button
                                 className="btn btn-sm btn-primary"
-                                onClick={() => handleInjectSingle(det.trackerUrl)}
+                                onClick={() =>
+                                  handleInjectSingle(det.trackerUrl)
+                                }
                                 title="Inject this verified tracker into the torrent"
                               >
                                 ⚡ Inject
                               </button>
-                            ) : det.healthStatus === "Offline" || det.healthStatus === 3 ? (
+                            ) : det.healthStatus === "Offline" ||
+                              det.healthStatus === 3 ? (
                               <span
                                 style={{
                                   color: "var(--text-dim)",
@@ -825,7 +899,8 @@ export function HarvesterPanel({
                 color: "var(--text-muted)",
               }}
             >
-              Select a download from the left list to inspect live tracker scrape results.
+              Select a download from the left list to inspect live tracker
+              scrape results.
             </div>
           )}
         </div>

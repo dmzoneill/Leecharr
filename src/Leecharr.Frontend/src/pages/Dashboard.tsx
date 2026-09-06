@@ -23,7 +23,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateTorrents,
   onNavigateSettings,
 }) => {
-  const [speedHistory, setSpeedHistory] = useState<{ dl: number; ul: number; time: number }[]>([]);
+  const [speedHistory, setSpeedHistory] = useState<
+    { dl: number; ul: number; time: number }[]
+  >([]);
 
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
@@ -35,10 +37,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const achievements = calculateAchievements(torrents, seedingStats);
   const totalSize = torrents.reduce((acc, t) => acc + (t.totalSize || 0), 0);
   const totalLibrarySize =
-    (diskSpace || []).reduce((acc, d) => acc + (d.totalSpace - d.freeSpace), 0) || totalSize;
+    (diskSpace || []).reduce(
+      (acc, d) => acc + (d.totalSpace - d.freeSpace),
+      0,
+    ) || totalSize;
 
-  const totalDlSpeed = torrents.reduce((acc, t) => acc + (t.downloadSpeed || 0), 0);
-  const totalUlSpeed = torrents.reduce((acc, t) => acc + (t.uploadSpeed || 0), 0);
+  const totalDlSpeed = torrents.reduce(
+    (acc, t) => acc + (t.downloadSpeed || 0),
+    0,
+  );
+  const totalUlSpeed = torrents.reduce(
+    (acc, t) => acc + (t.uploadSpeed || 0),
+    0,
+  );
   const avgRatio =
     torrents.length > 0
       ? torrents.reduce((acc, t) => acc + (t.ratio ?? 0), 0) / torrents.length
@@ -53,7 +64,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setSpeedHistory((prev) => {
         const next = [
           ...prev,
-          { dl: speedsRef.current.dl, ul: speedsRef.current.ul, time: Date.now() },
+          {
+            dl: speedsRef.current.dl,
+            ul: speedsRef.current.ul,
+            time: Date.now(),
+          },
         ];
         return next.slice(-40); // Keep last 40 samples (approx 60s)
       });
@@ -78,7 +93,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   // Generate SVG path for speed chart
-  const maxSpeed = Math.max(1024 * 1024, ...speedHistory.map((h) => Math.max(h.dl, h.ul)));
+  const maxSpeed = Math.max(
+    1024 * 1024,
+    ...speedHistory.map((h) => Math.max(h.dl, h.ul)),
+  );
   const chartWidth = 900;
   const chartHeight = 120;
 
@@ -97,7 +115,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const getArrStatus = (serviceName: string) => {
     const list = arrConnections || [];
     const conn = list.find((c) => {
-      const nameMatch = c.name?.toLowerCase().includes(serviceName.toLowerCase());
+      const nameMatch = c.name
+        ?.toLowerCase()
+        .includes(serviceName.toLowerCase());
       const typeMatch =
         c.arrType?.toLowerCase().includes(serviceName.toLowerCase()) ||
         c.implementation?.toLowerCase().includes(serviceName.toLowerCase());
@@ -110,7 +130,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const prowlarrIndexer = (indexers || []).find(
           (i) =>
             i.name?.toLowerCase().includes("prowlarr") ||
-            i.indexerType?.toLowerCase().includes("prowlarr")
+            i.indexerType?.toLowerCase().includes("prowlarr"),
         );
         if (prowlarrIndexer) {
           return prowlarrIndexer.enable
@@ -160,8 +180,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const activeIndexers = (indexers || []).filter((i) => i.enable);
   const activeTrackerDomains = Array.from(
     new Set(
-      torrents.map((t) => extractTrackerDomain(t.trackerUrl)).filter((d) => d && d !== "Unknown")
-    )
+      torrents
+        .map((t) => extractTrackerDomain(t.trackerUrl))
+        .filter((d) => d && d !== "Unknown"),
+    ),
   ).slice(0, 3);
 
   return (
@@ -214,8 +236,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               🛡 {achievements.totalSwarmGuardians.length} Swarm Guardian
-              {achievements.totalSwarmGuardians.length === 1 ? "" : "s"} protected &bull;
-              Non-blocking async disk cache running
+              {achievements.totalSwarmGuardians.length === 1 ? "" : "s"}{" "}
+              protected &bull; Non-blocking async disk cache running
             </div>
           </div>
         </div>
@@ -367,7 +389,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Connected Servarr Ecosystem */}
-      <div className="card" style={{ padding: "1rem 1.25rem", borderRadius: "8px" }}>
+      <div
+        className="card"
+        style={{ padding: "1rem 1.25rem", borderRadius: "8px" }}
+      >
         <div
           style={{
             display: "flex",
@@ -391,7 +416,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: "var(--accent, #ffd166)",
               cursor: "pointer",
             }}
-            onClick={() => onNavigateSettings && onNavigateSettings("connections")}
+            onClick={() =>
+              onNavigateSettings && onNavigateSettings("connections")
+            }
           >
             Manage Connections ⚙
           </span>
@@ -494,7 +521,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Downloading:{" "}
-              {torrents.filter((t) => (t.status || "").toLowerCase() === "downloading").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "downloading",
+                ).length
+              }
             </div>
             <div
               style={{
@@ -505,7 +536,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Seeding:{" "}
-              {torrents.filter((t) => (t.status || "").toLowerCase() === "seeding").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "seeding",
+                ).length
+              }
             </div>
             <div
               style={{
@@ -515,13 +550,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               &bull; Paused:{" "}
-              {torrents.filter((t) => (t.status || "").toLowerCase() === "paused").length}
+              {
+                torrents.filter(
+                  (t) => (t.status || "").toLowerCase() === "paused",
+                ).length
+              }
             </div>
           </div>
         </div>
 
         {/* Speed Schedule Limits */}
-        <div className="card" style={{ padding: "1.25rem", borderRadius: "8px" }}>
+        <div
+          className="card"
+          style={{ padding: "1.25rem", borderRadius: "8px" }}
+        >
           <div
             style={{
               fontSize: "0.85rem",
@@ -541,7 +583,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               borderBottom: "1px solid rgba(255,255,255,0.05)",
             }}
           >
-            <span style={{ color: "var(--text-muted, #7e8092)" }}>Active Mode:</span>
+            <span style={{ color: "var(--text-muted, #7e8092)" }}>
+              Active Mode:
+            </span>
             <span
               className="badge"
               style={{
@@ -552,8 +596,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {activeLimits?.isThrottled
                 ? "THROTTLED"
                 : schedulerConfig?.schedulerEnabled
-                ? "SCHEDULED"
-                : "NORMAL (24x7)"}
+                  ? "SCHEDULED"
+                  : "NORMAL (24x7)"}
             </span>
           </div>
           <div
@@ -565,8 +609,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               borderBottom: "1px solid rgba(255,255,255,0.05)",
             }}
           >
-            <span style={{ color: "var(--text-muted, #7e8092)" }}>Upload Limit:</span>
-            <span style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}>
+            <span style={{ color: "var(--text-muted, #7e8092)" }}>
+              Upload Limit:
+            </span>
+            <span
+              style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
+            >
               {activeLimits?.maxUploadSpeedKbps
                 ? `${activeLimits.maxUploadSpeedKbps} KB/s`
                 : "Unlimited"}
@@ -580,8 +628,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               padding: "4px 0",
             }}
           >
-            <span style={{ color: "var(--text-muted, #7e8092)" }}>Download Limit:</span>
-            <span style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}>
+            <span style={{ color: "var(--text-muted, #7e8092)" }}>
+              Download Limit:
+            </span>
+            <span
+              style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
+            >
               {activeLimits?.maxDownloadSpeedKbps
                 ? `${activeLimits.maxDownloadSpeedKbps} KB/s`
                 : "Unlimited"}
@@ -590,7 +642,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Active Indexers & Trackers */}
-        <div className="card" style={{ padding: "1.25rem", borderRadius: "8px" }}>
+        <div
+          className="card"
+          style={{ padding: "1.25rem", borderRadius: "8px" }}
+        >
           <div
             style={{
               fontSize: "0.85rem",
@@ -616,7 +671,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>
                   {idx.name} ({idx.indexerType}) ↗
                 </span>
-                <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>Active</span>
+                <span
+                  style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}
+                >
+                  Active
+                </span>
               </div>
             ))
           ) : (
@@ -629,14 +688,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 borderBottom: "1px solid rgba(255,255,255,0.05)",
               }}
             >
-              <span style={{ color: "var(--text-muted, #7e8092)" }}>No Indexers Configured</span>
+              <span style={{ color: "var(--text-muted, #7e8092)" }}>
+                No Indexers Configured
+              </span>
               <span
                 style={{
                   color: "var(--accent, #ffd166)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
-                onClick={() => onNavigateSettings && onNavigateSettings("indexers")}
+                onClick={() =>
+                  onNavigateSettings && onNavigateSettings("indexers")
+                }
               >
                 + Add
               </span>
@@ -658,8 +721,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       : "none",
                 }}
               >
-                <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>{domain} ↗</span>
-                <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>Connected</span>
+                <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>
+                  {domain} ↗
+                </span>
+                <span
+                  style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}
+                >
+                  Connected
+                </span>
               </div>
             ))
           ) : (
@@ -674,7 +743,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>
                 BitTorrent DHT Swarm ↗
               </span>
-              <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>Swarm Ready</span>
+              <span
+                style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}
+              >
+                Swarm Ready
+              </span>
             </div>
           )}
         </div>

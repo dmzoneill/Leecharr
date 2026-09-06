@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { formatBytes } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 
@@ -30,7 +36,7 @@ export function PieceMap({
 
   // Subscribe to live SignalR piece map bitmap updates
   const livePieceData = useTorrentStore((state) =>
-    torrentId ? state.pieceMaps[torrentId] : undefined
+    torrentId ? state.pieceMaps[torrentId] : undefined,
   );
 
   const totalPieces = Math.max(1, pieceCount);
@@ -66,7 +72,7 @@ export function PieceMap({
       }
       return false;
     },
-    [progress, isSeeding, livePieceData, bitfieldBytes]
+    [progress, isSeeding, livePieceData, bitfieldBytes],
   );
 
   // Generate a sampled representation of blocks for visualizer
@@ -84,7 +90,10 @@ export function PieceMap({
 
     for (let i = 0; i < numBlocks; i++) {
       const startIdx = Math.floor(i * piecesPerBlock);
-      const endIdx = Math.min(totalPieces - 1, Math.floor((i + 1) * piecesPerBlock) - 1);
+      const endIdx = Math.min(
+        totalPieces - 1,
+        Math.floor((i + 1) * piecesPerBlock) - 1,
+      );
       const totalInBlock = Math.max(1, endIdx - startIdx + 1);
 
       let completedCount = 0;
@@ -155,7 +164,10 @@ export function PieceMap({
       if (!container) return;
 
       const availWidth = Math.max(200, container.clientWidth - 24);
-      const cols = Math.max(1, Math.floor((availWidth + gap) / (blockSize + gap)));
+      const cols = Math.max(
+        1,
+        Math.floor((availWidth + gap) / (blockSize + gap)),
+      );
       const rows = Math.ceil(displayBlocks.length / cols);
       const width = cols * (blockSize + gap) - gap;
       const height = rows * (blockSize + gap) - gap;
@@ -163,7 +175,10 @@ export function PieceMap({
       layoutRef.current = { cols, blockSize, gap };
 
       const dpr = window.devicePixelRatio || 1;
-      if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+      if (
+        canvas.width !== Math.floor(width * dpr) ||
+        canvas.height !== Math.floor(height * dpr)
+      ) {
         canvas.width = Math.floor(width * dpr);
         canvas.height = Math.floor(height * dpr);
         canvas.style.width = `${width}px`;
@@ -193,7 +208,9 @@ export function PieceMap({
           ctx.fillStyle = isHovered ? "#60a5fa" : "#3b82f6";
           ctx.strokeStyle = "#60a5fa";
         } else {
-          ctx.fillStyle = isHovered ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.05)";
+          ctx.fillStyle = isHovered
+            ? "rgba(255, 255, 255, 0.15)"
+            : "rgba(255, 255, 255, 0.05)";
           ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
         }
 
@@ -213,7 +230,13 @@ export function PieceMap({
           ctx.lineWidth = 2;
           ctx.beginPath();
           if (typeof (ctx as any).roundRect === "function") {
-            (ctx as any).roundRect(x - 1, y - 1, blockSize + 2, blockSize + 2, 3);
+            (ctx as any).roundRect(
+              x - 1,
+              y - 1,
+              blockSize + 2,
+              blockSize + 2,
+              3,
+            );
           } else {
             ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
           }
@@ -273,7 +296,9 @@ export function PieceMap({
   };
 
   const hoveredBlock =
-    hoveredIndex !== null && displayBlocks[hoveredIndex] ? displayBlocks[hoveredIndex] : null;
+    hoveredIndex !== null && displayBlocks[hoveredIndex]
+      ? displayBlocks[hoveredIndex]
+      : null;
 
   return (
     <div
@@ -299,7 +324,9 @@ export function PieceMap({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>🧩 BitTorrent Piece Map</span>
+          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+            🧩 BitTorrent Piece Map
+          </span>
           <span
             className={`badge ${verifiedPercentage >= 100 ? "badge-success" : "badge-primary"}`}
             style={{ fontSize: "0.72rem" }}
@@ -343,7 +370,9 @@ export function PieceMap({
 
       {/* Bar Mode */}
       {viewMode === "bar" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}
+        >
           <div
             style={{
               position: "relative",
@@ -473,11 +502,18 @@ export function PieceMap({
           </span>
         </div>
         {hoveredBlock && (
-          <span style={{ fontFamily: "monospace", color: "var(--accent, #ffd166)" }}>
+          <span
+            style={{ fontFamily: "monospace", color: "var(--accent, #ffd166)" }}
+          >
             {hoveredBlock.startIndex === hoveredBlock.endIndex
               ? `Piece #${hoveredBlock.startIndex}`
               : `Pieces #${hoveredBlock.startIndex} - #${hoveredBlock.endIndex}`}{" "}
-            ({formatBytes(pieceLength * (hoveredBlock.endIndex - hoveredBlock.startIndex + 1))}) -{" "}
+            (
+            {formatBytes(
+              pieceLength *
+                (hoveredBlock.endIndex - hoveredBlock.startIndex + 1),
+            )}
+            ) -{" "}
             {hoveredBlock.status === "complete"
               ? "Verified / Seeded"
               : hoveredBlock.status === "active"

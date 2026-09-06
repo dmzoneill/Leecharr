@@ -9,7 +9,10 @@ import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDr
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
+import { useToast } from "../context/ToastContext";
 import { useTorrentStore } from "../stores/useTorrentStore";
+import { api } from "../api/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -22,6 +25,7 @@ interface TorrentIndexProps {
   onOpenAddModal: () => void;
   onOpenSearchModal: () => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
+  onRefresh?: () => void;
 }
 
 export const TorrentIndex: React.FC<TorrentIndexProps> = ({
@@ -32,7 +36,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   onOpenAddModal,
   onOpenSearchModal,
   onNavigateTab,
+  onRefresh,
 }) => {
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedState, setSelectedState] = useState<string>("All");
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
@@ -40,7 +47,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [filter, setFilter] = useState<string>("");
 
   const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
-  const setSelectedTorrentId = useTorrentStore((state) => state.setSelectedTorrentId);
+  const setSelectedTorrentId = useTorrentStore(
+    (state) => state.setSelectedTorrentId,
+  );
   const selectedIds = useTorrentStore((state) => state.selectedIds);
   const toggleSelectedId = useTorrentStore((state) => state.toggleSelectedId);
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
@@ -101,7 +110,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       const st = (t.status || "").toLowerCase();
       if (st === "downloading") counts.Downloading++;
       else if (st === "seeding" || st === "completed") counts.Seeding++;
-      else if (st === "paused" || st === "stopped" || st === "idle") counts.Paused++;
+      else if (st === "paused" || st === "stopped" || st === "idle")
+        counts.Paused++;
       else if (st === "queued") counts.Queued++;
       else if (st === "error") counts.Error++;
     }
@@ -157,16 +167,26 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
   }, [torrents, telemetry]);
 
-  const handleStartAll = () => {
-    torrents
-      .filter((t) => (t.status || "").toLowerCase() === "paused")
-      .forEach((t) => onResume(t.id));
+  const handleStartAll = async () => {
+    try {
+      await api.startAllSeeding();
+      showToast("All torrents resumed", "success");
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      onRefresh?.();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to start all torrents", "error");
+    }
   };
 
-  const handleStopAll = () => {
-    torrents
-      .filter((t) => (t.status || "").toLowerCase() !== "paused")
-      .forEach((t) => onPause(t.id));
+  const handleStopAll = async () => {
+    try {
+      await api.stopAllSeeding();
+      showToast("All torrents stopped", "info");
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      onRefresh?.();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to stop all torrents", "error");
+    }
   };
 
   const handleToggleSelect = (id: number) => {
@@ -184,16 +204,46 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkStart = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
       }
     }
+    if (validSelectedIds.length === 0) {
+      clearSelection();
+      return;
+    }
     setBulkPending(true);
     try {
-      validSelectedIds.forEach((id) => onResume(id));
+      const results = await Promise.allSettled(
+        validSelectedIds.map((id) => api.resumeTorrent(id)),
+      );
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed === 0) {
+        showToast(
+          `Resumed ${succeeded} torrent${succeeded === 1 ? "" : "s"}`,
+          "success",
+        );
+      } else if (succeeded === 0) {
+        showToast(
+          `Failed to resume ${failed} torrent${failed === 1 ? "" : "s"}`,
+          "error",
+        );
+      } else {
+        showToast(
+          `Resumed ${succeeded} torrent${succeeded === 1 ? "" : "s"}, ${failed} failed`,
+          "warning",
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      onRefresh?.();
       clearSelection();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to resume selected torrents", "error");
     } finally {
       setBulkPending(false);
     }
@@ -201,16 +251,46 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkStop = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
       }
     }
+    if (validSelectedIds.length === 0) {
+      clearSelection();
+      return;
+    }
     setBulkPending(true);
     try {
-      validSelectedIds.forEach((id) => onPause(id));
+      const results = await Promise.allSettled(
+        validSelectedIds.map((id) => api.pauseTorrent(id)),
+      );
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed === 0) {
+        showToast(
+          `Stopped ${succeeded} torrent${succeeded === 1 ? "" : "s"}`,
+          "info",
+        );
+      } else if (succeeded === 0) {
+        showToast(
+          `Failed to stop ${failed} torrent${failed === 1 ? "" : "s"}`,
+          "error",
+        );
+      } else {
+        showToast(
+          `Stopped ${succeeded} torrent${succeeded === 1 ? "" : "s"}, ${failed} failed`,
+          "warning",
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      onRefresh?.();
       clearSelection();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to stop selected torrents", "error");
     } finally {
       setBulkPending(false);
     }
@@ -218,7 +298,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
   const handleBulkDelete = async () => {
     const activeIds = new Set(torrents.map((t) => t.id));
-    const validSelectedIds = Array.from(selectedIds).filter((id) => activeIds.has(id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
     for (const id of selectedIds) {
       if (!activeIds.has(id)) {
         removeTorrent(id);
@@ -239,11 +321,35 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
 
     setBulkPending(true);
     try {
-      validSelectedIds.forEach((id) => {
-        removeTorrent(id);
-        onDelete({ id, deleteFiles: false });
-      });
+      const results = await Promise.allSettled(
+        validSelectedIds.map((id) => {
+          removeTorrent(id);
+          return api.deleteTorrent(id, false);
+        }),
+      );
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed === 0) {
+        showToast(
+          `Deleted ${succeeded} torrent${succeeded === 1 ? "" : "s"}`,
+          "info",
+        );
+      } else if (succeeded === 0) {
+        showToast(
+          `Failed to delete ${failed} torrent${failed === 1 ? "" : "s"}`,
+          "error",
+        );
+      } else {
+        showToast(
+          `Deleted ${succeeded} torrent${succeeded === 1 ? "" : "s"}, ${failed} failed`,
+          "warning",
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      onRefresh?.();
       clearSelection();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to delete selected torrents", "error");
     } finally {
       setBulkPending(false);
     }
@@ -285,7 +391,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           setShowQuickSettings(false);
           localStorage.setItem("leecharr_quick_settings_open", "false");
         }}
-        onNavigateSettings={(tab) => onNavigateTab && onNavigateTab("settings", tab)}
+        onNavigateSettings={(tab) =>
+          onNavigateTab && onNavigateTab("settings", tab)
+        }
       />
       <div className="torrent-content-layout">
         {!isFilterCollapsed && (

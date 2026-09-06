@@ -17,7 +17,10 @@ export function getUrlBase(): string {
 export const BASE_URL = `${getUrlBase()}/api/v1`;
 
 async function parseResponseBody<T>(response: Response): Promise<T> {
-  if (response.status === 204 || response.headers.get("content-length") === "0") {
+  if (
+    response.status === 204 ||
+    response.headers.get("content-length") === "0"
+  ) {
     return null as unknown as T;
   }
   const text = await response.text();
@@ -51,7 +54,10 @@ class ApiClient {
     return this.apiKey || localStorage.getItem("leecharr_apikey");
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -88,7 +94,11 @@ class ApiClient {
       }
       const error: any = new Error(message);
       error.status = response.status;
-      error.response = { status: response.status, statusText: response.statusText, data };
+      error.response = {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      };
       throw error;
     }
 
@@ -170,7 +180,8 @@ export const api = {
   // Torrents
   getTorrents: () => fetchJson<Torrent[]>(`${BASE_URL}/torrents`),
   getTorrent: (id: number) => fetchJson<Torrent>(`${BASE_URL}/torrents/${id}`),
-  getTorrentFiles: (id: number) => fetchJson<TorrentFile[]>(`${BASE_URL}/torrents/${id}/files`),
+  getTorrentFiles: (id: number) =>
+    fetchJson<TorrentFile[]>(`${BASE_URL}/torrents/${id}/files`),
   pauseTorrent: (id: number) =>
     fetchJson<void>(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
   resumeTorrent: (id: number) =>
@@ -181,8 +192,17 @@ export const api = {
     fetchJson<void>(`${BASE_URL}/torrents/${id}?deleteFiles=${deleteFiles}`, {
       method: "DELETE",
     }),
+  startAllSeeding: () =>
+    fetchJson<void>(`${BASE_URL}/seeding/start-all`, { method: "POST" }),
+  stopAllSeeding: () =>
+    fetchJson<void>(`${BASE_URL}/seeding/stop-all`, { method: "POST" }),
 
-  addTorrentMagnet: (magnetUrl: string, category = "", savePath = "", paused = false) => {
+  addTorrentMagnet: (
+    magnetUrl: string,
+    category = "",
+    savePath = "",
+    paused = false,
+  ) => {
     const data = new FormData();
     data.append("magnetUrl", magnetUrl);
     if (category) data.append("category", category);
@@ -194,7 +214,12 @@ export const api = {
     });
   },
 
-  addTorrentFile: (file: File, category = "", savePath = "", paused = false) => {
+  addTorrentFile: (
+    file: File,
+    category = "",
+    savePath = "",
+    paused = false,
+  ) => {
     const data = new FormData();
     data.append("file", file);
     if (category) data.append("category", category);
@@ -227,9 +252,15 @@ export const api = {
   getSystemStatus: () => fetchJson<SystemStatus>(`${BASE_URL}/system/status`),
 
   // Authentication & SSO
-  getAuthProviders: () => fetchJson<import("./types").AuthProvider[]>(`${BASE_URL}/auth/providers`),
-  getCurrentUser: () => fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/me`),
-  login: (credentials: { username: string; password: string; rememberMe?: boolean }) =>
+  getAuthProviders: () =>
+    fetchJson<import("./types").AuthProvider[]>(`${BASE_URL}/auth/providers`),
+  getCurrentUser: () =>
+    fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/me`),
+  login: (credentials: {
+    username: string;
+    password: string;
+    rememberMe?: boolean;
+  }) =>
     fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -242,36 +273,51 @@ export const api = {
 
   // Identity Provider Config (Admin)
   getIdProviders: () =>
-    fetchJson<import("./types").IdentityProviderDefinition[]>(`${BASE_URL}/config/auth/providers`),
+    fetchJson<import("./types").IdentityProviderDefinition[]>(
+      `${BASE_URL}/config/auth/providers`,
+    ),
   getIdProvider: (id: number) =>
     fetchJson<import("./types").IdentityProviderDefinition>(
-      `${BASE_URL}/config/auth/providers/${id}`
+      `${BASE_URL}/config/auth/providers/${id}`,
     ),
-  createIdProvider: (provider: Partial<import("./types").IdentityProviderDefinition>) =>
-    fetchJson<import("./types").IdentityProviderDefinition>(`${BASE_URL}/config/auth/providers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(provider),
-    }),
-  updateIdProvider: (id: number, provider: Partial<import("./types").IdentityProviderDefinition>) =>
+  createIdProvider: (
+    provider: Partial<import("./types").IdentityProviderDefinition>,
+  ) =>
+    fetchJson<import("./types").IdentityProviderDefinition>(
+      `${BASE_URL}/config/auth/providers`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(provider),
+      },
+    ),
+  updateIdProvider: (
+    id: number,
+    provider: Partial<import("./types").IdentityProviderDefinition>,
+  ) =>
     fetchJson<import("./types").IdentityProviderDefinition>(
       `${BASE_URL}/config/auth/providers/${id}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(provider),
-      }
+      },
     ),
   deleteIdProvider: (id: number) =>
     fetchJson<void>(`${BASE_URL}/config/auth/providers/${id}`, {
       method: "DELETE",
     }),
-  testIdProvider: (provider: Partial<import("./types").IdentityProviderDefinition>) =>
-    fetchJson<{ success: boolean; message: string }>(`${BASE_URL}/config/auth/providers/test`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(provider),
-    }),
+  testIdProvider: (
+    provider: Partial<import("./types").IdentityProviderDefinition>,
+  ) =>
+    fetchJson<{ success: boolean; message: string }>(
+      `${BASE_URL}/config/auth/providers/test`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(provider),
+      },
+    ),
   testSsl: (request: import("./types").SslTestRequest) =>
     fetchJson<import("./types").SslCertificateValidationResult>(
       `${BASE_URL}/config/general/test-ssl`,
@@ -279,38 +325,53 @@ export const api = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
-      }
+      },
     ),
   getApiKey: () =>
-    fetchJson<import("./types").ApiKeyResource>(`${BASE_URL}/config/general/api-key`),
+    fetchJson<import("./types").ApiKeyResource>(
+      `${BASE_URL}/config/general/api-key`,
+    ),
   getSystemResources: () =>
-    fetchJson<import("./types").SystemResourceTelemetrySnapshot>(`${BASE_URL}/system/resources`),
+    fetchJson<import("./types").SystemResourceTelemetrySnapshot>(
+      `${BASE_URL}/system/resources`,
+    ),
   getHostResources: () =>
-    fetchJson<import("./types").HostProcessResourceMetrics>(`${BASE_URL}/system/resources/host`),
+    fetchJson<import("./types").HostProcessResourceMetrics>(
+      `${BASE_URL}/system/resources/host`,
+    ),
   getTorrentEngineMetrics: () =>
-    fetchJson<import("./types").TorrentEngineMetrics>(`${BASE_URL}/system/resources/engine`),
+    fetchJson<import("./types").TorrentEngineMetrics>(
+      `${BASE_URL}/system/resources/engine`,
+    ),
   getPerTorrentMetrics: () =>
-    fetchJson<import("./types").TorrentResourceMetrics[]>(`${BASE_URL}/system/resources/torrents`),
+    fetchJson<import("./types").TorrentResourceMetrics[]>(
+      `${BASE_URL}/system/resources/torrents`,
+    ),
   getTorrentResourceMetrics: (id: number) =>
     fetchJson<import("./types").TorrentResourceMetrics>(
-      `${BASE_URL}/system/resources/torrents/${id}`
+      `${BASE_URL}/system/resources/torrents/${id}`,
     ),
   getSubsystemsTelemetry: () =>
     fetchJson<import("./types").SubsystemTelemetryReport[]>(
-      `${BASE_URL}/system/resources/subsystems`
+      `${BASE_URL}/system/resources/subsystems`,
     ),
   createTorrent: (request: import("./types").TorrentCreationRequest) =>
-    fetchJson<import("./types").TorrentCreationResult>(`${BASE_URL}/torrents/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    }),
+    fetchJson<import("./types").TorrentCreationResult>(
+      `${BASE_URL}/torrents/create`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    ),
   renameTorrentFile: async (hash: string, oldPath: string, newPath: string) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    const headers: HeadersInit = { "Content-Type": "application/x-www-form-urlencoded" };
+    const headers: HeadersInit = {
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
     const key = apiClient.getApiKey();
     if (key) {
       (headers as Record<string, string>)["X-Api-Key"] = key;
@@ -326,12 +387,18 @@ export const api = {
     }
     return response;
   },
-  renameTorrentFolder: async (hash: string, oldPath: string, newPath: string) => {
+  renameTorrentFolder: async (
+    hash: string,
+    oldPath: string,
+    newPath: string,
+  ) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    const headers: HeadersInit = { "Content-Type": "application/x-www-form-urlencoded" };
+    const headers: HeadersInit = {
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
     const key = apiClient.getApiKey();
     if (key) {
       (headers as Record<string, string>)["X-Api-Key"] = key;
