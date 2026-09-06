@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
@@ -29,6 +30,7 @@ public class RssSyncService : IRssSyncService
     private readonly HttpClient httpClient;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadHistoryService downloadHistoryService;
+    private readonly ICategoryService categoryService;
     private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
 
@@ -40,7 +42,8 @@ public class RssSyncService : IRssSyncService
         ITorrentFileParser torrentFileParser = null,
         HttpClient httpClient = null,
         ISafeHttpClientService safeHttpClientService = null,
-        IDownloadHistoryService downloadHistoryService = null)
+        IDownloadHistoryService downloadHistoryService = null,
+        ICategoryService categoryService = null)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -50,6 +53,7 @@ public class RssSyncService : IRssSyncService
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
         this.downloadHistoryService = downloadHistoryService;
+        this.categoryService = categoryService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -89,27 +93,36 @@ public class RssSyncService : IRssSyncService
                         {
                             this.logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
 
+                            string categoryName = null;
+                            string savePath = null;
+                            if (rule.CategoryId > 0 && this.categoryService != null)
+                            {
+                                var cat = this.categoryService.Get(rule.CategoryId);
+                                categoryName = cat?.Name;
+                                savePath = cat?.SavePath;
+                            }
+
                             Torrent addedTorrent = null;
                             var grabbed = false;
                             try
                             {
                                 if (!string.IsNullOrEmpty(release.MagnetUrl))
                                 {
-                                    addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl);
+                                    addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl, categoryName, savePath);
                                     grabbed = true;
                                 }
                                 else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                 {
                                     if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl);
+                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl, categoryName, savePath);
                                         grabbed = true;
                                     }
                                     else
                                     {
                                         var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
                                         var parsed = this.torrentFileParser.Parse(torrentBytes);
-                                        addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes);
+                                        addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
                                         grabbed = true;
                                     }
                                 }
