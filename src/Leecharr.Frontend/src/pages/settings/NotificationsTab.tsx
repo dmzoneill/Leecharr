@@ -243,11 +243,19 @@ function buildNotificationPayload(
       };
       break;
 
-    case "Apprise":
+    case "Apprise": {
+      let resolvedUrl = form.url.trim();
+      if (resolvedUrl) {
+        const cleanUrl = resolvedUrl.replace(/\/+$/, "");
+        if (!cleanUrl.endsWith("/notify") && !cleanUrl.includes("/notify?")) {
+          resolvedUrl = `${cleanUrl}/notify`;
+        }
+      }
       settingsObj = {
-        url: form.url.trim(),
+        url: resolvedUrl,
       };
       break;
+    }
 
     case "Email":
       settingsObj = {

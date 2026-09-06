@@ -531,6 +531,55 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
+    public void ResolveTargetUrl_Apprise_NormalizesToNotifyEndpoint()
+    {
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise:8000")
+            .Should().Be("http://apprise:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise:8000/")
+            .Should().Be("http://apprise:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise:8000/notify")
+            .Should().Be("http://apprise:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "{\"url\":\"http://apprise:8000\"}")
+            .Should().Be("http://apprise:8000/notify");
+    }
+
+    [Test]
+    public async Task Handle_TorrentDownloadCompletedEvent_WhenAppriseConfigured_FormatsApprisePayload()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 88,
+            Name = "Apprise Notif",
+            Implementation = "Apprise",
+            ConfigContract = "AppriseSettings",
+            Settings = "{\"url\":\"http://apprise:8000\"}",
+            OnDownload = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "Completed ISO",
+            Category = "Linux",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+        };
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://apprise:8000/notify",
+            Arg.Is<object>(o => o != null && o.ToString().Contains("title = Leecharr: TorrentDownloadCompleted") && o.ToString().Contains("body = Torrent: Completed ISO")));
+    }
+
+    [Test]
     public void ResolveCustomHeaders_VariousFormats_ExtractsExpectedHeaders()
     {
         // JSON object

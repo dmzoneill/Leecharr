@@ -33,6 +33,35 @@ public class NotificationControllerTest
     }
 
     [Test]
+    public async Task Test_WhenAppriseNotification_ResolvesTargetUrlAndDispatchesWithApprisePayload()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 2,
+            Name = "Apprise Push",
+            Implementation = "Apprise",
+            Settings = "{\"url\":\"http://apprise:8000\"}",
+        };
+
+        this.notificationRepository.Get(2).Returns(notif);
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.Test(2);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://apprise:8000/notify",
+            Arg.Is<object>(o => o != null && o.ToString().Contains("title = Leecharr: Test") && o.ToString().Contains("body = This is a test notification from Leecharr")));
+    }
+
+    [Test]
     public async Task Test_WhenTelegramNotification_ResolvesTargetUrlAndDispatches()
     {
         var notif = new NotificationDefinition

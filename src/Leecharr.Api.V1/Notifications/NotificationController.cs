@@ -154,6 +154,15 @@ public class NotificationController : Controller
                 priority = 5,
             };
         }
+        else if (string.Equals(notif.Implementation, "Apprise", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                title = "Leecharr: Test",
+                body = "This is a test notification from Leecharr. Your Apprise integration is working properly.",
+                type = "info",
+            };
+        }
         else if (string.Equals(notif.Implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
             var token = ExtractSetting(notif.Settings, "token", "botToken", "apiKey");

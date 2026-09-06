@@ -563,9 +563,58 @@ public class NotificationEventHandler :
                 : $"https://api.telegram.org/bot{token}/sendMessage";
         }
 
+        if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase))
+        {
+            var title = $"Leecharr: {eventType}";
+            var body = torrent != null
+                ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nStatus: {torrent.Status}\nProgress: {torrent.Progress * 100:F1}%"
+                : ExtractMessage(genericPayload, eventType);
+
+            return new
+            {
+                title,
+                body,
+                type = eventType.Contains("HealthIssue", StringComparison.OrdinalIgnoreCase) ? "warning" : "info",
+            };
+        }
+
         if (string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
             return "https://api.pushover.net/1/messages.json";
+        }
+
+        if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = trimmed;
+            if (trimmed.StartsWith("{"))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("url", out var u) ||
+                        root.TryGetProperty("webhookUrl", out u) ||
+                        root.TryGetProperty("targetUrl", out u))
+                    {
+                        var uStr = u.GetString();
+                        if (!string.IsNullOrWhiteSpace(uStr))
+                        {
+                            resolved = uStr.Trim();
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            var cleanUrl = resolved.TrimEnd('/');
+            if (!cleanUrl.EndsWith("/notify", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{cleanUrl}/notify";
+            }
+
+            return cleanUrl;
         }
 
         if (trimmed.StartsWith("{"))
