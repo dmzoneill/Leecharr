@@ -22,12 +22,13 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.TrackerBoost;
 
-public class TrackerBoostService : ITrackerBoostService
+public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedEvent>
 {
     private const int MaxLogEntries = 500;
 
@@ -1364,6 +1365,8 @@ public class TrackerBoostService : ITrackerBoostService
     {
         this.LogActivity("Info", "Cycle", "Background tracker optimization cycle started");
 
+        this.CleanExpiredBoostHistory();
+
         await this.RecoverMissingTrackersAsync();
 
         var settings = this.GetSettings();
@@ -1889,6 +1892,38 @@ public class TrackerBoostService : ITrackerBoostService
         catch
         {
             return (false, 0, 0, 0);
+        }
+    }
+    public void CleanExpiredBoostHistory(TimeSpan? maxAge = null)
+    {
+        var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromHours(24));
+        foreach (var key in BoostHistory.Keys)
+        {
+            if (BoostHistory.TryGetValue(key, out var entry) && entry.BoostedAt < cutoff)
+            {
+                BoostHistory.TryRemove(key, out _);
+            }
+        }
+    }
+
+    public void RemoveBoostHistory(string infoHash)
+    {
+        if (!string.IsNullOrWhiteSpace(infoHash))
+        {
+            BoostHistory.TryRemove(infoHash, out _);
+        }
+    }
+
+    public static void ClearBoostHistory()
+    {
+        BoostHistory.Clear();
+    }
+
+    public void Handle(TorrentDeletedEvent message)
+    {
+        if (message?.Torrent?.InfoHash != null)
+        {
+            this.RemoveBoostHistory(message.Torrent.InfoHash);
         }
     }
 }
