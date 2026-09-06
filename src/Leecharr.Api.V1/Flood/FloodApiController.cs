@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -401,7 +402,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpPost]
     [Route("api/torrents/add-files")]
-    public async Task<IActionResult> AddFiles([FromBody] FloodAddFilesRequest jsonRequest = null)
+    public async Task<IActionResult> AddFiles()
     {
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
@@ -419,16 +420,35 @@ public class FloodApiController : ControllerBase, IActionFilter
                 await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
             }
         }
-        else if (jsonRequest?.Files != null && jsonRequest.Files.Count > 0)
+        else
         {
-            var category = jsonRequest.Tags?.FirstOrDefault()?.Trim();
-            foreach (var b64 in jsonRequest.Files)
+            FloodAddFilesRequest jsonRequest = null;
+            try
             {
-                if (!string.IsNullOrWhiteSpace(b64))
+                using var reader = new StreamReader(this.Request.Body);
+                var body = await reader.ReadToEndAsync();
+                if (!string.IsNullOrWhiteSpace(body))
                 {
-                    var bytes = Convert.FromBase64String(b64);
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    jsonRequest = JsonSerializer.Deserialize<FloodAddFilesRequest>(body, options);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to parse FloodAddFilesRequest JSON");
+            }
+
+            if (jsonRequest?.Files != null && jsonRequest.Files.Count > 0)
+            {
+                var category = jsonRequest.Tags?.FirstOrDefault()?.Trim();
+                foreach (var b64 in jsonRequest.Files)
+                {
+                    if (!string.IsNullOrWhiteSpace(b64))
+                    {
+                        var bytes = Convert.FromBase64String(b64);
+                        var parsed = this.torrentFileParser.Parse(bytes);
+                        await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                    }
                 }
             }
         }
