@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
@@ -571,6 +572,26 @@ public class NotificationEventHandlerTest
             "http://test/webhook",
             Arg.Any<object>(),
             Arg.Is<string>(h => h.Contains("vpn-alert")));
+    }
+
+    [Test]
+    public async Task Handle_VpnKillSwitchTriggeredEvent_DoesNotCallDownloadEngineStopAsync()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var handlerWithEngine = new NotificationEventHandler(
+            this.notificationRepository,
+            this.webhookDispatcher,
+            this.customScriptService,
+            this.configService,
+            downloadEngine: downloadEngine);
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition>());
+
+        handlerWithEngine.Handle(new VpnKillSwitchTriggeredEvent("wg0"));
+
+        await Task.Delay(100);
+
+        await downloadEngine.DidNotReceive().StopAsync();
     }
 
     [Test]

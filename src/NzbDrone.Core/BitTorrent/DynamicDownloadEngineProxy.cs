@@ -10,11 +10,13 @@ using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager, IDisposable
+public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>
 {
     private readonly IEnumerable<ITorrentEngine> availableEngines;
     private readonly IConfigService configService;
@@ -395,6 +397,22 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     public void CheckTrackerHealth()
         => Volatile.Read(ref this.activeEngine)?.CheckTrackerHealth();
+
+    public void Handle(VpnKillSwitchTriggeredEvent message)
+    {
+        if (Volatile.Read(ref this.activeEngine) is IHandle<VpnKillSwitchTriggeredEvent> handler)
+        {
+            handler.Handle(message);
+        }
+    }
+
+    public void Handle(VpnInterfaceRestoredEvent message)
+    {
+        if (Volatile.Read(ref this.activeEngine) is IHandle<VpnInterfaceRestoredEvent> handler)
+        {
+            handler.Handle(message);
+        }
+    }
 
     public void Dispose()
     {

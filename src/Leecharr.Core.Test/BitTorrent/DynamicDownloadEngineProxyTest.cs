@@ -13,6 +13,8 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
@@ -352,5 +354,35 @@ public class DynamicDownloadEngineProxyTest
         await this.proxy.SetSuperSeedingAsync(42, true);
 
         await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
+    }
+
+    private interface ITestEngineWithVpn : ITorrentEngine, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>
+    {
+    }
+
+    [Test]
+    public void Handle_VpnKillSwitchEvents_ForwardsToActiveEngineIfSupported()
+    {
+        var mockEngineWithEvents = Substitute.For<ITestEngineWithVpn>();
+        mockEngineWithEvents.EngineId.Returns("CustomEngine");
+        mockEngineWithEvents.DisplayName.Returns("Custom");
+        mockEngineWithEvents.IsAvailable.Returns(true);
+
+        this.configService.ActiveTorrentEngine.Returns("CustomEngine");
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new[] { mockEngineWithEvents },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var dropEvent = new VpnKillSwitchTriggeredEvent("tun0");
+        var restoreEvent = new VpnInterfaceRestoredEvent("tun0");
+
+        testProxy.Handle(dropEvent);
+        ((IHandle<VpnKillSwitchTriggeredEvent>)mockEngineWithEvents).Received(1).Handle(dropEvent);
+
+        testProxy.Handle(restoreEvent);
+        ((IHandle<VpnInterfaceRestoredEvent>)mockEngineWithEvents).Received(1).Handle(restoreEvent);
     }
 }

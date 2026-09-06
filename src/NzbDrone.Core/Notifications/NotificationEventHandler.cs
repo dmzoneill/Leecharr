@@ -239,22 +239,6 @@ public class NotificationEventHandler :
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
     {
-        if (this.downloadEngine != null)
-        {
-            this.logger.Warn("Halting download engine due to VPN Kill Switch event on interface: {0}", message.InterfaceName);
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.downloadEngine.StopAsync();
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error halting download engine after VPN kill switch trigger");
-                }
-            });
-        }
-
         var activeNotifications = this.notificationRepository.GetEnabled().Where(n => n.OnHealthIssue).ToList();
         var payload = new
         {
