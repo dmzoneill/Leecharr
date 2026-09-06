@@ -6,12 +6,14 @@ import {
 } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
+import { useTranslation } from "../../i18n";
 
 export interface RadarViewProps {
   onOpenBulkImport?: () => void;
 }
 
 export function RadarView({ onOpenBulkImport }: RadarViewProps) {
+  const { t } = useTranslation();
   const { data: trackers } = useTrackerBoostTrackers();
   const addTracker = useAddTrackerBoostTracker();
   const deleteTracker = useDeleteTrackerBoostTracker();

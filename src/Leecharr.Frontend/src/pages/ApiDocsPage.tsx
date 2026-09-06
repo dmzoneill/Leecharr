@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { useGeneralConfig } from "../api/hooks";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
+import { useTranslation } from "../i18n";
 
 export function ApiDocsPage() {
+  const { t } = useTranslation();
   const { data: config } = useGeneralConfig();
   const toast = useToast();
   const [copiedKey, setCopiedKey] = useState(false);
