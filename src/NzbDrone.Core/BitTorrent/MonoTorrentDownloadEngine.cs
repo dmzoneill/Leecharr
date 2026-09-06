@@ -610,12 +610,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             AllowInitialSeeding = torrent.InitialSeeding,
         };
 
-        var enforceBep27 = this.configService.EnableBep27PrivateTorrents && torrent.IsPrivate;
-        if (enforceBep27)
+        if (torrent.IsPrivate)
         {
             torrentSettingsBuilder.AllowDht = false;
             torrentSettingsBuilder.AllowPeerExchange = false;
-            this.logger.Info("BEP 27 active for private torrent {0}: DHT and PEX disabled", torrent.Name);
+            this.logger.Info("BEP 27 strictly enforced for private torrent {0}: DHT and PEX disabled", torrent.Name);
         }
         else
         {
@@ -1279,7 +1278,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings);
-            if (isPrivate && this.configService.EnableBep27PrivateTorrents)
+            if (isPrivate)
             {
                 settingsBuilder.AllowDht = false;
                 settingsBuilder.AllowPeerExchange = false;
@@ -1291,7 +1290,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
 
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
-            this.logger.Info("Updated BEP 27 settings for {0} (IsPrivate: {1}, EnforceBep27: {2})", task.InfoHash, isPrivate, this.configService.EnableBep27PrivateTorrents);
+            this.logger.Info("Updated BEP 27 settings for {0} (IsPrivate: {1})", task.InfoHash, isPrivate);
         }
     }
 
@@ -1345,7 +1344,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 this.logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
 
-                if (manager.Torrent != null && manager.Torrent.IsPrivate && this.configService.EnableBep27PrivateTorrents)
+                if (manager.Torrent != null && manager.Torrent.IsPrivate)
                 {
                     if (manager.Settings.AllowDht || manager.Settings.AllowPeerExchange)
                     {

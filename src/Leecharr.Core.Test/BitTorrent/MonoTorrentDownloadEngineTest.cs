@@ -1223,7 +1223,7 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task AddTorrentAsync_WhenTorrentIsPrivateAndBep27Disabled_AllowsDhtAndPex()
+    public async Task AddTorrentAsync_WhenTorrentIsPrivateAndBep27DisabledInConfig_StillDisablesDhtAndPex()
     {
         this.configService.EnableBep27PrivateTorrents.Returns(false);
         this.configService.EnableDht.Returns(true);
@@ -1243,8 +1243,8 @@ public class MonoTorrentDownloadEngineTest
 
         var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
-        task.Manager.Settings.AllowDht.Should().BeTrue();
-        task.Manager.Settings.AllowPeerExchange.Should().BeTrue();
+        task.Manager.Settings.AllowDht.Should().BeFalse();
+        task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
     }
 
     [Test]
