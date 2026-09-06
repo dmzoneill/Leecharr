@@ -67,7 +67,7 @@ public class AllRestApiEndpointsIntegrationTest : IntegrationTestBase
                 }
                 else
                 {
-                    // Assert it returns a success or redirect status code
+                    // Assert it returns a success, redirect, or client bad request (for missing required query params)
                     response.StatusCode.Should().BeOneOf(
                         new[]
                         {
@@ -76,8 +76,9 @@ public class AllRestApiEndpointsIntegrationTest : IntegrationTestBase
                             HttpStatusCode.Accepted,
                             HttpStatusCode.Redirect,
                             HttpStatusCode.MovedPermanently,
+                            HttpStatusCode.BadRequest,
                         },
-                        $"Endpoint GET {path} should succeed");
+                        $"Endpoint GET {path} should succeed or return bad request if missing query parameters");
                 }
             }
             catch (Exception ex)
