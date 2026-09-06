@@ -37,10 +37,13 @@ import { SubsystemsTab } from "./settings/SubsystemsTab";
 import { AiTab } from "./settings/AiTab";
 import { LoggingTab } from "./settings/LoggingTab";
 import { SearchIcon } from "../components/icons/AppIcons";
+import { useTranslation } from "../i18n";
 
 export { useSettingsDirty, SettingsDirtyContext, SettingsDirtyProvider };
 
 export function Settings() {
+  const { t } = useTranslation();
+
   const dirtyCtx = useContext(SettingsDirtyContext);
   if (dirtyCtx === defaultSettingsDirtyContext) {
     return (
@@ -53,6 +56,7 @@ export function Settings() {
 }
 
 function SettingsContent() {
+  const { t } = useTranslation();
   const params = useParams<{ section?: string }>();
   const navigate = useNavigate();
   const rawSection = (params.section || "host").toLowerCase();
@@ -247,14 +251,14 @@ function SettingsContent() {
               color: "var(--text-muted)",
             }}
           >
-            <span>Settings</span>
+            <span>{t("nav.settings")}</span>
             <span>&rsaquo;</span>
             <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
-              {activeGroup.title}
+              {t(activeGroup.title)}
             </span>
             <span>&rsaquo;</span>
             <span style={{ color: "var(--accent)", fontWeight: 700 }}>
-              {activePage.shortLabel}
+              {t(activePage.shortLabel)}
             </span>
           </div>
           <h1
@@ -268,13 +272,13 @@ function SettingsContent() {
             }}
           >
             <span>{activePage.icon}</span>
-            <span>{activePage.title}</span>
+            <span>{t(activePage.title)}</span>
             {activePage.badge && (
               <span
                 className="badge badge-primary"
                 style={{ fontSize: "0.7rem", padding: "0.15rem 0.5rem" }}
               >
-                {activePage.badge}
+                {t(activePage.badge)}
               </span>
             )}
           </h1>
@@ -285,7 +289,7 @@ function SettingsContent() {
               marginTop: "0.15rem",
             }}
           >
-            {activePage.description}
+            {t(activePage.description)}
           </div>
         </div>
 
@@ -315,7 +319,7 @@ function SettingsContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search settings... (Press /)"
+              placeholder={t("settingsTabs.search.placeholder")}
               style={{
                 background: "transparent",
                 border: "none",
@@ -370,9 +374,12 @@ function SettingsContent() {
                 color: "var(--text-primary)",
               }}
             >
-              Search Results for &ldquo;{searchQuery}&rdquo; (
+              {t("settingsTabs.search.results")} &ldquo;{searchQuery}&rdquo; (
               {searchResults.length}{" "}
-              {searchResults.length === 1 ? "page" : "pages"} found)
+              {searchResults.length === 1
+                ? t("settingsTabs.search.page")
+                : t("settingsTabs.search.pages")}{" "}
+              {t("settingsTabs.search.found")})
             </span>
             <button
               type="button"
@@ -392,8 +399,7 @@ function SettingsContent() {
                 color: "var(--text-muted)",
               }}
             >
-              No settings match your query. Try keywords like <em>port</em>,{" "}
-              <em>vpn</em>, <em>dht</em>, <em>api key</em>, or <em>sonarr</em>.
+              {t("settingsTabs.search.noResults")}
             </div>
           ) : (
             <div
@@ -436,7 +442,7 @@ function SettingsContent() {
                         marginBottom: "0.2rem",
                       }}
                     >
-                      {group.title}
+                      {t(group.title)}
                     </div>
                     <div
                       style={{
@@ -448,7 +454,7 @@ function SettingsContent() {
                       }}
                     >
                       <span>{page.icon}</span>
-                      <span>{page.title}</span>
+                      <span>{t(page.title)}</span>
                     </div>
                     <div
                       style={{
@@ -458,7 +464,7 @@ function SettingsContent() {
                         lineHeight: 1.35,
                       }}
                     >
-                      {page.description}
+                      {t(page.description)}
                     </div>
                   </div>
 

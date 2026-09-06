@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
@@ -63,6 +64,8 @@ function formatTimestamp(iso: string): string {
 }
 
 export function SystemLogs() {
+  const { t } = useTranslation();
+
   const [activeTab, setActiveTab] = useState<"live" | "files">("live");
   const [levelFilter, setLevelFilter] = useState<LogLevel | "All">("All");
   const [searchText, setSearchText] = useState("");
@@ -119,7 +122,7 @@ export function SystemLogs() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Logs
+              {t("autogen.t_system_logs")}
             </h1>
             <span className="badge badge-primary">
               {activeTab === "live" ? "Live Stream" : "Log Files"}
@@ -132,8 +135,7 @@ export function SystemLogs() {
               marginTop: "0.2rem",
             }}
           >
-            Real-time server log stream, rolling disk log files, and diagnostic
-            output
+            {t("autogen.t_real_time_server_log_stream_rolling_disk")}
           </div>
         </div>
 
@@ -145,7 +147,7 @@ export function SystemLogs() {
             onClick={() => setActiveTab("live")}
             style={{ fontSize: "0.8rem" }}
           >
-            📺 Live Stream
+            {t("autogen.t_live_stream")}
           </button>
           <button
             type="button"
@@ -153,7 +155,7 @@ export function SystemLogs() {
             onClick={() => setActiveTab("files")}
             style={{ fontSize: "0.8rem" }}
           >
-            📁 Disk Log Files
+            {t("autogen.t_disk_log_files")}
           </button>
         </div>
       </div>
@@ -189,7 +191,7 @@ export function SystemLogs() {
               <input
                 type="text"
                 className="search-input"
-                placeholder="Filter logs..."
+                placeholder={t("autogen.t_filter_logs")}
                 value={searchText}
                 onChange={(e) => {
                   setSearchText(e.target.value);
@@ -203,22 +205,24 @@ export function SystemLogs() {
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
                 />
-                Auto-scroll
+                {t("autogen.t_auto_scroll")}
               </label>
 
               <button
                 className="btn btn-small btn-secondary"
                 onClick={handleClear}
-                title="Clear current log display (does not delete logs from server)"
+                title={t("autogen.t_clear_current_log_display_does_not_delet")}
               >
-                Clear
+                {t("autogen.t_clear")}
               </button>
             </div>
           </div>
 
           <div className="log-content" ref={logContentRef}>
             {isLoading ? (
-              <div className="log-empty-state">Loading log entries...</div>
+              <div className="log-empty-state">
+                {t("autogen.t_loading_log_entries")}
+              </div>
             ) : filteredEntries.length === 0 ? (
               <div className="log-empty-state">
                 {clearedBeforeId !== null
@@ -231,10 +235,12 @@ export function SystemLogs() {
               <table className="log-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "180px" }}>Timestamp</th>
-                    <th style={{ width: "80px" }}>Level</th>
-                    <th style={{ width: "160px" }}>Logger</th>
-                    <th>Message</th>
+                    <th style={{ width: "180px" }}>
+                      {t("autogen.t_timestamp")}
+                    </th>
+                    <th style={{ width: "80px" }}>{t("autogen.t_level")}</th>
+                    <th style={{ width: "160px" }}>{t("autogen.t_logger")}</th>
+                    <th>{t("autogen.t_message")}</th>
                   </tr>
                 </thead>
                 <tbody>

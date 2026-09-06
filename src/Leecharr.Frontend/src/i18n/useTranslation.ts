@@ -14,6 +14,30 @@ function lookupKey(obj: any, keys: string[]): string | null {
   return typeof value === "string" ? value : null;
 }
 
+export function translate(
+  key: string,
+  params?: Record<string, string | number>,
+): string {
+  const translations = useI18nStore.getState().translations;
+  const keys = key.split(".");
+  let value = lookupKey(translations, keys);
+  if (!value && translations !== en) {
+    value = lookupKey(en, keys);
+  }
+  if (!value) {
+    value = key;
+  }
+  if (params) {
+    return Object.entries(params).reduce((acc, [paramKey, paramValue]) => {
+      return acc.replace(
+        new RegExp(`{{\\s*${paramKey}\\s*}}`, "g"),
+        String(paramValue),
+      );
+    }, value!);
+  }
+  return value;
+}
+
 export const useTranslation = () => {
   const translations = useI18nStore((state) => state.translations);
 

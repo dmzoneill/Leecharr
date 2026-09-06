@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   useCreateIndexer,
@@ -78,6 +79,7 @@ export function GettingStartedModal({
   onNavigateTorrents,
   onNavigateIndexers,
 }: GettingStartedModalProps) {
+  const { t } = useTranslation();
   useEscapeKey(onClose, isOpen);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -331,7 +333,7 @@ export function GettingStartedModal({
                     fontWeight: 600,
                   }}
                 >
-                  SETUP GUIDE
+                  {t("autogen.t_setup_guide")}
                 </span>
               </div>
               <div
@@ -379,7 +381,7 @@ export function GettingStartedModal({
                     transition: "all 0.2s",
                   }}
                 >
-                  📖 Guide
+                  {t("autogen.t_guide")}
                 </button>
                 <button
                   type="button"
@@ -398,7 +400,7 @@ export function GettingStartedModal({
                     transition: "all 0.2s",
                   }}
                 >
-                  ⚡ Live Setup
+                  {t("autogen.t_live_setup")}
                 </button>
               </div>
             )}
@@ -415,9 +417,9 @@ export function GettingStartedModal({
                 borderRadius: "4px",
                 lineHeight: 1,
               }}
-              title="Close (Esc)"
+              title={t("autogen.t_close_esc")}
             >
-              &times;
+              {t("autogen.t_times")}
             </button>
           </div>
         </div>
@@ -509,7 +511,7 @@ export function GettingStartedModal({
                     color: "var(--text-primary)",
                   }}
                 >
-                  Welcome to Leecharr
+                  {t("autogen.t_welcome_to_leecharr")}
                 </h2>
                 <p
                   style={{
@@ -520,10 +522,9 @@ export function GettingStartedModal({
                     lineHeight: 1.5,
                   }}
                 >
-                  Leecharr is a high-performance BitTorrent and media downloader
-                  purpose-built for the Servarr (<code>*arr</code>) ecosystem
-                  with deep media library enrichment, 4K/HDR stream inspection,
-                  and multi-client drop-in compatibility.
+                  {t("autogen.t_leecharr_is_a_high_performance_bittorren")}
+                  <code>{t("autogen.t_arr")}</code>
+                  {t("autogen.t_ecosystem_with_deep_media_library_enrich")}
                 </p>
               </div>
 
@@ -553,7 +554,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    Port 7889 Engine
+                    {t("autogen.t_port_7889_engine")}
                   </div>
                   <div
                     style={{
@@ -562,8 +563,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Pure C# BitTorrent engine running with simultaneous
-                    qBittorrent, Deluge, and Transmission API endpoints.
+                    {t("autogen.t_pure_c_bittorrent_engine_running_with_si")}
                   </div>
                 </div>
 
@@ -586,7 +586,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    Media Enrichment
+                    {t("autogen.t_media_enrichment")}
                   </div>
                   <div
                     style={{
@@ -595,8 +595,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Correlates active downloads with high-res posters, banners,
-                    and 4K stream specs directly from your library.
+                    {t("autogen.t_correlates_active_downloads_with_high_re")}
                   </div>
                 </div>
 
@@ -619,7 +618,7 @@ export function GettingStartedModal({
                       color: "var(--text-primary)",
                     }}
                   >
-                    Prowlarr Sync
+                    {t("autogen.t_prowlarr_sync")}
                   </div>
                   <div
                     style={{
@@ -628,8 +627,7 @@ export function GettingStartedModal({
                       marginTop: "4px",
                     }}
                   >
-                    Synchronize Torznab indexers directly from Prowlarr for
-                    search and one-click grab.
+                    {t("autogen.t_synchronize_torznab_indexers_directly_fr")}
                   </div>
                 </div>
               </div>
@@ -644,10 +642,14 @@ export function GettingStartedModal({
                   color: "var(--text-secondary)",
                 }}
               >
-                💡 <strong>Getting Started:</strong> Follow these steps to
-                connect <strong>Prowlarr</strong>, <strong>Sonarr</strong>,{" "}
-                <strong>Radarr</strong>, and <strong>Lidarr</strong> so
-                downloads and media cards populate seamlessly.
+                💡 <strong>{t("autogen.t_getting_started")}</strong>{" "}
+                {t("autogen.t_follow_these_steps_to_connect")}
+                <strong>{t("autogen.t_prowlarr")}</strong>,{" "}
+                <strong>{t("autogen.t_sonarr")}</strong>,{" "}
+                <strong>{t("autogen.t_radarr")}</strong>
+                {t("autogen.t_and")}
+                <strong>{t("autogen.t_lidarr")}</strong>{" "}
+                {t("autogen.t_so_downloads_and_media_cards_populate_se")}
               </div>
             </div>
           )}
@@ -670,9 +672,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Prowlarr to automatically import all your configured
-                    BitTorrent indexers into Leecharr for integrated search,
-                    Freeleech filtering, and RSS rules.
+                    {t("autogen.t_connect_prowlarr_to_automatically_import")}
                   </div>
 
                   <div
@@ -691,7 +691,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      Import Indexers from Prowlarr
+                      {t("autogen.t_import_indexers_from_prowlarr")}
                     </div>
                     <ol
                       style={{
@@ -705,24 +705,34 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Prowlarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
-                        your <strong>API Key</strong>.
+                        {t("autogen.t_in_prowlarr_go_to")}{" "}
+                        <strong>
+                          {t("autogen.t_settings_general_security")}
+                        </strong>{" "}
+                        {t("autogen.t_and_copy_your")}
+                        <strong>{t("autogen.t_api_key")}</strong>.
                       </li>
                       <li>
-                        Switch to <strong>⚡ Live Setup</strong> above (or go to{" "}
-                        <strong>Settings → Indexers</strong>).
+                        {t("autogen.t_switch_to")}
+                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
+                        {t("autogen.t_above_or_go_to")}{" "}
+                        <strong>{t("autogen.t_settings_indexers")}</strong>).
                       </li>
                       <li>
-                        Enter your Prowlarr Server URL (e.g.{" "}
-                        <code>http://localhost:9696</code> or{" "}
-                        <code>http://prowlarr:9696</code>) and paste your API
-                        Key.
+                        {t("autogen.t_enter_your_prowlarr_server_url_e_g")}{" "}
+                        <code>{t("autogen.t_http_localhost_9696")}</code>{" "}
+                        {t("autogen.t_or")}{" "}
+                        <code>{t("autogen.t_http_prowlarr_9696")}</code>
+                        {t("autogen.t_and_paste_your_api_key")}
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong> — Leecharr will
-                        automatically import and sync all indexers!
+                        {t("autogen.t_click")}
+                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
+                        {t("autogen.t_and")}{" "}
+                        <strong>{t("autogen.t_save_continue")}</strong>{" "}
+                        {t(
+                          "autogen.t_leecharr_will_automatically_import_and_s",
+                        )}
                       </li>
                     </ol>
                   </div>
@@ -736,16 +746,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label="Name"
+                    label={t("autogen.t_name")}
                     value={indexerForm.name || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, name: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder="My Prowlarr"
+                    placeholder={t("autogen.t_my_prowlarr")}
                   />
                   <SelectInput
-                    label="Type"
+                    label={t("autogen.t_type")}
                     value={indexerForm.indexerType || "Prowlarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -767,16 +777,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label="URL"
+                    label={t("autogen.t_url")}
                     value={indexerForm.url || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, url: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder="http://localhost:9696"
+                    placeholder={t("autogen.t_http_localhost_9696")}
                   />
                   <TextInput
-                    label="API Key"
+                    label={t("autogen.t_api_key")}
                     value={indexerForm.apiKey || ""}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, apiKey: v });
@@ -785,16 +795,16 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <TextInput
-                    label="API Path"
+                    label={t("autogen.t_api_path")}
                     value={indexerForm.apiPath || "/api"}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, apiPath: v });
                       setIndexerTestResult(null);
                     }}
-                    placeholder="/api"
+                    placeholder={t("autogen.t_api")}
                   />
                   <TextInput
-                    label="Categories"
+                    label={t("autogen.t_categories")}
                     value={
                       Array.isArray(indexerForm.categories)
                         ? indexerForm.categories.join(",")
@@ -807,7 +817,7 @@ export function GettingStartedModal({
                     placeholder="2000,5000"
                   />
                   <Toggle
-                    label="Enable"
+                    label={t("autogen.t_enable")}
                     checked={indexerForm.enable ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enable: v });
@@ -815,7 +825,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="RSS"
+                    label={t("autogen.t_rss")}
                     checked={indexerForm.enableRss ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enableRss: v });
@@ -823,7 +833,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Search"
+                    label={t("autogen.t_search")}
                     checked={indexerForm.enableSearch ?? true}
                     onChange={(v) => {
                       setIndexerForm({ ...indexerForm, enableSearch: v });
@@ -905,8 +915,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Sonarr to Leecharr for 1:1 TV episode correlation,
-                    high-res season banners, and episode stills.
+                    {t("autogen.t_connect_sonarr_to_leecharr_for_1_1_tv_ep")}
                   </div>
 
                   <div
@@ -925,7 +934,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      Connect Sonarr Library
+                      {t("autogen.t_connect_sonarr_library")}
                     </div>
                     <ol
                       style={{
@@ -939,27 +948,39 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Sonarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
-                        your <strong>API Key</strong>.
+                        {t("autogen.t_in_sonarr_go_to")}{" "}
+                        <strong>
+                          {t("autogen.t_settings_general_security")}
+                        </strong>{" "}
+                        {t("autogen.t_and_copy_your")}
+                        <strong>{t("autogen.t_api_key")}</strong>.
                       </li>
                       <li>
-                        Switch to <strong>⚡ Live Setup</strong> above (or go to{" "}
-                        <strong>Settings → Connections</strong>).
+                        {t("autogen.t_switch_to")}
+                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
+                        {t("autogen.t_above_or_go_to")}{" "}
+                        <strong>{t("autogen.t_settings_connections")}</strong>).
                       </li>
                       <li>
-                        Enter Sonarr URL (e.g.{" "}
-                        <code>http://localhost:8989</code> or{" "}
-                        <code>http://sonarr:8989</code>) and paste your API Key.
+                        {t("autogen.t_enter_sonarr_url_e_g")}{" "}
+                        <code>{t("autogen.t_http_localhost_8989")}</code>{" "}
+                        {t("autogen.t_or")}{" "}
+                        <code>{t("autogen.t_http_sonarr_8989")}</code>
+                        {t("autogen.t_and_paste_your_api_key")}
                       </li>
                       <li>
-                        Keep <strong>Sync Enabled</strong> and{" "}
-                        <strong>Webhook</strong> active.
+                        {t("autogen.t_keep")}
+                        <strong>{t("autogen.t_sync_enabled")}</strong>{" "}
+                        {t("autogen.t_and")}{" "}
+                        <strong>{t("autogen.t_webhook")}</strong>{" "}
+                        {t("autogen.t_active")}
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong> — media cards will
-                        enrich instantly!
+                        {t("autogen.t_click")}
+                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
+                        {t("autogen.t_and")}{" "}
+                        <strong>{t("autogen.t_save_continue")}</strong>{" "}
+                        {t("autogen.t_media_cards_will_enrich_instantly")}
                       </li>
                     </ol>
                   </div>
@@ -973,16 +994,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label="Name"
+                    label={t("autogen.t_name")}
                     value={sonarrForm.name || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, name: v });
                       setSonarrTestResult(null);
                     }}
-                    placeholder="Sonarr"
+                    placeholder={t("autogen.t_sonarr")}
                   />
                   <SelectInput
-                    label="Type"
+                    label={t("autogen.t_type")}
                     value={sonarrForm.arrType || "Sonarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1004,16 +1025,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label="URL"
+                    label={t("autogen.t_url")}
                     value={sonarrForm.url || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, url: v });
                       setSonarrTestResult(null);
                     }}
-                    placeholder="http://localhost:8989"
+                    placeholder={t("autogen.t_http_localhost_8989")}
                   />
                   <TextInput
-                    label="API Key"
+                    label={t("autogen.t_api_key")}
                     value={sonarrForm.apiKey || ""}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, apiKey: v });
@@ -1022,7 +1043,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label="Enable Connection"
+                    label={t("autogen.t_enable_connection")}
                     checked={sonarrForm.enable ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, enable: v });
@@ -1030,7 +1051,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Sync Enabled"
+                    label={t("autogen.t_sync_enabled")}
                     checked={sonarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, syncEnabled: v });
@@ -1038,7 +1059,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Auto Add"
+                    label={t("autogen.t_auto_add")}
                     checked={sonarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, enableAutomaticAdd: v });
@@ -1046,7 +1067,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Webhook"
+                    label={t("autogen.t_webhook")}
                     checked={sonarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setSonarrForm({ ...sonarrForm, webhookEnabled: v });
@@ -1055,13 +1076,13 @@ export function GettingStartedModal({
                   />
                   {sonarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label="Webhook Host"
+                      label={t("autogen.t_webhook_host")}
                       value={sonarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setSonarrForm({ ...sonarrForm, webhookHost: v });
                         setSonarrTestResult(null);
                       }}
-                      placeholder="leecharr"
+                      placeholder={t("autogen.t_leecharr")}
                       hint="Hostname or IP for Sonarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1138,9 +1159,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Radarr to Leecharr for high-res movie backdrops,
-                    posters, cast overviews, and 4K/HDR10+/Dolby Vision stream
-                    metadata.
+                    {t("autogen.t_connect_radarr_to_leecharr_for_high_res_")}
                   </div>
 
                   <div
@@ -1159,7 +1178,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      Connect Radarr Library
+                      {t("autogen.t_connect_radarr_library")}
                     </div>
                     <ol
                       style={{
@@ -1173,22 +1192,31 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Radarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
-                        your <strong>API Key</strong>.
+                        {t("autogen.t_in_radarr_go_to")}{" "}
+                        <strong>
+                          {t("autogen.t_settings_general_security")}
+                        </strong>{" "}
+                        {t("autogen.t_and_copy_your")}
+                        <strong>{t("autogen.t_api_key")}</strong>.
                       </li>
                       <li>
-                        Switch to <strong>⚡ Live Setup</strong> above (or go to{" "}
-                        <strong>Settings → Connections</strong>).
+                        {t("autogen.t_switch_to")}
+                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
+                        {t("autogen.t_above_or_go_to")}{" "}
+                        <strong>{t("autogen.t_settings_connections")}</strong>).
                       </li>
                       <li>
-                        Enter Radarr URL (e.g.{" "}
-                        <code>http://localhost:7878</code> or{" "}
-                        <code>http://radarr:7878</code>) and paste your API Key.
+                        {t("autogen.t_enter_radarr_url_e_g")}{" "}
+                        <code>{t("autogen.t_http_localhost_7878")}</code>{" "}
+                        {t("autogen.t_or")}{" "}
+                        <code>{t("autogen.t_http_radarr_7878")}</code>
+                        {t("autogen.t_and_paste_your_api_key")}
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong>.
+                        {t("autogen.t_click")}
+                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
+                        {t("autogen.t_and")}{" "}
+                        <strong>{t("autogen.t_save_continue")}</strong>.
                       </li>
                     </ol>
                   </div>
@@ -1202,16 +1230,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label="Name"
+                    label={t("autogen.t_name")}
                     value={radarrForm.name || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, name: v });
                       setRadarrTestResult(null);
                     }}
-                    placeholder="Radarr"
+                    placeholder={t("autogen.t_radarr")}
                   />
                   <SelectInput
-                    label="Type"
+                    label={t("autogen.t_type")}
                     value={radarrForm.arrType || "Radarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1233,16 +1261,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label="URL"
+                    label={t("autogen.t_url")}
                     value={radarrForm.url || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, url: v });
                       setRadarrTestResult(null);
                     }}
-                    placeholder="http://localhost:7878"
+                    placeholder={t("autogen.t_http_localhost_7878")}
                   />
                   <TextInput
-                    label="API Key"
+                    label={t("autogen.t_api_key")}
                     value={radarrForm.apiKey || ""}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, apiKey: v });
@@ -1251,7 +1279,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label="Enable Connection"
+                    label={t("autogen.t_enable_connection")}
                     checked={radarrForm.enable ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, enable: v });
@@ -1259,7 +1287,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Sync Enabled"
+                    label={t("autogen.t_sync_enabled")}
                     checked={radarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, syncEnabled: v });
@@ -1267,7 +1295,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Auto Add"
+                    label={t("autogen.t_auto_add")}
                     checked={radarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, enableAutomaticAdd: v });
@@ -1275,7 +1303,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Webhook"
+                    label={t("autogen.t_webhook")}
                     checked={radarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setRadarrForm({ ...radarrForm, webhookEnabled: v });
@@ -1284,13 +1312,13 @@ export function GettingStartedModal({
                   />
                   {radarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label="Webhook Host"
+                      label={t("autogen.t_webhook_host")}
                       value={radarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setRadarrForm({ ...radarrForm, webhookHost: v });
                         setRadarrTestResult(null);
                       }}
-                      placeholder="leecharr"
+                      placeholder={t("autogen.t_leecharr")}
                       hint="Hostname or IP for Radarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1367,9 +1395,7 @@ export function GettingStartedModal({
                       lineHeight: 1.5,
                     }}
                   >
-                    Connect Lidarr to Leecharr for album artwork, artist
-                    backdrops, track lists, and FLAC/lossless audio stream
-                    specs.
+                    {t("autogen.t_connect_lidarr_to_leecharr_for_album_art")}
                   </div>
 
                   <div
@@ -1388,7 +1414,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      Connect Lidarr Library
+                      {t("autogen.t_connect_lidarr_library")}
                     </div>
                     <ol
                       style={{
@@ -1402,22 +1428,31 @@ export function GettingStartedModal({
                       }}
                     >
                       <li>
-                        In Lidarr, go to{" "}
-                        <strong>Settings → General → Security</strong> and copy
-                        your <strong>API Key</strong>.
+                        {t("autogen.t_in_lidarr_go_to")}{" "}
+                        <strong>
+                          {t("autogen.t_settings_general_security")}
+                        </strong>{" "}
+                        {t("autogen.t_and_copy_your")}
+                        <strong>{t("autogen.t_api_key")}</strong>.
                       </li>
                       <li>
-                        Switch to <strong>⚡ Live Setup</strong> above (or go to{" "}
-                        <strong>Settings → Connections</strong>).
+                        {t("autogen.t_switch_to")}
+                        <strong>{t("autogen.t_live_setup")}</strong>{" "}
+                        {t("autogen.t_above_or_go_to")}{" "}
+                        <strong>{t("autogen.t_settings_connections")}</strong>).
                       </li>
                       <li>
-                        Enter Lidarr URL (e.g.{" "}
-                        <code>http://localhost:8686</code> or{" "}
-                        <code>http://lidarr:8686</code>) and paste your API Key.
+                        {t("autogen.t_enter_lidarr_url_e_g")}{" "}
+                        <code>{t("autogen.t_http_localhost_8686")}</code>{" "}
+                        {t("autogen.t_or")}{" "}
+                        <code>{t("autogen.t_http_lidarr_8686")}</code>
+                        {t("autogen.t_and_paste_your_api_key")}
                       </li>
                       <li>
-                        Click <strong>Test Connection</strong> and{" "}
-                        <strong>Save & Continue</strong>.
+                        {t("autogen.t_click")}
+                        <strong>{t("autogen.t_test_connection")}</strong>{" "}
+                        {t("autogen.t_and")}{" "}
+                        <strong>{t("autogen.t_save_continue")}</strong>.
                       </li>
                     </ol>
                   </div>
@@ -1431,16 +1466,16 @@ export function GettingStartedModal({
                   }}
                 >
                   <TextInput
-                    label="Name"
+                    label={t("autogen.t_name")}
                     value={lidarrForm.name || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, name: v });
                       setLidarrTestResult(null);
                     }}
-                    placeholder="Lidarr"
+                    placeholder={t("autogen.t_lidarr")}
                   />
                   <SelectInput
-                    label="Type"
+                    label={t("autogen.t_type")}
                     value={lidarrForm.arrType || "Lidarr"}
                     onChange={(v) => {
                       const defaults: Record<string, string> = {
@@ -1462,16 +1497,16 @@ export function GettingStartedModal({
                     ]}
                   />
                   <TextInput
-                    label="URL"
+                    label={t("autogen.t_url")}
                     value={lidarrForm.url || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, url: v });
                       setLidarrTestResult(null);
                     }}
-                    placeholder="http://localhost:8686"
+                    placeholder={t("autogen.t_http_localhost_8686")}
                   />
                   <TextInput
-                    label="API Key"
+                    label={t("autogen.t_api_key")}
                     value={lidarrForm.apiKey || ""}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, apiKey: v });
@@ -1480,7 +1515,7 @@ export function GettingStartedModal({
                     type="password"
                   />
                   <Toggle
-                    label="Enable Connection"
+                    label={t("autogen.t_enable_connection")}
                     checked={lidarrForm.enable ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, enable: v });
@@ -1488,7 +1523,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Sync Enabled"
+                    label={t("autogen.t_sync_enabled")}
                     checked={lidarrForm.syncEnabled ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, syncEnabled: v });
@@ -1496,7 +1531,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Auto Add"
+                    label={t("autogen.t_auto_add")}
                     checked={lidarrForm.enableAutomaticAdd ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, enableAutomaticAdd: v });
@@ -1504,7 +1539,7 @@ export function GettingStartedModal({
                     }}
                   />
                   <Toggle
-                    label="Webhook"
+                    label={t("autogen.t_webhook")}
                     checked={lidarrForm.webhookEnabled ?? true}
                     onChange={(v) => {
                       setLidarrForm({ ...lidarrForm, webhookEnabled: v });
@@ -1513,13 +1548,13 @@ export function GettingStartedModal({
                   />
                   {lidarrForm.webhookEnabled !== false && (
                     <TextInput
-                      label="Webhook Host"
+                      label={t("autogen.t_webhook_host")}
                       value={lidarrForm.webhookHost || ""}
                       onChange={(v) => {
                         setLidarrForm({ ...lidarrForm, webhookHost: v });
                         setLidarrTestResult(null);
                       }}
-                      placeholder="leecharr"
+                      placeholder={t("autogen.t_leecharr")}
                       hint="Hostname or IP for Lidarr to reach Leecharr (leave empty for default)"
                     />
                   )}
@@ -1597,7 +1632,7 @@ export function GettingStartedModal({
                   color: "var(--text-primary)",
                 }}
               >
-                You&apos;re Ready to Download!
+                {t("autogen.t_you_apos_re_ready_to_download")}
               </h2>
               <p
                 style={{
@@ -1608,10 +1643,9 @@ export function GettingStartedModal({
                   lineHeight: 1.5,
                 }}
               >
-                Leecharr is now configured and actively serving on port{" "}
-                <code>7889</code>. You can grab torrents directly from
-                integrated search or push them automatically from Sonarr and
-                Radarr.
+                {t("autogen.t_leecharr_is_now_configured_and_actively_")}{" "}
+                <code>7889</code>
+                {t("autogen.t_you_can_grab_torrents_directly_from_inte")}
               </p>
 
               <div
@@ -1631,7 +1665,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    📁 Go to Queue & Torrents
+                    {t("autogen.t_go_to_queue_torrents")}
                   </button>
                 )}
                 {onNavigateIndexers && (
@@ -1643,7 +1677,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    🔍 Search Indexers
+                    {t("autogen.t_search_indexers")}
                   </button>
                 )}
                 {onNavigateSettings && (
@@ -1655,7 +1689,7 @@ export function GettingStartedModal({
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
                   >
-                    ⚙️ View Connections
+                    {t("autogen.t_view_connections")}
                   </button>
                 )}
               </div>
@@ -1689,7 +1723,7 @@ export function GettingStartedModal({
               checked={dontShowAgain}
               onChange={(e) => handleDontShowChange(e.target.checked)}
             />
-            Don&apos;t show this guide on startup
+            {t("autogen.t_don_apos_t_show_this_guide_on_startup")}
           </label>
 
           <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -1698,7 +1732,7 @@ export function GettingStartedModal({
                 className="btn btn-secondary btn-small"
                 onClick={handlePrev}
               >
-                ← Previous
+                {t("autogen.t_previous")}
               </button>
             )}
             <button className="btn btn-primary btn-small" onClick={handleNext}>

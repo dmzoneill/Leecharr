@@ -1,8 +1,11 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, TextInput, SelectInput, Toggle } from "./shared";
 
 export function StorageSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
 
@@ -64,7 +67,7 @@ export function StorageSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading storage parameters...
+        {t("settingsTabs.batch2.loadingStorageParameters")}
       </div>
     );
   }
@@ -81,30 +84,38 @@ export function StorageSettingsTab() {
       />
 
       <SectionCard
-        title="Download Staging & File Storage"
-        description="Configure completed download storage destinations, incomplete download staging paths, and file preallocation strategies."
+        title={t("settingsTabs.nav.groups.storageQueues.pages.storage.title")}
+        description={t(
+          "settingsTabs.batch2.configureCompletedDownloadStorageDestinations",
+        )}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <TextInput
-            label="Default Completed Download Directory"
+            label={t("settingsTabs.batch2.defaultCompletedDownloadDirectory")}
             value={form.downloadDir}
             onChange={(v) => update("downloadDir", v)}
-            hint="Root directory where completed downloads are placed upon 100% verification (e.g. /downloads)"
+            hint={t(
+              "settingsTabs.batch2.rootDirectoryWhereCompletedDownloadsArePlaced",
+            )}
           />
 
           <Toggle
-            label="Stage Incomplete Downloads in Temporary Folder"
+            label={t(
+              "settingsTabs.batch2.stageIncompleteDownloadsInTemporaryFolder",
+            )}
             checked={form.enableIncompleteDir}
             onChange={(v) => update("enableIncompleteDir", v)}
-            hint="Keeps files isolated until 100% verified, then moves them to the target destination"
+            hint={t("settingsTabs.batch2.keepsFilesIsolatedUntil100Verified")}
           />
 
           <TextInput
-            label="Incomplete Download Directory"
+            label={t("settingsTabs.batch2.incompleteDownloadDirectory")}
             value={form.incompleteDownloadDir}
             onChange={(v) => update("incompleteDownloadDir", v)}
             disabled={!form.enableIncompleteDir}
-            hint="Path where in-progress downloads are written (e.g. /downloads/incomplete)"
+            hint={t(
+              "settingsTabs.batch2.pathWhereInProgressDownloadsAreWritten",
+            )}
           />
 
           <div
@@ -115,30 +126,33 @@ export function StorageSettingsTab() {
             }}
           >
             <SelectInput
-              label="Disk Preallocation Mode"
+              label={t("settingsTabs.batch2.diskPreallocationMode")}
               value={form.preallocationMode}
               onChange={(v) => update("preallocationMode", v)}
               options={[
                 {
                   value: "Sparse",
-                  label:
-                    "Sparse Allocation (Instant Non-Blocking, Recommended)",
+                  label: t(
+                    "settingsTabs.batch2.sparseAllocationInstantNonBlocking",
+                  ),
                 },
                 {
                   value: "Full",
-                  label:
-                    "Full Preallocation (Zero-fill, Prevents Fragmentation)",
+                  label: t("settingsTabs.batch2.fullPreallocationZeroFill"),
                 },
-                { value: "Off", label: "Disabled / Compact (Grow On Write)" },
+                {
+                  value: "Off",
+                  label: t("settingsTabs.batch2.disabledCompactGrowOnWrite"),
+                },
               ]}
-              hint="Sparse creates files instantly without freezing I/O during torrent startup"
+              hint={t("settingsTabs.batch2.sparseCreatesFilesInstantly")}
             />
 
             <TextInput
-              label="POSIX Permission Mask (umask)"
+              label={t("settingsTabs.batch2.posixPermissionMask")}
               value={form.umask}
               onChange={(v) => update("umask", v)}
-              hint="Octal permission mask for created files & directories (022 = 755/644, 002 = 775/664)"
+              hint={t("settingsTabs.batch2.octalPermissionMaskForCreatedFiles")}
             />
           </div>
 
@@ -149,19 +163,23 @@ export function StorageSettingsTab() {
             }}
           >
             <Toggle
-              label="Append Custom Extension to Incomplete Files"
+              label={t(
+                "settingsTabs.batch2.appendCustomExtensionToIncompleteFiles",
+              )}
               checked={form.renamePartialFiles}
               onChange={(v) => update("renamePartialFiles", v)}
-              hint="Renames in-progress downloading files to prevent external media managers from processing partial files"
+              hint={t("settingsTabs.batch2.renamesInProgressDownloadingFiles")}
             />
 
             {form.renamePartialFiles && (
               <div style={{ marginTop: "0.75rem" }}>
                 <TextInput
-                  label="Incomplete File Extension"
+                  label={t("settingsTabs.batch2.incompleteFileExtension")}
                   value={form.incompleteExtension}
                   onChange={(v) => update("incompleteExtension", v)}
-                  hint="Extension suffix appended during transfer and stripped upon 100% verification (e.g. .!leech, .!qB, or .part)"
+                  hint={t(
+                    "settingsTabs.batch2.extensionSuffixAppendedDuringTransfer",
+                  )}
                 />
               </div>
             )}

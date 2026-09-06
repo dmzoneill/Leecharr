@@ -1,8 +1,11 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useSchedulerConfig, useSaveSchedulerConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, Toggle } from "./shared";
 
 export function ScheduleSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useSchedulerConfig();
   const saveMutation = useSaveSchedulerConfig();
 
@@ -78,19 +81,40 @@ export function ScheduleSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading scheduler settings...
+        {t("settingsTabs.schedule.loading")}
       </div>
     );
   }
 
   const days = [
-    { key: "schedulerMonday" as const, label: "Monday" },
-    { key: "schedulerTuesday" as const, label: "Tuesday" },
-    { key: "schedulerWednesday" as const, label: "Wednesday" },
-    { key: "schedulerThursday" as const, label: "Thursday" },
-    { key: "schedulerFriday" as const, label: "Friday" },
-    { key: "schedulerSaturday" as const, label: "Saturday" },
-    { key: "schedulerSunday" as const, label: "Sunday" },
+    {
+      key: "schedulerMonday" as const,
+      label: t("settingsTabs.schedule.days.monday"),
+    },
+    {
+      key: "schedulerTuesday" as const,
+      label: t("settingsTabs.schedule.days.tuesday"),
+    },
+    {
+      key: "schedulerWednesday" as const,
+      label: t("settingsTabs.schedule.days.wednesday"),
+    },
+    {
+      key: "schedulerThursday" as const,
+      label: t("settingsTabs.schedule.days.thursday"),
+    },
+    {
+      key: "schedulerFriday" as const,
+      label: t("settingsTabs.schedule.days.friday"),
+    },
+    {
+      key: "schedulerSaturday" as const,
+      label: t("settingsTabs.schedule.days.saturday"),
+    },
+    {
+      key: "schedulerSunday" as const,
+      label: t("settingsTabs.schedule.days.sunday"),
+    },
   ];
 
   return (
@@ -105,15 +129,15 @@ export function ScheduleSettingsTab() {
       />
 
       <SectionCard
-        title="24x7 Hourly Speed Scheduler"
-        description="Automatically engage alternative throttled rate profiles during defined daily windows."
+        title={t("settingsTabs.schedule.title")}
+        description={t("settingsTabs.schedule.description")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Automated Speed Scheduler"
+            label={t("settingsTabs.schedule.enable")}
             checked={form.schedulerEnabled}
             onChange={(v) => update("schedulerEnabled", v)}
-            hint="Switches between normal speed and throttled alternative speed according to schedule"
+            hint={t("settingsTabs.schedule.enableHint")}
           />
 
           <div
@@ -124,43 +148,43 @@ export function ScheduleSettingsTab() {
             }}
           >
             <NumberInput
-              label="Schedule Window Start Hour"
+              label={t("settingsTabs.schedule.startHour")}
               value={form.schedulerStartHour}
               onChange={(v) => update("schedulerStartHour", v)}
               disabled={!form.schedulerEnabled}
               min={0}
               max={23}
-              suffix="hour (0-23)"
+              suffix={t("settingsTabs.schedule.hourSuffix")}
             />
 
             <NumberInput
-              label="Start Minute"
+              label={t("settingsTabs.schedule.startMinute")}
               value={form.schedulerStartMinute}
               onChange={(v) => update("schedulerStartMinute", v)}
               disabled={!form.schedulerEnabled}
               min={0}
               max={59}
-              suffix="min"
+              suffix={t("settingsTabs.schedule.minuteSuffix")}
             />
 
             <NumberInput
-              label="Schedule Window End Hour"
+              label={t("settingsTabs.schedule.endHour")}
               value={form.schedulerEndHour}
               onChange={(v) => update("schedulerEndHour", v)}
               disabled={!form.schedulerEnabled}
               min={0}
               max={23}
-              suffix="hour (0-23)"
+              suffix={t("settingsTabs.schedule.hourSuffix")}
             />
 
             <NumberInput
-              label="End Minute"
+              label={t("settingsTabs.schedule.endMinute")}
               value={form.schedulerEndMinute}
               onChange={(v) => update("schedulerEndMinute", v)}
               disabled={!form.schedulerEnabled}
               min={0}
               max={59}
-              suffix="min"
+              suffix={t("settingsTabs.schedule.minuteSuffix")}
             />
           </div>
 
@@ -178,7 +202,7 @@ export function ScheduleSettingsTab() {
                 marginBottom: "0.75rem",
               }}
             >
-              Active Days of the Week
+              {t("settingsTabs.schedule.activeDays")}
             </div>
             <div
               style={{

@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import React, { useState, useEffect, useRef } from "react";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -30,6 +31,8 @@ export function PromptModal({
   onConfirm,
   onCancel,
 }: PromptModalProps) {
+  const { t } = useTranslation();
+
   useEscapeKey(onCancel, isOpen);
 
   const [value, setValue] = useState(defaultValue);
@@ -56,6 +59,8 @@ export function PromptModal({
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
+    const { t } = useTranslation();
+
     e.preventDefault();
     if (validate) {
       const validationError = validate(value);

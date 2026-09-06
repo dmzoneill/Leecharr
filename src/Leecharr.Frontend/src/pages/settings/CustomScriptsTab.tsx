@@ -1,8 +1,11 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, TextInput } from "./shared";
 
 export function CustomScriptsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useBitTorrentConfig();
   const saveMutation = useSaveBitTorrentConfig();
 
@@ -58,7 +61,7 @@ export function CustomScriptsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading custom script settings...
+        {t("settingsTabs.customScripts.loading")}
       </div>
     );
   }
@@ -75,22 +78,22 @@ export function CustomScriptsTab() {
       />
 
       <SectionCard
-        title="Event Lifecycle Shell Scripts"
-        description="Execute local OS bash / python shell scripts upon download completion and seeding ratio satisfaction."
+        title={t("settingsTabs.customScripts.lifecycleTitle")}
+        description={t("settingsTabs.customScripts.lifecycleDescription")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <TextInput
-            label="On Download Complete Script"
+            label={t("settingsTabs.customScripts.onDownloadComplete")}
             value={form.onDownloadCompleteScript}
             onChange={(v) => update("onDownloadCompleteScript", v)}
-            hint="Absolute path to executable script (e.g. /usr/local/bin/notify-plex.sh)"
+            hint={t("settingsTabs.customScripts.onDownloadCompleteHint")}
           />
 
           <TextInput
-            label="On Seed Goal Reached Script"
+            label={t("settingsTabs.customScripts.onSeedGoalReached")}
             value={form.onSeedGoalReachedScript}
             onChange={(v) => update("onSeedGoalReachedScript", v)}
-            hint="Absolute path to executable script triggered when target ratio or seed time is satisfied"
+            hint={t("settingsTabs.customScripts.onSeedGoalReachedHint")}
           />
 
           <div
@@ -109,7 +112,7 @@ export function CustomScriptsTab() {
                 marginBottom: "0.5rem",
               }}
             >
-              Standard Environment Variables Passed to Scripts:
+              {t("settingsTabs.customScripts.envVarsHeader")}
             </div>
             <div
               style={{
@@ -133,29 +136,29 @@ export function CustomScriptsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Transmission Daemon Engine Hooks"
-        description="Native script hooks invoked when running under the Transmission engine provider."
+        title={t("settingsTabs.customScripts.transmissionTitle")}
+        description={t("settingsTabs.customScripts.transmissionDescription")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <TextInput
-            label="script-torrent-done-filename"
+            label={t("settingsTabs.customScripts.torrentDone")}
             value={form.scriptTorrentDoneFilename}
             onChange={(v) => update("scriptTorrentDoneFilename", v)}
-            hint="Native Transmission on-done executable path"
+            hint={t("settingsTabs.customScripts.torrentDoneHint")}
           />
 
           <TextInput
-            label="script-torrent-added-filename"
+            label={t("settingsTabs.customScripts.torrentAdded")}
             value={form.scriptTorrentAddedFilename}
             onChange={(v) => update("scriptTorrentAddedFilename", v)}
-            hint="Native Transmission on-added executable path"
+            hint={t("settingsTabs.customScripts.torrentAddedHint")}
           />
 
           <TextInput
-            label="script-torrent-done-seeding-filename"
+            label={t("settingsTabs.customScripts.torrentDoneSeeding")}
             value={form.scriptTorrentDoneSeedingFilename}
             onChange={(v) => update("scriptTorrentDoneSeedingFilename", v)}
-            hint="Native Transmission on-seeding-complete executable path"
+            hint={t("settingsTabs.customScripts.torrentDoneSeedingHint")}
           />
         </div>
       </SectionCard>

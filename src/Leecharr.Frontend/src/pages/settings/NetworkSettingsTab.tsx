@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useNetworkConfig,
@@ -7,6 +8,8 @@ import {
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function NetworkSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useNetworkConfig();
   const saveMutation = useSaveNetworkConfig();
   const { data: netStatus } = useNetworkStatus();
@@ -80,7 +83,7 @@ export function NetworkSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading network settings...
+        {t("settingsTabs.batch2.loadingNetworkSettings")}
       </div>
     );
   }
@@ -115,7 +118,7 @@ export function NetworkSettingsTab() {
               marginBottom: "0.5rem",
             }}
           >
-            Live Network Interface Status
+            {t("settingsTabs.batch2.liveNetworkInterfaceStatus")}
           </div>
           <div
             style={{
@@ -126,15 +129,24 @@ export function NetworkSettingsTab() {
             }}
           >
             <div>
-              Local IP: <strong>{netStatus.localIp || "0.0.0.0"}</strong>
+              Local IP:{" "}
+              <strong>
+                {netStatus.localIp || t("settingsTabs.batch2.defaultIp")}
+              </strong>
             </div>
             <div>
               Public IP:{" "}
-              <strong>{netStatus.externalIp || "Not Detected"}</strong>
+              <strong>
+                {netStatus.externalIp || t("settingsTabs.batch2.notDetected")}
+              </strong>
             </div>
             <div>
               UPnP Active:{" "}
-              <strong>{netStatus.upnpAvailable ? "✓ Yes" : "✗ No"}</strong>
+              <strong>
+                {netStatus.upnpAvailable
+                  ? t("settingsTabs.batch2.yes")
+                  : t("settingsTabs.batch2.no")}
+              </strong>
             </div>
             <div>
               Active Port Mappings:{" "}
@@ -145,8 +157,8 @@ export function NetworkSettingsTab() {
       )}
 
       <SectionCard
-        title="Incoming Peer Listening Ports & UPnP"
-        description="Configure listening ports for inbound BitTorrent peer connections."
+        title={t("settingsTabs.batch2.incomingPeerListeningPorts")}
+        description={t("settingsTabs.batch2.configureListeningPorts")}
       >
         <div
           style={{
@@ -156,12 +168,12 @@ export function NetworkSettingsTab() {
           }}
         >
           <NumberInput
-            label="BitTorrent Listening Port"
+            label={t("settingsTabs.batch2.bitTorrentListeningPort")}
             value={form.listeningPort}
             onChange={(v) => update("listeningPort", v)}
             min={1}
             max={65535}
-            hint="TCP & UDP port for incoming peer connections (default: 51413)"
+            hint={t("settingsTabs.batch2.tcpUdpPort")}
           />
 
           <div
@@ -173,46 +185,50 @@ export function NetworkSettingsTab() {
             }}
           >
             <Toggle
-              label="Enable UPnP / NAT-PMP Port Forwarding"
+              label={t("settingsTabs.batch2.enableUpnpNatPmp")}
               checked={form.upnpEnabled}
               onChange={(v) => update("upnpEnabled", v)}
-              hint="Automatically negotiate port forwarding with your router"
+              hint={t(
+                "settingsTabs.batch2.automaticallyNegotiatePortForwarding",
+              )}
             />
 
             <Toggle
-              label="Enable IPv6 Dual-Stack Swarm Listener"
+              label={t("settingsTabs.batch2.enableIpv6DualStack")}
               checked={form.enableIPv6}
               onChange={(v) => update("enableIPv6", v)}
-              hint="Listens on both IPv4 (0.0.0.0) and IPv6 ([::]) for incoming peer handshakes"
+              hint={t("settingsTabs.batch2.listensOnBothIpv4AndIpv6")}
             />
           </div>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Network Interface Binding & VPN Kill Switch"
-        description="Bind BitTorrent sockets to a specific network interface (e.g. tun0, wg0) and halt traffic on disconnect."
+        title={t("settingsTabs.batch2.networkInterfaceBinding")}
+        description={t("settingsTabs.batch2.bindBitTorrentSockets")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <TextInput
-            label="Bind Network Interface"
+            label={t("settingsTabs.batch2.bindNetworkInterface")}
             value={form.bindInterface}
             onChange={(v) => update("bindInterface", v)}
-            hint="Interface name (e.g. tun0, wg0, eth0) or specific IP (leave blank for all)"
+            hint={t("settingsTabs.batch2.interfaceNameOrIp")}
           />
 
           <Toggle
-            label="Enable Automated VPN Kill Switch"
+            label={t("settingsTabs.batch2.enableAutomatedVpnKillSwitch")}
             checked={form.enableVpnKillSwitch}
             onChange={(v) => update("enableVpnKillSwitch", v)}
-            hint="Immediately drop all BitTorrent transfers if the bound VPN interface goes down"
+            hint={t(
+              "settingsTabs.batch2.immediatelyDropAllBitTorrentTransfers",
+            )}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Socket Connection Limits & Packet QoS"
-        description="Tune active socket pools, half-open connection queues, and IP DSCP priority flags."
+        title={t("settingsTabs.batch2.socketConnectionLimits")}
+        description={t("settingsTabs.batch2.tuneActiveSocketPools")}
       >
         <div
           style={{
@@ -222,16 +238,18 @@ export function NetworkSettingsTab() {
           }}
         >
           <NumberInput
-            label="Maximum Global Connections"
+            label={t("settingsTabs.batch2.maximumGlobalConnections")}
             value={form.maxGlobalConnections}
             onChange={(v) => update("maxGlobalConnections", v)}
             min={10}
             max={5000}
-            hint="Total simultaneous peer socket connections"
+            hint={t(
+              "settingsTabs.batch2.totalSimultaneousPeerSocketConnections",
+            )}
           />
 
           <NumberInput
-            label="Max Connections per Torrent"
+            label={t("settingsTabs.batch2.maxConnectionsPerTorrent")}
             value={form.maxPerTorrentConnections}
             onChange={(v) => update("maxPerTorrentConnections", v)}
             min={1}
@@ -239,7 +257,7 @@ export function NetworkSettingsTab() {
           />
 
           <NumberInput
-            label="Max Upload Slots per Torrent"
+            label={t("settingsTabs.batch2.maxUploadSlotsPerTorrent")}
             value={form.maxUploadSlots}
             onChange={(v) => update("maxUploadSlots", v)}
             min={1}
@@ -247,7 +265,7 @@ export function NetworkSettingsTab() {
           />
 
           <NumberInput
-            label="Max Connections per Remote IP"
+            label={t("settingsTabs.batch2.maxConnectionsPerRemoteIp")}
             value={form.maxConnectionsPerIp}
             onChange={(v) => update("maxConnectionsPerIp", v)}
             min={1}
@@ -255,21 +273,21 @@ export function NetworkSettingsTab() {
           />
 
           <NumberInput
-            label="Max Half-Open Connections"
+            label={t("settingsTabs.batch2.maxHalfOpenConnections")}
             value={form.maximumHalfOpenConnections}
             onChange={(v) => update("maximumHalfOpenConnections", v)}
             min={5}
             max={500}
-            hint="Maximum pending TCP socket handshakes"
+            hint={t("settingsTabs.batch2.maximumPendingTcpSocketHandshakes")}
           />
 
           <NumberInput
-            label="IP Packet DSCP QoS Marking"
+            label={t("settingsTabs.batch2.ipPacketDscpQosMarking")}
             value={form.peerDscp}
             onChange={(v) => update("peerDscp", v)}
             min={0}
             max={63}
-            hint="DiffServ code point (4 = Background CS1, 0 = Normal)"
+            hint={t("settingsTabs.batch2.diffServCodePoint")}
           />
         </div>
       </SectionCard>

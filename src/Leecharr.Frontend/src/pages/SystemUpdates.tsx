@@ -1,6 +1,9 @@
+import { useTranslation } from "../i18n";
 import { useUpdates } from "../api/hooks";
 
 function CheckIcon() {
+  const { t } = useTranslation();
+
   return (
     <svg
       width="18"
@@ -33,6 +36,7 @@ function formatDate(iso: string): string {
 }
 
 function SystemUpdates() {
+  const { t } = useTranslation();
   const { data: updates, isLoading, error } = useUpdates();
 
   const isUpToDate =
@@ -57,9 +61,11 @@ function SystemUpdates() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Updates
+              {t("autogen.t_system_updates")}
             </h1>
-            <span className="badge badge-primary">Releases</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_releases")}
+            </span>
           </div>
           <div
             style={{
@@ -68,17 +74,18 @@ function SystemUpdates() {
               marginTop: "0.2rem",
             }}
           >
-            Software version history, changelogs, bug fixes, and upgrade
-            availability
+            {t("autogen.t_software_version_history_changelogs_bug_")}
           </div>
         </div>
       </div>
 
-      {isLoading && <p className="loading">Checking for updates...</p>}
+      {isLoading && (
+        <p className="loading">{t("autogen.t_checking_for_updates")}</p>
+      )}
 
       {error && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <p className="error">Failed to check for updates.</p>
+          <p className="error">{t("autogen.t_failed_to_check_for_updates")}</p>
         </div>
       )}
 
@@ -162,7 +169,7 @@ function SystemUpdates() {
                       className="badge badge-seeding"
                       style={{ marginLeft: "auto" }}
                     >
-                      Currently Installed
+                      {t("autogen.t_currently_installed")}
                     </span>
                   )}
                   {update.latest && !update.installed && (
@@ -170,7 +177,7 @@ function SystemUpdates() {
                       className="badge badge-queued"
                       style={{ marginLeft: "auto" }}
                     >
-                      Latest Release
+                      {t("autogen.t_latest_release")}
                     </span>
                   )}
                 </div>
@@ -189,7 +196,7 @@ function SystemUpdates() {
                           marginBottom: "0.4rem",
                         }}
                       >
-                        ✨ New Features
+                        {t("autogen.t_new_features")}
                       </div>
                       <ul
                         style={{
@@ -221,7 +228,7 @@ function SystemUpdates() {
                           marginBottom: "0.4rem",
                         }}
                       >
-                        🛠️ Bug Fixes & Improvements
+                        {t("autogen.t_bug_fixes_improvements")}
                       </div>
                       <ul
                         style={{

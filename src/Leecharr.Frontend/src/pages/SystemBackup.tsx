@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState } from "react";
 import type { Backup } from "../api/types";
 import {
@@ -11,6 +12,8 @@ import { useEscapeKey } from "../hooks/useEscapeKey";
 import { formatBytes, formatDate } from "../utils/formatters";
 
 function BackupIcon() {
+  const { t } = useTranslation();
+
   return (
     <svg
       width="14"
@@ -85,6 +88,7 @@ function TrashIcon() {
 }
 
 function SystemBackup() {
+  const { t } = useTranslation();
   const { data: backups, isLoading, isError } = useBackups();
   const createBackup = useCreateBackup();
   const deleteBackup = useDeleteBackup();
@@ -144,9 +148,11 @@ function SystemBackup() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Backups
+              {t("autogen.t_system_backups")}
             </h1>
-            <span className="badge badge-primary">Snapshots</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_snapshots")}
+            </span>
           </div>
           <div
             style={{
@@ -155,8 +161,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            Create, download, and restore Leecharr configuration and database
-            snapshots
+            {t("autogen.t_create_download_and_restore_leecharr_con")}
           </div>
         </div>
 
@@ -177,9 +182,9 @@ function SystemBackup() {
         </button>
       </div>
 
-      {isLoading && <p className="loading">Loading backups...</p>}
+      {isLoading && <p className="loading">{t("autogen.t_loading_backups")}</p>}
       {!isLoading && isError && (
-        <p className="error">Failed to load backups.</p>
+        <p className="error">{t("autogen.t_failed_to_load_backups")}</p>
       )}
 
       {/* Backups List Card */}
@@ -208,7 +213,7 @@ function SystemBackup() {
               margin: 0,
             }}
           >
-            Stored Backup Snapshots
+            {t("autogen.t_stored_backup_snapshots")}
           </h2>
           <div
             style={{
@@ -217,7 +222,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            ZIP archives containing the SQLite database and application settings
+            {t("autogen.t_zip_archives_containing_the_sqlite_datab")}
           </div>
         </div>
 
@@ -226,14 +231,20 @@ function SystemBackup() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Archive Name</th>
-                  <th className="torrent-table-th">File Size</th>
-                  <th className="torrent-table-th">Creation Date</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_archive_name")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_file_size")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_creation_date")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Actions
+                    {t("autogen.t_actions")}
                   </th>
                 </tr>
               </thead>
@@ -241,8 +252,7 @@ function SystemBackup() {
                 {backups.length === 0 && (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      No backups found. Click &quot;Backup Now&quot; to create a
-                      snapshot.
+                      {t("autogen.t_no_backups_found_click_quot_backup_now_q")}
                     </td>
                   </tr>
                 )}
@@ -273,7 +283,7 @@ function SystemBackup() {
                         <button
                           className="btn btn-small btn-outline"
                           onClick={() => setConfirmRestore(backup)}
-                          title="Restore Snapshot"
+                          title={t("autogen.t_restore_snapshot")}
                           disabled={restoreBackup.isPending}
                         >
                           <RestoreIcon />
@@ -281,7 +291,7 @@ function SystemBackup() {
                         <button
                           className="btn btn-small btn-danger"
                           onClick={() => setConfirmDelete(backup.id)}
-                          title="Delete Snapshot"
+                          title={t("autogen.t_delete_snapshot")}
                           disabled={deleteBackup.isPending}
                         >
                           <TrashIcon />
@@ -313,7 +323,7 @@ function SystemBackup() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
             >
-              Delete Backup Snapshot
+              {t("autogen.t_delete_backup_snapshot")}
             </h3>
             <p
               style={{
@@ -323,8 +333,7 @@ function SystemBackup() {
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to permanently delete this backup archive?
-              This action cannot be undone.
+              {t("autogen.t_are_you_sure_you_want_to_permanently_del")}
             </p>
             <div
               className="modal-actions"
@@ -338,7 +347,7 @@ function SystemBackup() {
                 className="btn btn-outline btn-small"
                 onClick={() => setConfirmDelete(null)}
               >
-                Cancel
+                {t("autogen.t_cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"
@@ -369,7 +378,7 @@ function SystemBackup() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
             >
-              Restore Backup Snapshot
+              {t("autogen.t_restore_backup_snapshot")}
             </h3>
             <div
               style={{
@@ -383,9 +392,7 @@ function SystemBackup() {
                 lineHeight: 1.4,
               }}
             >
-              ⚠️ Warning: Restoring will replace your current database and
-              configuration. An application restart will be required immediately
-              afterwards.
+              {t("autogen.t_warning_restoring_will_replace_your_curr")}
             </div>
             <p
               style={{
@@ -395,8 +402,9 @@ function SystemBackup() {
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to restore from &quot;
-              <strong>{confirmRestore.name}</strong>&quot;?
+              {t("autogen.t_are_you_sure_you_want_to_restore_from_qu")}
+              <strong>{confirmRestore.name}</strong>
+              {t("autogen.t_quot")}
             </p>
             <div
               className="modal-actions"
@@ -410,7 +418,7 @@ function SystemBackup() {
                 className="btn btn-outline btn-small"
                 onClick={() => setConfirmRestore(null)}
               >
-                Cancel
+                {t("autogen.t_cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"

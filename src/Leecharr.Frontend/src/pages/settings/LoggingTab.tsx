@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useAdvancedConfig, useSaveAdvancedConfig } from "../../api/hooks";
 import { apiClient } from "../../api/client";
@@ -10,6 +11,8 @@ import {
 } from "./shared";
 
 export function LoggingTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useAdvancedConfig();
   const saveMutation = useSaveAdvancedConfig();
 
@@ -65,10 +68,10 @@ export function LoggingTab() {
     setVacuumMsg(null);
     try {
       await apiClient.post("/system/maintenance/vacuum", {});
-      setVacuumMsg("✓ Database VACUUM completed successfully");
+      setVacuumMsg(t("settingsTabs.logging.vacuumSuccess"));
     } catch (err: any) {
       setVacuumMsg(
-        `✗ Database VACUUM failed: ${err?.message || "Internal server error"}`,
+        `✗ Database VACUUM failed: ${err?.message || t("settingsTabs.logging.internalServerError")}`,
       );
     } finally {
       setVacuuming(false);
@@ -78,7 +81,7 @@ export function LoggingTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading diagnostics settings...
+        {t("settingsTabs.logging.loading")}
       </div>
     );
   }
@@ -95,8 +98,8 @@ export function LoggingTab() {
       />
 
       <SectionCard
-        title="Logging & Diagnostic Verbosity"
-        description="Configure rolling disk log file retention and diagnostic trace logging."
+        title={t("settingsTabs.logging.diagnosticsTitle")}
+        description={t("settingsTabs.logging.diagnosticsDescription")}
       >
         <div
           style={{
@@ -106,47 +109,62 @@ export function LoggingTab() {
           }}
         >
           <Toggle
-            label="Enable File Logging"
+            label={t("settingsTabs.logging.enableFileLogging")}
             checked={form.logToFile}
             onChange={(v) => update("logToFile", v)}
-            hint="Write rolling application event logs to app data directory"
+            hint={t("settingsTabs.logging.enableFileLoggingHint")}
           />
 
           <SelectInput
-            label="Disk File Log Level"
+            label={t("settingsTabs.logging.diskLogLevel")}
             value={form.fileLogLevel}
             onChange={(v) => update("fileLogLevel", v)}
             options={[
-              { value: "Trace", label: "Trace (Verbose Wire Packets)" },
-              { value: "Debug", label: "Debug (Detailed Diagnostics)" },
-              { value: "Info", label: "Info (Standard Operations)" },
-              { value: "Warn", label: "Warn (Warnings & Recoverable Errors)" },
-              { value: "Error", label: "Error (Critical Errors Only)" },
+              {
+                value: "Trace",
+                label: t("settingsTabs.logging.logLevels.trace"),
+              },
+              {
+                value: "Debug",
+                label: t("settingsTabs.logging.logLevels.debug"),
+              },
+              {
+                value: "Info",
+                label: t("settingsTabs.logging.logLevels.info"),
+              },
+              {
+                value: "Warn",
+                label: t("settingsTabs.logging.logLevels.warn"),
+              },
+              {
+                value: t("settingsTabs.notifications.error"),
+                label: t("settingsTabs.logging.logLevels.error"),
+              },
             ]}
           />
 
           <Toggle
-            label="Enable Debug Mode"
+            label={t("settingsTabs.logging.enableDebugMode")}
             checked={form.debugMode}
             onChange={(v) => update("debugMode", v)}
-            hint="Enables extended stack traces and internal metrics logging"
+            hint={t("settingsTabs.logging.enableDebugModeHint")}
           />
 
           <NumberInput
-            label="UI Real-Time Poll Cadence"
+            label={t("settingsTabs.logging.uiRefreshRate")}
             value={form.uiRefreshRateSec}
             onChange={(v) => update("uiRefreshRateSec", v)}
             min={1}
             max={60}
-            suffix="seconds"
-            hint="Client-side interval for refreshing swarm graphs and active transfers"
+            suffix={t("settingsTabs.notifications.timeoutSuffix")}
+            hint={t("settingsTabs.logging.uiRefreshRateHint")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="System Maintenance & Optimization"
-        description="Perform on-demand database compaction and media cache cleanup."
+        title={t("settingsTabs.logging.maintenanceTitle")}
+        description={t("settingsTabs.logging.maintenanceDescription")}
       >
         <div
           style={{
@@ -165,7 +183,7 @@ export function LoggingTab() {
                 fontSize: "0.95rem",
               }}
             >
-              SQLite Database Compaction (VACUUM)
+              {t("settingsTabs.logging.vacuumTitle")}
             </div>
             <div
               style={{
@@ -197,7 +215,9 @@ export function LoggingTab() {
             onClick={handleVacuum}
             disabled={vacuuming}
           >
-            {vacuuming ? "Compacting Database..." : "🧹 Run Database VACUUM"}
+            {vacuuming
+              ? t("settingsTabs.logging.vacuumRunning")
+              : t("settingsTabs.logging.vacuumButton")}
           </button>
         </div>
       </SectionCard>

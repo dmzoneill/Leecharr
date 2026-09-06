@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState } from "react";
 import {
   useCategories,
@@ -18,6 +19,8 @@ interface CategorySettingsProps {
 export function CategorySettingsTab({
   embedded = false,
 }: CategorySettingsProps) {
+  const { t } = useTranslation();
+
   const { data: categories, isLoading } = useCategories();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
@@ -68,7 +71,7 @@ export function CategorySettingsTab({
 
     const trimmedName = editingCategory.name?.trim();
     if (!trimmedName) {
-      setModalError("Category name is required.");
+      setModalError(t("settingsTabs.categories.nameRequired"));
       return;
     }
 
@@ -97,7 +100,9 @@ export function CategorySettingsTab({
             setEditingCategory(null);
           },
           onError: (err: any) => {
-            setModalError(err?.message || "Failed to update category");
+            setModalError(
+              err?.message || t("settingsTabs.categories.updateFailed"),
+            );
           },
         },
       );
@@ -111,7 +116,9 @@ export function CategorySettingsTab({
           setEditingCategory(null);
         },
         onError: (err: any) => {
-          setModalError(err?.message || "Failed to create category");
+          setModalError(
+            err?.message || t("settingsTabs.categories.createFailed"),
+          );
         },
       });
     }
@@ -119,10 +126,10 @@ export function CategorySettingsTab({
 
   const handleDelete = async (cat: Category) => {
     const ok = await confirm({
-      title: "Delete Category",
+      title: t("settingsTabs.categories.deleteTitle"),
       message: `Are you sure you want to delete the category "${cat.name}"? Existing torrent files and active swarms will not be removed.`,
       danger: true,
-      confirmText: "Delete",
+      confirmText: t("settingsTabs.categories.deleteConfirm"),
     });
 
     if (!ok) return;
@@ -132,7 +139,10 @@ export function CategorySettingsTab({
         showToast(`Category "${cat.name}" deleted`, "info");
       },
       onError: (err: any) => {
-        showToast(err?.message || "Failed to delete category", "error");
+        showToast(
+          err?.message || t("settingsTabs.categories.deleteFailed"),
+          "error",
+        );
       },
     });
   };
@@ -142,8 +152,8 @@ export function CategorySettingsTab({
   return (
     <div id="category-settings-section">
       <SectionCard
-        title="Category Management & Directory Routing"
-        description="Organize torrents with categories to automatically route files to custom save paths, enforce rate limits, and apply share ratio auto-stop policies."
+        title={t("settingsTabs.categories.title")}
+        description={t("settingsTabs.categories.description")}
       >
         <div
           style={{
@@ -158,7 +168,7 @@ export function CategorySettingsTab({
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
             {categories
               ? `${categories.length} configured ${categories.length === 1 ? "category" : "categories"}`
-              : "Loading..."}
+              : t("settingsTabs.categories.loading")}
           </div>
 
           <button
@@ -167,13 +177,14 @@ export function CategorySettingsTab({
             onClick={handleOpenAdd}
             style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
           >
-            <span>+</span> Add Category
+            <span>+</span>
+            {t("settingsTabs.categories.addCategory")}
           </button>
         </div>
 
         {isLoading ? (
           <div className="loading" style={{ padding: "1.5rem 0" }}>
-            Loading categories...
+            {t("settingsTabs.categories.loadingCategories")}
           </div>
         ) : !categories || categories.length === 0 ? (
           <div
@@ -187,7 +198,7 @@ export function CategorySettingsTab({
           >
             <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏷️</div>
             <h4 style={{ margin: "0 0 0.5rem", color: "var(--text-primary)" }}>
-              No categories configured yet
+              {t("settingsTabs.categories.noCategories")}
             </h4>
             <p
               style={{
@@ -229,14 +240,26 @@ export function CategorySettingsTab({
                     fontSize: "0.8rem",
                   }}
                 >
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Name</th>
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Save Path</th>
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Max Download</th>
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Max Upload</th>
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Target Ratio</th>
-                  <th style={{ padding: "0.6rem 0.8rem" }}>Auto Stop</th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.name")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.savePath")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.maxDownload")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.maxUpload")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.targetRatio")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.categories.table.autoStop")}
+                  </th>
                   <th style={{ padding: "0.6rem 0.8rem", textAlign: "right" }}>
-                    Actions
+                    {t("settingsTabs.categories.table.actions")}
                   </th>
                 </tr>
               </thead>
@@ -268,7 +291,7 @@ export function CategorySettingsTab({
                               border: "1px solid rgba(59, 130, 246, 0.3)",
                             }}
                           >
-                            Default
+                            {t("settingsTabs.categories.table.default")}
                           </span>
                         )}
                       </div>
@@ -282,20 +305,23 @@ export function CategorySettingsTab({
                           : "var(--text-muted)",
                       }}
                     >
-                      {cat.savePath || "(Default Storage Path)"}
+                      {cat.savePath ||
+                        t("settingsTabs.categories.table.defaultStoragePath")}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
                       {cat.defaultDownloadLimit
                         ? `${cat.defaultDownloadLimit} KB/s`
-                        : "Unlimited"}
+                        : t("settingsTabs.categories.table.unlimited")}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
                       {cat.defaultUploadLimit
                         ? `${cat.defaultUploadLimit} KB/s`
-                        : "Unlimited"}
+                        : t("settingsTabs.categories.table.unlimited")}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
-                      {cat.targetRatio ? `${cat.targetRatio}x` : "Unlimited"}
+                      {cat.targetRatio
+                        ? `${cat.targetRatio}x`
+                        : t("settingsTabs.categories.table.unlimited")}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
                       {cat.autoStop ? (
@@ -306,11 +332,11 @@ export function CategorySettingsTab({
                             fontWeight: 600,
                           }}
                         >
-                          ✓ Enabled
+                          {t("settingsTabs.categories.table.enabled")}
                         </span>
                       ) : (
                         <span style={{ color: "var(--text-muted)" }}>
-                          Disabled
+                          {t("settingsTabs.categories.table.disabled")}
                         </span>
                       )}
                     </td>
@@ -334,7 +360,7 @@ export function CategorySettingsTab({
                             fontSize: "0.75rem",
                           }}
                         >
-                          Edit
+                          {t("settingsTabs.categories.table.edit")}
                         </button>
                         <button
                           type="button"
@@ -347,7 +373,7 @@ export function CategorySettingsTab({
                             fontSize: "0.75rem",
                           }}
                         >
-                          Delete
+                          {t("settingsTabs.categories.deleteConfirm")}
                         </button>
                       </div>
                     </td>
@@ -383,28 +409,30 @@ export function CategorySettingsTab({
             >
               {editingCategory.id
                 ? `Edit Category: ${editingCategory.name}`
-                : "Add New Category"}
+                : t("settingsTabs.categories.modal.addTitle")}
             </div>
 
             <TextInput
-              label="Category Name"
+              label={t("settingsTabs.categories.modal.nameLabel")}
               value={editingCategory.name || ""}
               onChange={(v) => {
                 setEditingCategory({ ...editingCategory, name: v });
                 setModalError(null);
               }}
-              placeholder="e.g. movies, tv, music"
-              hint="Unique category identifier (e.g. movies, tv, anime, audio)"
+              placeholder={t("settingsTabs.categories.modal.namePlaceholder")}
+              hint={t("settingsTabs.categories.modal.nameHint")}
             />
 
             <TextInput
-              label="Custom Save Path"
+              label={t("settingsTabs.categories.modal.savePathLabel")}
               value={editingCategory.savePath || ""}
               onChange={(v) =>
                 setEditingCategory({ ...editingCategory, savePath: v })
               }
-              placeholder="e.g. /downloads/movies"
-              hint="Downloaded files for this category will be stored in this directory (leave blank for default)"
+              placeholder={t(
+                "settingsTabs.categories.modal.savePathPlaceholder",
+              )}
+              hint={t("settingsTabs.categories.modal.savePathHint")}
             />
 
             <div
@@ -415,7 +443,7 @@ export function CategorySettingsTab({
               }}
             >
               <NumberInput
-                label="Max Download Limit"
+                label={t("settingsTabs.categories.modal.maxDownloadLabel")}
                 value={editingCategory.defaultDownloadLimit ?? 0}
                 onChange={(v) =>
                   setEditingCategory({
@@ -425,11 +453,11 @@ export function CategorySettingsTab({
                 }
                 min={0}
                 suffix="KB/s"
-                hint="0 = unlimited"
+                hint={t("settingsTabs.categories.modal.unlimitedHint")}
               />
 
               <NumberInput
-                label="Max Upload Limit"
+                label={t("settingsTabs.categories.modal.maxUploadLabel")}
                 value={editingCategory.defaultUploadLimit ?? 0}
                 onChange={(v) =>
                   setEditingCategory({
@@ -439,7 +467,7 @@ export function CategorySettingsTab({
                 }
                 min={0}
                 suffix="KB/s"
-                hint="0 = unlimited"
+                hint={t("settingsTabs.categories.modal.unlimitedHint")}
               />
             </div>
 
@@ -451,18 +479,18 @@ export function CategorySettingsTab({
               }}
             >
               <NumberInput
-                label="Target Share Ratio"
+                label={t("settingsTabs.categories.modal.targetRatioLabel")}
                 value={editingCategory.targetRatio ?? 0}
                 onChange={(v) =>
                   setEditingCategory({ ...editingCategory, targetRatio: v })
                 }
                 min={0}
                 step={0.1}
-                hint="Target ratio (e.g. 2.0). 0 = unlimited"
+                hint={t("settingsTabs.categories.modal.targetRatioHint")}
               />
 
               <NumberInput
-                label="Target Seed Time"
+                label={t("settingsTabs.categories.modal.targetSeedTimeLabel")}
                 value={editingCategory.targetSeedTimeMinutes ?? 0}
                 onChange={(v) =>
                   setEditingCategory({
@@ -471,8 +499,8 @@ export function CategorySettingsTab({
                   })
                 }
                 min={0}
-                suffix="min"
-                hint="0 = unlimited"
+                suffix={t("settingsTabs.schedule.minuteSuffix")}
+                hint={t("settingsTabs.categories.modal.unlimitedHint")}
               />
             </div>
 
@@ -485,21 +513,21 @@ export function CategorySettingsTab({
               }}
             >
               <Toggle
-                label="Auto Stop When Seeding Goals Reached"
+                label={t("settingsTabs.categories.modal.autoStopLabel")}
                 checked={editingCategory.autoStop ?? false}
                 onChange={(v) =>
                   setEditingCategory({ ...editingCategory, autoStop: v })
                 }
-                hint="Automatically pause or stop torrent once target share ratio or seed time is satisfied"
+                hint={t("settingsTabs.categories.modal.autoStopHint")}
               />
 
               <Toggle
-                label="Set as Default Category"
+                label={t("settingsTabs.categories.modal.defaultCategoryLabel")}
                 checked={editingCategory.isDefault ?? false}
                 onChange={(v) =>
                   setEditingCategory({ ...editingCategory, isDefault: v })
                 }
-                hint="Automatically assign this category to new torrents when none is selected"
+                hint={t("settingsTabs.categories.modal.defaultCategoryHint")}
               />
             </div>
 
@@ -534,7 +562,7 @@ export function CategorySettingsTab({
                 onClick={() => setEditingCategory(null)}
                 disabled={isSaving}
               >
-                Cancel
+                {t("settingsTabs.categories.modal.cancel")}
               </button>
               <button
                 type="button"
@@ -543,10 +571,10 @@ export function CategorySettingsTab({
                 disabled={isSaving}
               >
                 {isSaving
-                  ? "Saving..."
+                  ? t("settingsTabs.categories.modal.saving")
                   : editingCategory.id
-                    ? "Save Changes"
-                    : "Create Category"}
+                    ? t("settingsTabs.categories.modal.saveChanges")
+                    : t("settingsTabs.categories.modal.createCategory")}
               </button>
             </div>
           </div>

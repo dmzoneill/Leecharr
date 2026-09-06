@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState, useMemo } from "react";
 import { formatBytes, formatSpeed } from "../utils/formatters";
 
@@ -22,6 +23,7 @@ export function SeedingSimulator({
   minSeedingHours = 72,
   className,
 }: SeedingSimulatorProps) {
+  const { t } = useTranslation();
   const [targetRatio, setTargetRatio] = useState<number>(2.0);
 
   // Target calculations
@@ -87,14 +89,15 @@ export function SeedingSimulator({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span style={{ fontSize: "1.1rem" }}>🎯</span>
           <h4 style={{ margin: 0, fontSize: "0.95rem" }}>
-            Seeding Milestone & Ratio Calculator
+            {t("autogen.t_seeding_milestone_ratio_calculator")}
           </h4>
         </div>
         <span
           className="badge badge-primary"
           style={{ fontSize: "0.75rem", fontFamily: "monospace" }}
         >
-          Speed: {formatSpeed(currentUploadSpeed)}
+          {t("autogen.t_speed")}
+          {formatSpeed(currentUploadSpeed)}
         </span>
       </div>
 
@@ -108,7 +111,7 @@ export function SeedingSimulator({
         }}
       >
         <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          Target Ratio:
+          {t("autogen.t_target_ratio")}
         </span>
         {[1.0, 1.5, 2.0, 3.0, 5.0].map((r) => (
           <button
@@ -147,7 +150,7 @@ export function SeedingSimulator({
               fontSize: "0.78rem",
             }}
           />
-          <span style={{ fontSize: "0.8rem" }}>ratio</span>
+          <span style={{ fontSize: "0.8rem" }}>{t("autogen.t_ratio")}</span>
         </div>
       </div>
 
@@ -167,7 +170,7 @@ export function SeedingSimulator({
             {formatBytes(targetUploadBytes)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            Target Upload
+            {t("autogen.t_target_upload")}
           </div>
         </div>
 
@@ -176,7 +179,7 @@ export function SeedingSimulator({
             {formatBytes(remainingUploadBytes)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            Upload Needed
+            {t("autogen.t_upload_needed")}
           </div>
         </div>
 
@@ -191,7 +194,7 @@ export function SeedingSimulator({
             {formatDuration(etaSeconds)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            Estimated Time
+            {t("autogen.t_estimated_time")}
           </div>
         </div>
       </div>
@@ -242,9 +245,11 @@ export function SeedingSimulator({
 
         {!isHnrCleared && (
           <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-            Requires {minSeedingHours}h seeding time or 1.0x ratio. Seed for{" "}
-            <strong>{formatDuration(hnrRemainingSeconds)}</strong> more to avoid
-            private tracker warning.
+            {t("autogen.t_requires")}
+            {minSeedingHours}
+            {t("autogen.t_h_seeding_time_or_1_0x_ratio_seed_for")}{" "}
+            <strong>{formatDuration(hnrRemainingSeconds)}</strong>{" "}
+            {t("autogen.t_more_to_avoid_private_tracker_warning")}
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
@@ -17,6 +18,8 @@ import {
 import { useToast } from "../../context/ToastContext";
 
 export function ProtocolsSettingsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
@@ -246,7 +249,7 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("transportConnectionTimeoutSeconds", v)}
             min={5}
             max={120}
-            suffix="sec"
+            suffix={t("settingsTabs.batch2.sec")}
             hint="Timeout for establishing TCP/uTP socket connections"
           />
         </div>
@@ -338,7 +341,7 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("handshakeTimeoutSeconds", v)}
             min={5}
             max={120}
-            suffix="sec"
+            suffix={t("settingsTabs.batch2.sec")}
             hint="Maximum duration for wire handshake"
           />
 
@@ -348,7 +351,7 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("messageReadTimeoutSeconds", v)}
             min={10}
             max={300}
-            suffix="sec"
+            suffix={t("settingsTabs.batch2.sec")}
             hint="Deadline for reading incoming protocol frames"
           />
 
@@ -358,7 +361,7 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("keepAliveIntervalSeconds", v)}
             min={30}
             max={600}
-            suffix="sec"
+            suffix={t("settingsTabs.batch2.sec")}
             hint="Frequency of 0-byte keepalive pings"
           />
 
@@ -368,7 +371,7 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("peerContactIntervalSeconds", v)}
             min={10}
             max={300}
-            suffix="sec"
+            suffix={t("settingsTabs.batch2.sec")}
             hint="Cooldown before re-connecting to idle peers"
           />
         </div>

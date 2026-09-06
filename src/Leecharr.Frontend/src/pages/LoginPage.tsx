@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import React, { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { AuthProvider } from "../api/types";
@@ -7,6 +8,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -202,7 +204,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               margin: 0,
             }}
           >
-            Leecharr
+            {t("autogen.t_leecharr")}
           </h1>
           <p
             style={{
@@ -212,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               marginBottom: 0,
             }}
           >
-            Sign in to access your media downloader
+            {t("autogen.t_sign_in_to_access_your_media_downloader")}
           </p>
         </div>
 
@@ -260,13 +262,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 marginBottom: "6px",
               }}
             >
-              Username
+              {t("autogen.t_username")}
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
+              placeholder={t("autogen.t_admin")}
               autoFocus
               style={{
                 width: "100%",
@@ -292,7 +294,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 marginBottom: "6px",
               }}
             >
-              Password
+              {t("autogen.t_password")}
             </label>
             <input
               type="password"
@@ -342,7 +344,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   cursor: "pointer",
                 }}
               />
-              Remember me
+              {t("autogen.t_remember_me")}
             </label>
           </div>
 
@@ -385,7 +387,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}
               />
               <span style={{ padding: "0 12px", color: "#8E92B2" }}>
-                Or sign in with
+                {t("autogen.t_or_sign_in_with")}
               </span>
               <div
                 style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}

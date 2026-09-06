@@ -76,7 +76,7 @@ export function AddTorrentModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            Add / Create Torrent
+            {t("autogen.t_add_create_torrent")}
           </h2>
           <button
             type="button"
@@ -91,7 +91,7 @@ export function AddTorrentModal({
               lineHeight: 1,
             }}
           >
-            &times;
+            {t("autogen.t_times")}
           </button>
         </div>
 

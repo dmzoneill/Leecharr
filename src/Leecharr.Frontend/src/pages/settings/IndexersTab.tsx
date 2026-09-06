@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import { useState } from "react";
 import {
   useIndexers,
@@ -60,6 +61,7 @@ export function normalizeIndexerPayload(
 
   const name = editing.name?.trim() || editing.indexerType || "Indexer";
   const implementation =
+    // @ts-ignore
     editing.implementation || `${editing.indexerType || "Prowlarr"}Indexer`;
 
   return {
@@ -74,6 +76,8 @@ export function normalizeIndexerPayload(
 }
 
 export function IndexersTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: indexers, isLoading: isIndexersLoading } = useIndexers();
   const { data: rssRules, isLoading: isRssRulesLoading } = useRssRules();
@@ -106,8 +110,8 @@ export function IndexersTab() {
     useState<IndexerTestResult | null>(null);
 
   const defaultIndexer: Partial<IndexerDefinition> = {
-    name: "Prowlarr",
-    indexerType: "Prowlarr",
+    name: t("settingsTabs.indexers.prowlarr"),
+    indexerType: t("settingsTabs.indexers.prowlarr"),
     url: "http://prowlarr:9696",
     apiKey: "",
     apiPath: "/api",
@@ -133,7 +137,10 @@ export function IndexersTab() {
 
   const handleSave = () => {
     if (!editing) return;
-    if (editing.indexerType === "Prowlarr" && !editing.id) {
+    if (
+      editing.indexerType === t("settingsTabs.indexers.prowlarr") &&
+      !editing.id
+    ) {
       syncMutation.mutate(
         {
           url: editing.url || "http://localhost:9696",
@@ -149,7 +156,10 @@ export function IndexersTab() {
             setModalTestResult(null);
           },
           onError: (err) => {
-            showToast(err?.message || "Failed to sync with Prowlarr", "error");
+            showToast(
+              err?.message || t("settingsTabs.indexers.syncProwlarrFailed"),
+              "error",
+            );
           },
         },
       );
@@ -199,7 +209,10 @@ export function IndexersTab() {
           setEditingRule(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to update RSS rule", "error");
+          showToast(
+            err?.message || t("settingsTabs.indexers.rssRuleUpdateFailed"),
+            "error",
+          );
         },
       });
     } else {
@@ -209,7 +222,10 @@ export function IndexersTab() {
           setEditingRule(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to create RSS rule", "error");
+          showToast(
+            err?.message || t("settingsTabs.indexers.rssRuleCreateFailed"),
+            "error",
+          );
         },
       });
     }
@@ -250,19 +266,22 @@ export function IndexersTab() {
         );
       },
       onError: (err: any) => {
-        showToast(err?.message || "Failed to sync RSS feeds", "error");
+        showToast(
+          err?.message || t("settingsTabs.indexers.rssSyncFailed"),
+          "error",
+        );
       },
     });
   };
 
   if (isIndexersLoading || isRssRulesLoading)
-    return <div className="loading">Loading indexers & RSS rules...</div>;
+    return <div className="loading">{t("settingsTabs.indexers.loading")}</div>;
 
   return (
     <>
       <SectionCard
-        title="Torznab & Newznab Indexers"
-        description="Configure Prowlarr, Jackett, or standalone Torznab/Newznab indexers for automated releases"
+        title={t("settingsTabs.indexers.torznabTitle")}
+        description={t("settingsTabs.indexers.torznabDesc")}
       >
         <div className="provider-cards">
           {indexers?.map((idx) => (
@@ -290,7 +309,7 @@ export function IndexersTab() {
                 )}
                 <button
                   className="provider-card-action"
-                  title="Test Connection"
+                  title={t("settingsTabs.indexers.testConnection")}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTest(idx.id);
@@ -300,14 +319,14 @@ export function IndexersTab() {
                 </button>
                 <button
                   className="provider-card-action provider-card-action-danger"
-                  title="Delete Indexer"
+                  title={t("settingsTabs.indexers.deleteIndexer")}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const ok = await confirm({
-                      title: "Delete Indexer",
+                      title: t("settingsTabs.indexers.deleteIndexer"),
                       message: `Are you sure you want to delete the indexer "${idx.name}"?`,
                       danger: true,
-                      confirmText: "Delete",
+                      confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
                     if (!ok) return;
 
@@ -316,7 +335,8 @@ export function IndexersTab() {
                         showToast(`Indexer "${idx.name}" deleted`, "info"),
                       onError: (err: any) =>
                         showToast(
-                          err?.message || "Failed to delete indexer",
+                          err?.message ||
+                            t("settingsTabs.indexers.deleteIndexerFailed"),
                           "error",
                         ),
                     });
@@ -332,29 +352,29 @@ export function IndexersTab() {
                 </span>
                 {idx.enableRss && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    RSS
+                    {t("settingsTabs.indexers.badgeRss")}
                   </span>
                 )}
                 {idx.enableSearch && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    Search
+                    {t("settingsTabs.indexers.badgeSearch")}
                   </span>
                 )}
               </div>
               <div className="provider-card-info">{idx.url}</div>
               {testResults[idx.id] === true && (
                 <div className="provider-card-test provider-card-test-ok">
-                  ✓ Connection passed
+                  {t("settingsTabs.indexers.connectionPassed")}
                 </div>
               )}
               {testResults[idx.id] === false && (
                 <div className="provider-card-test provider-card-test-fail">
-                  ✕ Connection failed
+                  {t("settingsTabs.indexers.connectionFailed")}
                 </div>
               )}
               {testResults[idx.id] === null && (
                 <div className="provider-card-test provider-card-test-pending">
-                  Testing...
+                  {t("settingsTabs.notifications.testing")}
                 </div>
               )}
             </div>
@@ -365,7 +385,7 @@ export function IndexersTab() {
               setEditing({ ...defaultIndexer });
               setModalTestResult(null);
             }}
-            title="Add Indexer"
+            title={t("settingsTabs.indexers.addIndexer")}
           >
             <span className="provider-card-add-icon">+</span>
           </div>
@@ -373,8 +393,8 @@ export function IndexersTab() {
       </SectionCard>
 
       <SectionCard
-        title="Automated RSS Grab Rules"
-        description="Configure RSS filter rules, regex patterns, minimum seeders, and categories for automated grabbing"
+        title={t("settingsTabs.indexers.rssRulesTitle")}
+        description={t("settingsTabs.indexers.rssRulesDesc")}
       >
         <div
           style={{
@@ -390,8 +410,8 @@ export function IndexersTab() {
             disabled={syncRssMutation.isPending}
           >
             {syncRssMutation.isPending
-              ? "Syncing RSS..."
-              : "🔄 Sync RSS Feeds Now"}
+              ? t("settingsTabs.indexers.syncingRss")
+              : t("settingsTabs.indexers.syncRssNow")}
           </button>
         </div>
 
@@ -405,14 +425,14 @@ export function IndexersTab() {
               <div className="provider-card-actions">
                 <button
                   className="provider-card-action provider-card-action-danger"
-                  title="Delete RSS Rule"
+                  title={t("settingsTabs.indexers.deleteRssRule")}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const ok = await confirm({
-                      title: "Delete RSS Rule",
+                      title: t("settingsTabs.indexers.deleteRssRule"),
                       message: `Are you sure you want to delete the RSS rule "${rule.name}"?`,
                       danger: true,
-                      confirmText: "Delete",
+                      confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
                     if (!ok) return;
 
@@ -421,7 +441,8 @@ export function IndexersTab() {
                         showToast(`RSS Rule "${rule.name}" deleted`, "info"),
                       onError: (err: any) =>
                         showToast(
-                          err?.message || "Failed to delete RSS rule",
+                          err?.message ||
+                            t("settingsTabs.indexers.deleteRssRuleFailed"),
                           "error",
                         ),
                     });
@@ -439,7 +460,9 @@ export function IndexersTab() {
                       : "provider-card-badge-gray"
                   }`}
                 >
-                  {rule.isEnabled ? "Enabled" : "Disabled"}
+                  {rule.isEnabled
+                    ? t("settingsTabs.indexers.enabled")
+                    : t("settingsTabs.categories.table.disabled")}
                 </span>
                 {rule.minSeeders > 0 && (
                   <span className="provider-card-badge provider-card-badge-blue">
@@ -448,7 +471,7 @@ export function IndexersTab() {
                 )}
                 {rule.freeleechOnly && (
                   <span className="provider-card-badge provider-card-badge-gold">
-                    Freeleech
+                    {t("settingsTabs.indexers.freeleech")}
                   </span>
                 )}
                 {rule.categoryId > 0 && (
@@ -459,24 +482,24 @@ export function IndexersTab() {
                 <span className="provider-card-badge provider-card-badge-blue">
                   {rule.indexerIds && rule.indexerIds.length > 0
                     ? `${rule.indexerIds.length} Indexers`
-                    : "All Indexers"}
+                    : t("settingsTabs.indexers.allIndexers")}
                 </span>
               </div>
               <div className="provider-card-info">
                 {rule.mustContain && (
                   <div style={{ wordBreak: "break-all" }}>
-                    <strong>Must contain:</strong>{" "}
+                    <strong>{t("settingsTabs.indexers.mustContain")}</strong>{" "}
                     <code>{rule.mustContain}</code>
                   </div>
                 )}
                 {rule.mustNotContain && (
                   <div style={{ wordBreak: "break-all" }}>
-                    <strong>Must not contain:</strong>{" "}
+                    <strong>{t("settingsTabs.indexers.mustNotContain")}</strong>{" "}
                     <code>{rule.mustNotContain}</code>
                   </div>
                 )}
                 {!rule.mustContain && !rule.mustNotContain && (
-                  <div>Catch-all rule</div>
+                  <div>{t("settingsTabs.indexers.catchAllRule")}</div>
                 )}
               </div>
             </div>
@@ -484,7 +507,7 @@ export function IndexersTab() {
           <div
             className="provider-card-add"
             onClick={() => setEditingRule({ ...defaultRssRule })}
-            title="Add RSS Rule"
+            title={t("settingsTabs.indexers.addRssRule")}
           >
             <span className="provider-card-add-icon">+</span>
           </div>
@@ -513,20 +536,22 @@ export function IndexersTab() {
               className="modal-title"
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
             >
-              {editing.id ? "Edit Indexer" : "Add Indexer"}
+              {editing.id
+                ? t("settingsTabs.indexers.editIndexerTitle")
+                : t("settingsTabs.indexers.addIndexer")}
             </div>
             <TextInput
-              label="Name"
+              label={t("settingsTabs.categories.table.name")}
               value={editing.name || ""}
               onChange={(v) => {
                 setEditing({ ...editing, name: v });
                 setModalTestResult(null);
               }}
-              placeholder="My Prowlarr"
+              placeholder={t("settingsTabs.indexers.namePlaceholder")}
             />
             <SelectInput
-              label="Type"
-              value={editing.indexerType || "Prowlarr"}
+              label={t("settingsTabs.indexers.typeLabel")}
+              value={editing.indexerType || t("settingsTabs.indexers.prowlarr")}
               onChange={(v) => {
                 const defaults: Record<string, string> = {
                   Prowlarr: "http://localhost:9696",
@@ -541,13 +566,22 @@ export function IndexersTab() {
                 setModalTestResult(null);
               }}
               options={[
-                { value: "Prowlarr", label: "Prowlarr" },
-                { value: "Torznab", label: "Torznab" },
-                { value: "Newznab", label: "Newznab" },
+                {
+                  value: t("settingsTabs.indexers.prowlarr"),
+                  label: t("settingsTabs.indexers.prowlarr"),
+                },
+                {
+                  value: t("settingsTabs.indexers.torznab"),
+                  label: t("settingsTabs.indexers.torznab"),
+                },
+                {
+                  value: t("settingsTabs.indexers.newznab"),
+                  label: t("settingsTabs.indexers.newznab"),
+                },
               ]}
             />
             <TextInput
-              label="URL"
+              label={t("settingsTabs.indexers.urlLabel")}
               value={editing.url || ""}
               onChange={(v) => {
                 setEditing({ ...editing, url: v });
@@ -556,7 +590,7 @@ export function IndexersTab() {
               placeholder="http://localhost:9696"
             />
             <TextInput
-              label="API Key"
+              label={t("settingsTabs.indexers.apiKeyLabel")}
               value={editing.apiKey || ""}
               onChange={(v) => {
                 setEditing({ ...editing, apiKey: v });
@@ -565,7 +599,7 @@ export function IndexersTab() {
               type="password"
             />
             <TextInput
-              label="API Path"
+              label={t("settingsTabs.indexers.apiPathLabel")}
               value={editing.apiPath || "/api"}
               onChange={(v) => {
                 setEditing({ ...editing, apiPath: v });
@@ -574,7 +608,7 @@ export function IndexersTab() {
               placeholder="/api"
             />
             <TextInput
-              label="Categories"
+              label={t("settingsTabs.indexers.categoriesLabel")}
               value={
                 Array.isArray(editing.categories)
                   ? editing.categories.join(",")
@@ -587,7 +621,7 @@ export function IndexersTab() {
               placeholder="2000,5000"
             />
             <Toggle
-              label="Enable"
+              label={t("settingsTabs.indexers.enableLabel")}
               checked={editing.enable ?? true}
               onChange={(v) => {
                 setEditing({ ...editing, enable: v });
@@ -595,7 +629,7 @@ export function IndexersTab() {
               }}
             />
             <Toggle
-              label="RSS"
+              label={t("settingsTabs.indexers.badgeRss")}
               checked={editing.enableRss ?? true}
               onChange={(v) => {
                 setEditing({ ...editing, enableRss: v });
@@ -603,7 +637,7 @@ export function IndexersTab() {
               }}
             />
             <Toggle
-              label="Search"
+              label={t("settingsTabs.indexers.badgeSearch")}
               checked={editing.enableSearch ?? true}
               onChange={(v) => {
                 setEditing({ ...editing, enableSearch: v });
@@ -666,8 +700,8 @@ export function IndexersTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
                     {modalTestResult.success
-                      ? "Connection Successful"
-                      : "Connection Failed"}
+                      ? t("settingsTabs.indexers.connectionSuccessful")
+                      : t("settingsTabs.indexers.connectionFailedModal")}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -705,8 +739,8 @@ export function IndexersTab() {
                 disabled={testDirectMutation.isPending}
               >
                 {testDirectMutation.isPending
-                  ? "Testing..."
-                  : "Test Connection"}
+                  ? t("settingsTabs.notifications.testing")
+                  : t("settingsTabs.indexers.testConnection")}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -716,7 +750,7 @@ export function IndexersTab() {
                     setModalTestResult(null);
                   }}
                 >
-                  Cancel
+                  {t("settingsTabs.categories.modal.cancel")}
                 </button>
                 <button
                   className="btn btn-primary btn-small"
@@ -730,8 +764,8 @@ export function IndexersTab() {
                   {createMutation.isPending ||
                   updateMutation.isPending ||
                   syncMutation.isPending
-                    ? "Saving..."
-                    : "Save"}
+                    ? t("settingsTabs.categories.modal.saving")
+                    : t("settingsTabs.notifications.save")}
                 </button>
               </div>
             </div>
@@ -755,39 +789,41 @@ export function IndexersTab() {
               className="modal-title"
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
             >
-              {editingRule.id ? "Edit RSS Rule" : "Add RSS Rule"}
+              {editingRule.id
+                ? t("settingsTabs.indexers.editRssRuleTitle")
+                : t("settingsTabs.indexers.addRssRule")}
             </div>
             <TextInput
-              label="Rule Name"
+              label={t("settingsTabs.indexers.ruleNameLabel")}
               value={editingRule.name || ""}
               onChange={(v) => setEditingRule({ ...editingRule, name: v })}
-              placeholder="e.g. Severance 2160p HDR"
+              placeholder={t("settingsTabs.indexers.ruleNamePlaceholder")}
             />
             <Toggle
-              label="Enable Rule"
+              label={t("settingsTabs.indexers.enableRuleLabel")}
               checked={editingRule.isEnabled ?? true}
               onChange={(v) => setEditingRule({ ...editingRule, isEnabled: v })}
             />
             <TextInput
-              label="Must Contain (Regex)"
+              label={t("settingsTabs.indexers.mustContainLabel")}
               value={editingRule.mustContain || ""}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, mustContain: v })
               }
-              placeholder="e.g. Severance.*2160p"
-              hint="Regular expression that release title must match"
+              placeholder={t("settingsTabs.indexers.mustContainPlaceholder")}
+              hint={t("settingsTabs.indexers.mustContainHint")}
             />
             <TextInput
-              label="Must NOT Contain (Regex)"
+              label={t("settingsTabs.indexers.mustNotContainLabel")}
               value={editingRule.mustNotContain || ""}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, mustNotContain: v })
               }
-              placeholder="e.g. 720p|HDTV|CAM"
-              hint="Regular expression that release title must NOT match"
+              placeholder={t("settingsTabs.indexers.mustNotContainPlaceholder")}
+              hint={t("settingsTabs.indexers.mustNotContainHint")}
             />
             <NumberInput
-              label="Minimum Seeders"
+              label={t("settingsTabs.indexers.minSeedersLabel")}
               value={editingRule.minSeeders ?? 1}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, minSeeders: v })
@@ -795,7 +831,7 @@ export function IndexersTab() {
               min={0}
             />
             <NumberInput
-              label="Minimum Size (Bytes)"
+              label={t("settingsTabs.indexers.minSizeLabel")}
               value={editingRule.minSizeBytes ?? 0}
               onChange={(v) =>
                 setEditingRule({ ...editingRule, minSizeBytes: v })
@@ -867,7 +903,7 @@ export function IndexersTab() {
                 className="btn btn-outline btn-small"
                 onClick={() => setEditingRule(null)}
               >
-                Cancel
+                {t("settingsTabs.categories.modal.cancel")}
               </button>
               <button
                 className="btn btn-primary btn-small"
@@ -877,8 +913,8 @@ export function IndexersTab() {
                 }
               >
                 {createRuleMutation.isPending || updateRuleMutation.isPending
-                  ? "Saving..."
-                  : "Save"}
+                  ? t("settingsTabs.categories.modal.saving")
+                  : t("settingsTabs.notifications.save")}
               </button>
             </div>
           </div>

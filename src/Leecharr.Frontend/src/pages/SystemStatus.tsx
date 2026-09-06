@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { Link } from "react-router";
 import {
   useSystemStatus,
@@ -10,6 +11,7 @@ import {
 import { formatBytes, formatUptime } from "../utils/formatters";
 
 function SystemStatus() {
+  const { t } = useTranslation();
   const { data: status, isLoading: statusLoading } = useSystemStatus();
   const { data: health, isLoading: healthLoading } = useHealthChecks();
   const { data: diskSpace, isLoading: diskLoading } = useDiskSpace();
@@ -39,9 +41,11 @@ function SystemStatus() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Status
+              {t("autogen.t_system_status")}
             </h1>
-            <span className="badge badge-primary">Environment</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_environment")}
+            </span>
           </div>
           <div
             style={{
@@ -50,8 +54,7 @@ function SystemStatus() {
               marginTop: "0.2rem",
             }}
           >
-            Runtime environment, service health checks, disk allocations, and
-            integrated ecosystem endpoints
+            {t("autogen.t_runtime_environment_service_health_check")}
           </div>
         </div>
 
@@ -69,13 +72,13 @@ function SystemStatus() {
                 border: "1px solid rgba(255, 209, 102, 0.3)",
               }}
             >
-              <span>📊</span> Live Telemetry
+              <span>📊</span> {t("autogen.t_live_telemetry")}
             </Link>
             <span
               className="badge badge-seeding"
               style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
             >
-              ● Uptime:{" "}
+              {t("autogen.t_uptime")}{" "}
               {formatUptime(
                 status.uptimeSeconds ??
                   (status.startTime
@@ -90,7 +93,9 @@ function SystemStatus() {
         )}
       </div>
 
-      {isLoading && <p className="loading">Loading system status...</p>}
+      {isLoading && (
+        <p className="loading">{t("autogen.t_loading_system_status")}</p>
+      )}
 
       {/* Health Section Card */}
       <div
@@ -121,7 +126,7 @@ function SystemStatus() {
                 margin: 0,
               }}
             >
-              System Health & Diagnostics
+              {t("autogen.t_system_health_diagnostics")}
             </h2>
             <div
               style={{
@@ -130,7 +135,7 @@ function SystemStatus() {
                 marginTop: "0.2rem",
               }}
             >
-              Automated configuration verifiers and daemon liveness checks
+              {t("autogen.t_automated_configuration_verifiers_and_da")}
             </div>
           </div>
           <span
@@ -158,8 +163,7 @@ function SystemStatus() {
           >
             <span>✓</span>
             <span>
-              All background tasks and service configuration checks passed with
-              no warnings.
+              {t("autogen.t_all_background_tasks_and_service_configu")}
             </span>
           </div>
         ) : (
@@ -210,7 +214,7 @@ function SystemStatus() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Fix in Settings ⚙️
+                    {t("autogen.t_fix_in_settings")}
                   </Link>
                 </div>
               );
@@ -253,7 +257,7 @@ function SystemStatus() {
                   margin: 0,
                 }}
               >
-                Ecosystem & Integration Endpoints
+                {t("autogen.t_ecosystem_integration_endpoints")}
               </h2>
               <div
                 style={{
@@ -262,7 +266,7 @@ function SystemStatus() {
                   marginTop: "0.2rem",
                 }}
               >
-                Connected media managers (*arr), indexers, and injection clients
+                {t("autogen.t_connected_media_managers_arr_indexers_an")}
               </div>
             </div>
             <Link
@@ -270,7 +274,7 @@ function SystemStatus() {
               className="btn btn-outline btn-small"
               style={{ textDecoration: "none" }}
             >
-              Manage in Settings →
+              {t("autogen.t_manage_in_settings")}
             </Link>
           </div>
 
@@ -278,16 +282,22 @@ function SystemStatus() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Service Name</th>
-                  <th className="torrent-table-th">Type</th>
-                  <th className="torrent-table-th">Endpoint / Host</th>
-                  <th className="torrent-table-th">State</th>
-                  <th className="torrent-table-th">Integration Features</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_service_name")}
+                  </th>
+                  <th className="torrent-table-th">{t("autogen.t_type")}</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_endpoint_host")}
+                  </th>
+                  <th className="torrent-table-th">{t("autogen.t_state")}</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_integration_features")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Actions
+                    {t("autogen.t_actions")}
                   </th>
                 </tr>
               </thead>
@@ -343,7 +353,7 @@ function SystemStatus() {
                           }}
                           title={`Open ${conn.name} Web UI`}
                         >
-                          Open ↗
+                          {t("autogen.t_open")}
                         </a>
                       )}
                     </td>
@@ -381,7 +391,7 @@ function SystemStatus() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        Download Agent Client
+                        {t("autogen.t_download_agent_client")}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -397,7 +407,7 @@ function SystemStatus() {
                           }}
                           title={`Open ${client.name} Web UI`}
                         >
-                          Open ↗
+                          {t("autogen.t_open")}
                         </a>
                       )}
                     </td>
@@ -453,7 +463,7 @@ function SystemStatus() {
                           }}
                           title={`Open ${idx.name} Web UI`}
                         >
-                          Open ↗
+                          {t("autogen.t_open")}
                         </a>
                       )}
                     </td>
@@ -492,7 +502,7 @@ function SystemStatus() {
               margin: 0,
             }}
           >
-            Disk Space & Mount Volumes
+            {t("autogen.t_disk_space_mount_volumes")}
           </h2>
           <div
             style={{
@@ -501,8 +511,7 @@ function SystemStatus() {
               marginTop: "0.2rem",
             }}
           >
-            Host storage drives and mount points available for torrent payload
-            persistence
+            {t("autogen.t_host_storage_drives_and_mount_points_ava")}
           </div>
         </div>
 
@@ -511,11 +520,17 @@ function SystemStatus() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Location</th>
-                  <th className="torrent-table-th">Free Space</th>
-                  <th className="torrent-table-th">Total Space</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_location")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_free_space")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_total_space")}
+                  </th>
                   <th className="torrent-table-th" style={{ width: "35%" }}>
-                    Usage
+                    {t("autogen.t_usage")}
                   </th>
                 </tr>
               </thead>
@@ -575,7 +590,7 @@ function SystemStatus() {
           </div>
         ) : (
           <div style={{ padding: "1.25rem", color: "var(--text-muted)" }}>
-            No disk volume information available.
+            {t("autogen.t_no_disk_volume_information_available")}
           </div>
         )}
       </div>
@@ -610,7 +625,7 @@ function SystemStatus() {
                 marginBottom: "0.85rem",
               }}
             >
-              About Leecharr
+              {t("autogen.t_about_leecharr")}
             </h2>
             <div
               style={{
@@ -620,14 +635,16 @@ function SystemStatus() {
               }}
             >
               <div className="status-row">
-                <span className="status-label">Version</span>
+                <span className="status-label">{t("autogen.t_version")}</span>
                 <span className="status-value" style={{ fontWeight: 600 }}>
                   v{status.version}
                 </span>
               </div>
               {status.instanceUuid && (
                 <div className="status-row">
-                  <span className="status-label">Instance UUID</span>
+                  <span className="status-label">
+                    {t("autogen.t_instance_uuid")}
+                  </span>
                   <span className="status-value">
                     <code style={{ fontSize: "0.82rem" }}>
                       {status.instanceUuid}
@@ -636,19 +653,23 @@ function SystemStatus() {
                 </div>
               )}
               <div className="status-row">
-                <span className="status-label">.NET Runtime</span>
+                <span className="status-label">
+                  {t("autogen.t_net_runtime")}
+                </span>
                 <span className="status-value">
                   {status.runtimeName || ".NET"} ({status.runtimeVersion})
                 </span>
               </div>
               <div className="status-row">
-                <span className="status-label">Database</span>
+                <span className="status-label">{t("autogen.t_database")}</span>
                 <span className="status-value">
                   {status.databaseVersion || "SQLite"}
                 </span>
               </div>
               <div className="status-row">
-                <span className="status-label">Database Migration</span>
+                <span className="status-label">
+                  {t("autogen.t_database_migration")}
+                </span>
                 <span className="status-value">
                   {status.databaseMigration
                     ? `Schema #${status.databaseMigration}`
@@ -656,7 +677,9 @@ function SystemStatus() {
                 </span>
               </div>
               <div className="status-row">
-                <span className="status-label">AppData Directory</span>
+                <span className="status-label">
+                  {t("autogen.t_appdata_directory")}
+                </span>
                 <span className="status-value">
                   <code>
                     {status.appDataPath || status.appDataFolder || "-"}
@@ -664,13 +687,17 @@ function SystemStatus() {
                 </span>
               </div>
               <div className="status-row">
-                <span className="status-label">Startup Directory</span>
+                <span className="status-label">
+                  {t("autogen.t_startup_directory")}
+                </span>
                 <span className="status-value">
                   <code>{status.startupPath || "-"}</code>
                 </span>
               </div>
               <div className="status-row">
-                <span className="status-label">Execution Mode</span>
+                <span className="status-label">
+                  {t("autogen.t_execution_mode")}
+                </span>
                 <span className="status-value">
                   <span className="badge badge-primary">
                     {status.isDocker ? "🐳 Docker" : "💻 Console"}
@@ -702,13 +729,15 @@ function SystemStatus() {
               marginBottom: "0.85rem",
             }}
           >
-            Resources & Links
+            {t("autogen.t_resources_links")}
           </h2>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             <div className="status-row">
-              <span className="status-label">Official Website</span>
+              <span className="status-label">
+                {t("autogen.t_official_website")}
+              </span>
               <span className="status-value">
                 <a
                   href="https://www.leecharr.net"
@@ -719,12 +748,12 @@ function SystemStatus() {
                     textDecoration: "none",
                   }}
                 >
-                  🌐 www.leecharr.net ↗
+                  {t("autogen.t_www_leecharr_net")}
                 </a>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Source Code</span>
+              <span className="status-label">{t("autogen.t_source_code")}</span>
               <span className="status-value">
                 <a
                   href="https://github.com/dmzoneill/Leecharr"
@@ -735,12 +764,14 @@ function SystemStatus() {
                     textDecoration: "none",
                   }}
                 >
-                  📦 GitHub Repository ↗
+                  {t("autogen.t_github_repository")}
                 </a>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Issue Tracker</span>
+              <span className="status-label">
+                {t("autogen.t_issue_tracker")}
+              </span>
               <span className="status-value">
                 <a
                   href="https://github.com/dmzoneill/Leecharr/issues"
@@ -751,7 +782,7 @@ function SystemStatus() {
                     textDecoration: "none",
                   }}
                 >
-                  🐛 Report an Issue ↗
+                  {t("autogen.t_report_an_issue")}
                 </a>
               </span>
             </div>

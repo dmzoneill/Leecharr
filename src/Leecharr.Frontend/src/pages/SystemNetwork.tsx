@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useNetworkDiagnostics } from "../api/hooks";
 
 function EncryptionDonut({
@@ -7,6 +8,8 @@ function EncryptionDonut({
   encrypted: number;
   plaintext: number;
 }) {
+  const { t } = useTranslation();
+
   const total = encrypted + plaintext;
   if (total === 0) return null;
 
@@ -68,7 +71,8 @@ function EncryptionDonut({
             }}
           />
           <span>
-            Encrypted: <strong>{encrypted}</strong>
+            {t("autogen.t_encrypted")}
+            <strong>{encrypted}</strong>
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -81,7 +85,8 @@ function EncryptionDonut({
             }}
           />
           <span>
-            Plaintext: <strong>{plaintext}</strong>
+            {t("autogen.t_plaintext")}
+            <strong>{plaintext}</strong>
           </span>
         </div>
       </div>
@@ -90,15 +95,18 @@ function EncryptionDonut({
 }
 
 function SystemNetwork() {
+  const { t } = useTranslation();
   const { data: diag, isLoading, isError } = useNetworkDiagnostics();
 
   if (isLoading) {
     return (
       <div className="content-area">
         <div className="page-header">
-          <h1 className="page-heading">System: Network Diagnostics</h1>
+          <h1 className="page-heading">
+            {t("autogen.t_system_network_diagnostics")}
+          </h1>
         </div>
-        <p className="loading">Loading network diagnostics...</p>
+        <p className="loading">{t("autogen.t_loading_network_diagnostics")}</p>
       </div>
     );
   }
@@ -107,9 +115,13 @@ function SystemNetwork() {
     return (
       <div className="content-area">
         <div className="page-header">
-          <h1 className="page-heading">System: Network Diagnostics</h1>
+          <h1 className="page-heading">
+            {t("autogen.t_system_network_diagnostics")}
+          </h1>
         </div>
-        <p className="error">Failed to load network diagnostic data.</p>
+        <p className="error">
+          {t("autogen.t_failed_to_load_network_diagnostic_data")}
+        </p>
       </div>
     );
   }
@@ -131,9 +143,11 @@ function SystemNetwork() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              System: Network Diagnostics
+              {t("autogen.t_system_network_diagnostics")}
             </h1>
-            <span className="badge badge-primary">Networking</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_networking")}
+            </span>
           </div>
           <div
             style={{
@@ -142,8 +156,7 @@ function SystemNetwork() {
               marginTop: "0.2rem",
             }}
           >
-            Peer-to-peer connection endpoints, listening ports, proxy routes,
-            DHT node counts, and encryption metrics
+            {t("autogen.t_peer_to_peer_connection_endpoints_listen")}
           </div>
         </div>
 
@@ -152,7 +165,8 @@ function SystemNetwork() {
             className="badge badge-seeding"
             style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
           >
-            Port {diag.listeningPort} (TCP/UDP)
+            {t("autogen.t_port")}
+            {diag.listeningPort} {t("autogen.t_tcp_udp")}
           </span>
         </div>
       </div>
@@ -186,31 +200,39 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            Connection Endpoints
+            {t("autogen.t_connection_endpoints")}
           </h2>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             <div className="status-row">
-              <span className="status-label">Local IP Address</span>
+              <span className="status-label">
+                {t("autogen.t_local_ip_address")}
+              </span>
               <span className="status-value">
                 <code>{diag.localIp}</code>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">External Public IP</span>
+              <span className="status-label">
+                {t("autogen.t_external_public_ip")}
+              </span>
               <span className="status-value">
                 <code>{diag.externalIp || "Unknown"}</code>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">BitTorrent Port</span>
+              <span className="status-label">
+                {t("autogen.t_bittorrent_port")}
+              </span>
               <span className="status-value" style={{ fontWeight: 600 }}>
                 {diag.listeningPort}
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Active Peer Connections</span>
+              <span className="status-label">
+                {t("autogen.t_active_peer_connections")}
+              </span>
               <span className="status-value">
                 <span className="badge badge-primary">
                   {diag.activeConnections}
@@ -218,7 +240,9 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Configured Upload Slots</span>
+              <span className="status-label">
+                {t("autogen.t_configured_upload_slots")}
+              </span>
               <span className="status-value">{diag.uploadSlots}</span>
             </div>
           </div>
@@ -244,13 +268,15 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            Services & Protocols
+            {t("autogen.t_services_protocols")}
           </h2>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             <div className="status-row">
-              <span className="status-label">UPnP Port Forwarding</span>
+              <span className="status-label">
+                {t("autogen.t_upnp_port_forwarding")}
+              </span>
               <span className="status-value">
                 <span
                   className={`badge ${diag.upnpAvailable ? "badge-seeding" : "badge-stopped"}`}
@@ -260,7 +286,9 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Proxy Tunneling</span>
+              <span className="status-label">
+                {t("autogen.t_proxy_tunneling")}
+              </span>
               <span className="status-value">
                 <span
                   className={`badge ${diag.proxyEnabled ? "badge-seeding" : "badge-stopped"}`}
@@ -270,7 +298,9 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Mainline DHT</span>
+              <span className="status-label">
+                {t("autogen.t_mainline_dht")}
+              </span>
               <span className="status-value">
                 <span
                   className={`badge ${diag.dhtEnabled ? "badge-seeding" : "badge-stopped"}`}
@@ -280,15 +310,19 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Known DHT Routing Nodes</span>
+              <span className="status-label">
+                {t("autogen.t_known_dht_routing_nodes")}
+              </span>
               <span className="status-value">
                 <span className="badge badge-secondary">
-                  {diag.dhtNodeCount} nodes
+                  {diag.dhtNodeCount} {t("autogen.t_nodes")}
                 </span>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">Protocol Encryption Mode</span>
+              <span className="status-label">
+                {t("autogen.t_protocol_encryption_mode")}
+              </span>
               <span className="status-value">
                 <span className="badge badge-primary">
                   {diag.encryptionMode}
@@ -328,7 +362,7 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            Encryption Distribution (24h)
+            {t("autogen.t_encryption_distribution_24h")}
           </h2>
           <div style={{ marginTop: "0.5rem" }}>
             <EncryptionDonut
@@ -343,7 +377,7 @@ function SystemNetwork() {
                   margin: "0.5rem 0 0",
                 }}
               >
-                No peer connection sessions recorded in the last 24 hours.
+                {t("autogen.t_no_peer_connection_sessions_recorded_in_")}
               </p>
             )}
           </div>
@@ -369,7 +403,7 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            Detected Local Interfaces
+            {t("autogen.t_detected_local_interfaces")}
           </h2>
           {diag.localAddresses.length > 0 ? (
             <div
@@ -398,14 +432,14 @@ function SystemNetwork() {
                     className="badge badge-secondary"
                     style={{ fontSize: "0.72rem" }}
                   >
-                    Interface
+                    {t("autogen.t_interface")}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No local network interfaces found.
+              {t("autogen.t_no_local_network_interfaces_found")}
             </div>
           )}
         </div>
@@ -438,7 +472,7 @@ function SystemNetwork() {
                 margin: 0,
               }}
             >
-              Active Port Mappings (UPnP / NAT-PMP)
+              {t("autogen.t_active_port_mappings_upnp_nat_pmp")}
             </h2>
             <div
               style={{
@@ -447,8 +481,7 @@ function SystemNetwork() {
                 marginTop: "0.2rem",
               }}
             >
-              Router port redirections negotiated by the BitTorrent networking
-              daemon
+              {t("autogen.t_router_port_redirections_negotiated_by_t")}
             </div>
           </div>
 
@@ -456,15 +489,23 @@ function SystemNetwork() {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Protocol</th>
-                  <th className="torrent-table-th">Internal Port</th>
-                  <th className="torrent-table-th">External Port</th>
-                  <th className="torrent-table-th">Description</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_protocol")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_internal_port")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_external_port")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_description")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Status
+                    {t("autogen.t_status")}
                   </th>
                 </tr>
               </thead>

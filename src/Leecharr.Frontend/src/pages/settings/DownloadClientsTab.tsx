@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import { useState } from "react";
 import {
   useDownloadClients,
@@ -24,6 +25,8 @@ import {
 } from "./shared";
 
 export function DownloadClientsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { data: clients, isLoading } = useDownloadClients();
@@ -45,7 +48,7 @@ export function DownloadClientsTab() {
   const defaultClient: Partial<DownloadClientDefinition> = {
     name: "",
     clientType: "QBitTorrent",
-    host: "localhost",
+    host: t("settingsTabs.downloadClients.hostPlaceholder"),
     port: 8080,
     useSsl: false,
     username: "",
@@ -102,13 +105,17 @@ export function DownloadClientsTab() {
   };
 
   if (isLoading)
-    return <div className="loading">Loading download clients...</div>;
+    return (
+      <div className="loading">
+        {t("settingsTabs.downloadClients.loadingClients")}
+      </div>
+    );
 
   return (
     <>
       <SectionCard
-        title="BitTorrent Download Clients"
-        description="Connect external download clients (qBittorrent, Transmission, Deluge) to import active seeding state"
+        title={t("settingsTabs.downloadClients.sectionTitle")}
+        description={t("settingsTabs.downloadClients.sectionDescription")}
       >
         <div
           style={{
@@ -131,15 +138,17 @@ export function DownloadClientsTab() {
                   ),
                 onError: (err: any) =>
                   showToast(
-                    `Sync failed: ${err?.message || "Unknown error"}`,
+                    `Sync failed: ${err?.message || t("settingsTabs.notifications.unknownError")}`,
                     "error",
                   ),
               });
             }}
             disabled={syncMutation.isPending}
-            title="Import torrents currently in your download clients"
+            title={t("settingsTabs.downloadClients.syncTitle")}
           >
-            {syncMutation.isPending ? "Syncing..." : "🔄 Sync Torrents"}
+            {syncMutation.isPending
+              ? t("settingsTabs.downloadClients.syncing")
+              : t("settingsTabs.downloadClients.syncTorrents")}
           </button>
         </div>
 
@@ -166,7 +175,7 @@ export function DownloadClientsTab() {
                 )}
                 <button
                   className="provider-card-action"
-                  title="Test Connection"
+                  title={t("settingsTabs.indexers.testConnection")}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTest(client.id);
@@ -176,14 +185,16 @@ export function DownloadClientsTab() {
                 </button>
                 <button
                   className="provider-card-action provider-card-action-danger"
-                  title="Delete Client"
+                  title={t("settingsTabs.downloadClients.deleteClient")}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const ok = await confirm({
-                      title: "Delete Download Client",
+                      title: t(
+                        "settingsTabs.downloadClients.deleteClientTitle",
+                      ),
                       message: `Are you sure you want to delete the download client "${client.name}"?`,
                       danger: true,
-                      confirmText: "Delete",
+                      confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
                     if (!ok) return;
 
@@ -195,7 +206,8 @@ export function DownloadClientsTab() {
                         ),
                       onError: (err: any) =>
                         showToast(
-                          err?.message || "Failed to delete download client",
+                          err?.message ||
+                            t("settingsTabs.downloadClients.deleteFailed"),
                           "error",
                         ),
                     });
@@ -211,17 +223,17 @@ export function DownloadClientsTab() {
                 </span>
                 {client.enable && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    Enabled
+                    {t("settingsTabs.indexers.enabled")}
                   </span>
                 )}
                 {!client.enable && (
                   <span className="provider-card-badge provider-card-badge-gray">
-                    Disabled
+                    {t("settingsTabs.categories.table.disabled")}
                   </span>
                 )}
                 {client.useSsl && (
                   <span className="provider-card-badge provider-card-badge-amber">
-                    SSL
+                    {t("settingsTabs.downloadClients.ssl")}
                   </span>
                 )}
               </div>
@@ -230,7 +242,7 @@ export function DownloadClientsTab() {
               </div>
               {testResults[client.id]?.success === true && (
                 <div className="provider-card-test provider-card-test-ok">
-                  ✓ Connection passed
+                  {t("settingsTabs.indexers.connectionPassed")}
                 </div>
               )}
               {testResults[client.id]?.success === false && (
@@ -238,12 +250,12 @@ export function DownloadClientsTab() {
                   className="provider-card-test provider-card-test-fail"
                   title={testResults[client.id]?.message}
                 >
-                  ✕ Connection failed
+                  {t("settingsTabs.indexers.connectionFailed")}
                 </div>
               )}
               {testResults[client.id] === null && (
                 <div className="provider-card-test provider-card-test-pending">
-                  Testing...
+                  {t("settingsTabs.notifications.testing")}
                 </div>
               )}
             </div>
@@ -251,7 +263,7 @@ export function DownloadClientsTab() {
           <div
             className="provider-card-add"
             onClick={() => handleOpenModal(defaultClient)}
-            title="Add Download Client"
+            title={t("settingsTabs.downloadClients.addClient")}
           >
             <span className="provider-card-add-icon">+</span>
           </div>
@@ -274,19 +286,21 @@ export function DownloadClientsTab() {
               className="modal-title"
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
             >
-              {editing.id ? "Edit Download Client" : "Add Download Client"}
+              {editing.id
+                ? t("settingsTabs.downloadClients.editClient")
+                : t("settingsTabs.downloadClients.addClient")}
             </div>
             <TextInput
-              label="Name"
+              label={t("settingsTabs.categories.table.name")}
               value={editing.name || ""}
               onChange={(v) => {
                 setModalTestResult(null);
                 setEditing({ ...editing, name: v });
               }}
-              placeholder="My qBittorrent"
+              placeholder={t("settingsTabs.downloadClients.namePlaceholder")}
             />
             <SelectInput
-              label="Client Type"
+              label={t("settingsTabs.downloadClients.clientType")}
               value={editing.clientType || "QBitTorrent"}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -297,22 +311,31 @@ export function DownloadClientsTab() {
                 });
               }}
               options={[
-                { value: "QBitTorrent", label: "qBittorrent" },
-                { value: "Transmission", label: "Transmission" },
-                { value: "Deluge", label: "Deluge" },
+                {
+                  value: "QBitTorrent",
+                  label: t("settingsTabs.downloadClients.typeQBitTorrent"),
+                },
+                {
+                  value: t("settingsTabs.downloadClients.typeTransmission"),
+                  label: t("settingsTabs.downloadClients.typeTransmission"),
+                },
+                {
+                  value: t("settingsTabs.downloadClients.typeDeluge"),
+                  label: t("settingsTabs.downloadClients.typeDeluge"),
+                },
               ]}
             />
             <TextInput
-              label="Host"
+              label={t("settingsTabs.downloadClients.host")}
               value={editing.host || ""}
               onChange={(v) => {
                 setModalTestResult(null);
                 setEditing({ ...editing, host: v });
               }}
-              placeholder="localhost"
+              placeholder={t("settingsTabs.downloadClients.hostPlaceholder")}
             />
             <NumberInput
-              label="Port"
+              label={t("settingsTabs.notifications.port")}
               value={editing.port || 8080}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -322,7 +345,7 @@ export function DownloadClientsTab() {
               max={65535}
             />
             <Toggle
-              label="Use SSL"
+              label={t("settingsTabs.downloadClients.useSsl")}
               checked={editing.useSsl ?? false}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -330,7 +353,7 @@ export function DownloadClientsTab() {
               }}
             />
             <TextInput
-              label="Username"
+              label={t("settingsTabs.downloadClients.username")}
               value={editing.username || ""}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -338,7 +361,7 @@ export function DownloadClientsTab() {
               }}
             />
             <TextInput
-              label="Password"
+              label={t("settingsTabs.downloadClients.password")}
               value={editing.password || ""}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -347,16 +370,16 @@ export function DownloadClientsTab() {
               type="password"
             />
             <TextInput
-              label="Category"
+              label={t("settingsTabs.downloadClients.category")}
               value={editing.category || ""}
               onChange={(v) => {
                 setModalTestResult(null);
                 setEditing({ ...editing, category: v });
               }}
-              hint="Filter by category"
+              hint={t("settingsTabs.downloadClients.categoryHint")}
             />
             <Toggle
-              label="Enabled"
+              label={t("settingsTabs.indexers.enabled")}
               checked={editing.enable ?? true}
               onChange={(v) => {
                 setModalTestResult(null);
@@ -380,8 +403,10 @@ export function DownloadClientsTab() {
                 }}
               >
                 <span>
-                  Testing connection to {editing.host || "localhost"}:
-                  {editing.port || 8080}...
+                  Testing connection to{" "}
+                  {editing.host ||
+                    t("settingsTabs.downloadClients.hostPlaceholder")}
+                  :{editing.port || 8080}...
                 </span>
               </div>
             )}
@@ -422,8 +447,8 @@ export function DownloadClientsTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
                     {modalTestResult.success
-                      ? "Connection Successful"
-                      : "Connection Failed"}
+                      ? t("settingsTabs.indexers.connectionSuccessful")
+                      : t("settingsTabs.indexers.connectionFailedModal")}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -461,15 +486,15 @@ export function DownloadClientsTab() {
                 disabled={testDirectMutation.isPending}
               >
                 {testDirectMutation.isPending
-                  ? "Testing..."
-                  : "Test Connection"}
+                  ? t("settingsTabs.notifications.testing")
+                  : t("settingsTabs.indexers.testConnection")}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   className="btn btn-outline btn-small"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  {t("settingsTabs.categories.modal.cancel")}
                 </button>
                 <button
                   className="btn btn-primary btn-small"
@@ -479,8 +504,8 @@ export function DownloadClientsTab() {
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? "Saving..."
-                    : "Save"}
+                    ? t("settingsTabs.categories.modal.saving")
+                    : t("settingsTabs.notifications.save")}
                 </button>
               </div>
             </div>

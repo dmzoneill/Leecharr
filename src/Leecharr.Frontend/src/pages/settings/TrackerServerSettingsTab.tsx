@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useTrackerServerConfig,
@@ -7,6 +8,8 @@ import {
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function TrackerServerSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useTrackerServerConfig();
   const saveMutation = useSaveTrackerServerConfig();
   const { data: stats } = useTrackerServerStats();
@@ -17,7 +20,7 @@ export function TrackerServerSettingsTab() {
     trackerHttpPort: 6969,
     trackerUdpEnabled: true,
     trackerUdpPort: 6969,
-    trackerBindAddress: "0.0.0.0",
+    trackerBindAddress: t("settingsTabs.batch2.defaultIp"),
     trackerAnnounceInterval: 1800,
     trackerMaxPeersPerAnnounce: 50,
     trackerEnableScrape: true,
@@ -36,7 +39,8 @@ export function TrackerServerSettingsTab() {
         trackerHttpPort: config.trackerHttpPort ?? 6969,
         trackerUdpEnabled: config.trackerUdpEnabled ?? true,
         trackerUdpPort: config.trackerUdpPort ?? 6969,
-        trackerBindAddress: config.trackerBindAddress || "0.0.0.0",
+        trackerBindAddress:
+          config.trackerBindAddress || t("settingsTabs.batch2.defaultIp"),
         trackerAnnounceInterval: config.trackerAnnounceInterval ?? 1800,
         trackerMaxPeersPerAnnounce: config.trackerMaxPeersPerAnnounce ?? 50,
         trackerEnableScrape: config.trackerEnableScrape ?? true,
@@ -83,7 +87,7 @@ export function TrackerServerSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading tracker server settings...
+        {t("settingsTabs.trackerServer.loading")}
       </div>
     );
   }
@@ -124,7 +128,7 @@ export function TrackerServerSettingsTab() {
                 marginBottom: "0.2rem",
               }}
             >
-              Tracked Torrents
+              {t("settingsTabs.trackerServer.trackedTorrents")}
             </div>
             <div
               style={{
@@ -152,7 +156,7 @@ export function TrackerServerSettingsTab() {
                 marginBottom: "0.2rem",
               }}
             >
-              Active Peers
+              {t("settingsTabs.trackerServer.activePeers")}
             </div>
             <div
               style={{
@@ -180,7 +184,7 @@ export function TrackerServerSettingsTab() {
                 marginBottom: "0.2rem",
               }}
             >
-              Total Announces
+              {t("settingsTabs.trackerServer.totalAnnounces")}
             </div>
             <div
               style={{
@@ -208,7 +212,7 @@ export function TrackerServerSettingsTab() {
                 marginBottom: "0.2rem",
               }}
             >
-              Total Scrapes
+              {t("settingsTabs.trackerServer.totalScrapes")}
             </div>
             <div
               style={{
@@ -224,15 +228,15 @@ export function TrackerServerSettingsTab() {
       )}
 
       <SectionCard
-        title="Inbuilt BitTorrent Tracker Server Daemon"
-        description="Host an embedded HTTP/UDP BitTorrent tracker daemon for private swarms or cross-node sync."
+        title={t("settingsTabs.trackerServer.title")}
+        description={t("settingsTabs.trackerServer.description")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Inbuilt Tracker Server Daemon"
+            label={t("settingsTabs.trackerServer.enableServer")}
             checked={form.trackerServerEnabled}
             onChange={(v) => update("trackerServerEnabled", v)}
-            hint="Starts internal high-performance HTTP and UDP tracker listener"
+            hint={t("settingsTabs.trackerServer.enableServerHint")}
           />
 
           <div
@@ -243,22 +247,22 @@ export function TrackerServerSettingsTab() {
             }}
           >
             <TextInput
-              label="Tracker Bind Address"
+              label={t("settingsTabs.trackerServer.bindAddress")}
               value={form.trackerBindAddress}
               onChange={(v) => update("trackerBindAddress", v)}
               disabled={!form.trackerServerEnabled}
-              hint="IP address/interface to bind tracker sockets (0.0.0.0 for all)"
+              hint={t("settingsTabs.trackerServer.bindAddressHint")}
             />
 
             <NumberInput
-              label="Announce Interval Returned to Clients"
+              label={t("settingsTabs.trackerServer.announceInterval")}
               value={form.trackerAnnounceInterval}
               onChange={(v) => update("trackerAnnounceInterval", v)}
               disabled={!form.trackerServerEnabled}
               min={60}
               max={7200}
-              suffix="sec"
-              hint="Recommended announce interval returned in tracker responses"
+              suffix={t("settingsTabs.batch2.sec")}
+              hint={t("settingsTabs.trackerServer.announceIntervalHint")}
             />
           </div>
 
@@ -277,13 +281,13 @@ export function TrackerServerSettingsTab() {
             >
               <div>
                 <Toggle
-                  label="Enable HTTP Announce Endpoint"
+                  label={t("settingsTabs.trackerServer.enableHttp")}
                   checked={form.trackerHttpEnabled}
                   onChange={(v) => update("trackerHttpEnabled", v)}
                   disabled={!form.trackerServerEnabled}
                 />
                 <NumberInput
-                  label="HTTP Tracker Port"
+                  label={t("settingsTabs.trackerServer.httpPort")}
                   value={form.trackerHttpPort}
                   onChange={(v) => update("trackerHttpPort", v)}
                   disabled={
@@ -291,19 +295,19 @@ export function TrackerServerSettingsTab() {
                   }
                   min={1}
                   max={65535}
-                  hint="e.g. http://your-ip:6969/announce"
+                  hint={t("settingsTabs.trackerServer.httpPortHint")}
                 />
               </div>
 
               <div>
                 <Toggle
-                  label="Enable UDP Binary Announce Endpoint (BEP 15)"
+                  label={t("settingsTabs.trackerServer.enableUdp")}
                   checked={form.trackerUdpEnabled}
                   onChange={(v) => update("trackerUdpEnabled", v)}
                   disabled={!form.trackerServerEnabled}
                 />
                 <NumberInput
-                  label="UDP Tracker Port"
+                  label={t("settingsTabs.trackerServer.udpPort")}
                   value={form.trackerUdpPort}
                   onChange={(v) => update("trackerUdpPort", v)}
                   disabled={
@@ -311,7 +315,7 @@ export function TrackerServerSettingsTab() {
                   }
                   min={1}
                   max={65535}
-                  hint="e.g. udp://your-ip:6969/announce"
+                  hint={t("settingsTabs.trackerServer.udpPortHint")}
                 />
               </div>
             </div>
@@ -331,36 +335,36 @@ export function TrackerServerSettingsTab() {
               }}
             >
               <Toggle
-                label="Enable /scrape Statistics Endpoint"
+                label={t("settingsTabs.trackerServer.enableScrape")}
                 checked={form.trackerEnableScrape}
                 onChange={(v) => update("trackerEnableScrape", v)}
                 disabled={!form.trackerServerEnabled}
               />
 
               <Toggle
-                label="Private Whitelist Mode"
+                label={t("settingsTabs.trackerServer.privateMode")}
                 checked={form.trackerPrivateMode}
                 onChange={(v) => update("trackerPrivateMode", v)}
                 disabled={!form.trackerServerEnabled}
-                hint="Reject announces for infohashes not registered in local database"
+                hint={t("settingsTabs.trackerServer.privateModeHint")}
               />
 
               <Toggle
-                label="Log Peer Announce Queries"
+                label={t("settingsTabs.trackerServer.logAnnounces")}
                 checked={form.trackerLogAnnounces}
                 onChange={(v) => update("trackerLogAnnounces", v)}
                 disabled={!form.trackerServerEnabled}
-                hint="Record incoming peer announce queries in system logs"
+                hint={t("settingsTabs.trackerServer.logAnnouncesHint")}
               />
 
               <NumberInput
-                label="Rate Limit per Remote IP"
+                label={t("settingsTabs.trackerServer.rateLimit")}
                 value={form.trackerRateLimitPerMinute}
                 onChange={(v) => update("trackerRateLimitPerMinute", v)}
                 disabled={!form.trackerServerEnabled}
                 min={10}
                 max={1000}
-                suffix="req/min"
+                suffix={t("settingsTabs.trackerServer.reqMin")}
               />
             </div>
           </div>

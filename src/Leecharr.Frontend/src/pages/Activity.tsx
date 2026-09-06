@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats, useSpeedHistory } from "../api/hooks";
@@ -21,6 +22,8 @@ interface HistoryState {
 }
 
 function Activity() {
+  const { t } = useTranslation();
+
   const { data: torrents } = useTorrents();
   const { data: stats } = useSeedingStats();
   const { data: serverHistory } = useSpeedHistory();
@@ -138,13 +141,13 @@ function Activity() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              Activity Metrics
+              {t("autogen.t_activity_metrics")}
             </h1>
             <span
               className="badge badge-success"
               style={{ fontSize: "0.75rem", borderRadius: "4px" }}
             >
-              ● Live (1s)
+              {t("autogen.t_live_1s")}
             </span>
           </div>
         </div>
@@ -160,48 +163,48 @@ function Activity() {
             border: "1px solid rgba(255, 209, 102, 0.3)",
           }}
         >
-          <span>📊</span> Live Telemetry & Resources
+          <span>📊</span> {t("autogen.t_live_telemetry_resources")}
         </Link>
       </div>
 
       <div className="monitoring-grid">
         <LineChart
-          title="Upload Speed"
+          title={t("autogen.t_upload_speed")}
           value={formatSpeed(currentUpload)}
           data={history.uploadSpeed}
           color="#c8a84e"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title="Download Speed"
+          title={t("autogen.t_download_speed")}
           value={formatSpeed(currentDownload)}
           data={history.downloadSpeed}
           color="#b5443a"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title="Active Torrents"
+          title={t("autogen.t_active_torrents")}
           value={String(currentActive)}
           data={history.activeTorrents}
           color="#27ae60"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title="Peer Connections"
+          title={t("autogen.t_peer_connections")}
           value={String(currentPeers)}
           data={history.peerConnections}
           color="#d4843a"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title="Upload/Download Ratio"
+          title={t("autogen.t_upload_download_ratio")}
           value={formatRatio(currentRatio)}
           data={history.ratio}
           color="#3498db"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title="Network Activity"
+          title={t("autogen.t_network_activity")}
           value={formatSpeed(currentNetwork)}
           data={history.networkActivity}
           color="#9b59b6"

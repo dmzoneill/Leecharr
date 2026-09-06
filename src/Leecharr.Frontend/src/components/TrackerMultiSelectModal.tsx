@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import React, { useState, useMemo } from "react";
 import TrackerFavicon from "./TrackerFavicon";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -40,6 +41,7 @@ export function TrackerMultiSelectModal({
   onAddAndAnnounce,
   isAdding = false,
 }: TrackerMultiSelectModalProps) {
+  const { t } = useTranslation();
   useEscapeKey(onClose, isOpen);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -181,7 +183,7 @@ export function TrackerMultiSelectModal({
                   color: "var(--text-primary, #f8f4ed)",
                 }}
               >
-                Select Trackers to Add & Announce
+                {t("autogen.t_select_trackers_to_add_announce")}
               </h3>
               <p
                 style={{
@@ -190,8 +192,7 @@ export function TrackerMultiSelectModal({
                   color: "var(--text-muted, #7e8092)",
                 }}
               >
-                Choose verified and online tracker endpoints to attach to this
-                swarm
+                {t("autogen.t_choose_verified_and_online_tracker_endpo")}
               </p>
             </div>
           </div>
@@ -227,7 +228,7 @@ export function TrackerMultiSelectModal({
             <input
               type="text"
               className="topbar-search-input"
-              placeholder="🔍 Search by domain, protocol, status..."
+              placeholder={t("autogen.t_search_by_domain_protocol_status")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -251,14 +252,21 @@ export function TrackerMultiSelectModal({
                 border: "1px solid var(--border-light, #1c203b)",
               }}
             >
-              <option value="all">All Trackers ({trackers.length})</option>
+              <option value="all">
+                {t("autogen.t_all_trackers")}
+                {trackers.length})
+              </option>
               <option value="verified">
-                🟢 Verified in Swarm ({verifiedUnattached.length})
+                {t("autogen.t_verified_in_swarm")}
+                {verifiedUnattached.length})
               </option>
               <option value="online">
-                🟢 Online & Verified ({onlineUnattached.length})
+                {t("autogen.t_online_verified")}
+                {onlineUnattached.length})
               </option>
-              <option value="unattached">Unattached Only</option>
+              <option value="unattached">
+                {t("autogen.t_unattached_only")}
+              </option>
             </select>
           </div>
 
@@ -278,7 +286,7 @@ export function TrackerMultiSelectModal({
                 marginRight: "0.2rem",
               }}
             >
-              Quick Select:
+              {t("autogen.t_quick_select")}
             </span>
 
             {verifiedUnattached.length > 0 && (
@@ -288,7 +296,8 @@ export function TrackerMultiSelectModal({
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                 onClick={() => onSelectBatch(verifiedUnattached)}
               >
-                🟢 Verified Swarms ({verifiedUnattached.length})
+                {t("autogen.t_verified_swarms")}
+                {verifiedUnattached.length})
               </button>
             )}
 
@@ -299,7 +308,8 @@ export function TrackerMultiSelectModal({
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                 onClick={() => onSelectBatch(onlineUnattached)}
               >
-                ⚡ All Online ({onlineUnattached.length})
+                {t("autogen.t_all_online")}
+                {onlineUnattached.length})
               </button>
             )}
 
@@ -309,7 +319,7 @@ export function TrackerMultiSelectModal({
               style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
               onClick={handleSelectAllFiltered}
             >
-              Select Filtered (
+              {t("autogen.t_select_filtered")}
               {filteredTrackers.filter((t) => !t.isAttached).length})
             </button>
 
@@ -324,7 +334,8 @@ export function TrackerMultiSelectModal({
                 }}
                 onClick={onClearSelection}
               >
-                Clear ({selectedUrls.size})
+                {t("autogen.t_clear")}
+                {selectedUrls.size})
               </button>
             )}
           </div>
@@ -438,12 +449,16 @@ export function TrackerMultiSelectModal({
                       )}
 
                       {item.latencyMs !== undefined && item.latencyMs > 0 && (
-                        <span>{item.latencyMs}ms</span>
+                        <span>
+                          {item.latencyMs}
+                          {t("autogen.t_ms")}
+                        </span>
                       )}
 
                       {item.seeders !== undefined && item.seeders > 0 && (
                         <span style={{ color: "var(--accent, #ffd166)" }}>
-                          ⚡ {item.seeders} seeds / {item.leechers ?? 0} leeches
+                          ⚡ {item.seeders} {t("autogen.t_seeds")}
+                          {item.leechers ?? 0} {t("autogen.t_leeches")}
                         </span>
                       )}
                     </div>
@@ -461,7 +476,7 @@ export function TrackerMultiSelectModal({
                 >
                   {isAttached ? (
                     <span className="badge" style={{ fontSize: "0.72rem" }}>
-                      ✓ Already Attached
+                      {t("autogen.t_already_attached")}
                     </span>
                   ) : item.isVerified ? (
                     <span
@@ -472,7 +487,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--success, #22c55e)",
                       }}
                     >
-                      🟢 Verified Swarm
+                      {t("autogen.t_verified_swarm")}
                     </span>
                   ) : item.isAlive ? (
                     <span
@@ -483,7 +498,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--success, #22c55e)",
                       }}
                     >
-                      🟢 Alive
+                      {t("autogen.t_alive")}
                     </span>
                   ) : item.isSlow ? (
                     <span
@@ -494,7 +509,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--warning, #eab308)",
                       }}
                     >
-                      🟡 Slow
+                      {t("autogen.t_slow")}
                     </span>
                   ) : item.isOffline ? (
                     <span
@@ -505,11 +520,11 @@ export function TrackerMultiSelectModal({
                         color: "var(--danger, #ef4444)",
                       }}
                     >
-                      🔴 Offline
+                      {t("autogen.t_offline")}
                     </span>
                   ) : (
                     <span className="badge" style={{ fontSize: "0.72rem" }}>
-                      ⚪ Untested
+                      {t("autogen.t_untested")}
                     </span>
                   )}
                 </div>
@@ -526,7 +541,8 @@ export function TrackerMultiSelectModal({
                 fontSize: "0.85rem",
               }}
             >
-              No candidate trackers found matching {'"'}
+              {t("autogen.t_no_candidate_trackers_found_matching")}
+              {'"'}
               {searchTerm}
               {'"'}.
             </div>
@@ -548,7 +564,9 @@ export function TrackerMultiSelectModal({
           <input
             type="text"
             className="topbar-search-input"
-            placeholder="Or enter custom URL (e.g. udp://tracker.example.com:1337/announce)"
+            placeholder={t(
+              "autogen.t_or_enter_custom_url_e_g_udp_tracker_exam",
+            )}
             value={customUrl}
             onChange={(e) => setCustomUrl(e.target.value)}
             style={{ flex: 1, fontSize: "0.82rem", padding: "0.35rem 0.6rem" }}
@@ -558,7 +576,7 @@ export function TrackerMultiSelectModal({
             className="btn btn-small btn-primary"
             disabled={!customUrl.trim()}
           >
-            + Add to List
+            {t("autogen.t_add_to_list")}
           </button>
         </form>
 
@@ -576,11 +594,11 @@ export function TrackerMultiSelectModal({
           <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>
             {selectedUrls.size === 0 ? (
               <span style={{ color: "var(--text-muted, #7e8092)" }}>
-                0 trackers selected
+                {t("autogen.t_0_trackers_selected")}
               </span>
             ) : (
               <span style={{ color: "var(--accent, #ffd166)" }}>
-                ✓ {selectedUrls.size} tracker(s) selected
+                ✓ {selectedUrls.size} {t("autogen.t_tracker_s_selected")}
               </span>
             )}
           </div>
@@ -592,7 +610,7 @@ export function TrackerMultiSelectModal({
               onClick={onClose}
               style={{ fontSize: "0.82rem" }}
             >
-              Done (Keep Selection)
+              {t("autogen.t_done_keep_selection")}
             </button>
             <button
               type="button"

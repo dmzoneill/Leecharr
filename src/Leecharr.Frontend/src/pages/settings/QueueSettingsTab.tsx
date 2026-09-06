@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
@@ -16,6 +17,8 @@ import {
 import { CategorySettingsTab } from "./CategorySettingsTab";
 
 export function QueueSettingsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const { data: btConfig, isLoading: btLoading } = useBitTorrentConfig();
   const saveBtMutation = useSaveBitTorrentConfig();
@@ -86,7 +89,7 @@ export function QueueSettingsTab() {
 
     const handleError = (err: any) => {
       hasError = true;
-      showToast(err?.message || "Failed to save queue settings", "error");
+      showToast(err?.message || t("settingsTabs.queue.failedToSave"), "error");
     };
 
     if (btConfig) {
@@ -125,7 +128,7 @@ export function QueueSettingsTab() {
   if (btLoading || seedLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading queue parameters...
+        {t("settingsTabs.queue.loading")}
       </div>
     );
   }
@@ -142,8 +145,8 @@ export function QueueSettingsTab() {
       />
 
       <SectionCard
-        title="Active Queue Concurrency Limits"
-        description="Limit the number of simultaneous active downloading and seeding swarms."
+        title={t("settingsTabs.queue.concurrencyTitle")}
+        description={t("settingsTabs.queue.concurrencyDesc")}
       >
         <div
           style={{
@@ -153,35 +156,35 @@ export function QueueSettingsTab() {
           }}
         >
           <NumberInput
-            label="Maximum Active Downloads"
+            label={t("settingsTabs.queue.maxActiveDownloads")}
             value={form.downloadQueueSize}
             onChange={(v) => update("downloadQueueSize", v)}
             min={1}
             max={100}
-            hint="Maximum simultaneous torrents actively downloading"
+            hint={t("settingsTabs.queue.maxActiveDownloadsHint")}
           />
 
           <NumberInput
-            label="Maximum Active Seeds"
+            label={t("settingsTabs.queue.maxActiveSeeds")}
             value={form.seedQueueSize}
             onChange={(v) => update("seedQueueSize", v)}
             min={1}
             max={500}
-            hint="Maximum simultaneous torrents actively seeding"
+            hint={t("settingsTabs.queue.maxActiveSeedsHint")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Stalled Transfer Detection & Idle Limits"
-        description="Prevent dead or inactive swarms from consuming active queue concurrency slots."
+        title={t("settingsTabs.queue.stalledTitle")}
+        description={t("settingsTabs.queue.stalledDesc")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Ignore Stalled Torrents in Active Queue Quota"
+            label={t("settingsTabs.queue.ignoreStalled")}
             checked={form.queueStalledEnabled}
             onChange={(v) => update("queueStalledEnabled", v)}
-            hint="If a transfer is stalled at 0 KB/s, promote the next queued torrent automatically"
+            hint={t("settingsTabs.queue.ignoreStalledHint")}
           />
 
           <div
@@ -192,32 +195,32 @@ export function QueueSettingsTab() {
             }}
           >
             <NumberInput
-              label="Stalled Inactivity Timeout"
+              label={t("settingsTabs.queue.stalledTimeout")}
               value={form.queueStalledMinutes}
               onChange={(v) => update("queueStalledMinutes", v)}
               disabled={!form.queueStalledEnabled}
               min={1}
               max={1440}
-              suffix="minutes"
-              hint="Inactivity threshold before marking a transfer stalled"
+              suffix={t("settingsTabs.queue.minutes")}
+              hint={t("settingsTabs.queue.stalledTimeoutHint")}
             />
 
             <NumberInput
-              label="Idle Seeding Timeout"
+              label={t("settingsTabs.queue.idleSeedingTimeout")}
               value={form.idleSeedingLimitMinutes}
               onChange={(v) => update("idleSeedingLimitMinutes", v)}
               min={0}
               max={10080}
-              suffix="minutes"
-              hint="Automatically pause seeds if no peer requests data for N minutes (0 = disabled)"
+              suffix={t("settingsTabs.queue.minutes")}
+              hint={t("settingsTabs.queue.idleSeedingTimeoutHint")}
             />
           </div>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Global Share Ratio & Seeding Goals"
-        description="Configure target share ratio goals before automatically pausing or stopping seeds."
+        title={t("settingsTabs.queue.shareRatioTitle")}
+        description={t("settingsTabs.queue.shareRatioDesc")}
       >
         <div
           style={{
@@ -227,36 +230,42 @@ export function QueueSettingsTab() {
           }}
         >
           <NumberInput
-            label="Global Share Ratio Target"
+            label={t("settingsTabs.queue.globalShareRatio")}
             value={form.globalSeedRatioLimit}
             onChange={(v) => update("globalSeedRatioLimit", v)}
             min={0}
             max={100}
             step={0.1}
-            hint="Target ratio (e.g. 1.0 or 2.0). 0 = seed indefinitely until manual action."
+            hint={t("settingsTabs.queue.globalShareRatioHint")}
           />
 
           <SelectInput
-            label="Action on Reaching Share Goal"
+            label={t("settingsTabs.queue.actionOnShareGoal")}
             value={form.globalShareLimitAction}
             onChange={(v) => update("globalShareLimitAction", v)}
             options={[
-              { value: "Pause", label: "Pause Seeding" },
-              { value: "Remove", label: "Remove Torrent (Keep Data Files)" },
+              { value: "Pause", label: t("settingsTabs.queue.actionPause") },
+              {
+                value: t("settingsTabs.batch2.remove"),
+                label: t("settingsTabs.queue.actionRemove"),
+              },
               {
                 value: "RemoveWithData",
-                label: "Remove Torrent & Delete Data",
+                label: t("settingsTabs.queue.actionRemoveData"),
               },
-              { value: "SuperSeeding", label: "Switch to Super Seeding" },
+              {
+                value: "SuperSeeding",
+                label: t("settingsTabs.queue.actionSuperSeeding"),
+              },
             ]}
-            hint="Automated lifecycle trigger executed when torrents meet target seed goals."
+            hint={t("settingsTabs.queue.actionOnShareGoalHint")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Automated Power Management & OS Actions"
-        description="Trigger operating system sleep, hibernation, or shutdown when queue downloads complete."
+        title={t("settingsTabs.queue.powerManagementTitle")}
+        description={t("settingsTabs.queue.powerManagementDesc")}
       >
         <div
           style={{
@@ -266,35 +275,47 @@ export function QueueSettingsTab() {
           }}
         >
           <SelectInput
-            label="Action on Completion"
+            label={t("settingsTabs.queue.actionOnCompletion")}
             value={form.autoShutdownAction}
             onChange={(v) => update("autoShutdownAction", v)}
             options={[
-              { value: "None", label: "None (Do Nothing)" },
-              { value: "Shutdown", label: "Shutdown Computer" },
-              { value: "Suspend", label: "Suspend / Sleep System" },
-              { value: "Hibernate", label: "Hibernate System" },
-              { value: "ExitApplication", label: "Exit Leecharr Process" },
+              { value: "None", label: t("settingsTabs.queue.actionNone") },
+              {
+                value: "Shutdown",
+                label: t("settingsTabs.queue.actionShutdown"),
+              },
+              {
+                value: "Suspend",
+                label: t("settingsTabs.queue.actionSuspend"),
+              },
+              {
+                value: "Hibernate",
+                label: t("settingsTabs.queue.actionHibernate"),
+              },
+              {
+                value: "ExitApplication",
+                label: t("settingsTabs.queue.actionExit"),
+              },
             ]}
-            hint="Operating system power command to execute automatically."
+            hint={t("settingsTabs.queue.actionOnCompletionHint")}
           />
 
           <SelectInput
-            label="Completion Trigger Condition"
+            label={t("settingsTabs.queue.completionCondition")}
             value={form.autoShutdownCondition}
             onChange={(v) => update("autoShutdownCondition", v)}
             disabled={form.autoShutdownAction === "None"}
             options={[
               {
                 value: "WhenDownloadsComplete",
-                label: "When Active Downloads Complete",
+                label: t("settingsTabs.queue.conditionDownloadsComplete"),
               },
               {
                 value: "WhenAllTorrentsComplete",
-                label: "When All Torrents Finish (Queue Empty)",
+                label: t("settingsTabs.queue.conditionAllComplete"),
               },
             ]}
-            hint="Condition required to trigger the selected power management action."
+            hint={t("settingsTabs.queue.completionConditionHint")}
           />
         </div>
       </SectionCard>

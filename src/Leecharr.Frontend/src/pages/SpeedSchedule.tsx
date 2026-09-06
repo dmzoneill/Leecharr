@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import React, { useState } from "react";
 import {
   useSpeedSchedules,
@@ -100,6 +101,7 @@ function ScheduleModal({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   useEscapeKey(onCancel);
   const [form, setForm] = useState({ ...EMPTY_SCHEDULE, ...schedule });
 
@@ -133,12 +135,12 @@ function ScheduleModal({
                 fontSize: "0.82rem",
               }}
             >
-              Schedule Name
+              {t("autogen.t_schedule_name")}
             </span>
             <input
               className="form-input"
               type="text"
-              placeholder="e.g. Night Seeding Boost"
+              placeholder={t("autogen.t_e_g_night_seeding_boost")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               style={{ width: "100%", borderRadius: "6px" }}
@@ -161,7 +163,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                Active Days
+                {t("autogen.t_active_days")}
               </span>
               <div style={{ display: "flex", gap: 4 }}>
                 <button
@@ -170,7 +172,7 @@ function ScheduleModal({
                   onClick={() => setForm({ ...form, days: PRESETS.everyday })}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
-                  All Days
+                  {t("autogen.t_all_days")}
                 </button>
                 <button
                   type="button"
@@ -178,7 +180,7 @@ function ScheduleModal({
                   onClick={() => setForm({ ...form, days: PRESETS.weekdays })}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
-                  Weekdays
+                  {t("autogen.t_weekdays")}
                 </button>
                 <button
                   type="button"
@@ -186,7 +188,7 @@ function ScheduleModal({
                   onClick={() => setForm({ ...form, days: PRESETS.weekends })}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
-                  Weekends
+                  {t("autogen.t_weekends")}
                 </button>
               </div>
             </div>
@@ -216,7 +218,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                Start Time
+                {t("autogen.t_start_time")}
               </span>
               <input
                 className="form-input"
@@ -238,7 +240,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                End Time
+                {t("autogen.t_end_time")}
               </span>
               <input
                 className="form-input"
@@ -261,7 +263,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                Max Upload (KB/s, 0 = unlimited)
+                {t("autogen.t_max_upload_kb_s_0_unlimited")}
               </span>
               <input
                 className="form-input"
@@ -291,7 +293,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                Max Download (KB/s, 0 = unlimited)
+                {t("autogen.t_max_download_kb_s_0_unlimited")}
               </span>
               <input
                 className="form-input"
@@ -324,7 +326,7 @@ function ScheduleModal({
                   fontSize: "0.82rem",
                 }}
               >
-                Priority
+                {t("autogen.t_priority")}
               </span>
               <input
                 className="form-input"
@@ -354,7 +356,7 @@ function ScheduleModal({
                 }
               />
               <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                Schedule Enabled
+                {t("autogen.t_schedule_enabled")}
               </span>
             </label>
           </div>
@@ -374,7 +376,7 @@ function ScheduleModal({
               onClick={onCancel}
               type="button"
             >
-              Cancel
+              {t("autogen.t_cancel")}
             </button>
             <button
               className="btn btn-primary btn-small"
@@ -392,6 +394,8 @@ function ScheduleModal({
 }
 
 function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
+  const { t } = useTranslation();
+
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
@@ -415,9 +419,11 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
           marginBottom: "1rem",
         }}
       >
-        <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Weekly Schedule View</h3>
+        <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
+          {t("autogen.t_weekly_schedule_view")}
+        </h3>
         <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          24-Hour Time Matrix
+          {t("autogen.t_24_hour_time_matrix")}
         </span>
       </div>
 
@@ -530,6 +536,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
 }
 
 export function SpeedSchedule() {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { data: schedules, isLoading, isError } = useSpeedSchedules();
@@ -625,9 +632,12 @@ export function SpeedSchedule() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              Speed Schedule ({scheduleCount})
+              {t("autogen.t_speed_schedule")}
+              {scheduleCount})
             </h1>
-            <span className="badge badge-primary">Bandwidth Rules</span>
+            <span className="badge badge-primary">
+              {t("autogen.t_bandwidth_rules")}
+            </span>
           </div>
           <div
             style={{
@@ -636,8 +646,7 @@ export function SpeedSchedule() {
               marginTop: "0.2rem",
             }}
           >
-            Manage time-based upload and download speed throttles and seeding
-            priorities
+            {t("autogen.t_manage_time_based_upload_and_download_sp")}
           </div>
         </div>
 
@@ -646,7 +655,7 @@ export function SpeedSchedule() {
             className="btn btn-primary"
             onClick={() => setModal({ ...EMPTY_SCHEDULE })}
           >
-            + Add Schedule
+            {t("autogen.t_add_schedule")}
           </button>
         </div>
       </div>
@@ -682,7 +691,7 @@ export function SpeedSchedule() {
               letterSpacing: "0.5px",
             }}
           >
-            Active Schedule
+            {t("autogen.t_active_schedule")}
           </div>
           <div
             style={{
@@ -700,7 +709,7 @@ export function SpeedSchedule() {
                 className="badge badge-danger"
                 style={{ fontSize: "0.85rem" }}
               >
-                ⏸️ Paused
+                {t("autogen.t_paused")}
               </span>
             ) : isThrottled ? (
               <span
@@ -711,7 +720,7 @@ export function SpeedSchedule() {
               </span>
             ) : (
               <span style={{ color: "var(--text-muted)", fontSize: "1.05rem" }}>
-                None (Global Rate)
+                {t("autogen.t_none_global_rate")}
               </span>
             )}
           </div>
@@ -746,7 +755,7 @@ export function SpeedSchedule() {
               letterSpacing: "0.5px",
             }}
           >
-            Active Upload Limit
+            {t("autogen.t_active_upload_limit")}
           </div>
           <div
             style={{
@@ -793,7 +802,7 @@ export function SpeedSchedule() {
               letterSpacing: "0.5px",
             }}
           >
-            Active Download Limit
+            {t("autogen.t_active_download_limit")}
           </div>
           <div
             style={{
@@ -842,31 +851,40 @@ export function SpeedSchedule() {
           }}
         >
           <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
-            Configured Schedules ({scheduleCount})
+            {t("autogen.t_configured_schedules")}
+            {scheduleCount})
           </h3>
         </div>
 
         {isLoading ? (
-          <p className="loading">Loading schedules...</p>
+          <p className="loading">{t("autogen.t_loading_schedules")}</p>
         ) : isError ? (
-          <p className="error">Failed to load schedule data.</p>
+          <p className="error">{t("autogen.t_failed_to_load_schedule_data")}</p>
         ) : (
           <div className="torrent-table-wrapper">
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Status</th>
-                  <th className="torrent-table-th">Name</th>
-                  <th className="torrent-table-th">Days</th>
-                  <th className="torrent-table-th">Time Window</th>
-                  <th className="torrent-table-th">Upload Limit</th>
-                  <th className="torrent-table-th">Download Limit</th>
-                  <th className="torrent-table-th">Priority</th>
+                  <th className="torrent-table-th">{t("autogen.t_status")}</th>
+                  <th className="torrent-table-th">{t("autogen.t_name")}</th>
+                  <th className="torrent-table-th">{t("autogen.t_days")}</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_time_window")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_upload_limit")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_download_limit")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_priority")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Actions
+                    {t("autogen.t_actions")}
                   </th>
                 </tr>
               </thead>
@@ -888,7 +906,7 @@ export function SpeedSchedule() {
                           marginBottom: "0.25rem",
                         }}
                       >
-                        No speed schedules configured
+                        {t("autogen.t_no_speed_schedules_configured")}
                       </div>
                       <div
                         style={{
@@ -898,14 +916,15 @@ export function SpeedSchedule() {
                           margin: "0 auto 1.25rem",
                         }}
                       >
-                        Create scheduled speed rules to throttle bandwidth or
-                        prioritize seeding during specific hours of the day.
+                        {t(
+                          "autogen.t_create_scheduled_speed_rules_to_throttle",
+                        )}
                       </div>
                       <button
                         className="btn btn-primary btn-small"
                         onClick={() => setModal({ ...EMPTY_SCHEDULE })}
                       >
-                        + Add First Schedule
+                        {t("autogen.t_add_first_schedule")}
                       </button>
                     </td>
                   </tr>
@@ -979,13 +998,13 @@ export function SpeedSchedule() {
                             className="btn btn-small btn-outline"
                             onClick={() => setModal({ ...s })}
                           >
-                            Edit
+                            {t("autogen.t_edit")}
                           </button>
                           <button
                             className="btn btn-small btn-danger"
                             onClick={() => handleDelete(s.id, s.name)}
                           >
-                            Delete
+                            {t("autogen.t_delete")}
                           </button>
                         </div>
                       </td>
