@@ -14,8 +14,7 @@ import {
 import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
-import { useI18nStore } from "../i18n";
-import { languages } from "../i18n";
+import { useI18nStore, useTranslation, languages } from "../i18n";
 
 interface FileManagerFile {
   name: string;
@@ -41,6 +40,7 @@ function getPathSegments(path: string): { label: string; fullPath: string }[] {
 
 export function FileBrowser() {
   const { language } = useI18nStore();
+  const { t } = useTranslation();
   const activeLang = languages.find((l) => l.code === language);
   const cuboneLanguage = activeLang?.cuboneLanguage || "en-US";
   const navigate = useNavigate();

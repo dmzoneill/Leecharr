@@ -22,6 +22,7 @@ export * from "./LogViewer";
 export * from "./ImportTools";
 
 export function TrackerBoost() {
+  const { t } = useTranslation();
   const { data: torrents, isLoading: torrentsLoading } = useTorrents();
   const { data: history } = useDownloadHistory();
   const { data: status } = useTrackerBoostStatus();

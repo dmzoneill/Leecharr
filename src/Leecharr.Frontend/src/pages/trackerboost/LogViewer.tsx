@@ -2,8 +2,10 @@ import React, { useState, useMemo } from "react";
 import { useTrackerBoostLogs, useClearTrackerBoostLogs } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
+import { useTranslation } from "../../i18n";
 
 export function LogViewer() {
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [logLevelFilter, setLogLevelFilter] = useState<string>("all");

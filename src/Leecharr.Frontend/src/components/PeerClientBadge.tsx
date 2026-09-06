@@ -1,3 +1,5 @@
+import { useTranslation } from "../i18n";
+
 interface PeerClientBadgeProps {
   client: string;
   flags?: string;
@@ -113,6 +115,7 @@ export function PeerClientBadge({
   flags,
   className,
 }: PeerClientBadgeProps) {
+  const { t } = useTranslation();
   const meta = parsePeerClient(client);
 
   const isEncrypted =
