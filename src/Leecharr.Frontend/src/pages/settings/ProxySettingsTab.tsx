@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useNetworkConfig, useSaveNetworkConfig } from "../../api/hooks";
 import {
@@ -10,6 +11,8 @@ import {
 } from "./shared";
 
 export function ProxySettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useNetworkConfig();
   const saveMutation = useSaveNetworkConfig();
 

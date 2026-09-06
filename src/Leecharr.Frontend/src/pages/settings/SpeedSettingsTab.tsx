@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import {
@@ -9,6 +10,8 @@ import {
 } from "./shared";
 
 export function SpeedSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useSeedingConfig();
   const saveMutation = useSaveSeedingConfig();
 
@@ -112,7 +115,7 @@ export function SpeedSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading speed limit parameters...
+        {t("settingsTabs.loadingSpeedLimitParameters")}
       </div>
     );
   }
@@ -129,8 +132,8 @@ export function SpeedSettingsTab() {
       />
 
       <SectionCard
-        title="Global Bandwidth Rate Limits"
-        description="Configure overall upload and download transfer speed caps (0 = unlimited)."
+        title={t("settingsTabs.globalBandwidthRateLimits")}
+        description={t("settingsTabs.globalBandwidthRateLimitsDesc")}
       >
         <div
           style={{
@@ -140,39 +143,39 @@ export function SpeedSettingsTab() {
           }}
         >
           <NumberInput
-            label="Global Maximum Download Speed (KB/s)"
+            label={t("settingsTabs.globalMaxDownloadSpeed")}
             value={form.maxDownloadSpeedKbps}
             onChange={(v) => update("maxDownloadSpeedKbps", v)}
             min={0}
             max={10000000}
             step={100}
             suffix="KB/s"
-            hint="0 = Unlimited bandwidth"
+            hint={t("settingsTabs.unlimitedBandwidthHint")}
           />
 
           <NumberInput
-            label="Global Maximum Upload Speed (KB/s)"
+            label={t("settingsTabs.globalMaxUploadSpeed")}
             value={form.maxUploadSpeedKbps}
             onChange={(v) => update("maxUploadSpeedKbps", v)}
             min={0}
             max={10000000}
             step={100}
             suffix="KB/s"
-            hint="0 = Unlimited bandwidth"
+            hint={t("settingsTabs.unlimitedBandwidthHint")}
           />
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Alternative Throttling Profile"
-        description="Secondary bandwidth limits engaged manually or via the 24x7 hourly scheduler."
+        title={t("settingsTabs.alternativeThrottlingProfile")}
+        description={t("settingsTabs.alternativeThrottlingProfileDesc")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Engage Alternative Speed Limits Now"
+            label={t("settingsTabs.engageAlternativeSpeedLimits")}
             checked={form.alternativeSpeedEnabled}
             onChange={(v) => update("alternativeSpeedEnabled", v)}
-            hint="Manually override standard speeds with alternative throttled limits"
+            hint={t("settingsTabs.engageAlternativeSpeedLimitsHint")}
           />
 
           <div
@@ -183,7 +186,7 @@ export function SpeedSettingsTab() {
             }}
           >
             <NumberInput
-              label="Alternative Download Cap (KB/s)"
+              label={t("settingsTabs.alternativeDownloadCap")}
               value={form.altDownloadSpeedKbps}
               onChange={(v) => update("altDownloadSpeedKbps", v)}
               min={1}
@@ -193,7 +196,7 @@ export function SpeedSettingsTab() {
             />
 
             <NumberInput
-              label="Alternative Upload Cap (KB/s)"
+              label={t("settingsTabs.alternativeUploadCap")}
               value={form.altUploadSpeedKbps}
               onChange={(v) => update("altUploadSpeedKbps", v)}
               min={1}
@@ -206,8 +209,8 @@ export function SpeedSettingsTab() {
       </SectionCard>
 
       <SectionCard
-        title="Swarm Bandwidth Distribution Curves"
-        description="Mathematical algorithms to apportion bandwidth across competing active swarms."
+        title={t("settingsTabs.swarmBandwidthDistributionCurves")}
+        description={t("settingsTabs.swarmBandwidthDistributionCurvesDesc")}
       >
         <div
           style={{
@@ -217,49 +220,55 @@ export function SpeedSettingsTab() {
           }}
         >
           <SelectInput
-            label="Upload Distribution Curve"
+            label={t("settingsTabs.uploadDistributionCurve")}
             value={form.uploadDistributionAlgorithm}
             onChange={(v) => update("uploadDistributionAlgorithm", v)}
             options={[
               {
                 value: "Equal",
-                label: "Equal Distribution (Uniform Allocation)",
+                label: t("settingsTabs.equalDistribution"),
               },
               {
                 value: "Pareto",
-                label: "Pareto 80/20 (Prioritize Active Swarms)",
+                label: t("settingsTabs.pareto8020ActiveSwarms"),
               },
-              { value: "PowerLaw", label: "Power Law Curve" },
-              { value: "LogNormal", label: "Log-Normal Distribution" },
+              { value: "PowerLaw", label: t("settingsTabs.powerLawCurve") },
+              {
+                value: "LogNormal",
+                label: t("settingsTabs.logNormalDistribution"),
+              },
             ]}
           />
 
           <SelectInput
-            label="Download Distribution Curve"
+            label={t("settingsTabs.downloadDistributionCurve")}
             value={form.downloadDistributionAlgorithm}
             onChange={(v) => update("downloadDistributionAlgorithm", v)}
             options={[
               {
                 value: "Equal",
-                label: "Equal Distribution (Uniform Allocation)",
+                label: t("settingsTabs.equalDistribution"),
               },
               {
                 value: "Pareto",
-                label: "Pareto 80/20 (Prioritize Primary Downloads)",
+                label: t("settingsTabs.pareto8020PrimaryDownloads"),
               },
-              { value: "PowerLaw", label: "Power Law Curve" },
-              { value: "LogNormal", label: "Log-Normal Distribution" },
+              { value: "PowerLaw", label: t("settingsTabs.powerLawCurve") },
+              {
+                value: "LogNormal",
+                label: t("settingsTabs.logNormalDistribution"),
+              },
             ]}
           />
 
           <NumberInput
-            label="Distribution Spread Factor (%)"
+            label={t("settingsTabs.distributionSpreadFactor")}
             value={form.uploadDistributionSpreadPercentage}
             onChange={(v) => update("uploadDistributionSpreadPercentage", v)}
             min={10}
             max={90}
             suffix="%"
-            hint="Skewness factor for non-linear bandwidth distribution curves"
+            hint={t("settingsTabs.distributionSpreadFactorHint")}
           />
         </div>
       </SectionCard>

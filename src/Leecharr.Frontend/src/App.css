@@ -4882,6 +4882,12 @@ input[type="number"].form-input::-webkit-inner-spin-button {
   letter-spacing: 0.03em;
 }
 
+.language-selector-btn-full {
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .language-selector-caret {
   font-size: 0.7rem;
   color: var(--text-secondary, #c7c5d3);
@@ -4891,22 +4897,36 @@ input[type="number"].form-input::-webkit-inner-spin-button {
 .language-selector-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
-  width: 250px;
+  width: 260px;
   max-height: 340px;
   background: var(--bg-card, #171b35);
   border: 1px solid var(--color-border, #23284b);
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 1050;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-[dir="rtl"] .language-selector-dropdown {
+.language-selector-dropdown.align-right {
+  right: 0;
+  left: auto;
+}
+
+[dir="rtl"] .language-selector-dropdown.align-right {
   right: auto;
   left: 0;
+}
+
+.language-selector-dropdown.align-left {
+  left: 0;
+  right: auto;
+}
+
+[dir="rtl"] .language-selector-dropdown.align-left {
+  left: auto;
+  right: 0;
 }
 
 .language-selector-search-box {

@@ -1,8 +1,11 @@
+import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
 export function WatchFolderSettingsTab() {
+  const { t } = useTranslation();
+
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
 
@@ -60,7 +63,7 @@ export function WatchFolderSettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading watch folder settings...
+        {t("settingsTabs.batch2.loadingWatchFolderSettings")}
       </div>
     );
   }
@@ -77,34 +80,38 @@ export function WatchFolderSettingsTab() {
       />
 
       <SectionCard
-        title="Automated Directory Monitoring"
-        description="Monitor local directories for dropped .torrent and .magnet files and automatically ingest them."
+        title={t("settingsTabs.batch2.automatedDirectoryMonitoring")}
+        description={t("settingsTabs.batch2.monitorLocalDirectories")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <Toggle
-            label="Enable Watch Folder Monitoring"
+            label={t("settingsTabs.batch2.enableWatchFolderMonitoring")}
             checked={form.watchFolderEnabled}
             onChange={(v) => update("watchFolderEnabled", v)}
-            hint="Background service will periodically scan the directory for new payload files"
+            hint={t(
+              "settingsTabs.batch2.backgroundServiceWillPeriodicallyScan",
+            )}
           />
 
           <TextInput
-            label="Watch Directory Path"
+            label={t("settingsTabs.batch2.watchDirectoryPath")}
             value={form.watchFolderPath}
             onChange={(v) => update("watchFolderPath", v)}
             disabled={!form.watchFolderEnabled}
-            hint="Filesystem directory where .torrent files are dropped (e.g. /downloads/watch)"
+            hint={t(
+              "settingsTabs.batch2.filesystemDirectoryWhereTorrentFilesAreDropped",
+            )}
           />
 
           <NumberInput
-            label="Scan Cadence (Seconds)"
+            label={t("settingsTabs.batch2.scanCadenceSeconds")}
             value={form.watchFolderScanIntervalSeconds}
             onChange={(v) => update("watchFolderScanIntervalSeconds", v)}
             disabled={!form.watchFolderEnabled}
             min={5}
             max={3600}
-            suffix="sec"
-            hint="Interval between directory scans"
+            suffix={t("settingsTabs.batch2.sec")}
+            hint={t("settingsTabs.batch2.intervalBetweenDirectoryScans")}
           />
 
           <div
@@ -121,19 +128,21 @@ export function WatchFolderSettingsTab() {
               }}
             >
               <Toggle
-                label="Auto-Start Ingested Torrents"
+                label={t("settingsTabs.batch2.autoStartIngestedTorrents")}
                 checked={form.watchFolderAutoStartTorrents}
                 onChange={(v) => update("watchFolderAutoStartTorrents", v)}
                 disabled={!form.watchFolderEnabled}
-                hint="Start downloading immediately upon importing from the watch directory"
+                hint={t(
+                  "settingsTabs.batch2.startDownloadingImmediatelyUponImporting",
+                )}
               />
 
               <Toggle
-                label="Delete .torrent Files After Import"
+                label={t("settingsTabs.batch2.deleteTorrentFilesAfterImport")}
                 checked={form.watchFolderDeleteAddedTorrents}
                 onChange={(v) => update("watchFolderDeleteAddedTorrents", v)}
                 disabled={!form.watchFolderEnabled}
-                hint="Remove source .torrent file from disk once imported into database"
+                hint={t("settingsTabs.batch2.removeSourceTorrentFileFromDisk")}
               />
             </div>
           </div>

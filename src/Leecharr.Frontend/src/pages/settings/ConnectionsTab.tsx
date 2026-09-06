@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import { useState } from "react";
 import {
   useArrConnections,
@@ -15,6 +16,8 @@ import { useConfirm } from "../../context/ConfirmContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export function ConnectionsTab() {
+  const { t } = useTranslation();
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { data: connections, isLoading } = useArrConnections();
@@ -116,7 +119,9 @@ export function ConnectionsTab() {
               onClick={() => syncMutation.mutate()}
               disabled={syncMutation.isPending}
             >
-              {syncMutation.isPending ? "Syncing..." : "🔄 Sync Now"}
+              {syncMutation.isPending
+                ? t("settingsTabs.downloadClients.syncing")
+                : "🔄 Sync Now"}
             </button>
             {syncMutation.isError && (
               <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}>
@@ -175,7 +180,7 @@ export function ConnectionsTab() {
                 )}
                 <button
                   className="provider-card-action"
-                  title="Test Connection"
+                  title={t("settingsTabs.indexers.testConnection")}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTest(conn.id);
@@ -192,7 +197,7 @@ export function ConnectionsTab() {
                       title: "Delete Connection",
                       message: `Are you sure you want to delete the connection "${conn.name}"?`,
                       danger: true,
-                      confirmText: "Delete",
+                      confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
                     if (!ok) return;
 
@@ -217,7 +222,7 @@ export function ConnectionsTab() {
                 </span>
                 {conn.enable === false && (
                   <span className="provider-card-badge provider-card-badge-gray">
-                    Disabled
+                    {t("settingsTabs.categories.table.disabled")}
                   </span>
                 )}
                 {conn.syncEnabled && (
@@ -239,7 +244,7 @@ export function ConnectionsTab() {
               <div className="provider-card-info">{conn.url}</div>
               {testResults[conn.id]?.success === true && (
                 <div className="provider-card-test provider-card-test-ok">
-                  ✓ Connection passed
+                  {t("settingsTabs.indexers.connectionPassed")}
                 </div>
               )}
               {testResults[conn.id]?.success === false && (
@@ -247,12 +252,12 @@ export function ConnectionsTab() {
                   className="provider-card-test provider-card-test-fail"
                   title={testResults[conn.id]?.message}
                 >
-                  ✕ Connection failed
+                  {t("settingsTabs.indexers.connectionFailed")}
                 </div>
               )}
               {testResults[conn.id] === null && (
                 <div className="provider-card-test provider-card-test-pending">
-                  Testing...
+                  {t("settingsTabs.notifications.testing")}
                 </div>
               )}
             </div>
@@ -286,13 +291,13 @@ export function ConnectionsTab() {
               {editing.id ? "Edit Connection" : "Add Connection"}
             </div>
             <TextInput
-              label="Name"
+              label={t("settingsTabs.categories.table.name")}
               value={editing.name || ""}
               onChange={(v) => setEditing({ ...editing, name: v })}
               placeholder="Sonarr"
             />
             <SelectInput
-              label="Type"
+              label={t("settingsTabs.indexers.typeLabel")}
               value={editing.arrType || "Sonarr"}
               onChange={(v) => {
                 const defaults: Record<string, string> = {
@@ -318,19 +323,19 @@ export function ConnectionsTab() {
               ]}
             />
             <TextInput
-              label="URL"
+              label={t("settingsTabs.indexers.urlLabel")}
               value={editing.url || ""}
               onChange={(v) => setEditing({ ...editing, url: v })}
               placeholder="http://localhost:8989"
             />
             <TextInput
-              label="API Key"
+              label={t("settingsTabs.indexers.apiKeyLabel")}
               value={editing.apiKey || ""}
               onChange={(v) => setEditing({ ...editing, apiKey: v })}
               type="password"
             />
             <Toggle
-              label="Enable Connection"
+              label={t("settingsTabs.notifications.enableConnection")}
               checked={editing.enable ?? true}
               onChange={(v) => setEditing({ ...editing, enable: v })}
             />
@@ -416,8 +421,8 @@ export function ConnectionsTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
                     {modalTestResult.success
-                      ? "Connection Successful"
-                      : "Connection Failed"}
+                      ? t("settingsTabs.indexers.connectionSuccessful")
+                      : t("settingsTabs.indexers.connectionFailedModal")}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -455,15 +460,15 @@ export function ConnectionsTab() {
                 disabled={testDirectMutation.isPending}
               >
                 {testDirectMutation.isPending
-                  ? "Testing..."
-                  : "Test Connection"}
+                  ? t("settingsTabs.notifications.testing")
+                  : t("settingsTabs.indexers.testConnection")}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   className="btn btn-outline btn-small"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  {t("settingsTabs.categories.modal.cancel")}
                 </button>
                 <button
                   className="btn btn-primary btn-small"
@@ -473,8 +478,8 @@ export function ConnectionsTab() {
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? "Saving..."
-                    : "Save"}
+                    ? t("settingsTabs.categories.modal.saving")
+                    : t("settingsTabs.notifications.save")}
                 </button>
               </div>
             </div>

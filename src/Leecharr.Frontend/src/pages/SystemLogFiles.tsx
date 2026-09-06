@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n";
 import { useState } from "react";
 import { useLogFiles, useClearLogFiles, useSystemStatus } from "../api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,6 +7,8 @@ import { useToast } from "../context/ToastContext";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 function DownloadIcon() {
+  const { t } = useTranslation();
+
   return (
     <svg
       width="14"
@@ -89,6 +92,7 @@ export interface SystemLogFilesProps {
 }
 
 export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
+  const { t } = useTranslation();
   const { data: logFiles, isLoading, error } = useLogFiles();
   const { data: status } = useSystemStatus();
   const clearLogFiles = useClearLogFiles();
@@ -137,9 +141,11 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
             >
               <h1 className="page-heading" style={{ margin: 0 }}>
-                System: Log Files
+                {t("autogen.t_system_log_files")}
               </h1>
-              <span className="badge badge-primary">Disk Files</span>
+              <span className="badge badge-primary">
+                {t("autogen.t_disk_files")}
+              </span>
             </div>
             <div
               style={{
@@ -148,8 +154,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 marginTop: "0.2rem",
               }}
             >
-              Rotating plain text log files stored on disk for offline debugging
-              and diagnostic exports
+              {t("autogen.t_rotating_plain_text_log_files_stored_on_")}
             </div>
           </div>
 
@@ -164,13 +169,13 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               }}
             >
               <RefreshIcon />
-              <span>Refresh</span>
+              <span>{t("autogen.t_refresh")}</span>
             </button>
             <button
               className="btn btn-danger btn-small"
               onClick={handleClear}
               disabled={clearLogFiles.isPending}
-              title="Clear All Files"
+              title={t("autogen.t_clear_all_files")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -213,7 +218,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           ℹ️
         </span>
         <div>
-          Log files are stored at:{" "}
+          {t("autogen.t_log_files_are_stored_at")}{" "}
           <code
             style={{
               fontFamily: "monospace",
@@ -223,7 +228,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           >
             {logPath}
           </code>
-          . You can adjust the logging verbosity level in{" "}
+          {t("autogen.t_you_can_adjust_the_logging_verbosity_lev")}{" "}
           <Link
             to="/settings/advanced"
             style={{
@@ -231,17 +236,19 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               textDecoration: "underline",
             }}
           >
-            Settings &gt; Advanced
+            {t("autogen.t_settings_gt_advanced")}
           </Link>
           .
         </div>
       </div>
 
-      {isLoading && <p className="loading">Loading log files...</p>}
+      {isLoading && (
+        <p className="loading">{t("autogen.t_loading_log_files")}</p>
+      )}
 
       {error && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <p className="error">Failed to load log files.</p>
+          <p className="error">{t("autogen.t_failed_to_load_log_files")}</p>
         </div>
       )}
 
@@ -262,14 +269,20 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Log Filename</th>
-                  <th className="torrent-table-th">Last Modified</th>
-                  <th className="torrent-table-th">File Size</th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_log_filename")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_last_modified")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("autogen.t_file_size")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Download
+                    {t("autogen.t_download")}
                   </th>
                 </tr>
               </thead>
@@ -277,7 +290,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 {logFiles.length === 0 && (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      No log files currently present on disk.
+                      {t("autogen.t_no_log_files_currently_present_on_disk")}
                     </td>
                   </tr>
                 )}
@@ -309,7 +322,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                         }}
                       >
                         <DownloadIcon />
-                        <span>Download</span>
+                        <span>{t("autogen.t_download")}</span>
                       </a>
                     </td>
                   </tr>
@@ -322,7 +335,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
 
       <ConfirmModal
         isOpen={showConfirmClear}
-        title="Clear All Files"
+        title={t("autogen.t_clear_all_files")}
         message="Are you sure you want to delete all disk log files? This action cannot be undone."
         confirmText="Clear All Files"
         cancelText="Cancel"
