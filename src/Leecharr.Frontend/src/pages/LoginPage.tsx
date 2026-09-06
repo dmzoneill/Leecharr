@@ -204,7 +204,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               margin: 0,
             }}
           >
-            {t("autogen.t_leecharr")}
+            Leecharr
           </h1>
           <p
             style={{
@@ -214,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               marginBottom: 0,
             }}
           >
-            {t("autogen.t_sign_in_to_access_your_media_downloader")}
+            {t("auth.welcomeBack")}
           </p>
         </div>
 
@@ -262,13 +262,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 marginBottom: "6px",
               }}
             >
-              {t("autogen.t_username")}
+              {t("auth.username")}
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder={t("autogen.t_admin")}
+              placeholder={t("auth.adminPlaceholder") || "admin"}
               autoFocus
               style={{
                 width: "100%",
@@ -294,7 +294,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 marginBottom: "6px",
               }}
             >
-              {t("autogen.t_password")}
+              {t("auth.password")}
             </label>
             <input
               type="password"
@@ -344,7 +344,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   cursor: "pointer",
                 }}
               />
-              {t("autogen.t_remember_me")}
+              {t("auth.rememberMe")}
             </label>
           </div>
 
@@ -365,7 +365,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? t("auth.loggingIn") : t("auth.loginBtn")}
           </button>
         </form>
 
@@ -387,7 +387,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}
               />
               <span style={{ padding: "0 12px", color: "#8E92B2" }}>
-                {t("autogen.t_or_sign_in_with")}
+                {t("auth.orSignInWith")}
               </span>
               <div
                 style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}

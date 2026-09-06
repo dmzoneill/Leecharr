@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "../../i18n";
 import {
   useTorrentFiles,
   useSetFilePriority,
@@ -347,6 +348,7 @@ export function FilesTab({
   torrent?: Torrent;
   torrentId?: number;
 }) {
+  const { t } = useTranslation();
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { showToast } = useToast();
   const savePath = torrent?.savePath || torrent?.sourcePath || null;
@@ -527,9 +529,12 @@ export function FilesTab({
     [handleBatchSetPriority],
   );
 
-  if (isLoading) return <PanelLoading>Loading files...</PanelLoading>;
-  if (isError) return <PanelEmpty>Failed to load files.</PanelEmpty>;
-  if (!files || files.length === 0) return <PanelEmpty>No files</PanelEmpty>;
+  if (isLoading)
+    return <PanelLoading>{t("torrents.detail.loadingFiles")}</PanelLoading>;
+  if (isError)
+    return <PanelEmpty>{t("torrents.detail.failedToLoadFiles")}</PanelEmpty>;
+  if (!files || files.length === 0)
+    return <PanelEmpty>{t("torrents.detail.noFiles")}</PanelEmpty>;
 
   const totalFilesCount = files.length;
   const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
@@ -612,7 +617,7 @@ export function FilesTab({
                 fontSize: "0.75rem",
               }}
             >
-              🎬 Pure C# Media Inspector:
+              {t("torrents.detail.mediaInspector")}
             </span>
             {torrent.resolution && (
               <span
@@ -671,7 +676,7 @@ export function FilesTab({
           <span
             style={{ fontSize: "0.7rem", color: "var(--text-muted, #8a879e)" }}
           >
-            TagLib# & Pure EBML Stream Parser
+            {t("torrents.detail.taglibParser")}
           </span>
         </div>
       )}
@@ -707,7 +712,7 @@ export function FilesTab({
                 flexShrink: 0,
               }}
             >
-              PWD:
+              {t("torrents.detail.pwd")}
             </span>
             <code
               style={{
@@ -740,9 +745,11 @@ export function FilesTab({
               setCopiedPath(true);
               setTimeout(() => setCopiedPath(false), 2000);
             }}
-            title="Copy save path to clipboard"
+            title={t("torrents.detail.copyPathTooltip")}
           >
-            {copiedPath ? "✓ Copied" : "Copy"}
+            {copiedPath
+              ? t("torrents.detail.copied")
+              : t("torrents.detail.copy")}
           </button>
         </div>
       )}
@@ -764,10 +771,10 @@ export function FilesTab({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ color: "var(--text-secondary, #C7C5D3)" }}>
-            <strong style={{ color: "var(--text-primary, #F8F4ED)" }}>
-              {totalFilesCount}
-            </strong>{" "}
-            files ({formatBytes(totalBytes)} total)
+            {t("torrents.detail.filesSummary", {
+              count: totalFilesCount,
+              total: formatBytes(totalBytes),
+            })}
           </span>
           <span
             style={{
@@ -779,14 +786,16 @@ export function FilesTab({
               fontSize: "0.75rem",
             }}
           >
-            {overallProgress.toFixed(1)}% verified
+            {t("torrents.detail.percentVerified", {
+              percent: overallProgress.toFixed(1),
+            })}
           </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <input
             type="text"
-            placeholder="Filter files..."
+            placeholder={t("torrents.detail.filterFilesPlaceholder")}
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
             style={{
@@ -806,7 +815,7 @@ export function FilesTab({
             onClick={expandAll}
             style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem" }}
           >
-            Expand All
+            {t("torrents.detail.expandAll")}
           </button>
           <button
             type="button"
@@ -814,7 +823,7 @@ export function FilesTab({
             onClick={collapseAll}
             style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem" }}
           >
-            Collapse All
+            {t("torrents.detail.collapseAll")}
           </button>
         </div>
       </div>
@@ -864,29 +873,29 @@ export function FilesTab({
                     );
                     handleBatchSetPriority(files, allActive ? 0 : 3);
                   }}
-                  title="Toggle all files selective download"
+                  title={t("torrents.detail.toggleAllFiles")}
                 />
               </th>
               <th className="torrent-table-th" style={{ textAlign: "left" }}>
-                File / Folder Name
+                {t("torrents.detail.colName")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: 90, textAlign: "right" }}
               >
-                Size
+                {t("torrents.detail.colSize")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: 140, textAlign: "left" }}
               >
-                Progress
+                {t("torrents.detail.colProgress")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: 130, textAlign: "center" }}
               >
-                Priority
+                {t("torrents.detail.colPriority")}
               </th>
             </tr>
           </thead>
@@ -1015,7 +1024,9 @@ export function FilesTab({
                               fontWeight: 400,
                             }}
                           >
-                            ({descendantFiles.length} items)
+                            {t("torrents.detail.items", {
+                              count: descendantFiles.length,
+                            })}
                           </span>
                         )}
                       </span>
@@ -1023,7 +1034,11 @@ export function FilesTab({
                       <button
                         type="button"
                         onClick={(e) => handleStartRename(node, e)}
-                        title={node.isFolder ? "Rename Folder" : "Rename File"}
+                        title={
+                          node.isFolder
+                            ? t("torrents.detail.renameFolder")
+                            : t("torrents.detail.renameFile")
+                        }
                         style={{
                           background: "none",
                           border: "none",
@@ -1166,12 +1181,18 @@ export function FilesTab({
                     >
                       {currentPriority === -1 && (
                         <option value="" disabled>
-                          Mixed
+                          {t("torrents.detail.mixed")}
                         </option>
                       )}
                       {PRIORITY_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {opt.value === 0
+                            ? t("torrents.detail.prioSkip")
+                            : opt.value === 1
+                              ? t("torrents.detail.prioLow")
+                              : opt.value === 3
+                                ? t("torrents.detail.prioNormal")
+                                : t("torrents.detail.prioHigh")}
                         </option>
                       ))}
                     </select>
@@ -1216,7 +1237,9 @@ export function FilesTab({
                 color: "var(--text-primary)",
               }}
             >
-              Rename {renamingNode.isFolder ? "Folder" : "File"}
+              {renamingNode.isFolder
+                ? t("torrents.detail.renameFolder")
+                : t("torrents.detail.renameFile")}
             </h3>
             <p
               style={{
@@ -1225,10 +1248,9 @@ export function FilesTab({
                 marginBottom: "0.75rem",
               }}
             >
-              Original Path:{" "}
-              <code style={{ wordBreak: "break-all" }}>
-                {renamingNode.fullPath}
-              </code>
+              {t("torrents.detail.originalPath", {
+                path: renamingNode.fullPath,
+              })}
             </p>
             <input
               type="text"
@@ -1264,7 +1286,7 @@ export function FilesTab({
                 onClick={() => setRenamingNode(null)}
                 disabled={isRenaming}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -1276,7 +1298,9 @@ export function FilesTab({
                   renameInput === renamingNode.name
                 }
               >
-                {isRenaming ? "Renaming..." : "Save Name"}
+                {isRenaming
+                  ? t("torrents.detail.renaming")
+                  : t("torrents.detail.saveName")}
               </button>
             </div>
           </div>

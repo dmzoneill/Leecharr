@@ -241,4 +241,35 @@ public class SpeedSchedulerServiceTest
         limits.IsThrottled.Should().BeFalse();
         limits.MaxDownloadSpeedKbps.Should().Be(50000);
     }
+
+    [Test]
+    public void GetCurrentLimits_WithMinutePrecisionEndTime_RemainsActiveThroughoutEntireMinute()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Minute Precision Schedule",
+                Days = 127,
+                StartTime = "09:00",
+                EndTime = "23:59",
+                MaxDownloadSpeed = 1500,
+                MaxUploadSpeed = 800,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        // At 23:59:30, schedule configured with "23:59" must still be active
+        var limitsMidMinute = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 30));
+        limitsMidMinute.IsThrottled.Should().BeTrue();
+        limitsMidMinute.MaxDownloadSpeedKbps.Should().Be(1500);
+
+        // At 23:59:59, schedule configured with "23:59" must still be active
+        var limitsEndMinute = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 59));
+        limitsEndMinute.IsThrottled.Should().BeTrue();
+        limitsEndMinute.MaxDownloadSpeedKbps.Should().Be(1500);
+    }
 }

@@ -568,6 +568,8 @@ public class NotificationEventHandler :
             return "https://api.pushover.net/1/messages.json";
         }
 
+        var candidateUrl = trimmed;
+
         if (trimmed.StartsWith("{"))
         {
             try
@@ -581,7 +583,7 @@ public class NotificationEventHandler :
                     var resolved = u.GetString();
                     if (!string.IsNullOrWhiteSpace(resolved))
                     {
-                        return resolved.Trim();
+                        candidateUrl = resolved.Trim();
                     }
                 }
             }
@@ -591,7 +593,13 @@ public class NotificationEventHandler :
             }
         }
 
-        return trimmed;
+        if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
+        {
+            var clean = candidateUrl.TrimEnd('/');
+            return clean.EndsWith("/notify", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/notify";
+        }
+
+        return candidateUrl;
     }
 
     public static string ResolveCustomHeaders(string settings)
@@ -795,6 +803,25 @@ public class NotificationEventHandler :
             }
 
             return payloadDict;
+        }
+
+        if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase))
+        {
+            var title = $"Leecharr: {eventType}";
+            var body = torrent != null
+                ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nStatus: {torrent.Status}\nProgress: {torrent.Progress * 100:F1}%\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                : ExtractMessage(genericPayload, $"Event: {eventType}");
+
+            var isWarning = eventType.Contains("HealthIssue", StringComparison.OrdinalIgnoreCase) ||
+                            eventType.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
+                            eventType.Contains("Failed", StringComparison.OrdinalIgnoreCase);
+
+            return new
+            {
+                title,
+                body,
+                type = isWarning ? "warning" : "info",
+            };
         }
 
         return genericPayload;

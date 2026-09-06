@@ -1,7 +1,9 @@
 import { useContext } from "react";
 import ToastContext from "../context/ToastContext";
+import { useTranslation } from "../i18n";
 
 function ToastContainer() {
+  const { t } = useTranslation();
   const ctx = useContext(ToastContext);
   if (!ctx || ctx.toasts.length === 0) return null;
 
@@ -13,7 +15,7 @@ function ToastContainer() {
           <button
             className="toast-dismiss"
             onClick={() => ctx.removeToast(toast.id)}
-            aria-label="Dismiss"
+            aria-label={t("alerts.dismiss")}
           >
             &times;
           </button>

@@ -100,6 +100,12 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                     return false;
                 }
 
+                if (s.EndTime != null && s.EndTime.Count(c => c == ':') == 1)
+                {
+                    // minute-precision end time includes the entire minute (e.g. 23:59:59.999)
+                    endTime = new TimeOnly(endTime.Hour, endTime.Minute, 59, 999);
+                }
+
                 if (startTime <= endTime)
                 {
                     return (s.Days & todayFlag) != 0 &&

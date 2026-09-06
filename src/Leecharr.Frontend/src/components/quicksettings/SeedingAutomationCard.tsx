@@ -7,6 +7,7 @@ import {
 } from "../../api/hooks";
 import { DiskStorageBadge } from "./DiskStorageBadge";
 import { useToast } from "../../context/ToastContext";
+import { useTranslation } from "../../i18n";
 
 const RATIO_PRESETS = [
   { label: "1.0", value: 1.0 },
@@ -22,6 +23,7 @@ interface SeedingAutomationCardProps {
 export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
   onNavigateSettings,
 }) => {
+  const { t } = useTranslation();
   const { data: seedConfig, isLoading: seedLoading } = useSeedingConfig();
   const saveSeedMutation = useSaveSeedingConfig();
 
@@ -41,7 +43,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
       {
         onError: (err: any) => {
           showToast(
-            `Failed to update seeding settings: ${err.message}`,
+            t("quickSettings.failedToUpdateSeeding", [err.message]),
             "error",
           );
         },
@@ -61,7 +63,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
       {
         onError: (err: any) => {
           showToast(
-            `Failed to update piece picker settings: ${err.message}`,
+            t("quickSettings.failedToUpdatePiecePicker", [err.message]),
             "error",
           );
         },
@@ -73,9 +75,13 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
     return (
       <div className="quick-card loading">
         <div className="quick-card-header">
-          <span className="quick-card-title">🌾 Seeding & Storage</span>
+          <span className="quick-card-title">
+            {t("quickSettings.seedingStorage")}
+          </span>
         </div>
-        <div className="quick-card-body">Loading seeding parameters...</div>
+        <div className="quick-card-body">
+          {t("quickSettings.loadingSeeding")}
+        </div>
       </div>
     );
   }
@@ -87,7 +93,9 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
   return (
     <div className="quick-card">
       <div className="quick-card-header">
-        <span className="quick-card-title">🌾 Seeding & Storage</span>
+        <span className="quick-card-title">
+          {t("quickSettings.seedingStorage")}
+        </span>
         <DiskStorageBadge compact />
       </div>
 
@@ -95,7 +103,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         {/* Seed Ratio Limit */}
         <div className="quick-control-row">
           <div className="quick-control-label">
-            <span>Ratio Goal:</span>
+            <span>{t("quickSettings.ratioGoal")}</span>
             <span className="quick-control-current">
               {currentRatio === 0 ? "∞" : `${currentRatio.toFixed(1)}x`}
             </span>
@@ -113,8 +121,8 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                   }
                   title={
                     p.value === 0
-                      ? "Unlimited ratio goal (seed indefinitely)"
-                      : `Target ratio: ${p.label}x`
+                      ? t("quickSettings.unlimitedRatioTitle")
+                      : t("quickSettings.targetRatioTitle", [p.label])
                   }
                 >
                   {p.label}
@@ -128,7 +136,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         <div className="quick-toggle-row">
           <label
             className="quick-checkbox-label"
-            title="Prioritize first and last pieces for instant media inspection"
+            title={t("quickSettings.sequentialPiecePickingTitle")}
           >
             <input
               type="checkbox"
@@ -141,7 +149,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                 })
               }
             />
-            <span>Sequential piece picking by default</span>
+            <span>{t("quickSettings.sequentialPiecePicking")}</span>
           </label>
         </div>
       </div>
