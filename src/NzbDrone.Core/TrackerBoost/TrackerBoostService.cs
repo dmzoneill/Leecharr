@@ -9,7 +9,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -845,6 +847,31 @@ public class TrackerBoostService : ITrackerBoostService
         var addedList = candidateDetections.Select(d => d.TrackerUrl).ToList();
         var injected = this.InjectIntoDownloadClients(infoHash, addedList);
 
+        if (injected > 0)
+        {
+            var existingHistory = BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            foreach (var url in addedList)
+            {
+                existingHistory.InjectedTrackers.Add(url);
+            }
+
+            BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
+
+            this.LogActivity(
+                "Success",
+                "Inject",
+                $"Boosted hash '{infoHash}': injected {addedList.Count} verified tracker(s) into {injected} external download client(s)",
+                infoHash: infoHash);
+        }
+        else
+        {
+            this.LogActivity(
+                "Warn",
+                "Inject",
+                $"Boost hash '{infoHash}': no active download clients to inject trackers",
+                infoHash: infoHash);
+        }
+
         return new SwarmBoostResult
         {
             TorrentId = 0,
@@ -852,9 +879,11 @@ public class TrackerBoostService : ITrackerBoostService
             InfoHash = infoHash,
             IsPrivate = false,
             Boosted = injected > 0,
-            AddedTrackersCount = addedList.Count,
-            AddedTrackers = addedList,
-            Message = injected > 0 ? $"Injected {addedList.Count} tracker(s) into active download client(s)." : "Injected trackers.",
+            AddedTrackersCount = injected > 0 ? addedList.Count : 0,
+            AddedTrackers = injected > 0 ? addedList : new List<string>(),
+            Message = injected > 0
+                ? $"Injected {addedList.Count} tracker(s) into {injected} active download client(s)."
+                : "No active download clients found or injected for this hash.",
         };
     }
 
@@ -957,8 +986,21 @@ public class TrackerBoostService : ITrackerBoostService
             };
         }
 
-        var injected = this.InjectIntoDownloadClients(infoHash, new[] { trackerUrl.Trim() });
-        this.LogActivity("Success", "Inject", $"Injected tracker {trackerUrl} into hash {infoHash}", trackerUrl, infoHash);
+        var trackerTrimmed = trackerUrl.Trim();
+        var injected = this.InjectIntoDownloadClients(infoHash, new[] { trackerTrimmed });
+        if (injected > 0)
+        {
+            var existingHistory = BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            existingHistory.InjectedTrackers.Add(trackerTrimmed);
+            BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
+
+            this.LogActivity("Success", "Inject", $"Injected tracker {trackerTrimmed} into hash {infoHash} across {injected} client(s)", trackerTrimmed, infoHash);
+        }
+        else
+        {
+            this.LogActivity("Warn", "Inject", $"Failed to inject tracker {trackerTrimmed} into hash {infoHash}: no active download clients", trackerTrimmed, infoHash);
+        }
+
         return new SwarmBoostResult
         {
             TorrentId = 0,
@@ -966,8 +1008,8 @@ public class TrackerBoostService : ITrackerBoostService
             InfoHash = infoHash,
             Boosted = injected > 0,
             AddedTrackersCount = injected > 0 ? 1 : 0,
-            AddedTrackers = new List<string> { trackerUrl.Trim() },
-            Message = injected > 0 ? $"Injected tracker into {injected} download client(s)." : "Injected tracker.",
+            AddedTrackers = injected > 0 ? new List<string> { trackerTrimmed } : new List<string>(),
+            Message = injected > 0 ? $"Injected tracker into {injected} download client(s)." : "No active download clients found or injected for hash.",
         };
     }
 
@@ -1112,8 +1154,210 @@ public class TrackerBoostService : ITrackerBoostService
             return 0;
         }
 
-        // In Leecharr, primary injection is done directly into the internal MonoTorrent engine via IDownloadEngine.
-        return 0;
+        var trackerList = trackers.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct().ToList();
+        if (trackerList.Count == 0)
+        {
+            return 0;
+        }
+
+        var clients = this.downloadClientRepository.GetEnabled()?.ToList();
+        if (clients == null || clients.Count == 0)
+        {
+            return 0;
+        }
+
+        var successCount = 0;
+        foreach (var client in clients)
+        {
+            try
+            {
+                if (this.InjectIntoClient(client, infoHash, trackerList))
+                {
+                    successCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to inject trackers into download client {0}", client.Name);
+            }
+        }
+
+        return successCount;
+    }
+
+    private bool InjectIntoClient(DownloadClientDefinition client, string infoHash, List<string> trackerList)
+    {
+        if (client == null || string.IsNullOrWhiteSpace(client.Host))
+        {
+            return false;
+        }
+
+        var port = client.Port > 0 ? client.Port : 8080;
+        var scheme = client.UseSsl ? "https" : "http";
+        var baseUrl = $"{scheme}://{client.Host}:{port}";
+
+        var handler = new HttpClientHandler
+        {
+            CookieContainer = new CookieContainer(),
+            UseCookies = true,
+            CheckCertificateRevocationList = true,
+        };
+        using var clientHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+
+        if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+            {
+                var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    { "username", client.Username ?? string.Empty },
+                    { "password", client.Password ?? string.Empty },
+                });
+
+                var loginResp = clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).GetAwaiter().GetResult();
+                if (!loginResp.IsSuccessStatusCode)
+                {
+                    this.logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
+                    return false;
+                }
+
+                var loginResult = loginResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
+                {
+                    this.logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
+                    return false;
+                }
+            }
+
+            var formContent = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "hash", infoHash.ToLowerInvariant() },
+                { "urls", string.Join("\n", trackerList) },
+            });
+
+            var resp = clientHttp.PostAsync($"{baseUrl}/api/v2/torrents/addTrackers", formContent).GetAwaiter().GetResult();
+            if (resp.IsSuccessStatusCode)
+            {
+                this.logger.Info("Successfully injected {0} tracker(s) into qBittorrent ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
+                return true;
+            }
+
+            this.logger.Warn("qBittorrent addTrackers failed with status {0} for {1}", resp.StatusCode, baseUrl);
+            return false;
+        }
+        else if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = JsonSerializer.Serialize(new
+            {
+                method = "torrent-set",
+                arguments = new
+                {
+                    ids = new[] { infoHash },
+                    trackerAdd = trackerList,
+                },
+            });
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+            };
+
+            if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+            {
+                var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{client.Password}"));
+                req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+            }
+
+            var resp = clientHttp.SendAsync(req).GetAwaiter().GetResult();
+            if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
+            {
+                var sessionId = sessValues.FirstOrDefault();
+                using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+                };
+
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+                {
+                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{client.Password}"));
+                    req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+                }
+
+                req2.Headers.Add("X-Transmission-Session-Id", sessionId);
+                resp = clientHttp.SendAsync(req2).GetAwaiter().GetResult();
+            }
+
+            if (resp.IsSuccessStatusCode)
+            {
+                this.logger.Info("Successfully injected {0} tracker(s) into Transmission ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
+                return true;
+            }
+
+            this.logger.Warn("Transmission addTrackers failed with status {0} for {1}", resp.StatusCode, baseUrl);
+            return false;
+        }
+        else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(client.Password))
+            {
+                var loginContent = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        method = "auth.login",
+                        @params = new object[] { client.Password },
+                        id = 1,
+                    }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var loginResp = clientHttp.PostAsync($"{baseUrl}/json", loginContent).GetAwaiter().GetResult();
+                if (!loginResp.IsSuccessStatusCode)
+                {
+                    this.logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
+                    return false;
+                }
+
+                var loginJson = loginResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                using var loginDoc = JsonDocument.Parse(loginJson);
+                if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
+                    resElem.ValueKind == JsonValueKind.False)
+                {
+                    this.logger.Warn("Deluge authentication failed for {0}", baseUrl);
+                    return false;
+                }
+            }
+
+            var trackerObjects = trackerList.Select(u => new { tier = 0, url = u }).ToArray();
+            var body = new StringContent(
+                JsonSerializer.Serialize(new
+                {
+                    method = "core.add_torrent_trackers",
+                    @params = new object[] { infoHash.ToLowerInvariant(), trackerObjects },
+                    id = 2,
+                }),
+                Encoding.UTF8,
+                "application/json");
+
+            var resp = clientHttp.PostAsync($"{baseUrl}/json", body).GetAwaiter().GetResult();
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("error", out var errElem) && errElem.ValueKind != JsonValueKind.Null)
+                {
+                    this.logger.Warn("Deluge returned error adding trackers: {0} for {1}", errElem.ToString(), baseUrl);
+                    return false;
+                }
+
+                this.logger.Info("Successfully injected {0} tracker(s) into Deluge ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
+                return true;
+            }
+
+            this.logger.Warn("Deluge addTrackers failed with status {0} for {1}", resp.StatusCode, baseUrl);
+            return false;
+        }
+
+        return false;
     }
 
     public async Task RunOptimizationCycleAsync()
