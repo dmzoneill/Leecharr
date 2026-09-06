@@ -139,7 +139,7 @@ public class Aria2RpcController : ControllerBase
                             var firstToken = GetFirstXmlRpcToken(xmlDoc);
                             if (!string.IsNullOrWhiteSpace(firstToken) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
                             {
-                                if (string.Equals(firstToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                                if (RpcAuthenticationHelper.FixedTimeEquals(firstToken, this.configFileProvider.ApiKey))
                                 {
                                     isXmlAuth = true;
                                 }
@@ -219,7 +219,7 @@ public class Aria2RpcController : ControllerBase
         var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
         if (!isAuth && !string.IsNullOrWhiteSpace(aria2Secret) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
         {
-            if (string.Equals(aria2Secret, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(aria2Secret, this.configFileProvider.ApiKey))
             {
                 isAuth = true;
             }
@@ -337,7 +337,7 @@ public class Aria2RpcController : ControllerBase
         var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
         if (!isAuth && !string.IsNullOrWhiteSpace(aria2Secret) && !string.IsNullOrWhiteSpace(this.configFileProvider?.ApiKey))
         {
-            if (string.Equals(aria2Secret, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(aria2Secret, this.configFileProvider.ApiKey))
             {
                 isAuth = true;
             }

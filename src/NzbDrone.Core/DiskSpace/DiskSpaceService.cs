@@ -6,6 +6,7 @@ using System.IO;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.DiskSpace;
@@ -19,17 +20,20 @@ public class DiskSpaceService : IDiskSpaceService
 {
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IConfigService configService;
+    private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DiskSpaceService(
         IAppFolderInfo appFolderInfo,
         IConfigService configService = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        ICategoryService categoryService = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.configService = configService;
         this.diskProvider = diskProvider ?? new DiskProvider();
+        this.categoryService = categoryService;
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
@@ -48,6 +52,25 @@ public class DiskSpaceService : IDiskSpaceService
         this.AddDriveInfo(result, seen, downloadDir, "Downloads");
         this.AddDriveInfo(result, seen, this.appFolderInfo?.AppDataFolder, "AppData");
         this.AddDriveInfo(result, seen, this.appFolderInfo?.StartUpFolder, "Startup");
+
+        if (this.categoryService != null)
+        {
+            try
+            {
+                var categories = this.categoryService.GetAll();
+                foreach (var cat in categories)
+                {
+                    if (!string.IsNullOrWhiteSpace(cat.SavePath) && Directory.Exists(cat.SavePath))
+                    {
+                        this.AddDriveInfo(result, seen, cat.SavePath, $"Category: {cat.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to inspect category save paths for disk space");
+            }
+        }
 
         try
         {

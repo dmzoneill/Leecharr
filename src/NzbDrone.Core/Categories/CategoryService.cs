@@ -102,12 +102,30 @@ public class CategoryService : ICategoryService
         }
 
         this.logger.Info("Updating category: {0}", category.Name);
+        var existing = this.repository.Get(category.Id);
+
         if (category.IsDefault)
         {
             this.ClearExistingDefaults(category.Id);
         }
 
         var updated = this.repository.Update(category);
+
+        if (this.torrentRepository != null && existing != null &&
+            !string.IsNullOrWhiteSpace(existing.Name) &&
+            !string.Equals(existing.Name, updated.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var torrents = this.torrentRepository.GetByCategory(existing.Name);
+            if (torrents != null)
+            {
+                foreach (var torrent in torrents)
+                {
+                    torrent.Category = updated.Name;
+                    this.torrentRepository.Update(torrent);
+                }
+            }
+        }
+
         this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = updated });
         return updated;
     }

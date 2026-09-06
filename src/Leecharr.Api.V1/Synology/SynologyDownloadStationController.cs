@@ -106,8 +106,8 @@ public class SynologyDownloadStationController : ControllerBase
         {
             var masterKey = this.configFileProvider.ApiKey;
             var isAuth = (!string.IsNullOrWhiteSpace(masterKey) &&
-                          (string.Equals(passwd, masterKey, StringComparison.Ordinal) ||
-                           string.Equals(account, masterKey, StringComparison.Ordinal))) ||
+                          (RpcAuthenticationHelper.FixedTimeEquals(passwd, masterKey) ||
+                           RpcAuthenticationHelper.FixedTimeEquals(account, masterKey))) ||
                          RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
 
             if (!isAuth)
@@ -241,7 +241,9 @@ public class SynologyDownloadStationController : ControllerBase
                             TorrentStatus.Downloading => 2,
                             TorrentStatus.Paused => 3,
                             TorrentStatus.Stopped => isComplete ? 5 : 3,
+                            TorrentStatus.Completed => 5,
                             TorrentStatus.Seeding => 7,
+                            TorrentStatus.Checking => 1,
                             TorrentStatus.Error => 9,
                             _ => 1,
                         },
@@ -251,6 +253,8 @@ public class SynologyDownloadStationController : ControllerBase
                             TorrentStatus.Seeding => "seeding",
                             TorrentStatus.Paused => "paused",
                             TorrentStatus.Stopped => isComplete ? "finished" : "paused",
+                            TorrentStatus.Completed => "finished",
+                            TorrentStatus.Checking => "checking",
                             TorrentStatus.Error => "error",
                             _ => "waiting",
                         },
@@ -350,7 +354,9 @@ public class SynologyDownloadStationController : ControllerBase
                             TorrentStatus.Downloading => 2,
                             TorrentStatus.Paused => 3,
                             TorrentStatus.Stopped => isComplete ? 5 : 3,
+                            TorrentStatus.Completed => 5,
                             TorrentStatus.Seeding => 7,
+                            TorrentStatus.Checking => 1,
                             TorrentStatus.Error => 9,
                             _ => 1,
                         },
@@ -360,6 +366,8 @@ public class SynologyDownloadStationController : ControllerBase
                             TorrentStatus.Seeding => "seeding",
                             TorrentStatus.Paused => "paused",
                             TorrentStatus.Stopped => isComplete ? "finished" : "paused",
+                            TorrentStatus.Completed => "finished",
+                            TorrentStatus.Checking => "checking",
                             TorrentStatus.Error => "error",
                             _ => "waiting",
                         },

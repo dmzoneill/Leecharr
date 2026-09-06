@@ -219,7 +219,7 @@ export function HarvesterPanel({
             className="btn btn-primary"
             onClick={handleBoostAll}
             disabled={boostAll.isPending || filteredDownloads.length === 0}
-            title="Scrape candidate trackers and inject only verified positive matches across all active downloads"
+            title={t("trackerBoost.scrapeAllTooltip", "Scrape candidate trackers and inject only verified positive matches across all active downloads")}
             style={{ padding: "0.45rem 1rem", fontWeight: 600 }}
           >
             {boostAll.isPending
@@ -231,7 +231,7 @@ export function HarvesterPanel({
             className="btn btn-action"
             onClick={handleHarvestDownloads}
             disabled={harvestDownloads.isPending}
-            title="Extract and discover tracker URLs from active download swarms in Leecharr and download clients"
+            title={t("trackerBoost.harvestTooltip", "Extract and discover tracker URLs from active download swarms in Leecharr and download clients")}
           >
             {harvestDownloads.isPending
               ? "🔄 Harvesting..."
@@ -242,7 +242,7 @@ export function HarvesterPanel({
             className="btn btn-action"
             onClick={handleScanAll}
             disabled={scanTrackers.isPending}
-            title="Ping and probe health across all monitored tracker endpoints"
+            title={t("trackerBoost.probeTooltip", "Ping and probe health across all monitored tracker endpoints")}
           >
             {scanTrackers.isPending ? "📡 Probing..." : "📡 Probe All Trackers"}
           </button>
@@ -282,7 +282,7 @@ export function HarvesterPanel({
               padding: "0.35rem 0.6rem",
               fontSize: "0.82rem",
             }}
-            placeholder="Search downloads..."
+            placeholder={t("trackerBoost.searchDownloads", "Search downloads...")}
             value={downloadSearch}
             onChange={(e) => setDownloadSearch(e.target.value)}
           />
@@ -406,7 +406,7 @@ export function HarvesterPanel({
                             fontSize: "0.7rem",
                             whiteSpace: "nowrap",
                           }}
-                          title="Private tracker swarm"
+                          title={t("trackerBoost.privateSwarmTooltip", "Private tracker swarm")}
                         >
                           🔒 Private
                         </span>
@@ -417,7 +417,7 @@ export function HarvesterPanel({
                             fontSize: "0.7rem",
                             whiteSpace: "nowrap",
                           }}
-                          title="Public swarm boost eligible"
+                          title={t("trackerBoost.publicSwarmTooltip", "Public swarm boost eligible")}
                         >
                           🌐 Public
                         </span>
@@ -470,7 +470,7 @@ export function HarvesterPanel({
                             e.stopPropagation();
                             handleBoostItem(item);
                           }}
-                          title="Scrape and inject verified trackers"
+                          title={t("trackerBoost.scrapeAndInjectTooltip", "Scrape and inject verified trackers")}
                         >
                           ⚡ Enrich
                         </button>
@@ -577,7 +577,7 @@ export function HarvesterPanel({
                         ? refetchTorrentInspect()
                         : refetchHashInspect()
                     }
-                    title="Re-scrape candidate trackers for this info_hash"
+                    title={t("trackerBoost.rescrapeTooltip", "Re-scrape candidate trackers for this info_hash")}
                   >
                     🔄 Re-Scrape Swarm
                   </button>
@@ -586,7 +586,7 @@ export function HarvesterPanel({
                       className="btn btn-primary"
                       style={{ fontSize: "0.85rem", fontWeight: 600 }}
                       onClick={() => handleBoostItem(selectedItem)}
-                      title="Inject verified candidate trackers into this torrent"
+                      title={t("trackerBoost.injectCandidateTooltip", "Inject verified candidate trackers into this torrent")}
                     >
                       ⚡ Boost Torrent (Inject Verified)
                     </button>
@@ -859,7 +859,7 @@ export function HarvesterPanel({
                                 onClick={() =>
                                   handleInjectSingle(det.trackerUrl)
                                 }
-                                title="Inject this verified tracker into the torrent"
+                                title={t("trackerBoost.injectThisTooltip", "Inject this verified tracker into the torrent")}
                               >
                                 ⚡ Inject
                               </button>

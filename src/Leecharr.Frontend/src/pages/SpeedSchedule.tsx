@@ -727,10 +727,10 @@ export function SpeedSchedule() {
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {isPaused
-              ? "All BitTorrent transfers paused by schedule"
+              ? t("speedSchedule.pausedDesc")
               : isThrottled
-                ? "Time-based scheduled rate is enforced"
-                : "Standard global rate configuration"}
+                ? t("speedSchedule.throttledDesc")
+                : t("speedSchedule.standardDesc")}
           </div>
         </div>
 
@@ -767,17 +767,17 @@ export function SpeedSchedule() {
             }}
           >
             {isPaused
-              ? "Paused (0 KB/s)"
+              ? t("speedSchedule.pausedRate")
               : activeUploadKbps > 0
                 ? formatSpeed(activeUploadKbps * 1024)
-                : "Unlimited"}
+                : t("speedSchedule.unlimited")}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {isPaused
-              ? "Upload traffic halted"
+              ? t("speedSchedule.uploadHalted")
               : activeUploadKbps > 0
-                ? "Enforced rate throttle across active torrents"
-                : "No upload bandwidth restriction"}
+                ? t("speedSchedule.uploadThrottled")
+                : t("speedSchedule.noUploadRestriction")}
           </div>
         </div>
 
@@ -814,17 +814,17 @@ export function SpeedSchedule() {
             }}
           >
             {isPaused
-              ? "Paused (0 KB/s)"
+              ? t("speedSchedule.pausedRate")
               : activeDownloadKbps > 0
                 ? formatSpeed(activeDownloadKbps * 1024)
-                : "Unlimited"}
+                : t("speedSchedule.unlimited")}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {isPaused
-              ? "Download traffic halted"
+              ? t("speedSchedule.downloadHalted")
               : activeDownloadKbps > 0
-                ? "Enforced rate throttle across downloads"
-                : "No download bandwidth restriction"}
+                ? t("speedSchedule.downloadThrottled")
+                : t("speedSchedule.noDownloadRestriction")}
           </div>
         </div>
       </div>

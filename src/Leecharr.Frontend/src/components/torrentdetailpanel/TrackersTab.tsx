@@ -428,7 +428,7 @@ export function TrackersTab({
                             );
                           }}
                           disabled={announceTracker.isPending}
-                          title="Trigger immediate tracker announce"
+                          title={t("torrentDetail.triggerAnnounce", "Trigger immediate tracker announce")}
                         >
                           {announceTracker.isPending
                             ? "..."
@@ -442,7 +442,7 @@ export function TrackersTab({
                           }}
                           onClick={() => handleDeleteTracker(tItem.id)}
                           disabled={deleteTracker.isPending}
-                          title="Remove tracker from torrent and reannounce"
+                          title={t("torrentDetail.removeTracker", "Remove tracker from torrent and reannounce")}
                         >
                           {t("torrents.detail.removeBtn")}
                         </button>

@@ -232,13 +232,16 @@ public class IndexerController : Controller
         }
 
         var catId = int.TryParse(category, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
+        var isMulti = indexers.Count > 1;
+        var fetchLimit = isMulti ? effectiveOffset + effectiveLimit : effectiveLimit;
+        var fetchOffset = isMulti ? 0 : effectiveOffset;
 
         var allResults = new List<ReleaseInfoResource>();
         var searchTasks = indexers.Select(async idx =>
         {
             try
             {
-                var results = await this.torznabClient.SearchAsync(idx, query ?? string.Empty, catId, effectiveLimit, effectiveOffset, season, ep, imdbId, tmdbId, type);
+                var results = await this.torznabClient.SearchAsync(idx, query ?? string.Empty, catId, fetchLimit, fetchOffset, season, ep, imdbId, tmdbId, type);
                 return results.Select(r => new ReleaseInfoResource
                 {
                     Title = r.Title,
@@ -277,7 +280,12 @@ public class IndexerController : Controller
             allResults = allResults.Where(r => r.IsFreeleech).ToList();
         }
 
-        return this.Ok(allResults.OrderByDescending(r => r.Seeders).ToList());
+        var sortedResults = allResults.OrderByDescending(r => r.Seeders).ToList();
+        var paginatedResults = isMulti
+            ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
+            : sortedResults.Take(effectiveLimit).ToList();
+
+        return this.Ok(paginatedResults);
     }
 
     [HttpPost("download")]

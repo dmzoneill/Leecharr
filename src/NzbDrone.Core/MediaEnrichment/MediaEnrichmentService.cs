@@ -286,6 +286,13 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             {
                 if (File.Exists(url))
                 {
+                    var localBytes = await File.ReadAllBytesAsync(url);
+                    if (localBytes == null || localBytes.Length > 10 * 1024 * 1024 || !IsValidImage(localBytes))
+                    {
+                        this.logger.Warn("Local artwork file is invalid, not an image, or exceeds size limit: {0}", url);
+                        return null;
+                    }
+
                     var ext = Path.GetExtension(url);
                     if (string.IsNullOrEmpty(ext) || ext.Length > 5)
                     {
@@ -293,8 +300,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                     }
 
                     var localFile = Path.Combine(cacheDir, $"{type}{ext}");
-                    File.Copy(url, localFile, overwrite: true);
-                    this.logger.Debug("Copied local {0} artwork from {1} to {2}", type, url, localFile);
+                    await File.WriteAllBytesAsync(localFile, localBytes);
+                    this.logger.Debug("Copied validated local {0} artwork from {1} to {2}", type, url, localFile);
                     return localFile;
                 }
 
@@ -358,7 +365,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
 
     internal static bool IsValidImage(byte[] bytes)
     {
-        if (bytes == null || bytes.Length < 12)
+        if (bytes == null || bytes.Length < 4)
         {
             return false;
         }
@@ -376,14 +383,16 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         }
 
         // WebP: RIFF ???? WEBP
-        if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+        if (bytes.Length >= 12 &&
+            bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
             bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50)
         {
             return true;
         }
 
         // GIF: GIF87a or GIF89a
-        if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 &&
+        if (bytes.Length >= 6 &&
+            bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 &&
             (bytes[4] == 0x37 || bytes[4] == 0x39) && bytes[5] == 0x61)
         {
             return true;

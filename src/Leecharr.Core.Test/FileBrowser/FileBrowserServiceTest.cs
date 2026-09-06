@@ -110,4 +110,47 @@ public class FileBrowserServiceTest
 
         this.diskProvider.Received(1).MoveFile(source, dest, false);
     }
+
+    [Test]
+    public void Move_WhenMoveFileThrowsIOException_FallsBackToCopyAndDelete()
+    {
+        var source = "/downloads/source.mkv";
+        var destDir = "/storage/movies";
+        var targetFile = "/storage/movies/source.mkv";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(source).Returns(true);
+
+        this.diskProvider.When(x => x.MoveFile(source, targetFile, true))
+            .Do(x => throw new System.IO.IOException("EXDEV: Cross-device link"));
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.Received(1).CopyFile(source, targetFile, true);
+        this.diskProvider.Received(1).DeleteFile(source);
+    }
+
+    [Test]
+    public void Move_WhenMoveFolderThrowsIOException_FallsBackToRecursiveCopyAndDeleteFolder()
+    {
+        var source = "/downloads/album";
+        var destDir = "/storage/music";
+        var targetFolder = "/storage/music/album";
+        var sourceFile = "/downloads/album/song.mp3";
+        var targetFile = "/storage/music/album/song.mp3";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.GetFiles(source, false).Returns(new[] { sourceFile });
+        this.diskProvider.GetDirectories(source).Returns(Array.Empty<string>());
+
+        this.diskProvider.When(x => x.MoveFolder(source, targetFolder))
+            .Do(x => throw new System.IO.IOException("EXDEV: Cross-device link"));
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.Received(1).CopyFile(sourceFile, targetFile, true);
+        this.diskProvider.Received(1).DeleteFolder(source, true);
+    }
 }

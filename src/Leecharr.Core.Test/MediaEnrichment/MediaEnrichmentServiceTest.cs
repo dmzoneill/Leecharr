@@ -521,7 +521,8 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     public async Task CacheArtworkAsync_WhenLocalFilePath_CopiesDirectlyViaFileCopy()
     {
         var localSource = Path.Combine(this.tempDirectory, "local_artwork.png");
-        await File.WriteAllBytesAsync(localSource, new byte[] { 10, 20, 30, 40 });
+        var pngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52 };
+        await File.WriteAllBytesAsync(localSource, pngBytes);
 
         var cachedPath = await this.service.CacheArtworkAsync(localSource, 201, "poster");
 
@@ -531,7 +532,7 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         cachedPath.Should().Contain(Path.Combine("MediaCache", "201"));
 
         var cachedBytes = await File.ReadAllBytesAsync(cachedPath);
-        cachedBytes.Should().Equal(new byte[] { 10, 20, 30, 40 });
+        cachedBytes.Should().Equal(pngBytes);
     }
 
     [Test]
@@ -753,6 +754,34 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
 
         var key = enrichmentService.GetServarrApiKey("http://attacker.com/mediacover/evil.jpg");
         key.Should().BeNull();
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenLocalFileIsNotAnImage_ReturnsNullAndDoesNotCopy()
+    {
+        var textFile = Path.Combine(this.tempDirectory, "secret.txt");
+        await File.WriteAllTextAsync(textFile, "CONFIDENTIAL SYSTEM DATA");
+
+        var result = await this.service.CacheArtworkAsync(textFile, 1, "poster");
+
+        result.Should().BeNull();
+        var cacheFile = Path.Combine(this.tempDirectory, "MediaCache", "1", "poster.txt");
+        File.Exists(cacheFile).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenLocalFileIsValidJpeg_CopiesAndReturnsPath()
+    {
+        var jpegFile = Path.Combine(this.tempDirectory, "valid.jpg");
+        var jpegBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46 };
+        await File.WriteAllBytesAsync(jpegFile, jpegBytes);
+
+        var result = await this.service.CacheArtworkAsync(jpegFile, 1, "poster");
+
+        result.Should().NotBeNull();
+        File.Exists(result).Should().BeTrue();
+        var readBytes = await File.ReadAllBytesAsync(result);
+        readBytes.Should().Equal(jpegBytes);
     }
 
     private class TestHttpMessageHandler : HttpMessageHandler

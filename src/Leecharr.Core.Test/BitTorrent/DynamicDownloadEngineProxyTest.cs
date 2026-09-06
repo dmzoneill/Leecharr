@@ -333,4 +333,45 @@ public class DynamicDownloadEngineProxyTest
             }
         }
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_ReappliesLimitsSuperSeedingPrivateStatusAndTrackers()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Special ISO",
+            InfoHash = "1111222233334444555566667777888899990000",
+            Status = TorrentStatus.Downloading,
+            DownloadLimit = 5000,
+            UploadLimit = 2000,
+            InitialSeeding = true,
+            IsPrivate = true,
+            TrackerUrl = "http://tracker1.com/announce",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var trackerRepo = Substitute.For<NzbDrone.Core.Trackers.ITrackerEntryRepository>();
+        trackerRepo.GetByTorrentId(42).Returns(new List<NzbDrone.Core.Trackers.TrackerEntry>
+        {
+            new() { TorrentId = 42, Url = "http://tracker1.com/announce" },
+            new() { TorrentId = 42, Url = "http://tracker2.com/announce" },
+        });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator,
+            trackerEntryRepository: trackerRepo);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.Received(1).SetTorrentRateLimitsAsync(42, 5000, 2000);
+        await this.libTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
+        await this.libTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
+        await this.libTorrentEngine.Received(1).AddTrackersAsync(42, Arg.Is<List<string>>(list => list.Contains("http://tracker2.com/announce")));
+    }
 }

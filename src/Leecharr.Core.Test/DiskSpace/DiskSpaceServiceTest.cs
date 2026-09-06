@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using FluentAssertions;
 using NSubstitute;
@@ -26,7 +27,7 @@ public class DiskSpaceServiceTest
         this.appFolderInfo = Substitute.For<IAppFolderInfo>();
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.configService = Substitute.For<IConfigService>();
-        this.service = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider);
+        this.service = new DiskSpaceService(this.appFolderInfo, this.configService, diskProvider: this.diskProvider);
     }
 
     [Test]
@@ -113,5 +114,37 @@ public class DiskSpaceServiceTest
         result.Should().Contain(d => d.Label == "Downloads" && d.Path == "/downloads/torrents" && d.FreeSpace == 50_000_000_000L);
         result.Should().Contain(d => d.Label == "AppData" && d.Path == "/home/user/.config/Leecharr" && d.FreeSpace == 20_000_000_000L);
         result.Should().Contain(d => d.Label == "Startup" && d.Path == "/opt/leecharr" && d.FreeSpace == 10_000_000_000L);
+    }
+
+    [Test]
+    public void GetDiskSpace_WhenCategoriesConfigured_IncludesCategorySavePaths()
+    {
+        var categoryService = Substitute.For<NzbDrone.Core.Categories.ICategoryService>();
+        var tempCategoryDir = Path.Combine(Path.GetTempPath(), "leecharr_test_cat_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempCategoryDir);
+
+        try
+        {
+            var categories = new List<NzbDrone.Core.Categories.Category>
+            {
+                new() { Id = 1, Name = "Movies", SavePath = tempCategoryDir },
+            };
+            categoryService.GetAll().Returns(categories);
+
+            this.diskProvider.GetAvailableSpace(tempCategoryDir).Returns(80_000_000_000L);
+            this.diskProvider.GetTotalSize(tempCategoryDir).Returns(200_000_000_000L);
+
+            var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, categoryService);
+            var result = diskService.GetDiskSpace();
+
+            result.Should().Contain(d => d.Label == "Category: Movies" && d.Path == tempCategoryDir && d.FreeSpace == 80_000_000_000L);
+        }
+        finally
+        {
+            if (Directory.Exists(tempCategoryDir))
+            {
+                Directory.Delete(tempCategoryDir);
+            }
+        }
     }
 }

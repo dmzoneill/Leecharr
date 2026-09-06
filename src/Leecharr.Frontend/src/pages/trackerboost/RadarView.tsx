@@ -168,7 +168,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               padding: "0.4rem 0.75rem",
               fontSize: "0.85rem",
             }}
-            placeholder="Search tracker hosts..."
+            placeholder={t("trackerBoost.searchTrackerHosts", "Search tracker hosts...")}
             value={trackerSearch}
             onChange={(e) => setTrackerSearch(e.target.value)}
           />
@@ -182,10 +182,10 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
           >
-            <option value="all">All Sources</option>
-            <option value="active">Active Swarm Harvest</option>
+            <option value="all">{t("trackerBoost.allSources", "All Sources")}</option>
+            <option value="active">{t("trackerBoost.activeSwarmHarvest", "Active Swarm Harvest")}</option>
             <option value="prowlarr">Prowlarr</option>
-            <option value="feeds">Public Feeds</option>
+            <option value="feeds">{t("trackerBoost.publicFeeds", "Public Feeds")}</option>
             <option value="manual">Manual Entry</option>
           </select>
         </div>
@@ -200,14 +200,14 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
           <button
             className="btn btn-action"
             onClick={handleCopyAllTrackers}
-            title="Copy all tracker URLs to clipboard"
+            title={t("trackerBoost.copyAllUrls", "Copy all tracker URLs to clipboard")}
           >
             📋 Copy All
           </button>
           <button
             className="btn btn-action"
             onClick={handleExportTrackers}
-            title="Download verified and active trackers as a .txt file"
+            title={t("trackerBoost.downloadTxt", "Download verified and active trackers as a .txt file")}
           >
             📤 Export (.txt)
           </button>
@@ -215,7 +215,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             <button
               className="btn btn-action"
               onClick={onOpenBulkImport}
-              title="Paste multiple tracker URLs at once"
+              title={t("trackerBoost.pasteMultiple", "Paste multiple tracker URLs at once")}
             >
               📥 Bulk Import
             </button>

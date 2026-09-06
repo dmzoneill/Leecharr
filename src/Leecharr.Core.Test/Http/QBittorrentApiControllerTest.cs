@@ -464,4 +464,166 @@ public class QBittorrentApiControllerTest
         list[0]["seeding_time_limit"].Should().Be(3600);
         list[0]["max_seeding_time"].Should().Be(3600);
     }
+
+    [Test]
+    public void GetTorrentPeers_WithValidHash_ReturnsSwarmPeers()
+    {
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var downloadTask = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        var peers = new List<NzbDrone.Core.BitTorrent.PeerInfo>
+        {
+            new()
+            {
+                Ip = "192.168.1.50",
+                Port = 6881,
+                Client = "Leecharr/1.0",
+                Flags = "uI",
+                Progress = 0.75,
+                DownloadSpeed = 1048576,
+                UploadSpeed = 524288,
+                Downloaded = 100000000,
+                Uploaded = 50000000,
+            },
+        };
+        downloadTask.GetPeers().Returns(peers);
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = controllerWithEngine.GetTorrentPeers("hash1", rid: 5);
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = okResult.Value;
+
+        var fullUpdate = (bool)data!.GetType().GetProperty("full_update")!.GetValue(data)!;
+        var rid = (int)data!.GetType().GetProperty("rid")!.GetValue(data)!;
+        var peerDict = (Dictionary<string, object>)data!.GetType().GetProperty("peers")!.GetValue(data)!;
+
+        fullUpdate.Should().BeTrue();
+        rid.Should().Be(6);
+        peerDict.Should().ContainKey("192.168.1.50:6881");
+    }
+
+    [Test]
+    public void GetPieceStates_WithValidHash_ReturnsMappedPieceStates()
+    {
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var downloadTask = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        downloadTask.PieceBitfield.Returns(new[] { true, false, true, true });
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = controllerWithEngine.GetPieceStates("hash1");
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var states = okResult.Value.Should().BeOfType<List<int>>().Subject;
+
+        states.Should().Equal(2, 0, 2, 2);
+    }
+
+    [Test]
+    public void GetProperties_ReturnsCompletePropertySet()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "T1",
+            CreatedBy = "Leecharr",
+            DownloadSpeed = 1048576,
+            UploadSpeed = 524288,
+            Eta = 300,
+            Seeders = 5,
+            Leechers = 10,
+            TotalSize = 1000000000,
+            PieceLength = 262144,
+            PieceCount = 3815,
+            Progress = 0.5,
+            Downloaded = 500000000,
+            Uploaded = 250000000,
+        };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var actionResult = this.controller.GetProperties("hash1");
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var dict = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        dict.Should().ContainKey("addition_date");
+        dict.Should().ContainKey("completion_date");
+        dict.Should().ContainKey("created_by");
+        dict.Should().ContainKey("dl_speed");
+        dict.Should().ContainKey("up_speed");
+        dict.Should().ContainKey("eta");
+        dict.Should().ContainKey("peers");
+        dict.Should().ContainKey("seeds");
+        dict.Should().ContainKey("total_size");
+
+        dict["dl_speed"].Should().Be(1048576L);
+        dict["up_speed"].Should().Be(524288L);
+        dict["eta"].Should().Be(300L);
+        dict["seeds"].Should().Be(5);
+        dict["peers"].Should().Be(10);
+        dict["total_size"].Should().Be(1000000000L);
+    }
+
+    [Test]
+    public void SetPreferences_UpdatesConfigService()
+    {
+        var json = "{\"dl_limit\":10485760,\"up_limit\":5242880,\"dht\":true,\"pex\":true,\"save_path\":\"/data/downloads\"}";
+        var result = this.controller.SetPreferences(json);
+        result.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 10240 &&
+            (int)d["MaxUploadSpeedKbps"] == 5120 &&
+            (bool)d["EnableDht"] == true &&
+            (bool)d["EnablePex"] == true &&
+            (string)d["DownloadDir"] == "/data/downloads"));
+    }
+
+    [Test]
+    public void SpeedLimitsMode_GetAndToggle_UpdatesStateAndEngine()
+    {
+        this.configService.AlternativeSpeedEnabled.Returns(false);
+        this.configService.AltDownloadSpeedKbps.Returns(500);
+        this.configService.AltUploadSpeedKbps.Returns(100);
+
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var getResult = controllerWithEngine.GetSpeedLimitsMode();
+        var okGet = getResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        okGet.Value.Should().Be(0);
+
+        var toggleResult = controllerWithEngine.ToggleSpeedLimitsMode();
+        toggleResult.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (bool)d["AlternativeSpeedEnabled"] == true));
+    }
 }

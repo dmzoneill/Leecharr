@@ -11,6 +11,7 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.BitTorrent;
 
@@ -20,6 +21,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     private readonly IConfigService configService;
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
@@ -42,13 +44,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         ITorrentRepository torrentRepository,
         IEventAggregator eventAggregator,
         ITorrentFileRepository torrentFileRepository = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         this.availableEngines = availableEngines;
         this.configService = configService;
         this.torrentRepository = torrentRepository;
         this.torrentFileRepository = torrentFileRepository;
         this.appFolderInfo = appFolderInfo;
+        this.trackerEntryRepository = trackerEntryRepository;
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
@@ -236,6 +240,34 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                                 {
                                     await targetEngine.SetFilePriorityAsync(torrent.Id, file.Path, file.Priority);
                                 }
+                            }
+                        }
+
+                        if (torrent.DownloadLimit > 0 || torrent.UploadLimit > 0)
+                        {
+                            await targetEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                        }
+
+                        if (torrent.InitialSeeding)
+                        {
+                            await targetEngine.SetSuperSeedingAsync(torrent.Id, true);
+                        }
+
+                        if (torrent.IsPrivate)
+                        {
+                            await targetEngine.SetTorrentPrivateStatusAsync(torrent.Id, true);
+                        }
+
+                        if (torrentBytes == null && this.trackerEntryRepository != null)
+                        {
+                            var extraTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id)
+                                .Select(t => t.Url)
+                                .Where(u => !string.IsNullOrWhiteSpace(u) && !string.Equals(u, torrent.TrackerUrl, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+
+                            if (extraTrackers.Count > 0)
+                            {
+                                await targetEngine.AddTrackersAsync(torrent.Id, extraTrackers);
                             }
                         }
 

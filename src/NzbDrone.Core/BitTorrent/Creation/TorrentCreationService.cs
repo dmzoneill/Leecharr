@@ -125,6 +125,15 @@ public class TorrentCreationService : ITorrentCreationService
 
             if (request.PieceLength > 0)
             {
+                if (request.PieceLength < 16384 || request.PieceLength > 67108864 || (request.PieceLength & (request.PieceLength - 1)) != 0)
+                {
+                    return new TorrentCreationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Piece length must be a power of 2 between 16 KB (16384) and 64 MB (67108864). Received: {request.PieceLength}",
+                    };
+                }
+
                 creator.PieceLength = request.PieceLength;
             }
             else
@@ -142,7 +151,10 @@ public class TorrentCreationService : ITorrentCreationService
                 if (cleanTrackers.Count > 0)
                 {
                     creator.Announce = cleanTrackers[0];
-                    creator.Announces.Add(cleanTrackers);
+                    foreach (var tracker in cleanTrackers)
+                    {
+                        creator.Announces.Add(new List<string> { tracker });
+                    }
                 }
             }
 

@@ -413,7 +413,7 @@ export function FileBrowser() {
             style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={handleNavigateUp}
             disabled={!listing?.parent || listing.parent === listing.path}
-            title="Go to parent directory"
+            title={t("filebrowser.parentDirectory", "Go to parent directory")}
           >
             ⬆ Up
           </button>
@@ -422,7 +422,7 @@ export function FileBrowser() {
             className="btn btn-outline"
             style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={() => refetch()}
-            title="Refresh"
+            title={t("common.refresh", "Refresh")}
           >
             🔄 Refresh
           </button>
@@ -431,7 +431,7 @@ export function FileBrowser() {
             className="btn btn-outline"
             style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
             onClick={handleCopyPath}
-            title="Copy current path to clipboard"
+            title={t("filebrowser.copyPath", "Copy current path to clipboard")}
           >
             📋 Copy Path
           </button>
@@ -444,7 +444,7 @@ export function FileBrowser() {
               fontFamily: "monospace",
             }}
             onClick={handleOpenInCli}
-            title="Open an interactive terminal shell in this directory"
+            title={t("filebrowser.openTerminal", "Open an interactive terminal shell in this directory")}
           >
             &gt;_ CLI
           </button>

@@ -385,14 +385,7 @@ public class AppLifetime : IHostedService, IDisposable
                                             this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
 
-                                            var oldStatus = torrent.Status;
                                             await this.torrentService.PauseAsync(torrent.Id);
-                                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                                            {
-                                                Torrent = torrent,
-                                                OldStatus = oldStatus,
-                                                NewStatus = TorrentStatus.Stopped,
-                                            });
                                         }
                                     }
                                 }

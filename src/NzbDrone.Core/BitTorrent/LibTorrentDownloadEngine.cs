@@ -11,11 +11,13 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
+public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>
 {
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
@@ -26,9 +28,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<int> torrentsHaltedByKillSwitch = new();
 
     private bool isRunning;
     private bool disposed;
+    private bool isHaltedByKillSwitch;
 
     public string ProtocolName => "BitTorrent";
 
@@ -41,6 +45,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
     public string Description => "High-performance C++20 BitTorrent engine with memory-mapped file I/O, BitTorrent v2 Merkle trees, and LEDBAT uTP.";
 
     public bool IsAvailable => false;
+
+    public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
     {
@@ -155,6 +161,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
 
     public async Task ResumeTorrentAsync(int torrentId)
     {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume torrent id {0}: VPN Kill Switch is active (fail-closed).", torrentId);
+            return;
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Downloading;
@@ -162,6 +174,44 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable
         }
 
         await Task.CompletedTask;
+    }
+
+    public void Handle(VpnKillSwitchTriggeredEvent message)
+    {
+        this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting LibTorrent engine transfers.", message.InterfaceName);
+        this.isHaltedByKillSwitch = true;
+
+        lock (this.torrentsHaltedByKillSwitch)
+        {
+            this.torrentsHaltedByKillSwitch.Clear();
+            foreach (var task in this.tasks.Values)
+            {
+                if (task.Status == TorrentStatus.Downloading || task.Status == TorrentStatus.Seeding)
+                {
+                    this.torrentsHaltedByKillSwitch.Add(task.TorrentId);
+                    task.Status = TorrentStatus.Paused;
+                }
+            }
+        }
+    }
+
+    public void Handle(VpnInterfaceRestoredEvent message)
+    {
+        this.logger.Info("VPN interface '{0}' restored. Resuming LibTorrent engine transfers.", message.InterfaceName);
+        this.isHaltedByKillSwitch = false;
+
+        lock (this.torrentsHaltedByKillSwitch)
+        {
+            foreach (var torrentId in this.torrentsHaltedByKillSwitch)
+            {
+                if (this.tasks.TryGetValue(torrentId, out var task) && task.Status == TorrentStatus.Paused)
+                {
+                    task.Status = TorrentStatus.Downloading;
+                }
+            }
+
+            this.torrentsHaltedByKillSwitch.Clear();
+        }
     }
 
     public async Task ForceRecheckAsync(int torrentId)

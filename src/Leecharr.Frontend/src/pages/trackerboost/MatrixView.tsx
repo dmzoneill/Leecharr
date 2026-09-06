@@ -102,7 +102,7 @@ export function MatrixView({
               padding: "0.35rem 0.75rem",
               fontSize: "0.85rem",
             }}
-            placeholder="Search torrents or trackers..."
+            placeholder={t("trackerBoost.searchTorrentsOrTrackers", "Search torrents or trackers...")}
             value={matrixSearch}
             onChange={(e) => setMatrixSearch(e.target.value)}
           />
@@ -111,14 +111,14 @@ export function MatrixView({
             <button
               className={`view-toggle-btn ${matrixViewMode === "by_torrent" ? "active" : ""}`}
               onClick={() => setMatrixViewMode("by_torrent")}
-              title="Group swarms by torrent download"
+              title={t("trackerBoost.groupByTorrent", "Group swarms by torrent download")}
             >
               Torrents → Trackers
             </button>
             <button
               className={`view-toggle-btn ${matrixViewMode === "by_tracker" ? "active" : ""}`}
               onClick={() => setMatrixViewMode("by_tracker")}
-              title="Group swarms by tracker endpoint"
+              title={t("trackerBoost.groupByTracker", "Group swarms by tracker endpoint")}
             >
               Trackers → Torrents
             </button>
@@ -128,14 +128,14 @@ export function MatrixView({
             <button
               className={`view-toggle-btn ${matrixLayoutMode === "grid" ? "active" : ""}`}
               onClick={() => setMatrixLayoutMode("grid")}
-              title="Poster Card Grid View"
+              title={t("torrents.toolbar.gridView", "Poster Card Grid View")}
             >
               🎬 Posters
             </button>
             <button
               className={`view-toggle-btn ${matrixLayoutMode === "table" ? "active" : ""}`}
               onClick={() => setMatrixLayoutMode("table")}
-              title="Detailed Table / List View"
+              title={t("torrents.toolbar.tableView", "Detailed Table / List View")}
             >
               📑 Table
             </button>

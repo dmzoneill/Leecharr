@@ -1042,4 +1042,105 @@ public class TransmissionRpcControllerTest
         torrent.UploadLimit.Should().Be(0);
         await this.torrentService.Received(1).UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_WithTrackersPeersPieces_ReturnsPopulatedFields()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+
+        var trackerRepo = Substitute.For<NzbDrone.Core.Trackers.ITrackerEntryRepository>();
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var downloadTask = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+
+        trackerRepo.GetByTorrentId(1).Returns(new List<NzbDrone.Core.Trackers.TrackerEntry>
+        {
+            new()
+            {
+                Id = 1,
+                TorrentId = 1,
+                Url = "http://tracker.example.com/announce",
+                Tier = 0,
+                Seeders = 5,
+                Leechers = 2,
+                Downloaded = 100,
+            },
+        });
+
+        downloadTask.GetPeers().Returns(new List<NzbDrone.Core.BitTorrent.PeerInfo>
+        {
+            new()
+            {
+                Ip = "10.0.0.5",
+                Port = 51413,
+                Client = "Transmission/3.00",
+                DownloadSpeed = 500000,
+                UploadSpeed = 100000,
+                Progress = 0.8,
+            },
+        });
+        downloadTask.PieceBitfield.Returns(new[] { true, true, false, true });
+        downloadTask.PieceLength.Returns(524288);
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithDeps = new TransmissionRpcController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.configService,
+            configFileProvider: this.configFileProvider,
+            downloadEngine: downloadEngine,
+            trackerEntryRepository: trackerRepo);
+        controllerWithDeps.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "TransmissionTest",
+            InfoHash = "1234567890abcdef1234567890abcdef12345678",
+            TotalSize = 2097152,
+            PieceLength = 524288,
+            PieceCount = 4,
+            Progress = 0.75,
+            DateAdded = DateTime.UtcNow,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fieldsDoc = JsonDocument.Parse("[\"id\",\"name\",\"trackers\",\"trackerStats\",\"peers\",\"pieces\",\"pieceCount\",\"pieceSize\"]");
+        args["fields"] = fieldsDoc.RootElement.Clone();
+
+        var result = await controllerWithDeps.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        var responseArgs = response!.Arguments as Dictionary<string, object>;
+        var torrents = responseArgs!["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents!.Count.Should().Be(1);
+
+        var t = torrents[0];
+        t.Should().ContainKey("trackers");
+        t.Should().ContainKey("trackerStats");
+        t.Should().ContainKey("peers");
+        t.Should().ContainKey("pieces");
+        t.Should().ContainKey("pieceCount");
+        t.Should().ContainKey("pieceSize");
+
+        t["pieceCount"].Should().Be(4);
+        t["pieceSize"].Should().Be(524288);
+
+        var trackers = t["trackers"] as System.Collections.IEnumerable;
+        trackers.Should().NotBeNull();
+
+        var peers = t["peers"] as System.Collections.IEnumerable;
+        peers.Should().NotBeNull();
+    }
 }

@@ -587,7 +587,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, url: v });
                 setModalTestResult(null);
               }}
-              placeholder={t("settings.httpLocalhost9696")}
+              placeholder="http://localhost:9696"
             />
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
@@ -605,7 +605,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, apiPath: v });
                 setModalTestResult(null);
               }}
-              placeholder={t("settings.api")}
+              placeholder="api"
             />
             <TextInput
               label={t("settingsTabs.indexers.categoriesLabel")}
@@ -618,7 +618,7 @@ export function IndexersTab() {
                 setEditing({ ...editing, categories: v });
                 setModalTestResult(null);
               }}
-              placeholder={t("settings.20005000")}
+              placeholder="2000,5000"
             />
             <Toggle
               label={t("settingsTabs.indexers.enableLabel")}
@@ -871,7 +871,7 @@ export function IndexersTab() {
                   .filter((n) => !isNaN(n) && n > 0);
                 setEditingRule({ ...editingRule, indexerIds: ids });
               }}
-              placeholder={t("settings.leaveEmptyForAllIndexers")}
+              placeholder="Leave empty for all indexers"
               hint="Comma-separated Indexer IDs (leave blank for all indexers)"
             />
             <Toggle

@@ -106,19 +106,61 @@ public class BlocklistUpdateService : IBlocklistUpdateService
             return lines;
         }
 
-        Stream stream = new MemoryStream(data);
+        // 1. Check GZip magic header (0x1f 0x8b)
         if (data.Length >= 2 && data[0] == 0x1f && data[1] == 0x8b)
         {
-            stream = new GZipStream(stream, CompressionMode.Decompress);
+            using var stream = new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    lines.Add(line.Trim());
+                }
+            }
+
+            return lines;
         }
 
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        string line;
-        while ((line = reader.ReadLine()) != null)
+        // 2. Check ZIP archive magic header (0x50 0x4B 0x03 0x04)
+        if (data.Length >= 4 && data[0] == 0x50 && data[1] == 0x4B && (data[2] == 0x03 || data[2] == 0x05 || data[2] == 0x07))
         {
-            if (!string.IsNullOrWhiteSpace(line))
+            try
             {
-                lines.Add(line.Trim());
+                using var memStream = new MemoryStream(data);
+                using var archive = new ZipArchive(memStream, ZipArchiveMode.Read);
+                foreach (var entry in archive.Entries)
+                {
+                    using var entryStream = entry.Open();
+                    using var reader = new StreamReader(entryStream, Encoding.UTF8);
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            lines.Add(line.Trim());
+                        }
+                    }
+                }
+
+                return lines;
+            }
+            catch
+            {
+                // If zip extraction fails, fallback to raw text parsing
+            }
+        }
+
+        // 3. Fallback to raw text
+        using var rawStream = new MemoryStream(data);
+        using var rawReader = new StreamReader(rawStream, Encoding.UTF8);
+        string rawLine;
+        while ((rawLine = rawReader.ReadLine()) != null)
+        {
+            if (!string.IsNullOrWhiteSpace(rawLine))
+            {
+                lines.Add(rawLine.Trim());
             }
         }
 

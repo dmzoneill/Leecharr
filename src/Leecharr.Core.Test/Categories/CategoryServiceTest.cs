@@ -189,4 +189,24 @@ public class CategoryServiceTest
 
         path.Should().Be("/fallback/path");
     }
+
+    [Test]
+    public void Update_WhenCategoryNameChanges_UpdatesReferencingTorrents()
+    {
+        var existing = new Category { Id = 5, Name = "tv", SavePath = "/downloads/tv" };
+        var updated = new Category { Id = 5, Name = "television", SavePath = "/downloads/television" };
+        this.repository.Get(5).Returns(existing);
+        this.repository.Update(updated).Returns(updated);
+
+        var torrent1 = new Torrent { Id = 1, Name = "Show1", Category = "tv" };
+        var torrent2 = new Torrent { Id = 2, Name = "Show2", Category = "tv" };
+        this.torrentRepository.GetByCategory("tv").Returns(new List<Torrent> { torrent1, torrent2 });
+
+        this.service.Update(updated);
+
+        torrent1.Category.Should().Be("television");
+        torrent2.Category.Should().Be("television");
+        this.torrentRepository.Received(1).Update(torrent1);
+        this.torrentRepository.Received(1).Update(torrent2);
+    }
 }

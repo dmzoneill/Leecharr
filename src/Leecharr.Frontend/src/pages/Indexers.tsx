@@ -143,7 +143,7 @@ export const Indexers: React.FC<IndexersProps> = ({
         className="content-area"
         style={{ padding: "2rem", textAlign: "center" }}
       >
-        <div className="loading">Loading configured indexers...</div>
+        <div className="loading">{t("indexers.loadingIndexers", "Loading configured indexers...")}</div>
       </div>
     );
   }

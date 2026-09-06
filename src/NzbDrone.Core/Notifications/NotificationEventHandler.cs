@@ -726,6 +726,16 @@ public class NotificationEventHandler :
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
+    private static string Truncate(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
+            return value ?? string.Empty;
+        }
+
+        return value.Length > maxLength ? value.Substring(0, maxLength - 3) + "..." : value;
+    }
+
     private static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
         var (chatId, token, user) = ExtractProviderSettings(settings);
@@ -733,10 +743,11 @@ public class NotificationEventHandler :
 
         if (string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
-            var title = $"[{eventType}] {torrentName}";
-            var desc = meta?.Overview ?? (torrent != null
+            var title = Truncate($"[{eventType}] {torrentName}", 256);
+            var rawDesc = meta?.Overview ?? (torrent != null
                 ? $"Category: {torrent.Category ?? "None"} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
                 : ExtractMessage(genericPayload, $"Event: {eventType}"));
+            var desc = Truncate(rawDesc, 4096);
 
             return new
             {
@@ -748,9 +759,22 @@ public class NotificationEventHandler :
                         title,
                         description = desc,
                         color = 16765286, // Gold
-                        timestamp = DateTime.UtcNow.ToString("o")
-                    }
+                        timestamp = DateTime.UtcNow.ToString("o"),
+                    },
                 },
+            };
+        }
+
+        if (string.Equals(implementation, "Slack", StringComparison.OrdinalIgnoreCase))
+        {
+            var text = torrent != null
+                ? $"*Leecharr [{eventType}]* - *{torrent.Name}*\nCategory: {torrent.Category ?? "None"} | Status: {torrent.Status} | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                : $"*Leecharr [{eventType}]*\n{ExtractMessage(genericPayload, eventType)}";
+
+            return new
+            {
+                text = Truncate(text, 3500),
+                username = "Leecharr",
             };
         }
 
@@ -762,7 +786,7 @@ public class NotificationEventHandler :
 
             var payloadDict = new Dictionary<string, object>
             {
-                ["text"] = text,
+                ["text"] = Truncate(text, 4096),
                 ["parse_mode"] = "Markdown",
             };
 

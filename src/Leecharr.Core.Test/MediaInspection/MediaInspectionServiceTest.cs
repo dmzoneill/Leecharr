@@ -443,4 +443,168 @@ public class MediaInspectionServiceTest
         var info = TagLibInspectorProvider.InspectByFileName(fileName);
         info.Should().BeNull();
     }
+
+    [Test]
+    public void ParseFFprobeJson_Smpte2084Transfer_DetectsHdr10()
+    {
+        var json = @"{
+          ""streams"": [
+            {
+              ""codec_type"": ""video"",
+              ""codec_name"": ""hevc"",
+              ""width"": 3840,
+              ""height"": 2160,
+              ""color_transfer"": ""smpte2084""
+            }
+          ],
+          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+        }";
+
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info.HdrFormat.Should().Be("HDR10");
+        info.Resolution.Should().Be("4K UHD (2160p)");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_AribStdB67Transfer_DetectsHlg()
+    {
+        var json = @"{
+          ""streams"": [
+            {
+              ""codec_type"": ""video"",
+              ""codec_name"": ""hevc"",
+              ""width"": 3840,
+              ""height"": 2160,
+              ""color_transfer"": ""arib-std-b67""
+            }
+          ],
+          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+        }";
+
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info.HdrFormat.Should().Be("HLG");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenSecondaryStereoAudioFirst_PrefersPrimaryMultiChannelAudio()
+    {
+        var json = @"{
+          ""streams"": [
+            {
+              ""codec_type"": ""video"",
+              ""codec_name"": ""hevc"",
+              ""width"": 3840,
+              ""height"": 2160
+            },
+            {
+              ""codec_type"": ""audio"",
+              ""codec_name"": ""aac"",
+              ""channels"": 2,
+              ""sample_rate"": ""44100""
+            },
+            {
+              ""codec_type"": ""audio"",
+              ""codec_name"": ""truehd"",
+              ""channels"": 8,
+              ""sample_rate"": ""48000"",
+              ""bits_per_raw_sample"": ""24""
+            }
+          ],
+          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+        }";
+
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info.AudioCodec.Should().Be("Dolby TrueHD");
+        info.AudioChannels.Should().Be("7.1");
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenSecondaryStereoAudioFirst_PrefersPrimaryMultiChannelAudio()
+    {
+        var json = @"{
+          ""media"": {
+            ""track"": [
+              {
+                ""@type"": ""Video"",
+                ""Format"": ""HEVC"",
+                ""Width"": ""3840"",
+                ""Height"": ""2160""
+              },
+              {
+                ""@type"": ""Audio"",
+                ""Format"": ""AAC"",
+                ""Channels"": ""2"",
+                ""SamplingRate"": ""44100""
+              },
+              {
+                ""@type"": ""Audio"",
+                ""Format_Commercial_IfAny"": ""Dolby TrueHD"",
+                ""Format"": ""TrueHD"",
+                ""Channels"": ""8"",
+                ""SamplingRate"": ""48000"",
+                ""BitDepth"": ""24""
+              }
+            ]
+          }
+        }";
+
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info.AudioCodec.Should().Be("Dolby TrueHD");
+        info.AudioChannels.Should().Be("7.1");
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void Inspect_EbmlMatroskaStream_CalculatesDurationAndParsesTracks()
+    {
+        var provider = new TagLibInspectorProvider();
+
+        // Construct EBML stream: EBML Header (0x1A45DFA3) + Segment (0x18538067, size -1/unknown) + Info (0x1549A966) + Duration (0x4489, 4 bytes float = 3600.0)
+        var ms = new MemoryStream();
+        // 1. EBML header: ID 0x1A45DFA3, size 0
+        ms.Write(new byte[] { 0x1A, 0x45, 0xDF, 0xA3, 0x80 });
+        // 2. Segment: ID 0x18538067, size unknown (0xFF)
+        ms.Write(new byte[] { 0x18, 0x53, 0x80, 0x67, 0xFF });
+        // 3. Info container: ID 0x1549A966, size unknown (0xFF)
+        ms.Write(new byte[] { 0x15, 0x49, 0xA9, 0x66, 0xFF });
+        // 4. TimecodeScale: ID 0x2AD7B1, size 3 -> 1000000 (0x0F4240)
+        ms.Write(new byte[] { 0x2A, 0xD7, 0xB1, 0x83, 0x0F, 0x42, 0x40 });
+        // 5. Duration: ID 0x4489, size 4 -> float 3600000.0f (3600s with 1ms TimecodeScale)
+        var durBytes = BitConverter.GetBytes(3600000.0f);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(durBytes);
+        }
+
+        ms.Write(new byte[] { 0x44, 0x89, 0x84 });
+        ms.Write(durBytes);
+
+        // 6. Tracks: ID 0x1654AE6B, size unknown
+        ms.Write(new byte[] { 0x16, 0x54, 0xAE, 0x6B, 0xFF });
+        // 7. TrackEntry: ID 0xAE, size unknown
+        ms.Write(new byte[] { 0xAE, 0xFF });
+        // 8. VideoSettings: ID 0xE0, size unknown
+        ms.Write(new byte[] { 0xE0, 0xFF });
+        // 9. PixelWidth: ID 0xB0, size 2 -> 1920 (0x0780)
+        ms.Write(new byte[] { 0xB0, 0x82, 0x07, 0x80 });
+        // 10. PixelHeight: ID 0xBA, size 2 -> 1080 (0x0438)
+        ms.Write(new byte[] { 0xBA, 0x82, 0x04, 0x38 });
+
+        ms.Position = 0;
+        var info = provider.Inspect(ms, "test.mkv");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("Matroska (MKV)");
+        info.DurationSeconds.Should().BeApproximately(3600.0, 0.01);
+        info.Width.Should().Be(1920);
+        info.Height.Should().Be(1080);
+        info.Resolution.Should().Be("1080p");
+    }
 }

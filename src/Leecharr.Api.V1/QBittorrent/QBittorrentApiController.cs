@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -236,6 +237,124 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["embedded_tracker_port"] = this.configService.TrackerHttpPort,
             ["auto_shutdown_on_downloads_finished"] = !string.Equals(this.configService.AutoShutdownAction, "None", StringComparison.OrdinalIgnoreCase),
         });
+    }
+
+    [HttpPost("app/setPreferences")]
+    public ActionResult SetPreferences([FromForm] string json = null)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                if (this.Request?.Body != null && this.Request.Body.CanRead)
+                {
+                    using var reader = new StreamReader(this.Request.Body);
+                    json = reader.ReadToEndAsync().GetAwaiter().GetResult();
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return this.Content("Ok.", "text/plain");
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var dict = new Dictionary<string, object>();
+
+            if (root.TryGetProperty("save_path", out var sp) && sp.ValueKind == JsonValueKind.String)
+            {
+                dict["DownloadDir"] = sp.GetString();
+            }
+
+            if (root.TryGetProperty("temp_path", out var tp) && tp.ValueKind == JsonValueKind.String)
+            {
+                dict["IncompleteDownloadDir"] = tp.GetString();
+            }
+
+            if (root.TryGetProperty("listen_port", out var lp) && lp.TryGetInt32(out var port))
+            {
+                dict["ListeningPort"] = port;
+            }
+
+            if (root.TryGetProperty("dl_limit", out var dl) && dl.TryGetInt32(out var dlBytes))
+            {
+                dict["MaxDownloadSpeedKbps"] = dlBytes / 1024;
+            }
+
+            if (root.TryGetProperty("up_limit", out var ul) && ul.TryGetInt32(out var ulBytes))
+            {
+                dict["MaxUploadSpeedKbps"] = ulBytes / 1024;
+            }
+
+            if (root.TryGetProperty("alt_dl_limit", out var adl) && adl.TryGetInt32(out var adlBytes))
+            {
+                dict["AltDownloadSpeedKbps"] = adlBytes / 1024;
+            }
+
+            if (root.TryGetProperty("alt_up_limit", out var aul) && aul.TryGetInt32(out var aulBytes))
+            {
+                dict["AltUploadSpeedKbps"] = aulBytes / 1024;
+            }
+
+            if (root.TryGetProperty("max_connec", out var mc) && mc.TryGetInt32(out var maxConnec))
+            {
+                dict["MaxGlobalConnections"] = maxConnec;
+            }
+
+            if (root.TryGetProperty("max_connec_per_torrent", out var mcpt) && mcpt.TryGetInt32(out var maxPerTor))
+            {
+                dict["MaxPerTorrentConnections"] = maxPerTor;
+            }
+
+            if (root.TryGetProperty("max_active_downloads", out var mad) && mad.TryGetInt32(out var maxActDl))
+            {
+                dict["MaxActiveDownloads"] = maxActDl;
+            }
+
+            if (root.TryGetProperty("max_active_uploads", out var mau) && mau.TryGetInt32(out var maxActUl))
+            {
+                dict["MaxActiveUploads"] = maxActUl;
+            }
+
+            if (root.TryGetProperty("max_active_torrents", out var mat) && mat.TryGetInt32(out var maxActTor))
+            {
+                dict["MaxActiveTorrents"] = maxActTor;
+            }
+
+            if (root.TryGetProperty("dht", out var dht) && (dht.ValueKind == JsonValueKind.True || dht.ValueKind == JsonValueKind.False))
+            {
+                dict["EnableDht"] = dht.GetBoolean();
+            }
+
+            if (root.TryGetProperty("pex", out var pex) && (pex.ValueKind == JsonValueKind.True || pex.ValueKind == JsonValueKind.False))
+            {
+                dict["EnablePex"] = pex.GetBoolean();
+            }
+
+            if (root.TryGetProperty("lsd", out var lsd) && (lsd.ValueKind == JsonValueKind.True || lsd.ValueKind == JsonValueKind.False))
+            {
+                dict["EnableLpd"] = lsd.GetBoolean();
+            }
+
+            if (dict.Count > 0)
+            {
+                this.configService.SaveConfigDictionary(dict);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to parse qBittorrent preferences payload");
+        }
+
+        return this.Content("Ok.", "text/plain");
     }
 
     [HttpGet("app/defaultSavePath")]
@@ -961,10 +1080,27 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
+        var addedDate = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
+        var completionDate = torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+
         return this.Ok(new Dictionary<string, object>
         {
             ["save_path"] = torrent.SavePath ?? string.Empty,
-            ["creation_date"] = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds(),
+            ["creation_date"] = addedDate,
+            ["addition_date"] = addedDate,
+            ["completion_date"] = completionDate,
+            ["created_by"] = torrent.CreatedBy ?? string.Empty,
+            ["dl_speed"] = torrent.DownloadSpeed,
+            ["dl_speed_avg"] = torrent.DownloadSpeed,
+            ["up_speed"] = torrent.UploadSpeed,
+            ["up_speed_avg"] = torrent.UploadSpeed,
+            ["eta"] = torrent.Eta,
+            ["peers"] = torrent.Leechers,
+            ["peers_total"] = torrent.Leechers,
+            ["seeds"] = torrent.Seeders,
+            ["seeds_total"] = torrent.Seeders,
+            ["total_size"] = torrent.TotalSize,
+            ["total_wasted"] = 0L,
             ["piece_size"] = torrent.PieceLength,
             ["pieces_num"] = torrent.PieceCount,
             ["pieces_have"] = (int)(torrent.PieceCount * torrent.Progress),
@@ -979,6 +1115,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["is_private"] = torrent.IsPrivate,
             ["private"] = torrent.IsPrivate,
             ["super_seeding"] = torrent.InitialSeeding,
+            ["comment"] = torrent.Comment ?? string.Empty,
         });
     }
 
@@ -1230,13 +1367,32 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 c => c.Name,
                 c => (object)new { name = c.Name, savePath = c.SavePath });
 
+            var dlLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps) * 1024;
+            var upLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps) * 1024;
+            var totalDl = torrents.Sum(t => t.Downloaded);
+            var totalUl = torrents.Sum(t => t.Uploaded);
+            var globalRatio = totalDl > 0 ? (double)totalUl / totalDl : 0.0;
+
             var serverState = new
             {
                 dl_info_speed = torrents.Sum(t => t.DownloadSpeed),
                 up_info_speed = torrents.Sum(t => t.UploadSpeed),
-                dl_info_data = torrents.Sum(t => t.Downloaded),
-                up_info_data = torrents.Sum(t => t.Uploaded),
+                dl_info_data = totalDl,
+                up_info_data = totalUl,
+                alltime_dl = totalDl,
+                alltime_ul = totalUl,
+                dl_rate_limit = dlLimit,
+                up_rate_limit = upLimit,
+                use_alt_speed_limits = this.configService.AlternativeSpeedEnabled,
+                use_alt_dl_limit = this.configService.AlternativeSpeedEnabled,
+                use_alt_up_limit = this.configService.AlternativeSpeedEnabled,
+                alt_dl_limit = this.configService.AltDownloadSpeedKbps * 1024,
+                alt_up_limit = this.configService.AltUploadSpeedKbps * 1024,
                 connection_status = "connected",
+                dht_nodes = this.downloadEngine?.DhtNodeCount ?? 0,
+                free_space_on_disk = 100L * 1024 * 1024 * 1024,
+                global_ratio = Math.Round(globalRatio, 2),
+                refresh_interval = 2000,
             };
 
             var currentHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1253,6 +1409,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 {
                     currentHashes.Add(t.InfoHash);
                     var state = MapToQBitState(t.Status, t.Progress);
+                    var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
+                    var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+                    var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
+
                     var snapshot = new QBitTorrentSnapshot(
                         t.Name,
                         t.TotalSize,
@@ -1264,7 +1424,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         t.Label ?? string.Empty,
                         t.SavePath ?? string.Empty,
                         t.Eta > 0 ? t.Eta : 8640000,
-                        t.Ratio);
+                        t.Ratio,
+                        t.Seeders,
+                        t.Leechers,
+                        t.Downloaded,
+                        t.Uploaded,
+                        amountLeft,
+                        addedOn,
+                        completionOn);
 
                     sessionState.CachedTorrents[t.InfoHash] = (snapshot, sessionState.CurrentRid);
 
@@ -1272,6 +1439,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     {
                         name = snapshot.Name,
                         size = snapshot.Size,
+                        total_size = snapshot.Size,
                         progress = snapshot.Progress,
                         dlspeed = snapshot.DlSpeed,
                         upspeed = snapshot.UpSpeed,
@@ -1281,6 +1449,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         save_path = snapshot.SavePath,
                         eta = snapshot.Eta,
                         ratio = snapshot.Ratio,
+                        num_seeds = snapshot.NumSeeds,
+                        num_complete = snapshot.NumSeeds,
+                        num_leechs = snapshot.NumLeechs,
+                        num_incomplete = snapshot.NumLeechs,
+                        downloaded = snapshot.Downloaded,
+                        uploaded = snapshot.Uploaded,
+                        amount_left = snapshot.AmountLeft,
+                        added_on = snapshot.AddedOn,
+                        completion_on = snapshot.CompletionOn,
                     };
                 }
 
@@ -1304,6 +1481,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 currentHashes.Add(t.InfoHash);
                 var state = MapToQBitState(t.Status, t.Progress);
+                var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
+                var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+                var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
+
                 var snapshot = new QBitTorrentSnapshot(
                     t.Name,
                     t.TotalSize,
@@ -1315,7 +1496,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     t.Label ?? string.Empty,
                     t.SavePath ?? string.Empty,
                     t.Eta > 0 ? t.Eta : 8640000,
-                    t.Ratio);
+                    t.Ratio,
+                    t.Seeders,
+                    t.Leechers,
+                    t.Downloaded,
+                    t.Uploaded,
+                    amountLeft,
+                    addedOn,
+                    completionOn);
 
                 if (!sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot)
                 {
@@ -1324,6 +1512,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     {
                         name = snapshot.Name,
                         size = snapshot.Size,
+                        total_size = snapshot.Size,
                         progress = snapshot.Progress,
                         dlspeed = snapshot.DlSpeed,
                         upspeed = snapshot.UpSpeed,
@@ -1333,6 +1522,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         save_path = snapshot.SavePath,
                         eta = snapshot.Eta,
                         ratio = snapshot.Ratio,
+                        num_seeds = snapshot.NumSeeds,
+                        num_complete = snapshot.NumSeeds,
+                        num_leechs = snapshot.NumLeechs,
+                        num_incomplete = snapshot.NumLeechs,
+                        downloaded = snapshot.Downloaded,
+                        uploaded = snapshot.Uploaded,
+                        amount_left = snapshot.AmountLeft,
+                        added_on = snapshot.AddedOn,
+                        completion_on = snapshot.CompletionOn,
                     };
                 }
             }
@@ -1371,6 +1569,84 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
     }
 
+    [HttpGet("sync/torrentPeers")]
+    public ActionResult GetTorrentPeers([FromQuery] string hash, [FromQuery] int rid = 0)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return this.NotFound();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var task = this.downloadEngine?.GetTask(torrent.Id);
+        var peers = task?.GetPeers() ?? Array.Empty<PeerInfo>();
+
+        var peerDict = new Dictionary<string, object>();
+        foreach (var p in peers)
+        {
+            var key = $"{p.Ip}:{p.Port}";
+            peerDict[key] = new
+            {
+                client = p.Client ?? string.Empty,
+                ip = p.Ip ?? string.Empty,
+                port = p.Port,
+                connection = p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true ? "uTP" : "TCP",
+                flags = p.Flags ?? string.Empty,
+                flags_desc = string.Empty,
+                progress = p.Progress,
+                dl_speed = p.DownloadSpeed,
+                up_speed = p.UploadSpeed,
+                downloaded = p.Downloaded,
+                uploaded = p.Uploaded,
+                relevance = 1.0,
+                files = string.Empty,
+            };
+        }
+
+        return this.Ok(new
+        {
+            full_update = true,
+            peers = peerDict,
+            rid = rid <= 0 ? 1 : rid + 1,
+            show_flags = true,
+        });
+    }
+
+    [HttpGet("torrents/pieceStates")]
+    public ActionResult<List<int>> GetPieceStates([FromQuery] string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return this.NotFound();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var task = this.downloadEngine?.GetTask(torrent.Id);
+        var bitfield = task?.PieceBitfield;
+        if (bitfield == null || bitfield.Length == 0)
+        {
+            return this.Ok(new List<int>());
+        }
+
+        var states = new List<int>(bitfield.Length);
+        for (int i = 0; i < bitfield.Length; i++)
+        {
+            states.Add(bitfield[i] ? 2 : 0);
+        }
+
+        return this.Ok(states);
+    }
+
     [HttpGet("transfer/info")]
     public ActionResult<Dictionary<string, object>> GetTransferInfo()
     {
@@ -1385,6 +1661,50 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         };
 
         return this.Ok(result);
+    }
+
+    [HttpGet("transfer/speedLimitsMode")]
+    public ActionResult<int> GetSpeedLimitsMode()
+    {
+        return this.Ok(this.configService.AlternativeSpeedEnabled ? 1 : 0);
+    }
+
+    [HttpPost("transfer/toggleSpeedLimitsMode")]
+    public ActionResult ToggleSpeedLimitsMode()
+    {
+        var newState = !this.configService.AlternativeSpeedEnabled;
+        this.configService.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            ["AlternativeSpeedEnabled"] = newState,
+        });
+
+        if (this.downloadEngine != null)
+        {
+            var dl = newState ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps;
+            var ul = newState ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps;
+            this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("transfer/setSpeedLimitsMode")]
+    public ActionResult SetSpeedLimitsMode([FromForm] int mode)
+    {
+        var enabled = mode == 1;
+        this.configService.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            ["AlternativeSpeedEnabled"] = enabled,
+        });
+
+        if (this.downloadEngine != null)
+        {
+            var dl = enabled ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps;
+            var ul = enabled ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps;
+            this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
+        }
+
+        return this.Content("Ok.", "text/plain");
     }
 
     [HttpPost("torrents/setLocation")]
@@ -1701,7 +2021,14 @@ public record QBitTorrentSnapshot(
     string Tags,
     string SavePath,
     long Eta,
-    double Ratio);
+    double Ratio,
+    int NumSeeds,
+    int NumLeechs,
+    long Downloaded,
+    long Uploaded,
+    long AmountLeft,
+    long AddedOn,
+    long CompletionOn);
 
 public class QBitSessionSyncState
 {

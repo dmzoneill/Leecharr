@@ -25,6 +25,12 @@ public class ProwlarrIndexerDto
 
     public string Protocol { get; set; }
 
+    public bool EnableRss { get; set; } = true;
+
+    public bool EnableAutomaticSearch { get; set; } = true;
+
+    public bool EnableInteractiveSearch { get; set; } = true;
+
     public List<ProwlarrFieldDto> Fields { get; set; } = new();
 
     public List<int> Categories { get; set; } = new();
@@ -144,6 +150,8 @@ public class ProwlarrSyncService : IProwlarrSyncService
                         ApiKey = apiKey,
                         Enable = pIndexer.Enable,
                         Priority = pIndexer.Priority,
+                        EnableRss = pIndexer.EnableRss,
+                        EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch,
                         Categories = categories,
                     });
                 }
@@ -153,6 +161,8 @@ public class ProwlarrSyncService : IProwlarrSyncService
                     existing.ApiKey = apiKey;
                     existing.Enable = pIndexer.Enable;
                     existing.Priority = pIndexer.Priority;
+                    existing.EnableRss = pIndexer.EnableRss;
+                    existing.EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch;
                     if (categories.Count > 0 || existing.Categories == null || existing.Categories.Count == 0)
                     {
                         existing.Categories = categories;

@@ -162,7 +162,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 }
 
                 if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-                    string.Equals(jwtToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                    RpcAuthenticationHelper.FixedTimeEquals(jwtToken, this.configFileProvider.ApiKey))
                 {
                     return true;
                 }
@@ -176,7 +176,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 }
 
                 if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-                    string.Equals(tToken, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+                    RpcAuthenticationHelper.FixedTimeEquals(tToken, this.configFileProvider.ApiKey))
                 {
                     return true;
                 }
@@ -200,7 +200,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
         if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey))
         {
-            if (string.Equals(apiKey, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(apiKey, this.configFileProvider.ApiKey))
             {
                 return true;
             }
@@ -222,8 +222,8 @@ public class FloodApiController : ControllerBase, IActionFilter
             var masterKey = this.configFileProvider.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(masterKey) &&
-                ((!string.IsNullOrWhiteSpace(password) && string.Equals(password, masterKey, StringComparison.Ordinal)) ||
-                 (!string.IsNullOrWhiteSpace(username) && string.Equals(username, masterKey, StringComparison.Ordinal))))
+                ((!string.IsNullOrWhiteSpace(password) && RpcAuthenticationHelper.FixedTimeEquals(password, masterKey)) ||
+                 (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterKey))))
             {
                 authenticated = true;
             }
@@ -336,7 +336,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 name = t.Name,
                 bytesDone = t.Downloaded,
                 sizeBytes = t.TotalSize,
-                percentComplete = (t.Progress * 100).ToString("F1"),
+                percentComplete = Math.Round(t.Progress * 100.0, 1),
                 downRate = t.DownloadSpeed,
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
@@ -365,8 +365,11 @@ public class FloodApiController : ControllerBase, IActionFilter
         {
             TorrentStatus.Downloading => "downloading",
             TorrentStatus.Seeding => "seeding",
+            TorrentStatus.Completed => "complete",
+            TorrentStatus.Checking => "checking",
             TorrentStatus.Paused => "stopped",
             TorrentStatus.Stopped => "complete",
+            TorrentStatus.Error => "error",
             _ => "inactive",
         };
     }

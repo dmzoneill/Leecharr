@@ -201,6 +201,42 @@ public class ProwlarrSyncServiceTest
             i.Categories.Contains(5000)));
     }
 
+    [Test]
+    public async Task SyncFromProwlarrAsync_MapsEnableRssAndSearchFlags()
+    {
+        var json = @"[
+          {
+            ""id"": 12,
+            ""name"": ""Search Only Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 5,
+            ""protocol"": ""torrent"",
+            ""enableRss"": false,
+            ""enableAutomaticSearch"": true,
+            ""enableInteractiveSearch"": false
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Search Only Tracker" &&
+            i.EnableRss == false &&
+            i.EnableSearch == true));
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;

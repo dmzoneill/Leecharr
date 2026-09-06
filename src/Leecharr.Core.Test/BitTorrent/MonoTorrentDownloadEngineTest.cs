@@ -792,17 +792,43 @@ public class MonoTorrentDownloadEngineTest
 
     private static void SetTrackerStatus(MonoTorrent.Trackers.ITracker tracker, MonoTorrent.Trackers.TrackerState state)
     {
-        var prop = tracker.GetType().GetProperty("StatusOverride", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        prop?.SetValue(tracker, (MonoTorrent.Trackers.TrackerState?)state);
+        var currentType = tracker.GetType();
+        while (currentType != null)
+        {
+            var prop = currentType.GetProperty("StatusOverride", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            prop?.SetValue(tracker, (MonoTorrent.Trackers.TrackerState?)state);
 
-        var field = tracker.GetType().GetField("<Status>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
-        field?.SetValue(tracker, state);
+            var field = currentType.GetField("<Status>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? currentType.GetField("status", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? currentType.GetField("_status", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            if (field != null)
+            {
+                field.SetValue(tracker, state);
+                break;
+            }
+
+            currentType = currentType.BaseType;
+        }
     }
 
     private static void SetTierAnnounceSucceeded(object tier, bool succeeded)
     {
-        var field = tier.GetType().GetField("<LastAnnounceSucceeded>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
-        field?.SetValue(tier, succeeded);
+        var currentType = tier.GetType();
+        while (currentType != null)
+        {
+            var field = currentType.GetField("<LastAnnounceSucceeded>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? currentType.GetField("lastAnnounceSucceeded", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? currentType.GetField("_lastAnnounceSucceeded", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            if (field != null)
+            {
+                field.SetValue(tier, succeeded);
+                break;
+            }
+
+            currentType = currentType.BaseType;
+        }
     }
 
     #endregion

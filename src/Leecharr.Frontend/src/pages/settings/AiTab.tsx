@@ -268,7 +268,7 @@ export function AiTab() {
                         gap: "0.3rem",
                         fontSize: "0.75rem",
                       }}
-                      title={t("settings.runLiveDiagnosticProbeAnd")}
+                      title={t("settingsTabs.ai.runDiagnosticDesc", "Run live diagnostic probe and model test")}
                     >
                       <RefreshIcon
                         size={12}
@@ -403,7 +403,7 @@ export function AiTab() {
                   onChange={(e) =>
                     setFormData({ ...formData, ollamaHost: e.target.value })
                   }
-                  placeholder={t("settings.http12700111434")}
+                  placeholder="http://127.0.0.1:11434"
                   className="form-control"
                 />
               </div>
@@ -417,7 +417,7 @@ export function AiTab() {
                   onChange={(e) =>
                     setFormData({ ...formData, ollamaModel: e.target.value })
                   }
-                  placeholder={t("settings.llama3MistralDeepseekR1")}
+                  placeholder="llama3, mistral, deepseek-r1"
                   className="form-control"
                 />
               </div>
@@ -517,7 +517,7 @@ export function AiTab() {
                 onChange={(e) =>
                   setFormData({ ...formData, onnxModelPath: e.target.value })
                 }
-                placeholder={t("settings.configModelsLeecharrAiOnn")}
+                placeholder="/config/models/leecharr-ai.onnx"
                 className="form-control"
               />
             </div>

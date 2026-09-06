@@ -3,6 +3,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.MediaEnrichment;
@@ -100,7 +101,8 @@ public class CustomScriptService : ICustomScriptService
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(60));
+            using var timeoutCts = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(60), timeoutCts.Token);
             var processTask = process.WaitForExitAsync();
 
             if (await Task.WhenAny(processTask, timeoutTask) == timeoutTask)
@@ -117,6 +119,8 @@ public class CustomScriptService : ICustomScriptService
 
                 return false;
             }
+
+            timeoutCts.Cancel();
 
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
