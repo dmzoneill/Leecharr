@@ -88,6 +88,17 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>
                         continue;
                     }
 
+                    var existingHash = ExtractInfoHash(release);
+                    if (!string.IsNullOrEmpty(existingHash) && this.downloadHistoryService?.GetByInfoHash(existingHash) != null)
+                    {
+                        if (!string.IsNullOrEmpty(releaseId))
+                        {
+                            this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                        }
+
+                        continue;
+                    }
+
                     foreach (var rule in activeRules)
                     {
                         if (rule.IndexerIds != null && rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
@@ -135,19 +146,27 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>
                                     ? release.MagnetUrl
                                     : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
 
-                                this.downloadHistoryService?.RecordTorrentAdded(
-                                    addedTorrent,
-                                    source: $"RSS: {rule.Name}",
-                                    magnetUrl: effectiveMagnet,
-                                    downloadUrl: release.DownloadUrl,
-                                    indexerName: indexer.Name);
+                                var existingHistory = !string.IsNullOrEmpty(addedTorrent?.InfoHash)
+                                    ? this.downloadHistoryService?.GetByInfoHash(addedTorrent.InfoHash)
+                                    : null;
+
+                                if (existingHistory == null)
+                                {
+                                    this.downloadHistoryService?.RecordTorrentAdded(
+                                        addedTorrent,
+                                        source: $"RSS: {rule.Name}",
+                                        magnetUrl: effectiveMagnet,
+                                        downloadUrl: release.DownloadUrl,
+                                        indexerName: indexer.Name);
+
+                                    grabbedCount++;
+                                }
 
                                 if (!string.IsNullOrEmpty(releaseId))
                                 {
                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                 }
 
-                                grabbedCount++;
                                 break;
                             }
                         }
@@ -161,6 +180,34 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>
         }
 
         return grabbedCount;
+    }
+
+    private static string ExtractInfoHash(TorznabSearchResult release)
+    {
+        if (release == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.InfoHash))
+        {
+            return release.InfoHash.Trim();
+        }
+
+        var magnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
+            ? release.MagnetUrl
+            : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
+
+        if (!string.IsNullOrWhiteSpace(magnet))
+        {
+            var match = Regex.Match(magnet, @"xt=urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+        }
+
+        return null;
     }
 
     private static string GetReleaseId(TorznabSearchResult release)
