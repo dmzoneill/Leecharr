@@ -297,10 +297,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                     }
                     else
                     {
-                        if (isCompleted)
-                        {
-                            swarm.DownloadedCount++;
-                        }
+                        var wasSeeder = swarm.Peers.TryGetValue(peerKey, out var existingPeer) && existingPeer.IsSeeder;
 
                         var peer = swarm.Peers.GetOrAdd(peerKey, _ => new TrackerPeerState());
                         peer.PeerId = request.PeerIdBytes;
@@ -310,6 +307,11 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                         peer.Downloaded = request.Downloaded;
                         peer.Left = request.Left;
                         peer.LastAnnounceUtc = DateTime.UtcNow;
+
+                        if (isCompleted && !wasSeeder)
+                        {
+                            swarm.DownloadedCount++;
+                        }
                     }
 
                     break;
