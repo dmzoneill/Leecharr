@@ -667,10 +667,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/renameFile")]
     public async Task<ActionResult> RenameFile(
         [FromForm] string hash,
-        [FromForm] string oldPath,
-        [FromForm] string newPath)
+        [FromForm] string oldPath = null,
+        [FromForm] string newPath = null,
+        [FromForm] int? id = null,
+        [FromForm] int? fileId = null)
     {
-        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(newPath))
         {
             return this.BadRequest();
         }
@@ -681,7 +683,26 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
-        var success = await this.torrentService.RenameFileAsync(torrent.Id, oldPath, newPath);
+        var targetOldPath = oldPath;
+        if (string.IsNullOrWhiteSpace(targetOldPath))
+        {
+            var targetIndex = id ?? fileId;
+            if (targetIndex.HasValue && targetIndex.Value >= 0)
+            {
+                var files = this.torrentFileService.GetFiles(torrent.Id).ToList();
+                if (targetIndex.Value < files.Count)
+                {
+                    targetOldPath = files[targetIndex.Value].Path;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(targetOldPath))
+        {
+            return this.BadRequest();
+        }
+
+        var success = await this.torrentService.RenameFileAsync(torrent.Id, targetOldPath, newPath);
         return success ? this.Content("Ok.", "text/plain") : this.StatusCode(StatusCodes.Status409Conflict, "Failed to rename file.");
     }
 
@@ -1265,6 +1286,43 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     this.trackerEntryRepository.Delete(t.Id);
                 }
             }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/editTracker")]
+    public async Task<ActionResult> EditTracker(
+        [FromForm] string hash,
+        [FromForm] string origUrl,
+        [FromForm] string newUrl)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(origUrl) || string.IsNullOrWhiteSpace(newUrl))
+        {
+            return this.BadRequest();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var trimmedOrig = origUrl.Trim();
+        var trimmedNew = newUrl.Trim();
+
+        var existing = this.trackerEntryRepository.GetByTorrentId(torrent.Id);
+        var match = existing.FirstOrDefault(t => string.Equals(t.Url, trimmedOrig, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+        {
+            match.Url = trimmedNew;
+            this.trackerEntryRepository.Update(match);
+        }
+
+        if (this.downloadEngine != null)
+        {
+            await this.downloadEngine.RemoveTrackersAsync(torrent.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { trimmedOrig });
+            await this.downloadEngine.AddTrackersAsync(torrent.Id, new List<string> { trimmedNew });
         }
 
         return this.Content("Ok.", "text/plain");
