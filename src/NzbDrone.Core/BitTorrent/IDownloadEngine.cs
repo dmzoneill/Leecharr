@@ -83,6 +83,12 @@ public interface IDownloadTask
 
     long UploadedBytes { get; }
 
+    long SessionDownloadedBytes => this.DownloadedBytes;
+
+    long SessionUploadedBytes => this.UploadedBytes;
+
+    long TotalBytesDownloaded => 0;
+
     double Progress { get; }
 
     long DownloadSpeed { get; }

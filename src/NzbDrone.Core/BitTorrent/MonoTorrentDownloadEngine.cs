@@ -2605,6 +2605,28 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public long UploadedBytes => this.Manager?.Monitor?.DataBytesSent ?? 0;
 
+    public long SessionDownloadedBytes => this.DownloadedBytes;
+
+    public long SessionUploadedBytes => this.UploadedBytes;
+
+    public long TotalBytesDownloaded
+    {
+        get
+        {
+            if (this.Manager?.Torrent != null)
+            {
+                return (long)(this.Manager.Torrent.Size * this.Progress);
+            }
+
+            if (this.Picker != null)
+            {
+                return (long)(this.Picker.TotalSize * this.Progress);
+            }
+
+            return this.DownloadedBytes;
+        }
+    }
+
     public double Progress => this.Manager != null ? this.Manager.Progress / 100.0 : 0.0;
 
     public long DownloadSpeed => this.Manager?.Monitor?.DownloadRate ?? 0;

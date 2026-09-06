@@ -300,6 +300,12 @@ public class TransmissionDownloadTask : IDownloadTask
 
     public long UploadedBytes { get; set; }
 
+    public long SessionDownloadedBytes => this.DownloadedBytes;
+
+    public long SessionUploadedBytes => this.UploadedBytes;
+
+    public long TotalBytesDownloaded => this.TotalSize > 0 ? (long)(this.TotalSize * this.Progress) : this.DownloadedBytes;
+
     public double Progress { get; set; }
 
     public long DownloadSpeed { get; set; }

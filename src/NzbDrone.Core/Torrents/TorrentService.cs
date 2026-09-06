@@ -22,6 +22,8 @@ namespace NzbDrone.Core.Torrents;
 public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<TorrentMetadataReceivedEvent>
 {
     private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
+    private readonly ConcurrentDictionary<int, long> cumulativeUploadedBytes = new ConcurrentDictionary<int, long>();
+    private readonly ConcurrentDictionary<int, long> lastSessionUploadedBytes = new ConcurrentDictionary<int, long>();
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository fileRepository;
     private readonly ICategoryService categoryService;
@@ -467,6 +469,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
         }
 
+        this.cumulativeUploadedBytes[torrent.Id] = torrent.Uploaded;
         var updated = this.torrentRepository.Update(torrent);
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = updated });
         return await Task.FromResult(updated);
@@ -495,6 +498,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
             }
 
+            this.cumulativeUploadedBytes.TryRemove(id, out _);
+            this.lastSessionUploadedBytes.TryRemove(id, out _);
             this.fileRepository.DeleteByTorrentId(id);
             this.trackerEntryRepository?.DeleteByTorrentId(id);
             this.mediaEnrichmentService.DeleteMetadata(id);
@@ -843,13 +848,69 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.Status = task.Status;
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
-            torrent.Downloaded = task.DownloadedBytes;
-            torrent.Uploaded = task.UploadedBytes;
+
+            if (task.Progress >= 1.0 || task.Status is TorrentStatus.Completed or TorrentStatus.Seeding)
+            {
+                torrent.Downloaded = torrent.TotalSize > 0 ? torrent.TotalSize : (torrent.Downloaded > 0 ? torrent.Downloaded : task.DownloadedBytes);
+            }
+            else if (torrent.TotalSize > 0)
+            {
+                var downloadedFromProgress = (long)(torrent.TotalSize * task.Progress);
+                torrent.Downloaded = downloadedFromProgress > 0 ? downloadedFromProgress : Math.Max(torrent.Downloaded, task.DownloadedBytes);
+            }
+            else if (task.TotalBytesDownloaded > 0)
+            {
+                torrent.Downloaded = task.TotalBytesDownloaded;
+            }
+            else
+            {
+                torrent.Downloaded = Math.Max(torrent.Downloaded, task.DownloadedBytes);
+            }
+
+            var sessionUploaded = task.UploadedBytes;
+            if (this.cumulativeUploadedBytes.TryGetValue(torrent.Id, out var cumulative))
+            {
+                if (this.lastSessionUploadedBytes.TryGetValue(torrent.Id, out var lastSession))
+                {
+                    if (sessionUploaded >= lastSession)
+                    {
+                        var delta = sessionUploaded - lastSession;
+                        cumulative += delta;
+                    }
+                    else
+                    {
+                        cumulative += sessionUploaded;
+                    }
+                }
+                else
+                {
+                    cumulative += sessionUploaded;
+                }
+
+                if (torrent.Uploaded > cumulative)
+                {
+                    cumulative = torrent.Uploaded;
+                }
+
+                this.lastSessionUploadedBytes[torrent.Id] = sessionUploaded;
+                this.cumulativeUploadedBytes[torrent.Id] = cumulative;
+                torrent.Uploaded = cumulative;
+            }
+            else
+            {
+                cumulative = Math.Max(torrent.Uploaded, torrent.Uploaded + sessionUploaded);
+                this.lastSessionUploadedBytes[torrent.Id] = sessionUploaded;
+                this.cumulativeUploadedBytes[torrent.Id] = cumulative;
+                torrent.Uploaded = cumulative;
+            }
+
             torrent.DownloadSpeed = task.DownloadSpeed;
             torrent.UploadSpeed = task.UploadSpeed;
             torrent.Seeders = task.ConnectedSeeders;
             torrent.Leechers = task.ConnectedLeechers;
-            torrent.Ratio = task.DownloadedBytes > 0 ? (double)task.UploadedBytes / task.DownloadedBytes : 0.0;
+
+            var baseSize = torrent.Downloaded > 0 ? torrent.Downloaded : torrent.TotalSize;
+            torrent.Ratio = baseSize > 0 ? (double)torrent.Uploaded / baseSize : 0.0;
 
             if (oldStatus != torrent.Status)
             {

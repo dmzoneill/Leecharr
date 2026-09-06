@@ -681,4 +681,83 @@ public class TorrentServiceTest
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 55));
         this.fileRepository.Received(1).InsertMany(Arg.Is<List<TorrentFile>>(l => l.Count == 1 && l[0].Path == "video.mp4"));
     }
+
+    [Test]
+    public void SyncWithEngine_PreservesCumulativeDownloadedAndUploadedAndRatio_AcrossRestarts()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(0); // Session counter reset to 0 upon reload
+        task.UploadedBytes.Returns(0);   // Session counter reset to 0 upon reload
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(0);
+        task.ConnectedSeeders.Returns(10);
+        task.ConnectedLeechers.Returns(2);
+
+        var torrent = new Torrent
+        {
+            Id = 500,
+            Name = "Seeding Torrent",
+            Status = TorrentStatus.Seeding,
+            TotalSize = 53687091200L, // 50 GB
+            Downloaded = 53687091200L, // 50 GB
+            Uploaded = 107374182400L,   // 100 GB
+            Ratio = 2.0,
+            Progress = 1.0,
+            QueuePosition = 1,
+            InfoHash = "1122334455667788990011223344556677889955",
+        };
+
+        this.torrentRepository.Get(500).Returns(torrent);
+        this.downloadEngine.GetTask(500).Returns(task);
+
+        var result = this.service.Get(500);
+
+        result.Should().NotBeNull();
+        result.Downloaded.Should().Be(53687091200L);
+        result.Uploaded.Should().Be(107374182400L);
+        result.Ratio.Should().Be(2.0);
+    }
+
+    [Test]
+    public void SyncWithEngine_AccumulatesSessionUploadDeltas_OntoPersistedLifetimeUploaded()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(0);
+        task.UploadedBytes.Returns(10485760L); // 10 MB uploaded in this session
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(500000);
+        task.ConnectedSeeders.Returns(5);
+        task.ConnectedLeechers.Returns(1);
+
+        var torrent = new Torrent
+        {
+            Id = 501,
+            Name = "Seeding Delta Torrent",
+            Status = TorrentStatus.Seeding,
+            TotalSize = 10737418240L, // 10 GB
+            Downloaded = 10737418240L,
+            Uploaded = 21474836480L, // 20 GB persisted previously
+            Ratio = 2.0,
+            Progress = 1.0,
+            QueuePosition = 1,
+            InfoHash = "1122334455667788990011223344556677889956",
+        };
+
+        this.torrentRepository.Get(501).Returns(torrent);
+        this.downloadEngine.GetTask(501).Returns(task);
+
+        // First sync
+        var result = this.service.Get(501);
+        result.Uploaded.Should().Be(21474836480L + 10485760L);
+        result.Ratio.Should().BeApproximately((double)(21474836480L + 10485760L) / 10737418240L, 0.0001);
+
+        // Second sync with additional 5 MB uploaded (total 15 MB in session)
+        task.UploadedBytes.Returns(15728640L);
+        var result2 = this.service.Get(501);
+        result2.Uploaded.Should().Be(21474836480L + 15728640L);
+    }
 }
