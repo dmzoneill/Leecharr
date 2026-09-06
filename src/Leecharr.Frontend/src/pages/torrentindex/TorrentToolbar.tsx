@@ -11,6 +11,7 @@ import {
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DiskStorageBadge } from "../../components/quicksettings/DiskStorageBadge";
 import { ViewMode } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface TorrentToolbarProps {
   count: number;
@@ -59,6 +60,7 @@ export function TorrentToolbar({
   isFilterCollapsed = false,
   onToggleFilter,
 }: TorrentToolbarProps) {
+  const { t } = useTranslation();
   const { data: seedConfig } = useSeedingConfig();
   const saveSeedMutation = useSaveSeedingConfig();
 
@@ -93,16 +95,18 @@ export function TorrentToolbar({
             }}
           >
             <span>{isFilterCollapsed ? "▶" : "◀"}</span>
-            <span>Filters</span>
+            <span>{t("common.filter")}</span>
           </button>
         )}
-        <h1 className="page-heading">Torrents ({count})</h1>
+        <h1 className="page-heading">
+          {t("nav.torrents")} ({count})
+        </h1>
         <button
           type="button"
           className="btn btn-success"
           onClick={onAddTorrent}
         >
-          <PlusIcon size={13} /> Add Torrent
+          <PlusIcon size={13} /> {t("modals.addTorrent")}
         </button>
         {onSearchIndexers && (
           <button
@@ -111,7 +115,7 @@ export function TorrentToolbar({
             onClick={onSearchIndexers}
             style={{ fontSize: "0.82rem" }}
           >
-            🔍 Search Indexers
+            🔍 {t("modals.indexerSearch")}
           </button>
         )}
         {onToggleQuickSettings && (
@@ -127,19 +131,21 @@ export function TorrentToolbar({
             }}
             title="Toggle Quick Settings Drawer (Q)"
           >
-            <SlidersIcon size={13} /> Quick Settings
+            <SlidersIcon size={13} /> {t("settings.general")}
           </button>
         )}
         {selectedCount > 0 && (
           <div className="bulk-actions">
-            <span className="bulk-actions-count">{selectedCount} selected</span>
+            <span className="bulk-actions-count">
+              {t("filebrowser.selectedCount", { count: selectedCount })}
+            </span>
             <button
               type="button"
               className="btn btn-small btn-success"
               onClick={onBulkStart}
               disabled={bulkPending}
             >
-              <PlayIcon size={12} /> Start
+              <PlayIcon size={12} /> {t("torrents.actions.resume")}
             </button>
             <button
               type="button"
@@ -147,7 +153,7 @@ export function TorrentToolbar({
               onClick={onBulkStop}
               disabled={bulkPending}
             >
-              <StopIcon size={12} /> Pause
+              <StopIcon size={12} /> {t("torrents.actions.pause")}
             </button>
             <button
               type="button"
@@ -155,7 +161,7 @@ export function TorrentToolbar({
               onClick={onBulkDelete}
               disabled={bulkPending}
             >
-              Delete
+              {t("common.delete")}
             </button>
             <button
               type="button"
@@ -163,7 +169,7 @@ export function TorrentToolbar({
               onClick={onBulkClear}
               disabled={bulkPending}
             >
-              Clear
+              {t("common.reset")}
             </button>
           </div>
         )}
@@ -197,7 +203,7 @@ export function TorrentToolbar({
           onClick={onStartAll}
           title="Resume all torrents"
         >
-          <PlayIcon size={13} /> Start All
+          <PlayIcon size={13} /> {t("torrents.actions.resume")}
         </button>
         <button
           type="button"
@@ -205,7 +211,7 @@ export function TorrentToolbar({
           onClick={onStopAll}
           title="Pause all torrents"
         >
-          <StopIcon size={13} /> Stop All
+          <StopIcon size={13} /> {t("torrents.actions.pause")}
         </button>
         <div
           className="speed-controls"

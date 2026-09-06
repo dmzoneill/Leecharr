@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { I18nTranslations } from "./types";
 import { languages, Language } from "./languages";
-import en from "./locales/en";
+import { localeMap, en } from "./locales";
 
 interface I18nStore {
   language: string;
   translations: I18nTranslations;
-  setLanguage: (lang: string) => Promise<void>;
+  setLanguage: (lang: string) => void;
   isLoading: boolean;
 }
 
@@ -70,6 +70,7 @@ export function getInitialLanguage(): string {
 }
 
 const initialLang = getInitialLanguage();
+const initialTranslations = localeMap[initialLang] || en;
 
 // Set initial DOM attributes
 if (typeof document !== "undefined") {
@@ -80,57 +81,31 @@ if (typeof document !== "undefined") {
 
 export const useI18nStore = create<I18nStore>((set) => ({
   language: initialLang,
-  translations: en as I18nTranslations, // Start with English
+  translations: initialTranslations,
   isLoading: false,
-  setLanguage: async (langCode: string) => {
-    set({ isLoading: true });
-    try {
-      const langConfig = languages.find((l) => l.code === langCode);
-      const targetLang = langConfig ? langCode : DEFAULT_LANGUAGE;
+  setLanguage: (langCode: string) => {
+    const langConfig = languages.find((l) => l.code === langCode);
+    const targetLang = langConfig ? langCode : DEFAULT_LANGUAGE;
+    const newTranslations = localeMap[targetLang] || en;
 
-      let newTranslations: I18nTranslations;
-      if (targetLang === "en") {
-        newTranslations = en as I18nTranslations;
-      } else {
-        const module = await import(`./locales/${targetLang}.ts`);
-        newTranslations = module.default;
-      }
-
-      if (typeof localStorage !== "undefined") {
+    if (typeof localStorage !== "undefined") {
+      try {
         localStorage.setItem("leecharr_lang", targetLang);
+      } catch {
+        // ignore quota / private browsing errors
       }
-
-      if (typeof document !== "undefined") {
-        const activeConfig = languages.find((l) => l.code === targetLang);
-        document.documentElement.lang = targetLang;
-        document.documentElement.dir = activeConfig?.rtl ? "rtl" : "ltr";
-      }
-
-      set({
-        language: targetLang,
-        translations: newTranslations,
-        isLoading: false,
-      });
-    } catch (error) {
-      console.error(
-        `Failed to load translations for language: ${langCode}, falling back to English`,
-        error,
-      );
-      // Fallback to English
-      if (typeof document !== "undefined") {
-        document.documentElement.lang = DEFAULT_LANGUAGE;
-        document.documentElement.dir = "ltr";
-      }
-      set({
-        language: DEFAULT_LANGUAGE,
-        translations: en as I18nTranslations,
-        isLoading: false,
-      });
     }
+
+    if (typeof document !== "undefined") {
+      const activeConfig = languages.find((l) => l.code === targetLang);
+      document.documentElement.lang = targetLang;
+      document.documentElement.dir = activeConfig?.rtl ? "rtl" : "ltr";
+    }
+
+    set({
+      language: targetLang,
+      translations: newTranslations,
+      isLoading: false,
+    });
   },
 }));
-
-// If initial language is non-English, load its translations asynchronously
-if (initialLang !== "en") {
-  useI18nStore.getState().setLanguage(initialLang);
-}

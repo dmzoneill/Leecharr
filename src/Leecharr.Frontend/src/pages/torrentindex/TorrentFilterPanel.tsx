@@ -7,6 +7,7 @@ import {
   ErrorIcon,
 } from "../../components/icons/UIIcons";
 import { TrackerFavicon } from "../../components/TrackerFavicon";
+import { useTranslation } from "../../i18n";
 
 const STATE_FILTERS = [
   "All",
@@ -57,6 +58,27 @@ export function TorrentFilterPanel({
   count,
   onCollapse,
 }: TorrentFilterPanelProps) {
+  const { t } = useTranslation();
+
+  const getStateLabel = (state: string) => {
+    switch (state) {
+      case "All":
+        return t("common.selectAll");
+      case "Downloading":
+        return t("torrents.states.downloading");
+      case "Seeding":
+        return t("torrents.states.seeding");
+      case "Paused":
+        return t("torrents.states.paused");
+      case "Queued":
+        return t("torrents.states.queued");
+      case "Error":
+        return t("torrents.states.error");
+      default:
+        return state;
+    }
+  };
+
   return (
     <div className="filter-panel">
       <div
@@ -68,7 +90,7 @@ export function TorrentFilterPanel({
         }}
       >
         <span className="filter-panel-section" style={{ padding: 0 }}>
-          State
+          {t("common.status")}
         </span>
         {onCollapse && (
           <button
@@ -99,7 +121,7 @@ export function TorrentFilterPanel({
               onClick={() => onSelectState(state)}
             >
               <span className="filter-panel-label">
-                {STATE_FILTER_ICONS[state]} {state}
+                {STATE_FILTER_ICONS[state]} {getStateLabel(state)}
               </span>
               <span className="filter-panel-count">
                 {stateCounts[state] ?? 0}
