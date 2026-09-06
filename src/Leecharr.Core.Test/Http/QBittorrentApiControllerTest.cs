@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.QBittorrent;
@@ -437,9 +438,30 @@ public class QBittorrentApiControllerTest
         torrent1.UploadLimit.Should().Be(512);
         torrent2.UploadLimit.Should().Be(512);
 
-        await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 120, maxRatioAction: 1);
+        await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 7200, maxRatioAction: 1);
         torrent1.TargetRatio.Should().Be(2.0);
         torrent1.TargetSeedTimeMinutes.Should().Be(120);
         torrent1.ShareLimitAction.Should().Be("Remove");
+    }
+
+    [Test]
+    public void GetTorrentList_ReturnsSeedingTimeLimitInSeconds()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "T1",
+            TargetSeedTimeMinutes = 60,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var actionResult = this.controller.GetTorrentsInfo();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject.ToList();
+
+        list.Should().HaveCount(1);
+        list[0]["seeding_time_limit"].Should().Be(3600);
+        list[0]["max_seeding_time"].Should().Be(3600);
     }
 }
