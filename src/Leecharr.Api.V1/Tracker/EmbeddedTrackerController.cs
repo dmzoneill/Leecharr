@@ -283,6 +283,11 @@ public class EmbeddedTrackerController : ControllerBase
             {
                 return true;
             }
+
+            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+            {
+                return true;
+            }
         }
         else if (ip.AddressFamily == global::System.Net.Sockets.AddressFamily.InterNetworkV6)
         {
