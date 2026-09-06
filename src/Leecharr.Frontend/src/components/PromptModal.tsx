@@ -59,8 +59,6 @@ export function PromptModal({
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
-    const { t } = useTranslation();
-
     e.preventDefault();
     if (validate) {
       const validationError = validate(value);

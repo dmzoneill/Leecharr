@@ -143,12 +143,12 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const stopSeeding = useStopSeeding();
   const recheckTorrent = useRecheckTorrent();
   const announceTorrent = useAnnounceTorrent();
+  const { t } = useTranslation();
 
   const [tab, setTab] = useState<DetailTab>("status");
   const { height, panelRef, onMouseDown } = usePanelHeight();
 
   if (isLoading && !currentTorrent) {
-    const { t } = useTranslation();
     return (
       <div className="detail-panel" style={{ height }}>
         <div className="detail-panel-loading">
