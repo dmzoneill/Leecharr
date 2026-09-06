@@ -46,6 +46,22 @@ export function useBatchDeleteFiles() {
   });
 }
 
+export function usePasteFiles() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sources,
+      destination,
+      operation,
+    }: {
+      sources: string[];
+      destination: string;
+      operation: "copy" | "move";
+    }) => apiClient.post(`/files/paste`, { sources, destination, operation }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
+  });
+}
+
 export function useFilePreview(path?: string, enabled = true) {
   return useQuery<import("../types").FilePreviewResult>({
     queryKey: ["files", "preview", path ?? ""],

@@ -25,6 +25,15 @@ public class FileBrowserBatchDeleteRequest
     public List<string> Paths { get; set; } = new();
 }
 
+public class FileBrowserTransferRequest
+{
+    public List<string> Sources { get; set; } = new();
+
+    public string Destination { get; set; }
+
+    public string Operation { get; set; } = "copy";
+}
+
 [V1ApiController("files")]
 public class FileBrowserController : Controller
 {
@@ -211,5 +220,77 @@ public class FileBrowserController : Controller
             Extension = ext,
             DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
         });
+    }
+
+    [HttpPost("paste")]
+    public ActionResult Paste([FromBody] FileBrowserTransferRequest request)
+    {
+        if (request == null || request.Sources == null || request.Sources.Count == 0 || string.IsNullOrWhiteSpace(request.Destination))
+        {
+            return this.BadRequest(new { Message = "Sources and Destination are required." });
+        }
+
+        var isMove = string.Equals(request.Operation, "move", StringComparison.OrdinalIgnoreCase);
+        var successCount = 0;
+        var failed = new List<string>();
+
+        foreach (var src in request.Sources)
+        {
+            try
+            {
+                if (isMove)
+                {
+                    this.fileBrowserService.Move(src, request.Destination);
+                }
+                else
+                {
+                    this.fileBrowserService.Copy(src, request.Destination);
+                }
+
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                failed.Add($"{src}: {ex.Message}");
+            }
+        }
+
+        return this.Ok(new
+        {
+            Success = failed.Count == 0,
+            Count = successCount,
+            Failed = failed,
+        });
+    }
+
+    [HttpPost("upload")]
+    [RequestSizeLimit(1073741824)] // 1 GB
+    public async System.Threading.Tasks.Task<ActionResult> Upload([FromQuery] string path = null)
+    {
+        var targetDir = this.fileBrowserService.ResolvePath(path);
+        if (!global::System.IO.Directory.Exists(targetDir))
+        {
+            global::System.IO.Directory.CreateDirectory(targetDir);
+        }
+
+        var files = this.Request.Form.Files;
+        if (files == null || files.Count == 0)
+        {
+            return this.BadRequest(new { Message = "No files uploaded." });
+        }
+
+        var uploaded = new List<string>();
+        foreach (var file in files)
+        {
+            if (file.Length > 0)
+            {
+                var targetFile = Path.Combine(targetDir, Path.GetFileName(file.FileName));
+                using var stream = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None);
+                await file.CopyToAsync(stream);
+                uploaded.Add(targetFile);
+            }
+        }
+
+        return this.Ok(new { Success = true, Uploaded = uploaded });
     }
 }

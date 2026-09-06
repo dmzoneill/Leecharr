@@ -45,6 +45,10 @@ public interface IFileBrowserService
 
     void Rename(string path, string newName);
 
+    void Copy(string sourcePath, string destinationDirectory);
+
+    void Move(string sourcePath, string destinationDirectory);
+
     void Delete(string path);
 
     string ResolvePath(string path);
@@ -162,6 +166,72 @@ public class FileBrowserService : IFileBrowserService
         else
         {
             this.diskProvider.MoveFile(current, dest, true);
+        }
+    }
+
+    public void Copy(string sourcePath, string destinationDirectory)
+    {
+        var source = this.ResolvePath(sourcePath);
+        var destDir = this.ResolvePath(destinationDirectory);
+
+        if (!this.diskProvider.FolderExists(destDir))
+        {
+            this.diskProvider.CreateFolder(destDir);
+        }
+
+        var name = Path.GetFileName(source);
+        var target = Path.Combine(destDir, name);
+
+        if (this.diskProvider.FolderExists(source))
+        {
+            this.CopyDirectoryRecursive(source, target);
+        }
+        else if (File.Exists(source))
+        {
+            File.Copy(source, target, overwrite: true);
+        }
+    }
+
+    public void Move(string sourcePath, string destinationDirectory)
+    {
+        var source = this.ResolvePath(sourcePath);
+        var destDir = this.ResolvePath(destinationDirectory);
+
+        if (!this.diskProvider.FolderExists(destDir))
+        {
+            this.diskProvider.CreateFolder(destDir);
+        }
+
+        var name = Path.GetFileName(source);
+        var target = Path.Combine(destDir, name);
+
+        if (this.diskProvider.FolderExists(source))
+        {
+            this.diskProvider.MoveFolder(source, target);
+        }
+        else if (File.Exists(source))
+        {
+            this.diskProvider.MoveFile(source, target, overwrite: true);
+        }
+    }
+
+    private void CopyDirectoryRecursive(string sourceDir, string targetDir)
+    {
+        if (!this.diskProvider.FolderExists(targetDir))
+        {
+            this.diskProvider.CreateFolder(targetDir);
+        }
+
+        foreach (var file in this.diskProvider.GetFiles(sourceDir, false))
+        {
+            var fileName = Path.GetFileName(file);
+            File.Copy(file, Path.Combine(targetDir, fileName), overwrite: true);
+        }
+
+        foreach (var subDir in this.diskProvider.GetDirectories(sourceDir))
+        {
+            var dirName = Path.GetFileName(subDir);
+            this.CopyDirectoryRecursive(subDir, Path.Combine(targetDir, dirName));
         }
     }
 
