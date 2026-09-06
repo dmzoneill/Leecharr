@@ -106,11 +106,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                  task != null &&
                                  task.DownloadSpeed < slowDownThresholdBytes;
 
-                    var isStalled = (task != null && task.IsStalled) ||
+                    var isStalled = ((task != null && task.IsStalled) ||
                                     (queueStalledEnabled &&
                                      queueStalledMinutes > 0 &&
                                      downloadSpeed == 0 &&
-                                     (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes);
+                                     (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes)) &&
+                                    torrent.Status == TorrentStatus.Downloading;
 
                     var isIgnoredDownload = isSlow || isStalled;
                     var canRunDownload = (maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
@@ -204,6 +205,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                  task.UploadSpeed < slowUpThresholdBytes;
 
                     var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
+                                       torrent.Status == TorrentStatus.Seeding &&
                                        uploadSpeed == 0 &&
                                        (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
 
