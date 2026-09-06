@@ -405,4 +405,30 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":250000000000");
     }
+
+    [Test]
+    public async Task HandleRpc_SetTorrentOptions_MapsRateLimitsCorrectlyWithout1024Multiplication()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_options\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"],{\"max_download_speed\":250.0,\"max_upload_speed\":50.0}],\"id\":10}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.DownloadLimit.Should().Be(250);
+        torrent.UploadLimit.Should().Be(50);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
 }

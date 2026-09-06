@@ -620,6 +620,25 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task UpdateAsync_AppliesRateLimitsToDownloadEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Rate Limit Test",
+            DownloadLimit = 500,
+            UploadLimit = 100,
+        };
+
+        this.torrentRepository.Get(10).Returns(torrent);
+        this.torrentRepository.Update(torrent).Returns(torrent);
+
+        await this.service.UpdateAsync(torrent);
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 500, 100);
+    }
+
+    [Test]
     public void Handle_TorrentMetadataReceivedEvent_UpdatesTorrentAndInsertsFiles()
     {
         var torrent = new Torrent

@@ -926,13 +926,15 @@ public class DelugeJsonRpcController : ControllerBase
 
                                 if (opts.TryGetProperty("max_download_speed", out var mds))
                                 {
-                                    t.DownloadLimit = (int)(mds.GetInt64() * 1024);
+                                    var dlLimit = mds.ValueKind == JsonValueKind.Number ? mds.GetDouble() : 0;
+                                    t.DownloadLimit = dlLimit > 0 ? (int)dlLimit : 0;
                                     hasOtherUpdates = true;
                                 }
 
                                 if (opts.TryGetProperty("max_upload_speed", out var mus))
                                 {
-                                    t.UploadLimit = (int)(mus.GetInt64() * 1024);
+                                    var ulLimit = mus.ValueKind == JsonValueKind.Number ? mus.GetDouble() : 0;
+                                    t.UploadLimit = ulLimit > 0 ? (int)ulLimit : 0;
                                     hasOtherUpdates = true;
                                 }
 
@@ -1239,6 +1241,8 @@ public class DelugeJsonRpcController : ControllerBase
             { "active_time", (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds },
             { "seeding_time", t.DateCompleted.HasValue ? (long)(DateTime.UtcNow - t.DateCompleted.Value).TotalSeconds : 0 },
             { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
+            { "max_download_speed", t.DownloadLimit > 0 ? (double)t.DownloadLimit : -1.0 },
+            { "max_upload_speed", t.UploadLimit > 0 ? (double)t.UploadLimit : -1.0 },
             { "is_auto_managed", true },
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", false },

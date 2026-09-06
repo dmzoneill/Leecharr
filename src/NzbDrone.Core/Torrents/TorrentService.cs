@@ -452,18 +452,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 {
                     torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
                 }
+            }
+        }
 
-                if (this.downloadEngine != null)
-                {
-                    try
-                    {
-                        await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
-                    }
-                }
+        if (this.downloadEngine != null)
+        {
+            try
+            {
+                await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply rate limits to download engine for torrent {0}", torrent.Id);
             }
         }
 
