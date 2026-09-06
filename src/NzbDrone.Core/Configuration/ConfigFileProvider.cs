@@ -59,6 +59,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public bool AuthenticationEnabled => this.GetValueBool("AuthenticationEnabled", false);
 
+    public bool TerminalAccessEnabled => this.GetValueBool("TerminalAccessEnabled", false);
+
     public string LogLevel => this.GetValue("LogLevel", "info");
 
     public string UrlBase => this.GetValue("UrlBase", string.Empty);
