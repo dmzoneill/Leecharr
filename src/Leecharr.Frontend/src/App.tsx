@@ -74,6 +74,8 @@ import {
 import { useSettingsDirty } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./App.css";
+import { LanguageSelector } from "./components/LanguageSelector";
+import { useTranslation } from "./i18n";
 
 const systemSubItems = [
   { id: "status", label: "Status" },
@@ -333,7 +335,7 @@ export function App() {
       ) {
         if (
           msg.name === "torrentDeleted" ||
-          (msg.name === "torrent" && msg.action === "Deleted")
+          (msg.name === "torrent" && (msg.action as unknown) === "Deleted")
         ) {
           const body = msg.body as any;
           if (Array.isArray(body)) {
@@ -819,6 +821,7 @@ export function App() {
             className="topbar-actions"
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
+            <LanguageSelector />
             <button
               className="btn btn-small"
               onClick={() => setShowGettingStartedModal(true)}

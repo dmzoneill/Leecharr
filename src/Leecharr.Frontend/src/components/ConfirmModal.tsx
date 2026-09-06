@@ -1,5 +1,6 @@
 import React from "react";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useTranslation } from "../i18n";
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   useEscapeKey(onCancel, isOpen);
 
   if (!isOpen) return null;
@@ -104,7 +106,11 @@ export function ConfirmModal({
               color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            {title || (danger ? "Confirm Action" : "Confirmation")}
+            {title
+              ? t(title)
+              : danger
+                ? t("Confirm Action")
+                : t("Confirmation")}
           </h3>
         </div>
 
@@ -145,7 +151,7 @@ export function ConfirmModal({
               cursor: "pointer",
             }}
           >
-            {cancelText}
+            {t(cancelText || "Cancel")}
           </button>
           <button
             type="button"
@@ -164,7 +170,7 @@ export function ConfirmModal({
               transition: "opacity 0.15s ease",
             }}
           >
-            {confirmText}
+            {t(confirmText || "Confirm")}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import AddTorrentForm, { InputMode } from "./AddTorrentForm";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useTranslation } from "../i18n";
 
 export interface AddTorrentModalProps {
   isOpen?: boolean;
@@ -17,6 +18,7 @@ export function AddTorrentModal({
   onClose,
   onSuccess,
 }: AddTorrentModalProps) {
+  const { t } = useTranslation();
   useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;

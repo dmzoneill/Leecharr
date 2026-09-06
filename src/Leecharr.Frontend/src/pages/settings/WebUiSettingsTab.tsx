@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, SelectInput } from "./shared";
+import { LanguageSelector } from "../../components/LanguageSelector";
+import { useTranslation, useI18nStore } from "../../i18n";
 
 export function WebUiSettingsTab() {
   const { data: config, isLoading } = useGeneralConfig();
@@ -104,6 +106,37 @@ export function WebUiSettingsTab() {
         error={saveMutation.error as Error | null}
         onSave={handleSave}
       />
+
+      <SectionCard
+        title="Language & Localization"
+        description="Select the application display language and text direction."
+      >
+        <div style={{ marginBottom: "1.5rem" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "0.5rem",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+            }}
+          >
+            Interface Language
+          </label>
+          <div style={{ maxWidth: "280px" }}>
+            <LanguageSelector />
+          </div>
+          <p
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.85rem",
+              color: "var(--text-muted)",
+            }}
+          >
+            Changes to the interface language are applied immediately across all
+            components.
+          </p>
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Visual Theme & Color Palette"

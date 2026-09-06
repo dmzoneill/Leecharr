@@ -1,3 +1,5 @@
+import type { Torrent, TorrentFile, Category, SystemStatus } from "./types";
+
 declare global {
   interface Window {
     Leecharr?: {

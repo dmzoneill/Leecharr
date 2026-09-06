@@ -12,6 +12,7 @@ import {
   formatRatio,
   formatUptime,
 } from "../utils/formatters";
+import { useTranslation } from "../i18n";
 import {
   SeedingIcon,
   UploadIcon,
@@ -29,6 +30,8 @@ export interface StatusBarProps {
 }
 
 export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
+  const { t } = useTranslation();
+
   const { data: stats } = useSeedingStats();
   const { data: network } = useNetworkStatus();
   const { data: torrents } = useTorrents();
