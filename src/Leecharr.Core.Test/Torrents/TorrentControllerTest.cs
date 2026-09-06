@@ -653,4 +653,29 @@ public class TorrentControllerTest
         var actualResult = okResult.Value.Should().BeOfType<TorrentCreationResult>().Subject;
         actualResult.Should().BeEquivalentTo(expectedResult);
     }
+
+    [Test]
+    public async Task Update_NotifiesDownloadEngine_WhenSequentialDownloadChanges()
+    {
+        var existing = new Torrent
+        {
+            Id = 42,
+            Name = "Sequential Test Torrent",
+            SequentialDownload = false,
+        };
+
+        this.torrentService.Get(42).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 42,
+            SequentialDownload = true,
+        };
+
+        var response = await this.controller.Update(42, resource);
+
+        existing.SequentialDownload.Should().BeTrue();
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(42, true);
+    }
 }

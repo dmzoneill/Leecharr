@@ -44,6 +44,8 @@ public interface IDownloadEngine
 
     Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate) => Task.CompletedTask;
 
+    Task SetSequentialDownloadAsync(int torrentId, bool enabled) => Task.CompletedTask;
+
     Task SetSuperSeedingAsync(int torrentId, bool enabled) => Task.CompletedTask;
 
     Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath) => Task.FromResult(false);
@@ -102,6 +104,8 @@ public interface IDownloadTask
     PiecePicker Picker => null;
 
     bool IsSuperSeeding => false;
+
+    bool SequentialDownload => false;
 
     string ErrorMessage => null;
 

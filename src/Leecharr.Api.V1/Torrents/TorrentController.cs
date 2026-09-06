@@ -734,6 +734,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.DownloadLimit = resource.DownloadLimit.Value;
         }
 
+        var isSequentialChanged = resource.SequentialDownload.HasValue && resource.SequentialDownload.Value != existing.SequentialDownload;
         if (resource.SequentialDownload.HasValue)
         {
             existing.SequentialDownload = resource.SequentialDownload.Value;
@@ -813,6 +814,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (isInitialSeedingChanged)
         {
             await this.torrentService.SetSuperSeedingAsync(updated.Id, updated.InitialSeeding);
+        }
+
+        if (this.downloadEngine != null && isSequentialChanged)
+        {
+            await this.downloadEngine.SetSequentialDownloadAsync(updated.Id, updated.SequentialDownload);
         }
 
         if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))

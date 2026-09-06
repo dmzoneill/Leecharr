@@ -680,7 +680,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             torrent.Category,
             parsedTorrent,
             this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount));
+            () => Interlocked.Increment(ref this.blockedPeersCount))
+        {
+            SequentialDownload = isSequential,
+        };
         this.tasks[torrent.Id] = downloadTask;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
         if (manager.InfoHashes?.V1 != null)
@@ -1286,6 +1289,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
             this.logger.Info("Updated BEP 27 settings for {0} (IsPrivate: {1}, EnforceBep27: {2})", task.InfoHash, isPrivate, this.configService.EnableBep27PrivateTorrents);
         }
+    }
+
+    public async Task SetSequentialDownloadAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            task.SequentialDownload = enabled;
+            this.logger.Info("Updated sequential download for torrent {0} ({1}): {2}", torrentId, task.InfoHash, enabled);
+        }
+
+        await Task.CompletedTask;
     }
 
     public async Task SetSuperSeedingAsync(int torrentId, bool enabled)
@@ -2149,6 +2163,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
     public TorrentManager Manager { get; }
 
     public PiecePicker Picker { get; private set; }
+
+    public bool SequentialDownload { get; set; }
 
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;

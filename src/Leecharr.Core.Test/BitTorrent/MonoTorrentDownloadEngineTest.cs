@@ -1257,6 +1257,31 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetSequentialDownloadAsync_UpdatesTaskSequentialDownloadState()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("seq_toggle.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 94,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "seq_toggle.bin",
+            SequentialDownload = false,
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.SequentialDownload.Should().BeFalse();
+
+        await this.engine.SetSequentialDownloadAsync(94, true);
+        task.SequentialDownload.Should().BeTrue();
+
+        await this.engine.SetSequentialDownloadAsync(94, false);
+        task.SequentialDownload.Should().BeFalse();
+    }
+
+    [Test]
     public async Task AddTorrentAsync_InitializesPiecePicker_WhenTorrentBytesProvided()
     {
         var torrentBytes = CreateSampleSingleFileTorrentBytes("picker_test.bin", length: 32768);
