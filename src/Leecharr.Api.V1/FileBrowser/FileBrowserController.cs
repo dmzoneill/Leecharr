@@ -1,6 +1,9 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.FileBrowser;
 
 namespace Leecharr.Api.V1.FileBrowser;
@@ -21,6 +24,7 @@ public class FileBrowserRenameRequest
 public class FileBrowserController : Controller
 {
     private readonly IFileBrowserService fileBrowserService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FileBrowserController(IFileBrowserService fileBrowserService)
     {
@@ -30,7 +34,20 @@ public class FileBrowserController : Controller
     [HttpGet]
     public ActionResult<FileBrowserListing> GetListing([FromQuery] string path = null)
     {
-        return this.Ok(this.fileBrowserService.ListDirectory(path));
+        try
+        {
+            return this.Ok(this.fileBrowserService.ListDirectory(path));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            this.logger.Warn("Unauthorized file browser access: {0}", ex.Message);
+            return this.BadRequest(new { Message = "Access to the requested path is denied." });
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error listing directory");
+            return this.BadRequest(new { Message = "Unable to list directory." });
+        }
     }
 
     [HttpPost("mkdir")]
@@ -46,9 +63,15 @@ public class FileBrowserController : Controller
             this.fileBrowserService.CreateDirectory(request.Path);
             return this.Ok(new { Success = true, Path = request.Path });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            this.logger.Warn("Unauthorized directory creation: {0}", ex.Message);
+            return this.BadRequest(new { Message = "Access to the requested path is denied." });
+        }
         catch (Exception ex)
         {
-            return this.BadRequest(new { Message = ex.Message });
+            this.logger.Error(ex, "Error creating directory");
+            return this.BadRequest(new { Message = "Unable to create directory." });
         }
     }
 
@@ -65,9 +88,23 @@ public class FileBrowserController : Controller
             this.fileBrowserService.Rename(request.Path, request.NewName.Trim());
             return this.Ok(new { Success = true });
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
+        {
+            this.logger.Warn("Unauthorized file rename: {0}", ex.Message);
+            return this.BadRequest(new { Message = "Access to the requested path is denied." });
+        }
+        catch (ArgumentException ex)
         {
             return this.BadRequest(new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error renaming path");
+            return this.BadRequest(new { Message = "Unable to rename item." });
         }
     }
 
@@ -84,9 +121,19 @@ public class FileBrowserController : Controller
             this.fileBrowserService.Delete(path);
             return this.Ok(new { Success = true });
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
+        {
+            this.logger.Warn("Unauthorized file delete: {0}", ex.Message);
+            return this.BadRequest(new { Message = "Access to the requested path is denied." });
+        }
+        catch (InvalidOperationException ex)
         {
             return this.BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error deleting path");
+            return this.BadRequest(new { Message = "Unable to delete item." });
         }
     }
 }

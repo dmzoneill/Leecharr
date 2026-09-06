@@ -1,8 +1,12 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.FileBrowser;
@@ -46,22 +50,93 @@ public interface IFileBrowserService
     void Rename(string path, string newName);
 
     void Delete(string path);
+
+    List<string> GetAllowedRoots();
 }
 
 public class FileBrowserService : IFileBrowserService
 {
     private readonly IDiskProvider diskProvider;
     private readonly IConfigService configService;
+    private readonly IAppFolderInfo appFolderInfo;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public FileBrowserService(IDiskProvider diskProvider, IConfigService configService)
+    public FileBrowserService(
+        IDiskProvider diskProvider = null,
+        IConfigService configService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
+    }
+
+    public List<string> GetAllowedRoots()
+    {
+        var roots = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.DownloadDir))
+        {
+            try
+            {
+                roots.Add(Path.GetFullPath(this.configService.DownloadDir));
+            }
+            catch
+            {
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.IncompleteDownloadDir))
+        {
+            try
+            {
+                roots.Add(Path.GetFullPath(this.configService.IncompleteDownloadDir));
+            }
+            catch
+            {
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.appFolderInfo?.AppDataFolder))
+        {
+            try
+            {
+                roots.Add(Path.GetFullPath(this.appFolderInfo.AppDataFolder));
+            }
+            catch
+            {
+            }
+        }
+
+        if (Directory.Exists("/downloads"))
+        {
+            try
+            {
+                roots.Add(Path.GetFullPath("/downloads"));
+            }
+            catch
+            {
+            }
+        }
+
+        var defaultPath = this.GetDefaultPath();
+        if (!string.IsNullOrWhiteSpace(defaultPath))
+        {
+            try
+            {
+                roots.Add(Path.GetFullPath(defaultPath));
+            }
+            catch
+            {
+            }
+        }
+
+        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public FileBrowserListing ListDirectory(string path)
     {
-        var target = this.ResolvePath(path);
+        var target = this.ResolveAndConfinePath(path);
 
         var listing = new FileBrowserListing
         {
@@ -86,11 +161,16 @@ public class FileBrowserService : IFileBrowserService
             {
                 try
                 {
-                    var info = new DirectoryInfo(dirPath);
+                    if (!this.IsPathConfined(dirPath, out var resolvedDir))
+                    {
+                        continue;
+                    }
+
+                    var info = new DirectoryInfo(resolvedDir);
                     entries.Add(new FileBrowserEntry
                     {
                         Name = info.Name,
-                        Path = dirPath,
+                        Path = resolvedDir,
                         IsDirectory = true,
                         Modified = info.LastWriteTime == DateTime.MinValue ? (DateTime?)null : info.LastWriteTime,
                     });
@@ -110,11 +190,16 @@ public class FileBrowserService : IFileBrowserService
         {
             try
             {
-                var info = new FileInfo(filePath);
+                if (!this.IsPathConfined(filePath, out var resolvedFile))
+                {
+                    continue;
+                }
+
+                var info = new FileInfo(resolvedFile);
                 entries.Add(new FileBrowserEntry
                 {
                     Name = info.Name,
-                    Path = filePath,
+                    Path = resolvedFile,
                     IsDirectory = false,
                     Size = info.Length,
                     Modified = info.LastWriteTime == DateTime.MinValue ? (DateTime?)null : info.LastWriteTime,
@@ -137,35 +222,50 @@ public class FileBrowserService : IFileBrowserService
 
     public void CreateDirectory(string path)
     {
-        var target = this.ResolvePath(path);
+        var target = this.ResolveAndConfinePath(path);
         this.diskProvider.CreateFolder(target);
     }
 
     public void Rename(string path, string newName)
     {
-        var current = this.ResolvePath(path);
+        var current = this.ResolveAndConfinePath(path);
 
         if (string.IsNullOrWhiteSpace(newName) || newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new ArgumentException($"The name '{newName}' is invalid.");
         }
 
+        if (this.IsRootPath(current))
+        {
+            throw new InvalidOperationException($"Cannot rename root directory '{current}'.");
+        }
+
         var parent = this.GetParentPath(current);
         var dest = Path.Combine(parent, newName);
 
+        if (!this.IsPathConfined(dest, out var resolvedDest))
+        {
+            throw new UnauthorizedAccessException($"Access to destination '{dest}' is outside allowed directory roots.");
+        }
+
         if (this.diskProvider.FolderExists(current))
         {
-            this.diskProvider.MoveFolder(current, dest);
+            this.diskProvider.MoveFolder(current, resolvedDest);
         }
         else
         {
-            this.diskProvider.MoveFile(current, dest, true);
+            this.diskProvider.MoveFile(current, resolvedDest, true);
         }
     }
 
     public void Delete(string path)
     {
-        var target = this.ResolvePath(path);
+        var target = this.ResolveAndConfinePath(path);
+
+        if (this.IsRootPath(target))
+        {
+            throw new InvalidOperationException($"Cannot delete root directory '{target}'.");
+        }
 
         if (this.diskProvider.FolderExists(target))
         {
@@ -177,21 +277,72 @@ public class FileBrowserService : IFileBrowserService
         }
     }
 
-    private string ResolvePath(string path)
+    public bool IsPathConfined(string path, out string canonicalPath)
+    {
+        canonicalPath = null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+
+            // Resolve real path if link target exists
+            var realPath = fullPath;
+            try
+            {
+                if (Directory.Exists(fullPath))
+                {
+                    realPath = Directory.ResolveLinkTarget(fullPath, returnFinalTarget: true)?.FullName ?? fullPath;
+                }
+                else if (File.Exists(fullPath))
+                {
+                    realPath = File.ResolveLinkTarget(fullPath, returnFinalTarget: true)?.FullName ?? fullPath;
+                }
+            }
+            catch
+            {
+                realPath = fullPath;
+            }
+
+            var allowedRoots = this.GetAllowedRoots();
+            foreach (var root in allowedRoots)
+            {
+                var normRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var normTarget = realPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                if (normTarget.Equals(normRoot, StringComparison.OrdinalIgnoreCase) ||
+                    normTarget.StartsWith(normRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                    normTarget.StartsWith(normRoot + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    canonicalPath = fullPath;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string ResolveAndConfinePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             return this.GetDefaultPath();
         }
 
-        try
+        if (!this.IsPathConfined(path, out var canonicalPath))
         {
-            return Path.GetFullPath(path);
+            throw new UnauthorizedAccessException($"Access to path '{path}' is outside allowed directory roots.");
         }
-        catch
-        {
-            return path;
-        }
+
+        return canonicalPath;
     }
 
     private string GetDefaultPath()
@@ -208,17 +359,35 @@ public class FileBrowserService : IFileBrowserService
 
     private string GetParentPath(string path)
     {
-        var root = Path.GetPathRoot(path);
-        if (!string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase))
+        if (this.IsRootPath(path))
         {
             return path;
         }
 
-        return Path.GetDirectoryName(path) ?? path;
+        var parent = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(parent) || !this.IsPathConfined(parent, out _))
+        {
+            return path;
+        }
+
+        return parent;
     }
 
     private bool IsRootPath(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return true;
+        }
+
+        var normPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var allowedRoots = this.GetAllowedRoots();
+
+        if (allowedRoots.Any(r => r.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Equals(normPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
         var root = Path.GetPathRoot(path);
         return !string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase);
     }
