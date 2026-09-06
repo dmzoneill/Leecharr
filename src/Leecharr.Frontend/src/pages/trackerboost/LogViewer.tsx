@@ -91,13 +91,13 @@ export function LogViewer() {
             value={logCategoryFilter}
             onChange={(e) => setLogCategoryFilter(e.target.value)}
           >
-            <option value="all">All Categories</option>
+            <option value="all">{t("trackerBoost.allCategories", "All Categories")}</option>
             <option value="Scrape">🔍 Scrapes</option>
             <option value="Health">🩺 Health Probes</option>
             <option value="Discovery">📡 Discovery</option>
             <option value="Inject">⚡ Injections</option>
             <option value="Cycle">⚙️ Daemon Cycles</option>
-            <option value="General">General</option>
+            <option value="General">{t("trackerBoost.general", "General")}</option>
           </select>
 
           <select
@@ -110,7 +110,7 @@ export function LogViewer() {
             value={logLevelFilter}
             onChange={(e) => setLogLevelFilter(e.target.value)}
           >
-            <option value="all">All Levels</option>
+            <option value="all">{t("trackerBoost.allLevels", "All Levels")}</option>
             <option value="Success">🟢 Success</option>
             <option value="Info">🔵 Info</option>
             <option value="Warn">🟡 Warning</option>
@@ -125,7 +125,7 @@ export function LogViewer() {
               padding: "0.4rem 0.75rem",
               fontSize: "0.82rem",
             }}
-            placeholder="Search logs, hosts, hashes..."
+            placeholder={t("trackerBoost.searchLogs", "Search logs, hosts, hashes...")}
             value={logSearch}
             onChange={(e) => setLogSearch(e.target.value)}
           />
@@ -153,14 +153,14 @@ export function LogViewer() {
               checked={logAutoRefresh}
               onChange={(e) => setLogAutoRefresh(e.target.checked)}
             />
-            <span>Live Refresh (3s)</span>
+            <span>{t("trackerBoost.liveRefresh", "Live Refresh (3s)")}</span>
           </label>
 
           <button
             className="btn btn-outline"
             style={{ fontSize: "0.82rem", padding: "0.4rem 0.75rem" }}
             onClick={() => refetchLogs()}
-            title="Refresh log entries"
+            title={t("common.refresh", "Refresh log entries")}
           >
             🔄 Refresh
           </button>
@@ -170,7 +170,7 @@ export function LogViewer() {
             style={{ fontSize: "0.82rem", padding: "0.4rem 0.75rem" }}
             onClick={handleClearLogs}
             disabled={clearLogs.isPending || (boostLogs ?? []).length === 0}
-            title="Clear current log buffer"
+            title={t("common.clear", "Clear current log buffer")}
           >
             🗑️ Clear Logs
           </button>

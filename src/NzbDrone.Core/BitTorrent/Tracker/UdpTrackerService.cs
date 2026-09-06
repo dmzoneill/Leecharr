@@ -244,13 +244,23 @@ public class UdpTrackerService : IUdpTrackerService
                 return BuildErrorResponse(transactionId, result.FailureReason ?? "Announce failed.");
             }
 
-            var peers = result.Peers ?? Array.Empty<TrackerPeerState>();
-            var ipv4Peers = peers.Where(p => p.Ip != null &&
-                (p.Ip.AddressFamily == AddressFamily.InterNetwork || p.Ip.IsIPv4MappedToIPv6))
-                .ToList();
+            var isIpv6 = clientIp.AddressFamily == AddressFamily.InterNetworkV6
+                         && !clientIp.IsIPv4MappedToIPv6;
 
-            var respSize = 20 + (ipv4Peers.Count * 6);
-            var response = new byte[respSize];
+            var peers = result.Peers ?? Array.Empty<TrackerPeerState>();
+
+            var selectedPeers = isIpv6
+                ? peers.Where(p => p.Ip != null
+                                   && p.Ip.AddressFamily == AddressFamily.InterNetworkV6
+                                   && !p.Ip.IsIPv4MappedToIPv6).ToList()
+                : peers.Where(p => p.Ip != null
+                                   && (p.Ip.AddressFamily == AddressFamily.InterNetwork
+                                       || p.Ip.IsIPv4MappedToIPv6)).ToList();
+
+            var recordSize = isIpv6 ? 18 : 6;
+            var ipSize = isIpv6 ? 16 : 4;
+
+            var response = new byte[20 + (selectedPeers.Count * recordSize)];
             BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(0, 4), 1);
             BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(4, 4), transactionId);
             BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(8, 4), result.Interval);
@@ -258,13 +268,15 @@ public class UdpTrackerService : IUdpTrackerService
             BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(16, 4), result.Seeders);
 
             var offset = 20;
-            foreach (var peer in ipv4Peers)
+            foreach (var peer in selectedPeers)
             {
-                var ip = peer.Ip.IsIPv4MappedToIPv6 ? peer.Ip.MapToIPv4() : peer.Ip;
-                var ipBytes = ip.GetAddressBytes();
-                ipBytes.CopyTo(response.AsSpan(offset, 4));
-                BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(offset + 4, 2), (ushort)peer.Port);
-                offset += 6;
+                var ip = isIpv6
+                    ? peer.Ip
+                    : (peer.Ip.IsIPv4MappedToIPv6 ? peer.Ip.MapToIPv4() : peer.Ip);
+
+                ip.GetAddressBytes().CopyTo(response.AsSpan(offset, ipSize));
+                BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(offset + ipSize, 2), (ushort)peer.Port);
+                offset += recordSize;
             }
 
             return response;

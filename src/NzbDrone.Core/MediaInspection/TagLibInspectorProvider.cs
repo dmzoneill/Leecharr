@@ -249,6 +249,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         int offset = 0;
         int limit = header.Length;
+        ulong timecodeScale = 1000000UL;
+        double durationRaw = 0.0;
 
         while (offset < limit)
         {
@@ -286,6 +288,29 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     else if (docType.Equals("matroska", StringComparison.OrdinalIgnoreCase))
                     {
                         info.ContainerFormat = "Matroska (MKV)";
+                    }
+
+                    break;
+
+                case 0x2AD7B1: // TimestampScale / TimecodeScale
+                    var ts = ReadEbmlUInt(header, offset, elemSize);
+                    if (ts > 0)
+                    {
+                        timecodeScale = ts;
+                        if (durationRaw > 0)
+                        {
+                            info.DurationSeconds = (durationRaw * timecodeScale) / 1000000000.0;
+                        }
+                    }
+
+                    break;
+
+                case 0x4489: // Duration
+                    var dur = ReadEbmlFloat(header, offset, elemSize);
+                    if (dur > 0)
+                    {
+                        durationRaw = dur;
+                        info.DurationSeconds = (durationRaw * timecodeScale) / 1000000000.0;
                     }
 
                     break;
@@ -499,12 +524,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         return id == 0x1A45DFA3
             || id == 0x18538067
+            || id == 0x114D9B74
+            || id == 0x1549A966
             || id == 0x1654AE6B
             || id == 0xAE
             || id == 0xE0
             || id == 0xE1
             || id == 0x55B0
-            || id == 0x55BB;
+            || id == 0x55BB
+            || id == 0x1F43B675
+            || id == 0x1254C367
+            || id == 0x1043A770
+            || id == 0x1C53BB6B
+            || id == 0x1941A469;
     }
 
     private static bool ReadElementId(byte[] data, ref int offset, out uint id, out int idLen)

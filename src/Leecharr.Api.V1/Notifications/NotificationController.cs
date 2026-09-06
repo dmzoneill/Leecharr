@@ -185,6 +185,14 @@ public class NotificationController : Controller
                 type = "info",
             };
         }
+        else if (string.Equals(notif.Implementation, "Slack", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                text = "*Leecharr Test Notification*\nYour Slack notification webhook is working properly.",
+                username = "Leecharr",
+            };
+        }
         else
         {
             payload = new

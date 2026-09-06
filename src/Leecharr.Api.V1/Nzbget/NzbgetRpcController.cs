@@ -81,8 +81,8 @@ public class NzbgetRpcController : ControllerBase
         {
             var pass = this.RouteData.Values["pass"]?.ToString();
             var user = this.RouteData.Values["user"]?.ToString();
-            if (string.Equals(pass, this.configFileProvider.ApiKey, StringComparison.Ordinal) ||
-                string.Equals(user, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(pass, this.configFileProvider.ApiKey) ||
+                RpcAuthenticationHelper.FixedTimeEquals(user, this.configFileProvider.ApiKey))
             {
                 isAuth = true;
             }
@@ -379,8 +379,8 @@ public class NzbgetRpcController : ControllerBase
         {
             var pass = this.RouteData.Values["pass"]?.ToString();
             var user = this.RouteData.Values["user"]?.ToString();
-            if (string.Equals(pass, this.configFileProvider.ApiKey, StringComparison.Ordinal) ||
-                string.Equals(user, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(pass, this.configFileProvider.ApiKey) ||
+                RpcAuthenticationHelper.FixedTimeEquals(user, this.configFileProvider.ApiKey))
             {
                 isAuth = true;
             }

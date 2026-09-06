@@ -76,9 +76,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
             foreach (var torrent in allTorrents)
             {
-                // Never auto-manage explicitly paused, stopped, or errored torrents
+                // Never auto-manage explicitly paused, stopped, completed, or errored torrents
                 if (torrent.Status == TorrentStatus.Paused ||
                     torrent.Status == TorrentStatus.Stopped ||
+                    torrent.Status == TorrentStatus.Completed ||
                     torrent.Status == TorrentStatus.Error ||
                     torrent.Status == TorrentStatus.Checking ||
                     torrent.Status == TorrentStatus.Stalled)
@@ -302,6 +303,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
         // or when checking finishes and the torrent enters Queued state.
         if (message.NewStatus == TorrentStatus.Paused ||
             message.NewStatus == TorrentStatus.Stopped ||
+            message.NewStatus == TorrentStatus.Completed ||
             message.NewStatus == TorrentStatus.Error ||
             message.NewStatus == TorrentStatus.Stalled ||
             (message.OldStatus == TorrentStatus.Downloading && message.NewStatus == TorrentStatus.Seeding) ||

@@ -98,4 +98,37 @@ public class BlocklistUpdateServiceTest
 
         result.Should().Be(2);
     }
+
+    [Test]
+    public async Task UpdateRulesAsync_WithZipFeed_DecompressesAndLoadsRules()
+    {
+        this.configService.BlocklistEnabled.Returns(true);
+        this.configService.BlocklistUrl.Returns("https://example.com/blocklist.zip");
+
+        var rawText = "172.16.0.0/12\n10.10.0.0/16\n";
+        byte[] zipped;
+        using (var ms = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var entry = archive.CreateEntry("level1.txt");
+                using var entryStream = entry.Open();
+                var textBytes = Encoding.UTF8.GetBytes(rawText);
+                entryStream.Write(textBytes, 0, textBytes.Length);
+            }
+
+            zipped = ms.ToArray();
+        }
+
+        this.safeHttpClientService.DownloadBytesAsync("https://example.com/blocklist.zip", Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(zipped));
+
+        this.blocklistService.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+            .Returns(Task.FromResult(2));
+
+        var result = await this.updateService.UpdateRulesAsync();
+
+        result.Should().Be(2);
+        await this.blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r != null));
+    }
 }

@@ -343,4 +343,59 @@ public class UdpTrackerServiceTest
         BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(2); // TransactionId = 2
         Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Connection ID expired or invalid");
     }
+
+    [Test]
+    public void HandlePacket_Announce_IPv6Client_Returns18BytePeerRecords()
+    {
+        var clientIpv6 = IPAddress.Parse("2001:db8::1");
+        var peerIpv6 = IPAddress.Parse("2001:db8::2");
+
+        // 1. Connect first with IPv6 endpoint
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, new IPEndPoint(clientIpv6, 12345));
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        // 2. Mock trackerService return with IPv6 peer
+        this.trackerService.Announce(Arg.Any<TrackerAnnounceRequest>()).Returns(new TrackerAnnounceResult
+        {
+            Success = true,
+            Interval = 1800,
+            Leechers = 1,
+            Seeders = 2,
+            Peers = new List<TrackerPeerState>
+            {
+                new TrackerPeerState
+                {
+                    Ip = peerIpv6,
+                    Port = 6881,
+                    PeerId = new byte[20],
+                },
+            },
+        });
+
+        // 3. Announce request
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1); // Action = Announce
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 42); // TransactionId
+
+        var response = this.udpTrackerService.HandlePacket(announcePacket, new IPEndPoint(clientIpv6, 12345));
+
+        response.Should().NotBeNull();
+        // 20 header bytes + 18 peer bytes = 38 bytes total
+        response.Length.Should().Be(38);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(1); // Action = Announce
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(42); // TransactionId
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(8, 4)).Should().Be(1800);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(12, 4)).Should().Be(1);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(16, 4)).Should().Be(2);
+
+        var receivedPeerIp = new IPAddress(response.AsSpan(20, 16));
+        receivedPeerIp.Should().Be(peerIpv6);
+        BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(36, 2)).Should().Be(6881);
+    }
 }

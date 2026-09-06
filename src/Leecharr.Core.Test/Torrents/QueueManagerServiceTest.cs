@@ -136,4 +136,25 @@ public class QueueManagerServiceTest
 
         await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(Arg.Any<int>());
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_CompletedTorrentsDoNotConsumeActiveSlots()
+    {
+        this.configService.MaxActiveTorrents.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "Finished", Status = TorrentStatus.Completed, Progress = 1.0, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "QueuedDownload", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Completed);
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+    }
 }

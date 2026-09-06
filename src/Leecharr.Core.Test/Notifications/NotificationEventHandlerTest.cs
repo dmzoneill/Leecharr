@@ -663,4 +663,41 @@ public class NotificationEventHandlerTest
                 (string)payload.GetType().GetProperty("title")!.GetValue(payload)! == "Leecharr: OnGrab" &&
                 ((string)payload.GetType().GetProperty("body")!.GetValue(payload)!).Contains("Apprise Linux ISO")));
     }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenSlackNotification_DispatchesFormattedSlackPayload()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 80,
+            Name = "Slack Alert",
+            Implementation = "Slack",
+            ConfigContract = "SlackSettings",
+            Settings = "{\"url\":\"https://hooks.slack.com/services/T00/B00/X00\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 81,
+            Name = "Slack Test Torrent",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 500 * 1024 * 1024L,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "https://hooks.slack.com/services/T00/B00/X00",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                payload.GetType().GetProperty("text") != null &&
+                ((string)payload.GetType().GetProperty("text")!.GetValue(payload)!).Contains("Slack Test Torrent")));
+    }
 }
