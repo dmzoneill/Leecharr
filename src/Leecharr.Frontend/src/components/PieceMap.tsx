@@ -153,118 +153,132 @@ export function PieceMap({
   const blockSize = 14;
   const gap = 3;
 
-  // Render canvas via requestAnimationFrame with DPI scaling
-  useEffect(() => {
+  const displayBlocksRef = useRef(displayBlocks);
+  displayBlocksRef.current = displayBlocks;
+  const hoveredIndexRef = useRef<number | null>(null);
+  hoveredIndexRef.current = hoveredIndex;
+
+  const render = useCallback(() => {
     if (viewMode !== "grid") return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    let animId: number;
-
-    const render = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const availWidth = Math.max(200, container.clientWidth - 24);
-      const cols = Math.max(
-        1,
-        Math.floor((availWidth + gap) / (blockSize + gap)),
-      );
-      const rows = Math.ceil(displayBlocks.length / cols);
-      const width = cols * (blockSize + gap) - gap;
-      const height = rows * (blockSize + gap) - gap;
-
-      layoutRef.current = { cols, blockSize, gap };
-
-      const dpr = window.devicePixelRatio || 1;
-      if (
-        canvas.width !== Math.floor(width * dpr) ||
-        canvas.height !== Math.floor(height * dpr)
-      ) {
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-      }
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, width, height);
-
-      for (let i = 0; i < displayBlocks.length; i++) {
-        const b = displayBlocks[i];
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = col * (blockSize + gap);
-        const y = row * (blockSize + gap);
-
-        const isHovered = hoveredIndex === i;
-
-        if (b.status === "complete") {
-          ctx.fillStyle = isHovered ? "#2ecc71" : "#27ae60";
-          ctx.strokeStyle = "#2ecc71";
-        } else if (b.status === "active") {
-          ctx.fillStyle = isHovered ? "#60a5fa" : "#3b82f6";
-          ctx.strokeStyle = "#60a5fa";
-        } else {
-          ctx.fillStyle = isHovered
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(255, 255, 255, 0.05)";
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-        }
-
-        const radius = 2;
-        ctx.beginPath();
-        if (typeof (ctx as any).roundRect === "function") {
-          (ctx as any).roundRect(x, y, blockSize, blockSize, radius);
-        } else {
-          ctx.rect(x, y, blockSize, blockSize);
-        }
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        if (isHovered) {
-          ctx.strokeStyle = "#ffd166";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          if (typeof (ctx as any).roundRect === "function") {
-            (ctx as any).roundRect(
-              x - 1,
-              y - 1,
-              blockSize + 2,
-              blockSize + 2,
-              3,
-            );
-          } else {
-            ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
-          }
-          ctx.stroke();
-        }
-      }
-
-      ctx.restore();
-    };
-
-    animId = requestAnimationFrame(render);
-
     const container = containerRef.current;
-    let resizeObserver: ResizeObserver | undefined;
-    if (container && typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => {
-        requestAnimationFrame(render);
-      });
-      resizeObserver.observe(container);
+    if (!canvas || !container) return;
+
+    const currentBlocks = displayBlocksRef.current;
+    const currentHovered = hoveredIndexRef.current;
+
+    const availWidth = Math.max(200, container.clientWidth - 24);
+    const cols = Math.max(
+      1,
+      Math.floor((availWidth + gap) / (blockSize + gap)),
+    );
+    const rows = Math.ceil(currentBlocks.length / cols);
+    const width = cols * (blockSize + gap) - gap;
+    const height = rows * (blockSize + gap) - gap;
+
+    layoutRef.current = { cols, blockSize, gap };
+
+    const dpr = window.devicePixelRatio || 1;
+    const targetCanvasW = Math.floor(width * dpr);
+    const targetCanvasH = Math.floor(height * dpr);
+
+    if (
+      canvas.width !== targetCanvasW ||
+      canvas.height !== targetCanvasH
+    ) {
+      canvas.width = targetCanvasW;
+      canvas.height = targetCanvasH;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
     }
 
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    for (let i = 0; i < currentBlocks.length; i++) {
+      const b = currentBlocks[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = col * (blockSize + gap);
+      const y = row * (blockSize + gap);
+
+      const isHovered = currentHovered === i;
+
+      if (b.status === "complete") {
+        ctx.fillStyle = isHovered ? "#2ecc71" : "#27ae60";
+        ctx.strokeStyle = "#2ecc71";
+      } else if (b.status === "active") {
+        ctx.fillStyle = isHovered ? "#60a5fa" : "#3b82f6";
+        ctx.strokeStyle = "#60a5fa";
+      } else {
+        ctx.fillStyle = isHovered
+          ? "rgba(255, 255, 255, 0.15)"
+          : "rgba(255, 255, 255, 0.05)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      }
+
+      const radius = 2;
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === "function") {
+        (ctx as any).roundRect(x, y, blockSize, blockSize, radius);
+      } else {
+        ctx.rect(x, y, blockSize, blockSize);
+      }
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      if (isHovered) {
+        ctx.strokeStyle = "#ffd166";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === "function") {
+          (ctx as any).roundRect(
+            x - 1,
+            y - 1,
+            blockSize + 2,
+            blockSize + 2,
+            3,
+          );
+        } else {
+          ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
+        }
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }, [viewMode]);
+
+  // Redraw canvas on data or hover change
+  useEffect(() => {
+    if (viewMode !== "grid") return;
+    const animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [viewMode, displayBlocks, hoveredIndex, render]);
+
+  // Dedicated container ResizeObserver lifecycle
+  useEffect(() => {
+    if (viewMode !== "grid") return;
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    let animId: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (animId !== null) cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(render);
+    });
+    resizeObserver.observe(container);
+
     return () => {
-      cancelAnimationFrame(animId);
-      resizeObserver?.disconnect();
+      if (animId !== null) cancelAnimationFrame(animId);
+      resizeObserver.disconnect();
     };
-  }, [viewMode, displayBlocks, hoveredIndex]);
+  }, [viewMode, render]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
