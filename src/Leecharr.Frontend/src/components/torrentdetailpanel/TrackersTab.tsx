@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "../../i18n";
 import {
   useTorrentTrackers,
   useTrackerBoostTrackers,
@@ -75,6 +76,7 @@ export function TrackersTab({
   torrent?: { id: number; isPrivate?: boolean };
   torrentId?: number;
 }) {
+  const { t } = useTranslation();
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const {
     data: trackers,
@@ -258,8 +260,10 @@ export function TrackersTab({
     );
   };
 
-  if (isLoading) return <PanelLoading>Loading trackers...</PanelLoading>;
-  if (isError) return <PanelEmpty>Failed to load trackers.</PanelEmpty>;
+  if (isLoading)
+    return <PanelLoading>{t("torrents.detail.loadingTrackers")}</PanelLoading>;
+  if (isError)
+    return <PanelEmpty>{t("torrents.detail.failedToLoadTrackers")}</PanelEmpty>;
 
   return (
     <div
@@ -296,43 +300,55 @@ export function TrackersTab({
             }}
           >
             <i className="fas fa-lock" />
-            <span>
-              <strong>BEP 27 Private Swarm Active:</strong> Only authorized
-              private tracker endpoints are announced. Public tracker injection,
-              DHT, PEX, and LPD are strictly disabled.
-            </span>
+            <span>{t("torrents.detail.trackersPrivateBanner")}</span>
           </div>
         )}
         {!trackers || trackers.length === 0 ? (
-          <PanelEmpty>No trackers attached to this torrent.</PanelEmpty>
+          <PanelEmpty>{t("torrents.detail.noTrackers")}</PanelEmpty>
         ) : (
           <table className="torrent-table">
             <thead>
               <tr>
-                <th className="torrent-table-th">URL</th>
-                <th className="torrent-table-th">Tier</th>
-                <th className="torrent-table-th">Status</th>
-                <th className="torrent-table-th">Seeders</th>
-                <th className="torrent-table-th">Leechers</th>
-                <th className="torrent-table-th">Interval</th>
-                <th className="torrent-table-th">Last Announce</th>
-                <th className="torrent-table-th">Next Announce</th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.colUrl")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.colTier")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.status")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.connectedSeeders")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.connectedLeechers")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.colInterval")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.colLastAnnounce")}
+                </th>
+                <th className="torrent-table-th">
+                  {t("torrents.detail.colNextAnnounce")}
+                </th>
                 <th
                   className="torrent-table-th"
                   style={{ textAlign: "right", width: "90px" }}
                 >
-                  Action
+                  {t("torrents.detail.colAction")}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {trackers.map((t) => {
+              {trackers.map((tItem) => {
                 const det = detectionMap.get(
-                  (t.url ?? "").trim().toLowerCase(),
+                  (tItem.url ?? "").trim().toLowerCase(),
                 );
-                const ind = getAttachedTrackerIndicator(t.status, det);
+                const ind = getAttachedTrackerIndicator(tItem.status, det);
                 return (
-                  <tr key={t.id} className="torrent-table-row">
+                  <tr key={tItem.id} className="torrent-table-row">
                     <td className="mono" style={{ wordBreak: "break-all" }}>
                       <div
                         style={{
@@ -341,11 +357,11 @@ export function TrackersTab({
                           gap: "0.4rem",
                         }}
                       >
-                        <TrackerFavicon urlOrHost={t.url} size={15} />
-                        <span>{t.url}</span>
+                        <TrackerFavicon urlOrHost={tItem.url} size={15} />
+                        <span>{tItem.url}</span>
                       </div>
                     </td>
-                    <td>{t.tier}</td>
+                    <td>{tItem.tier}</td>
                     <td>
                       <span
                         className={`badge ${ind.badgeClass}`}
@@ -356,19 +372,25 @@ export function TrackersTab({
                         }}
                       >
                         <span style={{ fontSize: "0.85em" }}>{ind.icon}</span>
-                        <span>{t.status}</span>
+                        <span>{tItem.status}</span>
                       </span>
                     </td>
-                    <td>{t.seeders}</td>
-                    <td>{t.leechers}</td>
+                    <td>{tItem.seeders}</td>
+                    <td>{tItem.leechers}</td>
                     <td>
-                      {t.announceInterval ? `${t.announceInterval}s` : "1800s"}
+                      {tItem.announceInterval
+                        ? `${tItem.announceInterval}s`
+                        : "1800s"}
                     </td>
                     <td>
-                      {t.lastAnnounce ? formatDate(t.lastAnnounce) : "Never"}
+                      {tItem.lastAnnounce
+                        ? formatDate(tItem.lastAnnounce)
+                        : "Never"}
                     </td>
                     <td>
-                      {t.nextAnnounce ? formatDate(t.nextAnnounce) : "Queued"}
+                      {tItem.nextAnnounce
+                        ? formatDate(tItem.nextAnnounce)
+                        : "Queued"}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div
@@ -387,7 +409,7 @@ export function TrackersTab({
                           onClick={() => {
                             if (!effectiveId) return;
                             announceTracker.mutate(
-                              { torrentId: effectiveId, trackerId: t.id },
+                              { torrentId: effectiveId, trackerId: tItem.id },
                               {
                                 onSuccess: (data) => {
                                   showToast(
@@ -408,7 +430,9 @@ export function TrackersTab({
                           disabled={announceTracker.isPending}
                           title="Trigger immediate tracker announce"
                         >
-                          {announceTracker.isPending ? "..." : "Announce"}
+                          {announceTracker.isPending
+                            ? "..."
+                            : t("torrents.detail.announceBtn")}
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
@@ -416,11 +440,11 @@ export function TrackersTab({
                             padding: "0.2rem 0.45rem",
                             fontSize: "0.72rem",
                           }}
-                          onClick={() => handleDeleteTracker(t.id)}
+                          onClick={() => handleDeleteTracker(tItem.id)}
                           disabled={deleteTracker.isPending}
                           title="Remove tracker from torrent and reannounce"
                         >
-                          Remove
+                          {t("torrents.detail.removeBtn")}
                         </button>
                       </div>
                     </td>
@@ -453,7 +477,7 @@ export function TrackersTab({
             whiteSpace: "nowrap",
           }}
         >
-          Add Tracker:
+          {t("torrents.detail.addTrackerLabel")}
         </label>
 
         <button
@@ -487,12 +511,14 @@ export function TrackersTab({
             <span>🎯</span>
             {selectedUrls.size === 0 ? (
               <span style={{ color: "var(--text-muted)" }}>
-                Choose Trackers to Add... (0 Selected)
+                {t("torrents.detail.chooseTrackers")}
               </span>
             ) : (
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
-                {selectedUrls.size} Tracker{selectedUrls.size === 1 ? "" : "s"}{" "}
-                Selected (Click to change)
+                {t("torrents.detail.selectedTrackers", {
+                  count: selectedUrls.size,
+                  plural: selectedUrls.size === 1 ? "" : "s",
+                })}
               </span>
             )}
           </span>
@@ -501,7 +527,7 @@ export function TrackersTab({
             className={`badge ${selectedUrls.size > 0 ? "badge-success" : "badge-secondary"}`}
             style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}
           >
-            {selectedUrls.size} Selected
+            {t("torrents.detail.selectedBadge", { count: selectedUrls.size })}
           </span>
         </button>
 
@@ -527,10 +553,12 @@ export function TrackersTab({
           }
         >
           {isAddingBatch
-            ? "Adding..."
+            ? t("torrents.detail.adding")
             : selectedUrls.size > 0
-              ? `+ Add & Announce (${selectedUrls.size})`
-              : "+ Add & Announce"}
+              ? t("torrents.detail.addAndAnnounceCount", {
+                  count: selectedUrls.size,
+                })
+              : t("torrents.detail.addAndAnnounce")}
         </button>
 
         <button
@@ -552,7 +580,9 @@ export function TrackersTab({
               : "Automatically detect and inject verified public trackers into this torrent swarm"
           }
         >
-          {boostTorrent.isPending ? "⚡ Boosting..." : "⚡ Boost Swarm"}
+          {boostTorrent.isPending
+            ? t("torrents.detail.boosting")
+            : t("torrents.detail.boostSwarm")}
         </button>
       </div>
 

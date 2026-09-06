@@ -607,4 +607,60 @@ public class NotificationEventHandlerTest
                 ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies \(HD\)") &&
                 ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"));
     }
+
+    [Test]
+    public void ResolveTargetUrl_Apprise_NormalizesUrlToIncludeNotifyEndpoint()
+    {
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise-server:8000")
+            .Should().Be("http://apprise-server:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise-server:8000/")
+            .Should().Be("http://apprise-server:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise-server:8000/notify")
+            .Should().Be("http://apprise-server:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "{\"url\":\"http://apprise-server:8000\"}")
+            .Should().Be("http://apprise-server:8000/notify");
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenAppriseNotification_DispatchesValidBodyPayload()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 70,
+            Name = "Apprise Alert",
+            Implementation = "Apprise",
+            ConfigContract = "AppriseSettings",
+            Settings = "{\"url\":\"http://apprise-server:8000\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 71,
+            Name = "Apprise Linux ISO",
+            Category = "Linux",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 1000 * 1024 * 1024L,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "http://apprise-server:8000/notify",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                payload.GetType().GetProperty("title") != null &&
+                payload.GetType().GetProperty("body") != null &&
+                payload.GetType().GetProperty("type") != null &&
+                (string)payload.GetType().GetProperty("title")!.GetValue(payload)! == "Leecharr: OnGrab" &&
+                ((string)payload.GetType().GetProperty("body")!.GetValue(payload)!).Contains("Apprise Linux ISO")));
+    }
 }

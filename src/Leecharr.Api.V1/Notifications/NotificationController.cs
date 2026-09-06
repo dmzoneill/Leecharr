@@ -176,6 +176,15 @@ public class NotificationController : Controller
 
             payload = pushoverPayload;
         }
+        else if (string.Equals(notif.Implementation, "Apprise", StringComparison.OrdinalIgnoreCase))
+        {
+            payload = new
+            {
+                title = "Leecharr: Test",
+                body = "This is a test notification from Leecharr. Your Apprise integration is working properly.",
+                type = "info",
+            };
+        }
         else
         {
             payload = new

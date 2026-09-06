@@ -89,15 +89,14 @@ export function SeedingSimulator({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span style={{ fontSize: "1.1rem" }}>🎯</span>
           <h4 style={{ margin: 0, fontSize: "0.95rem" }}>
-            {t("autogen.t_seeding_milestone_ratio_calculator")}
+            {t("statistics.seedingMilestoneCalculator")}
           </h4>
         </div>
         <span
           className="badge badge-primary"
           style={{ fontSize: "0.75rem", fontFamily: "monospace" }}
         >
-          {t("autogen.t_speed")}
-          {formatSpeed(currentUploadSpeed)}
+          {t("common.speed")}: {formatSpeed(currentUploadSpeed)}
         </span>
       </div>
 
@@ -111,7 +110,7 @@ export function SeedingSimulator({
         }}
       >
         <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          {t("autogen.t_target_ratio")}
+          {t("statistics.targetRatio")}
         </span>
         {[1.0, 1.5, 2.0, 3.0, 5.0].map((r) => (
           <button
@@ -150,7 +149,7 @@ export function SeedingSimulator({
               fontSize: "0.78rem",
             }}
           />
-          <span style={{ fontSize: "0.8rem" }}>{t("autogen.t_ratio")}</span>
+          <span style={{ fontSize: "0.8rem" }}>{t("torrents.ratio")}</span>
         </div>
       </div>
 
@@ -170,7 +169,7 @@ export function SeedingSimulator({
             {formatBytes(targetUploadBytes)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            {t("autogen.t_target_upload")}
+            {t("statistics.targetUpload")}
           </div>
         </div>
 
@@ -179,7 +178,7 @@ export function SeedingSimulator({
             {formatBytes(remainingUploadBytes)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            {t("autogen.t_upload_needed")}
+            {t("statistics.uploadNeeded")}
           </div>
         </div>
 
@@ -194,7 +193,7 @@ export function SeedingSimulator({
             {formatDuration(etaSeconds)}
           </div>
           <div className="stat-label" style={{ fontSize: "0.72rem" }}>
-            {t("autogen.t_estimated_time")}
+            {t("statistics.estimatedTime")}
           </div>
         </div>
       </div>
@@ -231,25 +230,26 @@ export function SeedingSimulator({
               gap: "0.35rem",
             }}
           >
-            {isHnrCleared ? "🛡️ HnR Cleared" : "⚠️ Hit & Run Risk Guard"}
+            {isHnrCleared
+              ? t("statistics.hnrCleared")
+              : t("statistics.hnrRiskGuard")}
           </span>
           <span
             className={`badge ${isHnrCleared ? "badge-success" : "badge-warning"}`}
             style={{ fontSize: "0.68rem" }}
           >
             {isHnrCleared
-              ? "Safe to stop"
-              : `${(hnrProgress * 100).toFixed(0)}% Seeding Time`}
+              ? t("statistics.safeToStop")
+              : `${(hnrProgress * 100).toFixed(0)}% ${t("statistics.seedingTimeProgress")}`}
           </span>
         </div>
 
         {!isHnrCleared && (
           <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-            {t("autogen.t_requires")}
-            {minSeedingHours}
-            {t("autogen.t_h_seeding_time_or_1_0x_ratio_seed_for")}{" "}
+            {t("statistics.requires")} {minSeedingHours}
+            {t("statistics.seedingTimeOrRatio")}{" "}
             <strong>{formatDuration(hnrRemainingSeconds)}</strong>{" "}
-            {t("autogen.t_more_to_avoid_private_tracker_warning")}
+            {t("statistics.moreToAvoidWarning")}
           </div>
         )}
       </div>

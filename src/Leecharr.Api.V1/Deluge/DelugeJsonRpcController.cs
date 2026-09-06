@@ -956,7 +956,7 @@ public class DelugeJsonRpcController : ControllerBase
                                     {
                                         if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, FromDelugePriority(prio));
                                         }
 
                                         fIdx++;
@@ -989,7 +989,7 @@ public class DelugeJsonRpcController : ControllerBase
                                 {
                                     if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                     {
-                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, FromDelugePriority(prio));
                                     }
 
                                     fIdx++;
@@ -1188,7 +1188,7 @@ public class DelugeJsonRpcController : ControllerBase
                 { "offset", f.PieceOffset },
             }).ToList();
 
-            filePriorities = files.Select(f => f.Priority).ToList();
+            filePriorities = files.Select(f => ToDelugePriority(f.Priority)).ToList();
             fileProgress = files.Select(f => f.Progress).ToList();
         }
         else
@@ -1325,5 +1325,27 @@ public class DelugeJsonRpcController : ControllerBase
         }
 
         return string.Empty;
+    }
+
+    private static int ToDelugePriority(int priority)
+    {
+        return priority switch
+        {
+            <= 0 => 0,
+            1 or 2 => 1,
+            3 => 4,
+            >= 4 => 7,
+        };
+    }
+
+    private static int FromDelugePriority(int priority)
+    {
+        return priority switch
+        {
+            <= 0 => 0,
+            1 => 2,
+            2 or 3 or 4 => 3,
+            >= 5 => 4,
+        };
     }
 }

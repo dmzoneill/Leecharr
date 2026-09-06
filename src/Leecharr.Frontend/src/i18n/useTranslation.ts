@@ -14,9 +14,37 @@ function lookupKey(obj: any, keys: string[]): string | null {
   return typeof value === "string" ? value : null;
 }
 
+export type TranslationParams =
+  | Record<string, string | number | boolean | null | undefined>
+  | (string | number | boolean | null | undefined)[];
+
+function interpolate(text: string, params?: TranslationParams): string {
+  if (!params) return text;
+  if (Array.isArray(params)) {
+    return params.reduce<string>((acc, val, idx) => {
+      return acc.replace(new RegExp(`\\{${idx}\\}`, "g"), String(val ?? ""));
+    }, text);
+  }
+  return Object.entries(params).reduce<string>(
+    (acc, [paramKey, paramValue]) => {
+      return acc
+        .replace(
+          new RegExp(`\\{\\{\\s*${paramKey}\\s*\\}\\}`, "g"),
+          String(paramValue ?? ""),
+        )
+        .replace(
+          new RegExp(`\\{${paramKey}\\}`, "g"),
+          String(paramValue ?? ""),
+        );
+    },
+    text,
+  );
+}
+
 export function translate(
   key: string,
-  params?: Record<string, string | number>,
+  defaultOrParams?: string | TranslationParams,
+  params?: TranslationParams,
 ): string {
   const translations = useI18nStore.getState().translations;
   const keys = key.split(".");
@@ -25,48 +53,44 @@ export function translate(
     value = lookupKey(en, keys);
   }
   if (!value) {
-    value = key;
+    if (typeof defaultOrParams === "string") {
+      value = defaultOrParams;
+    } else {
+      value = key;
+    }
   }
-  if (params) {
-    return Object.entries(params).reduce((acc, [paramKey, paramValue]) => {
-      return acc.replace(
-        new RegExp(`{{\\s*${paramKey}\\s*}}`, "g"),
-        String(paramValue),
-      );
-    }, value!);
-  }
-  return value;
+  const actualParams =
+    typeof defaultOrParams === "object" ? defaultOrParams : params;
+  return interpolate(value, actualParams);
 }
 
 export const useTranslation = () => {
   const translations = useI18nStore((state) => state.translations);
 
   const t = useCallback(
-    (key: string, params?: Record<string, string | number>) => {
+    (
+      key: string,
+      defaultOrParams?: string | TranslationParams,
+      params?: TranslationParams,
+    ) => {
       const keys = key.split(".");
-      // 1. Look up in active translations
       let value = lookupKey(translations, keys);
 
-      // 2. Fall back to English if missing
       if (!value && translations !== en) {
         value = lookupKey(en, keys);
       }
 
-      // 3. Fall back to raw key if still not found
       if (!value) {
-        value = key;
+        if (typeof defaultOrParams === "string") {
+          value = defaultOrParams;
+        } else {
+          value = key;
+        }
       }
 
-      if (params) {
-        return Object.entries(params).reduce((acc, [paramKey, paramValue]) => {
-          return acc.replace(
-            new RegExp(`{{\\s*${paramKey}\\s*}}`, "g"),
-            String(paramValue),
-          );
-        }, value!);
-      }
-
-      return value;
+      const actualParams =
+        typeof defaultOrParams === "object" ? defaultOrParams : params;
+      return interpolate(value, actualParams);
     },
     [translations],
   );

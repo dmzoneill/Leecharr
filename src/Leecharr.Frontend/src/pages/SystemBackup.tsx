@@ -148,11 +148,9 @@ function SystemBackup() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_backups")}
+              {t("system.backupTitle")}
             </h1>
-            <span className="badge badge-primary">
-              {t("autogen.t_snapshots")}
-            </span>
+            <span className="badge badge-primary">{t("system.snapshots")}</span>
           </div>
           <div
             style={{
@@ -161,7 +159,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_create_download_and_restore_leecharr_con")}
+            {t("system.backupsSubtitle")}
           </div>
         </div>
 
@@ -177,14 +175,16 @@ function SystemBackup() {
         >
           <BackupIcon />
           <span>
-            {createBackup.isPending ? "Creating Backup..." : "Backup Now"}
+            {createBackup.isPending
+              ? "Creating Backup..."
+              : t("system.createBackup")}
           </span>
         </button>
       </div>
 
-      {isLoading && <p className="loading">{t("autogen.t_loading_backups")}</p>}
+      {isLoading && <p className="loading">{t("system.loadingBackups")}</p>}
       {!isLoading && isError && (
-        <p className="error">{t("autogen.t_failed_to_load_backups")}</p>
+        <p className="error">{t("system.failedToLoadBackups")}</p>
       )}
 
       {/* Backups List Card */}
@@ -213,7 +213,7 @@ function SystemBackup() {
               margin: 0,
             }}
           >
-            {t("autogen.t_stored_backup_snapshots")}
+            {t("system.storedBackups")}
           </h2>
           <div
             style={{
@@ -222,7 +222,7 @@ function SystemBackup() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_zip_archives_containing_the_sqlite_datab")}
+            {t("system.storedBackupsSubtitle")}
           </div>
         </div>
 
@@ -232,19 +232,17 @@ function SystemBackup() {
               <thead>
                 <tr>
                   <th className="torrent-table-th">
-                    {t("autogen.t_archive_name")}
+                    {t("system.archiveName")}
                   </th>
+                  <th className="torrent-table-th">{t("system.fileSize")}</th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_file_size")}
-                  </th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_creation_date")}
+                    {t("system.creationDate")}
                   </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    {t("autogen.t_actions")}
+                    {t("common.actions")}
                   </th>
                 </tr>
               </thead>
@@ -252,7 +250,7 @@ function SystemBackup() {
                 {backups.length === 0 && (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      {t("autogen.t_no_backups_found_click_quot_backup_now_q")}
+                      {t("system.noBackupsFound")}
                     </td>
                   </tr>
                 )}
@@ -283,7 +281,7 @@ function SystemBackup() {
                         <button
                           className="btn btn-small btn-outline"
                           onClick={() => setConfirmRestore(backup)}
-                          title={t("autogen.t_restore_snapshot")}
+                          title={t("system.restoreSnapshot")}
                           disabled={restoreBackup.isPending}
                         >
                           <RestoreIcon />
@@ -291,7 +289,7 @@ function SystemBackup() {
                         <button
                           className="btn btn-small btn-danger"
                           onClick={() => setConfirmDelete(backup.id)}
-                          title={t("autogen.t_delete_snapshot")}
+                          title={t("system.deleteSnapshot")}
                           disabled={deleteBackup.isPending}
                         >
                           <TrashIcon />
@@ -323,7 +321,7 @@ function SystemBackup() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
             >
-              {t("autogen.t_delete_backup_snapshot")}
+              {t("system.deleteBackupSnapshot")}
             </h3>
             <p
               style={{
@@ -333,7 +331,9 @@ function SystemBackup() {
                 lineHeight: 1.5,
               }}
             >
-              {t("autogen.t_are_you_sure_you_want_to_permanently_del")}
+              {t("system.confirmDeleteBackup", {
+                name: backups?.find((b) => b.id === confirmDelete)?.name || "",
+              })}
             </p>
             <div
               className="modal-actions"
@@ -347,14 +347,14 @@ function SystemBackup() {
                 className="btn btn-outline btn-small"
                 onClick={() => setConfirmDelete(null)}
               >
-                {t("autogen.t_cancel")}
+                {t("common.cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"
                 onClick={() => handleDeleteBackup(confirmDelete)}
                 disabled={deleteBackup.isPending}
               >
-                {deleteBackup.isPending ? "Deleting..." : "Delete Backup"}
+                {deleteBackup.isPending ? "Deleting..." : t("common.delete")}
               </button>
             </div>
           </div>
@@ -378,7 +378,7 @@ function SystemBackup() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
             >
-              {t("autogen.t_restore_backup_snapshot")}
+              {t("system.restoreBackupSnapshot")}
             </h3>
             <div
               style={{
@@ -392,7 +392,7 @@ function SystemBackup() {
                 lineHeight: 1.4,
               }}
             >
-              {t("autogen.t_warning_restoring_will_replace_your_curr")}
+              {t("system.warningRestore")}
             </div>
             <p
               style={{
@@ -402,9 +402,7 @@ function SystemBackup() {
                 lineHeight: 1.5,
               }}
             >
-              {t("autogen.t_are_you_sure_you_want_to_restore_from_qu")}
-              <strong>{confirmRestore.name}</strong>
-              {t("autogen.t_quot")}
+              {t("system.confirmRestore", { name: confirmRestore.name })}
             </p>
             <div
               className="modal-actions"
@@ -418,7 +416,7 @@ function SystemBackup() {
                 className="btn btn-outline btn-small"
                 onClick={() => setConfirmRestore(null)}
               >
-                {t("autogen.t_cancel")}
+                {t("common.cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"

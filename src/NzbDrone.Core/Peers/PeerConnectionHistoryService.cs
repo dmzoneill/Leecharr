@@ -14,6 +14,7 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService
     private const int MaxRecords = 10000;
     private readonly ConcurrentQueue<PeerConnectionEvent> eventQueue = new();
     private readonly IGeoIpService geoIpService;
+    private readonly object syncRoot = new();
     private long idSequence;
 
     public PeerConnectionHistoryService(IGeoIpService geoIpService = null)
@@ -54,17 +55,24 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService
             }
         }
 
-        this.eventQueue.Enqueue(connectionEvent);
-
-        while (this.eventQueue.Count > MaxRecords)
+        lock (this.syncRoot)
         {
-            this.eventQueue.TryDequeue(out _);
+            this.eventQueue.Enqueue(connectionEvent);
+
+            while (this.eventQueue.Count > MaxRecords)
+            {
+                this.eventQueue.TryDequeue(out _);
+            }
         }
     }
 
     public IReadOnlyList<PeerConnectionEvent> GetRecords(DateTime? start = null, DateTime? end = null, string infoHash = null)
     {
-        var records = this.eventQueue.ToArray().AsEnumerable();
+        IEnumerable<PeerConnectionEvent> records;
+        lock (this.syncRoot)
+        {
+            records = this.eventQueue.ToArray();
+        }
 
         if (start.HasValue)
         {
@@ -93,22 +101,32 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService
         }
 
         var threshold = before.Value;
-        var remaining = this.eventQueue.Where(r => r.Timestamp >= threshold).ToList();
-
-        while (this.eventQueue.TryDequeue(out _))
+        lock (this.syncRoot)
         {
-        }
+            var kept = new List<PeerConnectionEvent>();
 
-        foreach (var item in remaining)
-        {
-            this.eventQueue.Enqueue(item);
+            while (this.eventQueue.TryDequeue(out var item))
+            {
+                if (item.Timestamp >= threshold)
+                {
+                    kept.Add(item);
+                }
+            }
+
+            foreach (var item in kept)
+            {
+                this.eventQueue.Enqueue(item);
+            }
         }
     }
 
     public void Clear()
     {
-        while (this.eventQueue.TryDequeue(out _))
+        lock (this.syncRoot)
         {
+            while (this.eventQueue.TryDequeue(out _))
+            {
+            }
         }
     }
 }

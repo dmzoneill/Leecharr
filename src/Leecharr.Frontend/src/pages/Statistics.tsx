@@ -78,10 +78,10 @@ function Statistics() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_statistics_achievements")}
+              {t("statistics.title")}
             </h1>
             <span className="badge badge-primary">
-              {t("autogen.t_level")}
+              {t("statistics.levelPrefix")}
               {achievements.overallLevel}: {achievements.rankTitle}
             </span>
           </div>
@@ -92,7 +92,7 @@ function Statistics() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_live_transfer_speeds_seeding_milestones_")}
+            {t("statistics.subtitle")}
           </div>
         </div>
 
@@ -102,26 +102,26 @@ function Statistics() {
             className={`view-toggle-btn ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
-            {t("autogen.t_swarm_overview")}
+            {t("statistics.overviewTab")}
           </button>
           <button
             className={`view-toggle-btn ${activeTab === "achievements" ? "active" : ""}`}
             onClick={() => setActiveTab("achievements")}
           >
-            {t("autogen.t_achievements")}
-            {achievements.unlockedCount}/{achievements.totalCount})
+            {t("statistics.achievementsTab")} ({achievements.unlockedCount}/
+            {achievements.totalCount})
           </button>
           <button
             className={`view-toggle-btn ${activeTab === "buffers" ? "active" : ""}`}
             onClick={() => setActiveTab("buffers")}
           >
-            {t("autogen.t_tracker_buffers_bp")}
+            {t("statistics.trackerBuffersTab")}
           </button>
           <button
             className={`view-toggle-btn ${activeTab === "simulator" ? "active" : ""}`}
             onClick={() => setActiveTab("simulator")}
           >
-            {t("autogen.t_seeding_simulator")}
+            {t("statistics.simulatorTab")}
           </button>
         </div>
       </div>
@@ -129,7 +129,7 @@ function Statistics() {
       {/* OVERVIEW TAB */}
       {activeTab === "overview" && (
         <>
-          <ErrorBoundary title={t("autogen.t_speed_graph_error")}>
+          <ErrorBoundary title={t("statistics.speedGraphError")}>
             <SpeedGraph />
           </ErrorBoundary>
 
@@ -167,7 +167,7 @@ function Statistics() {
                   className="badge badge-secondary"
                   style={{ fontSize: "0.75rem" }}
                 >
-                  {t("autogen.t_level")}
+                  {t("statistics.levelPrefix")}
                   {achievements.overallLevel}
                 </span>
               </div>
@@ -178,11 +178,14 @@ function Statistics() {
                   marginTop: "0.2rem",
                 }}
               >
-                {achievements.unlockedCount} {t("autogen.t_of")}
+                {achievements.unlockedCount} {t("statistics.of")}{" "}
                 {achievements.totalCount}{" "}
-                {t("autogen.t_seeding_milestones_unlocked")}{" "}
-                {achievements.totalSwarmGuardians.length}{" "}
-                {t("autogen.t_rare_swarms_protected")}
+                {t("statistics.seedingMilestonesUnlocked")}{" "}
+                {t("statistics.rareSwarmsProtected", {
+                  count: achievements.totalSwarmGuardians.length,
+                  plural:
+                    achievements.totalSwarmGuardians.length === 1 ? "" : "s",
+                })}
               </div>
             </div>
 
@@ -190,7 +193,7 @@ function Statistics() {
               className="btn btn-outline btn-small"
               onClick={() => setActiveTab("achievements")}
             >
-              {t("autogen.t_view_hall_of_fame")}
+              {t("statistics.viewHallOfFame")}
             </button>
           </div>
 
@@ -207,7 +210,7 @@ function Statistics() {
               }}
             >
               <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>
-                {t("autogen.t_status_breakdown")}
+                {t("statistics.statusBreakdown")}
               </h3>
               <div
                 style={{
@@ -291,28 +294,28 @@ function Statistics() {
               }}
             >
               <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem" }}>
-                {t("autogen.t_top_torrents_by_upload")}
+                {t("statistics.topTorrentsByUpload")}
               </h3>
               {torrentsLoading ? (
-                <p className="loading">{t("autogen.t_loading")}</p>
+                <p className="loading">{t("statistics.loading")}</p>
               ) : torrentsError ? (
-                <p className="error">{t("autogen.t_failed_to_load_data")}</p>
+                <p className="error">{t("statistics.failedToLoad")}</p>
               ) : (
                 <div className="torrent-table-wrapper">
                   <table className="torrent-table">
                     <thead>
                       <tr>
                         <th className="torrent-table-th">
-                          {t("autogen.t_name")}
+                          {t("statistics.name")}
                         </th>
                         <th className="torrent-table-th">
-                          {t("autogen.t_uploaded")}
+                          {t("statistics.uploaded")}
                         </th>
                         <th className="torrent-table-th">
-                          {t("autogen.t_ratio")}
+                          {t("statistics.ratio")}
                         </th>
                         <th className="torrent-table-th">
-                          {t("autogen.t_speed")}
+                          {t("statistics.speed")}
                         </th>
                       </tr>
                     </thead>
@@ -320,7 +323,7 @@ function Statistics() {
                       {topTorrents.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="torrent-table-empty">
-                            {t("autogen.t_no_torrents")}
+                            {t("statistics.noTorrents")}
                           </td>
                         </tr>
                       ) : (
@@ -386,14 +389,14 @@ function Statistics() {
                 }}
               >
                 <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
-                  {t("autogen.t_swarm_guardians")}
+                  {t("statistics.swarmGuardians")}
                 </h3>
                 <span
                   className="badge badge-warning"
                   style={{ fontSize: "0.75rem" }}
                 >
                   {achievements.totalSwarmGuardians.length}{" "}
-                  {t("autogen.t_rare")}
+                  {t("statistics.rareBadge")}
                 </span>
               </div>
               <p
@@ -403,12 +406,12 @@ function Statistics() {
                   margin: "0 0 0.75rem 0",
                 }}
               >
-                {t("autogen.t_releases_with_2_or_fewer_seeders_in_the_")}
+                {t("statistics.rareSwarmsDesc")}
               </p>
 
               {achievements.totalSwarmGuardians.length === 0 ? (
                 <p className="loading" style={{ margin: 0, padding: "1rem 0" }}>
-                  {t("autogen.t_no_dying_swarms_detected_all_active_torr")}
+                  {t("statistics.noRareSwarms")}
                 </p>
               ) : (
                 <div className="torrent-table-wrapper">
@@ -416,13 +419,13 @@ function Statistics() {
                     <thead>
                       <tr>
                         <th className="torrent-table-th">
-                          {t("autogen.t_protected_torrent")}
+                          {t("statistics.protectedTorrent")}
                         </th>
                         <th className="torrent-table-th">
-                          {t("autogen.t_seeders")}
+                          {t("statistics.seeders")}
                         </th>
                         <th className="torrent-table-th">
-                          {t("autogen.t_seed_time")}
+                          {t("statistics.seedTime")}
                         </th>
                       </tr>
                     </thead>
@@ -448,8 +451,13 @@ function Statistics() {
                                 className="badge badge-danger"
                                 style={{ fontSize: "0.75rem" }}
                               >
-                                ⚠️ {torrent.seeders} {t("autogen.t_seeder")}
-                                {torrent.seeders !== 1 ? "s" : ""}
+                                {torrent.seeders === 1
+                                  ? t("statistics.seederCount", {
+                                      count: torrent.seeders,
+                                    })
+                                  : t("statistics.seedersCount", {
+                                      count: torrent.seeders,
+                                    })}
                               </span>
                             </td>
                             <td style={{ color: "var(--text-secondary)" }}>
@@ -503,18 +511,18 @@ function Statistics() {
                     letterSpacing: "0.08em",
                   }}
                 >
-                  {t("autogen.t_seeding_mastery_tier")}
+                  {t("statistics.seedingMasteryTier")}
                 </div>
                 <h2 style={{ margin: "0.25rem 0", fontSize: "1.7rem" }}>
-                  {t("autogen.t_level")}
+                  {t("statistics.levelPrefix")}
                   {achievements.overallLevel} • {achievements.rankTitle}
                 </h2>
                 <div
                   style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}
                 >
-                  {achievements.unlockedCount} {t("autogen.t_of")}
+                  {achievements.unlockedCount} {t("statistics.of")}
                   {achievements.totalCount}{" "}
-                  {t("autogen.t_achievements_complete")}
+                  {t("statistics.achievementsComplete")} (
                   {(
                     (achievements.unlockedCount / achievements.totalCount) *
                     100
@@ -533,7 +541,7 @@ function Statistics() {
                     marginBottom: "0.35rem",
                   }}
                 >
-                  <span>{t("autogen.t_tier_progress")}</span>
+                  <span>{t("statistics.tierProgress")}</span>
                   <span style={{ fontWeight: 600, color: "var(--accent)" }}>
                     {achievements.unlockedCount}/{achievements.totalCount}
                   </span>
@@ -633,12 +641,10 @@ function Statistics() {
                     }}
                   >
                     <span>
-                      {t("autogen.t_current")}
-                      {badge.currentValueText}
+                      {t("statistics.current")}: {badge.currentValueText}
                     </span>
                     <span>
-                      {t("autogen.t_goal")}
-                      {badge.targetValueText}
+                      {t("statistics.goal")}: {badge.targetValueText}
                     </span>
                   </div>
                   <div
@@ -683,7 +689,7 @@ function Statistics() {
             }}
           >
             <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.05rem" }}>
-              {t("autogen.t_private_tracker_buffer_bonus_point_estim")}
+              {t("statistics.bufferBonusPoints")}
             </h3>
             <p
               style={{
@@ -692,7 +698,7 @@ function Statistics() {
                 margin: 0,
               }}
             >
-              {t("autogen.t_calculates_your_safe_download_buffer_acr")}
+              {t("statistics.bufferBonusPointsDesc")}
             </p>
           </div>
 
@@ -712,26 +718,28 @@ function Statistics() {
                 <thead>
                   <tr>
                     <th className="torrent-table-th">
-                      {t("autogen.t_tracker_domain")}
+                      {t("statistics.trackerDomain")}
                     </th>
                     <th className="torrent-table-th">
-                      {t("autogen.t_active_torrents")}
+                      {t("statistics.activeTorrents")}
                     </th>
                     <th className="torrent-table-th">
-                      {t("autogen.t_total_uploaded")}
+                      {t("statistics.totalUploaded")}
                     </th>
                     <th className="torrent-table-th">
-                      {t("autogen.t_total_downloaded")}
+                      {t("statistics.totalDownloaded")}
                     </th>
-                    <th className="torrent-table-th">{t("autogen.t_ratio")}</th>
                     <th className="torrent-table-th">
-                      {t("autogen.t_safe_buffer_1_0x")}
+                      {t("statistics.ratio")}
+                    </th>
+                    <th className="torrent-table-th">
+                      {t("statistics.safeBuffer")}
                     </th>
                     <th
                       className="torrent-table-th"
                       style={{ textAlign: "right" }}
                     >
-                      {t("autogen.t_est_bonus_points")}
+                      {t("statistics.estBonusPoints")}
                     </th>
                   </tr>
                 </thead>
@@ -782,7 +790,7 @@ function Statistics() {
                           style={{ fontSize: "0.75rem" }}
                         >
                           ⚡ ~{tb.estimatedPointsPerHour}{" "}
-                          {t("autogen.t_pts_hr")}
+                          {t("statistics.ptsHr")}
                         </span>
                       </td>
                     </tr>
@@ -801,7 +809,7 @@ function Statistics() {
         >
           <div className="card" style={{ padding: "1.25rem" }}>
             <h3 style={{ margin: "0 0 0.5rem 0" }}>
-              {t("autogen.t_global_seeding_ratio_milestone_simulator")}
+              {t("statistics.simulatorTitle")}
             </h3>
             <p
               style={{
@@ -810,7 +818,7 @@ function Statistics() {
                 margin: "0 0 1rem 0",
               }}
             >
-              {t("autogen.t_calculate_estimated_upload_timelines_tar")}
+              {t("statistics.simulatorDesc")}
             </p>
 
             <SeedingSimulator
@@ -827,7 +835,7 @@ function Statistics() {
 
           <div className="card" style={{ padding: "1.25rem" }}>
             <h3 style={{ margin: "0 0 0.75rem 0" }}>
-              {t("autogen.t_simulate_individual_swarms")}
+              {t("statistics.simulateIndividualSwarms")}
             </h3>
             <div
               style={{ display: "flex", flexDirection: "column", gap: "1rem" }}

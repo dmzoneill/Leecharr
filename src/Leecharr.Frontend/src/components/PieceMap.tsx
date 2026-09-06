@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { useTranslation } from "../i18n";
 import { formatBytes } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 
@@ -27,6 +28,7 @@ export function PieceMap({
   bitfield,
   className,
 }: PieceMapProps) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<"bar" | "grid">("bar");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -325,13 +327,15 @@ export function PieceMap({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-            🧩 BitTorrent Piece Map
+            🧩 {t("torrents.detail.pieceMapTitle")}
           </span>
           <span
             className={`badge ${verifiedPercentage >= 100 ? "badge-success" : "badge-primary"}`}
             style={{ fontSize: "0.72rem" }}
           >
-            {verifiedPercentage.toFixed(1)}% Verified
+            {t("torrents.detail.pieceMapVerifiedPercent", {
+              percent: verifiedPercentage.toFixed(1),
+            })}
           </span>
         </div>
 
@@ -343,7 +347,10 @@ export function PieceMap({
               fontFamily: "monospace",
             }}
           >
-            {totalPieces.toLocaleString()} pieces @ {formatBytes(pieceLength)}
+            {t("torrents.detail.pieceMapPiecesInfo", {
+              count: totalPieces.toLocaleString(),
+              size: formatBytes(pieceLength),
+            })}
           </span>
           <div className="view-toggle" style={{ margin: 0 }}>
             <button
@@ -351,18 +358,18 @@ export function PieceMap({
               className={`view-toggle-btn ${viewMode === "bar" ? "active" : ""}`}
               onClick={() => setViewMode("bar")}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
-              title="Linear Bar View"
+              title={t("torrents.detail.pieceMapLinearBarView")}
             >
-              Bar
+              {t("torrents.detail.pieceMapBar")}
             </button>
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
-              title="Matrix Grid View"
+              title={t("torrents.detail.pieceMapMatrixGridView")}
             >
-              Grid
+              {t("torrents.detail.pieceMapGrid")}
             </button>
           </div>
         </div>
@@ -463,7 +470,10 @@ export function PieceMap({
                 backgroundColor: "#27ae60",
               }}
             />
-            {completedPieces} / {totalPieces} Complete
+            {t("torrents.detail.pieceMapCompleteLegend", {
+              completed: completedPieces,
+              total: totalPieces,
+            })}
           </span>
           <span
             style={{
@@ -480,7 +490,7 @@ export function PieceMap({
                 backgroundColor: "#3b82f6",
               }}
             />
-            Active Download
+            {t("torrents.detail.pieceMapActiveLegend")}
           </span>
           <span
             style={{
@@ -498,7 +508,9 @@ export function PieceMap({
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
             />
-            {Math.max(0, totalPieces - completedPieces)} Missing
+            {t("torrents.detail.pieceMapMissingLegend", {
+              count: Math.max(0, totalPieces - completedPieces),
+            })}
           </span>
         </div>
         {hoveredBlock && (
@@ -506,8 +518,13 @@ export function PieceMap({
             style={{ fontFamily: "monospace", color: "var(--accent, #ffd166)" }}
           >
             {hoveredBlock.startIndex === hoveredBlock.endIndex
-              ? `Piece #${hoveredBlock.startIndex}`
-              : `Pieces #${hoveredBlock.startIndex} - #${hoveredBlock.endIndex}`}{" "}
+              ? t("torrents.detail.pieceMapPieceSingle", {
+                  index: hoveredBlock.startIndex,
+                })
+              : t("torrents.detail.pieceMapPieceRange", {
+                  start: hoveredBlock.startIndex,
+                  end: hoveredBlock.endIndex,
+                })}{" "}
             (
             {formatBytes(
               pieceLength *
@@ -515,10 +532,13 @@ export function PieceMap({
             )}
             ) -{" "}
             {hoveredBlock.status === "complete"
-              ? "Verified / Seeded"
+              ? t("torrents.detail.pieceMapVerifiedSeeded")
               : hoveredBlock.status === "active"
-                ? `Partial (${hoveredBlock.completedCount}/${hoveredBlock.totalInBlock})`
-                : "Missing"}
+                ? t("torrents.detail.pieceMapPartial", {
+                    completed: hoveredBlock.completedCount,
+                    total: hoveredBlock.totalInBlock,
+                  })
+                : t("torrents.detail.pieceMapMissing")}
           </span>
         )}
       </div>
