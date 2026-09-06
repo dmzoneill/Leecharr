@@ -102,16 +102,23 @@ public class CookieSessionManager : ICookieSessionManager
             return;
         }
 
-        // Sliding Expiry: If context.ShouldRenew is true, or if session.Expiry - DateTime.UtcNow < TimeSpan.FromHours(4)
-        if (context.ShouldRenew || (session.Expiry - now < TimeSpan.FromHours(4)))
+        var isPersistent = context.Properties?.IsPersistent == true ||
+                           (session.Expiry - session.CreatedAt > TimeSpan.FromDays(1)) ||
+                           (session.Expiry - now > TimeSpan.FromHours(12));
+
+        var renewalThreshold = isPersistent ? TimeSpan.FromDays(15) : TimeSpan.FromHours(4);
+
+        // Sliding Expiry: If context.ShouldRenew is true, or if session.Expiry - DateTime.UtcNow < renewalThreshold
+        if (context.ShouldRenew || (session.Expiry - now < renewalThreshold))
         {
-            var newExpiry = now.AddHours(8);
+            var newExpiry = isPersistent ? now.AddDays(30) : now.AddHours(8);
             session.Expiry = newExpiry;
             session.LastActivity = now;
 
             if (context.Properties != null)
             {
                 context.Properties.ExpiresUtc = newExpiry;
+                context.Properties.IsPersistent = isPersistent;
             }
 
             context.ShouldRenew = true;

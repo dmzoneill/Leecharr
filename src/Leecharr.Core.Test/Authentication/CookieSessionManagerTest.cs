@@ -224,6 +224,42 @@ public class CookieSessionManagerTest
         this.sessionRepository.Received(2).FindBySessionToken(token);
     }
 
+    [Test]
+    public async Task ValidatePrincipal_WhenPersistentSessionRenews_ExtendsToThirtyDays()
+    {
+        const string token = "persistent-session-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 10,
+            UserId = 42,
+            SessionToken = token,
+            CreatedAt = now.AddDays(-28),
+            Expiry = now.AddDays(2), // 2 days left out of original 30 days
+            LastActivity = now.AddDays(-1),
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+        context.Properties.IsPersistent = true;
+        context.ShouldRenew = false;
+
+        await this.sessionManager.ValidatePrincipal(context);
+
+        context.Principal.Should().NotBeNull();
+        context.ShouldRenew.Should().BeTrue();
+        context.Properties.IsPersistent.Should().BeTrue();
+        context.Properties.ExpiresUtc.Should().NotBeNull();
+        context.Properties.ExpiresUtc!.Value.UtcDateTime.Should().BeCloseTo(DateTime.UtcNow.AddDays(30), TimeSpan.FromSeconds(10));
+
+        await this.sessionRepository.Received(1).UpdateExpiryAndActivityAsync(
+            token,
+            Arg.Is<DateTime>(d => d > now.AddDays(29)),
+            Arg.Any<DateTime>());
+    }
+
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)
     {
         var claims = new List<Claim>
