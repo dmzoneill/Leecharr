@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,6 +26,55 @@ public class CustomScriptService : ICustomScriptService
     public CustomScriptService(IMediaEnrichmentService mediaEnrichmentService = null)
     {
         this.mediaEnrichmentService = mediaEnrichmentService;
+    }
+
+    internal static Dictionary<string, string> BuildEnvironmentVariables(string eventType, Torrent torrent, TorrentMediaMetadata meta = null)
+    {
+        var env = new Dictionary<string, string>
+        {
+            ["LEECHARR_EVENT_TYPE"] = eventType ?? string.Empty,
+        };
+
+        if (torrent != null)
+        {
+            env["TORRENT_ID"] = torrent.Id.ToString(CultureInfo.InvariantCulture);
+            env["TORRENT_NAME"] = torrent.Name ?? string.Empty;
+            env["TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
+            env["TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
+            env["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
+            env["TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
+            env["TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
+            env["TORRENT_STATUS"] = torrent.Status.ToString();
+
+            env["LEECHARR_TORRENT_ID"] = torrent.Id.ToString(CultureInfo.InvariantCulture);
+            env["LEECHARR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
+            env["LEECHARR_TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
+            env["LEECHARR_TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
+            env["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
+            env["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
+            env["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
+            env["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
+
+            // Transmission compatibility environment variables
+            env["TR_TORRENT_DIR"] = torrent.SavePath ?? string.Empty;
+            env["TR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
+            env["TR_TORRENT_HASH"] = torrent.InfoHash ?? string.Empty;
+            env["TR_TORRENT_ID"] = torrent.Id.ToString(CultureInfo.InvariantCulture);
+            env["TR_TIME_LOCALTIME"] = DateTime.Now.ToString("s", CultureInfo.InvariantCulture);
+            env["TR_APP_VERSION"] = "4.0.0";
+
+            if (meta != null)
+            {
+                env["LEECHARR_MEDIA_TITLE"] = meta.Title ?? string.Empty;
+                env["LEECHARR_MEDIA_YEAR"] = meta.Year > 0 ? meta.Year.ToString(CultureInfo.InvariantCulture) : string.Empty;
+                env["LEECHARR_MEDIA_OVERVIEW"] = meta.Overview ?? string.Empty;
+                env["LEECHARR_MEDIA_GENRES"] = meta.Genres ?? string.Empty;
+                env["LEECHARR_MEDIA_RATING"] = meta.Rating > 0 ? meta.Rating.ToString("F1", CultureInfo.InvariantCulture) : string.Empty;
+                env["LEECHARR_MEDIA_IMDB_ID"] = meta.ImdbId ?? string.Empty;
+            }
+        }
+
+        return env;
     }
 
     public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
@@ -52,45 +103,11 @@ public class CustomScriptService : ICustomScriptService
             };
 
             // Inject Servarr / Leecharr standard environment variables
-            startInfo.EnvironmentVariables["LEECHARR_EVENT_TYPE"] = eventType;
-            if (torrent != null)
+            var meta = torrent != null ? this.mediaEnrichmentService?.GetMetadata(torrent.Id) : null;
+            var envVars = BuildEnvironmentVariables(eventType, torrent, meta);
+            foreach (var kvp in envVars)
             {
-                startInfo.EnvironmentVariables["TORRENT_ID"] = torrent.Id.ToString();
-                startInfo.EnvironmentVariables["TORRENT_NAME"] = torrent.Name ?? string.Empty;
-                startInfo.EnvironmentVariables["TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
-                startInfo.EnvironmentVariables["TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
-                startInfo.EnvironmentVariables["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
-                startInfo.EnvironmentVariables["TORRENT_SIZE"] = torrent.TotalSize.ToString();
-                startInfo.EnvironmentVariables["TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
-                startInfo.EnvironmentVariables["TORRENT_STATUS"] = torrent.Status.ToString();
-
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_ID"] = torrent.Id.ToString();
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString();
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2");
-                startInfo.EnvironmentVariables["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
-
-                // Transmission compatibility environment variables
-                startInfo.EnvironmentVariables["TR_TORRENT_DIR"] = torrent.SavePath ?? string.Empty;
-                startInfo.EnvironmentVariables["TR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
-                startInfo.EnvironmentVariables["TR_TORRENT_HASH"] = torrent.InfoHash ?? string.Empty;
-                startInfo.EnvironmentVariables["TR_TORRENT_ID"] = torrent.Id.ToString();
-                startInfo.EnvironmentVariables["TR_TIME_LOCALTIME"] = DateTime.Now.ToString("s");
-                startInfo.EnvironmentVariables["TR_APP_VERSION"] = "4.0.0";
-
-                var meta = this.mediaEnrichmentService?.GetMetadata(torrent.Id);
-                if (meta != null)
-                {
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_TITLE"] = meta.Title ?? string.Empty;
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_YEAR"] = meta.Year > 0 ? meta.Year.ToString() : string.Empty;
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_OVERVIEW"] = meta.Overview ?? string.Empty;
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_GENRES"] = meta.Genres ?? string.Empty;
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_RATING"] = meta.Rating > 0 ? meta.Rating.ToString("F1") : string.Empty;
-                    startInfo.EnvironmentVariables["LEECHARR_MEDIA_IMDB_ID"] = meta.ImdbId ?? string.Empty;
-                }
+                startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
             }
 
             this.logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", scriptPath, eventType, workingDir);
