@@ -27,7 +27,9 @@ interface CommandItem {
 
 function formatTaskName(typeName: string): string {
   if (!typeName) return "";
-  const shortName = typeName.includes(".") ? typeName.split(".").pop() || typeName : typeName;
+  const shortName = typeName.includes(".")
+    ? typeName.split(".").pop() || typeName
+    : typeName;
   return shortName.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
@@ -170,7 +172,9 @@ function SystemTasks() {
         }}
       >
         <div className="page-header-group">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <h1 className="page-heading" style={{ margin: 0 }}>
               System: Tasks
             </h1>
@@ -183,8 +187,8 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Scheduled background maintenance jobs, integration sync intervals, and command execution
-            queue
+            Scheduled background maintenance jobs, integration sync intervals,
+            and command execution queue
           </div>
         </div>
 
@@ -205,7 +209,8 @@ function SystemTasks() {
           marginBottom: "1.25rem",
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -233,7 +238,8 @@ function SystemTasks() {
               marginTop: "0.2rem",
             }}
           >
-            Periodic routines maintaining torrent swarm state, webhook sync, and system cleanup
+            Periodic routines maintaining torrent swarm state, webhook sync, and
+            system cleanup
           </div>
         </div>
 
@@ -277,7 +283,9 @@ function SystemTasks() {
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>
-                        {task.lastDuration ? formatDuration(task.lastDuration) : "-"}
+                        {task.lastDuration
+                          ? formatDuration(task.lastDuration)
+                          : "-"}
                       </code>
                     </td>
                     <td
@@ -308,7 +316,8 @@ function SystemTasks() {
         style={{
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -366,7 +375,10 @@ function SystemTasks() {
                 {commands.map((cmd) => (
                   <tr key={cmd.id} className="torrent-table-row">
                     <td>
-                      <span className={statusClass(cmd.status)} style={{ marginRight: "0.5rem" }}>
+                      <span
+                        className={statusClass(cmd.status)}
+                        style={{ marginRight: "0.5rem" }}
+                      >
                         {statusIcon(cmd.status)} {cmd.status}
                       </span>
                       <strong style={{ color: "var(--text-primary)" }}>
@@ -391,7 +403,9 @@ function SystemTasks() {
                       {formatRelativeTime(cmd.ended || cmd.endedAt)}
                     </td>
                     <td>
-                      <code style={{ fontSize: "0.8rem" }}>{formatDuration(cmd.duration)}</code>
+                      <code style={{ fontSize: "0.8rem" }}>
+                        {formatDuration(cmd.duration)}
+                      </code>
                     </td>
                   </tr>
                 ))}

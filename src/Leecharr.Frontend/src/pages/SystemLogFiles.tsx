@@ -133,7 +133,9 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           }}
         >
           <div className="page-header-group">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            >
               <h1 className="page-heading" style={{ margin: 0 }}>
                 System: Log Files
               </h1>
@@ -146,8 +148,8 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 marginTop: "0.2rem",
               }}
             >
-              Rotating plain text log files stored on disk for offline debugging and diagnostic
-              exports
+              Rotating plain text log files stored on disk for offline debugging
+              and diagnostic exports
             </div>
           </div>
 
@@ -176,7 +178,9 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               }}
             >
               <TrashIcon />
-              <span>{clearLogFiles.isPending ? "Clearing..." : "Clear All Files"}</span>
+              <span>
+                {clearLogFiles.isPending ? "Clearing..." : "Clear All Files"}
+              </span>
             </button>
           </div>
         </div>
@@ -247,7 +251,8 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
         style={{
           borderRadius: "8px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
           overflow: "hidden",
         }}
@@ -260,7 +265,10 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                   <th className="torrent-table-th">Log Filename</th>
                   <th className="torrent-table-th">Last Modified</th>
                   <th className="torrent-table-th">File Size</th>
-                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                  <th
+                    className="torrent-table-th"
+                    style={{ textAlign: "right" }}
+                  >
                     Download
                   </th>
                 </tr>

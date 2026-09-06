@@ -7,7 +7,10 @@ import type {
   TrackerBoostLogEntry,
 } from "../types";
 
-export function useTorrentLogs(torrentId: number, options?: { polling?: boolean }) {
+export function useTorrentLogs(
+  torrentId: number,
+  options?: { polling?: boolean },
+) {
   return useQuery<TorrentEventLogEntry[]>({
     queryKey: ["torrents", torrentId, "logs"],
     queryFn: () => apiClient.get(`/torrent/${torrentId}/logs?count=100`),
@@ -31,7 +34,11 @@ export function useClearLogFiles() {
   });
 }
 
-export function usePeerConnectionLog(params?: { start?: string; end?: string; infoHash?: string }) {
+export function usePeerConnectionLog(params?: {
+  start?: string;
+  end?: string;
+  infoHash?: string;
+}) {
   const searchParams = new URLSearchParams();
   if (params?.start) searchParams.set("start", params.start);
   if (params?.end) searchParams.set("end", params.end);
@@ -47,7 +54,7 @@ export function useTrackerBoostLogs(
   limit = 150,
   category?: string,
   level?: string,
-  refetchInterval?: number | false
+  refetchInterval?: number | false,
 ) {
   return useQuery<TrackerBoostLogEntry[]>({
     queryKey: ["trackerboost", "logs", limit, category, level],
@@ -57,7 +64,9 @@ export function useTrackerBoostLogs(
       if (category && category !== "all") params.set("category", category);
       if (level && level !== "all") params.set("level", level);
       const queryStr = params.toString();
-      return apiClient.get(`/trackerboost/logs${queryStr ? `?${queryStr}` : ""}`);
+      return apiClient.get(
+        `/trackerboost/logs${queryStr ? `?${queryStr}` : ""}`,
+      );
     },
     refetchInterval: refetchInterval ?? 3000,
   });

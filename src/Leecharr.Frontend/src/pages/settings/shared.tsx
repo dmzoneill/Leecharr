@@ -68,7 +68,9 @@ export function PendingChangesModal({
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
-        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>Unsaved Changes</h2>
+        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
+          Unsaved Changes
+        </h2>
         <p
           style={{
             margin: "0 0 1.25rem",
@@ -77,16 +79,29 @@ export function PendingChangesModal({
             lineHeight: 1.4,
           }}
         >
-          You have unsaved changes in this settings section. What would you like to do?
+          You have unsaved changes in this settings section. What would you like
+          to do?
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button className="btn btn-outline btn-small" onClick={onCancel} type="button">
+          <button
+            className="btn btn-outline btn-small"
+            onClick={onCancel}
+            type="button"
+          >
             Stay on Page
           </button>
-          <button className="btn btn-danger btn-small" onClick={onDiscard} type="button">
+          <button
+            className="btn btn-danger btn-small"
+            onClick={onDiscard}
+            type="button"
+          >
             Discard Changes
           </button>
-          <button className="btn btn-primary btn-small" onClick={onSave} type="button">
+          <button
+            className="btn btn-primary btn-small"
+            onClick={onSave}
+            type="button"
+          >
             Save Changes
           </button>
         </div>
@@ -151,7 +166,8 @@ export function SaveBar({
           padding: "0.75rem 1.25rem",
           marginBottom: "1.25rem",
           borderRadius: "8px",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           border: dirty
             ? "1px solid rgba(200, 168, 78, 0.5)"
             : "1px solid rgba(255, 255, 255, 0.08)",
@@ -173,7 +189,11 @@ export function SaveBar({
             disabled={!dirty || isPending}
             style={{ minWidth: "120px" }}
           >
-            {isPending ? "Saving Changes..." : dirty ? "💾 Save Changes" : "✓ No Changes"}
+            {isPending
+              ? "Saving Changes..."
+              : dirty
+                ? "💾 Save Changes"
+                : "✓ No Changes"}
           </button>
           <SaveFeedback
             isPending={isPending}
@@ -222,7 +242,8 @@ export function SectionCard({
         padding: "1.25rem",
         marginBottom: "1.25rem",
         borderRadius: "8px",
-        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
+        boxShadow:
+          "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
         border: "1px solid rgba(255, 255, 255, 0.08)",
       }}
     >
@@ -291,7 +312,9 @@ export function NumberInput({
       value={isNaN(value) ? "" : value}
       onChange={(e) =>
         onChange(
-          step && step < 1 ? parseFloat(e.target.value) || 0 : parseInt(e.target.value, 10) || 0
+          step && step < 1
+            ? parseFloat(e.target.value) || 0
+            : parseInt(e.target.value, 10) || 0,
         )
       }
       min={min}
@@ -347,7 +370,14 @@ export function TextInput({
       <label className="form-label">{label}</label>
       <div className="form-input-wrapper">
         {rightElement ? (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", width: "100%" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              alignItems: "center",
+              width: "100%",
+            }}
+          >
             <input
               type={type || "text"}
               className="form-input"

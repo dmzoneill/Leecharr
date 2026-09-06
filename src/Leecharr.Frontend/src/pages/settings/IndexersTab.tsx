@@ -13,19 +13,34 @@ import {
   useDeleteRssRule,
   useSyncRss,
 } from "../../api/hooks";
-import type { IndexerDefinition, IndexerTestResult, RssRule } from "../../api/types";
-import { TextInput, NumberInput, SelectInput, Toggle, SectionCard } from "./shared";
+import type {
+  IndexerDefinition,
+  IndexerTestResult,
+  RssRule,
+} from "../../api/types";
+import {
+  TextInput,
+  NumberInput,
+  SelectInput,
+  Toggle,
+  SectionCard,
+} from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
-export function normalizeIndexerPayload(editing: Partial<IndexerDefinition>): IndexerDefinition {
+export function normalizeIndexerPayload(
+  editing: Partial<IndexerDefinition>,
+): IndexerDefinition {
   let categories: number[] = [];
   if (Array.isArray(editing.categories)) {
     categories = (editing.categories as (number | string)[])
       .map((c) => Number(c))
       .filter((n) => !isNaN(n));
-  } else if (typeof editing.categories === "string" && (editing.categories as string).trim()) {
+  } else if (
+    typeof editing.categories === "string" &&
+    (editing.categories as string).trim()
+  ) {
     categories = (editing.categories as string)
       .split(",")
       .map((s) => Number(s.trim()))
@@ -44,7 +59,8 @@ export function normalizeIndexerPayload(editing: Partial<IndexerDefinition>): In
   }
 
   const name = editing.name?.trim() || editing.indexerType || "Indexer";
-  const implementation = editing.implementation || `${editing.indexerType || "Prowlarr"}Indexer`;
+  const implementation =
+    editing.implementation || `${editing.indexerType || "Prowlarr"}Indexer`;
 
   return {
     ...editing,
@@ -74,15 +90,20 @@ export function IndexersTab() {
   const deleteRuleMutation = useDeleteRssRule();
   const syncRssMutation = useSyncRss();
 
-  const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(null);
+  const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(
+    null,
+  );
   const [editingRule, setEditingRule] = useState<Partial<RssRule> | null>(null);
   const confirm = useConfirm();
 
   useEscapeKey(() => setEditing(null), Boolean(editing));
   useEscapeKey(() => setEditingRule(null), Boolean(editingRule));
 
-  const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
-  const [modalTestResult, setModalTestResult] = useState<IndexerTestResult | null>(null);
+  const [testResults, setTestResults] = useState<
+    Record<number, boolean | null>
+  >({});
+  const [modalTestResult, setModalTestResult] =
+    useState<IndexerTestResult | null>(null);
 
   const defaultIndexer: Partial<IndexerDefinition> = {
     name: "Prowlarr",
@@ -120,14 +141,17 @@ export function IndexersTab() {
         },
         {
           onSuccess: (data) => {
-            showToast(`Synced ${data.syncedCount} indexers from Prowlarr`, "success");
+            showToast(
+              `Synced ${data.syncedCount} indexers from Prowlarr`,
+              "success",
+            );
             setEditing(null);
             setModalTestResult(null);
           },
           onError: (err) => {
             showToast(err?.message || "Failed to sync with Prowlarr", "error");
           },
-        }
+        },
       );
       return;
     }
@@ -163,7 +187,9 @@ export function IndexersTab() {
       maxSizeBytes: Number(editingRule.maxSizeBytes) || 0,
       freeleechOnly: Boolean(editingRule.freeleechOnly),
       categoryId: Number(editingRule.categoryId) || 0,
-      indexerIds: Array.isArray(editingRule.indexerIds) ? editingRule.indexerIds : [],
+      indexerIds: Array.isArray(editingRule.indexerIds)
+        ? editingRule.indexerIds
+        : [],
     };
 
     if (editingRule.id) {
@@ -192,7 +218,8 @@ export function IndexersTab() {
   const handleTest = (id: number) => {
     setTestResults((prev) => ({ ...prev, [id]: null }));
     testMutation.mutate(id, {
-      onSuccess: (data) => setTestResults((prev) => ({ ...prev, [id]: data.success })),
+      onSuccess: (data) =>
+        setTestResults((prev) => ({ ...prev, [id]: data.success })),
       onError: () => setTestResults((prev) => ({ ...prev, [id]: false })),
     });
   };
@@ -217,7 +244,10 @@ export function IndexersTab() {
   const handleSyncRssNow = () => {
     syncRssMutation.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`RSS Sync complete: grabbed ${res.grabbedCount} release(s)`, "success");
+        showToast(
+          `RSS Sync complete: grabbed ${res.grabbedCount} release(s)`,
+          "success",
+        );
       },
       onError: (err: any) => {
         showToast(err?.message || "Failed to sync RSS feeds", "error");
@@ -225,7 +255,8 @@ export function IndexersTab() {
     });
   };
 
-  if (isIndexersLoading || isRssRulesLoading) return <div className="loading">Loading indexers & RSS rules...</div>;
+  if (isIndexersLoading || isRssRulesLoading)
+    return <div className="loading">Loading indexers & RSS rules...</div>;
 
   return (
     <>
@@ -281,9 +312,13 @@ export function IndexersTab() {
                     if (!ok) return;
 
                     deleteMutation.mutate(idx.id, {
-                      onSuccess: () => showToast(`Indexer "${idx.name}" deleted`, "info"),
+                      onSuccess: () =>
+                        showToast(`Indexer "${idx.name}" deleted`, "info"),
                       onError: (err: any) =>
-                        showToast(err?.message || "Failed to delete indexer", "error"),
+                        showToast(
+                          err?.message || "Failed to delete indexer",
+                          "error",
+                        ),
                     });
                   }}
                 >
@@ -296,15 +331,21 @@ export function IndexersTab() {
                   {idx.indexerType}
                 </span>
                 {idx.enableRss && (
-                  <span className="provider-card-badge provider-card-badge-blue">RSS</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    RSS
+                  </span>
                 )}
                 {idx.enableSearch && (
-                  <span className="provider-card-badge provider-card-badge-blue">Search</span>
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    Search
+                  </span>
                 )}
               </div>
               <div className="provider-card-info">{idx.url}</div>
               {testResults[idx.id] === true && (
-                <div className="provider-card-test provider-card-test-ok">✓ Connection passed</div>
+                <div className="provider-card-test provider-card-test-ok">
+                  ✓ Connection passed
+                </div>
               )}
               {testResults[idx.id] === false && (
                 <div className="provider-card-test provider-card-test-fail">
@@ -312,7 +353,9 @@ export function IndexersTab() {
                 </div>
               )}
               {testResults[idx.id] === null && (
-                <div className="provider-card-test provider-card-test-pending">Testing...</div>
+                <div className="provider-card-test provider-card-test-pending">
+                  Testing...
+                </div>
               )}
             </div>
           ))}
@@ -333,14 +376,22 @@ export function IndexersTab() {
         title="Automated RSS Grab Rules"
         description="Configure RSS filter rules, regex patterns, minimum seeders, and categories for automated grabbing"
       >
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "1rem",
+          }}
+        >
           <button
             type="button"
             className="btn btn-outline btn-small"
             onClick={handleSyncRssNow}
             disabled={syncRssMutation.isPending}
           >
-            {syncRssMutation.isPending ? "Syncing RSS..." : "🔄 Sync RSS Feeds Now"}
+            {syncRssMutation.isPending
+              ? "Syncing RSS..."
+              : "🔄 Sync RSS Feeds Now"}
           </button>
         </div>
 
@@ -366,9 +417,13 @@ export function IndexersTab() {
                     if (!ok) return;
 
                     deleteRuleMutation.mutate(rule.id, {
-                      onSuccess: () => showToast(`RSS Rule "${rule.name}" deleted`, "info"),
+                      onSuccess: () =>
+                        showToast(`RSS Rule "${rule.name}" deleted`, "info"),
                       onError: (err: any) =>
-                        showToast(err?.message || "Failed to delete RSS rule", "error"),
+                        showToast(
+                          err?.message || "Failed to delete RSS rule",
+                          "error",
+                        ),
                     });
                   }}
                 >
@@ -379,7 +434,9 @@ export function IndexersTab() {
               <div className="provider-card-badges">
                 <span
                   className={`provider-card-badge ${
-                    rule.isEnabled ? "provider-card-badge-green" : "provider-card-badge-gray"
+                    rule.isEnabled
+                      ? "provider-card-badge-green"
+                      : "provider-card-badge-gray"
                   }`}
                 >
                   {rule.isEnabled ? "Enabled" : "Disabled"}
@@ -390,7 +447,9 @@ export function IndexersTab() {
                   </span>
                 )}
                 {rule.freeleechOnly && (
-                  <span className="provider-card-badge provider-card-badge-gold">Freeleech</span>
+                  <span className="provider-card-badge provider-card-badge-gold">
+                    Freeleech
+                  </span>
                 )}
                 {rule.categoryId > 0 && (
                   <span className="provider-card-badge provider-card-badge-blue">
@@ -406,15 +465,19 @@ export function IndexersTab() {
               <div className="provider-card-info">
                 {rule.mustContain && (
                   <div style={{ wordBreak: "break-all" }}>
-                    <strong>Must contain:</strong> <code>{rule.mustContain}</code>
+                    <strong>Must contain:</strong>{" "}
+                    <code>{rule.mustContain}</code>
                   </div>
                 )}
                 {rule.mustNotContain && (
                   <div style={{ wordBreak: "break-all" }}>
-                    <strong>Must not contain:</strong> <code>{rule.mustNotContain}</code>
+                    <strong>Must not contain:</strong>{" "}
+                    <code>{rule.mustNotContain}</code>
                   </div>
                 )}
-                {!rule.mustContain && !rule.mustNotContain && <div>Catch-all rule</div>}
+                {!rule.mustContain && !rule.mustNotContain && (
+                  <div>Catch-all rule</div>
+                )}
               </div>
             </div>
           ))}
@@ -446,7 +509,10 @@ export function IndexersTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
               {editing.id ? "Edit Indexer" : "Add Indexer"}
             </div>
             <TextInput
@@ -582,7 +648,9 @@ export function IndexersTab() {
                     ? "var(--success, #28a745)"
                     : "var(--danger, #dc3545)",
                   border: `1px solid ${
-                    modalTestResult.success ? "rgba(40, 167, 69, 0.35)" : "rgba(220, 53, 69, 0.35)"
+                    modalTestResult.success
+                      ? "rgba(40, 167, 69, 0.35)"
+                      : "rgba(220, 53, 69, 0.35)"
                   }`,
                 }}
               >
@@ -597,7 +665,9 @@ export function IndexersTab() {
                 </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
-                    {modalTestResult.success ? "Connection Successful" : "Connection Failed"}
+                    {modalTestResult.success
+                      ? "Connection Successful"
+                      : "Connection Failed"}
                   </div>
                   {modalTestResult.message && (
                     <div
@@ -634,7 +704,9 @@ export function IndexersTab() {
                 onClick={handleModalTest}
                 disabled={testDirectMutation.isPending}
               >
-                {testDirectMutation.isPending ? "Testing..." : "Test Connection"}
+                {testDirectMutation.isPending
+                  ? "Testing..."
+                  : "Test Connection"}
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
@@ -649,9 +721,17 @@ export function IndexersTab() {
                 <button
                   className="btn btn-primary btn-small"
                   onClick={handleSave}
-                  disabled={createMutation.isPending || updateMutation.isPending || syncMutation.isPending}
+                  disabled={
+                    createMutation.isPending ||
+                    updateMutation.isPending ||
+                    syncMutation.isPending
+                  }
                 >
-                  {createMutation.isPending || updateMutation.isPending || syncMutation.isPending ? "Saving..." : "Save"}
+                  {createMutation.isPending ||
+                  updateMutation.isPending ||
+                  syncMutation.isPending
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
             </div>
@@ -660,10 +740,7 @@ export function IndexersTab() {
       )}
 
       {editingRule && (
-        <div
-          className="modal-overlay"
-          onClick={() => setEditingRule(null)}
-        >
+        <div className="modal-overlay" onClick={() => setEditingRule(null)}>
           <div
             className="modal"
             onClick={(e) => e.stopPropagation()}
@@ -674,7 +751,10 @@ export function IndexersTab() {
               border: "1px solid rgba(255, 255, 255, 0.12)",
             }}
           >
-            <div className="modal-title" style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
               {editingRule.id ? "Edit RSS Rule" : "Add RSS Rule"}
             </div>
             <TextInput
@@ -691,41 +771,53 @@ export function IndexersTab() {
             <TextInput
               label="Must Contain (Regex)"
               value={editingRule.mustContain || ""}
-              onChange={(v) => setEditingRule({ ...editingRule, mustContain: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, mustContain: v })
+              }
               placeholder="e.g. Severance.*2160p"
               hint="Regular expression that release title must match"
             />
             <TextInput
               label="Must NOT Contain (Regex)"
               value={editingRule.mustNotContain || ""}
-              onChange={(v) => setEditingRule({ ...editingRule, mustNotContain: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, mustNotContain: v })
+              }
               placeholder="e.g. 720p|HDTV|CAM"
               hint="Regular expression that release title must NOT match"
             />
             <NumberInput
               label="Minimum Seeders"
               value={editingRule.minSeeders ?? 1}
-              onChange={(v) => setEditingRule({ ...editingRule, minSeeders: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, minSeeders: v })
+              }
               min={0}
             />
             <NumberInput
               label="Minimum Size (Bytes)"
               value={editingRule.minSizeBytes ?? 0}
-              onChange={(v) => setEditingRule({ ...editingRule, minSizeBytes: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, minSizeBytes: v })
+              }
               min={0}
               hint="0 = no minimum size constraint"
             />
             <NumberInput
               label="Maximum Size (Bytes)"
               value={editingRule.maxSizeBytes ?? 0}
-              onChange={(v) => setEditingRule({ ...editingRule, maxSizeBytes: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, maxSizeBytes: v })
+              }
               min={0}
               hint="0 = no maximum size constraint"
             />
             <NumberInput
               label="Category ID"
               value={editingRule.categoryId ?? 0}
-              onChange={(v) => setEditingRule({ ...editingRule, categoryId: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, categoryId: v })
+              }
               min={0}
               hint="0 = any category (e.g. 5040 for TV/HD, 2040 for Movies/HD)"
             />
@@ -749,12 +841,17 @@ export function IndexersTab() {
             <Toggle
               label="Freeleech Only"
               checked={editingRule.freeleechOnly ?? false}
-              onChange={(v) => setEditingRule({ ...editingRule, freeleechOnly: v })}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, freeleechOnly: v })
+              }
             />
 
             {(createRuleMutation.isError || updateRuleMutation.isError) && (
               <div className="modal-error">
-                {(createRuleMutation.error || updateRuleMutation.error)?.message}
+                {
+                  (createRuleMutation.error || updateRuleMutation.error)
+                    ?.message
+                }
               </div>
             )}
             <div
@@ -775,9 +872,13 @@ export function IndexersTab() {
               <button
                 className="btn btn-primary btn-small"
                 onClick={handleSaveRule}
-                disabled={createRuleMutation.isPending || updateRuleMutation.isPending}
+                disabled={
+                  createRuleMutation.isPending || updateRuleMutation.isPending
+                }
               >
-                {createRuleMutation.isPending || updateRuleMutation.isPending ? "Saving..." : "Save"}
+                {createRuleMutation.isPending || updateRuleMutation.isPending
+                  ? "Saving..."
+                  : "Save"}
               </button>
             </div>
           </div>

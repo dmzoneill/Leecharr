@@ -264,15 +264,16 @@ public class AppLifetime : IHostedService, IDisposable
                         var updates = new List<object>(tasks.Count);
                         foreach (var task in tasks)
                         {
-                            var dlSpeed = task.DownloadSpeed;
-                            var ulSpeed = task.UploadSpeed;
+                            var isInactive = task.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+                            var dlSpeed = isInactive ? 0 : task.DownloadSpeed;
+                            var ulSpeed = isInactive ? 0 : task.UploadSpeed;
                             var dlBytes = task.DownloadedBytes;
                             var ulBytes = task.UploadedBytes;
                             var progress = task.Progress;
                             var ratio = dlBytes > 0 ? Math.Round((double)ulBytes / dlBytes, 2) : 0.0;
 
                             long eta = 0;
-                            if (task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
+                            if (!isInactive && task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
                             {
                                 var totalBytes = progress > 0 ? (long)(dlBytes / progress) : 0;
                                 var remainingBytes = Math.Max(0, totalBytes - dlBytes);

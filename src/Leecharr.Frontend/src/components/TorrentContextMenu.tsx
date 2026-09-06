@@ -19,7 +19,10 @@ export interface TorrentContextMenuProps {
   onAnnounce: (id: number) => void;
   onRecheck: (id: number) => void;
   onDelete: (payload: { id: number; deleteFiles: boolean }) => void;
-  onMoveQueue: (payload: { id: number; position: "top" | "up" | "down" | "bottom" }) => void;
+  onMoveQueue: (payload: {
+    id: number;
+    position: "top" | "up" | "down" | "bottom";
+  }) => void;
   onSearchIndexers?: (query: string) => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
 }
@@ -36,7 +39,10 @@ const getAdjustedPosition = (x: number, y: number) => {
   const margin = 10;
   return {
     left: Math.max(margin, Math.min(x, window.innerWidth - menuWidth - margin)),
-    top: Math.max(margin, Math.min(y, window.innerHeight - menuHeight - margin)),
+    top: Math.max(
+      margin,
+      Math.min(y, window.innerHeight - menuHeight - margin),
+    ),
     flipSubmenu: x + menuWidth + 200 > window.innerWidth,
   };
 };
@@ -111,12 +117,15 @@ export function TorrentContextMenu({
   const historyMatch = ct
     ? history?.find(
         (h) =>
-          (ct.infoHash && h.infoHash?.toLowerCase() === ct.infoHash.toLowerCase()) ||
-          h.title?.toLowerCase() === ct.name?.toLowerCase()
+          (ct.infoHash &&
+            h.infoHash?.toLowerCase() === ct.infoHash.toLowerCase()) ||
+          h.title?.toLowerCase() === ct.name?.toLowerCase(),
       )
     : null;
 
-  const arrLink = historyMatch ? getMediaDeepLink(historyMatch, arrConnections) : null;
+  const arrLink = historyMatch
+    ? getMediaDeepLink(historyMatch, arrConnections)
+    : null;
 
   const isPaused = ct?.status?.toLowerCase() === "paused";
 
@@ -487,8 +496,8 @@ export function TorrentContextMenu({
                 onClose();
               }}
             >
-              {ct.sequentialDownload ? "Disable" : "Enable"} Sequential Download (Head/Tail
-              Priority)
+              {ct.sequentialDownload ? "Disable" : "Enable"} Sequential Download
+              (Head/Tail Priority)
             </button>
 
             <div className="context-menu-separator" />

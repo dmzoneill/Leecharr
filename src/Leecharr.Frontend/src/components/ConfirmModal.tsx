@@ -85,7 +85,9 @@ export function ConfirmModal({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: danger ? "rgba(230, 57, 70, 0.15)" : "rgba(255, 209, 102, 0.15)",
+              backgroundColor: danger
+                ? "rgba(230, 57, 70, 0.15)"
+                : "rgba(255, 209, 102, 0.15)",
               color: danger ? "#e63946" : "#ffd166",
               fontSize: "1.2rem",
               flexShrink: 0,

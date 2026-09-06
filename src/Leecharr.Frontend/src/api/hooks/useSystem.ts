@@ -30,7 +30,9 @@ export function useRefetchInterval(): number {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-  return data?.uiRefreshRateSec ? data.uiRefreshRateSec * 1000 : DEFAULT_REFETCH_MS;
+  return data?.uiRefreshRateSec
+    ? data.uiRefreshRateSec * 1000
+    : DEFAULT_REFETCH_MS;
 }
 
 export function useSystemStatus() {
@@ -96,7 +98,8 @@ export function useDeleteBackup() {
 
 export function useRestoreBackup() {
   return useMutation({
-    mutationFn: (request: RestoreBackupRequest) => apiClient.post("/backup/restore", request),
+    mutationFn: (request: RestoreBackupRequest) =>
+      apiClient.post("/backup/restore", request),
   });
 }
 
@@ -130,7 +133,8 @@ export function useAiNaturalSearch() {
 
 export function useAiDiagnoseTorrent() {
   return useMutation<AiDiagnosticReport, Error, number>({
-    mutationFn: (torrentId: number) => apiClient.post(`/ai/diagnose/${torrentId}`, {}),
+    mutationFn: (torrentId: number) =>
+      apiClient.post(`/ai/diagnose/${torrentId}`, {}),
   });
 }
 
@@ -161,7 +165,8 @@ export function useSaveAiConfig() {
   const queryClient = useQueryClient();
   return useMutation<AiConfig, Error, AiConfig>({
     mutationFn: (config) => apiClient.put("/config/ai/1", config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["config", "ai"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["config", "ai"] }),
   });
 }
 

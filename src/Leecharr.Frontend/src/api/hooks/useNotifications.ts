@@ -11,17 +11,25 @@ export function useNotifications() {
 
 export function useCreateNotification() {
   const queryClient = useQueryClient();
-  return useMutation<NotificationResource, Error, Partial<NotificationResource>>({
-    mutationFn: (notification) => apiClient.post("/notifications", notification),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  return useMutation<
+    NotificationResource,
+    Error,
+    Partial<NotificationResource>
+  >({
+    mutationFn: (notification) =>
+      apiClient.post("/notifications", notification),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
 
 export function useUpdateNotification() {
   const queryClient = useQueryClient();
   return useMutation<NotificationResource, Error, NotificationResource>({
-    mutationFn: (notification) => apiClient.put(`/notifications/${notification.id}`, notification),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    mutationFn: (notification) =>
+      apiClient.put(`/notifications/${notification.id}`, notification),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
 
@@ -29,7 +37,8 @@ export function useDeleteNotification() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: (id: number) => apiClient.delete(`/notifications/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
 
@@ -40,7 +49,12 @@ export function useTestNotification() {
 }
 
 export function useTestDirectNotification() {
-  return useMutation<NotificationTestResult, Error, Partial<NotificationResource>>({
-    mutationFn: (notification) => apiClient.post("/notifications/test", notification),
+  return useMutation<
+    NotificationTestResult,
+    Error,
+    Partial<NotificationResource>
+  >({
+    mutationFn: (notification) =>
+      apiClient.post("/notifications/test", notification),
   });
 }

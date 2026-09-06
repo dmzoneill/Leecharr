@@ -36,7 +36,12 @@ export function FileBrowser() {
       : undefined;
 
   const [currentPath, setCurrentPath] = useState<string>(queryPath || "");
-  const { data: listing, isLoading, isError, refetch } = useFileListing(currentPath || undefined);
+  const {
+    data: listing,
+    isLoading,
+    isError,
+    refetch,
+  } = useFileListing(currentPath || undefined);
   const mkdirMutation = useCreateDirectory();
   const renameMutation = useRenameFileEntry();
   const deleteMutation = useDeleteFileEntry();
@@ -47,15 +52,12 @@ export function FileBrowser() {
     }
   }, [listing, currentPath]);
 
-  const navigateTo = useCallback(
-    (path: string) => {
-      setCurrentPath(path);
-      const url = new URL(window.location.href);
-      url.searchParams.set("path", path);
-      window.history.replaceState({}, "", url.toString());
-    },
-    [],
-  );
+  const navigateTo = useCallback((path: string) => {
+    setCurrentPath(path);
+    const url = new URL(window.location.href);
+    url.searchParams.set("path", path);
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   const handleNavigateUp = () => {
     if (listing?.parent && listing.parent !== listing.path) {
@@ -63,10 +65,7 @@ export function FileBrowser() {
     }
   };
 
-  const handleEntryClick = (entry: {
-    isDirectory: boolean;
-    path: string;
-  }) => {
+  const handleEntryClick = (entry: { isDirectory: boolean; path: string }) => {
     if (entry.isDirectory) {
       navigateTo(entry.path);
     }
@@ -104,7 +103,9 @@ export function FileBrowser() {
       `;
       document.body.appendChild(modal);
 
-      const input = modal.querySelector("#new-folder-input") as HTMLInputElement;
+      const input = modal.querySelector(
+        "#new-folder-input",
+      ) as HTMLInputElement;
       input.focus();
 
       const finish = (value: string | null) => {
@@ -113,12 +114,16 @@ export function FileBrowser() {
         resolve(value);
       };
 
-      modal.querySelector("#new-folder-cancel")?.addEventListener("click", () => finish(null));
+      modal
+        .querySelector("#new-folder-cancel")
+        ?.addEventListener("click", () => finish(null));
       modal.addEventListener("keydown", (e) => {
         if (e.key === "Escape") finish(null);
         if (e.key === "Enter") finish(input.value.trim() || null);
       });
-      modal.querySelector("#new-folder-ok")?.addEventListener("click", () => finish(input.value.trim() || null));
+      modal
+        .querySelector("#new-folder-ok")
+        ?.addEventListener("click", () => finish(input.value.trim() || null));
     });
 
     if (!name) return;
@@ -171,20 +176,33 @@ export function FileBrowser() {
       }
     };
 
-    modal.querySelector("#rename-cancel")?.addEventListener("click", () => finish(null));
+    modal
+      .querySelector("#rename-cancel")
+      ?.addEventListener("click", () => finish(null));
     modal.addEventListener("keydown", (e) => {
       if (e.key === "Escape") finish(null);
       if (e.key === "Enter") finish(inputEl.value.trim() || null);
     });
-    modal.querySelector("#rename-ok")?.addEventListener("click", () => finish(inputEl.value.trim() || null));
+    modal
+      .querySelector("#rename-ok")
+      ?.addEventListener("click", () => finish(inputEl.value.trim() || null));
   };
 
-  const handleDelete = async (entryPath: string, entryName: string, isDir: boolean) => {
+  const handleDelete = async (
+    entryPath: string,
+    entryName: string,
+    isDir: boolean,
+  ) => {
     const ok = await confirm({
       title: isDir ? "Delete Folder" : "Delete File",
       message: (
         <span>
-          Delete <strong>{entryName}</strong>? {isDir && <span style={{ color: "var(--danger, #ef4444)" }}>This will delete all contents recursively.</span>}
+          Delete <strong>{entryName}</strong>?{" "}
+          {isDir && (
+            <span style={{ color: "var(--danger, #ef4444)" }}>
+              This will delete all contents recursively.
+            </span>
+          )}
         </span>
       ),
       danger: true,
@@ -202,14 +220,23 @@ export function FileBrowser() {
   };
 
   const handleOpenInCli = () => {
-    navigate(`/terminal?path=${encodeURIComponent(currentPath || listing?.path || "/downloads")}`);
+    navigate(
+      `/terminal?path=${encodeURIComponent(currentPath || listing?.path || "/downloads")}`,
+    );
   };
 
   const segments = getPathSegments(currentPath || listing?.path || "/");
 
   if (isLoading && !listing) {
     return (
-      <div className="card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)" }}>
+      <div
+        className="card"
+        style={{
+          padding: "1.5rem",
+          textAlign: "center",
+          color: "var(--text-muted)",
+        }}
+      >
         Loading file browser...
       </div>
     );
@@ -217,14 +244,22 @@ export function FileBrowser() {
 
   if (isError) {
     return (
-      <div className="card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--danger, #ef4444)" }}>
+      <div
+        className="card"
+        style={{
+          padding: "1.5rem",
+          textAlign: "center",
+          color: "var(--danger, #ef4444)",
+        }}
+      >
         Failed to load directory listing.
       </div>
     );
   }
 
   const entries = listing?.entries || [];
-  const displayPath = currentPath || listing?.path || listing?.defaultPath || "/";
+  const displayPath =
+    currentPath || listing?.path || listing?.defaultPath || "/";
 
   return (
     <div
@@ -260,7 +295,8 @@ export function FileBrowser() {
                 color: "var(--text-muted)",
               }}
             >
-              Browse, create, rename, and delete files and folders on the server.
+              Browse, create, rename, and delete files and folders on the
+              server.
             </p>
           </div>
         </div>
@@ -343,7 +379,13 @@ export function FileBrowser() {
           flexWrap: "nowrap",
         }}
       >
-        <span style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0, fontWeight: 600 }}>
+        <span
+          style={{
+            color: "var(--text-muted, #8a879e)",
+            flexShrink: 0,
+            fontWeight: 600,
+          }}
+        >
           📁 PWD:
         </span>
         <button
@@ -365,7 +407,11 @@ export function FileBrowser() {
         </button>
         {segments.map((seg, idx) => (
           <React.Fragment key={seg.fullPath}>
-            <span style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0 }}>/</span>
+            <span
+              style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0 }}
+            >
+              /
+            </span>
             <button
               type="button"
               onClick={() => navigateTo(seg.fullPath)}
@@ -403,7 +449,8 @@ export function FileBrowser() {
             color: "var(--danger, #ef4444)",
           }}
         >
-          Directory does not exist: <code style={{ wordBreak: "break-all" }}>{displayPath}</code>
+          Directory does not exist:{" "}
+          <code style={{ wordBreak: "break-all" }}>{displayPath}</code>
         </div>
       )}
 
@@ -439,19 +486,31 @@ export function FileBrowser() {
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 100, textAlign: "right", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 100,
+                  textAlign: "right",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Size
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 150, textAlign: "left", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 150,
+                  textAlign: "left",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Modified
               </th>
               <th
                 className="torrent-table-th"
-                style={{ width: 130, textAlign: "right", padding: "0.6rem 0.85rem" }}
+                style={{
+                  width: 130,
+                  textAlign: "right",
+                  padding: "0.6rem 0.85rem",
+                }}
               >
                 Actions
               </th>
@@ -496,9 +555,7 @@ export function FileBrowser() {
                     }}
                   >
                     <span style={{ fontSize: "1rem", flexShrink: 0 }}>
-                      {entry.isDirectory
-                        ? "📁"
-                        : getFileIcon(entry.extension)}
+                      {entry.isDirectory ? "📁" : getFileIcon(entry.extension)}
                     </span>
                     <span
                       style={{

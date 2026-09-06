@@ -10,7 +10,9 @@ export function TerminalPage() {
 
   const { data: config } = useBitTorrentConfig();
   const [downloadDir, setDownloadDir] = useState<string>("/downloads");
-  const [activePath, setActivePath] = useState<string>(initialPath || "/downloads");
+  const [activePath, setActivePath] = useState<string>(
+    initialPath || "/downloads",
+  );
   const [customPath, setCustomPath] = useState<string>("");
 
   useEffect(() => {

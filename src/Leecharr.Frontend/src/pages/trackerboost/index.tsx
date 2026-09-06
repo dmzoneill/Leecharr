@@ -27,9 +27,9 @@ export function TrackerBoost() {
   const { data: trackers } = useTrackerBoostTrackers();
   const { data: boostLogs } = useTrackerBoostLogs(250);
 
-  const [activeTab, setActiveTab] = useState<"booster" | "matrix" | "radar" | "logs" | "settings">(
-    "booster"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "booster" | "matrix" | "radar" | "logs" | "settings"
+  >("booster");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
 
@@ -118,7 +118,8 @@ export function TrackerBoost() {
 
   const handleInspectTorrent = (infoHash: string) => {
     const targetKey = unifiedItems.find(
-      (u) => (u.infoHash || "").toLowerCase() === (infoHash || "").toLowerCase()
+      (u) =>
+        (u.infoHash || "").toLowerCase() === (infoHash || "").toLowerCase(),
     )?.key;
     if (targetKey) setSelectedKey(targetKey);
     setActiveTab("booster");
@@ -178,16 +179,21 @@ export function TrackerBoost() {
               marginTop: "0.3rem",
             }}
           >
-            Scrapes live tracker swarms by info_hash to discover and inject verified seeders/peers
-            into Leecharr and download clients
+            Scrapes live tracker swarms by info_hash to discover and inject
+            verified seeders/peers into Leecharr and download clients
           </div>
         </div>
       </div>
 
       {/* Global Metric Cards */}
-      <div className="stats-grid" style={{ marginBottom: "1rem", flexShrink: 0 }}>
+      <div
+        className="stats-grid"
+        style={{ marginBottom: "1rem", flexShrink: 0 }}
+      >
         <div className="stat-card">
-          <div className="stat-value">{status?.totalTrackersMonitored ?? 0}</div>
+          <div className="stat-value">
+            {status?.totalTrackersMonitored ?? 0}
+          </div>
           <div className="stat-label">Trackers Monitored</div>
         </div>
         <div className="stat-card">
@@ -265,7 +271,8 @@ export function TrackerBoost() {
             fontWeight: activeTab === "logs" ? 600 : 500,
           }}
         >
-          📜 Activity Logs {boostLogs && boostLogs.length > 0 ? `(${boostLogs.length})` : ""}
+          📜 Activity Logs{" "}
+          {boostLogs && boostLogs.length > 0 ? `(${boostLogs.length})` : ""}
         </button>
         <button
           className={`btn ${activeTab === "settings" ? "btn-primary" : ""}`}
@@ -291,10 +298,15 @@ export function TrackerBoost() {
       )}
 
       {activeTab === "matrix" && (
-        <MatrixView torrentMetaMap={torrentMetaMap} onInspectTorrent={handleInspectTorrent} />
+        <MatrixView
+          torrentMetaMap={torrentMetaMap}
+          onInspectTorrent={handleInspectTorrent}
+        />
       )}
 
-      {activeTab === "radar" && <RadarView onOpenBulkImport={() => setShowBulkImportModal(true)} />}
+      {activeTab === "radar" && (
+        <RadarView onOpenBulkImport={() => setShowBulkImportModal(true)} />
+      )}
 
       {activeTab === "logs" && <LogViewer />}
 

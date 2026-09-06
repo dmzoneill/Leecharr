@@ -20,7 +20,10 @@ export interface ErrorBoundaryState {
  * Reusable, dark-themed React Error Boundary component matching Leecharr's design palette.
  * Prevents unhandled rendering exceptions from crashing the entire application into a blank screen.
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   public override state: ErrorBoundaryState = {
     hasError: false,
     error: null,
@@ -28,13 +31,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     showDetails: false,
   };
 
-  public static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+  public static getDerivedStateFromError(
+    error: Error,
+  ): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo });
-    console.error("ErrorBoundary caught an unhandled rendering error:", error, errorInfo);
+    console.error(
+      "ErrorBoundary caught an unhandled rendering error:",
+      error,
+      errorInfo,
+    );
     this.props.onError?.(error, errorInfo);
   }
 
@@ -163,7 +172,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 wordBreak: "break-word",
               }}
             >
-              <strong>{error.name || "Error"}:</strong> {error.message || String(error)}
+              <strong>{error.name || "Error"}:</strong>{" "}
+              {error.message || String(error)}
             </div>
           )}
 
@@ -231,50 +241,51 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             )}
           </div>
 
-          {(showDetails || isDev) && (error?.stack || errorInfo?.componentStack) && (
-            <div
-              style={{
-                marginTop: "0.5rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
+          {(showDetails || isDev) &&
+            (error?.stack || errorInfo?.componentStack) && (
               <div
                 style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#FFD166",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
+                  marginTop: "0.5rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
                 }}
               >
-                Diagnostic Stack Trace
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "#FFD166",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Diagnostic Stack Trace
+                </div>
+                <pre
+                  style={{
+                    backgroundColor: "#10111A",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "6px",
+                    padding: "0.85rem",
+                    margin: 0,
+                    fontSize: "0.75rem",
+                    color: "rgba(248, 244, 237, 0.85)",
+                    fontFamily: "monospace",
+                    overflowX: "auto",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {error?.stack || ""}
+                  {errorInfo?.componentStack
+                    ? `\n\nComponent Stack:\n${errorInfo.componentStack}`
+                    : ""}
+                </pre>
               </div>
-              <pre
-                style={{
-                  backgroundColor: "#10111A",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "6px",
-                  padding: "0.85rem",
-                  margin: 0,
-                  fontSize: "0.75rem",
-                  color: "rgba(248, 244, 237, 0.85)",
-                  fontFamily: "monospace",
-                  overflowX: "auto",
-                  maxHeight: "220px",
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.45,
-                }}
-              >
-                {error?.stack || ""}
-                {errorInfo?.componentStack
-                  ? `\n\nComponent Stack:\n${errorInfo.componentStack}`
-                  : ""}
-              </pre>
-            </div>
-          )}
+            )}
         </div>
       </div>
     );

@@ -15,7 +15,12 @@ export function LogViewer() {
     data: boostLogs,
     isLoading: logsLoading,
     refetch: refetchLogs,
-  } = useTrackerBoostLogs(250, logCategoryFilter, logLevelFilter, logAutoRefresh ? 3000 : false);
+  } = useTrackerBoostLogs(
+    250,
+    logCategoryFilter,
+    logLevelFilter,
+    logAutoRefresh ? 3000 : false,
+  );
   const clearLogs = useClearTrackerBoostLogs();
 
   const handleClearLogs = () => {
@@ -205,7 +210,10 @@ export function LogViewer() {
             backgroundColor: "var(--bg-secondary, rgba(0,0,0,0.2))",
           }}
         >
-          <table className="torrent-table" style={{ width: "100%", fontSize: "0.82rem" }}>
+          <table
+            className="torrent-table"
+            style={{ width: "100%", fontSize: "0.82rem" }}
+          >
             <thead
               style={{
                 position: "sticky",
@@ -255,7 +263,10 @@ export function LogViewer() {
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </td>
                     <td>
-                      <span className={`badge ${levelClass}`} style={{ fontSize: "0.72rem" }}>
+                      <span
+                        className={`badge ${levelClass}`}
+                        style={{ fontSize: "0.72rem" }}
+                      >
                         {log.level === "Success"
                           ? "🟢 Success"
                           : log.level === "Error"
@@ -266,7 +277,10 @@ export function LogViewer() {
                       </span>
                     </td>
                     <td>
-                      <span className="badge badge-secondary" style={{ fontSize: "0.72rem" }}>
+                      <span
+                        className="badge badge-secondary"
+                        style={{ fontSize: "0.72rem" }}
+                      >
                         {log.category}
                       </span>
                     </td>
@@ -285,8 +299,13 @@ export function LogViewer() {
                             gap: "0.35rem",
                           }}
                         >
-                          <TrackerFavicon urlOrHost={log.trackerUrl} size={13} />
-                          <span style={{ color: "var(--accent)" }}>{log.trackerUrl}</span>
+                          <TrackerFavicon
+                            urlOrHost={log.trackerUrl}
+                            size={13}
+                          />
+                          <span style={{ color: "var(--accent)" }}>
+                            {log.trackerUrl}
+                          </span>
                         </div>
                       ) : log.infoHash ? (
                         <span style={{ color: "var(--text-muted)" }}>

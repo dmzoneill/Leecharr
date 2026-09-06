@@ -15,7 +15,9 @@ interface CategorySettingsProps {
   embedded?: boolean;
 }
 
-export function CategorySettingsTab({ embedded = false }: CategorySettingsProps) {
+export function CategorySettingsTab({
+  embedded = false,
+}: CategorySettingsProps) {
   const { data: categories, isLoading } = useCategories();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
@@ -24,7 +26,8 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
   const { showToast } = useToast();
   const confirm = useConfirm();
 
-  const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
+  const [editingCategory, setEditingCategory] =
+    useState<Partial<Category> | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
 
   useEscapeKey(() => setEditingCategory(null), Boolean(editingCategory));
@@ -87,18 +90,24 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
         { id: editingCategory.id, data: payload },
         {
           onSuccess: (updated) => {
-            showToast(`Category "${updated.name}" updated successfully`, "success");
+            showToast(
+              `Category "${updated.name}" updated successfully`,
+              "success",
+            );
             setEditingCategory(null);
           },
           onError: (err: any) => {
             setModalError(err?.message || "Failed to update category");
           },
-        }
+        },
       );
     } else {
       createMutation.mutate(payload, {
         onSuccess: (created) => {
-          showToast(`Category "${created.name}" created successfully`, "success");
+          showToast(
+            `Category "${created.name}" created successfully`,
+            "success",
+          );
           setEditingCategory(null);
         },
         onError: (err: any) => {
@@ -189,11 +198,15 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                 lineHeight: 1.4,
               }}
             >
-              Categories allow you to assign dedicated download directories (e.g.{" "}
-              <code>/downloads/movies</code>, <code>/downloads/tv</code>), set speed limits, and
-              manage torrent goals automatically.
+              Categories allow you to assign dedicated download directories
+              (e.g. <code>/downloads/movies</code>, <code>/downloads/tv</code>),
+              set speed limits, and manage torrent goals automatically.
             </p>
-            <button type="button" className="btn btn-primary btn-small" onClick={handleOpenAdd}>
+            <button
+              type="button"
+              className="btn btn-primary btn-small"
+              onClick={handleOpenAdd}
+            >
               + Create First Category
             </button>
           </div>
@@ -222,7 +235,9 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                   <th style={{ padding: "0.6rem 0.8rem" }}>Max Upload</th>
                   <th style={{ padding: "0.6rem 0.8rem" }}>Target Ratio</th>
                   <th style={{ padding: "0.6rem 0.8rem" }}>Auto Stop</th>
-                  <th style={{ padding: "0.6rem 0.8rem", textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "0.6rem 0.8rem", textAlign: "right" }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -234,7 +249,13 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                     }}
                   >
                     <td style={{ padding: "0.65rem 0.8rem", fontWeight: 600 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
                         <span>{cat.name}</span>
                         {cat.isDefault && (
                           <span
@@ -256,16 +277,22 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                       style={{
                         padding: "0.65rem 0.8rem",
                         fontFamily: "monospace",
-                        color: cat.savePath ? "var(--text-primary)" : "var(--text-muted)",
+                        color: cat.savePath
+                          ? "var(--text-primary)"
+                          : "var(--text-muted)",
                       }}
                     >
                       {cat.savePath || "(Default Storage Path)"}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
-                      {cat.defaultDownloadLimit ? `${cat.defaultDownloadLimit} KB/s` : "Unlimited"}
+                      {cat.defaultDownloadLimit
+                        ? `${cat.defaultDownloadLimit} KB/s`
+                        : "Unlimited"}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
-                      {cat.defaultUploadLimit ? `${cat.defaultUploadLimit} KB/s` : "Unlimited"}
+                      {cat.defaultUploadLimit
+                        ? `${cat.defaultUploadLimit} KB/s`
+                        : "Unlimited"}
                     </td>
                     <td style={{ padding: "0.65rem 0.8rem" }}>
                       {cat.targetRatio ? `${cat.targetRatio}x` : "Unlimited"}
@@ -282,10 +309,14 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                           ✓ Enabled
                         </span>
                       ) : (
-                        <span style={{ color: "var(--text-muted)" }}>Disabled</span>
+                        <span style={{ color: "var(--text-muted)" }}>
+                          Disabled
+                        </span>
                       )}
                     </td>
-                    <td style={{ padding: "0.65rem 0.8rem", textAlign: "right" }}>
+                    <td
+                      style={{ padding: "0.65rem 0.8rem", textAlign: "right" }}
+                    >
                       <div
                         style={{
                           display: "inline-flex",
@@ -298,7 +329,10 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                           className="btn btn-outline btn-small"
                           onClick={() => handleOpenEdit(cat)}
                           title={`Edit ${cat.name}`}
-                          style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                          style={{
+                            padding: "0.2rem 0.5rem",
+                            fontSize: "0.75rem",
+                          }}
                         >
                           Edit
                         </button>
@@ -308,7 +342,10 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                           onClick={() => handleDelete(cat)}
                           disabled={deleteMutation.isPending}
                           title={`Delete ${cat.name}`}
-                          style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                          style={{
+                            padding: "0.2rem 0.5rem",
+                            fontSize: "0.75rem",
+                          }}
                         >
                           Delete
                         </button>
@@ -344,7 +381,9 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                 color: "var(--text-primary)",
               }}
             >
-              {editingCategory.id ? `Edit Category: ${editingCategory.name}` : "Add New Category"}
+              {editingCategory.id
+                ? `Edit Category: ${editingCategory.name}`
+                : "Add New Category"}
             </div>
 
             <TextInput
@@ -361,7 +400,9 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
             <TextInput
               label="Custom Save Path"
               value={editingCategory.savePath || ""}
-              onChange={(v) => setEditingCategory({ ...editingCategory, savePath: v })}
+              onChange={(v) =>
+                setEditingCategory({ ...editingCategory, savePath: v })
+              }
               placeholder="e.g. /downloads/movies"
               hint="Downloaded files for this category will be stored in this directory (leave blank for default)"
             />
@@ -377,7 +418,10 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                 label="Max Download Limit"
                 value={editingCategory.defaultDownloadLimit ?? 0}
                 onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, defaultDownloadLimit: v })
+                  setEditingCategory({
+                    ...editingCategory,
+                    defaultDownloadLimit: v,
+                  })
                 }
                 min={0}
                 suffix="KB/s"
@@ -387,7 +431,12 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
               <NumberInput
                 label="Max Upload Limit"
                 value={editingCategory.defaultUploadLimit ?? 0}
-                onChange={(v) => setEditingCategory({ ...editingCategory, defaultUploadLimit: v })}
+                onChange={(v) =>
+                  setEditingCategory({
+                    ...editingCategory,
+                    defaultUploadLimit: v,
+                  })
+                }
                 min={0}
                 suffix="KB/s"
                 hint="0 = unlimited"
@@ -404,7 +453,9 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
               <NumberInput
                 label="Target Share Ratio"
                 value={editingCategory.targetRatio ?? 0}
-                onChange={(v) => setEditingCategory({ ...editingCategory, targetRatio: v })}
+                onChange={(v) =>
+                  setEditingCategory({ ...editingCategory, targetRatio: v })
+                }
                 min={0}
                 step={0.1}
                 hint="Target ratio (e.g. 2.0). 0 = unlimited"
@@ -414,7 +465,10 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                 label="Target Seed Time"
                 value={editingCategory.targetSeedTimeMinutes ?? 0}
                 onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, targetSeedTimeMinutes: v })
+                  setEditingCategory({
+                    ...editingCategory,
+                    targetSeedTimeMinutes: v,
+                  })
                 }
                 min={0}
                 suffix="min"
@@ -433,14 +487,18 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
               <Toggle
                 label="Auto Stop When Seeding Goals Reached"
                 checked={editingCategory.autoStop ?? false}
-                onChange={(v) => setEditingCategory({ ...editingCategory, autoStop: v })}
+                onChange={(v) =>
+                  setEditingCategory({ ...editingCategory, autoStop: v })
+                }
                 hint="Automatically pause or stop torrent once target share ratio or seed time is satisfied"
               />
 
               <Toggle
                 label="Set as Default Category"
                 checked={editingCategory.isDefault ?? false}
-                onChange={(v) => setEditingCategory({ ...editingCategory, isDefault: v })}
+                onChange={(v) =>
+                  setEditingCategory({ ...editingCategory, isDefault: v })
+                }
                 hint="Automatically assign this category to new torrents when none is selected"
               />
             </div>
@@ -484,7 +542,11 @@ export function CategorySettingsTab({ embedded = false }: CategorySettingsProps)
                 onClick={handleSave}
                 disabled={isSaving}
               >
-                {isSaving ? "Saving..." : editingCategory.id ? "Save Changes" : "Create Category"}
+                {isSaving
+                  ? "Saving..."
+                  : editingCategory.id
+                    ? "Save Changes"
+                    : "Create Category"}
               </button>
             </div>
           </div>
