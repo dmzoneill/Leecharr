@@ -10,6 +10,7 @@ import {
 } from "../utils/formatters";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import { useConfirm } from "../context/ConfirmContext";
+import { useTranslation } from "../i18n";
 
 export interface TorrentGridCardProps {
   torrent: Torrent;
@@ -330,6 +331,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                   confirmText: "Remove",
                 });
                 if (ok) {
+                  const { t } = useTranslation();
                   onDelete({ id: mergedTorrent.id, deleteFiles: false });
                 }
               }}

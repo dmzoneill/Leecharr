@@ -177,7 +177,7 @@ export function SystemLogs() {
                   className={`btn btn-small ${levelFilter === level ? "log-filter-active" : ""} ${level !== "All" ? `log-filter-${level.toLowerCase()}` : ""}`}
                   onClick={() => {
                     setLevelFilter(level);
-                    setCleared(false);
+                    setClearedBeforeId(null);
                   }}
                 >
                   {level}
@@ -193,7 +193,7 @@ export function SystemLogs() {
                 value={searchText}
                 onChange={(e) => {
                   setSearchText(e.target.value);
-                  setCleared(false);
+                  setClearedBeforeId(null);
                 }}
               />
 

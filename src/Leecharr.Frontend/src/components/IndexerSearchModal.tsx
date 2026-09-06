@@ -15,6 +15,7 @@ import {
 } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useTranslation } from "../i18n";
 
 interface IndexerSearchModalProps {
   onClose: () => void;
@@ -41,6 +42,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
 
   useEffect(() => {
     if (initialQuery) {
+      const { t } = useTranslation();
       setQuery(initialQuery);
       setActiveSearchTerm(initialQuery);
     }

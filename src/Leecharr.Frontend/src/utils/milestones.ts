@@ -110,19 +110,19 @@ export function getTorrentBadges(
   }
 
   // Century Seeder: 100+ days (8,640,000s)
-  if (torrent.seedingTime >= 8640000) {
+  if ((torrent.seedingTime ?? 0) >= 8640000) {
     badges.push({
       label: "100d+",
       icon: "👑",
-      title: `Century Seeder: Seeded for ${formatSeconds(torrent.seedingTime)} continuously!`,
+      title: `Century Seeder: Seeded for ${formatSeconds(torrent.seedingTime!)} continuously!`,
       color: "#9b59b6",
     });
-  } else if (torrent.seedingTime >= 2592000) {
+  } else if ((torrent.seedingTime ?? 0) >= 2592000) {
     // 30+ days
     badges.push({
       label: "30d+",
       icon: "💎",
-      title: `Perma-Seeder: Seeded for ${formatSeconds(torrent.seedingTime)}!`,
+      title: `Perma-Seeder: Seeded for ${formatSeconds(torrent.seedingTime!)}!`,
       color: "#3498db",
     });
   }

@@ -28,6 +28,7 @@ import TrackerFavicon from "./TrackerFavicon";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import useEscapeKey from "../hooks/useEscapeKey";
 import type { Torrent, DownloadHistoryEntry } from "../api/types";
+import { useTranslation } from "../i18n";
 
 export type ColumnKey =
   | "#"
@@ -121,6 +122,7 @@ function loadVisibleColumns(): Set<string> {
   try {
     const stored = localStorage.getItem(PREF_VISIBLE_COLS_STORAGE);
     if (stored) {
+      const { t } = useTranslation();
       const parsed = JSON.parse(stored) as string[];
       if (Array.isArray(parsed) && parsed.length > 0) return new Set(parsed);
     }
