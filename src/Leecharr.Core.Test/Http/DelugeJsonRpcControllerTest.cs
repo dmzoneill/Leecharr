@@ -459,4 +459,71 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"max_download_speed\":500");
         json.Should().Contain("\"max_upload_speed\":250");
     }
+
+    [Test]
+    public async Task HandleRpc_GetFilterTree_CoreAndWeb_ReturnsAllStatesAndTrackerHosts()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Status = TorrentStatus.Downloading, TrackerUrl = "http://tracker1.org:80/announce" },
+            new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", Status = TorrentStatus.Checking, TrackerUrl = "http://tracker1.org:80/announce" },
+            new Torrent { Id = 3, InfoHash = "3333333333333333333333333333333333333333", Status = TorrentStatus.Queued, TrackerUrl = "http://tracker2.com:1337/announce" },
+            new Torrent { Id = 4, InfoHash = "4444444444444444444444444444444444444444", Status = TorrentStatus.Error, TrackerUrl = "udp://tracker3.org:6969/announce" },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        // Test web.get_filter_tree
+        using var webDoc = JsonDocument.Parse("{\"method\":\"web.get_filter_tree\",\"params\":[],\"id\":1}");
+        var webResult = await this.controller.HandleRpc(webDoc.RootElement);
+
+        webResult.Should().BeOfType<JsonResult>();
+        var webJsonResult = (JsonResult)webResult;
+        var webJson = JsonSerializer.Serialize(webJsonResult.Value);
+        webJson.Should().Contain("\"Checking\",1");
+        webJson.Should().Contain("\"Queued\",1");
+        webJson.Should().Contain("\"Error\",1");
+        webJson.Should().Contain("\"tracker_host\"");
+        webJson.Should().Contain("\"tracker1.org\",2");
+        webJson.Should().Contain("\"tracker2.com\",1");
+
+        // Test core.get_filter_tree
+        using var coreDoc = JsonDocument.Parse("{\"method\":\"core.get_filter_tree\",\"params\":[],\"id\":2}");
+        var coreResult = await this.controller.HandleRpc(coreDoc.RootElement);
+
+        coreResult.Should().BeOfType<JsonResult>();
+        var coreJsonResult = (JsonResult)coreResult;
+        var coreJson = JsonSerializer.Serialize(coreJsonResult.Value);
+        coreJson.Should().Contain("\"Checking\",1");
+        coreJson.Should().Contain("\"Queued\",1");
+        coreJson.Should().Contain("\"Error\",1");
+        coreJson.Should().Contain("\"tracker_host\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_WebUpdateUi_IncludesCompleteFilterTree()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Status = TorrentStatus.Checking, TrackerUrl = "http://tracker1.org/announce" },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.update_ui\",\"params\":[[\"name\"], {}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"Checking\",1");
+        json.Should().Contain("\"tracker_host\"");
+        json.Should().Contain("\"tracker1.org\",1");
+    }
 }
