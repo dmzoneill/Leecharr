@@ -141,13 +141,13 @@ function Activity() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_activity_metrics")}
+              {t("activity.title")}
             </h1>
             <span
               className="badge badge-success"
               style={{ fontSize: "0.75rem", borderRadius: "4px" }}
             >
-              {t("autogen.t_live_1s")}
+              {t("common.live")}
             </span>
           </div>
         </div>
@@ -163,48 +163,48 @@ function Activity() {
             border: "1px solid rgba(255, 209, 102, 0.3)",
           }}
         >
-          <span>📊</span> {t("autogen.t_live_telemetry_resources")}
+          <span>📊</span> {t("activity.liveTelemetry")}
         </Link>
       </div>
 
       <div className="monitoring-grid">
         <LineChart
-          title={t("autogen.t_upload_speed")}
+          title={t("activity.uploadSpeed")}
           value={formatSpeed(currentUpload)}
           data={history.uploadSpeed}
           color="#c8a84e"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title={t("autogen.t_download_speed")}
+          title={t("activity.downloadSpeed")}
           value={formatSpeed(currentDownload)}
           data={history.downloadSpeed}
           color="#b5443a"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title={t("autogen.t_active_torrents")}
+          title={t("activity.activeTorrents")}
           value={String(currentActive)}
           data={history.activeTorrents}
           color="#27ae60"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title={t("autogen.t_peer_connections")}
+          title={t("activity.peerConnections")}
           value={String(currentPeers)}
           data={history.peerConnections}
           color="#d4843a"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title={t("autogen.t_upload_download_ratio")}
+          title={t("activity.uploadDownloadRatio")}
           value={formatRatio(currentRatio)}
           data={history.ratio}
           color="#3498db"
           maxPoints={MAX_POINTS}
         />
         <LineChart
-          title={t("autogen.t_network_activity")}
+          title={t("activity.networkActivity")}
           value={formatSpeed(currentNetwork)}
           data={history.networkActivity}
           color="#9b59b6"

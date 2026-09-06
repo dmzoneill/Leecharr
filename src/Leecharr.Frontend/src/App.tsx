@@ -79,16 +79,16 @@ import { useTranslation } from "./i18n";
 
 function getSystemSubItems(t: any) {
   return [
-    { id: "status", label: t("autogen.t_status") },
-    { id: "resources", label: t("autogen.t_resources") },
-    { id: "terminal", label: t("autogen.t_terminal_cli") },
-    { id: "tasks", label: t("autogen.t_tasks") },
-    { id: "backup", label: t("autogen.t_backup") },
-    { id: "updates", label: t("autogen.t_updates") },
-    { id: "events", label: t("autogen.t_events") },
-    { id: "logs", label: t("autogen.t_log_files") },
-    { id: "network", label: t("autogen.t_network") },
-    { id: "api", label: t("autogen.t_api_reference") },
+    { id: "status", label: t("system.status") },
+    { id: "resources", label: t("system.resources") },
+    { id: "terminal", label: t("system.terminal") },
+    { id: "tasks", label: t("system.tasks") },
+    { id: "backup", label: t("system.backup") },
+    { id: "updates", label: t("system.updates") },
+    { id: "events", label: t("system.events") },
+    { id: "logs", label: t("system.logs") },
+    { id: "network", label: t("system.network") },
+    { id: "api", label: t("system.apiReference") },
   ];
 }
 
@@ -415,7 +415,7 @@ export function App() {
 
   if (pathname === "/login") {
     return (
-      <ErrorBoundary title={t("autogen.t_login_error")}>
+      <ErrorBoundary title={t("errors.login")}>
         <LoginPage
           onLoginSuccess={() => {
             loadUser();
@@ -444,7 +444,9 @@ export function App() {
               e.stopPropagation();
               toggleSidebar();
             }}
-            title={t("autogen.t_collapse_main_menu")}
+            title={t(
+              isSidebarCollapsed ? "nav.expandMenu" : "nav.collapseMenu",
+            )}
           >
             «
           </button>
@@ -609,7 +611,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "files" ? "active" : ""}`}
             onClick={() => guardedNavigate("/files")}
             style={{ cursor: "pointer" }}
-            title={t("autogen.t_browse_create_rename_and_delete_server_f")}
+            title={t("nav.browseFiles")}
           >
             <span
               style={{
@@ -794,7 +796,7 @@ export function App() {
               className="topbar-search"
               onClick={() => setShowSearchModal(true)}
               style={{ cursor: "pointer" }}
-              title={t("autogen.t_quick_jump_search_ctrl_k_or")}
+              title={t("nav.searchPlaceholder")}
             >
               <SearchIcon size={14} />
               <input
@@ -815,7 +817,7 @@ export function App() {
                   fontFamily: "monospace",
                 }}
               >
-                {t("autogen.t_k")}
+                Ctrl+K
               </kbd>
             </div>
           </div>
@@ -837,7 +839,7 @@ export function App() {
                 border: "1px solid rgba(255, 209, 102, 0.3)",
                 fontWeight: 600,
               }}
-              title={t("autogen.t_getting_started_setup_guide_prowlarr_son")}
+              title={t("nav.gettingStarted")}
             >
               🚀 {t("modals.gettingStarted")}
             </button>
@@ -854,9 +856,9 @@ export function App() {
                 fontWeight: 600,
                 fontFamily: "monospace",
               }}
-              title={t("autogen.t_open_terminal_cli_to_inspect_download_vo")}
+              title={t("nav.openTerminal")}
             >
-              {t("autogen.t_gt_cli")}
+              {t("nav.cli")}
             </button>
             <button
               className="btn btn-small btn-success"
@@ -908,9 +910,9 @@ export function App() {
                   className="btn btn-small btn-outline"
                   onClick={handleLogout}
                   style={{ fontSize: "0.75rem", padding: "3px 8px" }}
-                  title={t("autogen.t_sign_out")}
+                  title={t("nav.signOut")}
                 >
-                  {t("autogen.t_sign_out")}
+                  {t("nav.signOut")}
                 </button>
               </div>
             )}
@@ -946,21 +948,19 @@ export function App() {
                 boxShadow: "0 0 6px #ffd166",
               }}
             />
-            <span>
-              {t("autogen.t_connection_lost_reconnecting_to_leecharr")}
-            </span>
+            <span>{t("alerts.connectionLost")}</span>
           </div>
         )}
 
         {/* Declarative React Router Viewport */}
         <main className="app-main">
-          <ErrorBoundary title={t("autogen.t_view_error")}>
+          <ErrorBoundary title={t("errors.view")}>
             <Routes>
               {/* Dashboard */}
               <Route
                 path="/"
                 element={
-                  <ErrorBoundary title={t("autogen.t_dashboard_error")}>
+                  <ErrorBoundary title={t("errors.dashboard")}>
                     <div className="content-area">
                       <Dashboard
                         torrents={torrents}
@@ -979,7 +979,7 @@ export function App() {
               <Route
                 path="/torrents"
                 element={
-                  <ErrorBoundary title={t("autogen.t_torrents_error")}>
+                  <ErrorBoundary title={t("errors.torrents")}>
                     <TorrentIndex
                       torrents={torrents}
                       onPause={handlePause}
@@ -1002,7 +1002,7 @@ export function App() {
               <Route
                 path="/torrents/add"
                 element={
-                  <ErrorBoundary title={t("autogen.t_add_torrent_error")}>
+                  <ErrorBoundary title={t("errors.addTorrent")}>
                     <AddTorrentPage
                       onSuccess={() => {
                         navigate("/torrents");
@@ -1029,7 +1029,7 @@ export function App() {
               <Route
                 path="/activity/history"
                 element={
-                  <ErrorBoundary title={t("autogen.t_download_history_error")}>
+                  <ErrorBoundary title={t("errors.downloadHistory")}>
                     <DownloadHistory />
                   </ErrorBoundary>
                 }
@@ -1041,7 +1041,7 @@ export function App() {
               <Route
                 path="/activity/metrics"
                 element={
-                  <ErrorBoundary title={t("autogen.t_activity_metrics_error")}>
+                  <ErrorBoundary title={t("errors.activity")}>
                     <Activity />
                   </ErrorBoundary>
                 }
@@ -1051,7 +1051,7 @@ export function App() {
               <Route
                 path="/indexers"
                 element={
-                  <ErrorBoundary title={t("autogen.t_indexers_error")}>
+                  <ErrorBoundary title={t("errors.indexers")}>
                     <Indexers />
                   </ErrorBoundary>
                 }
@@ -1065,7 +1065,7 @@ export function App() {
               <Route
                 path="/peermap"
                 element={
-                  <ErrorBoundary title={t("autogen.t_peer_map_error")}>
+                  <ErrorBoundary title={t("errors.peerMap")}>
                     <PeerMap />
                   </ErrorBoundary>
                 }
@@ -1073,7 +1073,7 @@ export function App() {
               <Route
                 path="/schedule"
                 element={
-                  <ErrorBoundary title={t("autogen.t_speed_schedule_error")}>
+                  <ErrorBoundary title={t("errors.speedSchedule")}>
                     <SpeedSchedule />
                   </ErrorBoundary>
                 }
@@ -1081,7 +1081,7 @@ export function App() {
               <Route
                 path="/statistics"
                 element={
-                  <ErrorBoundary title={t("autogen.t_statistics_error")}>
+                  <ErrorBoundary title={t("errors.statistics")}>
                     <Statistics />
                   </ErrorBoundary>
                 }
@@ -1091,7 +1091,7 @@ export function App() {
               <Route
                 path="/trackerboost"
                 element={
-                  <ErrorBoundary title={t("autogen.t_tracker_boost_error")}>
+                  <ErrorBoundary title={t("errors.trackerBoost")}>
                     <TrackerBoost />
                   </ErrorBoundary>
                 }
@@ -1113,7 +1113,7 @@ export function App() {
               <Route
                 path="/settings/:section"
                 element={
-                  <ErrorBoundary title={t("autogen.t_settings_error")}>
+                  <ErrorBoundary title={t("errors.settings")}>
                     <Settings />
                   </ErrorBoundary>
                 }
@@ -1127,7 +1127,7 @@ export function App() {
               <Route
                 path="/system/status"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_status_error")}>
+                  <ErrorBoundary title={t("errors.systemStatus")}>
                     <SystemStatus />
                   </ErrorBoundary>
                 }
@@ -1135,7 +1135,7 @@ export function App() {
               <Route
                 path="/system/resources"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_resources_error")}>
+                  <ErrorBoundary title={t("errors.systemResources")}>
                     <SystemResources />
                   </ErrorBoundary>
                 }
@@ -1147,7 +1147,7 @@ export function App() {
               <Route
                 path="/system/tasks"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_tasks_error")}>
+                  <ErrorBoundary title={t("errors.systemTasks")}>
                     <SystemTasks />
                   </ErrorBoundary>
                 }
@@ -1155,7 +1155,7 @@ export function App() {
               <Route
                 path="/system/backup"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_backup_error")}>
+                  <ErrorBoundary title={t("errors.systemBackup")}>
                     <SystemBackup />
                   </ErrorBoundary>
                 }
@@ -1163,7 +1163,7 @@ export function App() {
               <Route
                 path="/system/updates"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_updates_error")}>
+                  <ErrorBoundary title={t("errors.systemUpdates")}>
                     <SystemUpdates />
                   </ErrorBoundary>
                 }
@@ -1171,7 +1171,7 @@ export function App() {
               <Route
                 path="/system/events"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_events_error")}>
+                  <ErrorBoundary title={t("errors.systemEvents")}>
                     <SystemEvents />
                   </ErrorBoundary>
                 }
@@ -1179,7 +1179,7 @@ export function App() {
               <Route
                 path="/system/logs"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_logs_error")}>
+                  <ErrorBoundary title={t("errors.systemLogs")}>
                     <SystemLogs />
                   </ErrorBoundary>
                 }
@@ -1187,7 +1187,7 @@ export function App() {
               <Route
                 path="/system/network"
                 element={
-                  <ErrorBoundary title={t("autogen.t_system_network_error")}>
+                  <ErrorBoundary title={t("errors.systemNetwork")}>
                     <SystemNetwork />
                   </ErrorBoundary>
                 }
@@ -1195,7 +1195,7 @@ export function App() {
               <Route
                 path="/system/api"
                 element={
-                  <ErrorBoundary title={t("autogen.t_api_reference_error")}>
+                  <ErrorBoundary title={t("errors.apiReference")}>
                     <ApiDocsPage />
                   </ErrorBoundary>
                 }
@@ -1217,7 +1217,7 @@ export function App() {
               <Route
                 path="/terminal"
                 element={
-                  <ErrorBoundary title={t("autogen.t_terminal_error")}>
+                  <ErrorBoundary title={t("errors.terminal")}>
                     <TerminalPage />
                   </ErrorBoundary>
                 }
@@ -1225,7 +1225,7 @@ export function App() {
               <Route
                 path="/system/terminal"
                 element={
-                  <ErrorBoundary title={t("autogen.t_terminal_error")}>
+                  <ErrorBoundary title={t("errors.terminal")}>
                     <TerminalPage />
                   </ErrorBoundary>
                 }
@@ -1235,7 +1235,7 @@ export function App() {
               <Route
                 path="/files"
                 element={
-                  <ErrorBoundary title={t("autogen.t_file_browser_error")}>
+                  <ErrorBoundary title={t("errors.fileBrowser")}>
                     <FileBrowser />
                   </ErrorBoundary>
                 }
@@ -1253,7 +1253,7 @@ export function App() {
 
       {/* Add Torrent Modal */}
       {showAddModal && (
-        <ErrorBoundary title={t("autogen.t_add_torrent_modal_error")}>
+        <ErrorBoundary title={t("errors.addTorrentModal")}>
           <AddTorrentModal
             isOpen={showAddModal}
             onClose={() => setShowAddModal(false)}
@@ -1267,7 +1267,7 @@ export function App() {
 
       {/* Indexer Search Modal */}
       {showSearchModal && (
-        <ErrorBoundary title={t("autogen.t_search_modal_error")}>
+        <ErrorBoundary title={t("errors.searchModal")}>
           <IndexerSearchModal
             onClose={() => setShowSearchModal(false)}
             onTorrentAdded={refreshServerData}
@@ -1276,7 +1276,7 @@ export function App() {
       )}
 
       {/* Getting Started & Setup Guide Modal */}
-      <ErrorBoundary title={t("autogen.t_setup_guide_error")}>
+      <ErrorBoundary title={t("errors.setupGuide")}>
         <GettingStartedModal
           isOpen={showGettingStartedModal}
           onClose={() => setShowGettingStartedModal(false)}
@@ -1287,7 +1287,7 @@ export function App() {
       </ErrorBoundary>
 
       {/* Discrete Collapsible AI Copilot Drawer */}
-      <ErrorBoundary title={t("autogen.t_copilot_drawer_error")}>
+      <ErrorBoundary title={t("errors.copilotDrawer")}>
         <AiCopilotDrawer />
       </ErrorBoundary>
 

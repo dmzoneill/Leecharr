@@ -1,5 +1,5 @@
-import { useTranslation } from "../i18n";
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "../i18n";
 import TrackerFavicon from "./TrackerFavicon";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -183,7 +183,10 @@ export function TrackerMultiSelectModal({
                   color: "var(--text-primary, #f8f4ed)",
                 }}
               >
-                {t("autogen.t_select_trackers_to_add_announce")}
+                {t(
+                  "torrentDetail.trackerPickerTitle",
+                  "Select Trackers to Add & Announce",
+                )}
               </h3>
               <p
                 style={{
@@ -192,7 +195,10 @@ export function TrackerMultiSelectModal({
                   color: "var(--text-muted, #7e8092)",
                 }}
               >
-                {t("autogen.t_choose_verified_and_online_tracker_endpo")}
+                {t(
+                  "torrentDetail.trackerPickerSubtitle",
+                  "Choose verified and online tracker endpoints from your library to attach to this swarm.",
+                )}
               </p>
             </div>
           </div>
@@ -228,7 +234,10 @@ export function TrackerMultiSelectModal({
             <input
               type="text"
               className="topbar-search-input"
-              placeholder={t("autogen.t_search_by_domain_protocol_status")}
+              placeholder={t(
+                "torrentDetail.searchTrackersPlaceholder",
+                "Search by domain, protocol, status...",
+              )}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -253,19 +262,25 @@ export function TrackerMultiSelectModal({
               }}
             >
               <option value="all">
-                {t("autogen.t_all_trackers")}
-                {trackers.length})
+                {t("torrentDetail.allTrackersFilter", {
+                  count: trackers.length,
+                  defaultValue: `All Trackers (${trackers.length})`,
+                })}
               </option>
               <option value="verified">
-                {t("autogen.t_verified_in_swarm")}
-                {verifiedUnattached.length})
+                {t("torrentDetail.verifiedInSwarmFilter", {
+                  count: verifiedUnattached.length,
+                  defaultValue: `Verified in Swarm (${verifiedUnattached.length})`,
+                })}
               </option>
               <option value="online">
-                {t("autogen.t_online_verified")}
-                {onlineUnattached.length})
+                {t("torrentDetail.onlineVerifiedFilter", {
+                  count: onlineUnattached.length,
+                  defaultValue: `Online & Verified (${onlineUnattached.length})`,
+                })}
               </option>
               <option value="unattached">
-                {t("autogen.t_unattached_only")}
+                {t("torrentDetail.unattachedOnlyFilter", "Unattached Only")}
               </option>
             </select>
           </div>
@@ -286,7 +301,7 @@ export function TrackerMultiSelectModal({
                 marginRight: "0.2rem",
               }}
             >
-              {t("autogen.t_quick_select")}
+              {t("torrentDetail.quickSelectLabel", "Quick Select:")}
             </span>
 
             {verifiedUnattached.length > 0 && (
@@ -296,8 +311,10 @@ export function TrackerMultiSelectModal({
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                 onClick={() => onSelectBatch(verifiedUnattached)}
               >
-                {t("autogen.t_verified_swarms")}
-                {verifiedUnattached.length})
+                {t("torrentDetail.verifiedSwarmsBtn", {
+                  count: verifiedUnattached.length,
+                  defaultValue: `⚡ Verified Swarms (${verifiedUnattached.length})`,
+                })}
               </button>
             )}
 
@@ -308,8 +325,10 @@ export function TrackerMultiSelectModal({
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                 onClick={() => onSelectBatch(onlineUnattached)}
               >
-                {t("autogen.t_all_online")}
-                {onlineUnattached.length})
+                {t("torrentDetail.allOnlineBtn", {
+                  count: onlineUnattached.length,
+                  defaultValue: `All Online (${onlineUnattached.length})`,
+                })}
               </button>
             )}
 
@@ -319,8 +338,10 @@ export function TrackerMultiSelectModal({
               style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
               onClick={handleSelectAllFiltered}
             >
-              {t("autogen.t_select_filtered")}
-              {filteredTrackers.filter((t) => !t.isAttached).length})
+              {t("torrentDetail.selectFilteredBtn", {
+                count: filteredTrackers.filter((t) => !t.isAttached).length,
+                defaultValue: `Select Filtered (${filteredTrackers.filter((t) => !t.isAttached).length})`,
+              })}
             </button>
 
             {selectedUrls.size > 0 && (
@@ -334,8 +355,10 @@ export function TrackerMultiSelectModal({
                 }}
                 onClick={onClearSelection}
               >
-                {t("autogen.t_clear")}
-                {selectedUrls.size})
+                {t("torrentDetail.clearSelectionBtn", {
+                  count: selectedUrls.size,
+                  defaultValue: `Clear (${selectedUrls.size})`,
+                })}
               </button>
             )}
           </div>
@@ -449,16 +472,14 @@ export function TrackerMultiSelectModal({
                       )}
 
                       {item.latencyMs !== undefined && item.latencyMs > 0 && (
-                        <span>
-                          {item.latencyMs}
-                          {t("autogen.t_ms")}
-                        </span>
+                        <span>{item.latencyMs} ms</span>
                       )}
 
                       {item.seeders !== undefined && item.seeders > 0 && (
                         <span style={{ color: "var(--accent, #ffd166)" }}>
-                          ⚡ {item.seeders} {t("autogen.t_seeds")}
-                          {item.leechers ?? 0} {t("autogen.t_leeches")}
+                          ⚡ {item.seeders} {t("torrentDetail.seeds", "seeds")}{" "}
+                          {item.leechers ?? 0}{" "}
+                          {t("torrentDetail.leeches", "leeches")}
                         </span>
                       )}
                     </div>
@@ -476,7 +497,7 @@ export function TrackerMultiSelectModal({
                 >
                   {isAttached ? (
                     <span className="badge" style={{ fontSize: "0.72rem" }}>
-                      {t("autogen.t_already_attached")}
+                      {t("torrentDetail.alreadyAttached", "Already Attached")}
                     </span>
                   ) : item.isVerified ? (
                     <span
@@ -487,7 +508,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--success, #22c55e)",
                       }}
                     >
-                      {t("autogen.t_verified_swarm")}
+                      {t("torrentDetail.verifiedSwarm", "Verified Swarm")}
                     </span>
                   ) : item.isAlive ? (
                     <span
@@ -498,7 +519,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--success, #22c55e)",
                       }}
                     >
-                      {t("autogen.t_alive")}
+                      {t("torrentDetail.alive", "Alive")}
                     </span>
                   ) : item.isSlow ? (
                     <span
@@ -509,7 +530,7 @@ export function TrackerMultiSelectModal({
                         color: "var(--warning, #eab308)",
                       }}
                     >
-                      {t("autogen.t_slow")}
+                      {t("torrentDetail.slow", "Slow")}
                     </span>
                   ) : item.isOffline ? (
                     <span
@@ -520,11 +541,11 @@ export function TrackerMultiSelectModal({
                         color: "var(--danger, #ef4444)",
                       }}
                     >
-                      {t("autogen.t_offline")}
+                      {t("torrentDetail.offline", "Offline")}
                     </span>
                   ) : (
                     <span className="badge" style={{ fontSize: "0.72rem" }}>
-                      {t("autogen.t_untested")}
+                      {t("torrentDetail.untested", "Untested")}
                     </span>
                   )}
                 </div>
@@ -541,10 +562,10 @@ export function TrackerMultiSelectModal({
                 fontSize: "0.85rem",
               }}
             >
-              {t("autogen.t_no_candidate_trackers_found_matching")}
-              {'"'}
-              {searchTerm}
-              {'"'}.
+              {t("torrentDetail.noTrackersFoundMatching", {
+                query: searchTerm,
+                defaultValue: `No candidate trackers found matching "${searchTerm}".`,
+              })}
             </div>
           )}
         </div>
@@ -565,7 +586,8 @@ export function TrackerMultiSelectModal({
             type="text"
             className="topbar-search-input"
             placeholder={t(
-              "autogen.t_or_enter_custom_url_e_g_udp_tracker_exam",
+              "torrentDetail.customTrackerPlaceholder",
+              "Or enter custom URL (e.g. udp://tracker.example.com:1337/announce)...",
             )}
             value={customUrl}
             onChange={(e) => setCustomUrl(e.target.value)}
@@ -576,7 +598,7 @@ export function TrackerMultiSelectModal({
             className="btn btn-small btn-primary"
             disabled={!customUrl.trim()}
           >
-            {t("autogen.t_add_to_list")}
+            {t("torrentDetail.addToListBtn", "+ Add to List")}
           </button>
         </form>
 
@@ -594,11 +616,14 @@ export function TrackerMultiSelectModal({
           <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>
             {selectedUrls.size === 0 ? (
               <span style={{ color: "var(--text-muted, #7e8092)" }}>
-                {t("autogen.t_0_trackers_selected")}
+                {t("torrentDetail.zeroTrackersSelected", "0 trackers selected")}
               </span>
             ) : (
               <span style={{ color: "var(--accent, #ffd166)" }}>
-                ✓ {selectedUrls.size} {t("autogen.t_tracker_s_selected")}
+                {t("torrentDetail.trackersSelectedCount", {
+                  count: selectedUrls.size,
+                  defaultValue: `✓ ${selectedUrls.size} tracker(s) selected`,
+                })}
               </span>
             )}
           </div>
@@ -610,7 +635,7 @@ export function TrackerMultiSelectModal({
               onClick={onClose}
               style={{ fontSize: "0.82rem" }}
             >
-              {t("autogen.t_done_keep_selection")}
+              {t("torrentDetail.doneKeepSelection", "Done / Keep Selection")}
             </button>
             <button
               type="button"
@@ -623,8 +648,14 @@ export function TrackerMultiSelectModal({
               style={{ fontSize: "0.82rem" }}
             >
               {isAdding
-                ? "Adding & Announcing..."
-                : `+ Add & Announce (${selectedUrls.size})`}
+                ? t(
+                    "torrentDetail.addingAndAnnouncing",
+                    "Adding & Announcing...",
+                  )
+                : t("torrentDetail.addAndAnnounceCount", {
+                    count: selectedUrls.size,
+                    defaultValue: `+ Add & Announce (${selectedUrls.size})`,
+                  })}
             </button>
           </div>
         </div>

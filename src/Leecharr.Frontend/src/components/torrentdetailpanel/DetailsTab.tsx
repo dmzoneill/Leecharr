@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n";
 import {
   useDownloadHistory,
   useArrConnections,
@@ -19,6 +20,7 @@ import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
 
 export function DetailsTab({ torrent }: { torrent: Torrent }) {
+  const { t } = useTranslation();
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
   const { data: indexers } = useIndexers();
@@ -43,23 +45,29 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
   const hnr = calculateHnrStatus(torrent);
 
   const rows: [string, string][] = [
-    ["Name", torrent.name],
-    ["Info Hash", torrent.infoHash],
-    ["Total Size", formatBytes(torrent.totalSize)],
-    ["Pieces", `${torrent.pieceCount} x ${formatBytes(torrent.pieceLength)}`],
+    [t("torrents.detail.name"), torrent.name],
+    [t("torrents.detail.infoHash"), torrent.infoHash],
+    [t("torrents.detail.totalSize"), formatBytes(torrent.totalSize)],
     [
-      "Private Swarm",
-      torrent.isPrivate
-        ? "🔒 Yes (BEP 27: DHT/PEX Disabled, Swarm Isolated)"
-        : "🌐 No (Public Swarm, DHT/PEX Active)",
+      t("torrents.detail.pieces"),
+      `${torrent.pieceCount} x ${formatBytes(torrent.pieceLength)}`,
     ],
-    ["Tracker", torrent.trackerUrl ?? "-"],
+    [
+      t("torrents.detail.privateSwarm"),
+      torrent.isPrivate
+        ? t("torrents.detail.privateYes")
+        : t("torrents.detail.privateNo"),
+    ],
+    [t("torrents.detail.tracker"), torrent.trackerUrl ?? "-"],
   ];
   if (torrent.creationDate)
-    rows.push(["Created", formatDate(torrent.creationDate)]);
-  if (torrent.createdBy) rows.push(["Created By", torrent.createdBy]);
-  if (torrent.comment) rows.push(["Comment", torrent.comment]);
-  if (torrent.sourcePath) rows.push(["Source Path", torrent.sourcePath]);
+    rows.push([t("torrents.detail.created"), formatDate(torrent.creationDate)]);
+  if (torrent.createdBy)
+    rows.push([t("torrents.detail.createdBy"), torrent.createdBy]);
+  if (torrent.comment)
+    rows.push([t("torrents.detail.comment"), torrent.comment]);
+  if (torrent.sourcePath)
+    rows.push([t("torrents.detail.sourcePath"), torrent.sourcePath]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -151,7 +159,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
                 padding: "0.2rem 0.45rem",
                 textDecoration: "none",
               }}
-              title="Open IMDb"
+              title={t("torrents.detail.openImdb")}
             >
               IMDb ↗
             </a>
@@ -169,7 +177,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
                   padding: "0.2rem 0.45rem",
                   textDecoration: "none",
                 }}
-                title="Open TMDb"
+                title={t("torrents.detail.openTmdb")}
               >
                 TMDb ↗
               </a>
@@ -185,7 +193,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
                   padding: "0.2rem 0.45rem",
                   textDecoration: "none",
                 }}
-                title="Search in Prowlarr"
+                title={t("torrents.detail.searchInProwlarr")}
               >
                 Prowlarr ↗
               </a>
@@ -218,11 +226,11 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
           }}
         >
           <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
-            Badges:
+            {t("torrents.detail.badges")}
           </span>
           {badges.length === 0 ? (
             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
-              Building ratio...
+              {t("torrents.detail.buildingRatio")}
             </span>
           ) : (
             badges.map((b, i) => (
@@ -245,7 +253,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
           <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
-            HNR:
+            {t("torrents.detail.hnr")}
           </span>
           <span
             className={`badge ${hnr.isCleared ? "badge-success" : "badge-warning"}`}
@@ -281,7 +289,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
             }}
           >
-            Media Stream Specs:
+            {t("torrents.detail.mediaStreamSpecs")}
           </span>
           {torrent.resolution && (
             <span
@@ -361,7 +369,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             marginBottom: "0.4rem",
           }}
         >
-          Technical Properties
+          {t("torrents.detail.technicalProperties")}
         </div>
         <div className="detail-panel-grid">
           {rows.map(([label, value]) => (

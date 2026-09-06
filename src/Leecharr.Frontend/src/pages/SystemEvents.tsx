@@ -128,7 +128,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-primary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          {t("autogen.t_info")}
+          Info
         </span>
       );
     case "Warn":
@@ -137,7 +137,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-queued"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          {t("autogen.t_warn")}
+          Warn
         </span>
       );
     case "Error":
@@ -146,7 +146,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-error"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          {t("autogen.t_error")}
+          Error
         </span>
       );
     case "Debug":
@@ -155,7 +155,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          {t("autogen.t_debug")}
+          Debug
         </span>
       );
     case "Trace":
@@ -164,7 +164,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          {t("autogen.t_trace")}
+          Trace
         </span>
       );
   }
@@ -220,11 +220,9 @@ function SystemEvents() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_events")}
+              {t("system.eventsTitle")}
             </h1>
-            <span className="badge badge-primary">
-              {t("autogen.t_audit_log")}
-            </span>
+            <span className="badge badge-primary">{t("system.auditLog")}</span>
           </div>
           <div
             style={{
@@ -233,7 +231,7 @@ function SystemEvents() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_real_time_audit_log_events_application_e")}
+            {t("system.eventsSubtitle")}
           </div>
         </div>
 
@@ -248,7 +246,7 @@ function SystemEvents() {
             }}
           >
             <RefreshIcon />
-            <span>{t("autogen.t_refresh")}</span>
+            <span>{t("common.refresh")}</span>
           </button>
           <button
             className="btn btn-outline btn-small"
@@ -260,7 +258,7 @@ function SystemEvents() {
             }}
           >
             <ClearIcon />
-            <span>{t("autogen.t_clear")}</span>
+            <span>{t("common.clear")}</span>
           </button>
         </div>
       </div>
@@ -282,7 +280,7 @@ function SystemEvents() {
             <thead>
               <tr>
                 <th className="torrent-table-th" style={{ width: "90px" }}>
-                  {t("autogen.t_level")}
+                  {t("system.severity")}
                 </th>
                 <th
                   className="torrent-table-th"
@@ -292,42 +290,40 @@ function SystemEvents() {
                     cursor: "pointer",
                     userSelect: "none",
                   }}
-                  title={t("autogen.t_click_to_sort_by_timestamp")}
+                  title={t("system.clickToSortTimestamp")}
                 >
                   <span
                     style={{ display: "inline-flex", alignItems: "center" }}
                   >
-                    {t("autogen.t_time")}
+                    {t("system.timestamp")}
                     <SortArrow direction={sortDirection} />
                   </span>
                 </th>
                 <th className="torrent-table-th" style={{ width: "200px" }}>
-                  {t("autogen.t_component_logger")}
+                  {t("system.componentLogger")}
                 </th>
-                <th className="torrent-table-th">
-                  {t("autogen.t_event_message")}
-                </th>
+                <th className="torrent-table-th">{t("system.eventMessage")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    {t("autogen.t_loading_event_stream")}
+                    {t("system.loadingEvents")}
                   </td>
                 </tr>
               )}
               {!isLoading && isError && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    {t("autogen.t_failed_to_load_events")}
+                    {t("system.failedToLoadEvents")}
                   </td>
                 </tr>
               )}
               {!isLoading && !isError && displayEntries.length === 0 && (
                 <tr>
                   <td colSpan={4} className="torrent-table-empty">
-                    {t("autogen.t_no_recent_events_logged")}
+                    {t("system.noRecentEvents")}
                   </td>
                 </tr>
               )}

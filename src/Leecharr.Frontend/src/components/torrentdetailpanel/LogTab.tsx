@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "../../i18n";
 import type { Torrent } from "../../api/types";
 import { useTorrentLogs } from "../../api/hooks";
 import { formatDate } from "../../utils/formatters";
@@ -66,6 +67,7 @@ export function LogTab({
   torrent?: Torrent;
   torrentId?: number;
 }) {
+  const { t } = useTranslation();
   const [isLive, setIsLive] = useState(true);
   const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [sourceFilter, setSourceFilter] = useState<string>("ALL");
@@ -143,9 +145,9 @@ export function LogTab({
   }
 
   if (isLoading && logs.length === 0)
-    return <PanelLoading>Loading seeder & tracker log entries...</PanelLoading>;
+    return <PanelLoading>{t("torrents.detail.loadingLogs")}</PanelLoading>;
   if (isError && logs.length === 0)
-    return <PanelEmpty>Failed to load log entries.</PanelEmpty>;
+    return <PanelEmpty>{t("torrents.detail.failedToLoadLogs")}</PanelEmpty>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
@@ -186,10 +188,13 @@ export function LogTab({
                 backgroundColor: isLive ? "#22c55e" : "#94a3b8",
               }}
             />
-            {isLive ? "Live (3s)" : "Paused"}
+            {isLive ? t("torrents.detail.live3s") : t("torrents.detail.paused")}
           </span>
           <span style={{ fontSize: "0.72rem", color: "var(--text-dim, #888)" }}>
-            {filteredLogs.length} of latest {logs.length} (max 100)
+            {t("torrents.detail.countOfLatest", {
+              filtered: filteredLogs.length,
+              total: logs.length,
+            })}
           </span>
         </div>
 
@@ -199,21 +204,25 @@ export function LogTab({
             style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }}
             onClick={() => setIsLive(!isLive)}
           >
-            {isLive ? "⏸ Pause" : "▶ Resume"}
+            {isLive
+              ? `⏸ ${t("torrents.detail.pauseLogs")}`
+              : `▶ ${t("torrents.detail.resumeLogs")}`}
           </button>
           <button
             className="btn btn-outline btn-xs"
             style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }}
             onClick={() => refetch()}
           >
-            🔄 Refresh
+            🔄 {t("torrents.detail.refresh")}
           </button>
           <button
             className="btn btn-outline btn-xs"
             style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }}
             onClick={copyLogsToClipboard}
           >
-            {copied ? "✓" : "📋 Copy"}
+            {copied
+              ? `✓ ${t("common.copied")}`
+              : `📋 ${t("torrents.detail.copyLogs")}`}
           </button>
         </div>
       </div>
@@ -230,7 +239,7 @@ export function LogTab({
         <input
           type="text"
           className="form-control"
-          placeholder="Filter logs..."
+          placeholder={t("torrents.detail.filterLogsPlaceholder")}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{
@@ -280,25 +289,25 @@ export function LogTab({
                 className="torrent-table-th"
                 style={{ width: "130px", padding: "0.3rem 0.4rem" }}
               >
-                Time
+                {t("torrents.detail.colTime")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: "65px", padding: "0.3rem 0.4rem" }}
               >
-                Level
+                {t("torrents.detail.colLevel")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: "85px", padding: "0.3rem 0.4rem" }}
               >
-                Source
+                {t("torrents.detail.colSource")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ padding: "0.3rem 0.4rem" }}
               >
-                Event Details
+                {t("torrents.detail.colEventDetails")}
               </th>
             </tr>
           </thead>
@@ -319,8 +328,8 @@ export function LogTab({
                   }}
                 >
                   {logs.length === 0
-                    ? "No events recorded yet"
-                    : "No logs match filter"}
+                    ? t("torrents.detail.noEventsRecorded")
+                    : t("torrents.detail.noLogsMatch")}
                 </td>
               </tr>
             ) : (

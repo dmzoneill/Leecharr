@@ -83,11 +83,9 @@ export function SystemResources() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_resources_telemetry")}
+              {t("system.realTimeTelemetry")}
             </h1>
-            <span className="badge badge-primary">
-              {t("autogen.t_real_time")}
-            </span>
+            <span className="badge badge-primary">{t("system.realTime")}</span>
             <span
               style={{
                 display: "inline-flex",
@@ -125,7 +123,7 @@ export function SystemResources() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_real_time_hardware_utilization_bittorren")}
+            {t("system.realTimeHardwareUtilization")}
           </div>
         </div>
 
@@ -172,14 +170,12 @@ export function SystemResources() {
               gap: "0.35rem",
             }}
           >
-            <span>🔄</span> {t("autogen.t_refresh")}
+            <span>🔄</span> {t("common.refresh")}
           </button>
         </div>
       </div>
 
-      {isLoading && (
-        <p className="loading">{t("autogen.t_loading_real_time_telemetry")}</p>
-      )}
+      {isLoading && <p className="loading">{t("common.loading")}</p>}
 
       {/* Hero Metric Cards (4 Columns) */}
       <div
@@ -219,7 +215,7 @@ export function SystemResources() {
                 letterSpacing: "0.5px",
               }}
             >
-              {t("autogen.t_process_cpu_threads")}
+              {t("system.processCpuThreads")}
             </span>
             <span
               style={{
@@ -230,7 +226,7 @@ export function SystemResources() {
                 color: "var(--accent, #ffd166)",
               }}
             >
-              {host?.cpuCores ?? 1} {t("autogen.t_cores")}
+              {host?.cpuCores ?? 1} {t("system.cores")}
             </span>
           </div>
           <div
@@ -256,7 +252,7 @@ export function SystemResources() {
               {(host?.cpuProcessPercent ?? 0).toFixed(1)}%
             </span>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              {t("autogen.t_process_load")}
+              {t("system.processLoad")}
             </span>
           </div>
           <div
@@ -293,25 +289,25 @@ export function SystemResources() {
             }}
           >
             <div>
-              {t("autogen.t_threads")}{" "}
+              {t("system.threads")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {host?.threadCount ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_handles")}{" "}
+              {t("system.handles")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {host?.handleCount ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_threadpool_active")}{" "}
+              {t("system.threadpoolActive")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {host?.threadPoolWorkerThreads ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_uptime")}{" "}
+              {t("system.uptime")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatUptime(host?.uptimeSeconds)}
               </strong>
@@ -348,7 +344,7 @@ export function SystemResources() {
                 letterSpacing: "0.5px",
               }}
             >
-              {t("autogen.t_ram_managed_gc")}
+              {t("system.ramManagedGc")}
             </span>
             <span
               style={{
@@ -359,7 +355,7 @@ export function SystemResources() {
                 color: "#3498db",
               }}
             >
-              {t("autogen.t_resident_set")}
+              {t("system.residentSet")}
             </span>
           </div>
           <div
@@ -380,7 +376,7 @@ export function SystemResources() {
               {formatBytes(host?.workingSetBytes ?? 0)}
             </span>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              {t("autogen.t_working_set")}
+              {t("system.workingSet")}
             </span>
           </div>
           <div
@@ -412,25 +408,25 @@ export function SystemResources() {
             }}
           >
             <div>
-              {t("autogen.t_managed_heap")}{" "}
+              {t("system.managedHeap")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatBytes(host?.managedHeapBytes ?? 0)}
               </strong>
             </div>
             <div>
-              {t("autogen.t_private_bytes")}{" "}
+              {t("system.privateBytes")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatBytes(host?.privateMemoryBytes ?? 0)}
               </strong>
             </div>
             <div>
-              {t("autogen.t_gc_gen_0_1")}{" "}
+              {t("system.gcGen01")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {host?.gcGen0Collections ?? 0} / {host?.gcGen1Collections ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_gc_gen_2")}{" "}
+              {t("system.gcGen2")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {host?.gcGen2Collections ?? 0}
               </strong>
@@ -467,7 +463,7 @@ export function SystemResources() {
                 letterSpacing: "0.5px",
               }}
             >
-              {t("autogen.t_disk_i_o_cache")}
+              {t("system.diskIoCache")}
             </span>
             <span
               style={{
@@ -479,7 +475,7 @@ export function SystemResources() {
               }}
             >
               {engine?.diskCacheHitRatio ?? 100}
-              {t("autogen.t_hit_ratio")}
+              {t("system.hitRatio")}
             </span>
           </div>
           <div
@@ -500,7 +496,7 @@ export function SystemResources() {
               {formatSpeed(engine?.diskWriteRate ?? 0)}
             </span>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              {t("autogen.t_write_throughput")}
+              {t("system.writeThroughput")}
             </span>
           </div>
           <div
@@ -532,26 +528,26 @@ export function SystemResources() {
             }}
           >
             <div>
-              {t("autogen.t_cache_alloc")}{" "}
+              {t("system.cacheAlloc")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatBytes(engine?.diskCacheBytesAllocated ?? 0)} /{" "}
                 {formatBytes(engine?.diskCacheCapacityBytes ?? 0)}
               </strong>
             </div>
             <div>
-              {t("autogen.t_pending_queue")}{" "}
+              {t("system.pendingQueue")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
-                {engine?.diskPendingWrites ?? 0} {t("autogen.t_blocks")}
+                {engine?.diskPendingWrites ?? 0} {t("system.blocks")}
               </strong>
             </div>
             <div>
-              {t("autogen.t_disk_read")}{" "}
+              {t("system.diskRead")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatSpeed(engine?.diskReadRate ?? 0)}
               </strong>
             </div>
             <div>
-              {t("autogen.t_total_written")}{" "}
+              {t("system.totalWritten")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {formatBytes(engine?.diskTotalBytesWritten ?? 0)}
               </strong>
@@ -588,7 +584,7 @@ export function SystemResources() {
                 letterSpacing: "0.5px",
               }}
             >
-              {t("autogen.t_swarm_network_sockets")}
+              {t("system.swarmNetworkSockets")}
             </span>
             <span
               style={{
@@ -599,7 +595,7 @@ export function SystemResources() {
                 color: "#9b59b6",
               }}
             >
-              {engine?.dhtNodeCount ?? 0} {t("autogen.t_dht_nodes")}
+              {engine?.dhtNodeCount ?? 0} {t("system.dhtNodes")}
             </span>
           </div>
           <div
@@ -620,8 +616,8 @@ export function SystemResources() {
               {engine?.openConnections ?? 0}
             </span>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              {t("autogen.t_open_sockets")}
-              {engine?.maxConnections ?? 300} {t("autogen.t_max")}
+              {t("system.openSockets")}
+              {engine?.maxConnections ?? 300} {t("system.max")}
             </span>
           </div>
           <div
@@ -653,26 +649,26 @@ export function SystemResources() {
             }}
           >
             <div>
-              {t("autogen.t_tcp_utp")}{" "}
+              {t("system.tcpUtp")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {engine?.tcpConnectionsCount ?? 0} /{" "}
                 {engine?.utpConnectionsCount ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_encrypted_rc4")}{" "}
+              {t("system.encryptedRc4")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {engine?.encryptedConnectionsCount ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_seeds_leechers")}{" "}
+              {t("system.seedsLeechers")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {engine?.connectedSeeds ?? 0} / {engine?.connectedLeechers ?? 0}
               </strong>
             </div>
             <div>
-              {t("autogen.t_overhead_ratio")}{" "}
+              {t("system.overheadRatio")}{" "}
               <strong style={{ color: "var(--text-primary)" }}>
                 {engine?.protocolOverheadPercentage ?? 0}%
               </strong>
@@ -710,7 +706,7 @@ export function SystemResources() {
                 margin: 0,
               }}
             >
-              {t("autogen.t_subsystems_operational_status_telemetry")}
+              {t("system.subsystemsOperationalStatus")}
             </h2>
             <div
               style={{
@@ -719,7 +715,7 @@ export function SystemResources() {
                 marginTop: "0.2rem",
               }}
             >
-              {t("autogen.t_9_active_modular_subsystems_managing_bit")}
+              {t("system.activeModularSubsystems")}
             </div>
           </div>
           <Link
@@ -727,7 +723,7 @@ export function SystemResources() {
             className="btn btn-small"
             style={{ fontSize: "0.75rem" }}
           >
-            {t("autogen.t_configure_subsystems")}
+            {t("system.configureSubsystems")}
           </Link>
         </div>
 
@@ -772,7 +768,7 @@ export function SystemResources() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    {t("autogen.t_provider")}{" "}
+                    {t("system.provider")}{" "}
                     <span style={{ color: "var(--accent)" }}>
                       {sub.activeProvider}
                     </span>
@@ -864,7 +860,7 @@ export function SystemResources() {
                 margin: 0,
               }}
             >
-              {t("autogen.t_per_torrent_real_time_resource_breakdown")}
+              {t("system.perTorrentBreakdown")}
             </h2>
             <div
               style={{
@@ -873,7 +869,7 @@ export function SystemResources() {
                 marginTop: "0.2rem",
               }}
             >
-              {t("autogen.t_non_blocking_session_telemetry_per_swarm")}
+              {t("system.sessionTelemetryPerSwarm")}
             </div>
           </div>
 
@@ -888,7 +884,7 @@ export function SystemResources() {
           >
             <input
               type="text"
-              placeholder={t("autogen.t_filter_torrents")}
+              placeholder={t("system.filterTorrents")}
               className="form-control"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -929,7 +925,7 @@ export function SystemResources() {
               className="badge badge-primary"
               style={{ fontSize: "0.75rem" }}
             >
-              {filteredTorrents.length} {t("autogen.t_swarms")}
+              {filteredTorrents.length} {t("system.swarms")}
             </span>
           </div>
         </div>
@@ -943,7 +939,7 @@ export function SystemResources() {
               color: "var(--text-muted)",
             }}
           >
-            {t("autogen.t_no_active_torrents_match_the_criteria_to")}
+            {t("system.noActiveTorrentsMatch")}
           </div>
         ) : (
           <div className="table-responsive">
@@ -951,19 +947,17 @@ export function SystemResources() {
               <thead>
                 <tr>
                   <th style={{ minWidth: "180px" }}>
-                    {t("autogen.t_torrent_category")}
+                    {t("system.torrentCategory")}
                   </th>
-                  <th>{t("autogen.t_status")}</th>
-                  <th>{t("autogen.t_payload_speed")}</th>
-                  <th>{t("autogen.t_protocol_overhead")}</th>
-                  <th>{t("autogen.t_buffer_memory")}</th>
-                  <th>{t("autogen.t_peers_seeds_leech")}</th>
-                  <th>{t("autogen.t_transport_crypto")}</th>
-                  <th>{t("autogen.t_pieces_verification")}</th>
-                  <th>{t("autogen.t_availability")}</th>
-                  <th style={{ textAlign: "right" }}>
-                    {t("autogen.t_inspect")}
-                  </th>
+                  <th>{t("common.status")}</th>
+                  <th>{t("system.payloadSpeed")}</th>
+                  <th>{t("system.protocolOverhead")}</th>
+                  <th>{t("system.bufferMemory")}</th>
+                  <th>{t("system.peersSeedsLeech")}</th>
+                  <th>{t("system.transportCrypto")}</th>
+                  <th>{t("system.piecesVerification")}</th>
+                  <th>{t("system.availability")}</th>
+                  <th style={{ textAlign: "right" }}>{t("system.inspect")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1054,7 +1048,7 @@ export function SystemResources() {
                         }}
                       >
                         {torrent.efficiencyRatio}
-                        {t("autogen.t_efficiency")}
+                        {t("system.efficiency")}
                       </div>
                     </td>
                     <td>
@@ -1073,7 +1067,7 @@ export function SystemResources() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        {torrent.piecesInFlight} {t("autogen.t_in_flight")}
+                        {torrent.piecesInFlight} {t("system.inFlight")}
                       </div>
                     </td>
                     <td>
@@ -1084,7 +1078,7 @@ export function SystemResources() {
                         }}
                       >
                         <strong>{torrent.connectedPeers}</strong>{" "}
-                        {t("autogen.t_connected")}
+                        {t("system.connected")}
                       </div>
                       <div
                         style={{
@@ -1092,8 +1086,8 @@ export function SystemResources() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        {torrent.connectedSeeds} {t("autogen.t_seeds")}
-                        {torrent.connectedLeechers} {t("autogen.t_leeches")}
+                        {torrent.connectedSeeds} {t("system.seeds")}
+                        {torrent.connectedLeechers} {t("system.leeches")}
                       </div>
                     </td>
                     <td>
@@ -1103,8 +1097,8 @@ export function SystemResources() {
                           color: "var(--text-secondary)",
                         }}
                       >
-                        {t("autogen.t_tcp")}
-                        {torrent.tcpPeers} {t("autogen.t_utp")}
+                        {t("system.tcp")}
+                        {torrent.tcpPeers} {t("system.utp")}
                         {torrent.utpPeers}
                       </div>
                       <div
@@ -1116,7 +1110,7 @@ export function SystemResources() {
                               : "var(--text-muted)",
                         }}
                       >
-                        🔒 {torrent.encryptedPeers} {t("autogen.t_encrypted")}
+                        🔒 {torrent.encryptedPeers} {t("system.encrypted")}
                       </div>
                     </td>
                     <td>
@@ -1127,7 +1121,7 @@ export function SystemResources() {
                         }}
                       >
                         {torrent.completedPieces} / {torrent.totalPieces}{" "}
-                        {t("autogen.t_pcs")}
+                        {t("system.pcs")}
                       </div>
                       <div
                         style={{
@@ -1170,7 +1164,7 @@ export function SystemResources() {
                         }}
                         onClick={() => setSelectedTorrent(torrent)}
                       >
-                        {t("autogen.t_inspect")}
+                        {t("system.inspect")}
                       </button>
                     </td>
                   </tr>
@@ -1269,7 +1263,7 @@ export function SystemResources() {
                 <div
                   style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
                 >
-                  {t("autogen.t_download_payload")}
+                  {t("system.downloadPayload")}
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                   {formatBytes(selectedTorrent.downloadedPayload)}
@@ -1280,7 +1274,7 @@ export function SystemResources() {
                     fontSize: "0.72rem",
                   }}
                 >
-                  {t("autogen.t_speed")}
+                  {t("torrents.speed")}:{" "}
                   {formatSpeed(selectedTorrent.payloadDownloadSpeed)}
                 </div>
               </div>
@@ -1295,7 +1289,7 @@ export function SystemResources() {
                 <div
                   style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
                 >
-                  {t("autogen.t_protocol_overhead")}
+                  {t("system.protocolOverhead")}
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                   {formatBytes(selectedTorrent.protocolDownloaded)}
@@ -1306,8 +1300,7 @@ export function SystemResources() {
                     fontSize: "0.72rem",
                   }}
                 >
-                  {t("autogen.t_efficiency")}
-                  {selectedTorrent.efficiencyRatio}%
+                  {t("system.efficiency")}: {selectedTorrent.efficiencyRatio}%
                 </div>
               </div>
 
@@ -1321,7 +1314,7 @@ export function SystemResources() {
                 <div
                   style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
                 >
-                  {t("autogen.t_memory_buffer_piece_cache")}
+                  {t("system.memoryBufferPieceCache")}
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
                   {formatBytes(selectedTorrent.estimatedMemoryBufferBytes)}
@@ -1332,10 +1325,9 @@ export function SystemResources() {
                     fontSize: "0.72rem",
                   }}
                 >
-                  {selectedTorrent.piecesInFlight}{" "}
-                  {t("autogen.t_pieces_in_flight")}
-                  {formatBytes(selectedTorrent.pieceLength)}
-                  {t("autogen.t_piece")}
+                  {selectedTorrent.piecesInFlight} {t("system.piecesInFlight")}{" "}
+                  ({formatBytes(selectedTorrent.pieceLength)} /{" "}
+                  {t("system.piece")})
                 </div>
               </div>
 
@@ -1349,10 +1341,10 @@ export function SystemResources() {
                 <div
                   style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}
                 >
-                  {t("autogen.t_swarm_crypto_network")}
+                  {t("system.swarmCryptoNetwork")}
                 </div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                  {selectedTorrent.connectedPeers} {t("autogen.t_peers")}
+                  {selectedTorrent.connectedPeers} {t("common.peers")}
                 </div>
                 <div
                   style={{
@@ -1360,9 +1352,9 @@ export function SystemResources() {
                     fontSize: "0.72rem",
                   }}
                 >
-                  {selectedTorrent.encryptedPeers} {t("autogen.t_encrypted")}{" "}
-                  {selectedTorrent.utpPeers} {t("autogen.t_utp")}
-                  {selectedTorrent.tcpPeers} {t("autogen.t_tcp")}
+                  {selectedTorrent.encryptedPeers} {t("system.encrypted")}{" "}
+                  {selectedTorrent.utpPeers} {t("system.utp")}{" "}
+                  {selectedTorrent.tcpPeers} {t("system.tcp")}
                 </div>
               </div>
             </div>
@@ -1377,15 +1369,14 @@ export function SystemResources() {
               }}
             >
               <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                {t("autogen.t_eta")}
-                {formatSeconds(selectedTorrent.etaSeconds)}{" "}
-                {t("autogen.t_ratio")} {selectedTorrent.ratio.toFixed(2)}
+                {t("common.eta")}: {formatSeconds(selectedTorrent.etaSeconds)} •{" "}
+                {t("common.ratio")}: {selectedTorrent.ratio.toFixed(2)}
               </div>
               <button
                 className="btn btn-primary btn-small"
                 onClick={() => setSelectedTorrent(null)}
               >
-                {t("autogen.t_close")}
+                {t("common.close")}
               </button>
             </div>
           </div>

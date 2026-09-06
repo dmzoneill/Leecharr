@@ -83,8 +83,8 @@ export function TorrentToolbar({
             onClick={onToggleFilter}
             title={
               isFilterCollapsed
-                ? "Show Filters Sidebar (State / Tracker)"
-                : "Hide Filters Sidebar"
+                ? t("torrents.toolbar.showFilters")
+                : t("torrents.toolbar.hideFilters")
             }
             style={{
               display: "inline-flex",
@@ -129,7 +129,7 @@ export function TorrentToolbar({
               alignItems: "center",
               gap: "5px",
             }}
-            title="Toggle Quick Settings Drawer (Q)"
+            title={t("torrents.toolbar.toggleQuickSettings")}
           >
             <SlidersIcon size={13} /> {t("settings.general")}
           </button>
@@ -181,8 +181,8 @@ export function TorrentToolbar({
           onClick={toggleTurtleMode}
           title={
             isAltActive
-              ? "Turtle Mode ON (Alternative speed limits active)"
-              : "Toggle Turtle Mode (Alternative speed limits)"
+              ? t("torrents.toolbar.turtleTitleActive")
+              : t("torrents.toolbar.turtleTitleInactive")
           }
           style={{
             display: "inline-flex",
@@ -194,14 +194,16 @@ export function TorrentToolbar({
             fontWeight: 600,
           }}
         >
-          🐢 {isAltActive ? "Turtle: ON" : "Turtle: OFF"}
+          {isAltActive
+            ? t("torrents.toolbar.turtleOn")
+            : t("torrents.toolbar.turtleOff")}
         </button>
         <DiskStorageBadge compact />
         <button
           type="button"
           className="btn btn-success"
           onClick={onStartAll}
-          title="Resume all torrents"
+          title={t("torrents.toolbar.resumeAll")}
         >
           <PlayIcon size={13} /> {t("torrents.actions.resume")}
         </button>
@@ -209,7 +211,7 @@ export function TorrentToolbar({
           type="button"
           className="btn btn-danger"
           onClick={onStopAll}
-          title="Pause all torrents"
+          title={t("torrents.toolbar.pauseAll")}
         >
           <StopIcon size={13} /> {t("torrents.actions.pause")}
         </button>
@@ -227,7 +229,7 @@ export function TorrentToolbar({
         <input
           type="text"
           className="search-input"
-          placeholder="Filter torrents..."
+          placeholder={t("torrents.toolbar.filterPlaceholder")}
           value={filter}
           onChange={(e) => onFilterChange(e.target.value)}
         />
@@ -236,17 +238,17 @@ export function TorrentToolbar({
             type="button"
             className={`view-toggle-btn${viewMode === "table" ? " active" : ""}`}
             onClick={() => onViewModeChange("table")}
-            title="Table view"
+            title={t("torrents.toolbar.tableView")}
           >
-            <TableIcon size={13} /> Table
+            <TableIcon size={13} /> {t("torrents.toolbar.table")}
           </button>
           <button
             type="button"
             className={`view-toggle-btn${viewMode === "grid" ? " active" : ""}`}
             onClick={() => onViewModeChange("grid")}
-            title="Grid view"
+            title={t("torrents.toolbar.gridView")}
           >
-            <GridIcon size={13} /> Grid
+            <GridIcon size={13} /> {t("torrents.toolbar.grid")}
           </button>
         </div>
       </div>

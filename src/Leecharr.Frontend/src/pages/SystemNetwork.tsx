@@ -71,7 +71,8 @@ function EncryptionDonut({
             }}
           />
           <span>
-            {t("autogen.t_encrypted")}
+            {t("system.encrypted")}
+            {": "}
             <strong>{encrypted}</strong>
           </span>
         </div>
@@ -85,7 +86,8 @@ function EncryptionDonut({
             }}
           />
           <span>
-            {t("autogen.t_plaintext")}
+            {t("system.plaintext")}
+            {": "}
             <strong>{plaintext}</strong>
           </span>
         </div>
@@ -102,11 +104,9 @@ function SystemNetwork() {
     return (
       <div className="content-area">
         <div className="page-header">
-          <h1 className="page-heading">
-            {t("autogen.t_system_network_diagnostics")}
-          </h1>
+          <h1 className="page-heading">{t("system.networkDiagnostics")}</h1>
         </div>
-        <p className="loading">{t("autogen.t_loading_network_diagnostics")}</p>
+        <p className="loading">{t("system.loadingStatus")}</p>
       </div>
     );
   }
@@ -115,13 +115,9 @@ function SystemNetwork() {
     return (
       <div className="content-area">
         <div className="page-header">
-          <h1 className="page-heading">
-            {t("autogen.t_system_network_diagnostics")}
-          </h1>
+          <h1 className="page-heading">{t("system.networkDiagnostics")}</h1>
         </div>
-        <p className="error">
-          {t("autogen.t_failed_to_load_network_diagnostic_data")}
-        </p>
+        <p className="error">{t("common.error")}</p>
       </div>
     );
   }
@@ -143,10 +139,10 @@ function SystemNetwork() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_network_diagnostics")}
+              {t("system.networkDiagnostics")}
             </h1>
             <span className="badge badge-primary">
-              {t("autogen.t_networking")}
+              {t("system.networking")}
             </span>
           </div>
           <div
@@ -156,7 +152,7 @@ function SystemNetwork() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_peer_to_peer_connection_endpoints_listen")}
+            {t("system.networkSubtitle")}
           </div>
         </div>
 
@@ -165,8 +161,7 @@ function SystemNetwork() {
             className="badge badge-seeding"
             style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
           >
-            {t("autogen.t_port")}
-            {diag.listeningPort} {t("autogen.t_tcp_udp")}
+            {t("system.port")} {diag.listeningPort} ({t("system.tcpUdp")})
           </span>
         </div>
       </div>
@@ -200,38 +195,32 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            {t("autogen.t_connection_endpoints")}
+            {t("system.connectionEndpoints")}
           </h2>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_local_ip_address")}
-              </span>
+              <span className="status-label">{t("system.localIp")}</span>
               <span className="status-value">
                 <code>{diag.localIp}</code>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_external_public_ip")}
-              </span>
+              <span className="status-label">{t("system.externalIp")}</span>
               <span className="status-value">
                 <code>{diag.externalIp || "Unknown"}</code>
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_bittorrent_port")}
-              </span>
+              <span className="status-label">{t("system.bittorrentPort")}</span>
               <span className="status-value" style={{ fontWeight: 600 }}>
                 {diag.listeningPort}
               </span>
             </div>
             <div className="status-row">
               <span className="status-label">
-                {t("autogen.t_active_peer_connections")}
+                {t("system.activePeerConnections")}
               </span>
               <span className="status-value">
                 <span className="badge badge-primary">
@@ -241,7 +230,7 @@ function SystemNetwork() {
             </div>
             <div className="status-row">
               <span className="status-label">
-                {t("autogen.t_configured_upload_slots")}
+                {t("system.configuredUploadSlots")}
               </span>
               <span className="status-value">{diag.uploadSlots}</span>
             </div>
@@ -268,14 +257,14 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            {t("autogen.t_services_protocols")}
+            {t("system.servicesProtocols")}
           </h2>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             <div className="status-row">
               <span className="status-label">
-                {t("autogen.t_upnp_port_forwarding")}
+                {t("system.upnpPortForwarding")}
               </span>
               <span className="status-value">
                 <span
@@ -286,9 +275,7 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_proxy_tunneling")}
-              </span>
+              <span className="status-label">{t("system.proxyTunneling")}</span>
               <span className="status-value">
                 <span
                   className={`badge ${diag.proxyEnabled ? "badge-seeding" : "badge-stopped"}`}
@@ -298,9 +285,7 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_mainline_dht")}
-              </span>
+              <span className="status-label">{t("system.mainlineDht")}</span>
               <span className="status-value">
                 <span
                   className={`badge ${diag.dhtEnabled ? "badge-seeding" : "badge-stopped"}`}
@@ -310,18 +295,16 @@ function SystemNetwork() {
               </span>
             </div>
             <div className="status-row">
-              <span className="status-label">
-                {t("autogen.t_known_dht_routing_nodes")}
-              </span>
+              <span className="status-label">{t("system.knownDhtNodes")}</span>
               <span className="status-value">
                 <span className="badge badge-secondary">
-                  {diag.dhtNodeCount} {t("autogen.t_nodes")}
+                  {diag.dhtNodeCount} {t("system.nodes")}
                 </span>
               </span>
             </div>
             <div className="status-row">
               <span className="status-label">
-                {t("autogen.t_protocol_encryption_mode")}
+                {t("system.protocolEncryptionMode")}
               </span>
               <span className="status-value">
                 <span className="badge badge-primary">
@@ -362,7 +345,7 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            {t("autogen.t_encryption_distribution_24h")}
+            {t("system.encryptionDistribution")}
           </h2>
           <div style={{ marginTop: "0.5rem" }}>
             <EncryptionDonut
@@ -377,7 +360,7 @@ function SystemNetwork() {
                   margin: "0.5rem 0 0",
                 }}
               >
-                {t("autogen.t_no_peer_connection_sessions_recorded_in_")}
+                {t("system.noPeerSessionsRecorded")}
               </p>
             )}
           </div>
@@ -403,7 +386,7 @@ function SystemNetwork() {
               marginBottom: "0.85rem",
             }}
           >
-            {t("autogen.t_detected_local_interfaces")}
+            {t("system.detectedLocalInterfaces")}
           </h2>
           {diag.localAddresses.length > 0 ? (
             <div
@@ -432,14 +415,14 @@ function SystemNetwork() {
                     className="badge badge-secondary"
                     style={{ fontSize: "0.72rem" }}
                   >
-                    {t("autogen.t_interface")}
+                    {t("system.interface")}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              {t("autogen.t_no_local_network_interfaces_found")}
+              {t("system.noLocalInterfaces")}
             </div>
           )}
         </div>
@@ -472,7 +455,7 @@ function SystemNetwork() {
                 margin: 0,
               }}
             >
-              {t("autogen.t_active_port_mappings_upnp_nat_pmp")}
+              {t("system.activePortMappings")}
             </h2>
             <div
               style={{
@@ -481,7 +464,7 @@ function SystemNetwork() {
                 marginTop: "0.2rem",
               }}
             >
-              {t("autogen.t_router_port_redirections_negotiated_by_t")}
+              {t("system.routerPortRedirections")}
             </div>
           </div>
 
@@ -489,23 +472,21 @@ function SystemNetwork() {
             <table className="torrent-table">
               <thead>
                 <tr>
+                  <th className="torrent-table-th">{t("system.protocol")}</th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_protocol")}
+                    {t("system.internalPort")}
                   </th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_internal_port")}
+                    {t("system.externalPort")}
                   </th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_external_port")}
-                  </th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_description")}
+                    {t("system.description")}
                   </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    {t("autogen.t_status")}
+                    {t("common.status")}
                   </th>
                 </tr>
               </thead>

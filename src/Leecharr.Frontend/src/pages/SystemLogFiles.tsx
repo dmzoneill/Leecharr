@@ -141,10 +141,10 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
             >
               <h1 className="page-heading" style={{ margin: 0 }}>
-                {t("autogen.t_system_log_files")}
+                {t("system.systemLogFiles")}
               </h1>
               <span className="badge badge-primary">
-                {t("autogen.t_disk_files")}
+                {t("system.diskFiles")}
               </span>
             </div>
             <div
@@ -154,7 +154,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 marginTop: "0.2rem",
               }}
             >
-              {t("autogen.t_rotating_plain_text_log_files_stored_on_")}
+              {t("system.logFilesSubtitle")}
             </div>
           </div>
 
@@ -169,13 +169,13 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               }}
             >
               <RefreshIcon />
-              <span>{t("autogen.t_refresh")}</span>
+              <span>{t("common.refresh")}</span>
             </button>
             <button
               className="btn btn-danger btn-small"
               onClick={handleClear}
               disabled={clearLogFiles.isPending}
-              title={t("autogen.t_clear_all_files")}
+              title={t("system.clearAllFiles")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -218,7 +218,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           ℹ️
         </span>
         <div>
-          {t("autogen.t_log_files_are_stored_at")}{" "}
+          {t("system.logFilesStoredAt")}{" "}
           <code
             style={{
               fontFamily: "monospace",
@@ -228,7 +228,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
           >
             {logPath}
           </code>
-          {t("autogen.t_you_can_adjust_the_logging_verbosity_lev")}{" "}
+          {t("system.adjustVerbosity")}{" "}
           <Link
             to="/settings/advanced"
             style={{
@@ -236,19 +236,17 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               textDecoration: "underline",
             }}
           >
-            {t("autogen.t_settings_gt_advanced")}
+            {t("system.settingsAdvanced")}
           </Link>
           .
         </div>
       </div>
 
-      {isLoading && (
-        <p className="loading">{t("autogen.t_loading_log_files")}</p>
-      )}
+      {isLoading && <p className="loading">{t("system.loadingLogFiles")}</p>}
 
       {error && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <p className="error">{t("autogen.t_failed_to_load_log_files")}</p>
+          <p className="error">{t("system.failedToLoadLogFiles")}</p>
         </div>
       )}
 
@@ -270,19 +268,17 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
               <thead>
                 <tr>
                   <th className="torrent-table-th">
-                    {t("autogen.t_log_filename")}
+                    {t("system.logFilename")}
                   </th>
                   <th className="torrent-table-th">
-                    {t("autogen.t_last_modified")}
+                    {t("system.lastModified")}
                   </th>
-                  <th className="torrent-table-th">
-                    {t("autogen.t_file_size")}
-                  </th>
+                  <th className="torrent-table-th">{t("system.fileSize")}</th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    {t("autogen.t_download")}
+                    {t("common.download")}
                   </th>
                 </tr>
               </thead>
@@ -290,7 +286,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                 {logFiles.length === 0 && (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      {t("autogen.t_no_log_files_currently_present_on_disk")}
+                      {t("system.noLogFilesOnDisk")}
                     </td>
                   </tr>
                 )}
@@ -322,7 +318,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                         }}
                       >
                         <DownloadIcon />
-                        <span>{t("autogen.t_download")}</span>
+                        <span>{t("common.download")}</span>
                       </a>
                     </td>
                   </tr>
@@ -335,7 +331,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
 
       <ConfirmModal
         isOpen={showConfirmClear}
-        title={t("autogen.t_clear_all_files")}
+        title={t("system.clearAllFiles")}
         message="Are you sure you want to delete all disk log files? This action cannot be undone."
         confirmText="Clear All Files"
         cancelText="Cancel"

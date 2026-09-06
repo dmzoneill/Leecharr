@@ -247,6 +247,24 @@ public class DynamicDownloadEngineProxyTest
 
         await this.proxy.RemoveTorrentAsync(10, true);
         await this.monoTorrentEngine.Received(1).RemoveTorrentAsync(10, true);
+
+        await this.proxy.RenameFileAsync(10, "old.mkv", "new.mkv");
+        await this.monoTorrentEngine.Received(1).RenameFileAsync(10, "old.mkv", "new.mkv");
+
+        await this.proxy.RenameFolderAsync(10, "old_folder", "new_folder");
+        await this.monoTorrentEngine.Received(1).RenameFolderAsync(10, "old_folder", "new_folder");
+
+        await this.proxy.SetTorrentPrivateStatusAsync(10, true);
+        await this.monoTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(10, true);
+
+        await this.proxy.SetSuperSeedingAsync(10, true);
+        await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(10, true);
+
+        await this.proxy.MoveTorrentFilesAsync(10, "/new/save/path", false);
+        await this.monoTorrentEngine.Received(1).MoveTorrentFilesAsync(10, "/new/save/path", false);
+
+        await this.proxy.ProbeHealthAsync();
+        await this.monoTorrentEngine.Received(1).ProbeHealthAsync();
     }
 
     [Test]

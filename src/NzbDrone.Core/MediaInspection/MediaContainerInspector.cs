@@ -17,7 +17,7 @@ public class MediaContainerInfo
 
     public int Height { get; set; }
 
-    public string HdrFormat { get; set; } = "SDR";
+    public string HdrFormat { get; set; }
 
     public string AudioCodec { get; set; }
 

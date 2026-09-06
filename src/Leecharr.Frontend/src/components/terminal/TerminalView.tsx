@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from "../../i18n";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -17,6 +18,7 @@ export function TerminalView({
   height = "100%",
   autoFocus = true,
 }: TerminalViewProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -333,9 +335,9 @@ export function TerminalView({
                 fontSize: "0.75rem",
                 borderRadius: "4px",
               }}
-              title="Copy Directory Path to Clipboard"
+              title={t("terminal.copyPath")}
             >
-              {copied ? "✓ Copied" : "Copy Path"}
+              {copied ? `✓ ${t("common.copied")}` : t("terminal.copyPath")}
             </button>
           )}
 
@@ -348,9 +350,9 @@ export function TerminalView({
               fontSize: "0.75rem",
               borderRadius: "4px",
             }}
-            title="Clear Terminal Screen"
+            title={t("terminal.clearTerminal")}
           >
-            Clear
+            {t("terminal.clear")}
           </button>
 
           {!connected && (
@@ -363,9 +365,9 @@ export function TerminalView({
                 fontSize: "0.75rem",
                 borderRadius: "4px",
               }}
-              title="Reconnect Session"
+              title={t("terminal.reconnect")}
             >
-              Reconnect
+              {t("terminal.reconnect")}
             </button>
           )}
 
@@ -381,9 +383,11 @@ export function TerminalView({
               fontSize: "0.75rem",
               borderRadius: "4px",
             }}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+            title={
+              isFullscreen ? t("terminal.restore") : t("terminal.fullscreen")
+            }
           >
-            {isFullscreen ? "🗗 Restore" : "🗖 Fullscreen"}
+            {isFullscreen ? t("terminal.restore") : t("terminal.fullscreen")}
           </button>
         </div>
       </div>

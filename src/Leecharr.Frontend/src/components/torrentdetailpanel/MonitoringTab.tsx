@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "../../i18n";
 import { useTorrentSpeedHistory } from "../../api/hooks";
 import { formatBytes, formatSpeed } from "../../utils/formatters";
 import type { Torrent } from "../../api/types";
@@ -21,6 +22,7 @@ function MiniChart({
   color: string;
   unit?: "speed" | "count";
 }) {
+  const { t } = useTranslation();
   const cw = CHART_W - CHART_PAD.left - CHART_PAD.right;
   const ch = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
 
@@ -84,13 +86,13 @@ function MiniChart({
         </span>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-            Peak:{" "}
+            {t("torrents.detail.peak")}{" "}
             <strong style={{ color: "var(--text-secondary)" }}>
               {formatTick(maxVal)}
             </strong>
           </span>
           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-            Avg:{" "}
+            {t("torrents.detail.avg")}{" "}
             <strong style={{ color: "var(--text-secondary)" }}>
               {formatTick(avgVal)}
             </strong>
@@ -197,7 +199,7 @@ function MiniChart({
           fontSize="9"
           textAnchor="end"
         >
-          Now
+          {t("torrents.detail.now")}
         </text>
 
         {/* Filled polygon */}
@@ -232,6 +234,7 @@ export function MonitoringTab({
   torrent?: Torrent;
   torrentId?: number;
 }) {
+  const { t } = useTranslation();
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: history } = useTorrentSpeedHistory(effectiveId);
   const histRef = useRef<{ up: number[]; down: number[]; peers: number[] }>({
@@ -338,13 +341,13 @@ export function MonitoringTab({
         }}
       >
         <MiniChart
-          title="Download Throughput"
+          title={t("torrents.detail.downloadThroughput")}
           value={formatSpeed(curDown)}
           data={h.down}
           color="#06d6a0"
         />
         <MiniChart
-          title="Upload Throughput"
+          title={t("torrents.detail.uploadThroughput")}
           value={formatSpeed(curUp)}
           data={h.up}
           color="#ffd166"
@@ -366,21 +369,26 @@ export function MonitoringTab({
       >
         <div>
           <span style={{ color: "var(--text-muted)" }}>
-            Active Swarm Peers:{" "}
+            {t("torrents.detail.activeSwarmPeers")}{" "}
           </span>
-          <strong style={{ color: "#60a5fa" }}>{totalPeers}</strong> (
-          {torrent?.seeders || 0} seeds, {torrent?.leechers || 0} leechers)
+          <strong style={{ color: "#60a5fa" }}>{totalPeers}</strong>{" "}
+          {t("torrents.detail.seedsAndLeechers", {
+            seeds: torrent?.seeders || 0,
+            leechers: torrent?.leechers || 0,
+          })}
         </div>
         <div>
           <span style={{ color: "var(--text-muted)" }}>
-            Session Downloaded:{" "}
+            {t("torrents.detail.sessionDownloaded")}{" "}
           </span>
           <strong style={{ color: "var(--text-primary)" }}>
             {formatBytes(torrent?.downloaded || 0)}
           </strong>
         </div>
         <div>
-          <span style={{ color: "var(--text-muted)" }}>Session Uploaded: </span>
+          <span style={{ color: "var(--text-muted)" }}>
+            {t("torrents.detail.sessionUploaded")}{" "}
+          </span>
           <strong style={{ color: "var(--text-primary)" }}>
             {formatBytes(torrent?.uploaded || 0)}
           </strong>

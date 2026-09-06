@@ -122,10 +122,12 @@ export function SystemLogs() {
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
             <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("autogen.t_system_logs")}
+              {t("system.logsTitle")}
             </h1>
             <span className="badge badge-primary">
-              {activeTab === "live" ? "Live Stream" : "Log Files"}
+              {activeTab === "live"
+                ? t("system.liveStream")
+                : t("system.diskFiles")}
             </span>
           </div>
           <div
@@ -135,7 +137,7 @@ export function SystemLogs() {
               marginTop: "0.2rem",
             }}
           >
-            {t("autogen.t_real_time_server_log_stream_rolling_disk")}
+            {t("system.logsSubtitle")}
           </div>
         </div>
 
@@ -147,7 +149,7 @@ export function SystemLogs() {
             onClick={() => setActiveTab("live")}
             style={{ fontSize: "0.8rem" }}
           >
-            {t("autogen.t_live_stream")}
+            {t("system.liveStream")}
           </button>
           <button
             type="button"
@@ -155,7 +157,7 @@ export function SystemLogs() {
             onClick={() => setActiveTab("files")}
             style={{ fontSize: "0.8rem" }}
           >
-            {t("autogen.t_disk_log_files")}
+            {t("system.diskFiles")}
           </button>
         </div>
       </div>
@@ -191,7 +193,7 @@ export function SystemLogs() {
               <input
                 type="text"
                 className="search-input"
-                placeholder={t("autogen.t_filter_logs")}
+                placeholder={t("system.filterLogs")}
                 value={searchText}
                 onChange={(e) => {
                   setSearchText(e.target.value);
@@ -205,15 +207,15 @@ export function SystemLogs() {
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
                 />
-                {t("autogen.t_auto_scroll")}
+                {t("system.autoScroll")}
               </label>
 
               <button
                 className="btn btn-small btn-secondary"
                 onClick={handleClear}
-                title={t("autogen.t_clear_current_log_display_does_not_delet")}
+                title={t("system.clearLogDisplay")}
               >
-                {t("autogen.t_clear")}
+                {t("common.clear")}
               </button>
             </div>
           </div>
@@ -221,7 +223,7 @@ export function SystemLogs() {
           <div className="log-content" ref={logContentRef}>
             {isLoading ? (
               <div className="log-empty-state">
-                {t("autogen.t_loading_log_entries")}
+                {t("system.loadingLogEntries")}
               </div>
             ) : filteredEntries.length === 0 ? (
               <div className="log-empty-state">
@@ -235,12 +237,10 @@ export function SystemLogs() {
               <table className="log-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "180px" }}>
-                      {t("autogen.t_timestamp")}
-                    </th>
-                    <th style={{ width: "80px" }}>{t("autogen.t_level")}</th>
-                    <th style={{ width: "160px" }}>{t("autogen.t_logger")}</th>
-                    <th>{t("autogen.t_message")}</th>
+                    <th style={{ width: "180px" }}>{t("system.timestamp")}</th>
+                    <th style={{ width: "80px" }}>{t("system.severity")}</th>
+                    <th style={{ width: "160px" }}>{t("system.logger")}</th>
+                    <th>{t("system.message")}</th>
                   </tr>
                 </thead>
                 <tbody>
