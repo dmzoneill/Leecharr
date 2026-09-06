@@ -114,4 +114,26 @@ public class UTorrentWebUiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync(magnet, "tv-shows", "/downloads/custom", false);
     }
+
+    [Test]
+    public async Task SetPrio_MapsUTorrentPrioritiesToLeecharrInternal()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?action=setprio&hash=UTORRENTHASH&p=2&f=0");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent { Id = 1, InfoHash = "UTORRENTHASH", Name = "Test" };
+        this.torrentService.GetByInfoHash("UTORRENTHASH").Returns(torrent);
+        var files = new System.Collections.Generic.List<TorrentFile>
+        {
+            new() { Id = 100, TorrentId = 1, Path = "f1" },
+        };
+        this.torrentFileService.GetFiles(1).Returns(files);
+
+        var result = await this.controller.HandleWebUi();
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentFileService.Received(1).SetPriorityAsync(100, 3);
+    }
 }

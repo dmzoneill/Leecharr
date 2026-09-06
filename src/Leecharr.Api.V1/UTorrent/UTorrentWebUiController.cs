@@ -268,7 +268,15 @@ public class UTorrentWebUiController : ControllerBase
                             var files = this.torrentFileService.GetFiles(target.Id).ToList();
                             if (fileIdx >= 0 && fileIdx < files.Count)
                             {
-                                await this.torrentFileService.SetPriorityAsync(files[fileIdx].Id, prio);
+                                var mappedPrio = prio switch
+                                {
+                                    0 => 0,
+                                    1 => 1,
+                                    2 => 3,
+                                    3 => 4,
+                                    _ => 3,
+                                };
+                                await this.torrentFileService.SetPriorityAsync(files[fileIdx].Id, mappedPrio);
                             }
                         }
                     }
@@ -354,7 +362,13 @@ public class UTorrentWebUiController : ControllerBase
                                 f.Path,
                                 f.Size,
                                 f.BytesCompleted,
-                                f.Priority,
+                                f.Priority switch
+                                {
+                                    0 => 0,
+                                    1 or 2 => 1,
+                                    4 or 5 => 3,
+                                    _ => 2,
+                                },
                             }).ToList();
 
                             return this.Ok(new

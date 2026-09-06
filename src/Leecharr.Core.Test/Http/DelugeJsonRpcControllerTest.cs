@@ -405,4 +405,30 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":250000000000");
     }
+
+    [Test]
+    public async Task SetTorrentFilePriorities_MapsDelugePrioritiesToLeecharrInternal()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 1, InfoHash = "delugehash123", Name = "Test" };
+        this.torrentService.GetByInfoHash("delugehash123").Returns(torrent);
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 10, TorrentId = 1, Path = "f1" },
+            new() { Id = 20, TorrentId = 1, Path = "f2" },
+            new() { Id = 30, TorrentId = 1, Path = "f3" },
+            new() { Id = 40, TorrentId = 1, Path = "f4" },
+        };
+        this.torrentFileService.GetFiles(1).Returns(files);
+
+        using var doc = JsonDocument.Parse("{"method": "core.set_torrent_file_priorities", "params": ["delugehash123", [0, 1, 4, 7]], "id": 1}");
+        await this.controller.HandleRpc(doc.RootElement);
+
+        await this.torrentFileService.Received(1).SetPriorityAsync(10, 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(20, 1);
+        await this.torrentFileService.Received(1).SetPriorityAsync(30, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(40, 4);
+    }
 }

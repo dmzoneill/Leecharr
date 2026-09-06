@@ -679,7 +679,7 @@ public class Aria2RpcController : ControllerBase
                                 for (var fIdx = 0; fIdx < files.Count; fIdx++)
                                 {
                                     // 1-based indices in aria2
-                                    var prio = selectedIndices.Contains(fIdx + 1) ? 1 : 0;
+                                    var prio = selectedIndices.Contains(fIdx + 1) ? 3 : 0;
                                     await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
                                 }
                             }

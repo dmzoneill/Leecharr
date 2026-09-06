@@ -206,7 +206,13 @@ public class RTorrentController : ControllerBase
                                 }
                                 else if (cleanField.Equals("f.get_priority", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("f.priority", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    fRowData.Add(new XElement("value", new XElement("i4", file.Priority)));
+                                    var rTorrentPriority = file.Priority switch
+                                    {
+                                        0 => 0,
+                                        4 or 5 => 2,
+                                        _ => 1,
+                                    };
+                                    fRowData.Add(new XElement("value", new XElement("i4", rTorrentPriority)));
                                 }
                                 else
                                 {
@@ -590,10 +596,16 @@ public class RTorrentController : ControllerBase
                     {
                         var fIdx = paramValues[1] is int fi ? fi : (int.TryParse(paramValues[1]?.ToString(), out var pfi) ? pfi : -1);
                         var fPrio = paramValues[2] is int fp ? fp : (int.TryParse(paramValues[2]?.ToString(), out var pfp) ? pfp : 1);
+                        var mappedPrio = fPrio switch
+                        {
+                            0 => 0,
+                            2 => 4,
+                            _ => 3,
+                        };
                         var files = this.torrentFileService.GetFiles(t.Id).ToList();
                         if (fIdx >= 0 && fIdx < files.Count)
                         {
-                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, fPrio);
+                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, mappedPrio);
                         }
                     }
                 }

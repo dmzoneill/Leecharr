@@ -901,4 +901,49 @@ public class TransmissionRpcControllerTest
         torrents[1]["queuePosition"].Should().Be(2);
         torrents[1].ContainsKey("doneDate").Should().BeTrue();
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_MapsProtocolPrioritiesToLeecharrInternal()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 50, InfoHash = "1111222233334444555566667777888899990000", Name = "Test" };
+        this.torrentService.Get(50).Returns(torrent);
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 101, TorrentId = 50, Path = "f1" },
+            new() { Id = 102, TorrentId = 50, Path = "f2" },
+            new() { Id = 103, TorrentId = 50, Path = "f3" },
+            new() { Id = 104, TorrentId = 50, Path = "f4" },
+        };
+        this.torrentFileService.GetFiles(50).Returns(files);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[50]");
+        using var unwantedDoc = JsonDocument.Parse("[0]");
+        using var wantedDoc = JsonDocument.Parse("[1]");
+        using var lowDoc = JsonDocument.Parse("[2]");
+        using var highDoc = JsonDocument.Parse("[3]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["files-unwanted"] = unwantedDoc.RootElement.Clone();
+        args["files-wanted"] = wantedDoc.RootElement.Clone();
+        args["priority-low"] = lowDoc.RootElement.Clone();
+        args["priority-high"] = highDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentFileService.Received(1).SetPriorityAsync(101, 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(102, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(103, 1);
+        await this.torrentFileService.Received(1).SetPriorityAsync(104, 4);
+    }
 }

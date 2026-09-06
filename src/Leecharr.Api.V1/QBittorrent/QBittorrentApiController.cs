@@ -756,7 +756,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["name"] = f.Path,
             ["size"] = f.Size,
             ["progress"] = f.Progress,
-            ["priority"] = f.Priority,
+            ["priority"] = f.Priority switch
+            {
+                0 => 0,
+                4 => 6,
+                5 => 7,
+                _ => 1,
+            },
             ["is_seed"] = f.Progress >= 1.0,
             ["piece_range"] = new[] { f.PieceOffset, f.PieceOffset + f.PieceCount - 1 },
         }).ToList();
@@ -1511,12 +1517,19 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             if (t != null)
             {
                 var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                var mappedPriority = priority switch
+                {
+                    0 => 0,
+                    6 => 4,
+                    7 => 5,
+                    _ => 3,
+                };
                 var idStrings = id.Split('|', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var idStr in idStrings)
                 {
                     if (int.TryParse(idStr, out var fileIndex) && fileIndex >= 0 && fileIndex < files.Count)
                     {
-                        await this.torrentFileService.SetPriorityAsync(files[fileIndex].Id, priority);
+                        await this.torrentFileService.SetPriorityAsync(files[fileIndex].Id, mappedPriority);
                     }
                 }
             }

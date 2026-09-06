@@ -442,4 +442,31 @@ public class QBittorrentApiControllerTest
         torrent1.TargetSeedTimeMinutes.Should().Be(120);
         torrent1.ShareLimitAction.Should().Be("Remove");
     }
+
+    [Test]
+    public async Task FilePrio_MapsQBittorrentPrioritiesToLeecharrInternal()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash123", Name = "Test" };
+        this.torrentService.GetByInfoHash("hash123").Returns(torrent);
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 10, TorrentId = 1, Path = "f1" },
+            new() { Id = 20, TorrentId = 1, Path = "f2" },
+            new() { Id = 30, TorrentId = 1, Path = "f3" },
+            new() { Id = 40, TorrentId = 1, Path = "f4" },
+        };
+        this.torrentFileService.GetFiles(1).Returns(files);
+
+        await this.controller.FilePrio("hash123", "0", 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(10, 0);
+
+        await this.controller.FilePrio("hash123", "1", 1);
+        await this.torrentFileService.Received(1).SetPriorityAsync(20, 3);
+
+        await this.controller.FilePrio("hash123", "2", 6);
+        await this.torrentFileService.Received(1).SetPriorityAsync(30, 4);
+
+        await this.controller.FilePrio("hash123", "3", 7);
+        await this.torrentFileService.Received(1).SetPriorityAsync(40, 5);
+    }
 }

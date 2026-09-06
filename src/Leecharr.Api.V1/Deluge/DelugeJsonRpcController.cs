@@ -950,7 +950,14 @@ public class DelugeJsonRpcController : ControllerBase
                                     {
                                         if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                            var mappedPrio = prio switch
+                                            {
+                                                0 => 0,
+                                                1 or 2 => 1,
+                                                7 => 4,
+                                                _ => 3,
+                                            };
+                                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, mappedPrio);
                                         }
 
                                         fIdx++;
@@ -983,7 +990,14 @@ public class DelugeJsonRpcController : ControllerBase
                                 {
                                     if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
                                     {
-                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
+                                        var mappedPrio = prio switch
+                                        {
+                                            0 => 0,
+                                            1 or 2 => 1,
+                                            7 => 4,
+                                            _ => 3,
+                                        };
+                                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, mappedPrio);
                                     }
 
                                     fIdx++;
@@ -1195,7 +1209,13 @@ public class DelugeJsonRpcController : ControllerBase
                 { "offset", f.PieceOffset },
             }).ToList();
 
-            filePriorities = files.Select(f => f.Priority).ToList();
+            filePriorities = files.Select(f => f.Priority switch
+            {
+                0 => 0,
+                1 or 2 => 1,
+                4 or 5 => 7,
+                _ => 4,
+            }).ToList();
             fileProgress = files.Select(f => f.Progress).ToList();
         }
         else

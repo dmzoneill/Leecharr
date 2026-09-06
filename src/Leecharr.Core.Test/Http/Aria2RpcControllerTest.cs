@@ -620,4 +620,38 @@ public class Aria2RpcControllerTest
         var doc = XDocument.Parse(contentResult.Content);
         return doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("string")?.Value;
     }
+
+    [Test]
+    public async Task ChangeOption_SelectFile_SetsNormalPriorityForSelectedFiles()
+    {
+        var torrent = new Torrent
+        {
+            Id = 8,
+            InfoHash = FullInfoHash,
+            SavePath = "/downloads/movies",
+        };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 8, Path = "movie.mkv" },
+            new() { Id = 2, TorrentId = 8, Path = "sample.mkv" },
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(8).Returns(files);
+
+        this.SetJsonRequestBody(3878858"""
+            {
+              "jsonrpc": "2.0",
+              "id": 99,
+              "method": "aria2.changeOption",
+              "params": ["{{ExpectedGid}}", {"select-file": "1"}]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentFileService.Received(1).SetPriorityAsync(1, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(2, 0);
+    }
 }
