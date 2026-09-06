@@ -425,12 +425,15 @@ public class UdpTrackerService : IUdpTrackerService
     {
         if (this.connectionIds.TryGetValue(connectionId, out var state))
         {
-            if (state.ExpiresUtc >= DateTime.UtcNow)
+            if (state.ExpiresUtc >= DateTime.UtcNow && state.Ip != null && state.Ip.Equals(clientIp))
             {
                 return true;
             }
 
-            this.connectionIds.TryRemove(connectionId, out _);
+            if (state.ExpiresUtc < DateTime.UtcNow)
+            {
+                this.connectionIds.TryRemove(connectionId, out _);
+            }
         }
 
         return false;
