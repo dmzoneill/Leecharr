@@ -91,6 +91,7 @@ const systemSubItems = [
 ];
 
 export function App() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -467,7 +468,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <TorrentIcon size={16} />
-            <span>Torrents</span>
+            <span>{t("nav.torrents")}</span>
           </div>
           {activeNav === "torrents" && (
             <>
@@ -476,7 +477,7 @@ export function App() {
                 onClick={() => guardedNavigate("/torrents")}
                 style={{ cursor: "pointer" }}
               >
-                <DashboardIcon size={14} /> <span>All Transfers</span>
+                <DashboardIcon size={14} /> <span>{t("nav.torrents")}</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
@@ -484,7 +485,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
               >
                 <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
-                <span>Add Torrent</span>
+                <span>{t("modals.addTorrent")}</span>
               </div>
             </>
           )}
@@ -496,7 +497,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <ActivityIcon size={16} />
-            <span>Activity</span>
+            <span>{t("nav.activity")}</span>
           </div>
           {activeNav === "activity" && (
             <>
@@ -505,14 +506,14 @@ export function App() {
                 onClick={() => guardedNavigate("/activity/history")}
                 style={{ cursor: "pointer" }}
               >
-                <HistoryIcon /> <span>History</span>
+                <HistoryIcon /> <span>{t("nav.history")}</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/activity/metrics")}
                 style={{ cursor: "pointer" }}
               >
-                <StatsIcon size={14} /> <span>Metrics</span>
+                <StatsIcon size={14} /> <span>{t("nav.stats")}</span>
               </div>
             </>
           )}
@@ -524,7 +525,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <SearchIcon size={16} />
-            <span>Indexers</span>
+            <span>{t("nav.indexers")}</span>
           </div>
 
           {/* Peer Map */}
@@ -544,7 +545,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <ScheduleIcon size={16} />
-            <span>Schedule</span>
+            <span>{t("settings.schedule")}</span>
           </div>
 
           {/* Statistics */}
@@ -554,7 +555,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <StatsIcon size={16} />
-            <span>Statistics</span>
+            <span>{t("activity.statistics")}</span>
           </div>
 
           {/* Tracker Boost */}
@@ -619,7 +620,7 @@ export function App() {
             >
               📁
             </span>
-            <span>File Browser</span>
+            <span>{t("nav.fileBrowser")}</span>
           </div>
 
           {/* Settings */}
@@ -629,7 +630,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <SettingsIcon size={16} />
-            <span>Settings</span>
+            <span>{t("nav.settings")}</span>
           </div>
           {activeNav === "settings" && (
             <div className="sidebar-settings-tree">
@@ -737,7 +738,7 @@ export function App() {
             style={{ cursor: "pointer" }}
           >
             <SystemIcon size={16} />
-            <span>System</span>
+            <span>{t("nav.system")}</span>
           </div>
           {activeNav === "system" &&
             systemSubItems.map((item) => (
@@ -796,7 +797,7 @@ export function App() {
               <SearchIcon size={14} />
               <input
                 type="text"
-                placeholder="Quick Jump / Search... (Ctrl+K or /)"
+                placeholder={`${t("common.search")}...`}
                 className="topbar-search-input"
                 readOnly
                 style={{ cursor: "pointer" }}
@@ -836,7 +837,7 @@ export function App() {
               }}
               title="Getting Started & Setup Guide (Prowlarr, Sonarr, Radarr, Lidarr)"
             >
-              🚀 Setup Guide
+              🚀 {t("modals.gettingStarted")}
             </button>
             <button
               className="btn btn-small"
@@ -859,7 +860,7 @@ export function App() {
               className="btn btn-small btn-success"
               onClick={() => setShowAddModal(true)}
             >
-              + Add Torrent
+              + {t("modals.addTorrent")}
             </button>
 
             {currentUser?.isAuthenticated && (
