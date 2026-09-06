@@ -61,7 +61,6 @@ export function normalizeIndexerPayload(
 
   const name = editing.name?.trim() || editing.indexerType || "Indexer";
   const implementation =
-    // @ts-ignore
     editing.implementation || `${editing.indexerType || "Prowlarr"}Indexer`;
 
   return {
