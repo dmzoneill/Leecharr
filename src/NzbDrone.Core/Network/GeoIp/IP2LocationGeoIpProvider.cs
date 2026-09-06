@@ -89,7 +89,11 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
         try
         {
-            this.EnsureReader(dbPath);
+            lock (this.@lock)
+            {
+                this.EnsureReader(dbPath);
+            }
+
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = true,
@@ -259,6 +263,7 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         return info;
     }
 
+    // Note: Mutates shared FileStream/BinaryReader state; caller must hold this.@lock.
     private void EnsureReader(string dbPath)
     {
         if (this.binaryReader != null && this.resolvedDatabasePath == dbPath)
