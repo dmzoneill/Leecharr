@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Torrents;
@@ -48,6 +49,25 @@ public class TorrentSeedGoalReachedEvent : IEvent
     {
         this.Torrent = torrent;
     }
+}
+
+public class TorrentMetadataReceivedEvent : IEvent
+{
+    public int TorrentId { get; set; }
+
+    public string InfoHash { get; set; }
+
+    public long TotalSize { get; set; }
+
+    public int PieceCount { get; set; }
+
+    public int PieceLength { get; set; }
+
+    public string Name { get; set; }
+
+    public IReadOnlyList<TorrentFile> Files { get; set; }
+
+    public byte[] TorrentBytes { get; set; }
 }
 
 public class HealthIssueEvent : IEvent

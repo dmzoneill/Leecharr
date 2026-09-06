@@ -52,6 +52,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, bool> metadataPersistedTorrentIds = new();
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
@@ -701,6 +702,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (parsedTorrent != null)
         {
+            this.metadataPersistedTorrentIds.TryAdd(torrent.Id, true);
             this.PreallocateFiles(manager, workingPath, parsedTorrent);
         }
 
@@ -737,6 +739,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryRemove(torrentId, out var task))
         {
+            this.metadataPersistedTorrentIds.TryRemove(torrentId, out _);
             this.infoHashToId.TryRemove(task.InfoHash, out _);
             if (task.Manager?.InfoHashes?.V1 != null)
             {
@@ -1363,6 +1366,72 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         }.ToSettings();
                         await manager.UpdateSettingsAsync(strictSettings).ConfigureAwait(false);
                         this.logger.Info("Enforced BEP 27 restrictions for private torrent {0} after metadata received (DHT/PEX disabled)", infoHash);
+                    }
+                }
+
+                if (manager.Torrent != null && this.metadataPersistedTorrentIds.TryAdd(torrentId, true))
+                {
+                    try
+                    {
+                        var pieceLength = Math.Max(1, manager.Torrent.PieceLength);
+                        long currentByteOffset = 0;
+                        var torrentFiles = new List<TorrentFile>();
+                        if (manager.Torrent.Files != null)
+                        {
+                            foreach (var file in manager.Torrent.Files)
+                            {
+                                var startPiece = (int)(currentByteOffset / pieceLength);
+                                var endByte = currentByteOffset + file.Length - 1;
+                                var endPiece = file.Length > 0 ? (int)(endByte / pieceLength) : startPiece;
+                                var pieceCount = file.Length > 0 ? (endPiece - startPiece + 1) : 0;
+                                torrentFiles.Add(new TorrentFile
+                                {
+                                    TorrentId = torrentId,
+                                    Path = file.Path,
+                                    Size = file.Length,
+                                    PieceOffset = startPiece,
+                                    PieceCount = pieceCount,
+                                    Priority = 1,
+                                    Progress = 0.0,
+                                });
+                                currentByteOffset += file.Length;
+                            }
+                        }
+
+                        byte[] rawBytes = null;
+                        try
+                        {
+                            rawBytes = manager.Torrent.Encode();
+                            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                                ? this.appFolderInfo.AppDataFolder
+                                : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                            var torrentsDir = Path.Combine(appData, "Torrents");
+                            Directory.CreateDirectory(torrentsDir);
+                            var filePath = Path.Combine(torrentsDir, $"{infoHash.ToLowerInvariant()}.torrent");
+                            File.WriteAllBytes(filePath, rawBytes);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Failed to save resolved .torrent file for {0}", infoHash);
+                        }
+
+                        this.eventAggregator.PublishEvent(new TorrentMetadataReceivedEvent
+                        {
+                            TorrentId = torrentId,
+                            InfoHash = infoHash.ToLowerInvariant(),
+                            TotalSize = manager.Torrent.Size,
+                            PieceCount = manager.Torrent.PieceCount,
+                            PieceLength = manager.Torrent.PieceLength,
+                            Name = manager.Torrent.Name,
+                            Files = torrentFiles,
+                            TorrentBytes = rawBytes,
+                        });
+
+                        this.logger.Info("Resolved and persisted magnet metadata for torrent {0} ({1}): {2} files, {3} bytes", torrentId, infoHash, torrentFiles.Count, manager.Torrent.Size);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to process received metadata for torrent {0} ({1})", torrentId, infoHash);
                     }
                 }
 

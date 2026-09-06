@@ -618,4 +618,48 @@ public class TorrentServiceTest
             }
         }
     }
+
+    [Test]
+    public void Handle_TorrentMetadataReceivedEvent_UpdatesTorrentAndInsertsFiles()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "aabbccddeeff00112233445566778899aabbccdd",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            TotalSize = 0,
+            PieceCount = 0,
+            PieceLength = 0,
+        };
+
+        this.torrentRepository.Get(55).Returns(torrent);
+        this.fileRepository.GetByTorrentId(55).Returns(new List<TorrentFile>());
+
+        var metadataFiles = new List<TorrentFile>
+        {
+            new() { TorrentId = 55, Path = "video.mp4", Size = 5000000, PieceOffset = 0, PieceCount = 10 },
+        };
+
+        var metadataEvent = new TorrentMetadataReceivedEvent
+        {
+            TorrentId = 55,
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            Name = "Resolved Movie Name",
+            TotalSize = 5000000,
+            PieceCount = 10,
+            PieceLength = 524288,
+            Files = metadataFiles,
+        };
+
+        this.service.Handle(metadataEvent);
+
+        torrent.Name.Should().Be("Resolved Movie Name");
+        torrent.TotalSize.Should().Be(5000000);
+        torrent.PieceCount.Should().Be(10);
+        torrent.PieceLength.Should().Be(524288);
+
+        this.torrentRepository.Received(1).Update(torrent);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 55));
+        this.fileRepository.Received(1).InsertMany(Arg.Is<List<TorrentFile>>(l => l.Count == 1 && l[0].Path == "video.mp4"));
+    }
 }
