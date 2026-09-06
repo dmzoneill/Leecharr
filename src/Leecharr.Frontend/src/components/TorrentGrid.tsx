@@ -23,6 +23,7 @@ export interface TorrentGridCardProps {
 
 export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
   ({ torrent: t, isSelected, onSelect, onPause, onResume, onDelete }) => {
+    const { t: _t } = useTranslation();
     const confirm = useConfirm();
     const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
     const mergedTorrent = useMemo(
@@ -331,7 +332,6 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                   confirmText: "Remove",
                 });
                 if (ok) {
-                  const { t } = useTranslation();
                   onDelete({ id: mergedTorrent.id, deleteFiles: false });
                 }
               }}
