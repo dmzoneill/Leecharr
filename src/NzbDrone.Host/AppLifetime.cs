@@ -345,7 +345,9 @@ public class AppLifetime : IHostedService, IDisposable
                                     await this.torrentService.UpdateAsync(torrent);
 
                                     var category = !string.IsNullOrWhiteSpace(torrent.Category) ? this.categoryService?.GetByName(torrent.Category) : null;
-                                    var effectiveRatio = torrent.TargetRatio > 0 ? torrent.TargetRatio : (category?.TargetRatio ?? 0);
+                                    var effectiveRatio = torrent.TargetRatio > 0
+                                        ? torrent.TargetRatio
+                                        : ((category?.TargetRatio ?? 0) > 0 ? category.TargetRatio : this.configService.GlobalSeedRatioLimit);
                                     var effectiveSeedTime = torrent.TargetSeedTimeMinutes > 0 ? torrent.TargetSeedTimeMinutes : (category?.TargetSeedTimeMinutes ?? 0);
 
                                     var ratioReached = effectiveRatio > 0 && torrent.Ratio >= effectiveRatio;

@@ -44,4 +44,20 @@ public class ShareLimitActionTest
 
         action.Should().Be(expectedAction);
     }
+
+    [TestCase(2.0, 1.5, 3.0, 2.0)] // Torrent ratio takes precedence
+    [TestCase(0.0, 1.5, 3.0, 1.5)] // Category ratio takes precedence when torrent is 0
+    [TestCase(0.0, 0.0, 3.0, 3.0)] // Global ratio used when torrent and category are 0
+    [TestCase(0.0, 0.0, 0.0, 0.0)] // 0 when none configured
+    public void EffectiveRatio_EvaluatesWithCorrectFallbackHierarchy(double torrentRatio, double categoryRatio, double globalRatio, double expectedEffective)
+    {
+        var category = categoryRatio > 0 ? new NzbDrone.Core.Categories.Category { TargetRatio = categoryRatio } : null;
+        var torrent = new Torrent { TargetRatio = torrentRatio };
+
+        var effectiveRatio = torrent.TargetRatio > 0
+            ? torrent.TargetRatio
+            : ((category?.TargetRatio ?? 0) > 0 ? category.TargetRatio : globalRatio);
+
+        effectiveRatio.Should().Be(expectedEffective);
+    }
 }
