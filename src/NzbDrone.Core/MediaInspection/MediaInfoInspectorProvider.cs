@@ -162,7 +162,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
 
     public MediaContainerInfo InspectFile(string filePath)
     {
-        return Task.Run(() => this.InspectMediaAsync(filePath)).GetAwaiter().GetResult();
+        return this.InspectMediaAsync(filePath).GetAwaiter().GetResult();
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
