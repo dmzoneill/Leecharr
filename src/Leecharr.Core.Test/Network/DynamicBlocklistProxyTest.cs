@@ -373,6 +373,25 @@ public class DynamicBlocklistProxyTest
     }
 
     [Test]
+    public async Task P2PDatBlocklistProvider_MergeRanges_WithMaxEndRange_DoesNotCorruptBinarySearch()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new[]
+        {
+            "AllRange:1.0.0.0-255.255.255.255",
+            "SubRange:2.0.0.0-2.0.0.10",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(1);
+
+        provider.IsIpBlocked("100.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("1.0.0.0").Should().BeTrue();
+        provider.IsIpBlocked("255.255.255.255").Should().BeTrue();
+        provider.IsIpBlocked("0.255.255.255").Should().BeFalse();
+    }
+
+    [Test]
     public async Task LinuxIpSetBlocklistProvider_ProbeHealthAndDelegation()
     {
         var diskProvider = Substitute.For<IDiskProvider>();
