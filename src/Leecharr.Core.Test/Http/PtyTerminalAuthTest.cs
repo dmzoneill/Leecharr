@@ -25,6 +25,7 @@ public class PtyTerminalAuthTest
     {
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.TerminalAccessEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("master_secret_api_key");
 
         this.configService = Substitute.For<IConfigService>();
@@ -119,6 +120,17 @@ public class PtyTerminalAuthTest
         var isAuthorized = TerminalWebSocketHandler.IsAuthorized(context, this.configFileProvider);
 
         isAuthorized.Should().BeTrue();
+    }
+
+    [Test]
+    public void PtyTerminalService_CreateSession_WhenTerminalAccessDisabled_ThrowsSecurityException()
+    {
+        this.configFileProvider.TerminalAccessEnabled.Returns(false);
+        var service = new PtyTerminalService(this.configFileProvider);
+
+        Action act = () => service.CreateSession("/tmp", 80, 24);
+
+        act.Should().Throw<System.Security.SecurityException>();
     }
 
     [Test]
