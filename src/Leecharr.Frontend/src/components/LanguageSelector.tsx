@@ -133,7 +133,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
               );
             })}
             {filteredLanguages.length === 0 && (
-              <li className="language-selector-empty">{t("common.noLanguagesFound", "No languages found")}</li>
+              <li className="language-selector-empty">
+                {t("common.noLanguagesFound", "No languages found")}
+              </li>
             )}
           </ul>
         </div>

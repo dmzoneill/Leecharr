@@ -444,7 +444,10 @@ export function FileBrowser() {
               fontFamily: "monospace",
             }}
             onClick={handleOpenInCli}
-            title={t("filebrowser.openTerminal", "Open an interactive terminal shell in this directory")}
+            title={t(
+              "filebrowser.openTerminal",
+              "Open an interactive terminal shell in this directory",
+            )}
           >
             &gt;_ CLI
           </button>

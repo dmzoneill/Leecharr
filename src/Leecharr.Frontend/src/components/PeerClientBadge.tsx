@@ -175,7 +175,10 @@ export function PeerClientBadge({
             padding: "0.15rem 0.35rem",
             opacity: 0.85,
           }}
-          title={t("torrentDetail.utpProtocol", "Micro Transport Protocol (uTP)")}
+          title={t(
+            "torrentDetail.utpProtocol",
+            "Micro Transport Protocol (uTP)",
+          )}
         >
           uTP
         </span>
