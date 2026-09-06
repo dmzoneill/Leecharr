@@ -157,4 +157,63 @@ public class QueueManagerServiceTest
 
         await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_QueuedTorrentsDoNotBypassLimitsWhenQueueStalledEnabled()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+        this.configService.QueueStalledEnabled.Returns(true);
+        this.configService.QueueStalledMinutes.Returns(5);
+
+        var pastTime = System.DateTime.UtcNow.AddMinutes(-30);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "ActiveDownload", Status = TorrentStatus.Downloading, Progress = 0.5, QueuePosition = 1, DateAdded = pastTime, LastActive = System.DateTime.UtcNow, DownloadSpeed = 10000 },
+            new Torrent { Id = 2, Name = "QueuedOld1", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 2, DateAdded = pastTime, LastActive = pastTime },
+            new Torrent { Id = 3, Name = "QueuedOld2", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 3, DateAdded = pastTime, LastActive = pastTime },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        // ActiveDownload should remain Downloading (1 active download slot consumed).
+        // QueuedOld1 and QueuedOld2 must NOT be promoted to Downloading because maxActiveDownloads=1 is reached and Queued torrents are not stalled active downloads!
+        torrents[0].Status.Should().Be(TorrentStatus.Downloading);
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        torrents[2].Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(3);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_QueuedSeedingTorrentsDoNotBypassLimitsWhenIdleSeedingLimitEnabled()
+    {
+        this.configService.MaxActiveUploads.Returns(1);
+        this.configService.IdleSeedingLimitMinutes.Returns(5);
+
+        var pastTime = System.DateTime.UtcNow.AddMinutes(-30);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "ActiveSeeder", Status = TorrentStatus.Seeding, Progress = 1.0, QueuePosition = 1, DateAdded = pastTime, DateCompleted = pastTime, LastActive = System.DateTime.UtcNow, UploadSpeed = 10000 },
+            new Torrent { Id = 2, Name = "QueuedSeedOld1", Status = TorrentStatus.Queued, Progress = 1.0, QueuePosition = 2, DateAdded = pastTime, DateCompleted = pastTime, LastActive = pastTime },
+            new Torrent { Id = 3, Name = "QueuedSeedOld2", Status = TorrentStatus.Queued, Progress = 1.0, QueuePosition = 3, DateAdded = pastTime, DateCompleted = pastTime, LastActive = pastTime },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        // ActiveSeeder should remain Seeding (1 active upload slot consumed).
+        // QueuedSeedOld1 and QueuedSeedOld2 must NOT be promoted to Seeding because maxActiveUploads=1 is reached!
+        torrents[0].Status.Should().Be(TorrentStatus.Seeding);
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        torrents[2].Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(3);
+    }
 }
