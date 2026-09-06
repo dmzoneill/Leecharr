@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTrackerBoostMatrix, useTorrents } from "../../api/hooks";
 import TrackerFavicon from "../../components/TrackerFavicon";
+import { useTranslation } from "../../i18n";
 import type { TorrentMetaMap } from "./types";
 
 export interface MatrixViewProps {
@@ -12,6 +13,7 @@ export function MatrixView({
   torrentMetaMap,
   onInspectTorrent,
 }: MatrixViewProps) {
+  const { t } = useTranslation();
   const { data: matrixData, isLoading: matrixLoading } =
     useTrackerBoostMatrix();
   const { data: torrents } = useTorrents();

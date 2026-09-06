@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useI18nStore, languages } from "../i18n";
+import { useI18nStore, useTranslation, languages } from "../i18n";
 
 export interface LanguageSelectorProps {
   align?: "left" | "right";
@@ -13,6 +13,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   showFullLabel = false,
 }) => {
   const { language, setLanguage } = useI18nStore();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
