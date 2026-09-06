@@ -18,6 +18,7 @@ import {
 } from "./icons/UIIcons";
 import { PeerMapIcon } from "./icons/AppIcons";
 import { usePanelHeight } from "./torrentdetailpanel/shared";
+import { useToast } from "../context/ToastContext";
 import { StatusTab } from "./torrentdetailpanel/StatusTab";
 import { DetailsTab } from "./torrentdetailpanel/DetailsTab";
 import { FilesTab } from "./torrentdetailpanel/FilesTab";
@@ -142,6 +143,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const stopSeeding = useStopSeeding();
   const recheckTorrent = useRecheckTorrent();
   const announceTorrent = useAnnounceTorrent();
+  const { showToast } = useToast();
 
   const [tab, setTab] = useState<DetailTab>("status");
   const { height, panelRef, onMouseDown } = usePanelHeight();
@@ -174,7 +176,46 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
     );
   }
 
-  const isPaused = currentTorrent.status?.toLowerCase() === "paused";
+  const status = currentTorrent.status?.toLowerCase();
+  const isInactive =
+    status === "paused" ||
+    status === "stopped" ||
+    status === "idle" ||
+    status === "error" ||
+    status === "queued" ||
+    status === "stalled";
+
+  const handleStart = () => {
+    startSeeding.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Torrent resumed", "success"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to start torrent", "error"),
+    });
+  };
+
+  const handleStop = () => {
+    stopSeeding.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Torrent paused", "info"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to pause torrent", "error"),
+    });
+  };
+
+  const handleRecheck = () => {
+    recheckTorrent.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Piece recheck initiated", "success"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to initiate recheck", "error"),
+    });
+  };
+
+  const handleAnnounce = () => {
+    announceTorrent.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Tracker announce sent", "success"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to announce to trackers", "error"),
+    });
+  };
 
   return (
     <div className="detail-panel" ref={panelRef} style={{ height }}>
@@ -238,40 +279,44 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
         </div>
 
         <div className="detail-panel-actions">
-          {isPaused ? (
+          {isInactive ? (
             <button
               type="button"
               className="btn btn-small btn-success"
-              onClick={() => startSeeding.mutate(currentTorrent.id)}
+              disabled={startSeeding.isPending || stopSeeding.isPending}
+              onClick={handleStart}
             >
-              Start
+              {startSeeding.isPending ? "Starting..." : "Start"}
             </button>
           ) : (
             <button
               type="button"
               className="btn btn-small btn-danger"
-              onClick={() => stopSeeding.mutate(currentTorrent.id)}
+              disabled={startSeeding.isPending || stopSeeding.isPending}
+              onClick={handleStop}
             >
-              Stop
+              {stopSeeding.isPending ? "Stopping..." : "Stop"}
             </button>
           )}
 
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => recheckTorrent.mutate(currentTorrent.id)}
+            disabled={recheckTorrent.isPending}
+            onClick={handleRecheck}
             title="Force recheck torrent piece integrity"
           >
-            Recheck
+            {recheckTorrent.isPending ? "Checking..." : "Recheck"}
           </button>
 
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => announceTorrent.mutate(currentTorrent.id)}
+            disabled={announceTorrent.isPending}
+            onClick={handleAnnounce}
             title="Force announce to all trackers"
           >
-            Announce
+            {announceTorrent.isPending ? "Announcing..." : "Announce"}
           </button>
 
           <button
