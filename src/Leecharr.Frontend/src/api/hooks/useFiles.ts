@@ -36,3 +36,23 @@ export function useDeleteFileEntry() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
   });
 }
+
+export function useBatchDeleteFiles() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (paths: string[]) =>
+      apiClient.post(`/files/batch-delete`, { paths }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", "listing"] }),
+  });
+}
+
+export function useFilePreview(path?: string, enabled = true) {
+  return useQuery<import("../types").FilePreviewResult>({
+    queryKey: ["files", "preview", path ?? ""],
+    queryFn: () =>
+      apiClient.get(
+        `/files/preview?path=${encodeURIComponent(path || "")}&maxBytes=262144`,
+      ),
+    enabled: enabled && !!path,
+  });
+}

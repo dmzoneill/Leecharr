@@ -4668,3 +4668,177 @@ input[type="number"].form-input::-webkit-inner-spin-button {
 .quick-settings-link-btn:hover {
   color: #fff;
 }
+
+/* ============================================
+  @cubone/react-file-manager Dark Theme Overrides
+  ============================================ */
+
+.leecharr-file-manager {
+  --file-manager-primary-color: var(--accent, #ffd166);
+  --file-manager-font-family: inherit;
+  background-color: var(--bg-primary, #10111a) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border, #23284b);
+}
+
+.leecharr-file-manager .toolbar {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border-bottom: 1px solid var(--border, #23284b) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+}
+
+.leecharr-file-manager .toolbar .item-action {
+  background-color: transparent !important;
+  color: var(--text-primary, #f8f4ed) !important;
+}
+
+.leecharr-file-manager .toolbar .item-action:hover {
+  background-color: rgba(255, 209, 102, 0.15) !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .toolbar .item-separator {
+  background: var(--border, #23284b) !important;
+}
+
+.leecharr-file-manager .toolbar .toggle-view {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border: 1px solid var(--border, #23284b) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+.leecharr-file-manager .toolbar .toggle-view ul li:hover {
+  background-color: rgba(255, 209, 102, 0.15) !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .bread-crumb-container .breadcrumb {
+  background-color: var(--bg-card, #171b35) !important;
+  border-bottom: 1px solid var(--border-light, #1c203b) !important;
+  color: var(--text-secondary, #c7c5d3) !important;
+}
+
+.leecharr-file-manager .bread-crumb-container .breadcrumb .folder-name:hover {
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .bread-crumb-container .breadcrumb .divider {
+  background-color: var(--border, #23284b) !important;
+}
+
+.leecharr-file-manager .sb-folders-list {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border-right: 1px solid var(--border, #23284b) !important;
+  color: var(--text-secondary, #c7c5d3) !important;
+}
+
+.leecharr-file-manager .sb-folders-list .sb-folders-list-item:hover {
+  background-color: rgba(255, 209, 102, 0.1) !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .sb-folders-list .active-list-item {
+  background-color: rgba(255, 209, 102, 0.2) !important;
+  color: var(--accent, #ffd166) !important;
+  font-weight: 600;
+}
+
+.leecharr-file-manager .files {
+  background-color: var(--bg-primary, #10111a) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+}
+
+.leecharr-file-manager .files .file-item:hover {
+  background-color: rgba(255, 209, 102, 0.08) !important;
+}
+
+.leecharr-file-manager .files .file-selected {
+  background-color: rgba(255, 209, 102, 0.2) !important;
+  color: #fff !important;
+  outline: 1px solid var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .files.list .files-header {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border-bottom: 1px solid var(--border, #23284b) !important;
+  color: var(--text-muted, #8a879e) !important;
+}
+
+.leecharr-file-manager .files.list .file-item-container {
+  border-bottom: 1px solid rgba(35, 40, 75, 0.3) !important;
+}
+
+.leecharr-file-manager .files.list .file-item-container:hover {
+  background-color: rgba(255, 209, 102, 0.05) !important;
+}
+
+.leecharr-file-manager .fm-context-menu {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border: 1px solid var(--border, #23284b) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75) !important;
+}
+
+.leecharr-file-manager .fm-context-menu .file-context-menu-list ul li {
+  color: var(--text-primary, #f8f4ed) !important;
+}
+
+.leecharr-file-manager .fm-context-menu .file-context-menu-list ul li:hover {
+  background-color: rgba(255, 209, 102, 0.15) !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .fm-context-menu .file-context-menu-list .divider {
+  border-bottom: 1px solid var(--border, #23284b) !important;
+}
+
+.leecharr-file-manager .fm-context-menu .file-context-menu-list .sub-menu {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border: 1px solid var(--border, #23284b) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75) !important;
+}
+
+.leecharr-file-manager
+  .fm-context-menu
+  .file-context-menu-list
+  .sub-menu
+  li:hover {
+  background-color: rgba(255, 209, 102, 0.15) !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .rename-file {
+  background-color: var(--bg-primary, #10111a) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  border: 2px solid var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager dialog {
+  background-color: var(--bg-secondary, #171b35) !important;
+  border: 1px solid rgba(255, 209, 102, 0.35) !important;
+  border-radius: 12px !important;
+  color: var(--text-primary, #f8f4ed) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+}
+
+.leecharr-file-manager .fm-modal-header {
+  border-bottom: 1px solid var(--border, #23284b) !important;
+}
+
+.leecharr-file-manager .fm-modal-header .fm-modal-heading {
+  color: var(--text-primary, #f8f4ed) !important;
+}
+
+.leecharr-file-manager .file-delete-confirm .file-delete-confirm-text {
+  border-bottom: 1px solid var(--border, #23284b) !important;
+  color: var(--text-secondary, #c7c5d3) !important;
+}
+
+.leecharr-file-manager .fm-button-secondary {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-primary, #f8f4ed) !important;
+}
