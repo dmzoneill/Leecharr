@@ -658,14 +658,25 @@ public class NotificationEventHandler :
         return null;
     }
 
-    private static string EscapeMarkdown(string text)
+    public static string EscapeMarkdown(string text)
     {
         if (string.IsNullOrEmpty(text))
         {
             return string.Empty;
         }
 
-        return text.Replace("_", "\\_").Replace("*", "\\*").Replace("[", "\\[").Replace("]", "\\]").Replace("`", "\\`");
+        var sb = new System.Text.StringBuilder(text.Length * 2);
+        foreach (var c in text)
+        {
+            if (c is '_' or '*' or '[' or ']' or '(' or ')' or '~' or '>' or '|' or '\\' or '`')
+            {
+                sb.Append('\\');
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 
     private static string ExtractMessage(object payload, string fallback)
