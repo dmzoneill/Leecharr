@@ -901,4 +901,145 @@ public class TransmissionRpcControllerTest
         torrents[1]["queuePosition"].Should().Be(2);
         torrents[1].ContainsKey("doneDate").Should().BeTrue();
     }
+
+    [Test]
+    public async Task HandleRpc_SessionGet_ReturnsSeedRatioLimitAndLimited()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.GlobalSeedRatioLimit.Returns(2.5);
+        this.configService.MaxDownloadSpeedKbps.Returns(500);
+        this.configService.MaxUploadSpeedKbps.Returns(250);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+
+        var args = response!.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["seedRatioLimit"].Should().Be(2.5);
+        args["seedRatioLimited"].Should().Be(true);
+        args["speed-limit-down-enabled"].Should().Be(true);
+        args["speed-limit-up-enabled"].Should().Be(true);
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionSet_HandlesSpeedLimitTogglesAndSeedRatio()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var speedDownDoc = JsonDocument.Parse("false");
+        args["speed-limit-down-enabled"] = speedDownDoc.RootElement.Clone();
+        using var speedUpDoc = JsonDocument.Parse("false");
+        args["speed-limit-up-enabled"] = speedUpDoc.RootElement.Clone();
+        using var ratioDoc = JsonDocument.Parse("1.5");
+        args["seedRatioLimit"] = ratioDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 0 &&
+            (int)d["MaxUploadSpeedKbps"] == 0 &&
+            (double)d["GlobalSeedRatioLimit"] == 1.5));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_IncludesRateLimitFields()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "LimitedTorrent",
+            Status = TorrentStatus.Downloading,
+            DownloadLimit = 1000,
+            UploadLimit = 500,
+            DateAdded = DateTime.UtcNow,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+
+        var responseArgs = response!.Arguments as Dictionary<string, object>;
+        var torrents = responseArgs!["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents!.Count.Should().Be(1);
+
+        torrents[0]["downloadLimit"].Should().Be(1000);
+        torrents[0]["uploadLimit"].Should().Be(500);
+        torrents[0]["downloadLimited"].Should().Be(true);
+        torrents[0]["uploadLimited"].Should().Be(true);
+        torrents[0]["honorsSessionLimits"].Should().Be(true);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_HandlesDownloadLimitedAndUploadLimitedFalse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 7,
+            Name = "LimitTestTorrent",
+            DownloadLimit = 1000,
+            UploadLimit = 500,
+        };
+        this.torrentService.Get(7).Returns(torrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[7]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var dlLimitedDoc = JsonDocument.Parse("false");
+        args["downloadLimited"] = dlLimitedDoc.RootElement.Clone();
+        using var ulLimitedDoc = JsonDocument.Parse("false");
+        args["uploadLimited"] = ulLimitedDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        torrent.DownloadLimit.Should().Be(0);
+        torrent.UploadLimit.Should().Be(0);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
 }
