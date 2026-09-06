@@ -36,6 +36,11 @@ export function FileBrowser() {
       : undefined;
 
   const [currentPath, setCurrentPath] = useState<string>(queryPath || "");
+  const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{
+    path: string;
+    name: string;
+  } | null>(null);
   const {
     data: listing,
     isLoading,
@@ -76,116 +81,44 @@ export function FileBrowser() {
     showToast("Path copied to clipboard", "info");
   };
 
-  const handleNewFolder = async () => {
-    const name = await new Promise<string | null>((resolve) => {
-      const el = document.createElement("input");
-      el.type = "text";
-      el.style.display = "none";
-      el.placeholder = "Folder name";
-      document.body.appendChild(el);
-      const cleanup = () => {
-        document.body.removeChild(el);
-      };
+  const handleNewFolder = () => {
+    setIsNewFolderOpen(true);
+  };
 
-      const modal = document.createElement("div");
-      modal.innerHTML = `
-        <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-          <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-            <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">New Folder</h3>
-            <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3)">Creating in: ${currentPath || listing?.path || "/"}</p>
-            <input id="new-folder-input" type="text" placeholder="Folder name" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-            <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-              <button id="new-folder-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-              <button id="new-folder-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Create</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      const input = modal.querySelector(
-        "#new-folder-input",
-      ) as HTMLInputElement;
-      input.focus();
-
-      const finish = (value: string | null) => {
-        modal.remove();
-        cleanup();
-        resolve(value);
-      };
-
-      modal
-        .querySelector("#new-folder-cancel")
-        ?.addEventListener("click", () => finish(null));
-      modal.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") finish(null);
-        if (e.key === "Enter") finish(input.value.trim() || null);
-      });
-      modal
-        .querySelector("#new-folder-ok")
-        ?.addEventListener("click", () => finish(input.value.trim() || null));
-    });
-
-    if (!name) return;
+  const handleConfirmNewFolder = async (name: string) => {
+    setIsNewFolderOpen(false);
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
 
     try {
       const targetPath = currentPath
-        ? `${currentPath}/${name}`
-        : `${listing?.defaultPath || "/"}/${name}`;
+        ? `${currentPath}/${trimmed}`
+        : `${listing?.defaultPath || "/"}/${trimmed}`;
       await mkdirMutation.mutateAsync(targetPath);
-      showToast(`Created folder "${name}"`, "success");
+      showToast(`Created folder "${trimmed}"`, "success");
     } catch (err: any) {
       showToast(err?.message || "Failed to create folder", "error");
     }
   };
 
   const handleRename = (entryPath: string, currentName: string) => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = currentName;
+    setRenameTarget({ path: entryPath, name: currentName });
+  };
 
-    const modal = document.createElement("div");
-    modal.innerHTML = `
-      <div style="position:fixed;inset:0;background:rgba(16,17,26,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem">
-        <div style="width:100%;max-width:440px;background:var(--bg-secondary,#171b35);border-radius:12px;border:1px solid rgba(255,209,102,0.35);box-shadow:0 20px 50px rgba(0,0,0,0.75);padding:1.5rem">
-          <h3 style="margin:0 0 1rem;font-size:1.15rem;font-weight:600;color:var(--text-primary,#f8f4ed)">Rename</h3>
-          <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--text-secondary,#c7c5d3);word-break:break-all"><code>${entryPath}</code></p>
-          <input id="rename-input" type="text" value="${currentName}" style="width:100%;padding:0.6rem 0.85rem;background:var(--bg-primary,#10111a);border:1px solid rgba(255,209,102,0.35);border-radius:8px;color:var(--text-primary,#f8f4ed);font-size:0.95rem;outline:none;box-sizing:border-box" autofocus />
-          <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.25rem">
-            <button id="rename-cancel" type="button" style="padding:0.5rem 1rem;font-size:0.9rem;border-radius:6px;border:1px solid rgba(255,255,255,0.18);color:var(--text-primary,#f8f4ed);background:transparent;cursor:pointer">Cancel</button>
-            <button id="rename-ok" type="button" style="padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;border-radius:6px;border:none;background:#ffd166;color:#10111a;cursor:pointer">Rename</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+  const handleConfirmRename = async (newName: string) => {
+    if (!renameTarget) return;
+    const { path: entryPath, name: currentName } = renameTarget;
+    setRenameTarget(null);
 
-    const inputEl = modal.querySelector("#rename-input") as HTMLInputElement;
-    inputEl.focus();
-    inputEl.select();
+    const trimmed = (newName || "").trim();
+    if (!trimmed || trimmed === currentName) return;
 
-    const finish = async (value: string | null) => {
-      modal.remove();
-      if (!value || value === currentName) return;
-
-      try {
-        await renameMutation.mutateAsync({ path: entryPath, newName: value });
-        showToast(`Renamed to "${value}"`, "success");
-      } catch (err: any) {
-        showToast(err?.message || "Failed to rename", "error");
-      }
-    };
-
-    modal
-      .querySelector("#rename-cancel")
-      ?.addEventListener("click", () => finish(null));
-    modal.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") finish(null);
-      if (e.key === "Enter") finish(inputEl.value.trim() || null);
-    });
-    modal
-      .querySelector("#rename-ok")
-      ?.addEventListener("click", () => finish(inputEl.value.trim() || null));
+    try {
+      await renameMutation.mutateAsync({ path: entryPath, newName: trimmed });
+      showToast(`Renamed to "${trimmed}"`, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to rename", "error");
+    }
   };
 
   const handleDelete = async (
@@ -648,6 +581,29 @@ export function FileBrowser() {
           </tbody>
         </table>
       </div>
+
+      <PromptModal
+        isOpen={isNewFolderOpen}
+        title="New Folder"
+        message={`Creating in: ${currentPath || listing?.path || "/"}`}
+        placeholder="Folder name"
+        confirmText="Create"
+        cancelText="Cancel"
+        onConfirm={handleConfirmNewFolder}
+        onCancel={() => setIsNewFolderOpen(false)}
+      />
+
+      <PromptModal
+        isOpen={!!renameTarget}
+        title="Rename"
+        message={renameTarget ? `Rename: ${renameTarget.path}` : ""}
+        defaultValue={renameTarget?.name || ""}
+        placeholder="New name"
+        confirmText="Rename"
+        cancelText="Cancel"
+        onConfirm={handleConfirmRename}
+        onCancel={() => setRenameTarget(null)}
+      />
     </div>
   );
 }
