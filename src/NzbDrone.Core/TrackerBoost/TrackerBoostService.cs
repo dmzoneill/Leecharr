@@ -1831,6 +1831,35 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
     }
 
+    internal static string BuildScrapeUrl(string announceUrl, string hexHash)
+    {
+        if (string.IsNullOrWhiteSpace(announceUrl) || string.IsNullOrWhiteSpace(hexHash))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(announceUrl, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var lastIndex = uri.AbsolutePath.LastIndexOf("/announce", StringComparison.OrdinalIgnoreCase);
+        if (lastIndex < 0)
+        {
+            return null;
+        }
+
+        var newPath = uri.AbsolutePath.Remove(lastIndex, 9).Insert(lastIndex, "/scrape");
+        var uriBuilder = new UriBuilder(uri) { Path = newPath };
+        var scrapeUrl = uriBuilder.Uri.ToString();
+
+        var hashBytes = Convert.FromHexString(hexHash);
+        var encodedHash = string.Concat(hashBytes.Select(b => $"%{b:X2}"));
+
+        var separator = scrapeUrl.Contains('?') ? "&" : "?";
+        return $"{scrapeUrl}{separator}info_hash={encodedHash}";
+    }
+
     private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeHttpTrackerAsync(
         string announceUrl,
         string hexHash,
@@ -1838,17 +1867,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         try
         {
-            if (!announceUrl.Contains("/announce"))
+            var requestUrl = BuildScrapeUrl(announceUrl, hexHash);
+            if (string.IsNullOrEmpty(requestUrl))
             {
                 return (false, 0, 0, 0);
             }
 
             var hashBytes = Convert.FromHexString(hexHash);
-            var encodedHash = string.Concat(hashBytes.Select(b => $"%{b:X2}"));
-            var scrapeUrl = announceUrl.Replace("/announce", "/scrape");
-
-            var separator = scrapeUrl.Contains('?') ? "&" : "?";
-            var requestUrl = $"{scrapeUrl}{separator}info_hash={encodedHash}";
 
             using var resp = await HttpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
