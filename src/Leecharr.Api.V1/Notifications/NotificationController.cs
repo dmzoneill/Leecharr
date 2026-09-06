@@ -74,6 +74,7 @@ public class NotificationController : Controller
 
         var model = ToModel(resource);
         model.Id = id;
+        model.Settings = UnmaskSettings(model.Settings, existing.Settings);
         this.notificationRepository.Update(model);
         return this.Ok(ToResource(model));
     }
@@ -106,6 +107,15 @@ public class NotificationController : Controller
         }
 
         var model = ToModel(resource);
+        if (resource.Id > 0)
+        {
+            var existing = this.notificationRepository.Get(resource.Id);
+            if (existing != null)
+            {
+                model.Settings = UnmaskSettings(model.Settings, existing.Settings);
+            }
+        }
+
         return await this.TestInternal(model);
     }
 
@@ -236,7 +246,7 @@ public class NotificationController : Controller
             Name = n.Name,
             Implementation = n.Implementation,
             ConfigContract = n.ConfigContract,
-            Settings = n.Settings,
+            Settings = MaskSettings(n.Settings),
             Enable = n.Enable,
             OnGrab = n.OnGrab,
             OnDownloadComplete = n.OnDownloadComplete,
@@ -274,6 +284,112 @@ public class NotificationController : Controller
             OnApplicationUpdate = r.OnApplicationUpdate,
             Tags = r.Tags ?? new List<int>(),
         };
+    }
+
+    private static readonly HashSet<string> SensitiveSettingKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "token", "botToken", "bot_token", "apiKey", "api_key",
+        "userKey", "user_key", "password", "pass", "secret",
+        "clientSecret", "client_secret"
+    };
+
+    private static string MaskSettings(string settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return settings;
+        }
+
+        var trimmed = settings.TrimStart();
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                var node = global::System.Text.Json.Nodes.JsonNode.Parse(settings);
+                if (node is global::System.Text.Json.Nodes.JsonObject obj)
+                {
+                    MaskJsonObject(obj);
+                    return obj.ToJsonString();
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return settings;
+    }
+
+    private static void MaskJsonObject(global::System.Text.Json.Nodes.JsonObject obj)
+    {
+        foreach (var property in obj.ToList())
+        {
+            if (SensitiveSettingKeys.Contains(property.Key))
+            {
+                if (property.Value is global::System.Text.Json.Nodes.JsonValue val && val.TryGetValue<string>(out var strVal) && !string.IsNullOrEmpty(strVal))
+                {
+                    obj[property.Key] = "********";
+                }
+            }
+            else if (property.Value is global::System.Text.Json.Nodes.JsonObject childObj)
+            {
+                MaskJsonObject(childObj);
+            }
+        }
+    }
+
+    private static string UnmaskSettings(string newSettings, string existingSettings)
+    {
+        if (string.IsNullOrWhiteSpace(newSettings))
+        {
+            return newSettings;
+        }
+
+        if (string.IsNullOrWhiteSpace(existingSettings))
+        {
+            return newSettings;
+        }
+
+        var newTrimmed = newSettings.TrimStart();
+        var existingTrimmed = existingSettings.TrimStart();
+
+        if (newTrimmed.StartsWith("{") && existingTrimmed.StartsWith("{"))
+        {
+            try
+            {
+                var newNode = global::System.Text.Json.Nodes.JsonNode.Parse(newSettings);
+                var existingNode = global::System.Text.Json.Nodes.JsonNode.Parse(existingSettings);
+
+                if (newNode is global::System.Text.Json.Nodes.JsonObject newObj && existingNode is global::System.Text.Json.Nodes.JsonObject existingObj)
+                {
+                    UnmaskJsonObject(newObj, existingObj);
+                    return newObj.ToJsonString();
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return newSettings;
+    }
+
+    private static void UnmaskJsonObject(global::System.Text.Json.Nodes.JsonObject newObj, global::System.Text.Json.Nodes.JsonObject existingObj)
+    {
+        foreach (var property in newObj.ToList())
+        {
+            if (property.Value is global::System.Text.Json.Nodes.JsonValue val && val.TryGetValue<string>(out var strVal) && (strVal == "********" || strVal.Contains('*')))
+            {
+                if (existingObj.TryGetPropertyValue(property.Key, out var existingVal) && existingVal != null)
+                {
+                    newObj[property.Key] = existingVal.DeepClone();
+                }
+            }
+            else if (property.Value is global::System.Text.Json.Nodes.JsonObject childNewObj && existingObj.TryGetPropertyValue(property.Key, out var childExisting) && childExisting is global::System.Text.Json.Nodes.JsonObject childExistingObj)
+            {
+                UnmaskJsonObject(childNewObj, childExistingObj);
+            }
+        }
     }
 
     private static string ExtractSetting(string settings, params string[] propertyNames)

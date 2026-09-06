@@ -384,4 +384,54 @@ public class IndexerControllerTest
         testResult.Message.Should().Contain("Connected successfully to LiveIndexer");
         this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Categories.Contains(2000) && idx.Categories.Contains(5000)));
     }
+
+    [Test]
+    public void Get_ReturnsMaskedApiKey()
+    {
+        var model = new IndexerDefinition
+        {
+            Id = 42,
+            Name = "Secret Tracker",
+            ApiKey = "super_secret_indexer_api_key",
+        };
+
+        this.indexerRepository.Get(42).Returns(model);
+
+        var result = this.controller.Get(42);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as IndexerResource;
+        resource.Should().NotBeNull();
+        resource!.ApiKey.Should().Be("********");
+    }
+
+    [Test]
+    public void Update_PreservesApiKey_WhenMaskedApiKeyProvided()
+    {
+        var existing = new IndexerDefinition
+        {
+            Id = 42,
+            Name = "Secret Tracker",
+            ApiKey = "super_secret_indexer_api_key",
+        };
+
+        this.indexerRepository.Get(42).Returns(existing);
+
+        var resource = new IndexerResource
+        {
+            Id = 42,
+            Name = "Updated Tracker Name",
+            ApiKey = "********",
+        };
+
+        var result = this.controller.Update(42, resource);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx =>
+            idx.Id == 42 &&
+            idx.ApiKey == "super_secret_indexer_api_key" &&
+            idx.Name == "Updated Tracker Name"));
+    }
 }

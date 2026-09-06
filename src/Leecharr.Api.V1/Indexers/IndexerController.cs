@@ -98,6 +98,11 @@ public class IndexerController : Controller
 
         var model = ToModel(resource);
         model.Id = id;
+        if (model.ApiKey == "********" || (model.ApiKey != null && model.ApiKey.Contains('*')))
+        {
+            model.ApiKey = existing.ApiKey;
+        }
+
         this.indexerRepository.Update(model);
         return this.Ok(ToResource(model));
     }
@@ -130,6 +135,15 @@ public class IndexerController : Controller
         }
 
         var model = ToModel(resource);
+        if (resource.Id > 0 && (resource.ApiKey == "********" || (resource.ApiKey != null && resource.ApiKey.Contains('*'))))
+        {
+            var existing = this.indexerRepository.Get(resource.Id);
+            if (existing != null)
+            {
+                model.ApiKey = existing.ApiKey;
+            }
+        }
+
         return await this.TestDirectInternal(model);
     }
 
@@ -499,7 +513,7 @@ public class IndexerController : Controller
             Enable = model.Enable,
             Priority = model.Priority,
             Url = model.Url,
-            ApiKey = model.ApiKey,
+            ApiKey = string.IsNullOrEmpty(model.ApiKey) ? string.Empty : "********",
             Categories = model.Categories ?? new List<int>(),
             EnableRss = model.EnableRss,
             EnableSearch = model.EnableSearch,

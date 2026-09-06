@@ -249,4 +249,59 @@ public class NotificationControllerTest
             Arg.Any<object>(),
             null);
     }
+
+    [Test]
+    public void GetById_ReturnsMaskedSecrets_InSettingsJson()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 42,
+            Name = "Telegram Bot",
+            Implementation = "Telegram",
+            Settings = "{\"token\":\"12345:telegram-secret\",\"chat_id\":\"chat-789\"}",
+        };
+
+        this.notificationRepository.Get(42).Returns(notif);
+
+        var actionResult = this.controller.GetById(42);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as NotificationResource;
+        resource.Should().NotBeNull();
+        resource!.Settings.Should().Contain("\"token\":\"********\"");
+        resource.Settings.Should().Contain("\"chat_id\":\"chat-789\"");
+        resource.Settings.Should().NotContain("telegram-secret");
+    }
+
+    [Test]
+    public void Update_PreservesStoredSecrets_WhenMaskedSettingsProvided()
+    {
+        var existing = new NotificationDefinition
+        {
+            Id = 42,
+            Name = "Telegram Bot",
+            Implementation = "Telegram",
+            Settings = "{\"token\":\"12345:telegram-secret\",\"chat_id\":\"chat-789\"}",
+        };
+
+        this.notificationRepository.Get(42).Returns(existing);
+
+        var updateResource = new NotificationResource
+        {
+            Id = 42,
+            Name = "Updated Telegram Bot",
+            Implementation = "Telegram",
+            Settings = "{\"token\":\"********\",\"chat_id\":\"chat-999\"}",
+        };
+
+        var actionResult = this.controller.Update(42, updateResource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
+            n.Id == 42 &&
+            n.Settings.Contains("12345:telegram-secret") &&
+            n.Settings.Contains("chat-999")));
+    }
 }

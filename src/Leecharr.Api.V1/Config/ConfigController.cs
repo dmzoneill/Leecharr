@@ -84,6 +84,15 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
     [Produces("application/json")]
     public ActionResult<ApiKeyResource> GetApiKey()
     {
+        var user = this.HttpContext?.User;
+        if (user != null && user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            if (!user.IsInRole("Admin") && !user.HasClaim(global::System.Security.Claims.ClaimTypes.Role, "Admin"))
+            {
+                return this.Forbid();
+            }
+        }
+
         return this.Ok(new ApiKeyResource { ApiKey = this.configFileProvider.ApiKey ?? string.Empty });
     }
 
