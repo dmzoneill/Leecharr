@@ -374,4 +374,32 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
         await this.libTorrentEngine.Received(1).AddTrackersAsync(42, Arg.Is<List<string>>(list => list.Contains("http://tracker2.com/announce")));
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_PausesNonActiveStates()
+    {
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 101, Name = "Queued Torrent", InfoHash = "A1", Status = TorrentStatus.Queued },
+            new() { Id = 102, Name = "Error Torrent", InfoHash = "A2", Status = TorrentStatus.Error },
+            new() { Id = 103, Name = "Stalled Torrent", InfoHash = "A3", Status = TorrentStatus.Stalled },
+            new() { Id = 104, Name = "Active Torrent", InfoHash = "A4", Status = TorrentStatus.Downloading },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(101);
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(102);
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(103);
+        await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(104);
+    }
 }

@@ -718,6 +718,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
         }
+        else if (torrent.Status is TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
+        {
+            await manager.PauseAsync();
+            this.logger.Info("Added inactive ({0}) torrent: {1} ({2})", torrent.Status, torrent.Name, torrent.InfoHash);
+        }
         else
         {
             await manager.StartAsync();
