@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Categories;
 
@@ -16,6 +17,7 @@ public class CategoryServiceTest
 {
     private ICategoryRepository repository = null!;
     private IEventAggregator eventAggregator = null!;
+    private ITorrentRepository torrentRepository = null!;
     private CategoryService service = null!;
 
     [SetUp]
@@ -23,7 +25,8 @@ public class CategoryServiceTest
     {
         this.repository = Substitute.For<ICategoryRepository>();
         this.eventAggregator = Substitute.For<IEventAggregator>();
-        this.service = new CategoryService(this.repository, this.eventAggregator);
+        this.torrentRepository = Substitute.For<ITorrentRepository>();
+        this.service = new CategoryService(this.repository, this.eventAggregator, this.torrentRepository);
     }
 
     [Test]
@@ -105,10 +108,23 @@ public class CategoryServiceTest
     }
 
     [Test]
-    public void Delete_CallsRepositoryDelete()
+    public void Delete_ClearsCategoryOnAffectedTorrentsPublishesEventAndDeletes()
     {
+        var category = new Category { Id = 5, Name = "movies" };
+        this.repository.Get(5).Returns(category);
+
+        var torrent1 = new Torrent { Id = 1, Name = "Movie1", Category = "movies" };
+        var torrent2 = new Torrent { Id = 2, Name = "Movie2", Category = "movies" };
+        this.torrentRepository.GetByCategory("movies").Returns(new List<Torrent> { torrent1, torrent2 });
+
         this.service.Delete(5);
+
+        torrent1.Category.Should().BeEmpty();
+        torrent2.Category.Should().BeEmpty();
+        this.torrentRepository.Received(1).Update(torrent1);
+        this.torrentRepository.Received(1).Update(torrent2);
         this.repository.Received(1).Delete(5);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryDeletedEvent>(e => e.CategoryId == 5 && e.CategoryName == "movies"));
     }
 
     [Test]
