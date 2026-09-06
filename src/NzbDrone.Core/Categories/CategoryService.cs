@@ -5,12 +5,20 @@ using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Categories;
 
 public class CategoryUpdatedEvent : IEvent
 {
     public Category Category { get; set; }
+}
+
+public class CategoryDeletedEvent : IEvent
+{
+    public int CategoryId { get; set; }
+
+    public string CategoryName { get; set; }
 }
 
 public interface ICategoryService
@@ -34,12 +42,17 @@ public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository repository;
     private readonly IEventAggregator eventAggregator;
+    private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger;
 
-    public CategoryService(ICategoryRepository repository, IEventAggregator eventAggregator)
+    public CategoryService(
+        ICategoryRepository repository,
+        IEventAggregator eventAggregator,
+        ITorrentRepository torrentRepository = null)
     {
         this.repository = repository;
         this.eventAggregator = eventAggregator;
+        this.torrentRepository = torrentRepository;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -111,8 +124,31 @@ public class CategoryService : ICategoryService
 
     public void Delete(int id)
     {
-        this.logger.Info("Deleting category id: {0}", id);
+        var cat = this.repository.Get(id);
+        if (cat == null)
+        {
+            return;
+        }
+
+        this.logger.Info("Deleting category id: {0} ({1})", id, cat.Name);
+
+        if (this.torrentRepository != null && !string.IsNullOrWhiteSpace(cat.Name))
+        {
+            var torrents = this.torrentRepository.GetByCategory(cat.Name).ToList();
+            foreach (var torrent in torrents)
+            {
+                torrent.Category = string.Empty;
+                this.torrentRepository.Update(torrent);
+            }
+        }
+
         this.repository.Delete(id);
+
+        this.eventAggregator.PublishEvent(new CategoryDeletedEvent
+        {
+            CategoryId = id,
+            CategoryName = cat.Name,
+        });
     }
 
     public string GetSavePathForCategory(string categoryName, string defaultPath = "")
