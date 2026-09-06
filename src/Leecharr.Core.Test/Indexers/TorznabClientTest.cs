@@ -349,5 +349,76 @@ public class TorznabClientTest
         malformedCaps.Categories.Should().BeEmpty();
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_ParsesRfc822AndRfc2822DatesWithOffsetsCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <title>Torznab Feed</title>
+    <item>
+      <title>Test.Release.2026.1080p</title>
+      <guid>https://indexer.local/details/999</guid>
+      <link>https://indexer.local/download/999.torrent</link>
+      <pubDate>Mon, 06 Sep 2026 18:30:00 +0200</pubDate>
+    </item>
+  </channel>
+</rss>";
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "TrackerTest" };
+        var results = this.client.ParseTorznabFeedXml(xml, indexer);
+
+        results.Should().HaveCount(1);
+        results[0].PublishDate.Should().Be(new DateTime(2026, 9, 6, 16, 30, 0, DateTimeKind.Utc));
+    }
+
+    [Test]
+    public async Task SearchAsync_WithExistingQueryParamsInUrl_MergesParametersWithoutDuplication()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Test</title></channel></rss>"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "CustomTracker",
+            Url = "https://indexer.local/api?t=caps&apikey=oldKey&custom=param",
+            ApiKey = "newKey",
+        };
+
+        await customClient.SearchAsync(indexer, "test movie");
+
+        capturedUri.Should().NotBeNull();
+        capturedUri.Query.Should().Contain("apikey=newKey");
+        capturedUri.Query.Should().NotContain("apikey=oldKey");
+        capturedUri.Query.Should().Contain("custom=param");
+        capturedUri.Query.Should().Contain("t=search");
+    }
+
+    private class TestHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+
+        public TestHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.handler(request));
+        }
+    }
+
     #endregion
 }
