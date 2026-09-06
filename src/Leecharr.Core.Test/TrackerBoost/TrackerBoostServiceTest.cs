@@ -10,6 +10,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.TrackerBoost;
@@ -26,6 +27,8 @@ public class TrackerBoostServiceTest
     private IIndexerRepository indexerRepository = null!;
     private IConfigService configService = null!;
     private IDownloadEngine downloadEngine = null!;
+    private IDownloadClientRepository downloadClientRepository = null!;
+    private List<DownloadClientDefinition> storedDownloadClients = null!;
     private TrackerBoostService service = null!;
 
     private List<TrackerBoostTracker> storedTrackers = null!;
@@ -91,13 +94,18 @@ public class TrackerBoostServiceTest
 
         this.downloadEngine = Substitute.For<IDownloadEngine>();
 
+        this.storedDownloadClients = new List<DownloadClientDefinition>();
+        this.downloadClientRepository = Substitute.For<IDownloadClientRepository>();
+        this.downloadClientRepository.GetEnabled().Returns(_ => this.storedDownloadClients.Where(c => c.Enable).ToList());
+
         this.service = new TrackerBoostService(
             this.trackerRepository,
             this.torrentService,
             this.trackerEntryRepository,
             this.indexerRepository,
             this.configService,
-            this.downloadEngine);
+            this.downloadEngine,
+            this.downloadClientRepository);
     }
 
     [Test]
@@ -461,5 +469,34 @@ public class TrackerBoostServiceTest
 
         var act = () => task.Dispose();
         act.Should().NotThrow();
+    }
+
+    [Test]
+    public void InjectIntoDownloadClients_ReturnsZero_WhenNoClientsConfigured()
+    {
+        var result = this.service.InjectIntoDownloadClients("0123456789abcdef0123456789abcdef01234567", new[] { "udp://tracker.opentrackr.org:1337/announce" });
+        result.Should().Be(0);
+    }
+
+    [Test]
+    public async Task BoostHashAsync_WhenNonLocalAndNoDownloadClients_ReturnsBoostedFalseAndZeroAdded()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var result = await this.service.BoostHashAsync(hash);
+        result.Should().NotBeNull();
+        result.Boosted.Should().BeFalse();
+        result.AddedTrackersCount.Should().Be(0);
+        result.AddedTrackers.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task InjectTrackerToHashAsync_WhenNonLocalAndNoClients_ReturnsBoostedFalseAndZeroAdded()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var result = await this.service.InjectTrackerToHashAsync(hash, "udp://tracker.opentrackr.org:1337/announce");
+        result.Should().NotBeNull();
+        result.Boosted.Should().BeFalse();
+        result.AddedTrackersCount.Should().Be(0);
+        result.AddedTrackers.Should().BeEmpty();
     }
 }
