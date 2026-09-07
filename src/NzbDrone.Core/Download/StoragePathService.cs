@@ -108,17 +108,24 @@ public class StoragePathService : IStoragePathService
             return this.GetFinalPath(category, torrentName);
         }
 
-        return Path.Combine(this.GetIncompleteDirectory(), torrentName);
+        var incompleteDir = this.GetIncompleteDirectory();
+        return string.IsNullOrWhiteSpace(torrentName) ? incompleteDir : Path.Combine(incompleteDir, torrentName);
     }
 
     public string GetFinalPath(string category, string torrentName)
     {
         var completedDir = this.GetCompletedDirectory(category);
-        return Path.Combine(completedDir, torrentName);
+        return string.IsNullOrWhiteSpace(torrentName) ? completedDir : Path.Combine(completedDir, torrentName);
     }
 
     public bool MoveToCompleted(string sourcePath, string category, string torrentName, out string finalDestination)
     {
+        if (string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(torrentName))
+        {
+            finalDestination = null;
+            return false;
+        }
+
         finalDestination = this.GetFinalPath(category, torrentName);
 
         if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase))
@@ -127,14 +134,22 @@ public class StoragePathService : IStoragePathService
             return true;
         }
 
-        var incompleteDir = this.GetIncompleteDirectory();
-        if (!string.IsNullOrWhiteSpace(incompleteDir) &&
-            string.Equals(
-                Path.GetFullPath(sourcePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase))
+        try
         {
-            this.logger.Warn("Source path '{0}' is the incomplete root directory; refusing to move entire directory.", sourcePath);
+            var incompleteDir = this.GetIncompleteDirectory();
+            if (!string.IsNullOrWhiteSpace(incompleteDir) &&
+                string.Equals(
+                    Path.GetFullPath(sourcePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                this.logger.Warn("Source path '{0}' is the incomplete root directory; refusing to move entire directory.", sourcePath);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to normalize or compare sourcePath '{0}' against incomplete directory.", sourcePath);
             return false;
         }
 
