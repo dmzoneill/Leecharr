@@ -571,7 +571,7 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         cachedPath.Should().NotBeNull();
         File.Exists(cachedPath).Should().BeTrue();
         cachedPath.Should().EndWith(".png");
-        cachedPath.Should().NotContain(Path.Combine("MediaCache", "0"));
+        Path.GetFileName(Path.GetDirectoryName(cachedPath)).Should().NotBe("0");
         cachedPath.Should().Contain("MediaCache");
     }
 
