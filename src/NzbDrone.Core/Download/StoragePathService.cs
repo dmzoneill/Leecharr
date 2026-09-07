@@ -127,13 +127,13 @@ public class StoragePathService : IStoragePathService
         }
 
         finalDestination = this.GetFinalPath(category, torrentName);
-
         if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase))
         {
             this.StripIncompleteExtensions(finalDestination);
             return true;
         }
 
+        var completedDir = this.GetCompletedDirectory(category);
         try
         {
             var incompleteDir = this.GetIncompleteDirectory();
@@ -153,24 +153,10 @@ public class StoragePathService : IStoragePathService
             return false;
         }
 
+        var candidateExtensions = this.GetCandidateIncompleteExtensions();
         var actualSource = sourcePath;
         if (!this.diskProvider.FileExists(actualSource) && !this.diskProvider.FolderExists(actualSource))
         {
-            var candidateExtensions = new List<string>();
-            var configuredExt = this.configService.IncompleteExtension;
-            if (!string.IsNullOrWhiteSpace(configuredExt))
-            {
-                candidateExtensions.Add(configuredExt);
-            }
-
-            foreach (var ext in DefaultIncompleteExtensions)
-            {
-                if (!candidateExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateExtensions.Add(ext);
-                }
-            }
-
             foreach (var ext in candidateExtensions)
             {
                 if (this.diskProvider.FileExists(sourcePath + ext))
@@ -184,7 +170,42 @@ public class StoragePathService : IStoragePathService
         if (!this.diskProvider.FileExists(actualSource) && !this.diskProvider.FolderExists(actualSource))
         {
             this.logger.Warn("Source path does not exist for moving: {0}", sourcePath);
+            finalDestination = this.GetFinalPath(category, torrentName);
             return false;
+        }
+
+        if (this.diskProvider.FileExists(actualSource))
+        {
+            var rawFileName = Path.GetFileName(actualSource);
+            var cleanFileName = this.StripIncompleteExtensionFromFileName(rawFileName, candidateExtensions);
+            var sourceExt = Path.GetExtension(cleanFileName);
+
+            string targetFileName;
+            if (string.IsNullOrWhiteSpace(torrentName))
+            {
+                targetFileName = cleanFileName;
+            }
+            else if (!string.IsNullOrWhiteSpace(sourceExt) && !torrentName.EndsWith(sourceExt, StringComparison.OrdinalIgnoreCase))
+            {
+                targetFileName = torrentName + sourceExt;
+            }
+            else
+            {
+                targetFileName = torrentName;
+            }
+
+            finalDestination = Path.Combine(completedDir, targetFileName);
+        }
+        else
+        {
+            finalDestination = Path.Combine(completedDir, torrentName);
+        }
+
+        if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(actualSource, finalDestination, StringComparison.OrdinalIgnoreCase))
+        {
+            this.StripIncompleteExtensions(finalDestination);
+            return true;
         }
 
         try
@@ -228,20 +249,7 @@ public class StoragePathService : IStoragePathService
 
         try
         {
-            var candidateExtensions = new List<string>();
-            var configuredExt = this.configService.IncompleteExtension;
-            if (!string.IsNullOrWhiteSpace(configuredExt))
-            {
-                candidateExtensions.Add(configuredExt);
-            }
-
-            foreach (var ext in DefaultIncompleteExtensions)
-            {
-                if (!candidateExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateExtensions.Add(ext);
-                }
-            }
+            var candidateExtensions = this.GetCandidateIncompleteExtensions();
 
             if (this.diskProvider.FolderExists(targetDirectoryOrFile))
             {
@@ -293,8 +301,41 @@ public class StoragePathService : IStoragePathService
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Error stripping incomplete extensions from '{0}'", targetDirectoryOrFile);
+            this.logger.Warn(ex, "Failed to strip incomplete extension from {0}", targetDirectoryOrFile);
         }
+    }
+
+    private List<string> GetCandidateIncompleteExtensions()
+    {
+        var candidateExtensions = new List<string>();
+        var configuredExt = this.configService.IncompleteExtension;
+        if (!string.IsNullOrWhiteSpace(configuredExt))
+        {
+            candidateExtensions.Add(configuredExt);
+        }
+
+        foreach (var ext in DefaultIncompleteExtensions)
+        {
+            if (!candidateExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                candidateExtensions.Add(ext);
+            }
+        }
+
+        return candidateExtensions;
+    }
+
+    private string StripIncompleteExtensionFromFileName(string fileName, List<string> candidateExtensions)
+    {
+        foreach (var ext in candidateExtensions)
+        {
+            if (fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName[..^ext.Length];
+            }
+        }
+
+        return fileName;
     }
 
     private void MoveFolderWithFallback(string source, string destination)
