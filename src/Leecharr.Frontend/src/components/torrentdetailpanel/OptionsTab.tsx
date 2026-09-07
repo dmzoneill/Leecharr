@@ -206,13 +206,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               </div>
             </div>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                width: "135px",
-                justifyContent: "flex-end",
-              }}
+              className="form-input-with-suffix"
+              style={{ width: "135px" }}
             >
               <input
                 type="number"
@@ -221,19 +216,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 onChange={numChange(setDownloadLimit)}
                 min={0}
                 style={{
-                  width: "85px",
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.78rem",
                   textAlign: "right",
                 }}
               />
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
-                }}
+                className="form-input-suffix"
+                style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
                 KB/s
               </span>
@@ -258,13 +248,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               </div>
             </div>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                width: "135px",
-                justifyContent: "flex-end",
-              }}
+              className="form-input-with-suffix"
+              style={{ width: "135px" }}
             >
               <input
                 type="number"
@@ -273,19 +258,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 onChange={numChange(setUploadLimit)}
                 min={0}
                 style={{
-                  width: "85px",
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.78rem",
                   textAlign: "right",
                 }}
               />
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
-                }}
+                className="form-input-suffix"
+                style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
                 KB/s
               </span>
@@ -598,13 +578,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               {t("torrents.detail.announceInterval")}
             </label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                width: "135px",
-                justifyContent: "flex-end",
-              }}
+              className="form-input-with-suffix"
+              style={{ width: "135px" }}
             >
               <input
                 type="number"
@@ -613,19 +588,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 onChange={numChange(setAnnounceInterval)}
                 min={0}
                 style={{
-                  width: "85px",
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.78rem",
                   textAlign: "right",
                 }}
               />
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
-                }}
+                className="form-input-suffix"
+                style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
                 sec
               </span>
@@ -642,39 +612,28 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <label
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
-              {t("torrents.detail.nextUpdateIn", { seconds: nextUpdate })}
+              {t("torrents.detail.nextUpdate", "Next Update")}
             </label>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
                 width: "135px",
+                display: "flex",
                 justifyContent: "flex-end",
               }}
             >
-              <input
-                type="number"
-                className="form-input"
-                value={nextUpdate}
-                onChange={numChange(setNextUpdate)}
-                min={0}
-                style={{
-                  width: "85px",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.78rem",
-                  textAlign: "right",
-                }}
-              />
               <span
                 style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
+                  fontSize: "0.78rem",
+                  color: "var(--text-primary)",
+                  backgroundColor: "var(--bg-primary, #10111a)",
+                  padding: "0.25rem 0.6rem",
+                  borderRadius: "4px",
+                  border:
+                    "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                  fontFamily: "monospace",
                 }}
               >
-                sec
+                {nextUpdate > 0 ? `${nextUpdate}s` : "0s"}
               </span>
             </div>
           </div>
@@ -692,13 +651,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               {t("torrents.detail.availabilityThreshold")}
             </label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                width: "135px",
-                justifyContent: "flex-end",
-              }}
+              className="form-input-with-suffix"
+              style={{ width: "135px" }}
             >
               <input
                 type="number"
@@ -707,21 +661,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 onChange={numChange(setThreshold)}
                 min={0}
                 style={{
-                  width: "85px",
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.78rem",
                   textAlign: "right",
                 }}
               />
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
-                }}
+                className="form-input-suffix"
+                style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
-                {t("components.copies", "copies")}
+                {threshold === 1
+                  ? "copy"
+                  : t("components.copies", "copies")}
               </span>
             </div>
           </div>
@@ -739,13 +690,8 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               {t("torrents.detail.smallTorrentLimit")}
             </label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                width: "135px",
-                justifyContent: "flex-end",
-              }}
+              className="form-input-with-suffix"
+              style={{ width: "135px" }}
             >
               <input
                 type="number"
@@ -754,19 +700,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 onChange={numChange(setSmallTorrentLimit)}
                 min={0}
                 style={{
-                  width: "85px",
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.78rem",
                   textAlign: "right",
                 }}
               />
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  width: "36px",
-                  textAlign: "left",
-                }}
+                className="form-input-suffix"
+                style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
                 MB
               </span>
