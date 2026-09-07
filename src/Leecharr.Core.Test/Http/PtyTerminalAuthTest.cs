@@ -142,4 +142,20 @@ public class PtyTerminalAuthTest
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Test]
+    public async Task HandleWebSocket_WhenTerminalAccessDisabled_RejectsWith403Forbidden()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+        this.configFileProvider.TerminalAccessEnabled.Returns(false);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
 }

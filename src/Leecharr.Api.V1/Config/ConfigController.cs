@@ -73,6 +73,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["SslKeyPath"] = resource.SslKeyPath ?? string.Empty,
             ["SslCertPassword"] = resource.SslCertPassword ?? string.Empty,
             ["RedirectHttpToHttps"] = resource.RedirectHttpToHttps,
+            ["TerminalAccessEnabled"] = resource.TerminalAccessEnabled,
         };
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
