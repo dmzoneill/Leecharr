@@ -303,7 +303,7 @@ public class HadoukenRpcController : ControllerBase
 
                             if (opts.TryGetProperty("paused", out var pProp))
                             {
-                                isPaused = pProp.GetBoolean();
+                                isPaused = SafeGetBoolean(pProp);
                             }
                         }
 
@@ -419,14 +419,14 @@ public class HadoukenRpcController : ControllerBase
                     return this.Ok(new { result = "5.3.0", error = (object)null, id });
 
                 case "torrents.adduri":
-                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 1)
                     {
                         var uri = request.Params[0].GetString();
+                        var isPaused = false;
                         string savePath = null;
                         string category = null;
-                        var isPaused = false;
 
-                        if (request.Params.GetArrayLength() > 1 && request.Params[1].ValueKind == JsonValueKind.Object)
+                        if (request.Params.GetArrayLength() >= 2 && request.Params[1].ValueKind == JsonValueKind.Object)
                         {
                             var opts = request.Params[1];
                             if (opts.TryGetProperty("save_path", out var spProp))
@@ -441,7 +441,7 @@ public class HadoukenRpcController : ControllerBase
 
                             if (opts.TryGetProperty("paused", out var pProp))
                             {
-                                isPaused = pProp.GetBoolean();
+                                isPaused = SafeGetBoolean(pProp);
                             }
                         }
 
@@ -493,13 +493,13 @@ public class HadoukenRpcController : ControllerBase
                         if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 1)
                         {
                             var p1 = request.Params[1];
-                            if (p1.ValueKind == JsonValueKind.True)
+                            if (p1.ValueKind == JsonValueKind.Object && p1.TryGetProperty("delete_data", out var ddProp))
                             {
-                                deleteData = true;
+                                deleteData = SafeGetBoolean(ddProp);
                             }
-                            else if (p1.ValueKind == JsonValueKind.Object && p1.TryGetProperty("delete_data", out var ddProp) && ddProp.ValueKind == JsonValueKind.True)
+                            else
                             {
-                                deleteData = true;
+                                deleteData = SafeGetBoolean(p1);
                             }
                         }
 
@@ -563,5 +563,17 @@ public class HadoukenRpcController : ControllerBase
         }
 
         return string.Empty;
+    }
+
+    private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => element.TryGetInt64(out var n) ? n != 0 : (element.TryGetDouble(out var d) && Math.Abs(d) > double.Epsilon),
+            JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (element.GetString() == "1"),
+            _ => defaultValue,
+        };
     }
 }

@@ -90,4 +90,69 @@ public class HadoukenRpcControllerTest
         // Before enrichment progress was 0.0, enricher sets it to torrent.Progress (0.5)
         files[0].Progress.Should().Be(0.5);
     }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_TorrentsAddUri_WithVariousBooleanFormatsForPaused_DoesNotThrowAndParsesCorrectly(string pausedJson, bool expectedPaused)
+    {
+        var magnetUri = "magnet:?xt=urn:btih:1234567890123456789012345678901234567890&dn=Test";
+        var added = new Torrent
+        {
+            Id = 1,
+            InfoHash = "1234567890123456789012345678901234567890",
+            Name = "Test",
+        };
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, expectedPaused).Returns(added);
+
+        var requestJson = $"{{\"method\":\"torrents.adduri\",\"params\":[\"{magnetUri}\",{{\"paused\":{pausedJson}}}],\"id\":1}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "torrents.adduri",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 1,
+        };
+
+        var actionResult = await this.controller.HandleRpc(request);
+        actionResult.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnetUri, null, null, expectedPaused);
+    }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_TorrentsDelete_WithVariousBooleanFormatsForDeleteData_DoesNotThrowAndParsesCorrectly(string deleteDataJson, bool expectedDelete)
+    {
+        var infoHash = "1234567890123456789012345678901234567890";
+        var torrent = new Torrent { Id = 7, InfoHash = infoHash };
+        this.torrentService.GetByInfoHash(infoHash).Returns(torrent);
+
+        var requestJson = $"{{\"method\":\"torrents.delete\",\"params\":[\"{infoHash}\",{deleteDataJson}],\"id\":1}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "torrents.delete",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 1,
+        };
+
+        var actionResult = await this.controller.HandleRpc(request);
+        actionResult.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentService.Received(1).DeleteAsync(7, expectedDelete);
+    }
 }

@@ -1408,4 +1408,98 @@ public class TransmissionRpcControllerTest
             await this.torrentService.MoveQueueAsync(10, "down");
         });
     }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_TorrentAdd_WithVariousBooleanFormatsForPaused_DoesNotThrowAndParsesCorrectly(string pausedJson, bool expectedPaused)
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Test.Torrent",
+            InfoHash = "1234567890123456789012345678901234567890",
+            TotalSize = 1024,
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null);
+        var added = new Torrent
+        {
+            Id = 1,
+            Name = parsed.Name,
+            InfoHash = parsed.InfoHash,
+            Status = expectedPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
+        };
+        this.torrentService.AddFromParsedTorrentAsync(parsed, Arg.Any<string>(), Arg.Any<string>(), expectedPaused, Arg.Any<byte[]>()).Returns(added);
+
+        var args = new Dictionary<string, JsonElement>();
+        var fakeB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("d8:announce3:url4:infod6:lengthi1024eee"));
+        using var metaDoc = JsonDocument.Parse($"\"{fakeB64}\"");
+        using var pausedDoc = JsonDocument.Parse(pausedJson);
+        args["metainfo"] = metaDoc.RootElement.Clone();
+        args["paused"] = pausedDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, Arg.Any<string>(), Arg.Any<string>(), expectedPaused, Arg.Any<byte[]>());
+    }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_TorrentRemove_WithVariousBooleanFormatsForDeleteLocalData_DoesNotThrowAndParsesCorrectly(string deleteDataJson, bool expectedDelete)
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var delDoc = JsonDocument.Parse(deleteDataJson);
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["delete-local-data"] = delDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-remove",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        await this.torrentService.Received(1).DeleteAsync(1, expectedDelete);
+    }
 }
