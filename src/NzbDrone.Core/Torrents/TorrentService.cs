@@ -193,7 +193,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     Size = file.Size,
                     PieceOffset = startPiece,
                     PieceCount = pieceCount,
-                    Priority = 1,
+                    Priority = 3,
                     Progress = 0.0,
                 };
                 torrentFiles.Add(torrentFile);
