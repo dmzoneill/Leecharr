@@ -16,6 +16,7 @@ public sealed class FallbackProcessSession : ITerminalSession
     private readonly Stream inputStream;
     private readonly Channel<byte[]> outputChannel;
     private readonly CancellationTokenSource sessionCts = new();
+    private int activePumps = 2;
     private byte[] pendingChunk;
     private int pendingOffset;
     private int disposed;
@@ -74,7 +75,7 @@ public sealed class FallbackProcessSession : ITerminalSession
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
-        if (this.disposed != 0 || this.process.HasExited)
+        if (this.disposed != 0)
         {
             return 0;
         }
@@ -140,7 +141,6 @@ public sealed class FallbackProcessSession : ITerminalSession
         try
         {
             this.sessionCts.Cancel();
-            this.sessionCts.Dispose();
             this.outputChannel.Writer.TryComplete();
 
             if (!this.process.HasExited)
@@ -183,6 +183,13 @@ public sealed class FallbackProcessSession : ITerminalSession
         catch
         {
             // Stream closed or cancelled
+        }
+        finally
+        {
+            if (Interlocked.Decrement(ref this.activePumps) == 0)
+            {
+                this.outputChannel.Writer.TryComplete();
+            }
         }
     }
 }
