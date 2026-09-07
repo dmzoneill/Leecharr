@@ -708,7 +708,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (parsedTorrent != null)
         {
-            this.PreallocateFiles(manager, workingPath, parsedTorrent);
+            await this.PreallocateFilesAsync(manager, workingPath, parsedTorrent).ConfigureAwait(false);
         }
 
         if (this.isHaltedByKillSwitch)
@@ -1369,7 +1369,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 if (manager.Torrent != null && (e.OldState == TorrentState.Metadata || e.NewState == TorrentState.Downloading || e.NewState == TorrentState.Starting))
                 {
-                    this.PreallocateFiles(manager, manager.SavePath, manager.Torrent);
+                    await this.PreallocateFilesAsync(manager, manager.SavePath, manager.Torrent).ConfigureAwait(false);
                 }
 
                 if (e.NewState == TorrentState.Seeding)
@@ -2155,7 +2155,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private void PreallocateFiles(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
+    private async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
     {
         var mode = this.configService.PreallocationMode?.Trim();
         if (string.IsNullOrEmpty(mode) || string.Equals(mode, "Off", StringComparison.OrdinalIgnoreCase))
@@ -2196,6 +2196,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             ? Path.Combine(workingPath, torrentName, file.Path)
                             : Path.Combine(workingPath, file.Path));
                     this.PreallocateSingleFile(fullPath, file.Length, isFull);
+                }
+            }
+
+            if (manager != null && !manager.HashChecked && manager.InfoHashes != null)
+            {
+                var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
+                if (pieceCount > 0)
+                {
+                    var emptyBitfield = new ReadOnlyBitField(pieceCount);
+                    var unhashed = new ReadOnlyBitField(pieceCount);
+                    var fastResume = new FastResume(manager.InfoHashes, emptyBitfield, unhashed);
+                    await manager.LoadFastResumeAsync(fastResume).ConfigureAwait(false);
+                    this.logger.Debug("Initialized empty FastResume for preallocated torrent {0} to skip initial hash check", manager.InfoHashes.V1OrV2?.ToHex());
                 }
             }
         }
