@@ -104,4 +104,82 @@ public class MonoTorrentDownloadEngineTelemetryTest
         metrics.Status.Should().Be("Stopped");
         metrics.Progress.Should().Be(0.0);
     }
+
+    [Test]
+    public void TryExtractDiskManagerMetrics_WhenDiskManagerHasCacheMisses_ExtractsCorrectValues()
+    {
+        var method = typeof(MonoTorrentDownloadEngine).GetMethod("TryExtractDiskManagerMetrics", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var mockDisk = new
+        {
+            CacheHits = 75L,
+            CacheMisses = 25L,
+            CacheUsed = 1048576L,
+            PendingWriteBytes = 32768,
+            PendingReadBytes = 16384,
+            TotalBytesRead = 204800L,
+            TotalBytesWritten = 409600L,
+            ReadRate = 1024L,
+            WriteRate = 2048L,
+        };
+
+        var mockEngine = new
+        {
+            DiskManager = mockDisk,
+        };
+
+        var parameters = new object[] { mockEngine, 0L, 0L, 0L, 0, 0, 0L, 0L, 0L, 0L };
+        method!.Invoke(null, parameters);
+
+        var cacheHits = (long)parameters[1];
+        var cacheMisses = (long)parameters[2];
+        var cacheUsed = (long)parameters[3];
+        var pendingWrites = (int)parameters[4];
+        var pendingReads = (int)parameters[5];
+
+        cacheHits.Should().Be(75L);
+        cacheMisses.Should().Be(25L);
+        cacheUsed.Should().Be(1048576L);
+        pendingWrites.Should().Be(2);
+        pendingReads.Should().Be(1);
+
+        var totalCacheAccesses = cacheHits + cacheMisses;
+        var hitRatio = totalCacheAccesses > 0 ? Math.Round(((double)cacheHits / totalCacheAccesses) * 100.0, 1) : 100.0;
+        hitRatio.Should().Be(75.0);
+    }
+
+    [Test]
+    public void TryExtractDiskManagerMetrics_WhenDiskManagerHasCacheMissFallback_ExtractsCorrectValues()
+    {
+        var method = typeof(MonoTorrentDownloadEngine).GetMethod("TryExtractDiskManagerMetrics", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var mockDisk = new
+        {
+            CacheHits = 80L,
+            CacheMiss = 20L,
+            CacheBytesUsed = 524288L,
+        };
+
+        var mockEngine = new
+        {
+            DiskManager = mockDisk,
+        };
+
+        var parameters = new object[] { mockEngine, 0L, 0L, 0L, 0, 0, 0L, 0L, 0L, 0L };
+        method!.Invoke(null, parameters);
+
+        var cacheHits = (long)parameters[1];
+        var cacheMisses = (long)parameters[2];
+        var cacheUsed = (long)parameters[3];
+
+        cacheHits.Should().Be(80L);
+        cacheMisses.Should().Be(20L);
+        cacheUsed.Should().Be(524288L);
+
+        var totalCacheAccesses = cacheHits + cacheMisses;
+        var hitRatio = totalCacheAccesses > 0 ? Math.Round(((double)cacheHits / totalCacheAccesses) * 100.0, 1) : 100.0;
+        hitRatio.Should().Be(80.0);
+    }
 }
