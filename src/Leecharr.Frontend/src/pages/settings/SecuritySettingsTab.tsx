@@ -81,7 +81,10 @@ const PROVIDER_TEMPLATES: Record<
     providerId: "enterprise-saml",
     name: "Enterprise SAML 2.0",
     providerType: 1, // SAML
+    issuerUrl: "https://idp.example.com/sso/saml",
     metadataUrl: "https://idp.example.com/metadata.xml",
+    certificate:
+      "-----BEGIN CERTIFICATE-----\nMIICXjCCAcegAwIBAgIJAP9...\n-----END CERTIFICATE-----",
     buttonText: "Single Sign-On (SAML)",
   },
 };
@@ -819,17 +822,21 @@ export function SecuritySettingsTab() {
                 }
               />
 
+              <TextInput
+                label={t("settingsTabs.batch2.issuerUrlAuthority")}
+                value={editingProvider.issuerUrl || ""}
+                onChange={(v) =>
+                  setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))
+                }
+                hint={
+                  editingProvider.providerType === 1
+                    ? "Identity Provider Single Sign-On Service URL (e.g. https://idp.example.com/sso/saml)"
+                    : t("settingsTabs.batch2.baseUrlOfIdp")
+                }
+              />
+
               {editingProvider.providerType !== 1 && (
                 <>
-                  <TextInput
-                    label={t("settingsTabs.batch2.issuerUrlAuthority")}
-                    value={editingProvider.issuerUrl || ""}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))
-                    }
-                    hint={t("settingsTabs.batch2.baseUrlOfIdp")}
-                  />
-
                   <TextInput
                     label={t("settingsTabs.batch2.clientId")}
                     value={editingProvider.clientId || ""}
@@ -891,14 +898,31 @@ export function SecuritySettingsTab() {
               )}
 
               {editingProvider.providerType === 1 && (
-                <TextInput
-                  label={t("settings.idPMetadataURLXMLEndpoin")}
-                  value={editingProvider.metadataUrl || ""}
-                  onChange={(v) =>
-                    setEditingProvider((prev) => ({ ...prev, metadataUrl: v }))
-                  }
-                  hint={t("settingsTabs.security.metadataUrlHint")}
-                />
+                <>
+                  <TextInput
+                    label="X.509 Public Signing Certificate (PEM / Base64)"
+                    value={editingProvider.certificate || ""}
+                    onChange={(v) =>
+                      setEditingProvider((prev) => ({
+                        ...prev,
+                        certificate: v,
+                      }))
+                    }
+                    hint="IdP public certificate used to verify SAML response digital signatures"
+                  />
+
+                  <TextInput
+                    label={t("settings.idPMetadataURLXMLEndpoin")}
+                    value={editingProvider.metadataUrl || ""}
+                    onChange={(v) =>
+                      setEditingProvider((prev) => ({
+                        ...prev,
+                        metadataUrl: v,
+                      }))
+                    }
+                    hint={t("settingsTabs.security.metadataUrlHint")}
+                  />
+                </>
               )}
 
               <TextInput
