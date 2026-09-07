@@ -1181,7 +1181,6 @@ public class TransmissionRpcControllerTest
         torrents!.Count.Should().Be(1);
         torrents[0]["downloadDir"].Should().Be("/downloads");
     }
-<<<<<<< HEAD
 
     [Test]
     public async Task HandleRpc_SessionStats_ReturnsActivePausedSpeedAndNestedCumulativeAndCurrentStats()
