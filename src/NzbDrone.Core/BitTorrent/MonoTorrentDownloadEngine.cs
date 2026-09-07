@@ -1677,7 +1677,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     }
 
     private static void TryExtractDiskManagerMetrics(
-        ClientEngine clientEngine,
+        object clientEngine,
         out long cacheHits,
         out long cacheMisses,
         out long cacheUsed,
@@ -1708,6 +1708,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     var diskType = disk.GetType();
                     cacheHits = Convert.ToInt64(diskType.GetProperty("CacheHits")?.GetValue(disk) ?? 0);
+                    cacheMisses = Convert.ToInt64(diskType.GetProperty("CacheMisses")?.GetValue(disk) ?? diskType.GetProperty("CacheMiss")?.GetValue(disk) ?? 0);
                     cacheUsed = Convert.ToInt64(diskType.GetProperty("CacheUsed")?.GetValue(disk) ?? diskType.GetProperty("CacheBytesUsed")?.GetValue(disk) ?? 0);
                     pendingWrites = Convert.ToInt32(diskType.GetProperty("PendingWriteBytes")?.GetValue(disk) ?? 0) / 16384;
                     pendingReads = Convert.ToInt32(diskType.GetProperty("PendingReadBytes")?.GetValue(disk) ?? 0) / 16384;
