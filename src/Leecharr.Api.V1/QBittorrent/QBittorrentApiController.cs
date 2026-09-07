@@ -411,6 +411,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var result = torrents.Select(t =>
         {
             var state = MapToQBitState(t.Status, t.Progress);
+            var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
             return new Dictionary<string, object>
             {
                 ["hash"] = t.InfoHash,
@@ -431,8 +432,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["seq_dl"] = t.SequentialDownload,
                 ["category"] = t.Category ?? string.Empty,
                 ["tags"] = t.Label ?? string.Empty,
-                ["save_path"] = t.SavePath ?? string.Empty,
-                ["content_path"] = Path.Combine(t.SavePath ?? string.Empty, t.Name ?? string.Empty),
+                ["save_path"] = resolvedSavePath,
+                ["content_path"] = resolvedContentPath,
                 ["added_on"] = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds(),
                 ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : -1,
                 ["amount_left"] = (long)(t.TotalSize * (1.0 - t.Progress)),
@@ -1104,9 +1105,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var addedDate = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
         var completionDate = torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
 
+        var (resolvedSavePath, _) = ResolvePaths(torrent);
         return this.Ok(new Dictionary<string, object>
         {
-            ["save_path"] = torrent.SavePath ?? string.Empty,
+            ["save_path"] = resolvedSavePath,
             ["creation_date"] = addedDate,
             ["addition_date"] = addedDate,
             ["completion_date"] = completionDate,
@@ -1467,6 +1469,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 {
                     currentHashes.Add(t.InfoHash);
                     var state = MapToQBitState(t.Status, t.Progress);
+                    var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
                     var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
                     var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
                     var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
@@ -1480,7 +1483,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         state,
                         t.Category ?? string.Empty,
                         t.Label ?? string.Empty,
-                        t.SavePath ?? string.Empty,
+                        resolvedSavePath,
+                        resolvedContentPath,
                         t.Eta > 0 ? t.Eta : 8640000,
                         t.Ratio,
                         t.Seeders,
@@ -1505,6 +1509,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         category = snapshot.Category,
                         tags = snapshot.Tags,
                         save_path = snapshot.SavePath,
+                        content_path = snapshot.ContentPath,
                         eta = snapshot.Eta,
                         ratio = snapshot.Ratio,
                         num_seeds = snapshot.NumSeeds,
@@ -1539,6 +1544,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 currentHashes.Add(t.InfoHash);
                 var state = MapToQBitState(t.Status, t.Progress);
+                var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
                 var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
                 var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
                 var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
@@ -1552,7 +1558,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     state,
                     t.Category ?? string.Empty,
                     t.Label ?? string.Empty,
-                    t.SavePath ?? string.Empty,
+                    resolvedSavePath,
+                    resolvedContentPath,
                     t.Eta > 0 ? t.Eta : 8640000,
                     t.Ratio,
                     t.Seeders,
@@ -1578,6 +1585,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         category = snapshot.Category,
                         tags = snapshot.Tags,
                         save_path = snapshot.SavePath,
+                        content_path = snapshot.ContentPath,
                         eta = snapshot.Eta,
                         ratio = snapshot.Ratio,
                         num_seeds = snapshot.NumSeeds,
@@ -2050,6 +2058,32 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return result;
     }
 
+    private static (string SavePath, string ContentPath) ResolvePaths(Torrent t)
+    {
+        var rawSavePath = t?.SavePath ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(rawSavePath))
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        if (string.IsNullOrWhiteSpace(t.Name))
+        {
+            return (rawSavePath, rawSavePath);
+        }
+
+        var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var dirName = Path.GetFileName(trimmedSave);
+
+        if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var parent = Path.GetDirectoryName(trimmedSave);
+            var savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            return (savePath, trimmedSave);
+        }
+
+        return (trimmedSave, Path.Combine(trimmedSave, t.Name));
+    }
+
     private static string MapToQBitState(TorrentStatus status, double progress)
     {
         return status switch
@@ -2078,6 +2112,7 @@ public record QBitTorrentSnapshot(
     string Category,
     string Tags,
     string SavePath,
+    string ContentPath,
     long Eta,
     double Ratio,
     int NumSeeds,
