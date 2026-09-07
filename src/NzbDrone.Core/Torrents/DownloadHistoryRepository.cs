@@ -20,9 +20,14 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
     public DownloadHistory FindByInfoHash(string infoHash)
     {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return null;
+        }
+
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash) ORDER BY \"Id\" DESC",
             new { InfoHash = infoHash });
     }
 
