@@ -32,6 +32,7 @@ public class TorrentControllerTest
     private IDownloadEngine downloadEngine = null!;
     private IGeoIpService geoIpService = null!;
     private ITorrentCreationService torrentCreationService = null!;
+    private ITorrentLogService torrentLogService = null!;
     private TorrentController controller = null!;
 
     [SetUp]
@@ -46,6 +47,7 @@ public class TorrentControllerTest
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.geoIpService = Substitute.For<IGeoIpService>();
         this.torrentCreationService = Substitute.For<ITorrentCreationService>();
+        this.torrentLogService = Substitute.For<ITorrentLogService>();
 
         this.controller = new TorrentController(
             this.torrentService,
@@ -56,7 +58,8 @@ public class TorrentControllerTest
             this.signalRBroadcaster,
             geoIpService: this.geoIpService,
             downloadEngine: this.downloadEngine,
-            torrentCreationService: this.torrentCreationService);
+            torrentCreationService: this.torrentCreationService,
+            torrentLogService: this.torrentLogService);
     }
 
     [Test]
@@ -726,5 +729,68 @@ public class TorrentControllerTest
         var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
         resource.Id.Should().Be(57);
         resource.Status.Should().Be("downloading");
+    }
+
+    [Test]
+    public void GetLogs_WhenTorrentExists_ReturnsLogsFromTorrentLogService()
+    {
+        var torrent = new Torrent
+        {
+            Id = 88,
+            Name = "Test Logs Torrent",
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+        };
+
+        this.torrentService.Get(88).Returns(torrent);
+        this.torrentLogService.GetLogs(88, 100).Returns(new List<TorrentEventLog>
+        {
+            new TorrentEventLog
+            {
+                Id = 1,
+                TorrentId = 88,
+                Level = "Info",
+                Source = "Tracker",
+                Message = "Announced to tracker successfully",
+                Timestamp = DateTime.UtcNow,
+            },
+        });
+
+        var response = this.controller.GetLogs(88);
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<TorrentEventLogResource>>().Subject;
+        list.Should().HaveCount(1);
+        list[0].TorrentId.Should().Be(88);
+        list[0].Source.Should().Be("Tracker");
+        list[0].Message.Should().Be("Announced to tracker successfully");
+    }
+
+    [Test]
+    public void GetLogs_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(999).Returns((Torrent)null);
+
+        var response = this.controller.GetLogs(999);
+
+        response.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task AnnounceTracker_WhenCalled_DispatchesToTorrentServiceAndLogsEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "Announce Torrent",
+            InfoHash = "aabbccdd",
+        };
+
+        this.torrentService.Get(99).Returns(torrent);
+
+        var response = await this.controller.AnnounceTracker(99, 1);
+
+        response.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).ForceAnnounceAsync(99);
+        this.torrentLogService.Received(1).Log(99, "Info", "Tracker", Arg.Is<string>(s => s.Contains("Manual tracker update requested")));
     }
 }
