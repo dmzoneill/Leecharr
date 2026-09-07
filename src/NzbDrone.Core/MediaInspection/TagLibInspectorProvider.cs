@@ -2099,6 +2099,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             _ => (null, 0),
         };
     }
+
     private static MediaContainerInfo InspectMp3(byte[] header, string fileName)
     {
         var info = new MediaContainerInfo
