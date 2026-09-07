@@ -941,6 +941,14 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             bg = "rgba(56, 189, 248, 0.15)";
           }
 
+          const statusLabel =
+            st === "checking"
+              ? `${t("torrentStatus.checking", "Checking")} (${((tTorrent.progress || 0) * 100).toFixed(1)}%)`
+              : t(
+                  "torrentStatus." + (tTorrent.status || "idle").toLowerCase(),
+                  tTorrent.status || "Idle",
+                );
+
           return (
             <span
               className="badge"
@@ -953,16 +961,14 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 textTransform: "capitalize",
               }}
             >
-              {t(
-                "torrentStatus." + (tTorrent.status || "idle").toLowerCase(),
-                tTorrent.status || "Idle",
-              )}
+              {statusLabel}
             </span>
           );
         }
 
         case "progress": {
-          const pct = Math.floor((tTorrent.progress || 0) * 100);
+          const rawPct = Math.min(100, Math.max(0, (tTorrent.progress || 0) * 100));
+          const isChecking = (tTorrent.status || "").toLowerCase() === "checking";
           return (
             <div
               style={{
@@ -983,10 +989,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               >
                 <div
                   style={{
-                    width: `${pct}%`,
+                    width: `${rawPct}%`,
                     height: "100%",
-                    backgroundColor:
-                      pct >= 100
+                    backgroundColor: isChecking
+                      ? "var(--info, #38bdf8)"
+                      : rawPct >= 100
                         ? "var(--success, #22c55e)"
                         : "var(--accent, #ffd166)",
                     transition: "width 0.3s",
@@ -997,11 +1004,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 style={{
                   fontSize: "0.75rem",
                   fontWeight: 600,
-                  width: 34,
+                  width: 44,
                   textAlign: "right",
+                  color: isChecking ? "var(--info, #38bdf8)" : undefined,
                 }}
               >
-                {pct}%
+                {rawPct.toFixed(1)}%
               </span>
             </div>
           );

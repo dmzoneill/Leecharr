@@ -1387,6 +1387,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     await this.PreallocateFilesAsync(manager, manager.SavePath, manager.Torrent).ConfigureAwait(false);
                 }
 
+                if (e.NewState == TorrentState.Hashing)
+                {
+                    this.torrentLogService?.Log(torrentId, "Info", "Storage", "Data integrity hash check in progress...");
+                }
+                else if (e.OldState == TorrentState.Hashing)
+                {
+                    this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
+                }
+
                 if (e.NewState == TorrentState.Seeding)
                 {
                     await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
@@ -2673,7 +2682,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public long UploadedBytes => this.Manager?.Monitor?.DataBytesSent ?? 0;
 
-    public double Progress => this.Manager != null ? this.Manager.Progress / 100.0 : 0.0;
+    public double Progress => this.Manager != null
+        ? (this.Manager.State == TorrentState.Hashing
+            ? Math.Max(0.0, Math.Min(1.0, this.Manager.PartialProgress / 100.0))
+            : Math.Max(0.0, Math.Min(1.0, this.Manager.Progress / 100.0)))
+        : 0.0;
 
     public long DownloadSpeed => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Monitor?.DownloadRate ?? 0);
 

@@ -178,60 +178,77 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
       </div>
 
       {/* Progress Bar */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.25rem",
-          padding: "0.5rem 0.8rem",
-          backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
-          borderRadius: "6px",
-          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "0.75rem",
-          }}
-        >
-          <span>
-            <strong>{percent.toFixed(1)}%</strong> (
-            {formatBytes(torrent.downloaded || 0)} of{" "}
-            {formatBytes(torrent.totalSize || 0)})
-          </span>
-          <span style={{ color: "var(--text-muted)" }}>
-            {t("torrents.detail.remaining", {
-              remaining: formatBytes(
-                Math.max(
-                  0,
-                  (torrent.totalSize || 0) - (torrent.downloaded || 0),
-                ),
-              ),
-            })}
-          </span>
-        </div>
-        <div
-          style={{
-            height: "8px",
-            backgroundColor: "rgba(255, 255, 255, 0.08)",
-            borderRadius: "4px",
-            overflow: "hidden",
-          }}
-        >
+      {(() => {
+        const isChecking = (torrent.status || "").toLowerCase() === "checking";
+        return (
           <div
             style={{
-              width: `${percent}%`,
-              height: "100%",
-              background: isComplete
-                ? "linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)"
-                : "linear-gradient(90deg, #c8a84e 0%, #ffd166 100%)",
-              transition: "width 0.3s ease",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.25rem",
+              padding: "0.5rem 0.8rem",
+              backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
+              borderRadius: "6px",
+              border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
             }}
-          />
-        </div>
-      </div>
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "0.75rem",
+              }}
+            >
+              <span>
+                <strong>{percent.toFixed(1)}%</strong>{" "}
+                {isChecking ? (
+                  <span style={{ color: "var(--info, #38bdf8)" }}>
+                    ({t("torrentStatus.checking", "Checking data integrity")}...)
+                  </span>
+                ) : (
+                  <>
+                    ({formatBytes(torrent.downloaded || 0)} of{" "}
+                    {formatBytes(torrent.totalSize || 0)})
+                  </>
+                )}
+              </span>
+              <span style={{ color: isChecking ? "var(--info, #38bdf8)" : "var(--text-muted)", fontWeight: isChecking ? 600 : 400 }}>
+                {isChecking
+                  ? `${percent.toFixed(1)}% verified`
+                  : t("torrents.detail.remaining", {
+                      remaining: formatBytes(
+                        Math.max(
+                          0,
+                          (torrent.totalSize || 0) - (torrent.downloaded || 0),
+                        ),
+                      ),
+                    })}
+              </span>
+            </div>
+            <div
+              style={{
+                height: "8px",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                borderRadius: "4px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${percent}%`,
+                  height: "100%",
+                  background: isChecking
+                    ? "linear-gradient(90deg, #0284c7 0%, #38bdf8 100%)"
+                    : isComplete
+                      ? "linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)"
+                      : "linear-gradient(90deg, #c8a84e 0%, #ffd166 100%)",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 3 Detail Cards */}
       <div
