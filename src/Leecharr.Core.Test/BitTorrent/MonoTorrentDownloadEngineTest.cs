@@ -484,6 +484,32 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task GetResourceMetrics_WhenSeedingTorrentWithZeroSessionDownloadedBytes_CalculatesRatioFromTorrentSize()
+    {
+        var customSavePath = Path.Combine(Path.GetTempPath(), "leecharr_metrics_" + Guid.NewGuid().ToString("N"));
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("metrics_test.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 88,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "metrics_test.bin",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            SavePath = customSavePath,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        var metrics = task.GetResourceMetrics();
+        metrics.Should().NotBeNull();
+        metrics.TotalBytes.Should().Be(16384);
+        metrics.Ratio.Should().Be(0.0);
+    }
+
+    [Test]
     public async Task AddTorrentAsync_WhenEnableIncompleteDirIsFalse_UsesCompletedDirDirectly()
     {
         this.configService.EnableIncompleteDir.Returns(false);

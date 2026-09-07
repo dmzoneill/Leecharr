@@ -271,15 +271,18 @@ public class AppLifetime : IHostedService, IDisposable
                             var dlBytes = task.DownloadedBytes;
                             var ulBytes = task.UploadedBytes;
                             var progress = task.Progress;
-                            var ratio = dlBytes > 0 ? Math.Round((double)ulBytes / dlBytes, 2) : 0.0;
+                            var totalBytes = task.TotalBytes > 0
+                                ? task.TotalBytes
+                                : (task.TotalSize > 0 ? task.TotalSize : 0);
+                            var effectiveDownloaded = totalBytes > 0 && progress > 0 ? (long)(totalBytes * progress) : 0;
+                            var divisor = effectiveDownloaded > 0
+                                ? Math.Max(dlBytes, effectiveDownloaded)
+                                : (dlBytes > 0 ? dlBytes : totalBytes);
+                            var ratio = divisor > 0 ? Math.Round((double)ulBytes / divisor, 2) : 0.0;
 
                             long eta = 0;
                             if (!isInactive && task.Status == TorrentStatus.Downloading && dlSpeed > 0 && progress < 1.0)
                             {
-                                var totalBytes = task.TotalBytes > 0
-                                    ? task.TotalBytes
-                                    : (task.TotalSize > 0 ? task.TotalSize : 0);
-
                                 if (totalBytes > 0)
                                 {
                                     var remainingBytes = Math.Max(0, totalBytes - (long)(totalBytes * progress));
