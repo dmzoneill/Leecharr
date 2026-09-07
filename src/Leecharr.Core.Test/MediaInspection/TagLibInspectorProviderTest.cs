@@ -73,6 +73,27 @@ public class TagLibInspectorProviderTest
         result.AudioChannels.Should().Be("2.0");
     }
 
+    [TestCase("A_AAC", 6, "AAC", "5.1")]
+    [TestCase("A_AAC", 8, "AAC", "7.1")]
+    [TestCase("A_AAC", 1, "AAC", "1.0")]
+    [TestCase("A_OPUS", 6, "Opus", "5.1")]
+    [TestCase("A_OPUS", 8, "Opus", "7.1")]
+    [TestCase("A_FLAC", 6, "FLAC", "5.1")]
+    [TestCase("A_AC3", 2, "AC3 / Dolby Digital", "2.0")]
+    [TestCase("A_EAC3", 2, "E-AC3 / Dolby Digital Plus", "2.0")]
+    [TestCase("A_TRUEHD", 6, "Dolby TrueHD / Atmos", "5.1")]
+    public void Inspect_Matroska_EbmlChannelsOverridesCodecIdDefaults(string audioCodecId, int channelCount, string expectedCodec, string expectedChannels)
+    {
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, audioCodecId, channelCount);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be(expectedCodec);
+        result.AudioChannels.Should().Be(expectedChannels);
+    }
+
     [Test]
     public void Inspect_NonFaststartMp4WithMdatContainingAv01_DoesNotFalselyDetectAv1AndFindsMoov()
     {
