@@ -341,7 +341,7 @@ public class CertificateManager : ICertificateManager
 
         public bool AuthenticationEnabled => false;
 
-        public bool TerminalAccessEnabled => false;
+        public bool TerminalAccessEnabled => true;
 
         public string LogLevel => "info";
 
