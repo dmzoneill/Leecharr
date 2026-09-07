@@ -773,7 +773,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             }
 
             // Also inject into any configured external download clients
-            var clientCount = this.InjectIntoDownloadClients(torrent.InfoHash, addedList);
+            var clientCount = await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, addedList).ConfigureAwait(false);
 
             var existingHistory = BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
@@ -846,7 +846,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             .ToList();
 
         var addedList = candidateDetections.Select(d => d.TrackerUrl).ToList();
-        var injected = this.InjectIntoDownloadClients(infoHash, addedList);
+        var injected = await this.InjectIntoDownloadClientsAsync(infoHash, addedList).ConfigureAwait(false);
 
         if (injected > 0)
         {
@@ -952,7 +952,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             }
         }
 
-        this.InjectIntoDownloadClients(torrent.InfoHash, new[] { trackerUrl.Trim() });
+        await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, new[] { trackerUrl.Trim() }).ConfigureAwait(false);
         this.LogActivity("Success", "Inject", $"Injected tracker {trackerUrl} into torrent '{torrent.Name}'", trackerUrl, torrent.InfoHash);
 
         return new SwarmBoostResult
@@ -988,7 +988,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
 
         var trackerTrimmed = trackerUrl.Trim();
-        var injected = this.InjectIntoDownloadClients(infoHash, new[] { trackerTrimmed });
+        var injected = await this.InjectIntoDownloadClientsAsync(infoHash, new[] { trackerTrimmed }).ConfigureAwait(false);
         if (injected > 0)
         {
             var existingHistory = BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
@@ -1148,7 +1148,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return recoveredCount;
     }
 
-    public int InjectIntoDownloadClients(string infoHash, IEnumerable<string> trackers)
+    public async Task<int> InjectIntoDownloadClientsAsync(string infoHash, IEnumerable<string> trackers)
     {
         if (string.IsNullOrWhiteSpace(infoHash) || trackers == null || this.downloadClientRepository == null)
         {
@@ -1172,7 +1172,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             try
             {
-                if (this.InjectIntoClient(client, infoHash, trackerList))
+                if (await this.InjectIntoClientAsync(client, infoHash, trackerList).ConfigureAwait(false))
                 {
                     successCount++;
                 }
@@ -1186,7 +1186,34 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return successCount;
     }
 
-    private bool InjectIntoClient(DownloadClientDefinition client, string infoHash, List<string> trackerList)
+    public int InjectIntoDownloadClients(string infoHash, IEnumerable<string> trackers)
+    {
+        return this.InjectIntoDownloadClientsAsync(infoHash, trackers).GetAwaiter().GetResult();
+    }
+
+    private static readonly ConcurrentDictionary<string, HttpClient> ClientHttpMap = new(StringComparer.OrdinalIgnoreCase);
+
+    private static HttpClient GetOrCreateClient(DownloadClientDefinition client, string baseUrl)
+    {
+        var key = $"{client.Id}_{baseUrl}";
+        return ClientHttpMap.GetOrAdd(key, _ =>
+        {
+            var handler = new SocketsHttpHandler
+            {
+                CookieContainer = new CookieContainer(),
+                UseCookies = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+                AutomaticDecompression = DecompressionMethods.All,
+            };
+            return new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(8),
+            };
+        });
+    }
+
+    private async Task<bool> InjectIntoClientAsync(DownloadClientDefinition client, string infoHash, List<string> trackerList)
     {
         if (client == null || string.IsNullOrWhiteSpace(client.Host))
         {
@@ -1197,13 +1224,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var scheme = client.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{client.Host}:{port}";
 
-        var handler = new HttpClientHandler
-        {
-            CookieContainer = new CookieContainer(),
-            UseCookies = true,
-            CheckCertificateRevocationList = true,
-        };
-        using var clientHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+        var clientHttp = GetOrCreateClient(client, baseUrl);
 
         if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
         {
@@ -1215,14 +1236,14 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     { "password", client.Password ?? string.Empty },
                 });
 
-                var loginResp = clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).GetAwaiter().GetResult();
+                var loginResp = await clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).ConfigureAwait(false);
                 if (!loginResp.IsSuccessStatusCode)
                 {
                     this.logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
                     return false;
                 }
 
-                var loginResult = loginResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var loginResult = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
                 {
                     this.logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
@@ -1236,7 +1257,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 { "urls", string.Join("\n", trackerList) },
             });
 
-            var resp = clientHttp.PostAsync($"{baseUrl}/api/v2/torrents/addTrackers", formContent).GetAwaiter().GetResult();
+            var resp = await clientHttp.PostAsync($"{baseUrl}/api/v2/torrents/addTrackers", formContent).ConfigureAwait(false);
             if (resp.IsSuccessStatusCode)
             {
                 this.logger.Info("Successfully injected {0} tracker(s) into qBittorrent ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
@@ -1269,7 +1290,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
             }
 
-            var resp = clientHttp.SendAsync(req).GetAwaiter().GetResult();
+            var resp = await clientHttp.SendAsync(req).ConfigureAwait(false);
             if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
             {
                 var sessionId = sessValues.FirstOrDefault();
@@ -1285,7 +1306,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
 
                 req2.Headers.Add("X-Transmission-Session-Id", sessionId);
-                resp = clientHttp.SendAsync(req2).GetAwaiter().GetResult();
+                resp = await clientHttp.SendAsync(req2).ConfigureAwait(false);
             }
 
             if (resp.IsSuccessStatusCode)
@@ -1311,14 +1332,14 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     Encoding.UTF8,
                     "application/json");
 
-                var loginResp = clientHttp.PostAsync($"{baseUrl}/json", loginContent).GetAwaiter().GetResult();
+                var loginResp = await clientHttp.PostAsync($"{baseUrl}/json", loginContent).ConfigureAwait(false);
                 if (!loginResp.IsSuccessStatusCode)
                 {
                     this.logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
                     return false;
                 }
 
-                var loginJson = loginResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var loginJson = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 using var loginDoc = JsonDocument.Parse(loginJson);
                 if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
                     resElem.ValueKind == JsonValueKind.False)
@@ -1339,10 +1360,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 Encoding.UTF8,
                 "application/json");
 
-            var resp = clientHttp.PostAsync($"{baseUrl}/json", body).GetAwaiter().GetResult();
+            var resp = await clientHttp.PostAsync($"{baseUrl}/json", body).ConfigureAwait(false);
             if (resp.IsSuccessStatusCode)
             {
-                var json = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("error", out var errElem) && errElem.ValueKind != JsonValueKind.Null)
                 {

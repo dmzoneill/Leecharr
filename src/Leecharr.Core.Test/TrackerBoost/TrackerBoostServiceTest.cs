@@ -479,6 +479,26 @@ public class TrackerBoostServiceTest
     }
 
     [Test]
+    public async Task InjectIntoDownloadClientsAsync_ReturnsZero_WhenNoClientsConfigured()
+    {
+        var result = await this.service.InjectIntoDownloadClientsAsync("0123456789abcdef0123456789abcdef01234567", new[] { "udp://tracker.opentrackr.org:1337/announce" });
+        result.Should().Be(0);
+    }
+
+    [Test]
+    public async Task InjectIntoDownloadClientsAsync_WhenNullOrEmptyTrackers_ReturnsZero()
+    {
+        var result1 = await this.service.InjectIntoDownloadClientsAsync("0123456789abcdef0123456789abcdef01234567", null);
+        result1.Should().Be(0);
+
+        var result2 = await this.service.InjectIntoDownloadClientsAsync("0123456789abcdef0123456789abcdef01234567", Array.Empty<string>());
+        result2.Should().Be(0);
+
+        var result3 = await this.service.InjectIntoDownloadClientsAsync(null, new[] { "udp://tracker.opentrackr.org:1337/announce" });
+        result3.Should().Be(0);
+    }
+
+    [Test]
     public async Task BoostHashAsync_WhenNonLocalAndNoDownloadClients_ReturnsBoostedFalseAndZeroAdded()
     {
         var hash = "0123456789abcdef0123456789abcdef01234567";
