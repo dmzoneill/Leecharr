@@ -730,4 +730,84 @@ public class QBittorrentApiControllerTest
         list[0]["save_path"].Should().Be("/downloads");
         list[0]["content_path"].Should().Be("/downloads/Spectre 2015");
     }
+
+    [Test]
+    public async Task TopPrio_WithBatchHashes_PreservesRelativeOrder_ByIteratingInReverse()
+    {
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", Name = "TA", QueuePosition = 3 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", Name = "TB", QueuePosition = 4 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", Name = "TC", QueuePosition = 5 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        await this.controller.TopPrio("hashA|hashB|hashC");
+
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "top");
+            await this.torrentService.MoveQueueAsync(20, "top");
+            await this.torrentService.MoveQueueAsync(10, "top");
+        });
+    }
+
+    [Test]
+    public async Task BottomPrio_WithBatchHashes_PreservesRelativeOrder_ByIteratingInForward()
+    {
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", Name = "TA", QueuePosition = 1 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", Name = "TB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", Name = "TC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        await this.controller.BottomPrio("hashA|hashB|hashC");
+
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(10, "bottom");
+            await this.torrentService.MoveQueueAsync(20, "bottom");
+            await this.torrentService.MoveQueueAsync(30, "bottom");
+        });
+    }
+
+    [Test]
+    public async Task IncreasePrio_WithBatchHashes_ProcessesInAscendingQueuePositionOrder()
+    {
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", Name = "TA", QueuePosition = 4 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", Name = "TB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", Name = "TC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        await this.controller.IncreasePrio("hashA|hashB|hashC");
+
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(20, "up");
+            await this.torrentService.MoveQueueAsync(30, "up");
+            await this.torrentService.MoveQueueAsync(10, "up");
+        });
+    }
+
+    [Test]
+    public async Task DecreasePrio_WithBatchHashes_ProcessesInDescendingQueuePositionOrder()
+    {
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", Name = "TA", QueuePosition = 2 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", Name = "TB", QueuePosition = 3 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", Name = "TC", QueuePosition = 4 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        await this.controller.DecreasePrio("hashA|hashB|hashC");
+
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "down");
+            await this.torrentService.MoveQueueAsync(20, "down");
+            await this.torrentService.MoveQueueAsync(10, "down");
+        });
+    }
 }
