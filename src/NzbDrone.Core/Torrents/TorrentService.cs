@@ -873,17 +873,20 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
 
-            if (torrent.Progress >= 1.0 && torrent.TotalSize > 0)
+            if (torrent.Status != TorrentStatus.Checking)
             {
-                torrent.Downloaded = torrent.TotalSize;
-            }
-            else if (torrent.TotalSize > 0)
-            {
-                torrent.Downloaded = Math.Max(torrent.Downloaded, (long)(torrent.TotalSize * torrent.Progress));
-            }
-            else if (task.DownloadedBytes > 0)
-            {
-                torrent.Downloaded = Math.Max(torrent.Downloaded, task.DownloadedBytes);
+                if (torrent.Progress >= 1.0 && torrent.TotalSize > 0)
+                {
+                    torrent.Downloaded = torrent.TotalSize;
+                }
+                else if (torrent.TotalSize > 0)
+                {
+                    torrent.Downloaded = Math.Max(torrent.Downloaded, (long)(torrent.TotalSize * torrent.Progress));
+                }
+                else if (task.DownloadedBytes > 0)
+                {
+                    torrent.Downloaded = Math.Max(torrent.Downloaded, task.DownloadedBytes);
+                }
             }
 
             var currentSessionUploaded = task.UploadedBytes;
