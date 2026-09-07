@@ -995,10 +995,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (currentScore == 0 || incomingScore > currentScore)
         {
             info.AudioCodec = codecName;
-            if (string.IsNullOrEmpty(info.AudioChannels) || incomingScore > currentScore)
-            {
-                info.AudioChannels = defaultChannels;
-            }
+            info.AudioChannels = defaultChannels;
+        }
+        else if (string.IsNullOrEmpty(info.AudioChannels))
+        {
+            info.AudioChannels = defaultChannels;
         }
     }
 
@@ -1476,36 +1477,30 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case "ec-3":
                 case "ec+3":
-                    ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "5.1");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
                     break;
 
                 case "ac-3":
                 case "ac+3":
-                    ApplyAudioCodec(info, "AC3 / Dolby Digital", "5.1", 15);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "5.1");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AC3 / Dolby Digital", "5.1", 15);
                     break;
 
                 case "alac":
-                    ApplyAudioCodec(info, "Apple Lossless (ALAC)", "2.0", 35);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Apple Lossless (ALAC)", "2.0", 35);
                     break;
 
                 case "mp4a":
-                    ApplyAudioCodec(info, "AAC", "2.0", 10);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AAC", "2.0", 10);
                     break;
 
                 case "Opus":
                 case "opus":
-                    ApplyAudioCodec(info, "Opus", "2.0", 12);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Opus", "2.0", 12);
                     break;
 
                 case "fLaC":
                 case "flac":
-                    ApplyAudioCodec(info, "FLAC", "2.0", 35);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "2.0");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "FLAC", "2.0", 35);
                     break;
 
                 case "dtsc":
@@ -1516,13 +1511,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     var dtsName = format == "dtsx" ? "DTS:X" : (format == "dtsh" || format == "dtsl") ? "DTS-HD MA" : "DTS";
                     var dtsChannels = (format == "dtsx" || format == "dtsh" || format == "dtsl") ? "7.1" : "5.1";
                     var dtsScore = format == "dtsx" ? 46 : (format == "dtsh" || format == "dtsl") ? 45 : 20;
-                    ApplyAudioCodec(info, dtsName, dtsChannels, dtsScore);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, dtsChannels);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, dtsName, dtsChannels, dtsScore);
                     break;
 
                 case "mlpa":
-                    ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "7.1");
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Dolby TrueHD / Atmos", "7.1", 50);
                     break;
 
                 case "tx3g":
@@ -1606,18 +1599,22 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
     }
 
-    private static void ExtractAudioSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info, string defaultChannels)
+    private static void ExtractAudioSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info, string codecName, string defaultChannels, int incomingScore = -1)
     {
+        string channels = defaultChannels;
+        int sampleRate = 0;
+        int bitDepth = 0;
+
         if (entrySize >= 36 && entryOffset + 36 <= data.Length)
         {
             ushort channelCount = (ushort)((data[entryOffset + 24] << 8) | data[entryOffset + 25]);
             ushort sampleSize = (ushort)((data[entryOffset + 26] << 8) | data[entryOffset + 27]);
             uint sampleRateRaw = ((uint)data[entryOffset + 32] << 24) | ((uint)data[entryOffset + 33] << 16) | ((uint)data[entryOffset + 34] << 8) | data[entryOffset + 35];
-            int sampleRate = (int)(sampleRateRaw >> 16);
+            sampleRate = (int)(sampleRateRaw >> 16);
 
-            if (channelCount > 0 && string.IsNullOrEmpty(info.AudioChannels))
+            if (channelCount > 0)
             {
-                info.AudioChannels = channelCount switch
+                channels = channelCount switch
                 {
                     1 => "1.0",
                     2 => "2.0",
@@ -1627,20 +1624,37 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 };
             }
 
-            if (sampleRate > 0 && info.AudioSampleRate == 0)
+            if (sampleSize > 0)
+            {
+                bitDepth = sampleSize;
+            }
+        }
+
+        if (incomingScore < 0)
+        {
+            incomingScore = GetAudioCodecScore(codecName);
+        }
+
+        int currentScore = GetAudioCodecScore(info.AudioCodec);
+
+        if (currentScore == 0 || incomingScore > currentScore)
+        {
+            info.AudioCodec = codecName;
+            info.AudioChannels = channels;
+
+            if (sampleRate > 0)
             {
                 info.AudioSampleRate = sampleRate;
             }
 
-            if (sampleSize > 0 && info.AudioBitDepth == 0)
+            if (bitDepth > 0)
             {
-                info.AudioBitDepth = sampleSize;
+                info.AudioBitDepth = bitDepth;
             }
         }
-
-        if (string.IsNullOrEmpty(info.AudioChannels))
+        else if (string.IsNullOrEmpty(info.AudioChannels))
         {
-            info.AudioChannels = defaultChannels;
+            info.AudioChannels = channels;
         }
     }
 
