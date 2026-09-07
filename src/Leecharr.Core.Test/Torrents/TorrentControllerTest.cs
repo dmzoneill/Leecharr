@@ -653,4 +653,78 @@ public class TorrentControllerTest
         var actualResult = okResult.Value.Should().BeOfType<TorrentCreationResult>().Subject;
         actualResult.Should().BeEquivalentTo(expectedResult);
     }
+
+    [Test]
+    public async Task Recheck_WhenTorrentExists_CallsServiceAndReturnsUpdatedResource()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "Recheck Torrent",
+            Status = TorrentStatus.Checking,
+        };
+
+        this.torrentService.Get(55).Returns(torrent);
+
+        var response = await this.controller.Recheck(55);
+
+        await this.torrentService.Received(1).ForceRecheckAsync(55);
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.Id.Should().Be(55);
+        resource.Status.Should().Be("checking");
+    }
+
+    [Test]
+    public async Task Recheck_WhenTorrentDoesNotExist_ReturnsNotFound()
+    {
+        this.torrentService.Get(999).Returns((Torrent)null);
+
+        var response = await this.controller.Recheck(999);
+
+        await this.torrentService.Received(1).ForceRecheckAsync(999);
+        response.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task Pause_WhenTorrentExists_CallsServiceAndReturnsUpdatedResource()
+    {
+        var torrent = new Torrent
+        {
+            Id = 56,
+            Name = "Pause Torrent",
+            Status = TorrentStatus.Paused,
+        };
+
+        this.torrentService.Get(56).Returns(torrent);
+
+        var response = await this.controller.Pause(56);
+
+        await this.torrentService.Received(1).PauseAsync(56);
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.Id.Should().Be(56);
+        resource.Status.Should().Be("paused");
+    }
+
+    [Test]
+    public async Task Resume_WhenTorrentExists_CallsServiceAndReturnsUpdatedResource()
+    {
+        var torrent = new Torrent
+        {
+            Id = 57,
+            Name = "Resume Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentService.Get(57).Returns(torrent);
+
+        var response = await this.controller.Resume(57);
+
+        await this.torrentService.Received(1).ResumeAsync(57);
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.Id.Should().Be(57);
+        resource.Status.Should().Be("downloading");
+    }
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../client";
+import { useTorrentStore } from "../../stores/useTorrentStore";
 import { useRefetchInterval } from "./useSystem";
 import type {
   Torrent,
@@ -309,9 +310,27 @@ export function useAnnounceTorrent() {
 export function useRecheckTorrent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/torrent/${id}/recheck`),
-    onSuccess: () => {
+    mutationFn: (id: number) =>
+      apiClient.post<Torrent>(`/torrent/${id}/recheck`),
+    onSuccess: (data, id) => {
+      if (data && typeof data === "object" && data.id) {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id: data.id,
+            status: data.status,
+            progress: data.progress,
+          },
+        ]);
+      } else {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id,
+            status: "checking",
+          },
+        ]);
+      }
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
     },
   });
 }
