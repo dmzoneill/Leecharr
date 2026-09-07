@@ -1,13 +1,19 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.QBittorrent;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
@@ -809,5 +815,205 @@ public class QBittorrentApiControllerTest
             await this.torrentService.MoveQueueAsync(20, "down");
             await this.torrentService.MoveQueueAsync(10, "down");
         });
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationDisabled_ReturnsOkAndSetsCookie()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login("any_user", "any_pass");
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Be("Ok.");
+        contentResult.ContentType.Should().Be("text/plain");
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.ToString().Should().Contain("SID=");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_WithCorrectPassword_ReturnsOkAndSetsCookie()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login(username: "admin", password: "secret_api_key_123");
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Be("Ok.");
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.ToString().Should().Contain("SID=");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_WithCorrectUsername_ReturnsOkAndSetsCookie()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login(username: "secret_api_key_123", password: "wrong_password");
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Be("Ok.");
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.ToString().Should().Contain("SID=");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_WithInvalidCredentials_ReturnsFails()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login(username: "admin", password: "wrong_password");
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Be("Fails.");
+        contentResult.ContentType.Should().Be("text/plain");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_WithUserService_ReturnsOkWhenUserValid()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master_key");
+
+        var userService = Substitute.For<IUserService>();
+        userService.Authenticate("dbuser", "dbpass").Returns(new User { Id = 1, Username = "dbuser" });
+
+        var customController = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            userService: userService,
+            configFileProvider: this.configFileProvider);
+
+        var httpContext = new DefaultHttpContext();
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = customController.Login(username: "dbuser", password: "dbpass");
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Be("Ok.");
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenLoginAction_AllowsExecution()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, httpContext, nameof(QBittorrentApiController.Login));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeNull();
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenUnauthenticated_Returns403Forbidden()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, httpContext, nameof(QBittorrentApiController.GetTorrentsInfo));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)execContext.Result!;
+        objResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        objResult.Value.Should().Be("Forbidden");
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenAuthenticatedViaApiKeyHeader_AllowsExecution()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["X-Api-Key"] = "secret_api_key_123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, httpContext, nameof(QBittorrentApiController.GetTorrentsInfo));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeNull();
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenAuthenticatedViaApiKeyQuery_AllowsExecution()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.QueryString = new QueryString("?apikey=secret_api_key_123");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, httpContext, nameof(QBittorrentApiController.GetTorrentsInfo));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeNull();
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenAuthenticatedViaSessionCookie_AllowsExecution()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var loginContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        this.controller.Login(username: "admin", password: "secret_api_key_123");
+        loginContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var sidCookie = setCookieHeaders.ToString().Split(';')[0].Replace("SID=", string.Empty);
+
+        var reqContext = new DefaultHttpContext();
+        reqContext.Request.Headers["Cookie"] = $"SID={sidCookie}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = reqContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, reqContext, nameof(QBittorrentApiController.GetTorrentsInfo));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeNull();
+    }
+
+    private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
+    {
+        var actionDescriptor = new ControllerActionDescriptor
+        {
+            ActionName = actionName,
+            ControllerName = "QBittorrentApi",
+            RouteValues = new Dictionary<string, string> { { "action", actionName } },
+        };
+
+        var actionContext = new ActionContext(
+            httpContext,
+            new RouteData(new RouteValueDictionary { { "action", actionName } }),
+            actionDescriptor);
+
+        return new ActionExecutingContext(
+            actionContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object>(),
+            controller);
     }
 }
