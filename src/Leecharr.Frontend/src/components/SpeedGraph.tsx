@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useSpeedHistory, useSeedingStats } from "../api/hooks";
 import { formatSpeed } from "../utils/formatters";
+import { useTranslation } from "../i18n";
 
 interface SpeedDataPoint {
   uploadSpeed: number;
@@ -27,7 +28,8 @@ function getNiceMax(value: number): number {
   return nice * magnitude;
 }
 
-function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
+export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] =
     useState<number>(DEFAULT_SVG_WIDTH);
@@ -188,7 +190,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
               fontSize: "1.05rem",
             }}
           >
-            Transfer Speed
+            {t("components.transferSpeed", "Transfer Speed")}
           </h3>
           <span
             style={{
@@ -213,7 +215,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
                 animation: "pulse 2s infinite",
               }}
             />
-            Live (1s)
+            {t("components.live1s", "Live (1s)")}
           </span>
         </div>
 
@@ -240,7 +242,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
                 display: "inline-block",
               }}
             />
-            Upload:{" "}
+            {t("components.upload", "Upload")}:{" "}
             <strong style={{ color: "var(--accent, #c8a84e)" }}>
               {formatSpeed(currentUpload)}
             </strong>
@@ -264,7 +266,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
                 display: "inline-block",
               }}
             />
-            Download:{" "}
+            {t("components.download", "Download")}:{" "}
             <strong style={{ color: "#e74c3c" }}>
               {formatSpeed(currentDownload)}
             </strong>
@@ -369,7 +371,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
             fontSize={9.5}
             textAnchor="start"
           >
-            {maxPoints}s ago
+            {t("components.sAgo", "{count}s ago", { count: maxPoints })}
           </text>
           <text
             x={PADDING.left + chartWidth / 2}
@@ -378,7 +380,9 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
             fontSize={9.5}
             textAnchor="middle"
           >
-            {Math.floor(maxPoints / 2)}s ago
+            {t("components.sAgo", "{count}s ago", {
+              count: Math.floor(maxPoints / 2),
+            })}
           </text>
           <text
             x={svgWidth - PADDING.right}
@@ -387,7 +391,7 @@ function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
             fontSize={9.5}
             textAnchor="end"
           >
-            now
+            {t("components.now", "now")}
           </text>
         </svg>
       </div>

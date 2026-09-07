@@ -468,10 +468,26 @@ function PeerMap() {
 
           gEnter.append("title").text((d) => {
             if (d.type === "center")
-              return "Leecharr Instance (Click for details)";
+              return t(
+                "peerMap.centerTitle",
+                "Leecharr Instance (Click for details)",
+              );
             if (d.type === "torrent")
-              return `Torrent: ${d.label}\n${d.infoHash || ""}\n(Click to view details)`;
-            return `Peer: ${d.label}${d.isEncrypted ? " (encrypted)" : ""}\n(Click for details)`;
+              return t(
+                "peerMap.torrentTitle",
+                "Torrent: {label}\n{hash}\n(Click to view details)",
+                { label: d.label, hash: d.infoHash || "" },
+              );
+            return t(
+              "peerMap.peerTitle",
+              "Peer: {label}{encrypted}\n(Click for details)",
+              {
+                label: d.label,
+                encrypted: d.isEncrypted
+                  ? t("peerMap.peerEncryptedSuffix", " (encrypted)")
+                  : "",
+              },
+            );
           });
 
           return gEnter;
@@ -486,10 +502,26 @@ function PeerMap() {
 
           update.select("title").text((d) => {
             if (d.type === "center")
-              return "Leecharr Instance (Click for details)";
+              return t(
+                "peerMap.centerTitle",
+                "Leecharr Instance (Click for details)",
+              );
             if (d.type === "torrent")
-              return `Torrent: ${d.label}\n${d.infoHash || ""}\n(Click to view details)`;
-            return `Peer: ${d.label}${d.isEncrypted ? " (encrypted)" : ""}\n(Click for details)`;
+              return t(
+                "peerMap.torrentTitle",
+                "Torrent: {label}\n{hash}\n(Click to view details)",
+                { label: d.label, hash: d.infoHash || "" },
+              );
+            return t(
+              "peerMap.peerTitle",
+              "Peer: {label}{encrypted}\n(Click for details)",
+              {
+                label: d.label,
+                encrypted: d.isEncrypted
+                  ? t("peerMap.peerEncryptedSuffix", " (encrypted)")
+                  : "",
+              },
+            );
           });
 
           return update;

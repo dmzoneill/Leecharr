@@ -387,7 +387,7 @@ function SettingsContent() {
               className="btn btn-outline btn-small"
               style={{ fontSize: "0.75rem" }}
             >
-              Clear Search
+              {t("settingsTabs.search.clearSearch", "Clear Search")}
             </button>
           </div>
 

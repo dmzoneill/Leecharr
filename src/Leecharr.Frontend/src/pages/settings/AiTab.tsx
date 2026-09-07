@@ -75,16 +75,23 @@ export function AiTab() {
       });
       if (res.success) {
         setFormData((prev) => ({ ...prev, activeAiProvider: providerId }));
-        showToast(`Switched active AI engine to ${providerId}.`, "success");
+        showToast(
+          t("settingsTabs.ai.switchSuccess", { provider: providerId }),
+          "success",
+        );
       } else {
         showToast(
-          `Failed to switch AI engine: ${res.error || t("settingsTabs.notifications.unknownError")}`,
+          t("settingsTabs.ai.switchError", {
+            error: res.error || t("settingsTabs.notifications.unknownError"),
+          }),
           "error",
         );
       }
     } catch (err: any) {
       showToast(
-        `Failed to switch AI engine: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        t("settingsTabs.ai.switchError", {
+          error: err.message || t("settingsTabs.notifications.unknownError"),
+        }),
         "error",
       );
     }
@@ -100,7 +107,9 @@ export function AiTab() {
       setProbeResult(res);
     } catch (err: any) {
       showToast(
-        `Probe failed: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        t("settingsTabs.ai.probeFailed", {
+          error: err.message || t("settingsTabs.notifications.unknownError"),
+        }),
         "error",
       );
     } finally {

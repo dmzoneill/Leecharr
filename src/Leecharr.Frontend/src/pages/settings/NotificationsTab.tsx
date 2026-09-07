@@ -501,7 +501,11 @@ export function NotificationsTab() {
             );
           } else {
             showToast(
-              `Test notification for "${name}" failed: ${data.message || t("settingsTabs.notifications.unknownError")}`,
+              t("settingsTabs.notifications.testFailedWithName", {
+                name,
+                error:
+                  data.message || t("settingsTabs.notifications.unknownError"),
+              }),
               "error",
             );
           }
@@ -513,7 +517,13 @@ export function NotificationsTab() {
             ...prev,
             [id]: { success: false, message: msg },
           }));
-          showToast(`Test notification for "${name}" failed: ${msg}`, "error");
+          showToast(
+            t("settingsTabs.notifications.testFailedWithName", {
+              name,
+              error: msg,
+            }),
+            "error",
+          );
         },
       });
     } catch (err: any) {
@@ -522,7 +532,13 @@ export function NotificationsTab() {
         ...prev,
         [id]: { success: false, message: msg },
       }));
-      showToast(`Test notification for "${name}" failed: ${msg}`, "error");
+      showToast(
+        t("settingsTabs.notifications.testFailedWithName", {
+          name,
+          error: msg,
+        }),
+        "error",
+      );
     }
   };
 
@@ -544,7 +560,10 @@ export function NotificationsTab() {
             showToast(t("settingsTabs.notifications.testSuccess"), "success");
           } else {
             showToast(
-              `Test notification failed: ${data.message || t("settingsTabs.notifications.unknownError")}`,
+              t("settingsTabs.notifications.testFailedWithError", {
+                error:
+                  data.message || t("settingsTabs.notifications.unknownError"),
+              }),
               "error",
             );
           }
@@ -553,13 +572,19 @@ export function NotificationsTab() {
           const msg =
             err?.message || t("settingsTabs.notifications.testFailed");
           setModalTestResult({ success: false, message: msg });
-          showToast(`Test notification failed: ${msg}`, "error");
+          showToast(
+            t("settingsTabs.notifications.testFailedWithError", { error: msg }),
+            "error",
+          );
         },
       });
     } catch (err: any) {
       const msg = err?.message || t("settingsTabs.notifications.testFailed");
       setModalTestResult({ success: false, message: msg });
-      showToast(`Test notification failed: ${msg}`, "error");
+      showToast(
+        t("settingsTabs.notifications.testFailedWithError", { error: msg }),
+        "error",
+      );
     }
   };
 
@@ -567,7 +592,9 @@ export function NotificationsTab() {
     try {
       const ok = await confirm({
         title: t("settingsTabs.notifications.deleteTitle"),
-        message: `Are you sure you want to delete the notification connection "${notif.name}"?`,
+        message: t("settingsTabs.notifications.deleteMessage", {
+          name: notif.name,
+        }),
         danger: true,
         confirmText: t("settingsTabs.categories.deleteConfirm"),
       });
@@ -575,7 +602,10 @@ export function NotificationsTab() {
 
       deleteMutation.mutate(notif.id, {
         onSuccess: () => {
-          showToast(`Notification "${notif.name}" deleted`, "info");
+          showToast(
+            t("settingsTabs.notifications.deleted", { name: notif.name }),
+            "info",
+          );
         },
         onError: (err: any) => {
           showToast(
@@ -605,7 +635,10 @@ export function NotificationsTab() {
       if (editing.id) {
         updateMutation.mutate(payload, {
           onSuccess: () => {
-            showToast(`Notification "${payload.name}" updated`, "success");
+            showToast(
+              t("settingsTabs.notifications.updated", { name: payload.name }),
+              "success",
+            );
             setEditing(null);
             setModalTestResult(null);
           },
@@ -619,7 +652,10 @@ export function NotificationsTab() {
       } else {
         createMutation.mutate(payload, {
           onSuccess: () => {
-            showToast(`Notification "${payload.name}" created`, "success");
+            showToast(
+              t("settingsTabs.notifications.created", { name: payload.name }),
+              "success",
+            );
             setEditing(null);
             setModalTestResult(null);
           },
@@ -753,7 +789,9 @@ export function NotificationsTab() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="provider-card-action"
-                        title={`Open endpoint (${externalUrl})`}
+                        title={t("settingsTabs.notifications.openEndpoint", {
+                          url: externalUrl,
+                        })}
                         onClick={(e) => e.stopPropagation()}
                         style={{ textDecoration: "none", color: "inherit" }}
                       >

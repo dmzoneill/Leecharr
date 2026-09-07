@@ -122,7 +122,7 @@ export function IndexersTab() {
   };
 
   const defaultRssRule: Partial<RssRule> = {
-    name: "New RSS Rule",
+    name: t("settingsTabs.indexers.newRssRule"),
     isEnabled: true,
     mustContain: "",
     mustNotContain: "",
@@ -204,7 +204,10 @@ export function IndexersTab() {
     if (editingRule.id) {
       updateRuleMutation.mutate(payload, {
         onSuccess: () => {
-          showToast(`RSS Rule "${name}" updated`, "success");
+          showToast(
+            t("settingsTabs.indexers.rssRuleUpdated", { name }),
+            "success",
+          );
           setEditingRule(null);
         },
         onError: (err: any) => {
@@ -217,7 +220,10 @@ export function IndexersTab() {
     } else {
       createRuleMutation.mutate(payload, {
         onSuccess: () => {
-          showToast(`RSS Rule "${name}" created`, "success");
+          showToast(
+            t("settingsTabs.indexers.rssRuleCreated", { name }),
+            "success",
+          );
           setEditingRule(null);
         },
         onError: (err: any) => {
@@ -250,7 +256,8 @@ export function IndexersTab() {
       onError: (err) => {
         setModalTestResult({
           success: false,
-          message: err.message || "Failed to test indexer connection.",
+          message:
+            err.message || t("settingsTabs.indexers.failedToTestConnection"),
         });
       },
     });
@@ -260,7 +267,9 @@ export function IndexersTab() {
     syncRssMutation.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `RSS Sync complete: grabbed ${res.grabbedCount} release(s)`,
+          t("settingsTabs.indexers.rssSyncComplete", {
+            grabbedCount: res.grabbedCount,
+          }),
           "success",
         );
       },
@@ -299,7 +308,10 @@ export function IndexersTab() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="provider-card-action"
-                    title={`Open ${idx.name} Web UI (${idx.url})`}
+                    title={t("settingsTabs.indexers.openWebUI", {
+                      name: idx.name,
+                      url: idx.url,
+                    })}
                     onClick={(e) => e.stopPropagation()}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
@@ -323,7 +335,10 @@ export function IndexersTab() {
                     e.stopPropagation();
                     const ok = await confirm({
                       title: t("settingsTabs.indexers.deleteIndexer"),
-                      message: `Are you sure you want to delete the indexer "${idx.name}"?`,
+                      message: t(
+                        "settingsTabs.indexers.deleteIndexerConfirmMessage",
+                        { name: idx.name },
+                      ),
                       danger: true,
                       confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
@@ -331,7 +346,12 @@ export function IndexersTab() {
 
                     deleteMutation.mutate(idx.id, {
                       onSuccess: () =>
-                        showToast(`Indexer "${idx.name}" deleted`, "info"),
+                        showToast(
+                          t("settingsTabs.indexers.indexerDeleted", {
+                            name: idx.name,
+                          }),
+                          "info",
+                        ),
                       onError: (err: any) =>
                         showToast(
                           err?.message ||
@@ -347,7 +367,10 @@ export function IndexersTab() {
               <div className="provider-card-name">{idx.name}</div>
               <div className="provider-card-badges">
                 <span className="provider-card-badge provider-card-badge-green">
-                  {idx.indexerType}
+                  {t(
+                    `settingsTabs.indexers.${idx.indexerType?.toLowerCase() || "torznab"}`,
+                    idx.indexerType,
+                  )}
                 </span>
                 {idx.enableRss && (
                   <span className="provider-card-badge provider-card-badge-blue">
@@ -836,7 +859,7 @@ export function IndexersTab() {
                 setEditingRule({ ...editingRule, minSizeBytes: v })
               }
               min={0}
-              hint="0 = no minimum size constraint"
+              hint={t("settingsTabs.indexers.minSizeConstraintHint")}
             />
             <NumberInput
               label={t("settings.maximumSizeBytes")}
@@ -845,7 +868,7 @@ export function IndexersTab() {
                 setEditingRule({ ...editingRule, maxSizeBytes: v })
               }
               min={0}
-              hint="0 = no maximum size constraint"
+              hint={t("settingsTabs.indexers.maxSizeConstraintHint")}
             />
             <NumberInput
               label={t("settings.categoryID")}
@@ -854,7 +877,7 @@ export function IndexersTab() {
                 setEditingRule({ ...editingRule, categoryId: v })
               }
               min={0}
-              hint="0 = any category (e.g. 5040 for TV/HD, 2040 for Movies/HD)"
+              hint={t("settingsTabs.indexers.categoryIdHint")}
             />
             <TextInput
               label={t("settings.assignedIndexersIDs")}
@@ -870,8 +893,10 @@ export function IndexersTab() {
                   .filter((n) => !isNaN(n) && n > 0);
                 setEditingRule({ ...editingRule, indexerIds: ids });
               }}
-              placeholder="Leave empty for all indexers"
-              hint="Comma-separated Indexer IDs (leave blank for all indexers)"
+              placeholder={t(
+                "settingsTabs.indexers.assignedIndexersPlaceholder",
+              )}
+              hint={t("settingsTabs.indexers.assignedIndexersHint")}
             />
             <Toggle
               label={t("settings.freeleechOnly")}

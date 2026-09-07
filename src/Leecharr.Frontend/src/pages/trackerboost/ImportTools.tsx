@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "../../i18n";
 import {
   useTrackerBoostSettings,
   useUpdateTrackerBoostSettings,
@@ -18,6 +19,7 @@ export interface ImportToolsProps {
 }
 
 export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
+  const { t } = useTranslation();
   const { data: settings } = useTrackerBoostSettings();
   const updateSettings = useUpdateTrackerBoostSettings();
   const { data: downloadClients } = useDownloadClients();
@@ -41,7 +43,13 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     const updated = { ...settings, [key]: !settings[key] };
     updateSettings.mutate(updated, {
       onSuccess: () => {
-        showToast("TrackerBoost settings updated", "success");
+        showToast(
+          t(
+            "trackerBoost.settings.updatedToast",
+            "TrackerBoost settings updated",
+          ),
+          "success",
+        );
       },
     });
   };
@@ -50,12 +58,23 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     harvestDownloads.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `Harvested ${res.harvestedCount} new trackers from active downloads`,
+          t(
+            "trackerBoost.harvestedTrackersSuccess",
+            "Harvested {count} new trackers from active downloads",
+            { count: res.harvestedCount },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to harvest from downloads: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.harvestFailed",
+            "Failed to harvest from downloads: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -64,12 +83,23 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     harvestProwlarr.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `Harvested ${res.harvestedCount} trackers from Prowlarr`,
+          t(
+            "trackerBoost.settings.harvestedProwlarrToast",
+            "Harvested {count} trackers from Prowlarr",
+            { count: res.harvestedCount },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to harvest from Prowlarr: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.settings.harvestProwlarrFailed",
+            "Failed to harvest from Prowlarr: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -78,12 +108,23 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
     harvestFeeds.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `Harvested ${res.harvestedCount} trackers from public feeds`,
+          t(
+            "trackerBoost.settings.harvestedFeedsToast",
+            "Harvested {count} trackers from public feeds",
+            { count: res.harvestedCount },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to harvest from feeds: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.settings.harvestFeedsFailed",
+            "Failed to harvest from feeds: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -91,10 +132,24 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const handleScanAll = () => {
     scanTrackers.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Probed ${res.testedCount} tracker endpoints`, "success");
+        showToast(
+          t(
+            "trackerBoost.probedEndpointsSuccess",
+            "Probed {count} tracker endpoints",
+            { count: res.testedCount },
+          ),
+          "success",
+        );
       },
       onError: (err) => {
-        showToast(`Failed to probe trackers: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.probeTrackersFailed",
+            "Failed to probe trackers: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -113,7 +168,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
 
     if (lines.length === 0) {
       showToast(
-        "No valid http://, https://, or udp:// tracker URLs found.",
+        t(
+          "trackerBoost.settings.noValidUrlsFound",
+          "No valid http://, https://, or udp:// tracker URLs found.",
+        ),
         "error",
       );
       return;
@@ -127,12 +185,25 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
       handleClose();
       setBulkImportText("");
       showToast(
-        `Successfully processed ${lines.length} trackers (${res.importedCount} added)!`,
+        t(
+          "trackerBoost.settings.processedTrackersToast",
+          "Successfully processed {total} trackers ({imported} added)!",
+          {
+            total: lines.length,
+            imported: res.importedCount,
+          },
+        ),
         "success",
       );
     } catch (err: any) {
       showToast(
-        `Failed to bulk import trackers: ${err?.message || "Unknown error"}`,
+        t(
+          "trackerBoost.settings.bulkImportFailed",
+          "Failed to bulk import trackers: {error}",
+          {
+            error: err?.message || t("common.unknownError", "Unknown error"),
+          },
+        ),
         "error",
       );
     } finally {
@@ -149,7 +220,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
       {/* Automation Toggles */}
       <div className="card" style={{ padding: "1.25rem" }}>
         <h3 style={{ margin: "0 0 0.5rem 0" }}>
-          ⚡ Automation & Background Optimization
+          {t(
+            "trackerBoost.settings.automationTitle",
+            "⚡ Automation & Background Optimization",
+          )}
         </h3>
         <p
           style={{
@@ -158,9 +232,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             margin: "0 0 1rem 0",
           }}
         >
-          TrackerBoost runs as a background service to constantly discover new
-          trackers, monitor health, and optimize swarms across Leecharr and
-          connected download clients.
+          {t(
+            "trackerBoost.settings.automationDesc",
+            "TrackerBoost runs as a background service to constantly discover new trackers, monitor health, and optimize swarms across Leecharr and connected download clients.",
+          )}
         </p>
 
         <div
@@ -186,11 +261,16 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             />
             <div>
               <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                Automatic Background Swarm Boosting (Enabled by Default)
+                {t(
+                  "trackerBoost.settings.autoBoostLabel",
+                  "Automatic Background Swarm Boosting (Enabled by Default)",
+                )}
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Periodically queries candidate trackers and automatically
-                injects verified positive matches into active downloads.
+                {t(
+                  "trackerBoost.settings.autoBoostDesc",
+                  "Periodically queries candidate trackers and automatically injects verified positive matches into active downloads.",
+                )}
               </div>
             </div>
           </label>
@@ -211,12 +291,16 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             />
             <div>
               <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                Automatic Swarm Tracker Harvesting (Enabled by Default)
+                {t(
+                  "trackerBoost.settings.autoHarvestLabel",
+                  "Automatic Swarm Tracker Harvesting (Enabled by Default)",
+                )}
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Continuously extracts and catalogues new public tracker
-                endpoints from downloading torrents to grow the tracker
-                database.
+                {t(
+                  "trackerBoost.settings.autoHarvestDesc",
+                  "Continuously extracts and catalogues new public tracker endpoints from downloading torrents to grow the tracker database.",
+                )}
               </div>
             </div>
           </label>
@@ -237,11 +321,16 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             />
             <div>
               <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                Scrape Verification Guard (Strict Mode)
+                {t(
+                  "trackerBoost.settings.onlyVerifiedLabel",
+                  "Scrape Verification Guard (Strict Mode)",
+                )}
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Only injects trackers that respond with active seeders or
-                leechers for the specific info_hash, preventing client clutter.
+                {t(
+                  "trackerBoost.settings.onlyVerifiedDesc",
+                  "Only injects trackers that respond with active seeders or leechers for the specific info_hash, preventing client clutter.",
+                )}
               </div>
             </div>
           </label>
@@ -250,7 +339,12 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
 
       {/* Connected Download Agents */}
       <div className="card" style={{ padding: "1.25rem" }}>
-        <h3 style={{ margin: "0 0 0.5rem 0" }}>Connected Download Agents</h3>
+        <h3 style={{ margin: "0 0 0.5rem 0" }}>
+          {t(
+            "trackerBoost.settings.connectedAgentsTitle",
+            "Connected Download Agents",
+          )}
+        </h3>
         <p
           style={{
             fontSize: "0.85rem",
@@ -258,9 +352,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             margin: "0 0 1rem 0",
           }}
         >
-          TrackerBoost coordinates with your download clients (qBittorrent,
-          Transmission, Deluge) to inject verified trackers into active physical
-          downloads.
+          {t(
+            "trackerBoost.settings.connectedAgentsDesc",
+            "TrackerBoost coordinates with your download clients (qBittorrent, Transmission, Deluge) to inject verified trackers into active physical downloads.",
+          )}
         </p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {(downloadClients ?? [])
@@ -276,8 +371,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             ))}
           {enabledClientsCount === 0 && (
             <span style={{ fontSize: "0.85rem", color: "var(--warning)" }}>
-              No download agents currently configured. Add qBittorrent or
-              Transmission in Settings ⚙️ to boost real downloads.
+              {t(
+                "trackerBoost.settings.noAgentsConfigured",
+                "No download agents currently configured. Add qBittorrent or Transmission in Settings ⚙️ to boost real downloads.",
+              )}
             </span>
           )}
         </div>
@@ -294,12 +391,20 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             gap: "0.5rem",
           }}
         >
-          <h3 style={{ margin: "0" }}>Manual Discovery & Import Triggers</h3>
+          <h3 style={{ margin: "0" }}>
+            {t(
+              "trackerBoost.settings.manualDiscoveryTitle",
+              "Manual Discovery & Import Triggers",
+            )}
+          </h3>
           <button
             className="btn btn-primary"
             onClick={() => setLocalShowModal(true)}
           >
-            📥 Bulk Import Trackers
+            {t(
+              "trackerBoost.settings.bulkImportTrackersBtn",
+              "📥 Bulk Import Trackers",
+            )}
           </button>
         </div>
         <div
@@ -316,8 +421,14 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             disabled={harvestDownloads.isPending}
           >
             {harvestDownloads.isPending
-              ? "⏳ Harvesting Swarms..."
-              : "🔄 Harvest Live Swarms"}
+              ? t(
+                  "trackerBoost.settings.harvestingSwarms",
+                  "⏳ Harvesting Swarms...",
+                )
+              : t(
+                  "trackerBoost.settings.harvestLiveSwarms",
+                  "🔄 Harvest Live Swarms",
+                )}
           </button>
           <button
             className="btn btn-action"
@@ -325,8 +436,14 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             disabled={harvestProwlarr.isPending}
           >
             {harvestProwlarr.isPending
-              ? "⏳ Syncing Prowlarr..."
-              : "🔄 Sync Prowlarr Trackers"}
+              ? t(
+                  "trackerBoost.settings.syncingProwlarr",
+                  "⏳ Syncing Prowlarr...",
+                )
+              : t(
+                  "trackerBoost.settings.syncProwlarr",
+                  "🔄 Sync Prowlarr Trackers",
+                )}
           </button>
           <button
             className="btn btn-action"
@@ -334,8 +451,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             disabled={harvestFeeds.isPending}
           >
             {harvestFeeds.isPending
-              ? "⏳ Syncing Feeds..."
-              : "🌐 Sync Curated Feeds"}
+              ? t("trackerBoost.settings.syncingFeeds", "⏳ Syncing Feeds...")
+              : t("trackerBoost.settings.syncFeeds", "🌐 Sync Curated Feeds")}
           </button>
           <button
             className="btn btn-action"
@@ -343,8 +460,11 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             disabled={scanTrackers.isPending}
           >
             {scanTrackers.isPending
-              ? "⏳ Probing Trackers..."
-              : "📡 Probe All Trackers"}
+              ? t(
+                  "trackerBoost.settings.probingTrackers",
+                  "⏳ Probing Trackers...",
+                )
+              : t("trackerBoost.probeAllTrackers", "📡 Probe All Trackers")}
           </button>
         </div>
       </div>
@@ -389,7 +509,12 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 alignItems: "center",
               }}
             >
-              <h3 style={{ margin: 0 }}>📥 Bulk Import Tracker URLs</h3>
+              <h3 style={{ margin: 0 }}>
+                {t(
+                  "trackerBoost.settings.bulkImportModalTitle",
+                  "📥 Bulk Import Tracker URLs",
+                )}
+              </h3>
               <button
                 type="button"
                 className="btn btn-outline"
@@ -407,8 +532,10 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 margin: 0,
               }}
             >
-              Paste tracker announce URLs (one per line). Supported protocols:{" "}
-              <code>udp://</code>, <code>http://</code>, <code>https://</code>.
+              {t(
+                "trackerBoost.settings.bulkImportModalHint",
+                "Paste tracker announce URLs (one per line). Supported protocols: udp://, http://, https://.",
+              )}
             </p>
 
             <textarea
@@ -432,7 +559,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 className="btn btn-action"
                 onClick={handleClose}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </button>
               <button
                 type="button"
@@ -440,7 +567,15 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
                 onClick={handleBulkImportTrackers}
                 disabled={isBulkImporting || !bulkImportText.trim()}
               >
-                {isBulkImporting ? "Importing Trackers..." : "Import Trackers"}
+                {isBulkImporting
+                  ? t(
+                      "trackerBoost.settings.importingTrackers",
+                      "Importing Trackers...",
+                    )
+                  : t(
+                      "trackerBoost.settings.importTrackersBtn",
+                      "Import Trackers",
+                    )}
               </button>
             </div>
           </div>

@@ -24,10 +24,16 @@ export function ApiDocsPage() {
         await navigator.clipboard.writeText(keyToCopy);
         setCopiedKey(true);
         setTimeout(() => setCopiedKey(false), 2000);
-        toast.showToast("API key copied to clipboard", "success");
+        toast.showToast(
+          t("settings.apiKeyCopied", "API key copied to clipboard"),
+          "success",
+        );
       }
     } catch {
-      toast.showToast("Failed to copy API key to clipboard", "error");
+      toast.showToast(
+        t("settings.failedToCopyApiKey", "Failed to copy API key to clipboard"),
+        "error",
+      );
     } finally {
       setCopyingKey(false);
     }
@@ -61,7 +67,7 @@ export function ApiDocsPage() {
               color: "var(--text-primary)",
             }}
           >
-            REST API & OpenAPI Explorer
+            {t("apiDocs.title", "REST API & OpenAPI Explorer")}
           </h2>
           <p
             style={{
@@ -70,8 +76,10 @@ export function ApiDocsPage() {
               fontSize: "0.85rem",
             }}
           >
-            Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API
-            v1. Test endpoints, inspect JSON schemas, and automate downloads.
+            {t(
+              "apiDocs.description",
+              "Interactive OpenAPI v3 (Swagger) specification for Leecharr REST API v1. Test endpoints, inspect JSON schemas, and automate downloads.",
+            )}
           </p>
         </div>
 
@@ -94,10 +102,10 @@ export function ApiDocsPage() {
               )}
             >
               {copiedKey
-                ? "✓ API Key Copied"
+                ? t("apiDocs.apiKeyCopied", "✓ API Key Copied")
                 : copyingKey
-                  ? "⏳ Copying..."
-                  : "📋 Copy API Key"}
+                  ? t("apiDocs.copying", "⏳ Copying...")
+                  : t("apiDocs.copyApiKey", "📋 Copy API Key")}
             </button>
           )}
 
@@ -111,7 +119,7 @@ export function ApiDocsPage() {
               "View raw OpenAPI 3.0 specification in JSON format",
             )}
           >
-            📥 OpenAPI JSON
+            {t("apiDocs.openApiJson", "📥 OpenAPI JSON")}
           </a>
 
           <a
@@ -124,7 +132,7 @@ export function ApiDocsPage() {
               "Open Swagger UI in a dedicated full browser tab",
             )}
           >
-            ↗ Open Full Page
+            {t("apiDocs.openFullPage", "↗ Open Full Page")}
           </a>
         </div>
       </div>

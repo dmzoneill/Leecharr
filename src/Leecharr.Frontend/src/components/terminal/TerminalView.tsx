@@ -291,16 +291,16 @@ export function TerminalView({
             }}
             title={
               connected
-                ? "Connected"
+                ? t("common.connected", "Connected")
                 : connecting
-                  ? "Connecting..."
-                  : "Disconnected"
+                  ? t("common.connecting", "Connecting...")
+                  : t("common.disconnected", "Disconnected")
             }
           />
           <span
             style={{ fontWeight: 600, color: "var(--text-primary, #f8f4ed)" }}
           >
-            {title || "Interactive Shell"}
+            {title || t("terminal.interactiveShell", "Interactive Shell")}
           </span>
 
           {cwd && (

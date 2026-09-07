@@ -132,7 +132,10 @@ export function ProtocolsSettingsTab() {
 
     const handleError = (err: any) => {
       hasError = true;
-      showToast(err?.message || "Failed to save protocol settings", "error");
+      showToast(
+        err?.message || t("settingsTabs.protocols.failedToSave"),
+        "error",
+      );
     };
 
     if (btConfig) {
@@ -195,7 +198,7 @@ export function ProtocolsSettingsTab() {
   if (btLoading || protoLoading || peerLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading protocol settings...
+        {t("settingsTabs.protocols.loading")}
       </div>
     );
   }
@@ -229,17 +232,20 @@ export function ProtocolsSettingsTab() {
             options={[
               {
                 value: "preferEncrypted",
-                label: "Prefer Encryption (Compatible & Secure)",
+                label: t("settingsTabs.protocols.preferEncryption"),
               },
               {
                 value: "forceEncrypted",
-                label: "Require Encryption (Strict, Drops Plaintext)",
+                label: t("settingsTabs.protocols.requireEncryption"),
               },
               {
                 value: "allowPlaintext",
-                label: "Allow Plaintext & Encryption",
+                label: t("settingsTabs.protocols.allowPlaintext"),
               },
-              { value: "disabled", label: "Disable Encryption" },
+              {
+                value: "disabled",
+                label: t("settingsTabs.protocols.disableEncryption"),
+              },
             ]}
           />
 
@@ -250,7 +256,7 @@ export function ProtocolsSettingsTab() {
             min={5}
             max={120}
             suffix={t("settingsTabs.batch2.sec")}
-            hint="Timeout for establishing TCP/uTP socket connections"
+            hint={t("settingsTabs.protocols.transportTimeoutHint")}
           />
         </div>
 
@@ -269,7 +275,7 @@ export function ProtocolsSettingsTab() {
               marginBottom: "0.75rem",
             }}
           >
-            BitTorrent Enhancement Proposals (BEP Suite)
+            {t("settingsTabs.protocols.bepSuiteTitle")}
           </div>
           <div
             style={{
@@ -282,43 +288,43 @@ export function ProtocolsSettingsTab() {
               label={t("settings.utMetadataBEP9")}
               checked={form.extensionUtMetadata}
               onChange={(v) => update("extensionUtMetadata", v)}
-              hint="Magnet link metadata exchange"
+              hint={t("settingsTabs.protocols.utMetadataHint")}
             />
             <Toggle
               label={t("settings.utPexBEP11")}
               checked={form.extensionUtPex}
               onChange={(v) => update("extensionUtPex", v)}
-              hint="uTorrent Peer Exchange"
+              hint={t("settingsTabs.protocols.utPexHint")}
             />
             <Toggle
               label={t("settings.ltDonthaveBEP54")}
               checked={form.extensionLtDontHave}
               onChange={(v) => update("extensionLtDontHave", v)}
-              hint="Prune unwanted piece messages"
+              hint={t("settingsTabs.protocols.ltDontHaveHint")}
             />
             <Toggle
               label={t("settings.fastExtensionBEP6")}
               checked={form.extensionFastExtension}
               onChange={(v) => update("extensionFastExtension", v)}
-              hint="Allowed Fast & Suggest Pieces"
+              hint={t("settingsTabs.protocols.fastExtensionHint")}
             />
             <Toggle
               label={t("settings.privateTorrentsBEP27")}
               checked={form.enableBep27PrivateTorrents}
               onChange={(v) => update("enableBep27PrivateTorrents", v)}
-              hint="Strictly disables DHT, PEX, and Local Peer Discovery on private swarms"
+              hint={t("settingsTabs.protocols.privateTorrentsHint")}
             />
             <Toggle
               label={t("settings.uTPLEDBATBEP29")}
               checked={form.utpEnabled}
               onChange={(v) => update("utpEnabled", v)}
-              hint="Micro Transport Protocol over UDP"
+              hint={t("settingsTabs.protocols.utpLedbatHint")}
             />
             <Toggle
               label={t("settings.tCPFallback")}
               checked={form.tcpFallback}
               onChange={(v) => update("tcpFallback", v)}
-              hint="Fall back to TCP on uTP timeout"
+              hint={t("settingsTabs.protocols.tcpFallbackHint")}
             />
           </div>
         </div>
@@ -342,7 +348,7 @@ export function ProtocolsSettingsTab() {
             min={5}
             max={120}
             suffix={t("settingsTabs.batch2.sec")}
-            hint="Maximum duration for wire handshake"
+            hint={t("settingsTabs.protocols.handshakeTimeoutHint")}
           />
 
           <NumberInput
@@ -352,7 +358,7 @@ export function ProtocolsSettingsTab() {
             min={10}
             max={300}
             suffix={t("settingsTabs.batch2.sec")}
-            hint="Deadline for reading incoming protocol frames"
+            hint={t("settingsTabs.protocols.messageReadTimeoutHint")}
           />
 
           <NumberInput
@@ -362,7 +368,7 @@ export function ProtocolsSettingsTab() {
             min={30}
             max={600}
             suffix={t("settingsTabs.batch2.sec")}
-            hint="Frequency of 0-byte keepalive pings"
+            hint={t("settingsTabs.protocols.keepAliveIntervalHint")}
           />
 
           <NumberInput
@@ -372,7 +378,7 @@ export function ProtocolsSettingsTab() {
             min={10}
             max={300}
             suffix={t("settingsTabs.batch2.sec")}
-            hint="Cooldown before re-connecting to idle peers"
+            hint={t("settingsTabs.protocols.peerContactIntervalHint")}
           />
         </div>
       </SectionCard>
@@ -398,7 +404,7 @@ export function ProtocolsSettingsTab() {
             label={t("settings.automaticTierFailover")}
             checked={form.multiTrackerFailoverEnabled}
             onChange={(v) => update("multiTrackerFailoverEnabled", v)}
-            hint="Switch to secondary tracker tiers when primary is offline"
+            hint={t("settingsTabs.protocols.failoverHint")}
           />
 
           <Toggle

@@ -175,8 +175,15 @@ export function SystemLogs() {
                   key={level}
                   title={
                     level === "All"
-                      ? "Shows entries at or above the log level configured in Settings > Advanced"
-                      : `Show ${level} entries and above`
+                      ? t(
+                          "logging.showAllConfigured",
+                          "Shows entries at or above the log level configured in Settings > Advanced",
+                        )
+                      : t(
+                          "logging.showLevelAndAbove",
+                          "Show {level} entries and above",
+                          { level },
+                        )
                   }
                   className={`btn btn-small ${levelFilter === level ? "log-filter-active" : ""} ${level !== "All" ? `log-filter-${level.toLowerCase()}` : ""}`}
                   onClick={() => {
@@ -184,7 +191,9 @@ export function SystemLogs() {
                     setClearedBeforeId(null);
                   }}
                 >
-                  {level}
+                  {level === "All"
+                    ? t("logging.levels.all", "All")
+                    : t(`logging.levels.${level.toLowerCase()}`, level)}
                 </button>
               ))}
             </div>
@@ -228,10 +237,16 @@ export function SystemLogs() {
             ) : filteredEntries.length === 0 ? (
               <div className="log-empty-state">
                 {clearedBeforeId !== null
-                  ? "Log display cleared. New entries will appear above."
+                  ? t(
+                      "system.logClearedNotice",
+                      "Log display cleared. New entries will appear above.",
+                    )
                   : searchText
-                    ? "No log entries match the search filter."
-                    : "No log entries available."}
+                    ? t(
+                        "system.noLogMatches",
+                        "No log entries match the search filter.",
+                      )
+                    : t("system.noLogEntries", "No log entries available.")}
               </div>
             ) : (
               <table className="log-table">
@@ -256,7 +271,10 @@ export function SystemLogs() {
                         <span
                           className={`log-badge log-badge-${entry.level.toLowerCase()}`}
                         >
-                          {entry.level}
+                          {t(
+                            `logging.levels.${entry.level.toLowerCase()}`,
+                            entry.level,
+                          )}
                         </span>
                       </td>
                       <td className="log-cell-source" title={entry.source}>

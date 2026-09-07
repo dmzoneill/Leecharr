@@ -553,21 +553,35 @@ export function SpeedSchedule() {
     if (form.id) {
       updateSchedule.mutate(form as SpeedScheduleEntry, {
         onSuccess: () => {
-          showToast("Speed schedule updated", "info");
+          showToast(
+            t("speedSchedule.updatedToast", "Speed schedule updated"),
+            "info",
+          );
           setModal(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to update speed schedule", "error");
+          showToast(
+            err?.message ||
+              t("speedSchedule.updateError", "Failed to update speed schedule"),
+            "error",
+          );
         },
       });
     } else {
       createSchedule.mutate(form, {
         onSuccess: () => {
-          showToast("Speed schedule created", "info");
+          showToast(
+            t("speedSchedule.createdToast", "Speed schedule created"),
+            "info",
+          );
           setModal(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to create speed schedule", "error");
+          showToast(
+            err?.message ||
+              t("speedSchedule.createError", "Failed to create speed schedule"),
+            "error",
+          );
         },
       });
     }
@@ -575,17 +589,29 @@ export function SpeedSchedule() {
 
   async function handleDelete(id: number, name: string) {
     const ok = await confirm({
-      title: "Delete Speed Schedule",
-      message: `Are you sure you want to delete the schedule "${name}"?`,
+      title: t("speedSchedule.deleteTitle", "Delete Speed Schedule"),
+      message: t(
+        "speedSchedule.deleteConfirm",
+        'Are you sure you want to delete the schedule "{name}"?',
+        { name },
+      ),
       danger: true,
-      confirmText: "Delete",
+      confirmText: t("common.delete", "Delete"),
     });
     if (!ok) return;
 
     deleteSchedule.mutate(id, {
-      onSuccess: () => showToast("Speed schedule deleted", "info"),
+      onSuccess: () =>
+        showToast(
+          t("speedSchedule.deletedToast", "Speed schedule deleted"),
+          "info",
+        ),
       onError: (err: any) =>
-        showToast(err?.message || "Failed to delete schedule", "error"),
+        showToast(
+          err?.message ||
+            t("speedSchedule.deleteError", "Failed to delete schedule"),
+          "error",
+        ),
     });
   }
 

@@ -184,7 +184,10 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                   : "var(--text-muted)",
             }}
           >
-            {mergedTorrent.status}
+            {t(
+              "torrentStatus." + (mergedTorrent.status || "idle").toLowerCase(),
+              mergedTorrent.status || "Idle",
+            )}
           </div>
         </div>
 

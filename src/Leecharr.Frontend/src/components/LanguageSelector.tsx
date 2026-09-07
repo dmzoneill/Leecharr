@@ -70,7 +70,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title={`Language: ${activeLang.name} (${activeLang.nativeName})`}
+        title={t("common.languageTitle", "Language: {name} ({nativeName})", {
+          name: activeLang.name,
+          nativeName: activeLang.nativeName,
+        })}
       >
         <span className="language-selector-btn-flag">{activeLang.flag}</span>
         {showFullLabel ? (

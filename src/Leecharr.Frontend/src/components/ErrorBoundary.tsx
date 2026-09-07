@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { ErrorIcon } from "./icons/UIIcons";
+import { translate } from "../i18n/useTranslation";
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -70,7 +71,10 @@ export class ErrorBoundary extends Component<
       return this.props.children;
     }
 
-    const { fallback, title = "Something went wrong" } = this.props;
+    const {
+      fallback,
+      title = translate("common.error", "Something went wrong"),
+    } = this.props;
     const { error, errorInfo, showDetails } = this.state;
 
     if (fallback) {
@@ -154,7 +158,10 @@ export class ErrorBoundary extends Component<
                   color: "rgba(248, 244, 237, 0.7)",
                 }}
               >
-                An unexpected error occurred while rendering this component.
+                {translate(
+                  "components.anUnexpectedErrorOccurred",
+                  "An unexpected error occurred while rendering this component.",
+                )}
               </p>
             </div>
           </div>
@@ -172,7 +179,9 @@ export class ErrorBoundary extends Component<
                 wordBreak: "break-word",
               }}
             >
-              <strong>{error.name || "Error"}:</strong>{" "}
+              <strong>
+                {error.name || translate("common.error", "Error")}:
+              </strong>{" "}
               {error.message || String(error)}
             </div>
           )}
@@ -202,7 +211,7 @@ export class ErrorBoundary extends Component<
                   cursor: "pointer",
                 }}
               >
-                Try Again
+                {translate("components.tryAgain", "Try Again")}
               </button>
               <button
                 type="button"
@@ -217,7 +226,7 @@ export class ErrorBoundary extends Component<
                   cursor: "pointer",
                 }}
               >
-                Reload Page
+                {translate("components.reloadPage", "Reload Page")}
               </button>
             </div>
 
@@ -236,7 +245,15 @@ export class ErrorBoundary extends Component<
                   cursor: "pointer",
                 }}
               >
-                {showDetails ? "Hide Error Details" : "Show Error Details"}
+                {showDetails
+                  ? translate(
+                      "components.hideErrorDetails",
+                      "Hide Error Details",
+                    )
+                  : translate(
+                      "components.showErrorDetails",
+                      "Show Error Details",
+                    )}
               </button>
             )}
           </div>
@@ -260,7 +277,10 @@ export class ErrorBoundary extends Component<
                     letterSpacing: "0.05em",
                   }}
                 >
-                  Diagnostic Stack Trace
+                  {translate(
+                    "components.diagnosticStackTrace",
+                    "Diagnostic Stack Trace",
+                  )}
                 </div>
                 <pre
                   style={{

@@ -96,10 +96,24 @@ export function HarvesterPanel({
   const handleScanAll = () => {
     scanTrackers.mutate(undefined, {
       onSuccess: (res) => {
-        showToast(`Probed ${res.testedCount} tracker endpoints`, "success");
+        showToast(
+          t(
+            "trackerBoost.probedEndpointsSuccess",
+            "Probed {count} tracker endpoints",
+            { count: res.testedCount },
+          ),
+          "success",
+        );
       },
       onError: (err) => {
-        showToast(`Failed to probe trackers: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.probeTrackersFailed",
+            "Failed to probe trackers: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -108,12 +122,23 @@ export function HarvesterPanel({
     harvestDownloads.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `Harvested ${res.harvestedCount} new trackers from active downloads`,
+          t(
+            "trackerBoost.harvestedTrackersSuccess",
+            "Harvested {count} new trackers from active downloads",
+            { count: res.harvestedCount },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to harvest from downloads: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.harvestFailed",
+            "Failed to harvest from downloads: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -125,7 +150,12 @@ export function HarvesterPanel({
           showToast(res.message, res.boosted ? "success" : "info");
         },
         onError: (err) => {
-          showToast(`Failed to boost: ${err.message}`, "error");
+          showToast(
+            t("trackerBoost.boostFailed", "Failed to boost: {error}", {
+              error: err.message,
+            }),
+            "error",
+          );
         },
       });
     } else if (item.infoHash) {
@@ -136,7 +166,12 @@ export function HarvesterPanel({
             showToast(res.message, res.boosted ? "success" : "info");
           },
           onError: (err) => {
-            showToast(`Failed to boost: ${err.message}`, "error");
+            showToast(
+              t("trackerBoost.boostFailed", "Failed to boost: {error}", {
+                error: err.message,
+              }),
+              "error",
+            );
           },
         },
       );
@@ -157,7 +192,14 @@ export function HarvesterPanel({
           showToast(res.message, "success");
         },
         onError: (err) => {
-          showToast(`Failed to inject tracker: ${err.message}`, "error");
+          showToast(
+            t(
+              "trackerBoost.injectFailed",
+              "Failed to inject tracker: {error}",
+              { error: err.message },
+            ),
+            "error",
+          );
         },
       },
     );
@@ -175,12 +217,27 @@ export function HarvesterPanel({
           0,
         );
         showToast(
-          `Boosted ${resList.length} swarms: injected ${totalAdded} verified trackers (+${totalSeeds} seeds discovered)`,
+          t(
+            "trackerBoost.boostAllSuccess",
+            "Boosted {swarms} swarms: injected {trackers} verified trackers (+{seeds} seeds discovered)",
+            {
+              swarms: resList.length,
+              trackers: totalAdded,
+              seeds: totalSeeds,
+            },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to boost downloads: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.boostDownloadsFailed",
+            "Failed to boost downloads: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -228,8 +285,11 @@ export function HarvesterPanel({
             style={{ padding: "0.45rem 1rem", fontWeight: 600 }}
           >
             {boostAll.isPending
-              ? "⚡ Scraping & Boosting..."
-              : "⚡ Boost All Downloads (Verified Only)"}
+              ? t("trackerBoost.scrapingBoosting", "⚡ Scraping & Boosting...")
+              : t(
+                  "trackerBoost.boostAllDownloads",
+                  "⚡ Boost All Downloads (Verified Only)",
+                )}
           </button>
 
           <button
@@ -242,8 +302,11 @@ export function HarvesterPanel({
             )}
           >
             {harvestDownloads.isPending
-              ? "🔄 Harvesting..."
-              : "🔄 Harvest from Live Swarms"}
+              ? t("trackerBoost.harvesting", "🔄 Harvesting...")
+              : t(
+                  "trackerBoost.harvestFromLiveSwarms",
+                  "🔄 Harvest from Live Swarms",
+                )}
           </button>
 
           <button
@@ -255,7 +318,9 @@ export function HarvesterPanel({
               "Ping and probe health across all monitored tracker endpoints",
             )}
           >
-            {scanTrackers.isPending ? "📡 Probing..." : "📡 Probe All Trackers"}
+            {scanTrackers.isPending
+              ? t("trackerBoost.probing", "📡 Probing...")
+              : t("trackerBoost.probeAllTrackers", "📡 Probe All Trackers")}
           </button>
         </div>
 
@@ -277,12 +342,20 @@ export function HarvesterPanel({
             value={downloadFilter}
             onChange={(e) => setDownloadFilter(e.target.value as any)}
           >
-            <option value="all">All Swarms ({unifiedItems.length})</option>
+            <option value="all">
+              {t("trackerBoost.filterAllSwarms", "All Swarms ({count})", {
+                count: unifiedItems.length,
+              })}
+            </option>
             <option value="public">
-              Public ({unifiedItems.filter((i) => !i.isPrivate).length})
+              {t("trackerBoost.filterPublic", "Public ({count})", {
+                count: unifiedItems.filter((i) => !i.isPrivate).length,
+              })}
             </option>
             <option value="private">
-              Private ({unifiedItems.filter((i) => i.isPrivate).length})
+              {t("trackerBoost.filterPrivate", "Private ({count})", {
+                count: unifiedItems.filter((i) => i.isPrivate).length,
+              })}
             </option>
           </select>
           <input
@@ -337,10 +410,12 @@ export function HarvesterPanel({
             }}
           >
             <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-              Swarms ({filteredDownloads.length})
+              {t("trackerBoost.swarmsCount", "Swarms ({count})", {
+                count: filteredDownloads.length,
+              })}
             </span>
             <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Select to inspect swarm
+              {t("trackerBoost.selectToInspect", "Select to inspect swarm")}
             </span>
           </div>
 
@@ -352,7 +427,7 @@ export function HarvesterPanel({
                 color: "var(--text-muted)",
               }}
             >
-              Loading downloads...
+              {t("trackerBoost.loadingDownloads", "Loading downloads...")}
             </div>
           ) : filteredDownloads.length === 0 ? (
             <div
@@ -362,7 +437,10 @@ export function HarvesterPanel({
                 color: "var(--text-muted)",
               }}
             >
-              No downloads found matching filter.
+              {t(
+                "trackerBoost.noDownloadsMatch",
+                "No downloads found matching filter.",
+              )}
             </div>
           ) : (
             <div
@@ -425,7 +503,7 @@ export function HarvesterPanel({
                             "Private tracker swarm",
                           )}
                         >
-                          🔒 Private
+                          {t("trackerBoost.privateBadge", "🔒 Private")}
                         </span>
                       ) : (
                         <span
@@ -439,7 +517,7 @@ export function HarvesterPanel({
                             "Public swarm boost eligible",
                           )}
                         >
-                          🌐 Public
+                          {t("trackerBoost.publicBadge", "🌐 Public")}
                         </span>
                       )}
                     </div>
@@ -453,7 +531,8 @@ export function HarvesterPanel({
                       }}
                     >
                       <span>
-                        {formatBytes(item.totalSize)} • Ratio:{" "}
+                        {formatBytes(item.totalSize)} •{" "}
+                        {t("trackerBoost.ratio", "Ratio")}:{" "}
                         {formatRatio(item.ratio)}
                       </span>
                       <span
@@ -462,7 +541,9 @@ export function HarvesterPanel({
                             item.seeders > 0 ? "var(--success)" : "inherit",
                         }}
                       >
-                        {item.seeders} Seeds
+                        {t("trackerBoost.seedsCount", "{count} Seeds", {
+                          count: item.seeders,
+                        })}
                       </span>
                     </div>
                     <div
@@ -495,7 +576,7 @@ export function HarvesterPanel({
                             "Scrape and inject verified trackers",
                           )}
                         >
-                          ⚡ Enrich
+                          {t("trackerBoost.enrich", "⚡ Enrich")}
                         </button>
                       ) : (
                         <span
@@ -504,7 +585,7 @@ export function HarvesterPanel({
                             color: "var(--text-dim)",
                           }}
                         >
-                          Protected
+                          {t("trackerBoost.protected", "Protected")}
                         </span>
                       )}
                     </div>
@@ -570,14 +651,17 @@ export function HarvesterPanel({
                         className="badge badge-secondary"
                         style={{ fontSize: "0.75rem" }}
                       >
-                        🔒 Private Swarm
+                        {t(
+                          "trackerBoost.privateSwarmBadge",
+                          "🔒 Private Swarm",
+                        )}
                       </span>
                     ) : (
                       <span
                         className="badge badge-success"
                         style={{ fontSize: "0.75rem" }}
                       >
-                        🌐 Public Swarm
+                        {t("trackerBoost.publicSwarmBadge", "🌐 Public Swarm")}
                       </span>
                     )}
                   </div>
@@ -605,7 +689,7 @@ export function HarvesterPanel({
                       "Re-scrape candidate trackers for this info_hash",
                     )}
                   >
-                    🔄 Re-Scrape Swarm
+                    {t("trackerBoost.rescrapeSwarm", "🔄 Re-Scrape Swarm")}
                   </button>
                   {!selectedItem.isPrivate && (
                     <button
@@ -617,7 +701,10 @@ export function HarvesterPanel({
                         "Inject verified candidate trackers into this torrent",
                       )}
                     >
-                      ⚡ Boost Torrent (Inject Verified)
+                      {t(
+                        "trackerBoost.boostTorrentVerified",
+                        "⚡ Boost Torrent (Inject Verified)",
+                      )}
                     </button>
                   )}
                 </div>
@@ -641,10 +728,16 @@ export function HarvesterPanel({
                 >
                   <span style={{ fontSize: "1.25rem" }}>🔒</span>
                   <div>
-                    <strong>Private Tracker Swarm:</strong> Cross-swarm public
-                    tracker injection is protected and disabled to comply with
-                    BitTorrent private tracker rules (BEP 27). Attached private
-                    trackers and health metrics are displayed below.
+                    <strong>
+                      {t(
+                        "trackerBoost.privateSwarmWarningStrong",
+                        "Private Tracker Swarm:",
+                      )}
+                    </strong>{" "}
+                    {t(
+                      "trackerBoost.privateSwarmWarningText",
+                      "Cross-swarm public tracker injection is protected and disabled to comply with BitTorrent private tracker rules (BEP 27). Attached private trackers and health metrics are displayed below.",
+                    )}
                   </div>
                 </div>
               )}
@@ -664,7 +757,7 @@ export function HarvesterPanel({
                     {inspection?.attachedTrackersCount ?? 0}
                   </div>
                   <div className="stat-label" style={{ fontSize: "0.75rem" }}>
-                    Attached Trackers
+                    {t("trackerBoost.attachedTrackers", "Attached Trackers")}
                   </div>
                 </div>
                 <div className="stat-card" style={{ padding: "0.75rem" }}>
@@ -675,7 +768,10 @@ export function HarvesterPanel({
                     {inspection?.verifiedTrackersCount ?? 0}
                   </div>
                   <div className="stat-label" style={{ fontSize: "0.75rem" }}>
-                    Verified Candidates
+                    {t(
+                      "trackerBoost.verifiedCandidates",
+                      "Verified Candidates",
+                    )}
                   </div>
                 </div>
                 <div className="stat-card" style={{ padding: "0.75rem" }}>
@@ -683,7 +779,7 @@ export function HarvesterPanel({
                     {inspection?.totalTrackersChecked ?? 0}
                   </div>
                   <div className="stat-label" style={{ fontSize: "0.75rem" }}>
-                    Total Checked
+                    {t("trackerBoost.totalChecked", "Total Checked")}
                   </div>
                 </div>
               </div>
@@ -697,8 +793,11 @@ export function HarvesterPanel({
                     color: "var(--text-muted)",
                   }}
                 >
-                  Scraping candidate trackers for hash{" "}
-                  {(selectedItem?.infoHash || "").slice(0, 8)}...
+                  {t(
+                    "trackerBoost.scrapingCandidateForHash",
+                    "Scraping candidate trackers for hash {hash}...",
+                    { hash: (selectedItem?.infoHash || "").slice(0, 8) },
+                  )}
                 </div>
               ) : (
                 <div
@@ -726,37 +825,40 @@ export function HarvesterPanel({
                           className="torrent-table-th"
                           style={{ width: "35%" }}
                         >
-                          Tracker URL
+                          {t("trackerBoost.trackerUrl", "Tracker URL")}
                         </th>
                         <th
                           className="torrent-table-th"
                           style={{ width: "10%" }}
                         >
-                          Protocol
+                          {t("trackerBoost.protocol", "Protocol")}
                         </th>
                         <th
                           className="torrent-table-th"
                           style={{ width: "10%" }}
                         >
-                          Latency
+                          {t("trackerBoost.latency", "Latency")}
                         </th>
                         <th
                           className="torrent-table-th"
                           style={{ width: "25%" }}
                         >
-                          Status / Detection
+                          {t(
+                            "trackerBoost.statusDetection",
+                            "Status / Detection",
+                          )}
                         </th>
                         <th
                           className="torrent-table-th"
                           style={{ width: "15%" }}
                         >
-                          Peers
+                          {t("trackerBoost.peers", "Peers")}
                         </th>
                         <th
                           className="torrent-table-th"
                           style={{ textAlign: "right" }}
                         >
-                          Action
+                          {t("trackerBoost.action", "Action")}
                         </th>
                       </tr>
                     </thead>
@@ -812,14 +914,17 @@ export function HarvesterPanel({
                                 className="badge badge-primary"
                                 style={{ fontSize: "0.75rem" }}
                               >
-                                Attached
+                                {t("trackerBoost.attached", "Attached")}
                               </span>
                             ) : det.isVerified ? (
                               <span
                                 className="badge badge-success"
                                 style={{ fontSize: "0.75rem" }}
                               >
-                                ✓ Verified Match
+                                {t(
+                                  "trackerBoost.verifiedMatch",
+                                  "✓ Verified Match",
+                                )}
                               </span>
                             ) : (
                               <span
@@ -840,7 +945,11 @@ export function HarvesterPanel({
                                 fontWeight: 600,
                               }}
                             >
-                              {det.seeders} seeds
+                              {t(
+                                "trackerBoost.seedsCountLower",
+                                "{count} seeds",
+                                { count: det.seeders },
+                              )}
                             </span>{" "}
                             /{" "}
                             <span
@@ -851,7 +960,11 @@ export function HarvesterPanel({
                                     : "inherit",
                               }}
                             >
-                              {det.leechers} leeches
+                              {t(
+                                "trackerBoost.leechesCountLower",
+                                "{count} leeches",
+                                { count: det.leechers },
+                              )}
                             </span>
                           </td>
                           <td
@@ -868,19 +981,25 @@ export function HarvesterPanel({
                                   padding: "0.25rem 0.5rem",
                                 }}
                               >
-                                ✓ Attached
+                                {t("trackerBoost.attachedBadge", "✓ Attached")}
                               </span>
                             ) : selectedItem.isPrivate ? (
                               <span
                                 className="badge badge-secondary"
-                                title="BEP 27: Public tracker injection is disabled for private torrents"
+                                title={t(
+                                  "trackerBoost.privateGuardTitle",
+                                  "BEP 27: Public tracker injection is disabled for private torrents",
+                                )}
                                 style={{
                                   fontSize: "0.72rem",
                                   padding: "0.25rem 0.5rem",
                                   opacity: 0.8,
                                 }}
                               >
-                                🔒 Private Guard
+                                {t(
+                                  "trackerBoost.privateGuardBadge",
+                                  "🔒 Private Guard",
+                                )}
                               </span>
                             ) : det.isVerified ? (
                               <button
@@ -893,7 +1012,7 @@ export function HarvesterPanel({
                                   "Inject this verified tracker into the torrent",
                                 )}
                               >
-                                ⚡ Inject
+                                {t("trackerBoost.inject", "⚡ Inject")}
                               </button>
                             ) : det.healthStatus === "Offline" ||
                               det.healthStatus === 3 ? (
@@ -903,7 +1022,7 @@ export function HarvesterPanel({
                                   fontSize: "0.75rem",
                                 }}
                               >
-                                Offline
+                                {t("trackerBoost.offline", "Offline")}
                               </span>
                             ) : (
                               <span
@@ -931,8 +1050,10 @@ export function HarvesterPanel({
                 color: "var(--text-muted)",
               }}
             >
-              Select a download from the left list to inspect live tracker
-              scrape results.
+              {t(
+                "trackerBoost.selectDownloadHint",
+                "Select a download from the left list to inspect live tracker scrape results.",
+              )}
             </div>
           )}
         </div>

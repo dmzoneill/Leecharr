@@ -78,11 +78,21 @@ export default function DownloadHistory() {
   const handleReAdd = (id: number, title: string) => {
     reAddMutation.mutate(id, {
       onSuccess: () => {
-        showToast(`Re-added "${title}" to active seeding library`, "success");
+        showToast(
+          t(
+            "history.reAddedToast",
+            'Re-added "{title}" to active seeding library',
+            { title },
+          ),
+          "success",
+        );
       },
       onError: (err) => {
         showToast(
-          `Failed to re-add "${title}": ${err.message || "Unknown error"}`,
+          t("history.failedToReAdd", 'Failed to re-add "{title}": {error}', {
+            title,
+            error: err.message || "Unknown error",
+          }),
           "error",
         );
       },
@@ -91,10 +101,14 @@ export default function DownloadHistory() {
 
   const handleDelete = async (id: number, title: string) => {
     const ok = await confirm({
-      title: "Delete History Record",
-      message: `Delete history record for "${title}"?`,
+      title: t("history.deleteHistoryRecord", "Delete History Record"),
+      message: t(
+        "history.deleteHistoryRecordConfirm",
+        'Delete history record for "{title}"?',
+        { title },
+      ),
       danger: true,
-      confirmText: "Delete",
+      confirmText: t("common.delete", "Delete"),
     });
     if (!ok) return;
 
@@ -103,10 +117,20 @@ export default function DownloadHistory() {
         if (selectedDetailItem?.id === id) {
           setSelectedDetailItem(null);
         }
-        showToast("Historical record removed", "info");
+        showToast(
+          t("history.recordRemovedToast", "Historical record removed"),
+          "info",
+        );
       },
       onError: (err) => {
-        showToast(`Failed to delete record: ${err.message}`, "error");
+        showToast(
+          t(
+            "history.failedToDeleteRecord",
+            "Failed to delete record: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -114,13 +138,27 @@ export default function DownloadHistory() {
   const handleEnrich = (item: DownloadHistoryEntry) => {
     enrichMutation.mutate(item.id, {
       onSuccess: (updated) => {
-        showToast(`Enriched metadata for "${item.title}"`, "success");
+        showToast(
+          t(
+            "history.enrichedMetadataToast",
+            'Enriched metadata for "{title}"',
+            { title: item.title },
+          ),
+          "success",
+        );
         if (selectedDetailItem?.id === item.id) {
           setSelectedDetailItem(updated);
         }
       },
       onError: (err) => {
-        showToast(`Could not enrich metadata: ${err.message}`, "error");
+        showToast(
+          t(
+            "history.couldNotEnrichMetadata",
+            "Could not enrich metadata: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -129,12 +167,22 @@ export default function DownloadHistory() {
     enrichAllMutation.mutate(undefined, {
       onSuccess: () => {
         showToast(
-          "Started metadata enrichment from connected Arr instances",
+          t(
+            "history.startedMetadataEnrichment",
+            "Started metadata enrichment from connected Arr instances",
+          ),
           "info",
         );
       },
       onError: (err) => {
-        showToast(`Failed to start enrichment: ${err.message}`, "error");
+        showToast(
+          t(
+            "history.failedToStartEnrichment",
+            "Failed to start enrichment: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -143,33 +191,59 @@ export default function DownloadHistory() {
     reconcileMutation.mutate(undefined, {
       onSuccess: (res) => {
         showToast(
-          `Reconciled library and enriched metadata (${res.processedCount} processed)`,
+          t(
+            "history.reconciledLibraryToast",
+            "Reconciled library and enriched metadata ({count} processed)",
+            { count: res.processedCount },
+          ),
           "success",
         );
       },
       onError: (err) => {
-        showToast(`Failed to reconcile library: ${err.message}`, "error");
+        showToast(
+          t(
+            "history.failedToReconcileLibrary",
+            "Failed to reconcile library: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
 
   const handleClearAll = async () => {
     const ok = await confirm({
-      title: "Clear Download History",
-      message:
+      title: t("history.clearDownloadHistory", "Clear Download History"),
+      message: t(
+        "history.clearDownloadHistoryConfirm",
         "Are you sure you want to clear all download history? This action cannot be undone.",
+      ),
       danger: true,
-      confirmText: "Clear All",
+      confirmText: t("common.clearAll", "Clear All"),
     });
     if (!ok) return;
 
     clearMutation.mutate(undefined, {
       onSuccess: () => {
         setSelectedDetailItem(null);
-        showToast("Download history cleared successfully", "success");
+        showToast(
+          t(
+            "history.historyClearedSuccess",
+            "Download history cleared successfully",
+          ),
+          "success",
+        );
       },
       onError: (err) => {
-        showToast(`Failed to clear history: ${err.message}`, "error");
+        showToast(
+          t(
+            "history.failedToClearHistory",
+            "Failed to clear history: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -301,7 +375,9 @@ export default function DownloadHistory() {
               }}
               onClick={() => setStatusFilter(st)}
             >
-              {st === "all" ? "All" : st}
+              {st === "all"
+                ? t("common.all", "All")
+                : t("torrentStatus." + st.toLowerCase(), st)}
             </button>
           ))}
         </div>
@@ -698,7 +774,11 @@ export default function DownloadHistory() {
                               e.stopPropagation();
                               setSearchTerm(g);
                             }}
-                            title={`Filter downloads by genre "${g}"`}
+                            title={t(
+                              "history.filterByGenre",
+                              'Filter downloads by genre "{genre}"',
+                              { genre: g },
+                            )}
                           >
                             {g}
                           </span>
@@ -797,7 +877,7 @@ export default function DownloadHistory() {
                       }
                       title={
                         item.status === "Active"
-                          ? "Already in library"
+                          ? t("history.alreadyInLibrary", "Already in library")
                           : t("history.reAddTitle")
                       }
                     >
@@ -1104,7 +1184,11 @@ export default function DownloadHistory() {
                                 : "badge-stopped"
                           }`}
                         >
-                          {item.status}
+                          {t(
+                            "torrentStatus." +
+                              (item.status || "active").toLowerCase(),
+                            item.status,
+                          )}
                         </span>
                       </td>
 
@@ -1172,7 +1256,10 @@ export default function DownloadHistory() {
                             }
                             title={
                               item.status === "Active"
-                                ? "Already in library"
+                                ? t(
+                                    "history.alreadyInLibrary",
+                                    "Already in library",
+                                  )
                                 : t("history.reAddTitle")
                             }
                           >
@@ -1802,11 +1889,15 @@ export default function DownloadHistory() {
                     }}
                     title={
                       selectedDetailItem.primaryTracker
-                        ? "Click to filter by tracker"
+                        ? t(
+                            "history.filterByTracker",
+                            "Click to filter by tracker",
+                          )
                         : undefined
                     }
                   >
-                    {selectedDetailItem.primaryTracker || "None"}
+                    {selectedDetailItem.primaryTracker ||
+                      t("common.none", "None")}
                   </div>
                 </div>
 
@@ -1884,7 +1975,13 @@ export default function DownloadHistory() {
           onClose={() => setSearchModalQuery(null)}
           onTorrentAdded={() => {
             setSearchModalQuery(null);
-            showToast("Torrent added to download queue", "success");
+            showToast(
+              t(
+                "history.torrentAddedSuccess",
+                "Torrent added to download queue",
+              ),
+              "success",
+            );
           }}
         />
       )}

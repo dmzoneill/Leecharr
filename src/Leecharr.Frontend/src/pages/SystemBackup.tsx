@@ -103,18 +103,33 @@ function SystemBackup() {
 
   const handleCreateBackup = () => {
     createBackup.mutate(undefined, {
-      onSuccess: () => showToast("Backup created successfully", "success"),
-      onError: () => showToast("Failed to create backup", "error"),
+      onSuccess: () =>
+        showToast(
+          t("system.backupCreatedSuccess", "Backup created successfully"),
+          "success",
+        ),
+      onError: () =>
+        showToast(
+          t("system.backupCreateFailed", "Failed to create backup"),
+          "error",
+        ),
     });
   };
 
   const handleDeleteBackup = (id: number) => {
     deleteBackup.mutate(id, {
       onSuccess: () => {
-        showToast("Backup deleted", "success");
+        showToast(
+          t("system.backupDeletedSuccess", "Backup deleted"),
+          "success",
+        );
         setConfirmDelete(null);
       },
-      onError: () => showToast("Failed to delete backup", "error"),
+      onError: () =>
+        showToast(
+          t("system.backupDeleteFailed", "Failed to delete backup"),
+          "error",
+        ),
     });
   };
 
@@ -124,10 +139,16 @@ function SystemBackup() {
         backupId: backup.id,
         fileName: backup.name,
       });
-      showToast("Backup restored. Restart required.", "info");
+      showToast(
+        t("system.backupRestoredSuccess", "Backup restored. Restart required."),
+        "info",
+      );
       setConfirmRestore(null);
     } catch {
-      showToast("Failed to restore backup", "error");
+      showToast(
+        t("system.backupRestoreFailed", "Failed to restore backup"),
+        "error",
+      );
     }
   };
 
@@ -176,7 +197,7 @@ function SystemBackup() {
           <BackupIcon />
           <span>
             {createBackup.isPending
-              ? "Creating Backup..."
+              ? t("system.creatingBackup", "Creating Backup...")
               : t("system.createBackup")}
           </span>
         </button>
@@ -354,7 +375,9 @@ function SystemBackup() {
                 onClick={() => handleDeleteBackup(confirmDelete)}
                 disabled={deleteBackup.isPending}
               >
-                {deleteBackup.isPending ? "Deleting..." : t("common.delete")}
+                {deleteBackup.isPending
+                  ? t("system.deleting", "Deleting...")
+                  : t("common.delete")}
               </button>
             </div>
           </div>
@@ -423,7 +446,9 @@ function SystemBackup() {
                 onClick={() => handleRestoreBackup(confirmRestore)}
                 disabled={restoreBackup.isPending}
               >
-                {restoreBackup.isPending ? "Restoring..." : "Confirm & Restore"}
+                {restoreBackup.isPending
+                  ? t("system.restoring", "Restoring...")
+                  : t("system.confirmAndRestore", "Confirm & Restore")}
               </button>
             </div>
           </div>

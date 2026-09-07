@@ -71,7 +71,9 @@ export function LoggingTab() {
       setVacuumMsg(t("settingsTabs.logging.vacuumSuccess"));
     } catch (err: any) {
       setVacuumMsg(
-        `✗ Database VACUUM failed: ${err?.message || t("settingsTabs.logging.internalServerError")}`,
+        t("settingsTabs.logging.vacuumError", {
+          error: err?.message || t("settingsTabs.logging.internalServerError"),
+        }),
       );
     } finally {
       setVacuuming(false);

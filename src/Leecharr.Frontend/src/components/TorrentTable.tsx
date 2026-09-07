@@ -953,7 +953,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 textTransform: "capitalize",
               }}
             >
-              {tTorrent.status || "Idle"}
+              {t(
+                "torrentStatus." + (tTorrent.status || "idle").toLowerCase(),
+                tTorrent.status || "Idle",
+              )}
             </span>
           );
         }

@@ -48,7 +48,7 @@ export function SubsystemsTab() {
       setProbeResult(res);
     } catch (err: any) {
       showToast(
-        `Probe failed: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        `${t("settingsTabs.subsystems.probeFailed")}${err.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     } finally {
@@ -67,19 +67,22 @@ export function SubsystemsTab() {
       if (res.success) {
         showToast(
           res.message ||
-            `Successfully switched ${selectedForSwitch.subsystem.name} provider to ${selectedForSwitch.provider.displayName}.`,
+            t("settingsTabs.subsystems.switchSuccess", {
+              subsystem: selectedForSwitch.subsystem.name,
+              provider: selectedForSwitch.provider.displayName,
+            }),
           "success",
         );
         setSelectedForSwitch(null);
       } else {
         showToast(
-          `Failed to switch provider: ${res.error || t("settingsTabs.notifications.unknownError")}`,
+          `${t("settingsTabs.subsystems.switchFailed")}${res.error || t("settingsTabs.notifications.unknownError")}`,
           "error",
         );
       }
     } catch (err: any) {
       showToast(
-        `Failed to switch provider: ${err.message || t("settingsTabs.notifications.unknownError")}`,
+        `${t("settingsTabs.subsystems.switchFailed")}${err.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     }
@@ -96,7 +99,8 @@ export function SubsystemsTab() {
   if (isError) {
     return (
       <div style={{ color: "#e74c3c", padding: "1rem" }}>
-        Error loading subsystems: {(error as Error)?.message}
+        {t("settingsTabs.subsystems.errorLoading")}
+        {(error as Error)?.message}
         <button
           onClick={() => refetch()}
           style={{ marginLeft: "1rem", padding: "0.25rem 0.75rem" }}
@@ -150,8 +154,10 @@ export function SubsystemsTab() {
               fontSize: "0.9rem",
             }}
           >
-            Switch underlying engines, inspectors, geolocation resolvers, and
-            security layers at runtime with zero downtime.
+            {t(
+              "settingsTabs.subsystems.architectureSubtitle",
+              "Switch underlying engines, inspectors, geolocation resolvers, and security layers at runtime with zero downtime.",
+            )}
           </p>
         </div>
 
@@ -184,7 +190,9 @@ export function SubsystemsTab() {
                 transition: "all 0.2s ease",
               }}
             >
-              {cat === "all" ? t("settingsTabs.subsystems.allSubsystems") : cat}
+              {cat === "all"
+                ? t("settingsTabs.subsystems.allSubsystems")
+                : t(`subsystems.category.${cat.toLowerCase()}`, cat)}
             </button>
           ))}
         </div>
@@ -348,10 +356,14 @@ export function SubsystemsTab() {
                           {Object.entries(provider.capabilities).map(
                             ([k, v]) => {
                               if (typeof v === "boolean" && !v) return null;
-                              const label = k
+                              const fallbackLabel = k
                                 .replace(/^supports/, "")
                                 .replace(/([A-Z])/g, " $1")
                                 .trim();
+                              const label = t(
+                                `subsystems.capabilities.${k}`,
+                                fallbackLabel,
+                              );
 
                               return (
                                 <span
@@ -475,12 +487,10 @@ export function SubsystemsTab() {
                 fontSize: "0.9rem",
               }}
             >
-              Are you sure you want to switch{" "}
-              <strong>{selectedForSwitch.subsystem.name}</strong> to{" "}
-              <strong style={{ color: "var(--accent-gold, #ffd166)" }}>
-                {selectedForSwitch.provider.displayName}
-              </strong>
-              ?
+              {t("settingsTabs.subsystems.confirmHotSwapPrompt", {
+                name: selectedForSwitch.subsystem.name,
+                provider: selectedForSwitch.provider.displayName,
+              })}
             </p>
 
             <p
@@ -493,9 +503,10 @@ export function SubsystemsTab() {
                 border: "1px solid var(--border-color, #23284b)",
               }}
             >
-              ℹ️ Provider switching executes atomically with zero application
-              restart. Active workloads will seamlessly migrate to the new
-              provider.
+              {t(
+                "settingsTabs.subsystems.hotSwapInfo",
+                "ℹ️ Provider switching executes atomically with zero application restart. Active workloads will seamlessly migrate to the new provider.",
+              )}
             </p>
 
             <div

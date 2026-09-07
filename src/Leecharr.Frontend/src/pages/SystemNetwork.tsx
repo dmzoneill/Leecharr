@@ -209,7 +209,7 @@ function SystemNetwork() {
             <div className="status-row">
               <span className="status-label">{t("system.externalIp")}</span>
               <span className="status-value">
-                <code>{diag.externalIp || "Unknown"}</code>
+                <code>{diag.externalIp || t("common.unknown", "Unknown")}</code>
               </span>
             </div>
             <div className="status-row">
@@ -270,7 +270,9 @@ function SystemNetwork() {
                 <span
                   className={`badge ${diag.upnpAvailable ? "badge-seeding" : "badge-stopped"}`}
                 >
-                  {diag.upnpAvailable ? "Available" : "Unavailable"}
+                  {diag.upnpAvailable
+                    ? t("system.available", "Available")
+                    : t("system.unavailable", "Unavailable")}
                 </span>
               </span>
             </div>
@@ -280,7 +282,9 @@ function SystemNetwork() {
                 <span
                   className={`badge ${diag.proxyEnabled ? "badge-seeding" : "badge-stopped"}`}
                 >
-                  {diag.proxyEnabled ? "Enabled" : "Disabled"}
+                  {diag.proxyEnabled
+                    ? t("system.enabled", "Enabled")
+                    : t("system.disabled", "Disabled")}
                 </span>
               </span>
             </div>
@@ -290,7 +294,9 @@ function SystemNetwork() {
                 <span
                   className={`badge ${diag.dhtEnabled ? "badge-seeding" : "badge-stopped"}`}
                 >
-                  {diag.dhtEnabled ? "Enabled" : "Disabled"}
+                  {diag.dhtEnabled
+                    ? t("system.enabled", "Enabled")
+                    : t("system.disabled", "Disabled")}
                 </span>
               </span>
             </div>
@@ -503,7 +509,9 @@ function SystemNetwork() {
                       <span
                         className={`badge ${pm.isActive ? "badge-seeding" : "badge-stopped"}`}
                       >
-                        {pm.isActive ? "Active" : "Inactive"}
+                        {pm.isActive
+                          ? t("system.active", "Active")
+                          : t("system.inactive", "Inactive")}
                       </span>
                     </td>
                   </tr>

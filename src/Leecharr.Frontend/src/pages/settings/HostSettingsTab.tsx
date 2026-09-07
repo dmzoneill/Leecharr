@@ -104,7 +104,7 @@ export function HostSettingsTab() {
         message:
           err instanceof Error
             ? err.message
-            : "Failed to execute SSL test connection",
+            : t("settingsTabs.host.ssl.test.failedExecution"),
       });
     } finally {
       setTestingSsl(false);

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { formatSpeed } from "../utils/formatters";
+import { useTranslation } from "../i18n";
 
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 170;
@@ -47,6 +48,7 @@ export default function LineChart({
   isSpeed,
   isRatio,
 }: LineChartProps) {
+  const { t } = useTranslation();
   const gradId = useId().replace(/:/g, "_");
   const chartW = CHART_WIDTH - PADDING.left - PADDING.right;
   const chartH = CHART_HEIGHT - PADDING.top - PADDING.bottom;
@@ -169,7 +171,7 @@ export default function LineChart({
             fontSize={10}
             textAnchor="start"
           >
-            {maxPoints}s ago
+            {t("components.sAgo", "{count}s ago", { count: maxPoints })}
           </text>
           <text
             x={CHART_WIDTH - PADDING.right}
@@ -178,7 +180,7 @@ export default function LineChart({
             fontSize={10}
             textAnchor="end"
           >
-            now
+            {t("components.now", "now")}
           </text>
 
           <rect

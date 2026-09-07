@@ -73,12 +73,19 @@ export const Indexers: React.FC<IndexersProps> = ({
       {
         onSuccess: () => {
           setDownloadingGuid(null);
-          showToast(`Grabbed "${release.title}" successfully`, "success");
+          showToast(
+            t("indexers.grabbedSuccess", 'Grabbed "{title}" successfully', {
+              title: release.title,
+            }),
+            "success",
+          );
         },
         onError: (err) => {
           setDownloadingGuid(null);
           showToast(
-            `Failed to grab: ${err.message || "Unknown error"}`,
+            t("indexers.failedToGrab", "Failed to grab: {error}", {
+              error: err.message || "Unknown error",
+            }),
             "error",
           );
         },
@@ -93,16 +100,30 @@ export const Indexers: React.FC<IndexersProps> = ({
         setTestingId(null);
         if (res.success) {
           showToast(
-            `Connection to indexer verified (${res.responseTimeMs || 0}ms)`,
+            t(
+              "indexers.connectionVerified",
+              "Connection to indexer verified ({ms}ms)",
+              { ms: res.responseTimeMs || 0 },
+            ),
             "success",
           );
         } else {
-          showToast(`Indexer test failed: ${res.message}`, "error");
+          showToast(
+            t("indexers.indexerTestFailed", "Indexer test failed: {error}", {
+              error: res.message,
+            }),
+            "error",
+          );
         }
       },
       onError: (err) => {
         setTestingId(null);
-        showToast(`Test error: ${err.message}`, "error");
+        showToast(
+          t("indexers.testError", "Test error: {error}", {
+            error: err.message,
+          }),
+          "error",
+        );
       },
     });
   };
@@ -116,7 +137,12 @@ export const Indexers: React.FC<IndexersProps> = ({
       {
         onSuccess: () => {
           showToast(
-            `Indexer "${indexer.name}" ${!indexer.enable ? "enabled" : "disabled"}`,
+            t("indexers.indexerToggled", 'Indexer "{name}" {status}', {
+              name: indexer.name,
+              status: !indexer.enable
+                ? t("common.enabled", "enabled")
+                : t("common.disabled", "disabled"),
+            }),
             "success",
           );
         },
@@ -128,14 +154,9 @@ export const Indexers: React.FC<IndexersProps> = ({
   const filtered = freeleechOnly
     ? rawResults.filter(
         (r) =>
-          Boolean(r.isFreeleech) ||
           r.downloadVolumeFactor === 0 ||
-          (r.category || "").toLowerCase().includes("freeleech") ||
-          (r.categories || []).some((c) =>
-            c.toLowerCase().includes("freeleech"),
-          ) ||
-          (r.downloadUrl || "").toLowerCase().includes("freeleech") ||
-          (r.magnetUrl || "").toLowerCase().includes("freeleech"),
+          (r.categories &&
+            r.categories.some((c) => c.toLowerCase().includes("freeleech"))),
       )
     : rawResults;
 
@@ -154,7 +175,7 @@ export const Indexers: React.FC<IndexersProps> = ({
 
   return (
     <div
-      className="indexers-page content-area"
+      className="content-area"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -163,33 +184,50 @@ export const Indexers: React.FC<IndexersProps> = ({
         overflow: "hidden",
       }}
     >
-      {/* Header */}
+      {/* Top Header Card */}
       <div
         className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem",
           marginBottom: "1rem",
           flexShrink: 0,
         }}
       >
-        <div>
+        <div className="page-header-group">
           <h1
             className="page-heading"
             style={{ margin: 0, fontSize: "1.4rem" }}
           >
             {currentIndexer
-              ? `Indexer: ${currentIndexer.name}`
-              : "Multi-Indexer Search & Discovery"}
+              ? t("indexers.indexerColon", "Indexer: {name}", {
+                  name: currentIndexer.name,
+                })
+              : t(
+                  "indexers.multiIndexerDiscovery",
+                  "Multi-Indexer Search & Discovery",
+                )}
           </h1>
           <p
             className="text-muted"
             style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}
           >
             {currentIndexer
-              ? `Direct query endpoint for ${currentIndexer.indexerType} (${currentIndexer.url})`
-              : "Unified Torznab & Newznab search across all linked indexers with Freeleech detection."}
+              ? t(
+                  "indexers.directQueryEndpoint",
+                  "Direct query endpoint for {type} ({url})",
+                  {
+                    type: currentIndexer.indexerType,
+                    url: currentIndexer.url,
+                  },
+                )
+              : t(
+                  "indexers.unifiedSearchDescription",
+                  "Unified Torznab & Newznab search across all linked indexers with Freeleech detection.",
+                )}
           </p>
         </div>
 
@@ -203,15 +241,17 @@ export const Indexers: React.FC<IndexersProps> = ({
                 disabled={testingId === currentIndexer.id}
               >
                 {testingId === currentIndexer.id
-                  ? "Testing..."
-                  : "⚡ Test Connection"}
+                  ? t("common.testing", "Testing...")
+                  : t("indexers.testConnection", "⚡ Test Connection")}
               </button>
               <button
                 type="button"
                 className="btn btn-small btn-outline"
                 onClick={() => handleToggleEnable(currentIndexer)}
               >
-                {currentIndexer.enable ? "⏸ Disable" : "▶ Enable"}
+                {currentIndexer.enable
+                  ? t("indexers.disable", "⏸ Disable")
+                  : t("indexers.enable", "▶ Enable")}
               </button>
             </>
           )}
@@ -226,7 +266,7 @@ export const Indexers: React.FC<IndexersProps> = ({
               fontWeight: 600,
             }}
           >
-            ⚙ Manage Indexers
+            ⚙ {t("indexers.manageIndexers", "Manage Indexers")}
           </button>
         </div>
       </div>
@@ -249,9 +289,16 @@ export const Indexers: React.FC<IndexersProps> = ({
           }}
         >
           <div>
-            <strong>⚠️ No indexers configured.</strong> You need to add a
-            Torznab indexer or sync with Prowlarr in Settings &gt; Indexers to
-            search for releases.
+            <strong>
+              {t(
+                "indexers.noIndexersConfiguredStrong",
+                "⚠️ No indexers configured.",
+              )}
+            </strong>{" "}
+            {t(
+              "indexers.noIndexersConfiguredHint",
+              "You need to add a Torznab indexer or sync with Prowlarr in Settings > Indexers to search for releases.",
+            )}
           </div>
           <button
             type="button"
@@ -265,7 +312,7 @@ export const Indexers: React.FC<IndexersProps> = ({
               marginLeft: "1rem",
             }}
           >
-            Configure Indexers
+            {t("indexers.configureIndexers", "Configure Indexers")}
           </button>
         </div>
       )}
@@ -295,7 +342,9 @@ export const Indexers: React.FC<IndexersProps> = ({
               cursor: "pointer",
             }}
           >
-            All Indexers ({enabledIndexers.length})
+            {t("indexers.allIndexersCount", "All Indexers ({count})", {
+              count: enabledIndexers.length,
+            })}
           </button>
           {enabledIndexers.map((idx) => (
             <button
@@ -338,8 +387,15 @@ export const Indexers: React.FC<IndexersProps> = ({
             type="text"
             placeholder={
               currentIndexer
-                ? `Search ${currentIndexer.name} (e.g. 1080p, 2160p, Linux, Debian)...`
-                : "Search all indexers (e.g. 1080p, 2160p, Linux, Debian)..."
+                ? t(
+                    "indexers.searchIndexerPlaceholder",
+                    "Search {name} (e.g. 1080p, 2160p, Linux, Debian)...",
+                    { name: currentIndexer.name },
+                  )
+                : t(
+                    "indexers.searchAllPlaceholder",
+                    "Search all indexers (e.g. 1080p, 2160p, Linux, Debian)...",
+                  )
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -367,8 +423,8 @@ export const Indexers: React.FC<IndexersProps> = ({
             }}
           >
             {searchResults.isFetching
-              ? "Searching swarms..."
-              : "Search Releases"}
+              ? t("indexers.searchingSwarms", "Searching swarms...")
+              : t("indexers.searchReleases", "Search Releases")}
           </button>
         </form>
 
@@ -395,7 +451,12 @@ export const Indexers: React.FC<IndexersProps> = ({
               checked={freeleechOnly}
               onChange={(e) => setFreeleechOnly(e.target.checked)}
             />
-            <span>Freeleech Only (100% Free / Zero Ratio Cost)</span>
+            <span>
+              {t(
+                "indexers.freeleechOnly",
+                "Freeleech Only (100% Free / Zero Ratio Cost)",
+              )}
+            </span>
           </label>
         </div>
       </div>
@@ -421,11 +482,15 @@ export const Indexers: React.FC<IndexersProps> = ({
                 className="loading"
                 style={{ fontSize: "1rem", color: "var(--accent, #ffd166)" }}
               >
-                Querying{" "}
                 {currentIndexer
-                  ? currentIndexer.name
-                  : `${enabledIndexers.length} active indexers`}
-                ...
+                  ? t("indexers.queryingIndexer", "Querying {name}...", {
+                      name: currentIndexer.name,
+                    })
+                  : t(
+                      "indexers.queryingAllIndexers",
+                      "Querying {count} active indexers...",
+                      { count: enabledIndexers.length },
+                    )}
               </div>
             </div>
           )}
@@ -438,9 +503,11 @@ export const Indexers: React.FC<IndexersProps> = ({
                 color: "var(--danger, #ef4444)",
               }}
             >
-              Search query failed:{" "}
-              {(searchResults.error as Error)?.message ||
-                "Check indexer connection"}
+              {t("indexers.searchQueryFailed", "Search query failed: {error}", {
+                error:
+                  (searchResults.error as Error)?.message ||
+                  t("indexers.checkConnection", "Check indexer connection"),
+              })}
             </div>
           )}
 
@@ -466,8 +533,15 @@ export const Indexers: React.FC<IndexersProps> = ({
                   }}
                 >
                   {currentIndexer
-                    ? `Ready to search ${currentIndexer.name}`
-                    : "Ready to search all indexers"}
+                    ? t(
+                        "indexers.readyToSearchIndexer",
+                        "Ready to search {name}",
+                        { name: currentIndexer.name },
+                      )
+                    : t(
+                        "indexers.readyToSearchAll",
+                        "Ready to search all indexers",
+                      )}
                 </div>
                 <p
                   style={{
@@ -476,8 +550,10 @@ export const Indexers: React.FC<IndexersProps> = ({
                     fontSize: "0.85rem",
                   }}
                 >
-                  Enter keywords above to search releases, compare seeds/peers,
-                  and one-click grab directly into your download queue.
+                  {t(
+                    "indexers.readySearchHint",
+                    "Enter keywords above to search releases, compare seeds/peers, and one-click grab directly into your download queue.",
+                  )}
                 </p>
               </div>
             )}
@@ -504,9 +580,11 @@ export const Indexers: React.FC<IndexersProps> = ({
                     marginBottom: "0.25rem",
                   }}
                 >
-                  No releases found for {'"'}
-                  {activeSearchTerm}
-                  {'"'}
+                  {t(
+                    "indexers.noReleasesFound",
+                    'No releases found for "{term}"',
+                    { term: activeSearchTerm },
+                  )}
                 </div>
                 <p
                   style={{
@@ -516,8 +594,14 @@ export const Indexers: React.FC<IndexersProps> = ({
                   }}
                 >
                   {!indexers || indexers.length === 0
-                    ? "No indexers are currently configured. Add a Torznab indexer or sync with Prowlarr in Settings > Indexers to enable search."
-                    : "Try adjusting your search query, unchecking Freeleech filter, or adding more indexers in Settings."}
+                    ? t(
+                        "indexers.noIndexersConfiguredSearchHint",
+                        "No indexers are currently configured. Add a Torznab indexer or sync with Prowlarr in Settings > Indexers to enable search.",
+                      )
+                    : t(
+                        "indexers.adjustSearchHint",
+                        "Try adjusting your search query, unchecking Freeleech filter, or adding more indexers in Settings.",
+                      )}
                 </p>
               </div>
             )}
@@ -543,19 +627,19 @@ export const Indexers: React.FC<IndexersProps> = ({
                     }}
                   >
                     <th style={{ padding: "0.75rem 1rem" }}>
-                      Title & Categories
+                      {t("indexers.titleAndCategories", "Title & Categories")}
                     </th>
                     <th style={{ padding: "0.75rem 1rem", width: "140px" }}>
-                      Indexer
+                      {t("indexers.indexer", "Indexer")}
                     </th>
                     <th style={{ padding: "0.75rem 1rem", width: "110px" }}>
-                      Size
+                      {t("indexers.size", "Size")}
                     </th>
                     <th style={{ padding: "0.75rem 1rem", width: "110px" }}>
-                      Seeds / Leech
+                      {t("indexers.seedsLeech", "Seeds / Leech")}
                     </th>
                     <th style={{ padding: "0.75rem 1rem", width: "130px" }}>
-                      Published
+                      {t("indexers.published", "Published")}
                     </th>
                     <th
                       style={{
@@ -564,7 +648,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                         textAlign: "right",
                       }}
                     >
-                      Action
+                      {t("indexers.action", "Action")}
                     </th>
                   </tr>
                 </thead>
@@ -625,7 +709,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                                   fontWeight: 700,
                                 }}
                               >
-                                FREELEECH
+                                {t("indexers.freeleechBadge", "FREELEECH")}
                               </span>
                             )}
                           </div>
@@ -668,7 +752,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                               fontWeight: 600,
                             }}
                           >
-                            {rel.indexerName || rel.indexer || "Indexer"}
+                            {rel.indexerName ||
+                              rel.indexer ||
+                              t("indexers.indexerFallback", "Indexer")}
                           </span>
                         </td>
 
@@ -734,7 +820,9 @@ export const Indexers: React.FC<IndexersProps> = ({
                             onClick={() => handleGrab(rel)}
                             disabled={isDownloading}
                           >
-                            {isDownloading ? "Grabbing..." : "+ Grab"}
+                            {isDownloading
+                              ? t("indexers.grabbing", "Grabbing...")
+                              : t("indexers.grab", "+ Grab")}
                           </button>
                         </td>
                       </tr>

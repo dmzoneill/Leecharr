@@ -418,7 +418,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 }
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
-                placeholder="0 = global"
+                placeholder={t("components.c0Global", "0 = global")}
               />
             </div>
             <div
@@ -445,7 +445,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 }
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
-                placeholder="0 = global"
+                placeholder={t("components.c0Global", "0 = global")}
               />
             </div>
           </div>
@@ -721,7 +721,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                   textAlign: "left",
                 }}
               >
-                copies
+                {t("components.copies", "copies")}
               </span>
             </div>
           </div>

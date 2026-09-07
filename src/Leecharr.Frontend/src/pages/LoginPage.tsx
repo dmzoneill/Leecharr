@@ -36,7 +36,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password) {
-      setError("Please enter your username and password.");
+      setError(
+        t("login.enterUserAndPass", "Please enter your username and password."),
+      );
       return;
     }
 
@@ -46,7 +48,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       await api.login({ username: username.trim(), password, rememberMe });
       onLoginSuccess();
     } catch (err: any) {
-      setError(err?.message || "Invalid username or password");
+      setError(
+        err?.message ||
+          t("login.invalidCredentials", "Invalid username or password"),
+      );
     } finally {
       setLoading(false);
     }
@@ -428,7 +433,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   }}
                 >
                   {getProviderIcon(p)}
-                  <span>{p.buttonText || `Sign in with ${p.name}`}</span>
+                  <span>
+                    {p.buttonText ||
+                      t("login.signInWithProvider", "Sign in with {name}", {
+                        name: p.name,
+                      })}
+                  </span>
                 </a>
               ))}
             </div>

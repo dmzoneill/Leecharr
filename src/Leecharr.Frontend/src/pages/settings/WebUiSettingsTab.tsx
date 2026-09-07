@@ -286,7 +286,8 @@ export function WebUiSettingsTab() {
                   fontWeight: 600,
                 }}
               >
-                {form.colorScheme.toUpperCase()} ACCENT
+                {form.colorScheme.toUpperCase()}{" "}
+                {t("settingsTabs.webUi.themeSection.preview.accentBadge")}
               </span>
             </div>
             <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>

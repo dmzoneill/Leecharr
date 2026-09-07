@@ -94,7 +94,9 @@ export function CategorySettingsTab({
         {
           onSuccess: (updated) => {
             showToast(
-              `Category "${updated.name}" updated successfully`,
+              t("settingsTabs.categories.updateSuccess", {
+                name: updated.name,
+              }),
               "success",
             );
             setEditingCategory(null);
@@ -110,7 +112,9 @@ export function CategorySettingsTab({
       createMutation.mutate(payload, {
         onSuccess: (created) => {
           showToast(
-            `Category "${created.name}" created successfully`,
+            t("settingsTabs.categories.createSuccess", {
+              name: created.name,
+            }),
             "success",
           );
           setEditingCategory(null);
@@ -127,7 +131,7 @@ export function CategorySettingsTab({
   const handleDelete = async (cat: Category) => {
     const ok = await confirm({
       title: t("settingsTabs.categories.deleteTitle"),
-      message: `Are you sure you want to delete the category "${cat.name}"? Existing torrent files and active swarms will not be removed.`,
+      message: t("settingsTabs.categories.deleteMessage", { name: cat.name }),
       danger: true,
       confirmText: t("settingsTabs.categories.deleteConfirm"),
     });
@@ -136,7 +140,10 @@ export function CategorySettingsTab({
 
     deleteMutation.mutate(cat.id, {
       onSuccess: () => {
-        showToast(`Category "${cat.name}" deleted`, "info");
+        showToast(
+          t("settingsTabs.categories.deleteSuccess", { name: cat.name }),
+          "info",
+        );
       },
       onError: (err: any) => {
         showToast(

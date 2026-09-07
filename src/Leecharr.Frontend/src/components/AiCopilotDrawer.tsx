@@ -410,7 +410,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     color: "var(--text-muted, #C7C5D3)",
                   }}
                 >
-                  Engine:{" "}
+                  {t("components.engine", "Engine")}:{" "}
                   <span style={{ color: "#FFD166", fontFamily: "monospace" }}>
                     {activeProvider}
                   </span>
@@ -904,7 +904,8 @@ export const AiCopilotDrawer: React.FC = () => {
                         fontWeight: 700,
                       }}
                     >
-                      Score: {Math.round(parsedResult.confidenceScore * 100)}%
+                      {t("components.score", "Score")}:{" "}
+                      {Math.round(parsedResult.confidenceScore * 100)}%
                     </span>
                   </div>
 
@@ -931,7 +932,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          Resolution
+                          {t("components.resolution", "Resolution")}
                         </span>
                         <strong>{parsedResult.resolution}</strong>
                       </div>
@@ -951,7 +952,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          Quality
+                          {t("components.quality", "Quality")}
                         </span>
                         <strong>{parsedResult.quality}</strong>
                       </div>
@@ -971,7 +972,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          Video Codec
+                          {t("components.videoCodec", "Video Codec")}
                         </span>
                         <strong>{parsedResult.videoCodec}</strong>
                       </div>
@@ -991,7 +992,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          Audio
+                          {t("components.audio", "Audio")}
                         </span>
                         <strong>
                           {parsedResult.audioCodec} {parsedResult.audioChannels}
@@ -1013,7 +1014,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          HDR
+                          {t("components.hdr", "HDR")}
                         </span>
                         <strong style={{ color: "#FFD166" }}>
                           {parsedResult.dynamicRange}
@@ -1035,7 +1036,7 @@ export const AiCopilotDrawer: React.FC = () => {
                             display: "block",
                           }}
                         >
-                          Group
+                          {t("components.group", "Group")}
                         </span>
                         <strong>{parsedResult.releaseGroup}</strong>
                       </div>
@@ -1176,8 +1177,8 @@ export const AiCopilotDrawer: React.FC = () => {
                         fontWeight: 700,
                       }}
                     >
-                      Risk: {securityResult.riskLevel} (
-                      {Math.round(securityResult.riskScore * 100)}%)
+                      {t("components.risk", "Risk")}: {securityResult.riskLevel}{" "}
+                      ({Math.round(securityResult.riskScore * 100)}%)
                     </span>
                   </div>
 

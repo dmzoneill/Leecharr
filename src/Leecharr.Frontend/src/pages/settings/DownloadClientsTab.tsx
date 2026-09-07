@@ -99,7 +99,9 @@ export function DownloadClientsTab() {
       onError: (err) =>
         setModalTestResult({
           success: false,
-          message: err.message || "Connection test failed",
+          message:
+            err.message ||
+            t("settingsTabs.downloadClients.connectionFailedResult"),
         }),
     });
   };
@@ -133,12 +135,14 @@ export function DownloadClientsTab() {
               syncMutation.mutate(undefined, {
                 onSuccess: (res) =>
                   showToast(
-                    `Sync Complete: ${res.syncedCount || 0} torrents synchronized.`,
+                    t("settingsTabs.downloadClients.syncComplete", {
+                      count: res.syncedCount || 0,
+                    }),
                     "success",
                   ),
                 onError: (err: any) =>
                   showToast(
-                    `Sync failed: ${err?.message || t("settingsTabs.notifications.unknownError")}`,
+                    `${t("settingsTabs.downloadClients.syncFailed")}${err?.message || t("settingsTabs.notifications.unknownError")}`,
                     "error",
                   ),
               });
@@ -192,7 +196,10 @@ export function DownloadClientsTab() {
                       title: t(
                         "settingsTabs.downloadClients.deleteClientTitle",
                       ),
-                      message: `Are you sure you want to delete the download client "${client.name}"?`,
+                      message: t(
+                        "settingsTabs.downloadClients.deleteClientConfirm",
+                        { name: client.name },
+                      ),
                       danger: true,
                       confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
@@ -201,7 +208,9 @@ export function DownloadClientsTab() {
                     deleteMutation.mutate(client.id, {
                       onSuccess: () =>
                         showToast(
-                          `Download client "${client.name}" deleted`,
+                          t("settingsTabs.downloadClients.deleteSuccess", {
+                            name: client.name,
+                          }),
                           "info",
                         ),
                       onError: (err: any) =>
@@ -219,7 +228,10 @@ export function DownloadClientsTab() {
               <div className="provider-card-name">{client.name}</div>
               <div className="provider-card-badges">
                 <span className="provider-card-badge provider-card-badge-green">
-                  {client.clientType}
+                  {t(
+                    `downloadClients.types.${client.clientType?.toLowerCase()}`,
+                    client.clientType,
+                  )}
                 </span>
                 {client.enable && (
                   <span className="provider-card-badge provider-card-badge-blue">
