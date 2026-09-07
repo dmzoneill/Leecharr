@@ -53,6 +53,7 @@ public class TransmissionRpcController : ControllerBase
     private const string SessionHeaderName = "X-Transmission-Session-Id";
     private static readonly object RemovedLock = new();
     private static readonly List<(int Id, DateTime RemovedAt)> RecentlyRemovedList = new();
+    private static readonly DateTime ServiceStartTime = DateTime.UtcNow;
 
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
@@ -324,20 +325,40 @@ public class TransmissionRpcController : ControllerBase
 
                 case "session-stats":
                     var allTorrents = this.torrentService.GetAll().ToList();
+                    var activeTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
+                    var pausedTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped);
+                    var totalDownloaded = allTorrents.Sum(t => t.Downloaded);
+                    var totalUploaded = allTorrents.Sum(t => t.Uploaded);
+                    var secondsActive = (long)Math.Max(0, (DateTime.UtcNow - ServiceStartTime).TotalSeconds);
+
                     return this.Ok(new TransmissionRpcResponse
                     {
                         Result = "success",
                         Arguments = new Dictionary<string, object>
                         {
-                            { "activeTorrentCount", allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
+                            { "activeTorrentCount", activeTorrents },
                             { "downloadSpeed", allTorrents.Sum(t => t.DownloadSpeed) },
-                            { "uploadSpeed", allTorrents.Sum(t => t.UploadSpeed) },
+                            { "pausedTorrentCount", pausedTorrents },
                             { "torrentCount", allTorrents.Count },
+                            { "uploadSpeed", allTorrents.Sum(t => t.UploadSpeed) },
                             {
                                 "cumulative-stats", new Dictionary<string, object>
                                 {
-                                    { "downloadedBytes", allTorrents.Sum(t => t.Downloaded) },
-                                    { "uploadedBytes", allTorrents.Sum(t => t.Uploaded) }
+                                    { "downloadedBytes", totalDownloaded },
+                                    { "filesAdded", allTorrents.Count },
+                                    { "secondsActive", secondsActive },
+                                    { "sessionCount", 1 },
+                                    { "uploadedBytes", totalUploaded },
+                                }
+                            },
+                            {
+                                "current-stats", new Dictionary<string, object>
+                                {
+                                    { "downloadedBytes", totalDownloaded },
+                                    { "filesAdded", allTorrents.Count },
+                                    { "secondsActive", secondsActive },
+                                    { "sessionCount", 1 },
+                                    { "uploadedBytes", totalUploaded },
                                 }
                             },
                         },
