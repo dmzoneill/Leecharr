@@ -745,8 +745,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var torrent = this.torrentRepository.Get(id);
-        if (torrent != null && torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
+        if (torrent != null)
         {
+            this.SyncWithEngine(torrent);
             var newStatus = torrent.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
             var old = torrent.Status;
             torrent.Status = newStatus;
@@ -755,10 +756,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             try
             {
                 await this.downloadEngine.ResumeTorrentAsync(id);
+                this.torrentLogService?.Log(id, "Info", "Engine", $"Torrent resumed ({newStatus})");
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error resuming torrent in download engine {0}", id);
+                this.torrentLogService?.Log(id, "Warn", "Engine", $"Resume failed: {ex.Message}");
             }
 
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = newStatus });
