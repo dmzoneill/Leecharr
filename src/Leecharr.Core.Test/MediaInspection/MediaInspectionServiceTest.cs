@@ -173,11 +173,11 @@ public class MediaInspectionServiceTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("AVI");
         info.AudioCodec.Should().Be("AC3");
-        info.AudioChannels.Should().Be("2.0");
+        info.AudioChannels.Should().Be("5.1");
     }
 
     [Test]
-    public void Inspect_AviWithoutAc3_DefaultsToMp3Audio()
+    public void Inspect_AviWithoutAudioStream_LeavesAudioCodecAndChannelsNull()
     {
         var header = CreateAviHeader("XVID");
         using var ms = new MemoryStream(header);
@@ -186,8 +186,8 @@ public class MediaInspectionServiceTest
 
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("AVI");
-        info.AudioCodec.Should().Be("MP3");
-        info.AudioChannels.Should().Be("2.0");
+        info.AudioCodec.Should().BeNull();
+        info.AudioChannels.Should().BeNull();
     }
 
     private static byte[] CreateAviHeader(string payload)

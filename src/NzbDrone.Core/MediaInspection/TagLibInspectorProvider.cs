@@ -1714,22 +1714,219 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             ContainerFormat = "AVI",
         };
 
-        var text = System.Text.Encoding.ASCII.GetString(header);
-
-        if (text.Contains("XVID") || text.Contains("xvid") || text.Contains("DX50") || text.Contains("DIVX"))
+        if (header != null && header.Length >= 12)
         {
-            info.VideoCodec = "Xvid / MPEG-4";
-        }
-        else if (text.Contains("H264") || text.Contains("h264") || text.Contains("AVC1"))
-        {
-            info.VideoCodec = "H.264";
+            ParseAviHeader(header, info);
         }
 
-        info.AudioCodec = text.Contains("AC3") ? "AC3" : "MP3";
-        info.AudioChannels = "2.0";
+        if (header != null)
+        {
+            var text = System.Text.Encoding.ASCII.GetString(header);
+
+            if (string.IsNullOrEmpty(info.VideoCodec))
+            {
+                if (text.Contains("XVID", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("DX50", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("DIVX", StringComparison.OrdinalIgnoreCase))
+                {
+                    info.VideoCodec = "Xvid / MPEG-4";
+                }
+                else if (text.Contains("H264", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("AVC1", StringComparison.OrdinalIgnoreCase))
+                {
+                    info.VideoCodec = "H.264";
+                }
+                else if (text.Contains("HEVC", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("H265", StringComparison.OrdinalIgnoreCase))
+                {
+                    info.VideoCodec = "HEVC (H.265)";
+                }
+            }
+
+            if (string.IsNullOrEmpty(info.AudioCodec) && text.Contains("AC3", StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyAudioCodec(info, "AC3", "5.1", 15);
+            }
+        }
+
+        if (string.IsNullOrEmpty(info.Resolution) && info.Width > 0)
+        {
+            ApplyResolution(info, info.Width, info.Height);
+        }
 
         ApplyFilenameHints(info, fileName);
         return info;
+    }
+
+    private static void ParseAviHeader(byte[] header, MediaContainerInfo info)
+    {
+        if (header.Length < 12)
+        {
+            return;
+        }
+
+        if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != 'F' ||
+            header[8] != 'A' || header[9] != 'V' || header[10] != 'I' || header[11] != ' ')
+        {
+            return;
+        }
+
+        int offset = 12;
+        int limit = header.Length;
+        string currentStreamType = null;
+
+        ParseRiffChunks(header, offset, limit, info, ref currentStreamType);
+    }
+
+    private static void ParseRiffChunks(byte[] data, int startOffset, int endOffset, MediaContainerInfo info, ref string currentStreamType)
+    {
+        int offset = startOffset;
+        while (offset + 8 <= endOffset)
+        {
+            var fourCC = System.Text.Encoding.ASCII.GetString(data, offset, 4);
+            uint chunkSize = BitConverter.ToUInt32(data, offset + 4);
+            int dataOffset = offset + 8;
+            int chunkEnd = Math.Min(dataOffset + (int)Math.Min(chunkSize, (uint)(endOffset - dataOffset)), endOffset);
+
+            if (fourCC == "LIST" && dataOffset + 4 <= endOffset)
+            {
+                var listType = System.Text.Encoding.ASCII.GetString(data, dataOffset, 4);
+                if (listType == "hdrl" || listType == "strl")
+                {
+                    ParseRiffChunks(data, dataOffset + 4, chunkEnd, info, ref currentStreamType);
+                }
+            }
+            else if (fourCC == "avih" && dataOffset + 40 <= endOffset)
+            {
+                uint width = BitConverter.ToUInt32(data, dataOffset + 32);
+                uint height = BitConverter.ToUInt32(data, dataOffset + 36);
+                if (info.Width == 0 && width > 0)
+                {
+                    info.Width = (int)width;
+                    info.Height = (int)height;
+                }
+            }
+            else if (fourCC == "strh" && dataOffset + 8 <= endOffset)
+            {
+                currentStreamType = System.Text.Encoding.ASCII.GetString(data, dataOffset, 4);
+                var fccHandler = System.Text.Encoding.ASCII.GetString(data, dataOffset + 4, 4);
+
+                if (currentStreamType == "vids" && string.IsNullOrEmpty(info.VideoCodec))
+                {
+                    ApplyAviVideoFourCC(info, fccHandler);
+                }
+            }
+            else if (fourCC == "strf")
+            {
+                if (currentStreamType == "vids" && dataOffset + 40 <= endOffset)
+                {
+                    int biWidth = BitConverter.ToInt32(data, dataOffset + 4);
+                    int biHeight = Math.Abs(BitConverter.ToInt32(data, dataOffset + 8));
+                    if (info.Width == 0 && biWidth > 0)
+                    {
+                        info.Width = biWidth;
+                        info.Height = biHeight;
+                    }
+
+                    var biCompression = System.Text.Encoding.ASCII.GetString(data, dataOffset + 16, 4);
+                    if (string.IsNullOrEmpty(info.VideoCodec))
+                    {
+                        ApplyAviVideoFourCC(info, biCompression);
+                    }
+                }
+                else if (currentStreamType == "auds" && dataOffset + 14 <= endOffset)
+                {
+                    ushort wFormatTag = BitConverter.ToUInt16(data, dataOffset);
+                    ushort nChannels = BitConverter.ToUInt16(data, dataOffset + 2);
+                    uint nSamplesPerSec = BitConverter.ToUInt32(data, dataOffset + 4);
+                    ushort wBitsPerSample = (chunkSize >= 16 && dataOffset + 16 <= endOffset)
+                        ? BitConverter.ToUInt16(data, dataOffset + 14)
+                        : (ushort)0;
+
+                    var (codecName, score) = GetWaveFormatInfo(wFormatTag);
+                    var channelsStr = nChannels switch
+                    {
+                        1 => "1.0",
+                        2 => "2.0",
+                        6 => "5.1",
+                        8 => "7.1",
+                        _ => nChannels > 0 ? $"{nChannels}.0" : null,
+                    };
+
+                    if (!string.IsNullOrEmpty(codecName))
+                    {
+                        ApplyAudioCodec(info, codecName, channelsStr ?? "2.0", score);
+                    }
+                    else if (!string.IsNullOrEmpty(channelsStr) && string.IsNullOrEmpty(info.AudioChannels))
+                    {
+                        info.AudioChannels = channelsStr;
+                    }
+
+                    if (info.AudioSampleRate == 0 && nSamplesPerSec > 0)
+                    {
+                        info.AudioSampleRate = (int)nSamplesPerSec;
+                    }
+
+                    if (info.AudioBitDepth == 0 && wBitsPerSample > 0)
+                    {
+                        info.AudioBitDepth = wBitsPerSample;
+                    }
+                }
+            }
+
+            long nextOffset = (long)dataOffset + chunkSize + ((chunkSize & 1) != 0 ? 1 : 0);
+            if (nextOffset <= offset || nextOffset > endOffset)
+            {
+                break;
+            }
+
+            offset = (int)nextOffset;
+        }
+    }
+
+    private static void ApplyAviVideoFourCC(MediaContainerInfo info, string fourCC)
+    {
+        if (string.IsNullOrWhiteSpace(fourCC))
+        {
+            return;
+        }
+
+        var upper = fourCC.ToUpperInvariant();
+        if (upper.Contains("XVID") || upper.Contains("DIVX") || upper.Contains("DX50") || upper.Contains("MP4V") || upper.Contains("FMP4"))
+        {
+            info.VideoCodec = "Xvid / MPEG-4";
+        }
+        else if (upper.Contains("H264") || upper.Contains("AVC1") || upper.Contains("X264"))
+        {
+            info.VideoCodec = "H.264";
+        }
+        else if (upper.Contains("HEVC") || upper.Contains("H265") || upper.Contains("X265"))
+        {
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (upper.Contains("MJPG"))
+        {
+            info.VideoCodec = "Motion JPEG";
+        }
+    }
+
+    private static (string CodecName, int Score) GetWaveFormatInfo(ushort wFormatTag)
+    {
+        return wFormatTag switch
+        {
+            0x0001 => ("PCM", 5),
+            0x0055 => ("MP3", 5),
+            0x2000 => ("AC3 / Dolby Digital", 15),
+            0x2001 => ("DTS", 20),
+            0x00FF or 0x1610 => ("AAC", 10),
+            0x706D => ("Vorbis", 8),
+            0xF1AC => ("FLAC", 35),
+            0x0002 => ("ADPCM", 1),
+            0x0006 => ("PCM A-law", 1),
+            0x0007 => ("PCM mu-law", 1),
+            0x0050 => ("MP2", 4),
+            _ => (null, 0),
+        };
     }
 
     private static MediaContainerInfo InspectMp3(byte[] header, string fileName)
