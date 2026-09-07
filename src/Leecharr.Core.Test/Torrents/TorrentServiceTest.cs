@@ -714,4 +714,55 @@ public class TorrentServiceTest
         // Remaining bytes = 10000 - (10000 * 0.5) = 5000 bytes. ETA = 5000 / 1000 = 5 seconds.
         result.Eta.Should().Be(5);
     }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenTorrentAlreadyExists_ReturnsExistingTorrentWithoutInsertingOrPublishingEvent()
+    {
+        var existingTorrent = new Torrent
+        {
+            Id = 99,
+            Name = "Existing Torrent",
+            InfoHash = "1234567890abcdef1234567890abcdef12345678",
+            Status = TorrentStatus.Seeding,
+        };
+
+        this.torrentRepository.GetByInfoHash("1234567890abcdef1234567890abcdef12345678").Returns(existingTorrent);
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Duplicate Torrent",
+            InfoHash = "1234567890ABCDEF1234567890ABCDEF12345678",
+            PieceLength = 1024,
+            TotalSize = 2048,
+            Files = new List<ParsedTorrentFile> { new() { Path = "f.mkv", Size = 2048 } },
+        };
+
+        var result = await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, Array.Empty<byte>());
+
+        result.Should().BeSameAs(existingTorrent);
+        this.torrentRepository.DidNotReceive().Insert(Arg.Any<Torrent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenTorrentAlreadyExists_ReturnsExistingTorrentWithoutInsertingOrPublishingEvent()
+    {
+        var existingTorrent = new Torrent
+        {
+            Id = 88,
+            Name = "Existing Magnet Torrent",
+            InfoHash = "abcdef1234567890abcdef1234567890abcdef12",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.GetByInfoHash("abcdef1234567890abcdef1234567890abcdef12").Returns(existingTorrent);
+
+        var magnetUri = "magnet:?xt=urn:btih:ABCDEF1234567890ABCDEF1234567890ABCDEF12&dn=DuplicateMagnet";
+
+        var result = await this.service.AddFromMagnetAsync(magnetUri, "tv", "/downloads/tv", false);
+
+        result.Should().BeSameAs(existingTorrent);
+        this.torrentRepository.DidNotReceive().Insert(Arg.Any<Torrent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
 }

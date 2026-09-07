@@ -125,7 +125,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             throw new ArgumentNullException(nameof(parsed));
         }
 
-        var existing = this.torrentRepository.GetByInfoHash(parsed.InfoHash);
+        var existing = !string.IsNullOrWhiteSpace(parsed.InfoHash)
+            ? this.torrentRepository.GetByInfoHash(parsed.InfoHash.ToLowerInvariant())
+            : null;
         if (existing != null)
         {
             this.logger.Warn("Torrent with infohash {0} already exists", parsed.InfoHash);
@@ -318,7 +320,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         bool startPaused = false)
     {
         var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-        var existing = this.torrentRepository.GetByInfoHash(parsedMagnet.InfoHash);
+        var existing = !string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash)
+            ? this.torrentRepository.GetByInfoHash(parsedMagnet.InfoHash.ToLowerInvariant())
+            : null;
         if (existing != null)
         {
             this.logger.Warn("Torrent with infohash {0} already exists", parsedMagnet.InfoHash);
