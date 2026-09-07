@@ -236,7 +236,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                             var files = this.torrentFileRepository.GetByTorrentId(torrent.Id);
                             foreach (var file in files)
                             {
-                                if (file.Priority != 1)
+                                if (file.Priority != 3)
                                 {
                                     await targetEngine.SetFilePriorityAsync(torrent.Id, file.Path, file.Priority);
                                 }
