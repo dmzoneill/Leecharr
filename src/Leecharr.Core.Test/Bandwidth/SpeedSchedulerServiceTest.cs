@@ -272,4 +272,185 @@ public class SpeedSchedulerServiceTest
         limitsEndMinute.IsThrottled.Should().BeTrue();
         limitsEndMinute.MaxDownloadSpeedKbps.Should().Be(1500);
     }
+
+    [Test]
+    public void GetCurrentLimits_WhenConfigSchedulerActive_ReturnsAltSpeeds()
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(9);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(17);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(5000);
+        this.configService.AltUploadSpeedKbps.Returns(2500);
+
+        // Monday 12:00:00 (inside schedule)
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+        limits.MaxDownloadSpeedKbps.Should().Be(5000);
+        limits.MaxUploadSpeedKbps.Should().Be(2500);
+        limits.IsThrottled.Should().BeTrue();
+        limits.IsPaused.Should().BeFalse();
+
+        // Monday 17:00:30 (inside minute precision end time)
+        var limitsAtEndMinute = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 17, 0, 30));
+        limitsAtEndMinute.IsThrottled.Should().BeTrue();
+        limitsAtEndMinute.MaxDownloadSpeedKbps.Should().Be(5000);
+
+        // Monday 08:59:59 (before schedule)
+        var limitsBefore = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 8, 59, 59));
+        limitsBefore.IsThrottled.Should().BeFalse();
+        limitsBefore.MaxDownloadSpeedKbps.Should().Be(50000);
+
+        // Monday 17:01:00 (after schedule)
+        var limitsAfter = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 17, 1, 0));
+        limitsAfter.IsThrottled.Should().BeFalse();
+        limitsAfter.MaxDownloadSpeedKbps.Should().Be(50000);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenConfigSchedulerDayDisabled_ReturnsGlobalLimits()
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(9);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(17);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.SchedulerTuesday.Returns(false);
+        this.configService.AltDownloadSpeedKbps.Returns(5000);
+        this.configService.AltUploadSpeedKbps.Returns(2500);
+
+        // Tuesday 12:00:00 (Tuesday is disabled)
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 9, 1, 12, 0, 0));
+        limits.MaxDownloadSpeedKbps.Should().Be(50000);
+        limits.MaxUploadSpeedKbps.Should().Be(20000);
+        limits.IsThrottled.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenConfigSchedulerOvernight_HandlesMidnightCrossing()
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(22);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(6);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.SchedulerTuesday.Returns(false);
+        this.configService.AltDownloadSpeedKbps.Returns(3000);
+        this.configService.AltUploadSpeedKbps.Returns(1500);
+
+        // Monday 23:00 (Monday evening)
+        var eveningLimits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 0, 0));
+        eveningLimits.IsThrottled.Should().BeTrue();
+        eveningLimits.MaxDownloadSpeedKbps.Should().Be(3000);
+
+        // Tuesday 04:00 (Early morning started on Monday)
+        var morningLimits = this.service.GetCurrentLimits(new DateTime(2026, 9, 1, 4, 0, 0));
+        morningLimits.IsThrottled.Should().BeTrue();
+        morningLimits.MaxDownloadSpeedKbps.Should().Be(3000);
+
+        // Tuesday 10:00 (Outside schedule)
+        var dayLimits = this.service.GetCurrentLimits(new DateTime(2026, 9, 1, 10, 0, 0));
+        dayLimits.IsThrottled.Should().BeFalse();
+        dayLimits.MaxDownloadSpeedKbps.Should().Be(50000);
+
+        // Monday 04:00 (Sunday overnight was not enabled)
+        this.configService.SchedulerSunday.Returns(false);
+        var mondayEarlyMorning = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 4, 0, 0));
+        mondayEarlyMorning.IsThrottled.Should().BeFalse();
+        mondayEarlyMorning.MaxDownloadSpeedKbps.Should().Be(50000);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenDatabaseScheduleAndConfigSchedulerBothActive_DatabaseScheduleTakesPrecedence()
+    {
+        var dbSchedule = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "DB Schedule",
+                Days = 127,
+                StartTime = "09:00:00",
+                EndTime = "17:00:00",
+                MaxDownloadSpeed = 12000,
+                MaxUploadSpeed = 6000,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(dbSchedule);
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(9);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(17);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(2000);
+        this.configService.AltUploadSpeedKbps.Returns(1000);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+        limits.MaxDownloadSpeedKbps.Should().Be(12000);
+        limits.MaxUploadSpeedKbps.Should().Be(6000);
+        limits.IsThrottled.Should().BeTrue();
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenConfigSchedulerPaused_SetsIsPausedTrueAndZeroLimits()
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(9);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(17);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(-1);
+        this.configService.AltUploadSpeedKbps.Returns(-1);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+        limits.MaxDownloadSpeedKbps.Should().Be(0);
+        limits.MaxUploadSpeedKbps.Should().Be(0);
+        limits.IsPaused.Should().BeTrue();
+        limits.IsThrottled.Should().BeFalse();
+    }
+
+    [TestCase(DayOfWeek.Sunday, 6)]
+    [TestCase(DayOfWeek.Monday, 0)]
+    [TestCase(DayOfWeek.Tuesday, 1)]
+    [TestCase(DayOfWeek.Wednesday, 2)]
+    [TestCase(DayOfWeek.Thursday, 3)]
+    [TestCase(DayOfWeek.Friday, 4)]
+    [TestCase(DayOfWeek.Saturday, 5)]
+    public void GetCurrentLimits_EvaluatesEachDayFlagCorrectly(DayOfWeek dayOfWeek, int dayOffset)
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(9);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(17);
+        this.configService.SchedulerEndMinute.Returns(0);
+        this.configService.AltDownloadSpeedKbps.Returns(4000);
+        this.configService.AltUploadSpeedKbps.Returns(2000);
+
+        this.configService.SchedulerSunday.Returns(dayOfWeek == DayOfWeek.Sunday);
+        this.configService.SchedulerMonday.Returns(dayOfWeek == DayOfWeek.Monday);
+        this.configService.SchedulerTuesday.Returns(dayOfWeek == DayOfWeek.Tuesday);
+        this.configService.SchedulerWednesday.Returns(dayOfWeek == DayOfWeek.Wednesday);
+        this.configService.SchedulerThursday.Returns(dayOfWeek == DayOfWeek.Thursday);
+        this.configService.SchedulerFriday.Returns(dayOfWeek == DayOfWeek.Friday);
+        this.configService.SchedulerSaturday.Returns(dayOfWeek == DayOfWeek.Saturday);
+
+        var date = new DateTime(2026, 8, 31, 12, 0, 0).AddDays(dayOffset);
+        date.DayOfWeek.Should().Be(dayOfWeek);
+
+        var limits = this.service.GetCurrentLimits(date);
+        limits.IsThrottled.Should().BeTrue();
+        limits.MaxDownloadSpeedKbps.Should().Be(4000);
+    }
 }
