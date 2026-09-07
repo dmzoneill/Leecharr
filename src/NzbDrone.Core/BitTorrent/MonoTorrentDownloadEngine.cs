@@ -2951,7 +2951,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
             etaSeconds = (totalSize - dataDown) / downSpeed;
         }
 
-        var ratio = dataDown > 0 ? Math.Round((double)dataUp / dataDown, 2) : 0.0;
+        var effectiveDownloaded = totalSize > 0 && this.Progress > 0 ? (long)(totalSize * this.Progress) : 0;
+        var divisor = effectiveDownloaded > 0
+            ? Math.Max(dataDown, effectiveDownloaded)
+            : (dataDown > 0 ? dataDown : totalSize);
+        var ratio = divisor > 0 ? Math.Round((double)dataUp / divisor, 2) : 0.0;
 
         return new TorrentResourceMetrics
         {

@@ -321,4 +321,109 @@ public class AppLifetimeTest
             msg.Name == "speedPulse" &&
             msg.Body is IEnumerable<object>));
     }
+
+    [Test]
+    public async Task SpeedPulse_WhenSeedingWithZeroSessionDownloadedBytes_BroadcastsAccurateRatio()
+    {
+        var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
+        broadcaster.IsConnected.Returns(true);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(42);
+        mockTask.Status.Returns(TorrentStatus.Seeding);
+        mockTask.DownloadSpeed.Returns(0L);
+        mockTask.UploadSpeed.Returns(500_000L);
+        mockTask.DownloadedBytes.Returns(0L);
+        mockTask.UploadedBytes.Returns(200_000_000L);
+        mockTask.Progress.Returns(1.0);
+        mockTask.TotalBytes.Returns(100_000_000L);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            signalRBroadcaster: broadcaster);
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(2500);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "speedPulse" &&
+            CheckRatioInSpeedPulse(msg.Body, 42, 2.0)));
+    }
+
+    [Test]
+    public async Task SpeedPulse_WhenRestartedAndDownloadedDelta_AvoidsArtificialRatioSpike()
+    {
+        var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
+        broadcaster.IsConnected.Returns(true);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(99);
+        mockTask.Status.Returns(TorrentStatus.Seeding);
+        mockTask.DownloadSpeed.Returns(0L);
+        mockTask.UploadSpeed.Returns(1_000_000L);
+        mockTask.DownloadedBytes.Returns(1_000_000L);
+        mockTask.UploadedBytes.Returns(50_000_000_000L);
+        mockTask.Progress.Returns(1.0);
+        mockTask.TotalBytes.Returns(10_000_000_000L);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            signalRBroadcaster: broadcaster);
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(2500);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "speedPulse" &&
+            CheckRatioInSpeedPulse(msg.Body, 99, 5.0)));
+    }
+
+    private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
+    {
+        if (body is not IEnumerable<object> items)
+        {
+            return false;
+        }
+
+        foreach (var item in items)
+        {
+            var idProp = item.GetType().GetProperty("id");
+            var ratioProp = item.GetType().GetProperty("ratio");
+            if (idProp != null && ratioProp != null)
+            {
+                var id = (int)idProp.GetValue(item)!;
+                var ratio = (double)ratioProp.GetValue(item)!;
+                if (id == expectedId && System.Math.Abs(ratio - expectedRatio) < 0.001)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }
