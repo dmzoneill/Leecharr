@@ -1,2 +1,4 @@
 [codespell]
-ignore-words-list = superSeeding,superseeding,ue,readd,reAdd,bebefore,BeBefore
+skip = */i18n/*,*/locales/*,*.json,*/node_modules/*,package-lock.json
+ignore-words-list = superSeeding,superseeding,superSeed,superseed,ue,readd,reAdd,bebefore,BeBefore,te,ist,sie,Sie,oder,alle,Alle,tage,Tage,vor,Vor,ordner,Ordner,elemente,Elemente,aktive,Aktive,probleme,Probleme,intervall,Intervall,normale,Normale
+
