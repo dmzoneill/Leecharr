@@ -736,7 +736,7 @@ public class DelugeJsonRpcController : ControllerBase
                                 var opts = paramsElem[2];
                                 if (opts.TryGetProperty("add_paused", out var ap))
                                 {
-                                    isPaused = ap.GetBoolean();
+                                    isPaused = SafeGetBoolean(ap);
                                 }
 
                                 if (opts.TryGetProperty("download_location", out var dl))
@@ -787,7 +787,7 @@ public class DelugeJsonRpcController : ControllerBase
                             var opts = paramsElem[1];
                             if (opts.TryGetProperty("add_paused", out var ap))
                             {
-                                isPaused = ap.GetBoolean();
+                                isPaused = SafeGetBoolean(ap);
                             }
 
                             if (opts.TryGetProperty("download_location", out var dl))
@@ -836,7 +836,7 @@ public class DelugeJsonRpcController : ControllerBase
                             var opts = paramsElem[1];
                             if (opts.TryGetProperty("add_paused", out var ap))
                             {
-                                isPaused = ap.GetBoolean();
+                                isPaused = SafeGetBoolean(ap);
                             }
 
                             if (opts.TryGetProperty("download_location", out var dl))
@@ -973,9 +973,9 @@ public class DelugeJsonRpcController : ControllerBase
 
                                 if (item.TryGetProperty("options", out var opts) && opts.ValueKind == JsonValueKind.Object)
                                 {
-                                    if (opts.TryGetProperty("add_paused", out var ap) && (ap.ValueKind == JsonValueKind.True || ap.ValueKind == JsonValueKind.False))
+                                    if (opts.TryGetProperty("add_paused", out var ap))
                                     {
-                                        isPaused = ap.GetBoolean();
+                                        isPaused = SafeGetBoolean(ap);
                                     }
 
                                     if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
@@ -1335,11 +1335,7 @@ public class DelugeJsonRpcController : ControllerBase
     {
         if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 1)
         {
-            var second = parameters[1];
-            if (second.ValueKind == JsonValueKind.True || second.ValueKind == JsonValueKind.False)
-            {
-                return second.GetBoolean();
-            }
+            return SafeGetBoolean(parameters[1]);
         }
 
         return false;
@@ -1596,6 +1592,18 @@ public class DelugeJsonRpcController : ControllerBase
             1 => 2,
             2 or 3 or 4 => 3,
             >= 5 => 4,
+        };
+    }
+
+    private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => element.TryGetInt64(out var n) ? n != 0 : (element.TryGetDouble(out var d) && Math.Abs(d) > double.Epsilon),
+            JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (element.GetString() == "1"),
+            _ => defaultValue,
         };
     }
 }
