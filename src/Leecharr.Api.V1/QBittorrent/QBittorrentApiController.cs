@@ -2075,7 +2075,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return result;
     }
 
-    private static (string SavePath, string ContentPath) ResolvePaths(Torrent t)
+    private (string SavePath, string ContentPath) ResolvePaths(Torrent t)
     {
         var rawSavePath = t?.SavePath ?? string.Empty;
         if (string.IsNullOrWhiteSpace(rawSavePath))
@@ -2089,6 +2089,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (Path.HasExtension(trimmedSave))
+        {
+            var parent = Path.GetDirectoryName(trimmedSave);
+            var savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            return (savePath, trimmedSave);
+        }
+
         var dirName = Path.GetFileName(trimmedSave);
 
         if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -2097,6 +2105,23 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var parent = Path.GetDirectoryName(trimmedSave);
             var savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
             return (savePath, trimmedSave);
+        }
+
+        if (this.torrentFileService != null && t.Id > 0)
+        {
+            try
+            {
+                var files = this.torrentFileService.GetFiles(t.Id)?.ToList();
+                if (files != null && files.Count == 1 && !string.IsNullOrWhiteSpace(files[0].Path))
+                {
+                    var singleFilePath = Path.Combine(trimmedSave, files[0].Path);
+                    return (trimmedSave, singleFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to load files for torrent {0} in ResolvePaths", t.Id);
+            }
         }
 
         return (trimmedSave, Path.Combine(trimmedSave, t.Name));
