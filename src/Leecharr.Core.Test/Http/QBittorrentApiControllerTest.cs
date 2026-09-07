@@ -738,6 +738,52 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentsInfo_SingleFileTorrentWithExtension_ResolvesContentPathAsFileAndSavePathAsDir()
+    {
+        var torrent = new Torrent
+        {
+            Id = 2,
+            InfoHash = "hash2",
+            Name = "No Time to Die 2021 2160p UHD br remux dv hdr hevc-d3g",
+            SavePath = "/downloads/No Time to Die 2021 2160p UHD BluRay REMUX DV HDR HEVC TrieHD 7.1 Atmos-d3g .mkv",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var response = this.controller.GetTorrentsInfo();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(1);
+        list[0]["save_path"].Should().Be("/downloads");
+        list[0]["content_path"].Should().Be("/downloads/No Time to Die 2021 2160p UHD BluRay REMUX DV HDR HEVC TrieHD 7.1 Atmos-d3g .mkv");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_SingleFileTorrentInBaseDir_ResolvesContentPathFromTorrentFileService()
+    {
+        var torrent = new Torrent
+        {
+            Id = 3,
+            InfoHash = "hash3",
+            Name = "Release.Title.2021",
+            SavePath = "/downloads/incomplete",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(3).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { TorrentId = 3, Path = "ActualMovieFile.mkv", Size = 1000 },
+        });
+
+        var response = this.controller.GetTorrentsInfo();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(1);
+        list[0]["save_path"].Should().Be("/downloads/incomplete");
+        list[0]["content_path"].Should().Be("/downloads/incomplete/ActualMovieFile.mkv");
+    }
+
+    [Test]
     public async Task TopPrio_WithBatchHashes_PreservesRelativeOrder_ByIteratingInReverse()
     {
         var torrentA = new Torrent { Id = 10, InfoHash = "hashA", Name = "TA", QueuePosition = 3 };
