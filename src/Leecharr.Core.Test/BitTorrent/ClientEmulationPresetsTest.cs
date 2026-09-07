@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -25,5 +26,45 @@ public class ClientEmulationPresetsTest
 
         userAgent.Should().Be(expectedUserAgent);
         peerIdPrefix.Should().Be(expectedPeerIdPrefix);
+    }
+
+    [TestCase("-qB4420-", "qB4420")]
+    [TestCase("-DE2050-", "DE2050")]
+    [TestCase("-TR3000-", "TR3000")]
+    [TestCase("-UT3550-", "UT3550")]
+    [TestCase("-AZ3400-", "AZ3400")]
+    [TestCase("-LC1000-", "LC1000")]
+    [TestCase("", "qB4420")]
+    [TestCase(null, "qB4420")]
+    public void CleanClientVersion_ExtractsExpectedVersion(string peerIdPrefix, string expectedVersion)
+    {
+        ClientEmulationPresets.CleanClientVersion(peerIdPrefix).Should().Be(expectedVersion);
+    }
+
+    [TestCase("-qB4420-", "qB")]
+    [TestCase("-DE2050-", "DE")]
+    [TestCase("-TR3000-", "TR")]
+    [TestCase("-UT3550-", "UT")]
+    [TestCase("-AZ3400-", "AZ")]
+    [TestCase("-LC1000-", "LC")]
+    [TestCase("", "qB")]
+    [TestCase(null, "qB")]
+    public void CleanClientIdentifier_ExtractsExpectedIdentifier(string peerIdPrefix, string expectedIdentifier)
+    {
+        ClientEmulationPresets.CleanClientIdentifier(peerIdPrefix).Should().Be(expectedIdentifier);
+    }
+
+    [Test]
+    public void Presets_NeverContainMonoTorrentOrMO3002()
+    {
+        var clients = new[] { "qBittorrent", "Deluge", "Transmission", "uTorrent", "BiglyBT", "Leecharr", null, "unknown" };
+        foreach (var client in clients)
+        {
+            var (userAgent, peerIdPrefix) = ClientEmulationPresets.GetPreset(client);
+            userAgent.Should().NotContain("MonoTorrent");
+            userAgent.Should().NotContain("MO3002");
+            peerIdPrefix.Should().NotContain("MO3002");
+            peerIdPrefix.Should().NotStartWith("-MO");
+        }
     }
 }
