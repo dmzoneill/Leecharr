@@ -302,6 +302,44 @@ public class TorznabClientTest
         results[1].MagnetUrl.Should().StartWith("magnet:?");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenEnclosureUrlIsEmptyOrWhitespace_FallsBackToLinkUrl()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Empty.Enclosure.Url.Release.1080p</title>
+      <guid>https://indexer.example.com/details/101</guid>
+      <link>https://indexer.example.com/download/101.torrent</link>
+      <enclosure url="""" length=""0"" type=""application/x-bittorrent"" />
+      <torznab:attr name=""seeders"" value=""20""/>
+    </item>
+    <item>
+      <title>Whitespace.Enclosure.Url.Release.1080p</title>
+      <guid>https://indexer.example.com/details/102</guid>
+      <link>https://indexer.example.com/download/102.torrent</link>
+      <enclosure url=""   "" length=""1000"" type=""application/x-bittorrent"" />
+      <torznab:attr name=""seeders"" value=""15""/>
+    </item>
+    <item>
+      <title>Missing.Enclosure.Url.Attr.Release.1080p</title>
+      <guid>https://indexer.example.com/details/103</guid>
+      <link>https://indexer.example.com/download/103.torrent</link>
+      <enclosure length=""2000"" type=""application/x-bittorrent"" />
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+
+        results.Should().HaveCount(3);
+        results[0].DownloadUrl.Should().Be("https://indexer.example.com/download/101.torrent");
+        results[1].DownloadUrl.Should().Be("https://indexer.example.com/download/102.torrent");
+        results[2].DownloadUrl.Should().Be("https://indexer.example.com/download/103.torrent");
+    }
+
     #endregion
 
     #region Torznab Capabilities Parsing (t=caps)
