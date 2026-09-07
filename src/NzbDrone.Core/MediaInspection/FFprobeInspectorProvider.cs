@@ -184,9 +184,9 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             var info = new MediaContainerInfo();
 
             // 1. Format section
-            if (root.TryGetProperty("format", out var formatElement))
+            if (root.TryGetProperty("format", out var formatElement) && formatElement.ValueKind == JsonValueKind.Object)
             {
-                if (formatElement.TryGetProperty("format_name", out var fnProp))
+                if (formatElement.TryGetProperty("format_name", out var fnProp) && fnProp.ValueKind == JsonValueKind.String)
                 {
                     var fn = fnProp.GetString() ?? string.Empty;
                     if (fn.Contains("matroska", StringComparison.OrdinalIgnoreCase))
@@ -215,10 +215,17 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     }
                 }
 
-                if (formatElement.TryGetProperty("duration", out var durProp) &&
-                    double.TryParse(durProp.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var durationSec))
+                if (formatElement.TryGetProperty("duration", out var durProp))
                 {
-                    info.DurationSeconds = durationSec;
+                    if (durProp.ValueKind == JsonValueKind.Number && durProp.TryGetDouble(out var durationSecNum))
+                    {
+                        info.DurationSeconds = durationSecNum;
+                    }
+                    else if (durProp.ValueKind == JsonValueKind.String &&
+                        double.TryParse(durProp.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var durationSecStr))
+                    {
+                        info.DurationSeconds = durationSecStr;
+                    }
                 }
             }
 
@@ -227,7 +234,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             {
                 foreach (var stream in streamsElement.EnumerateArray())
                 {
-                    if (!stream.TryGetProperty("codec_type", out var typeProp))
+                    if (stream.ValueKind != JsonValueKind.Object || !stream.TryGetProperty("codec_type", out var typeProp) || typeProp.ValueKind != JsonValueKind.String)
                     {
                         continue;
                     }
@@ -236,7 +243,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                     if (string.Equals(codecType, "video", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.IsNullOrEmpty(info.VideoCodec) && stream.TryGetProperty("codec_name", out var vCodec))
+                        if (string.IsNullOrEmpty(info.VideoCodec) && stream.TryGetProperty("codec_name", out var vCodec) && vCodec.ValueKind == JsonValueKind.String)
                         {
                             var vc = vCodec.GetString() ?? string.Empty;
                             info.VideoCodec = vc.ToUpperInvariant() switch
@@ -250,24 +257,38 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             };
                         }
 
-                        if (stream.TryGetProperty("width", out var wProp) && wProp.TryGetInt32(out var width))
+                        if (stream.TryGetProperty("width", out var wProp))
                         {
-                            info.Width = width;
+                            if (wProp.ValueKind == JsonValueKind.Number && wProp.TryGetInt32(out var width))
+                            {
+                                info.Width = width;
+                            }
+                            else if (wProp.ValueKind == JsonValueKind.String && int.TryParse(wProp.GetString(), out var widthParsed))
+                            {
+                                info.Width = widthParsed;
+                            }
                         }
 
-                        if (stream.TryGetProperty("height", out var hProp) && hProp.TryGetInt32(out var height))
+                        if (stream.TryGetProperty("height", out var hProp))
                         {
-                            info.Height = height;
+                            if (hProp.ValueKind == JsonValueKind.Number && hProp.TryGetInt32(out var height))
+                            {
+                                info.Height = height;
+                            }
+                            else if (hProp.ValueKind == JsonValueKind.String && int.TryParse(hProp.GetString(), out var heightParsed))
+                            {
+                                info.Height = heightParsed;
+                            }
                         }
 
                         // Check HDR indicators
-                        var colorTransfer = stream.TryGetProperty("color_transfer", out var ctProp) ? ctProp.GetString() : string.Empty;
+                        var colorTransfer = stream.TryGetProperty("color_transfer", out var ctProp) && ctProp.ValueKind == JsonValueKind.String ? ctProp.GetString() : string.Empty;
 
                         if (stream.TryGetProperty("side_data_list", out var sideDataArray) && sideDataArray.ValueKind == JsonValueKind.Array)
                         {
                             foreach (var sideData in sideDataArray.EnumerateArray())
                             {
-                                if (sideData.TryGetProperty("side_data_type", out var sdtProp))
+                                if (sideData.ValueKind == JsonValueKind.Object && sideData.TryGetProperty("side_data_type", out var sdtProp) && sdtProp.ValueKind == JsonValueKind.String)
                                 {
                                     var sdt = sdtProp.GetString() ?? string.Empty;
                                     if (sdt.Contains("DOVI", StringComparison.OrdinalIgnoreCase) || sdt.Contains("Dolby Vision", StringComparison.OrdinalIgnoreCase))
@@ -299,7 +320,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     else if (string.Equals(codecType, "audio", StringComparison.OrdinalIgnoreCase))
                     {
                         var ac = string.Empty;
-                        if (stream.TryGetProperty("codec_name", out var aCodec))
+                        if (stream.TryGetProperty("codec_name", out var aCodec) && aCodec.ValueKind == JsonValueKind.String)
                         {
                             var rawCodec = aCodec.GetString() ?? string.Empty;
                             ac = rawCodec.ToUpperInvariant() switch
@@ -317,16 +338,29 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                         }
 
                         string channelsStr = null;
-                        if (stream.TryGetProperty("channels", out var chanProp) && chanProp.TryGetInt32(out var channels))
+                        if (stream.TryGetProperty("channels", out var chanProp))
                         {
-                            channelsStr = channels switch
+                            var channels = 0;
+                            if (chanProp.ValueKind == JsonValueKind.Number && chanProp.TryGetInt32(out var chanInt))
                             {
-                                1 => "1.0",
-                                2 => "2.0",
-                                6 => "5.1",
-                                8 => "7.1",
-                                _ => $"{channels}.0",
-                            };
+                                channels = chanInt;
+                            }
+                            else if (chanProp.ValueKind == JsonValueKind.String && int.TryParse(chanProp.GetString(), out var chanParsed))
+                            {
+                                channels = chanParsed;
+                            }
+
+                            if (channels > 0)
+                            {
+                                channelsStr = channels switch
+                                {
+                                    1 => "1.0",
+                                    2 => "2.0",
+                                    6 => "5.1",
+                                    8 => "7.1",
+                                    _ => $"{channels}.0",
+                                };
+                            }
                         }
 
                         var incomingScore = GetAudioCodecScore(ac);
@@ -372,20 +406,20 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     else if (string.Equals(codecType, "subtitle", StringComparison.OrdinalIgnoreCase))
                     {
                         var subLabel = string.Empty;
-                        if (stream.TryGetProperty("tags", out var tagsElem))
+                        if (stream.TryGetProperty("tags", out var tagsElem) && tagsElem.ValueKind == JsonValueKind.Object)
                         {
-                            if (tagsElem.TryGetProperty("language", out var langProp))
+                            if (tagsElem.TryGetProperty("language", out var langProp) && langProp.ValueKind == JsonValueKind.String)
                             {
                                 subLabel = langProp.GetString();
                             }
 
-                            if (tagsElem.TryGetProperty("title", out var titleProp) && !string.IsNullOrWhiteSpace(titleProp.GetString()))
+                            if (tagsElem.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(titleProp.GetString()))
                             {
                                 subLabel = string.IsNullOrEmpty(subLabel) ? titleProp.GetString() : $"{subLabel} ({titleProp.GetString()})";
                             }
                         }
 
-                        if (string.IsNullOrEmpty(subLabel) && stream.TryGetProperty("codec_name", out var sCodec))
+                        if (string.IsNullOrEmpty(subLabel) && stream.TryGetProperty("codec_name", out var sCodec) && sCodec.ValueKind == JsonValueKind.String)
                         {
                             subLabel = sCodec.GetString();
                         }

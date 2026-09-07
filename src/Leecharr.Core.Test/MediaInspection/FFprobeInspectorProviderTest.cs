@@ -302,4 +302,99 @@ sleep 300
         info.Should().NotBeNull();
         info!.Resolution.Should().Be("480p");
     }
+
+    [Test]
+    public void ParseFFprobeJson_WhenSubtitleTagsIsNull_DoesNotThrowAndParsesSuccessfully()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""3600.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""hevc"",
+      ""width"": 3840,
+      ""height"": 2160,
+      ""color_transfer"": ""arib-std-b67""
+    },
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""eac3"",
+      ""channels"": 6,
+      ""sample_rate"": ""48000"",
+      ""bits_per_raw_sample"": ""16""
+    },
+    {
+      ""codec_type"": ""subtitle"",
+      ""codec_name"": ""subrip"",
+      ""tags"": null
+    },
+    {
+      ""codec_type"": ""subtitle"",
+      ""codec_name"": ""hdmv_pgs_subtitle"",
+      ""tags"": {
+        ""language"": ""eng"",
+        ""title"": ""Full Commentary""
+      }
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.ContainerFormat.Should().Be("Matroska (MKV)");
+        info.VideoCodec.Should().Be("HEVC / H.265");
+        info.Width.Should().Be(3840);
+        info.Height.Should().Be(2160);
+        info.Resolution.Should().Be("4K UHD (2160p)");
+        info.HdrFormat.Should().Be("HLG");
+        info.AudioCodec.Should().Be("E-AC3 / DD+");
+        info.AudioChannels.Should().Be("5.1");
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioBitDepth.Should().Be(16);
+        info.SubtitleTracks.Should().HaveCount(2);
+        info.SubtitleTracks[0].Should().Be("subrip");
+        info.SubtitleTracks[1].Should().Be("eng (Full Commentary)");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenNumericFormatDurationAndStreamProperties_ParsesCorrectly()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mov,mp4,m4a,3gp,3g2,mj2"",
+    ""duration"": 1800.5
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""av1"",
+      ""width"": 1920,
+      ""height"": 1080
+    },
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""flac"",
+      ""channels"": 2,
+      ""sample_rate"": 96000,
+      ""bits_per_raw_sample"": 24
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mp4");
+
+        info.Should().NotBeNull();
+        info!.ContainerFormat.Should().Be("MP4");
+        info.VideoCodec.Should().Be("AV1");
+        info.Resolution.Should().Be("1080p");
+        info.DurationSeconds.Should().Be(1800.5);
+        info.AudioCodec.Should().Be("FLAC");
+        info.AudioChannels.Should().Be("2.0");
+        info.AudioSampleRate.Should().Be(96000);
+        info.AudioBitDepth.Should().Be(24);
+    }
 }
