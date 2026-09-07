@@ -245,6 +245,63 @@ public class MediaInspectionServiceTest
         info.AudioBitDepth.Should().Be(bitDepth);
     }
 
+    [TestCase(44100, 882000L, 20.0)]
+    [TestCase(96000, 4800000L, 50.0)]
+    [TestCase(192000, 3840000L, 20.0)]
+    public void Inspect_FlacStreamInfo_WithTotalSamples_CalculatesDurationAccurately(int sampleRate, long totalSamples, double expectedDuration)
+    {
+        var data = new byte[64];
+
+        // 'fLaC' magic
+        data[0] = (byte)'f';
+        data[1] = (byte)'L';
+        data[2] = (byte)'a';
+        data[3] = (byte)'C';
+        data[4] = 0x00; // METADATA_BLOCK_HEADER
+
+        var chMinus1 = 2 - 1;
+        var bpsMinus1 = 16 - 1;
+
+        data[18] = (byte)((sampleRate >> 12) & 0xFF);
+        data[19] = (byte)((sampleRate >> 4) & 0xFF);
+        data[20] = (byte)(((sampleRate & 0x0F) << 4) | ((chMinus1 & 0x07) << 1) | ((bpsMinus1 >> 4) & 0x01));
+        data[21] = (byte)(((bpsMinus1 & 0x0F) << 4) | (int)((totalSamples >> 32) & 0x0F));
+        data[22] = (byte)((totalSamples >> 24) & 0xFF);
+        data[23] = (byte)((totalSamples >> 16) & 0xFF);
+        data[24] = (byte)((totalSamples >> 8) & 0xFF);
+        data[25] = (byte)(totalSamples & 0xFF);
+
+        using var ms = new MemoryStream(data);
+        var info = this.inspector.Inspect(ms, "track.flac");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("FLAC");
+        info.AudioCodec.Should().Be("FLAC");
+        info.AudioSampleRate.Should().Be(sampleRate);
+        info.DurationSeconds.Should().BeApproximately(expectedDuration, 0.001);
+    }
+
+    [Test]
+    public void Inspect_FlacWithEmptyOrInsufficientHeader_LeavesAudioFieldsUnpopulated()
+    {
+        var data = new byte[10];
+        data[0] = (byte)'f';
+        data[1] = (byte)'L';
+        data[2] = (byte)'a';
+        data[3] = (byte)'C';
+
+        using var ms = new MemoryStream(data);
+        var info = this.inspector.Inspect(ms, "corrupt.flac");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("FLAC");
+        info.AudioCodec.Should().Be("FLAC");
+        info.AudioSampleRate.Should().Be(0);
+        info.AudioBitDepth.Should().Be(0);
+        info.AudioChannels.Should().BeNull();
+        info.DurationSeconds.Should().Be(0.0);
+    }
+
     [Test]
     public void Inspect_Mp3WithId3Header_DetectsMp3()
     {

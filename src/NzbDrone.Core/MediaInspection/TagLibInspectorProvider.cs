@@ -1726,9 +1726,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         {
             ContainerFormat = "FLAC",
             AudioCodec = "FLAC",
-            AudioChannels = "2.0",
-            AudioBitDepth = 16,
-            AudioSampleRate = 44100,
         };
 
         if (header.Length >= 22)
@@ -1755,6 +1752,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             };
 
             info.AudioBitDepth = bitsPerSample;
+
+            if (header.Length >= 26)
+            {
+                ulong totalSamples = ((ulong)(header[21] & 0x0F) << 32) |
+                                     ((ulong)header[22] << 24) |
+                                     ((ulong)header[23] << 16) |
+                                     ((ulong)header[24] << 8) |
+                                     header[25];
+
+                if (totalSamples > 0 && sampleRate > 0)
+                {
+                    info.DurationSeconds = (double)totalSamples / sampleRate;
+                }
+            }
         }
 
         return info;
