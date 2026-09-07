@@ -47,6 +47,8 @@ public interface ITrackerBoostService
 
     Task<int> RecoverMissingTrackersAsync();
 
+    Task<int> InjectIntoDownloadClientsAsync(string infoHash, IEnumerable<string> trackers);
+
     int InjectIntoDownloadClients(string infoHash, IEnumerable<string> trackers);
 
     IReadOnlyList<TrackerBoostLogEntry> GetLogs(int limit = 100, string category = null, string level = null);
