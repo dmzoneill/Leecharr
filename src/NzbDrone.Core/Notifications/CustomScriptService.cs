@@ -21,11 +21,18 @@ public interface ICustomScriptService
 public class CustomScriptService : ICustomScriptService
 {
     private readonly IMediaEnrichmentService mediaEnrichmentService;
+    private readonly TimeSpan scriptTimeout;
+    private readonly TimeSpan streamDrainTimeout;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public CustomScriptService(IMediaEnrichmentService mediaEnrichmentService = null)
+    public CustomScriptService(
+        IMediaEnrichmentService mediaEnrichmentService = null,
+        TimeSpan? scriptTimeout = null,
+        TimeSpan? streamDrainTimeout = null)
     {
         this.mediaEnrichmentService = mediaEnrichmentService;
+        this.scriptTimeout = scriptTimeout ?? TimeSpan.FromSeconds(60);
+        this.streamDrainTimeout = streamDrainTimeout ?? TimeSpan.FromSeconds(3);
     }
 
     internal static Dictionary<string, string> BuildEnvironmentVariables(string eventType, Torrent torrent, TorrentMediaMetadata meta = null)
@@ -115,19 +122,23 @@ public class CustomScriptService : ICustomScriptService
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            var stdoutTask = process.StandardOutput.ReadToEndAsync();
-            var stderrTask = process.StandardError.ReadToEndAsync();
+            using var timeoutCts = new CancellationTokenSource(this.scriptTimeout);
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
 
-            using var timeoutCts = new CancellationTokenSource();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(60), timeoutCts.Token);
-            var processTask = process.WaitForExitAsync();
-
-            if (await Task.WhenAny(processTask, timeoutTask) == timeoutTask)
+            try
             {
-                this.logger.Error("Custom script timed out after 60s: {0}", scriptPath);
+                await process.WaitForExitAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                this.logger.Error("Custom script timed out after {0}s: {1}", this.scriptTimeout.TotalSeconds, scriptPath);
                 try
                 {
-                    process.Kill(true);
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
                 }
                 catch
                 {
@@ -137,10 +148,37 @@ public class CustomScriptService : ICustomScriptService
                 return false;
             }
 
-            timeoutCts.Cancel();
+            var stdout = string.Empty;
+            var stderr = string.Empty;
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            try
+            {
+                using var drainCts = new CancellationTokenSource(this.streamDrainTimeout);
+                using var linkedDrainCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, drainCts.Token);
+
+                try
+                {
+                    await Task.WhenAll(stdoutTask, stderrTask).WaitAsync(linkedDrainCts.Token);
+                }
+                catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+                {
+                    this.logger.Debug("Custom script stream draining timed out after process exit: {0}", scriptPath);
+                }
+
+                if (stdoutTask.IsCompletedSuccessfully)
+                {
+                    stdout = stdoutTask.Result;
+                }
+
+                if (stderrTask.IsCompletedSuccessfully)
+                {
+                    stderr = stderrTask.Result;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Exception while draining custom script streams: {0}", scriptPath);
+            }
 
             if (!string.IsNullOrWhiteSpace(stdout))
             {
