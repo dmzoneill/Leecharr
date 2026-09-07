@@ -153,4 +153,92 @@ public class FileBrowserServiceTest
         this.diskProvider.Received(1).CopyFile(sourceFile, targetFile, true);
         this.diskProvider.Received(1).DeleteFolder(source, true);
     }
+
+    [Test]
+    public void Move_WhenSourceAndTargetFileAreIdentical_ReturnsWithoutDiskOperations()
+    {
+        var source = "/downloads/source.mkv";
+        var destDir = "/downloads";
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().DeleteFile(Arg.Any<string>());
+    }
+
+    [Test]
+    public void Move_WhenSourceAndTargetFolderAreIdentical_ReturnsWithoutDiskOperations()
+    {
+        var source = "/downloads/album";
+        var destDir = "/downloads";
+
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+        this.diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Move_WhenMovingFolderIntoItself_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/album";
+        var destDir = "/downloads/album";
+
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        var action = () => this.service.Move(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot move a directory into one of its subdirectories.");
+
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+        this.diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Move_WhenMovingFolderIntoSubdirectory_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/album";
+        var destDir = "/downloads/album/disc1";
+
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        var action = () => this.service.Move(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot move a directory into one of its subdirectories.");
+
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+        this.diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Copy_WhenSourceAndTargetFileAreIdentical_ReturnsWithoutDiskOperations()
+    {
+        var source = "/downloads/source.mkv";
+        var destDir = "/downloads";
+
+        this.service.Copy(source, destDir);
+
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Copy_WhenCopyingFolderIntoSubdirectory_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/album";
+        var destDir = "/downloads/album/disc1";
+
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        var action = () => this.service.Copy(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot copy a directory into one of its subdirectories.");
+
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
 }

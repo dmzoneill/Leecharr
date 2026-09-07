@@ -203,13 +203,28 @@ public class FileBrowserService : IFileBrowserService
         var source = this.ResolvePath(sourcePath);
         var destDir = this.ResolvePath(destinationDirectory);
 
+        var name = Path.GetFileName(source);
+        var target = Path.Combine(destDir, name);
+
+        if (string.Equals(source, target, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var sourceWithSep = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        if (this.diskProvider.FolderExists(source) &&
+            (target.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+             destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Cannot copy a directory into one of its subdirectories.");
+        }
+
         if (!this.diskProvider.FolderExists(destDir))
         {
             this.diskProvider.CreateFolder(destDir);
         }
-
-        var name = Path.GetFileName(source);
-        var target = Path.Combine(destDir, name);
 
         if (this.diskProvider.FolderExists(source))
         {
@@ -226,13 +241,28 @@ public class FileBrowserService : IFileBrowserService
         var source = this.ResolvePath(sourcePath);
         var destDir = this.ResolvePath(destinationDirectory);
 
+        var name = Path.GetFileName(source);
+        var target = Path.Combine(destDir, name);
+
+        if (string.Equals(source, target, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var sourceWithSep = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        if (this.diskProvider.FolderExists(source) &&
+            (target.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+             destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Cannot move a directory into one of its subdirectories.");
+        }
+
         if (!this.diskProvider.FolderExists(destDir))
         {
             this.diskProvider.CreateFolder(destDir);
         }
-
-        var name = Path.GetFileName(source);
-        var target = Path.Combine(destDir, name);
 
         if (this.diskProvider.FolderExists(source))
         {
