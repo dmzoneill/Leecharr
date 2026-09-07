@@ -736,7 +736,24 @@ public class NotificationEventHandler :
         return value.Length > maxLength ? value.Substring(0, maxLength - 3) + "..." : value;
     }
 
-    private static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
+    private static string ExtractOverview(dynamic meta)
+    {
+        if (meta == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return (string)meta.Overview;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
         var (chatId, token, user) = ExtractProviderSettings(settings);
         var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
@@ -744,9 +761,13 @@ public class NotificationEventHandler :
         if (string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
             var title = Truncate($"[{eventType}] {torrentName}", 256);
-            var rawDesc = meta?.Overview ?? (torrent != null
-                ? $"Category: {torrent.Category ?? "None"} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : ExtractMessage(genericPayload, $"Event: {eventType}"));
+            var torrentDetails = torrent != null
+                ? $"Category: {torrent.Category ?? "None"} | Status: {torrent.Status} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                : ExtractMessage(genericPayload, $"Event: {eventType}");
+            var overview = ExtractOverview(meta);
+            var rawDesc = !string.IsNullOrWhiteSpace(overview)
+                ? $"{torrentDetails}\n\n{overview}"
+                : torrentDetails;
             var desc = Truncate(rawDesc, 4096);
 
             return new
@@ -922,9 +943,13 @@ public class NotificationEventHandler :
 
             var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
             var subject = $"[Leecharr] [{eventType}] {torrentName}";
-            var body = meta?.Overview ?? (torrent != null
+            var torrentDetails = torrent != null
                 ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : ExtractMessage(genericPayload, $"Event: {eventType}"));
+                : ExtractMessage(genericPayload, $"Event: {eventType}");
+            var overview = ExtractOverview(meta);
+            var body = !string.IsNullOrWhiteSpace(overview)
+                ? $"{torrentDetails}\n\n{overview}"
+                : torrentDetails;
 
             using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
             using var client = new System.Net.Mail.SmtpClient(host, port)
