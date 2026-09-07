@@ -20,6 +20,8 @@ public class ArrConnectionDefinition : ModelBase
 
     public string Url { get; set; }
 
+    public string ExternalUrl { get; set; }
+
     public string ApiKey { get; set; }
 
     public string ArrType { get; set; }

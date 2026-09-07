@@ -14,6 +14,22 @@ public class ArrConnectionResource : RestResource
 
     public string Url { get; set; }
 
+    [JsonPropertyName("externalUrl")]
+    public string ExternalUrl { get; set; }
+
+    [JsonPropertyName("publicUrl")]
+    public string PublicUrl
+    {
+        get => this.ExternalUrl;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                this.ExternalUrl = value;
+            }
+        }
+    }
+
     public string ApiKey { get; set; }
 
     public bool Enabled { get; set; } = true;
