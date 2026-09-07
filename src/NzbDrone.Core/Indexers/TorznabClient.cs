@@ -199,20 +199,9 @@ public class TorznabClient : ITorznabClient
             return results;
         }
 
-        var sanitizedXml = SanitizeXml(xml);
-
         try
         {
-            XDocument doc;
-            try
-            {
-                doc = XDocument.Parse(sanitizedXml);
-            }
-            catch (XmlException)
-            {
-                var escaped = Regex.Replace(sanitizedXml, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;");
-                doc = XDocument.Parse(escaped);
-            }
+            var doc = SafeParseXml(xml);
 
             var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
             if (errorElem != null)
@@ -435,6 +424,20 @@ public class TorznabClient : ITorznabClient
         return sb.ToString();
     }
 
+    internal static XDocument SafeParseXml(string rawXml)
+    {
+        var sanitized = SanitizeXml(rawXml);
+        try
+        {
+            return XDocument.Parse(sanitized);
+        }
+        catch (XmlException)
+        {
+            var escaped = Regex.Replace(sanitized, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;");
+            return XDocument.Parse(escaped);
+        }
+    }
+
     internal static int ParseInt(string value, int defaultValue = 0)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -531,17 +534,7 @@ public class TorznabClient : ITorznabClient
 
         try
         {
-            xml = SanitizeXml(xml);
-            XDocument doc;
-            try
-            {
-                doc = XDocument.Parse(xml);
-            }
-            catch (XmlException)
-            {
-                var fixedXml = Regex.Replace(xml, @"&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)", "&amp;");
-                doc = XDocument.Parse(fixedXml);
-            }
+            var doc = SafeParseXml(xml);
 
             var capsElem = doc.Root;
             if (capsElem == null)
@@ -684,7 +677,7 @@ public class TorznabClient : ITorznabClient
             {
                 if (capsContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
                 {
-                    var doc = XDocument.Parse(capsContent);
+                    var doc = SafeParseXml(capsContent);
                     var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
                     var code = errorElem?.Attribute("code")?.Value ?? "unknown";
                     var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
@@ -724,7 +717,7 @@ public class TorznabClient : ITorznabClient
 
             if (searchContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
             {
-                var doc = XDocument.Parse(searchContent);
+                var doc = SafeParseXml(searchContent);
                 var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
                 var code = errorElem?.Attribute("code")?.Value ?? "unknown";
                 var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
