@@ -402,4 +402,42 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).PauseTorrentAsync(103);
         await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(104);
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_ReappliesNonNormalFilePriorities()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "Multi-file Torrent",
+            InfoHash = "5555555555555555555555555555555555555555",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var fileRepo = Substitute.For<ITorrentFileRepository>();
+        fileRepo.GetByTorrentId(55).Returns(new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 55, Path = "file_skipped.txt", Priority = 0 },
+            new() { Id = 2, TorrentId = 55, Path = "file_low.txt", Priority = 1 },
+            new() { Id = 3, TorrentId = 55, Path = "file_normal.txt", Priority = 3 },
+            new() { Id = 4, TorrentId = 55, Path = "file_high.txt", Priority = 4 },
+        });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator,
+            torrentFileRepository: fileRepo);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.Received(1).SetFilePriorityAsync(55, "file_skipped.txt", 0);
+        await this.libTorrentEngine.Received(1).SetFilePriorityAsync(55, "file_low.txt", 1);
+        await this.libTorrentEngine.DidNotReceive().SetFilePriorityAsync(55, "file_normal.txt", 3);
+        await this.libTorrentEngine.Received(1).SetFilePriorityAsync(55, "file_high.txt", 4);
+    }
 }

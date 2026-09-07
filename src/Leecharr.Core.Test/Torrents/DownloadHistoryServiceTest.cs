@@ -339,8 +339,10 @@ public class DownloadHistoryServiceTest
             files.Count == 2 &&
             files[0].Path == "Parsed Torrent Release/video.mkv" &&
             files[0].Size == 9000 &&
+            files[0].Priority == 3 &&
             files[1].Path == "Parsed Torrent Release/sample.nfo" &&
-            files[1].Size == 1000));
+            files[1].Size == 1000 &&
+            files[1].Priority == 3));
     }
 
     [Test]
