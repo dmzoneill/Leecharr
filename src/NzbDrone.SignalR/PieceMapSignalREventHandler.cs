@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
 
@@ -13,17 +13,22 @@ namespace NzbDrone.SignalR;
 public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposable
 {
     private readonly IBroadcastSignalRMessage signalRBroadcaster;
+    private readonly Logger logger;
     private readonly object syncLock = new();
     private readonly Dictionary<int, HashSet<int>> pendingPieces = new();
     private readonly SemaphoreSlim flushLock = new(1, 1);
     private readonly Timer flushTimer;
     private bool disposed;
 
-    public PieceMapSignalREventHandler(IBroadcastSignalRMessage signalRBroadcaster, int flushIntervalMs = 250)
+    public PieceMapSignalREventHandler(
+        IBroadcastSignalRMessage signalRBroadcaster,
+        Logger logger = null,
+        int flushIntervalMs = 250)
     {
         this.signalRBroadcaster = signalRBroadcaster;
+        this.logger = logger ?? LogManager.GetCurrentClassLogger();
         this.flushTimer = new Timer(
-            async _ =>
+            _ =>
             {
                 if (this.disposed)
                 {
@@ -32,32 +37,35 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
 
                 try
                 {
-                    if (!await this.flushLock.WaitAsync(0))
+                    if (!this.flushLock.Wait(0))
                     {
                         return;
+                    }
+
+                    try
+                    {
+                        if (!this.disposed)
+                        {
+                            this.Flush();
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            this.flushLock.Release();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
                     }
                 }
                 catch (ObjectDisposedException)
                 {
-                    return;
                 }
-
-                try
+                catch (Exception ex)
                 {
-                    if (!this.disposed)
-                    {
-                        this.Flush();
-                    }
-                }
-                finally
-                {
-                    try
-                    {
-                        this.flushLock.Release();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                    }
+                    this.logger.Debug(ex, "Error occurred during periodic piece map SignalR flush");
                 }
             },
             null,
@@ -143,7 +151,14 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
         }
 
-        this.Flush();
+        try
+        {
+            this.Flush();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error occurred during final piece map SignalR flush on dispose");
+        }
 
         try
         {
