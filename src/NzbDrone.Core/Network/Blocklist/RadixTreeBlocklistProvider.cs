@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -319,9 +320,9 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 if (ip.IsIPv4MappedToIPv6)
                 {
                     ip = ip.MapToIPv4();
-                    if (prefixLength > 96)
+                    if (prefixLength > 32)
                     {
-                        prefixLength -= 96;
+                        prefixLength = Math.Clamp(prefixLength - 96, 0, 32);
                     }
                 }
 
