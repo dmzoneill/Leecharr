@@ -249,6 +249,11 @@ export function App() {
   const refreshServerData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["torrents"] });
     queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["subsystems"] });
+    queryClient.invalidateQueries({ queryKey: ["config"] });
+    queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+    queryClient.invalidateQueries({ queryKey: ["health"] });
+    queryClient.invalidateQueries({ queryKey: ["system", "status"] });
   }, [queryClient]);
 
   const { showToast } = useToast();
@@ -364,6 +369,19 @@ export function App() {
             }
           }
         }
+        if (msg.name === "subsystemSwitched") {
+          const body = msg.body as any;
+          const subsystemId =
+            typeof body === "object" && body !== null
+              ? (body.subsystemId ?? body.id)
+              : undefined;
+          if (subsystemId) {
+            queryClient.invalidateQueries({
+              queryKey: ["subsystems", subsystemId],
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+        }
         refreshServerData();
       }
     });
@@ -374,7 +392,7 @@ export function App() {
       unsubReconnected();
       unsubClose();
     };
-  }, [refreshServerData]);
+  }, [queryClient, refreshServerData]);
 
   const handlePause = async (id: number) => {
     try {
