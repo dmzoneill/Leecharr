@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
@@ -89,7 +91,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
 
         this.logger.Debug("Enriching metadata for torrent: {0}", torrent.Name);
 
-        var existing = this.repository.GetByTorrentId(torrent.Id);
+        var existing = torrent.Id > 0 ? this.repository.GetByTorrentId(torrent.Id) : null;
         var metadata = existing ?? new TorrentMediaMetadata { TorrentId = torrent.Id };
 
         // 1. Inspect container metadata if local file is available
@@ -202,16 +204,20 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             metadata.BackdropLocalPath = await this.CacheArtworkAsync(metadata.BackdropUrl, torrent.Id, "backdrop");
         }
 
-        if (existing == null)
+        if (torrent.Id > 0)
         {
-            this.repository.Insert(metadata);
-        }
-        else
-        {
-            this.repository.Update(metadata);
+            if (existing == null)
+            {
+                this.repository.Insert(metadata);
+            }
+            else
+            {
+                this.repository.Update(metadata);
+            }
+
+            this.eventAggregator.PublishEvent(new MediaEnrichedEvent { TorrentId = torrent.Id, Metadata = metadata });
         }
 
-        this.eventAggregator.PublishEvent(new MediaEnrichedEvent { TorrentId = torrent.Id, Metadata = metadata });
         return metadata;
     }
 
@@ -278,7 +284,10 @@ public class MediaEnrichmentService : IMediaEnrichmentService
 
         try
         {
-            var cacheDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", torrentId.ToString());
+            var folderKey = torrentId > 0
+                ? torrentId.ToString()
+                : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..16].ToLowerInvariant();
+            var cacheDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", folderKey);
             Directory.CreateDirectory(cacheDir);
 
             // Handle local file path
