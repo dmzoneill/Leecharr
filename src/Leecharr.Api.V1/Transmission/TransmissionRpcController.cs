@@ -608,16 +608,20 @@ public class TransmissionRpcController : ControllerBase
 
                 case "queue-move-top":
                     var qTopIds = this.ExtractIds(request.Arguments);
-                    foreach (var id in qTopIds)
+                    for (var i = qTopIds.Count - 1; i >= 0; i--)
                     {
-                        await this.torrentService.MoveQueueAsync(id, "top");
+                        await this.torrentService.MoveQueueAsync(qTopIds[i], "top");
                     }
 
                     return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
 
                 case "queue-move-up":
                     var qUpIds = this.ExtractIds(request.Arguments);
-                    foreach (var id in qUpIds)
+                    var orderedUpIds = qUpIds
+                        .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
+                        .OrderBy(x => x.Torrent?.QueuePosition ?? int.MaxValue)
+                        .Select(x => x.Id);
+                    foreach (var id in orderedUpIds)
                     {
                         await this.torrentService.MoveQueueAsync(id, "up");
                     }
@@ -626,7 +630,11 @@ public class TransmissionRpcController : ControllerBase
 
                 case "queue-move-down":
                     var qDownIds = this.ExtractIds(request.Arguments);
-                    foreach (var id in qDownIds)
+                    var orderedDownIds = qDownIds
+                        .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
+                        .OrderByDescending(x => x.Torrent?.QueuePosition ?? int.MinValue)
+                        .Select(x => x.Id);
+                    foreach (var id in orderedDownIds)
                     {
                         await this.torrentService.MoveQueueAsync(id, "down");
                     }
