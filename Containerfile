@@ -55,7 +55,9 @@ RUN apt-get update && \
         curl \
         python3 \
         transmission-daemon \
+        transmission-cli \
         libtorrent-rasterbar-dev \
+        python3-libtorrent \
         p7zip-full \
         unrar-free \
         mediainfo \
