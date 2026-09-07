@@ -90,9 +90,7 @@ export function ConnectionsTab() {
 
   if (isLoading)
     return (
-      <div className="loading">
-        {t("settings.loadingConnections", "Loading connections...")}
-      </div>
+      <div className="loading">{t("settingsTabs.connections.loading")}</div>
     );
 
   return (
@@ -126,11 +124,13 @@ export function ConnectionsTab() {
             >
               {syncMutation.isPending
                 ? t("settingsTabs.downloadClients.syncing")
-                : "🔄 Sync Now"}
+                : t("settingsTabs.connections.syncNow")}
             </button>
             {syncMutation.isError && (
               <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}>
-                Sync failed: {syncMutation.error?.message}
+                {t("settingsTabs.connections.syncFailed", {
+                  error: syncMutation.error?.message,
+                })}
               </span>
             )}
             {syncMutation.isSuccess && syncMutation.data && (
@@ -139,12 +139,20 @@ export function ConnectionsTab() {
                   <span>
                     ✓{" "}
                     {syncMutation.data.message ||
-                      `Sync complete: ${syncMutation.data.syncedCount}/${syncMutation.data.totalCount ?? syncMutation.data.syncedCount} connected`}
+                      t("settingsTabs.connections.syncCompleteFraction", {
+                        syncedCount: syncMutation.data.syncedCount,
+                        totalCount:
+                          syncMutation.data.totalCount ??
+                          syncMutation.data.syncedCount,
+                      })}
                   </span>
                 ) : (
                   <span>
-                    ✓ Sync complete: {syncMutation.data.added ?? 0} added,{" "}
-                    {syncMutation.data.skipped ?? 0} skipped
+                    ✓{" "}
+                    {t("settingsTabs.connections.syncCompleteDetails", {
+                      added: syncMutation.data.added ?? 0,
+                      skipped: syncMutation.data.skipped ?? 0,
+                    })}
                     {(syncMutation.data.failed ?? 0) > 0 && (
                       <span
                         style={{
@@ -152,7 +160,9 @@ export function ConnectionsTab() {
                           marginLeft: "0.35rem",
                         }}
                       >
-                        ({syncMutation.data.failed} failed)
+                        {t("settingsTabs.connections.syncFailedCount", {
+                          failed: syncMutation.data.failed,
+                        })}
                       </span>
                     )}
                   </span>
@@ -176,7 +186,10 @@ export function ConnectionsTab() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="provider-card-action"
-                    title={`Open ${conn.name} Web UI (${conn.url})`}
+                    title={t("settingsTabs.connections.openWebUI", {
+                      name: conn.name,
+                      url: conn.url,
+                    })}
                     onClick={(e) => e.stopPropagation()}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
@@ -199,8 +212,10 @@ export function ConnectionsTab() {
                   onClick={async (e) => {
                     e.stopPropagation();
                     const ok = await confirm({
-                      title: "Delete Connection",
-                      message: `Are you sure you want to delete the connection "${conn.name}"?`,
+                      title: t("settingsTabs.connections.deleteTitle"),
+                      message: t("settingsTabs.connections.deleteMessage", {
+                        name: conn.name,
+                      }),
                       danger: true,
                       confirmText: t("settingsTabs.categories.deleteConfirm"),
                     });
@@ -208,10 +223,16 @@ export function ConnectionsTab() {
 
                     deleteMutation.mutate(conn.id, {
                       onSuccess: () =>
-                        showToast(`Connection "${conn.name}" deleted`, "info"),
+                        showToast(
+                          t("settingsTabs.connections.deleted", {
+                            name: conn.name,
+                          }),
+                          "info",
+                        ),
                       onError: (err: any) =>
                         showToast(
-                          err?.message || "Failed to delete connection",
+                          err?.message ||
+                            t("settingsTabs.connections.deleteFailed"),
                           "error",
                         ),
                     });
@@ -232,17 +253,17 @@ export function ConnectionsTab() {
                 )}
                 {conn.syncEnabled && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    Sync
+                    {t("settingsTabs.connections.badgeSync")}
                   </span>
                 )}
                 {conn.enableAutomaticAdd && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    Auto Add
+                    {t("settingsTabs.connections.badgeAutoAdd")}
                   </span>
                 )}
                 {conn.webhookEnabled && (
                   <span className="provider-card-badge provider-card-badge-blue">
-                    Webhook
+                    {t("settingsTabs.connections.badgeWebhook")}
                   </span>
                 )}
               </div>
@@ -293,7 +314,9 @@ export function ConnectionsTab() {
               className="modal-title"
               style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
             >
-              {editing.id ? "Edit Connection" : "Add Connection"}
+              {editing.id
+                ? t("settingsTabs.connections.editTitle")
+                : t("settingsTabs.connections.addTitle")}
             </div>
             <TextInput
               label={t("settingsTabs.categories.table.name")}
@@ -367,7 +390,7 @@ export function ConnectionsTab() {
                 value={editing.webhookHost || ""}
                 onChange={(v) => setEditing({ ...editing, webhookHost: v })}
                 placeholder="Leecharr"
-                hint="Hostname or IP for *arr to reach Leecharr (leave empty to use default)"
+                hint={t("settingsTabs.connections.webhookHostHint")}
               />
             )}
 
@@ -386,7 +409,11 @@ export function ConnectionsTab() {
                   gap: "0.5rem",
                 }}
               >
-                <span>Testing connection to {editing.url || "server"}...</span>
+                <span>
+                  {t("settingsTabs.connections.testingConnection", {
+                    url: editing.url || "server",
+                  })}
+                </span>
               </div>
             )}
 

@@ -48,7 +48,7 @@ export function ClientEmulationSettingsTab() {
 
   const [form, setForm] = useState({
     clientBehaviorEngineEnabled: true,
-    primaryClient: t("settingsTabs.downloadClients.typeQBitTorrent"),
+    primaryClient: "qBittorrent",
     bitTorrentUserAgent: "qBittorrent/4.4.2",
     peerIdPrefix: "-qB4420-",
     behaviorVariation: 0.15,
@@ -74,9 +74,7 @@ export function ClientEmulationSettingsTab() {
 
   useEffect(() => {
     if (btConfig || simConfig || peerConfig) {
-      const primaryClient =
-        simConfig?.primaryClient ||
-        t("settingsTabs.downloadClients.typeQBitTorrent");
+      const primaryClient = simConfig?.primaryClient || "qBittorrent";
       const preset =
         CLIENT_PRESETS[primaryClient] || CLIENT_PRESETS.qBittorrent;
       const bitTorrentUserAgent =
@@ -274,15 +272,15 @@ export function ClientEmulationSettingsTab() {
             onChange={handlePrimaryClientChange}
             options={[
               {
-                value: t("settingsTabs.downloadClients.typeQBitTorrent"),
+                value: "qBittorrent",
                 label: t("settingsTabs.clientEmulation.options.qBittorrent"),
               },
               {
-                value: t("settingsTabs.downloadClients.typeDeluge"),
+                value: "Deluge",
                 label: t("settingsTabs.clientEmulation.options.deluge"),
               },
               {
-                value: t("settingsTabs.downloadClients.typeTransmission"),
+                value: "Transmission",
                 label: t("settingsTabs.clientEmulation.options.transmission"),
               },
               {

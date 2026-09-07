@@ -80,11 +80,13 @@ export function MatrixView({
       >
         <div>
           <h2 style={{ fontSize: "1.1rem", margin: "0 0 0.25rem 0" }}>
-            Swarm Cross-Matrix Explorer
+            {t("trackerBoost.matrix.title", "Swarm Cross-Matrix Explorer")}
           </h2>
           <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-            Bi-directional mapping between library torrents and verified
-            BitTorrent tracker endpoints
+            {t(
+              "trackerBoost.matrix.subtitle",
+              "Bi-directional mapping between library torrents and verified BitTorrent tracker endpoints",
+            )}
           </div>
         </div>
 
@@ -121,7 +123,10 @@ export function MatrixView({
                 "Group swarms by torrent download",
               )}
             >
-              Torrents → Trackers
+              {t(
+                "trackerBoost.matrix.torrentsToTrackers",
+                "Torrents → Trackers",
+              )}
             </button>
             <button
               className={`view-toggle-btn ${matrixViewMode === "by_tracker" ? "active" : ""}`}
@@ -131,7 +136,10 @@ export function MatrixView({
                 "Group swarms by tracker endpoint",
               )}
             >
-              Trackers → Torrents
+              {t(
+                "trackerBoost.matrix.trackersToTorrents",
+                "Trackers → Torrents",
+              )}
             </button>
           </div>
 
@@ -141,7 +149,7 @@ export function MatrixView({
               onClick={() => setMatrixLayoutMode("grid")}
               title={t("torrents.toolbar.gridView", "Poster Card Grid View")}
             >
-              🎬 Posters
+              {t("trackerBoost.matrix.posters", "🎬 Posters")}
             </button>
             <button
               className={`view-toggle-btn ${matrixLayoutMode === "table" ? "active" : ""}`}
@@ -151,7 +159,7 @@ export function MatrixView({
                 "Detailed Table / List View",
               )}
             >
-              📑 Table
+              {t("trackerBoost.matrix.table", "📑 Table")}
             </button>
           </div>
         </div>
@@ -165,7 +173,10 @@ export function MatrixView({
             color: "var(--text-muted)",
           }}
         >
-          Building swarm cross-matrix...
+          {t(
+            "trackerBoost.matrix.buildingMatrix",
+            "Building swarm cross-matrix...",
+          )}
         </div>
       ) : matrixViewMode === "by_torrent" ? (
         matrixLayoutMode === "grid" ? (
@@ -182,14 +193,16 @@ export function MatrixView({
               paddingRight: "0.25rem",
             }}
           >
-            {filteredMatrixTorrents.map((t) => {
-              const meta = torrentMetaMap.get((t.infoHash || "").toLowerCase());
-              const displayTitle = meta?.mediaTitle || t.torrentName;
+            {filteredMatrixTorrents.map((torr) => {
+              const meta = torrentMetaMap.get(
+                (torr.infoHash || "").toLowerCase(),
+              );
+              const displayTitle = meta?.mediaTitle || torr.torrentName;
               const hasPoster = Boolean(meta?.posterUrl);
 
               return (
                 <div
-                  key={t.torrentId || t.infoHash}
+                  key={torr.torrentId || torr.infoHash}
                   className="card"
                   style={{
                     padding: 0,
@@ -307,7 +320,7 @@ export function MatrixView({
 
                     {/* Top-Right Privacy Badge */}
                     <span
-                      className={`badge ${t.isPrivate ? "badge-secondary" : "badge-success"}`}
+                      className={`badge ${torr.isPrivate ? "badge-secondary" : "badge-success"}`}
                       style={{
                         position: "absolute",
                         top: "8px",
@@ -318,7 +331,9 @@ export function MatrixView({
                         backdropFilter: "blur(4px)",
                       }}
                     >
-                      {t.isPrivate ? "🔒 Private" : "🌐 Public"}
+                      {torr.isPrivate
+                        ? t("trackerBoost.privateBadge", "🔒 Private")
+                        : t("trackerBoost.publicBadge", "🌐 Public")}
                     </span>
 
                     {/* Bottom title & year overlay */}
@@ -385,23 +400,33 @@ export function MatrixView({
                           color: "var(--text-muted)",
                           fontSize: "0.75rem",
                         }}
-                        title={t.infoHash}
+                        title={torr.infoHash}
                       >
-                        {t.infoHash ? `${t.infoHash.slice(0, 10)}...` : ""}
+                        {torr.infoHash
+                          ? `${torr.infoHash.slice(0, 10)}...`
+                          : ""}
                       </span>
                       <div style={{ display: "flex", gap: "0.35rem" }}>
                         <span
                           className="badge badge-primary"
                           style={{ fontSize: "0.7rem" }}
                         >
-                          {t.attachedTrackersCount} Attached
+                          {t(
+                            "trackerBoost.matrix.attachedCount",
+                            "{count} Attached",
+                            { count: torr.attachedTrackersCount },
+                          )}
                         </span>
-                        {t.verifiedTrackersCount > 0 && (
+                        {torr.verifiedTrackersCount > 0 && (
                           <span
                             className="badge badge-success"
                             style={{ fontSize: "0.7rem" }}
                           >
-                            {t.verifiedTrackersCount} Verified
+                            {t(
+                              "trackerBoost.matrix.verifiedCount",
+                              "{count} Verified",
+                              { count: torr.verifiedTrackersCount },
+                            )}
                           </span>
                         )}
                       </div>
@@ -417,7 +442,7 @@ export function MatrixView({
                         overflowY: "auto",
                       }}
                     >
-                      {t.trackers.map((tr, idx) => (
+                      {torr.trackers.map((tr, idx) => (
                         <span
                           key={tr.trackerId || idx}
                           className={`badge ${tr.isAttached ? "badge-primary" : "badge-success"}`}
@@ -442,14 +467,17 @@ export function MatrixView({
                           )}
                         </span>
                       ))}
-                      {t.trackers.length === 0 && (
+                      {torr.trackers.length === 0 && (
                         <span
                           style={{
                             fontSize: "0.78rem",
                             color: "var(--text-muted)",
                           }}
                         >
-                          No positive tracker scrapes found yet.
+                          {t(
+                            "trackerBoost.matrix.noPositiveScrapes",
+                            "No positive tracker scrapes found yet.",
+                          )}
                         </span>
                       )}
                     </div>
@@ -469,12 +497,15 @@ export function MatrixView({
                           padding: "0.3rem 0",
                         }}
                         onClick={() => {
-                          if (onInspectTorrent && t.infoHash) {
-                            onInspectTorrent(t.infoHash);
+                          if (onInspectTorrent && torr.infoHash) {
+                            onInspectTorrent(torr.infoHash);
                           }
                         }}
                       >
-                        ⚡ Inspect Swarm
+                        {t(
+                          "trackerBoost.matrix.inspectSwarm",
+                          "⚡ Inspect Swarm",
+                        )}
                       </button>
                     </div>
                   </div>
@@ -490,7 +521,10 @@ export function MatrixView({
                   color: "var(--text-muted)",
                 }}
               >
-                No torrents match the search query.
+                {t(
+                  "trackerBoost.matrix.noTorrentsMatch",
+                  "No torrents match the search query.",
+                )}
               </div>
             )}
           </div>
@@ -521,32 +555,38 @@ export function MatrixView({
               >
                 <tr>
                   <th className="torrent-table-th" style={{ width: "35%" }}>
-                    Torrent & Media
+                    {t(
+                      "trackerBoost.matrix.torrentAndMedia",
+                      "Torrent & Media",
+                    )}
                   </th>
                   <th className="torrent-table-th" style={{ width: "12%" }}>
-                    Privacy & Hash
+                    {t("trackerBoost.matrix.privacyAndHash", "Privacy & Hash")}
                   </th>
                   <th className="torrent-table-th" style={{ width: "43%" }}>
-                    Scraped & Attached Trackers
+                    {t(
+                      "trackerBoost.matrix.scrapedAttachedTrackers",
+                      "Scraped & Attached Trackers",
+                    )}
                   </th>
                   <th
                     className="torrent-table-th"
                     style={{ width: "10%", textAlign: "right" }}
                   >
-                    Actions
+                    {t("trackerBoost.matrix.actions", "Actions")}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredMatrixTorrents.map((t) => {
+                {filteredMatrixTorrents.map((torr) => {
                   const meta = torrentMetaMap.get(
-                    (t.infoHash || "").toLowerCase(),
+                    (torr.infoHash || "").toLowerCase(),
                   );
-                  const displayTitle = meta?.mediaTitle || t.torrentName;
+                  const displayTitle = meta?.mediaTitle || torr.torrentName;
 
                   return (
                     <tr
-                      key={t.torrentId || t.infoHash}
+                      key={torr.torrentId || torr.infoHash}
                       className="torrent-table-row"
                     >
                       <td>
@@ -631,7 +671,7 @@ export function MatrixView({
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {t.torrentName}
+                                {torr.torrentName}
                               </span>
                             </div>
                           </div>
@@ -640,10 +680,12 @@ export function MatrixView({
                       <td>
                         <div>
                           <span
-                            className={`badge ${t.isPrivate ? "badge-secondary" : "badge-success"}`}
+                            className={`badge ${torr.isPrivate ? "badge-secondary" : "badge-success"}`}
                             style={{ fontSize: "0.72rem" }}
                           >
-                            {t.isPrivate ? "🔒 Private" : "🌐 Public"}
+                            {torr.isPrivate
+                              ? t("trackerBoost.privateBadge", "🔒 Private")
+                              : t("trackerBoost.publicBadge", "🌐 Public")}
                           </span>
                           <div
                             style={{
@@ -653,7 +695,9 @@ export function MatrixView({
                               marginTop: "0.25rem",
                             }}
                           >
-                            {t.infoHash ? `${t.infoHash.slice(0, 12)}...` : ""}
+                            {torr.infoHash
+                              ? `${torr.infoHash.slice(0, 12)}...`
+                              : ""}
                           </div>
                         </div>
                       </td>
@@ -665,7 +709,7 @@ export function MatrixView({
                             gap: "0.35rem",
                           }}
                         >
-                          {t.trackers.map((tr, idx) => (
+                          {torr.trackers.map((tr, idx) => (
                             <span
                               key={tr.trackerId || idx}
                               className={`badge ${tr.isAttached ? "badge-primary" : "badge-success"}`}
@@ -690,14 +734,17 @@ export function MatrixView({
                               )}
                             </span>
                           ))}
-                          {t.trackers.length === 0 && (
+                          {torr.trackers.length === 0 && (
                             <span
                               style={{
                                 fontSize: "0.78rem",
                                 color: "var(--text-muted)",
                               }}
                             >
-                              No positive tracker scrapes found yet.
+                              {t(
+                                "trackerBoost.matrix.noPositiveScrapes",
+                                "No positive tracker scrapes found yet.",
+                              )}
                             </span>
                           )}
                         </div>
@@ -710,12 +757,12 @@ export function MatrixView({
                             padding: "0.25rem 0.5rem",
                           }}
                           onClick={() => {
-                            if (onInspectTorrent && t.infoHash) {
-                              onInspectTorrent(t.infoHash);
+                            if (onInspectTorrent && torr.infoHash) {
+                              onInspectTorrent(torr.infoHash);
                             }
                           }}
                         >
-                          ⚡ Inspect
+                          {t("trackerBoost.matrix.inspect", "⚡ Inspect")}
                         </button>
                       </td>
                     </tr>
@@ -731,7 +778,10 @@ export function MatrixView({
                         color: "var(--text-muted)",
                       }}
                     >
-                      No library torrents match the search query.
+                      {t(
+                        "trackerBoost.matrix.noLibraryTorrentsMatch",
+                        "No library torrents match the search query.",
+                      )}
                     </td>
                   </tr>
                 )}
@@ -827,7 +877,9 @@ export function MatrixView({
                   className="badge badge-success"
                   style={{ fontSize: "0.72rem", flexShrink: 0 }}
                 >
-                  {tr.registeredTorrentsCount} Torrents
+                  {t("trackerBoost.matrix.torrentsCount", "{count} Torrents", {
+                    count: tr.registeredTorrentsCount,
+                  })}
                 </span>
               </div>
 
@@ -899,8 +951,10 @@ export function MatrixView({
                       color: "var(--text-muted)",
                     }}
                   >
-                    No library torrents currently registered on this tracker
-                    endpoint.
+                    {t(
+                      "trackerBoost.matrix.noTorrentsRegisteredOnEndpoint",
+                      "No library torrents currently registered on this tracker endpoint.",
+                    )}
                   </span>
                 )}
               </div>
@@ -915,7 +969,10 @@ export function MatrixView({
                 color: "var(--text-muted)",
               }}
             >
-              No tracker endpoints match the search query.
+              {t(
+                "trackerBoost.matrix.noTrackersMatch",
+                "No tracker endpoints match the search query.",
+              )}
             </div>
           )}
         </div>
@@ -946,16 +1003,19 @@ export function MatrixView({
             >
               <tr>
                 <th className="torrent-table-th" style={{ width: "35%" }}>
-                  Tracker Endpoint
+                  {t("trackerBoost.matrix.trackerEndpoint", "Tracker Endpoint")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "10%" }}>
-                  Protocol
+                  {t("trackerBoost.protocol", "Protocol")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "10%" }}>
-                  Latency
+                  {t("trackerBoost.latency", "Latency")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "45%" }}>
-                  Matched Library Torrents
+                  {t(
+                    "trackerBoost.matrix.matchedLibraryTorrents",
+                    "Matched Library Torrents",
+                  )}
                 </th>
               </tr>
             </thead>
@@ -1049,7 +1109,10 @@ export function MatrixView({
                             color: "var(--text-muted)",
                           }}
                         >
-                          No library torrents currently registered.
+                          {t(
+                            "trackerBoost.matrix.noTorrentsRegistered",
+                            "No library torrents currently registered.",
+                          )}
                         </span>
                       )}
                     </div>
@@ -1066,7 +1129,10 @@ export function MatrixView({
                       color: "var(--text-muted)",
                     }}
                   >
-                    No tracker endpoints match the search query.
+                    {t(
+                      "trackerBoost.matrix.noTrackersMatch",
+                      "No tracker endpoints match the search query.",
+                    )}
                   </td>
                 </tr>
               )}

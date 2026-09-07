@@ -129,13 +129,20 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       {
         onSuccess: () => {
           setDownloadingKey(null);
-          showToast(`Added "${result.title}" to download queue`, "success");
+          showToast(
+            t("modals.addedToQueue", 'Added "{title}" to download queue', {
+              title: result.title,
+            }),
+            "success",
+          );
           onTorrentAdded();
         },
         onError: (err) => {
           setDownloadingKey(null);
           showToast(
-            `Failed to grab release: ${err.message || "Unknown error"}`,
+            t("modals.failedToGrab", "Failed to grab release: {error}", {
+              error: err.message || "Unknown error",
+            }),
             "error",
           );
         },
@@ -189,7 +196,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             type="button"
             className="btn-close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close", "Close")}
           >
             <CloseIcon size={18} />
           </button>
@@ -596,7 +603,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                           <strong>{t("common.category")}:</strong>{" "}
                           {(r.categories && r.categories.length > 0
                             ? r.categories.join(", ")
-                            : r.category) || "General"}
+                            : r.category) || t("common.general", "General")}
                         </span>
                         <span className="meta-item">
                           <strong>{t("common.size")}:</strong>{" "}

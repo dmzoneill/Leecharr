@@ -116,10 +116,23 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
     setShowConfirmClear(false);
     clearLogFiles.mutate(undefined, {
       onSuccess: () => {
-        toast?.showToast("Disk log files successfully cleared.", "success");
+        toast?.showToast(
+          t(
+            "system.logFilesClearedSuccess",
+            "Disk log files successfully cleared.",
+          ),
+          "success",
+        );
       },
       onError: (err) => {
-        toast?.showToast(`Failed to clear log files: ${err.message}`, "error");
+        toast?.showToast(
+          t(
+            "system.logFilesClearFailed",
+            "Failed to clear log files: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -184,7 +197,9 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
             >
               <TrashIcon />
               <span>
-                {clearLogFiles.isPending ? "Clearing..." : "Clear All Files"}
+                {clearLogFiles.isPending
+                  ? t("system.clearing", "Clearing...")
+                  : t("system.clearAllFiles", "Clear All Files")}
               </span>
             </button>
           </div>
@@ -332,9 +347,12 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
       <ConfirmModal
         isOpen={showConfirmClear}
         title={t("system.clearAllFiles")}
-        message="Are you sure you want to delete all disk log files? This action cannot be undone."
-        confirmText="Clear All Files"
-        cancelText="Cancel"
+        message={t(
+          "system.clearAllFilesConfirm",
+          "Are you sure you want to delete all disk log files? This action cannot be undone.",
+        )}
+        confirmText={t("system.clearAllFiles", "Clear All Files")}
+        cancelText={t("common.cancel", "Cancel")}
         danger={true}
         onConfirm={handleConfirmClear}
         onCancel={() => setShowConfirmClear(false)}

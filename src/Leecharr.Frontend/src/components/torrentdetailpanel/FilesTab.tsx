@@ -950,8 +950,15 @@ export function FilesTab({
                       onChange={() => handleToggleNodeCheckbox(node)}
                       title={
                         isFolder
-                          ? `Toggle ${descendantFiles.length} files in folder`
-                          : "Toggle selective download"
+                          ? t(
+                              "components.toggleFilesInFolder",
+                              "Toggle {count} files in folder",
+                              { count: descendantFiles.length },
+                            )
+                          : t(
+                              "components.toggleSelectiveDownload",
+                              "Toggle selective download",
+                            )
                       }
                     />
                   </td>

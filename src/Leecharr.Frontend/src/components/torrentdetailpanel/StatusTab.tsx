@@ -76,7 +76,10 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
                 textTransform: "capitalize",
               }}
             >
-              {torrent.status || "Unknown"}
+              {t(
+                "torrentStatus." + (torrent.status || "unknown").toLowerCase(),
+                torrent.status || t("common.unknown", "Unknown"),
+              )}
             </span>
           </div>
         </div>
@@ -368,10 +371,16 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           <InfoRow
             label={t("torrents.detail.flags")}
             value={[
-              torrent.isPrivate ? "🔒 Private (BEP 27)" : "🌐 Public",
-              torrent.sequentialDownload ? "Sequential" : null,
-              torrent.forceStart ? "Forced" : null,
-              torrent.initialSeeding ? "Super-Seed" : null,
+              torrent.isPrivate
+                ? t("torrents.filters.privateBep27", "🔒 Private (BEP 27)")
+                : t("torrents.filters.publicSwarm", "🌐 Public"),
+              torrent.sequentialDownload
+                ? t("torrents.detail.sequential", "Sequential")
+                : null,
+              torrent.forceStart ? t("torrents.detail.forced", "Forced") : null,
+              torrent.initialSeeding
+                ? t("torrents.detail.superSeed", "Super-Seed")
+                : null,
             ]
               .filter(Boolean)
               .join(" • ")}
@@ -383,23 +392,18 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           style={{
             backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
-            padding: "0.6rem 0.8rem",
+            border: "1px solid var(--border-light)",
+            padding: "0.85rem",
             display: "flex",
             flexDirection: "column",
-            gap: "0.35rem",
+            gap: "0.6rem",
           }}
         >
           <div
             style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
+              fontSize: "0.82rem",
+              fontWeight: 600,
               color: "var(--accent, #ffd166)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
-              paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
           >
@@ -433,7 +437,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           />
           <InfoRow
             label={t("torrents.detail.categoryLabel")}
-            value={`${torrent.category || "Default"} / ${torrent.label || "-"}`}
+            value={`${torrent.category || t("common.default", "Default")} / ${torrent.label || "-"}`}
           />
         </div>
       </div>

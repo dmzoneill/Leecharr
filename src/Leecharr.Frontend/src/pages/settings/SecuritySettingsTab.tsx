@@ -388,9 +388,7 @@ export function SecuritySettingsTab() {
               <div
                 style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
               >
-                Authentication is enabled. Local users accessing Leecharr over
-                LAN or reverse proxy will authenticate using local credentials
-                or configured SSO / Identity Providers below.
+                {t("settingsTabs.security.authBannerDesc")}
               </div>
             </div>
           )}
@@ -448,7 +446,8 @@ export function SecuritySettingsTab() {
             <div
               style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
             >
-              Configured Identity Providers ({providers.length})
+              {t("settingsTabs.batch2.configuredIdentityProviders")} (
+              {providers.length})
             </div>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               <button
@@ -528,9 +527,7 @@ export function SecuritySettingsTab() {
                 fontSize: "0.9rem",
               }}
             >
-              No Identity Providers configured yet. Click one of the buttons
-              above to add Authentik, Keycloak, Authelia, Google, GitHub, Apple,
-              or SAML 2.0.
+              {t("settingsTabs.security.noIdpConfigured")}
             </div>
           ) : (
             <div
@@ -584,7 +581,7 @@ export function SecuritySettingsTab() {
                           fontSize: "0.8rem",
                         }}
                       >
-                        Type:{" "}
+                        {t("settingsTabs.batch2.type")}:{" "}
                         {p.providerType === 0
                           ? t("settingsTabs.batch2.oidc")
                           : p.providerType === 1
@@ -604,7 +601,7 @@ export function SecuritySettingsTab() {
                       onClick={() => handleOpenEdit(p)}
                       style={{ fontSize: "0.8rem", padding: "4px 10px" }}
                     >
-                      ✏️ Edit
+                      ✏️ {t("settingsTabs.batch2.edit")}
                     </button>
                     <button
                       type="button"
@@ -612,7 +609,7 @@ export function SecuritySettingsTab() {
                       onClick={() => handleDeleteProvider(p.id)}
                       style={{ fontSize: "0.8rem", padding: "4px 10px" }}
                     >
-                      🗑️ Delete
+                      🗑️ {t("settingsTabs.batch2.delete")}
                     </button>
                   </div>
                 </div>
@@ -695,7 +692,7 @@ export function SecuritySettingsTab() {
               onClick={generateApiKey}
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
-              🔄 Regenerate
+              🔄 {t("settingsTabs.batch2.regenerate")}
             </button>
             <button
               type="button"
@@ -703,7 +700,7 @@ export function SecuritySettingsTab() {
               onClick={() => navigate("/system/api")}
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
-              📖 API Docs (OpenAPI)
+              📖 {t("settingsTabs.batch2.apiDocs")}
             </button>
           </div>
         </div>
@@ -746,7 +743,9 @@ export function SecuritySettingsTab() {
             >
               {isNewProvider
                 ? t("settingsTabs.batch2.addIdentityProvider")
-                : `Edit ${editingProvider.name}`}
+                : t("settingsTabs.security.editProviderTitle", {
+                    name: editingProvider.name,
+                  })}
             </h2>
 
             <div
@@ -851,16 +850,18 @@ export function SecuritySettingsTab() {
                         }}
                         title={
                           showSecret
-                            ? "Hide client secret"
-                            : "Show client secret"
+                            ? t("settingsTabs.security.hideClientSecret")
+                            : t("settingsTabs.security.showClientSecret")
                         }
                         aria-label={
                           showSecret
-                            ? "Hide client secret"
-                            : "Show client secret"
+                            ? t("settingsTabs.security.hideClientSecret")
+                            : t("settingsTabs.security.showClientSecret")
                         }
                       >
-                        {showSecret ? "🙈 Hide" : "👁️ Show"}
+                        {showSecret
+                          ? `🙈 ${t("settingsTabs.batch2.hide")}`
+                          : `👁️ ${t("settingsTabs.batch2.show")}`}
                       </button>
                     }
                   />
@@ -871,7 +872,7 @@ export function SecuritySettingsTab() {
                     onChange={(v) =>
                       setEditingProvider((prev) => ({ ...prev, scopes: v }))
                     }
-                    hint="Space-separated list of scopes (e.g. openid profile email groups)"
+                    hint={t("settingsTabs.security.oauthScopesHint")}
                   />
                 </>
               )}
@@ -883,7 +884,7 @@ export function SecuritySettingsTab() {
                   onChange={(v) =>
                     setEditingProvider((prev) => ({ ...prev, metadataUrl: v }))
                   }
-                  hint="SAML 2.0 IdP Federation Metadata URL"
+                  hint={t("settingsTabs.security.metadataUrlHint")}
                 />
               )}
 
@@ -896,7 +897,7 @@ export function SecuritySettingsTab() {
                     roleMappingRules: v,
                   }))
                 }
-                hint='Map IdP groups to Leecharr roles: {"Admin":"^(admin|devops)$","Operator":"^(operators)$"}'
+                hint={t("settingsTabs.security.roleMappingRulesHint")}
               />
 
               <TextInput
@@ -905,7 +906,7 @@ export function SecuritySettingsTab() {
                 onChange={(v) =>
                   setEditingProvider((prev) => ({ ...prev, buttonText: v }))
                 }
-                hint="Text rendered on login button"
+                hint={t("settingsTabs.security.buttonTextHint")}
               />
 
               {/* Test Result Message */}
@@ -944,7 +945,7 @@ export function SecuritySettingsTab() {
               >
                 {testing
                   ? t("settingsTabs.notifications.testing")
-                  : "🔍 Test Connection"}
+                  : t("settingsTabs.security.testConnection")}
               </button>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button
@@ -962,7 +963,7 @@ export function SecuritySettingsTab() {
                   className="btn btn-primary"
                   onClick={handleSaveProvider}
                 >
-                  Save Provider
+                  {t("settingsTabs.security.saveProvider")}
                 </button>
               </div>
             </div>

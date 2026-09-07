@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
+import { useTranslation } from "../../i18n";
 import ConfirmContext from "../../context/ConfirmContext";
 
 export interface SettingsDirtyContextType {
@@ -35,6 +36,7 @@ export function SettingsDirtyProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const [isDirty, setIsDirty] = useState(false);
   const confirmCtx = useContext(ConfirmContext);
 
@@ -59,16 +61,15 @@ export function SettingsDirtyProvider({
       let confirmed = false;
       if (confirmCtx?.confirm) {
         confirmed = await confirmCtx.confirm({
-          title: "Unsaved Changes",
-          message:
-            "You have unsaved changes in settings. If you leave this page, your changes will be discarded. Are you sure you want to leave?",
-          confirmText: "Discard and Leave",
-          cancelText: "Stay on Page",
+          title: t("settingsTabs.shared.unsavedChangesTitle"),
+          message: t("settingsTabs.shared.unsavedChangesPrompt"),
+          confirmText: t("settingsTabs.shared.discardAndLeave"),
+          cancelText: t("settingsTabs.shared.stayOnPage"),
           danger: true,
         });
       } else {
         confirmed = window.confirm(
-          "You have unsaved changes in settings. If you leave this page, your changes will be discarded. Are you sure you want to leave?",
+          t("settingsTabs.shared.unsavedChangesPrompt"),
         );
       }
 

@@ -350,7 +350,10 @@ export function TorrentContextMenu({
                         validate: (val) => {
                           const num = parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
-                            return "Please enter a valid non-negative number (0 = unlimited)";
+                            return t(
+                              "torrents.contextMenu.invalidLimitValidation",
+                              "Please enter a valid non-negative number (0 = unlimited)",
+                            );
                           }
                           return null;
                         },
@@ -380,7 +383,10 @@ export function TorrentContextMenu({
                         validate: (val) => {
                           const num = parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
-                            return "Please enter a valid non-negative number (0 = unlimited)";
+                            return t(
+                              "torrents.contextMenu.invalidLimitValidation",
+                              "Please enter a valid non-negative number (0 = unlimited)",
+                            );
                           }
                           return null;
                         },

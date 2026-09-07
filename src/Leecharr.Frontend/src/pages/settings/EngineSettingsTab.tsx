@@ -327,7 +327,8 @@ export function EngineSettingsTab() {
                       color: "var(--text-secondary)",
                     }}
                   >
-                    Version: <strong>{eng.version}</strong>
+                    {t("settingsTabs.batch2.version")}:{" "}
+                    <strong>{eng.version}</strong>
                   </div>
                 </div>
 

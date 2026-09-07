@@ -56,7 +56,10 @@ function HealthAlerts() {
                 className="health-alert-message"
                 style={{ fontWeight: 500 }}
               >
-                {alert.message}
+                {t(
+                  `health.${alert.source}.message`,
+                  alert.message || undefined,
+                )}
               </span>
             </div>
             <button
