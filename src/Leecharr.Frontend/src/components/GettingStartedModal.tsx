@@ -108,6 +108,7 @@ export function GettingStartedModal({
     name: "Sonarr",
     arrType: "Sonarr",
     url: "http://localhost:8989",
+    externalUrl: "",
     apiKey: "",
     enable: true,
     syncEnabled: true,
@@ -123,6 +124,7 @@ export function GettingStartedModal({
     name: "Radarr",
     arrType: "Radarr",
     url: "http://localhost:7878",
+    externalUrl: "",
     apiKey: "",
     enable: true,
     syncEnabled: true,
@@ -138,6 +140,7 @@ export function GettingStartedModal({
     name: "Lidarr",
     arrType: "Lidarr",
     url: "http://localhost:8686",
+    externalUrl: "",
     apiKey: "",
     enable: true,
     syncEnabled: true,
@@ -993,6 +996,23 @@ export function GettingStartedModal({
                     placeholder="http://localhost:8989"
                   />
                   <TextInput
+                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    value={sonarrForm.externalUrl || ""}
+                    onChange={(v) => {
+                      setSonarrForm({
+                        ...sonarrForm,
+                        externalUrl: v,
+                        publicUrl: v,
+                      });
+                      setSonarrTestResult(null);
+                    }}
+                    placeholder="http://my-domain.com:8989"
+                    hint={t(
+                      "gettingStarted.externalUrlHint",
+                      "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",
+                    )}
+                  />
+                  <TextInput
                     label={t("gettingStarted.apiKey")}
                     value={sonarrForm.apiKey || ""}
                     onChange={(v) => {
@@ -1215,6 +1235,23 @@ export function GettingStartedModal({
                     placeholder="http://localhost:7878"
                   />
                   <TextInput
+                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    value={radarrForm.externalUrl || ""}
+                    onChange={(v) => {
+                      setRadarrForm({
+                        ...radarrForm,
+                        externalUrl: v,
+                        publicUrl: v,
+                      });
+                      setRadarrTestResult(null);
+                    }}
+                    placeholder="http://my-domain.com:7878"
+                    hint={t(
+                      "gettingStarted.externalUrlHint",
+                      "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",
+                    )}
+                  />
+                  <TextInput
                     label={t("gettingStarted.apiKey")}
                     value={radarrForm.apiKey || ""}
                     onChange={(v) => {
@@ -1435,6 +1472,23 @@ export function GettingStartedModal({
                       setLidarrTestResult(null);
                     }}
                     placeholder="http://localhost:8686"
+                  />
+                  <TextInput
+                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    value={lidarrForm.externalUrl || ""}
+                    onChange={(v) => {
+                      setLidarrForm({
+                        ...lidarrForm,
+                        externalUrl: v,
+                        publicUrl: v,
+                      });
+                      setLidarrTestResult(null);
+                    }}
+                    placeholder="http://my-domain.com:8686"
+                    hint={t(
+                      "gettingStarted.externalUrlHint",
+                      "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",
+                    )}
                   />
                   <TextInput
                     label={t("gettingStarted.apiKey")}

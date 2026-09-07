@@ -647,6 +647,8 @@ export interface ArrConnection {
   name: string;
   arrType: string;
   url: string;
+  externalUrl?: string | null;
+  publicUrl?: string | null;
   apiKey: string;
   enable?: boolean;
   syncEnabled: boolean;
@@ -691,6 +693,8 @@ export interface IndexerDefinition {
   name: string;
   indexerType: string;
   url: string;
+  externalUrl?: string | null;
+  publicUrl?: string | null;
   apiKey: string;
   apiPath: string;
   enableRss: boolean;

@@ -5,6 +5,41 @@ import type {
   MediaMetadata,
 } from "../api/types";
 
+export function applySmartFallback(
+  url: string | null | undefined,
+): string | null {
+  if (!url) return null;
+  const trimmed = url.replace(/\/+$/, "");
+
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    const currentHost = window.location.hostname;
+    try {
+      const parsed = new URL(trimmed);
+      if (
+        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+        currentHost !== "localhost" &&
+        currentHost !== "127.0.0.1"
+      ) {
+        parsed.hostname = currentHost;
+        return parsed.toString().replace(/\/+$/, "");
+      }
+    } catch {
+      if (
+        (trimmed.includes("://127.0.0.1") ||
+          trimmed.includes("://localhost")) &&
+        currentHost !== "localhost" &&
+        currentHost !== "127.0.0.1"
+      ) {
+        return trimmed
+          .replace("://127.0.0.1", `://${currentHost}`)
+          .replace("://localhost", `://${currentHost}`);
+      }
+    }
+  }
+
+  return trimmed;
+}
+
 export function getArrInstanceUrl(
   source: string | null | undefined,
   connections: ArrConnection[] | undefined,
@@ -14,14 +49,17 @@ export function getArrInstanceUrl(
 
   const match = connections.find(
     (c) =>
-      c.enable &&
+      c.enable !== false &&
       (c.arrType?.toLowerCase() === cleanedSource ||
         c.name?.toLowerCase() === cleanedSource ||
         cleanedSource.includes(c.arrType?.toLowerCase() ?? "") ||
         cleanedSource.includes(c.name?.toLowerCase() ?? "")),
   );
 
-  return match?.url ? match.url.replace(/\/+$/, "") : null;
+  if (!match) return null;
+
+  const targetUrl = match.externalUrl || match.publicUrl || match.url;
+  return applySmartFallback(targetUrl);
 }
 
 export function getMediaDeepLink(
@@ -93,9 +131,15 @@ export function getProwlarrUrl(
       (i.indexerType?.toLowerCase() === "prowlarr" ||
         i.name?.toLowerCase().includes("prowlarr")),
   );
-  if (!prowlarr?.url) return null;
+  if (!prowlarr) return null;
+  const targetUrl =
+    prowlarr.externalUrl ||
+    prowlarr.publicUrl ||
+    prowlarr.url;
+  if (!targetUrl) return null;
 
-  const base = prowlarr.url.replace(/\/+$/, "");
+  const base = applySmartFallback(targetUrl);
+  if (!base) return null;
   return query ? `${base}/search?query=${encodeURIComponent(query)}` : base;
 }
 
