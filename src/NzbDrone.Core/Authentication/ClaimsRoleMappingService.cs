@@ -25,49 +25,58 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
             return new List<string> { "Admin" };
         }
 
-        if (rawGroups == null || rawGroups.Count == 0 || provider == null || string.IsNullOrWhiteSpace(provider.RoleMappingRules))
+        if (rawGroups == null || rawGroups.Count == 0)
         {
             return new List<string> { "User" };
         }
 
-        try
+        var validGroups = rawGroups.Where(g => !string.IsNullOrWhiteSpace(g)).ToList();
+        if (validGroups.Count == 0)
         {
-            var rules = JsonSerializer.Deserialize<Dictionary<string, string>>(provider.RoleMappingRules);
-            if (rules != null)
+            return new List<string> { "User" };
+        }
+
+        if (provider != null && !string.IsNullOrWhiteSpace(provider.RoleMappingRules))
+        {
+            try
             {
-                var assignedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var kvp in rules)
+                var rules = JsonSerializer.Deserialize<Dictionary<string, string>>(provider.RoleMappingRules);
+                if (rules != null)
                 {
-                    var role = kvp.Key;
-                    var regexPattern = kvp.Value;
-                    if (string.IsNullOrWhiteSpace(regexPattern))
+                    var assignedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var kvp in rules)
                     {
-                        continue;
+                        var role = kvp.Key;
+                        var regexPattern = kvp.Value;
+                        if (string.IsNullOrWhiteSpace(regexPattern))
+                        {
+                            continue;
+                        }
+
+                        var regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        if (validGroups.Any(g => regex.IsMatch(g)))
+                        {
+                            assignedRoles.Add(role);
+                        }
                     }
 
-                    var regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-                    if (rawGroups.Any(g => regex.IsMatch(g)))
+                    if (assignedRoles.Count > 0)
                     {
-                        assignedRoles.Add(role);
+                        return assignedRoles.ToList();
                     }
-                }
-
-                if (assignedRoles.Count > 0)
-                {
-                    return assignedRoles.ToList();
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Failed to parse RoleMappingRules for provider {0}", provider.Name);
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to parse RoleMappingRules for provider {0}", provider.Name);
+            }
         }
 
         // Direct matching fallback
-        if (rawGroups.Any(g => g.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
-                               g.Equals("admins", StringComparison.OrdinalIgnoreCase) ||
-                               g.Equals("leecharr-admins", StringComparison.OrdinalIgnoreCase)))
+        if (validGroups.Any(g => g.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
+                                 g.Equals("admins", StringComparison.OrdinalIgnoreCase) ||
+                                 g.Equals("leecharr-admins", StringComparison.OrdinalIgnoreCase)))
         {
             return new List<string> { "Admin" };
         }
