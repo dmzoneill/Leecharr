@@ -22,6 +22,8 @@ public interface IRssSyncService
 
 public class RssSyncService : IRssSyncService
 {
+    private static readonly TimeSpan DefaultRegexTimeout = TimeSpan.FromMilliseconds(500);
+
     private readonly IIndexerRepository indexerRepository;
     private readonly IRssRuleRepository rssRuleRepository;
     private readonly ITorznabClient torznabClient;
@@ -279,18 +281,31 @@ public class RssSyncService : IRssSyncService
             return false;
         }
 
+        var releaseTitle = release.Title ?? string.Empty;
+
         // 1. MustContain Regex
         if (!string.IsNullOrWhiteSpace(rule.MustContain))
         {
             try
             {
-                if (!Regex.IsMatch(release.Title, rule.MustContain, RegexOptions.IgnoreCase))
+                if (!Regex.IsMatch(releaseTitle, rule.MustContain, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, DefaultRegexTimeout))
                 {
                     return false;
                 }
             }
-            catch
+            catch (RegexMatchTimeoutException ex)
             {
+                this.logger.Warn(ex, "Regex timeout evaluating MustContain pattern '{0}' for rule '{1}'. Skipping release.", rule.MustContain, rule.Name);
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                this.logger.Warn(ex, "Invalid MustContain regex pattern '{0}' for rule '{1}'.", rule.MustContain, rule.Name);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Unexpected error evaluating MustContain regex pattern '{0}' for rule '{1}'.", rule.MustContain, rule.Name);
                 return false;
             }
         }
@@ -300,13 +315,24 @@ public class RssSyncService : IRssSyncService
         {
             try
             {
-                if (Regex.IsMatch(release.Title, rule.MustNotContain, RegexOptions.IgnoreCase))
+                if (Regex.IsMatch(releaseTitle, rule.MustNotContain, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, DefaultRegexTimeout))
                 {
                     return false;
                 }
             }
-            catch
+            catch (RegexMatchTimeoutException ex)
             {
+                this.logger.Warn(ex, "Regex timeout evaluating MustNotContain pattern '{0}' for rule '{1}'. Skipping release.", rule.MustNotContain, rule.Name);
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                this.logger.Warn(ex, "Invalid MustNotContain regex pattern '{0}' for rule '{1}'.", rule.MustNotContain, rule.Name);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Unexpected error evaluating MustNotContain regex pattern '{0}' for rule '{1}'.", rule.MustNotContain, rule.Name);
                 return false;
             }
         }

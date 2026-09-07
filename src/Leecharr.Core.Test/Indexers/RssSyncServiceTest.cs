@@ -201,6 +201,100 @@ public class RssSyncServiceTest
         this.service.MatchesRule(null!, disabledRule).Should().BeFalse();
     }
 
+    [Test]
+    public void MatchesRule_WhenMustContainReDosPatternTimesOut_ReturnsFalseWithoutHanging()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!",
+            Seeders = 10,
+        };
+
+        var rule = new RssRule
+        {
+            Name = "ReDoS MustContain Rule",
+            IsEnabled = true,
+            MustContain = @"^((a+)+)+$",
+        };
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = this.service.MatchesRule(release, rule);
+        stopwatch.Stop();
+
+        result.Should().BeFalse();
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(3000);
+    }
+
+    [Test]
+    public void MatchesRule_WhenMustNotContainReDosPatternTimesOut_ReturnsFalseWithoutHanging()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!",
+            Seeders = 10,
+        };
+
+        var rule = new RssRule
+        {
+            Name = "ReDoS MustNotContain Rule",
+            IsEnabled = true,
+            MustNotContain = @"^((a+)+)+$",
+        };
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = this.service.MatchesRule(release, rule);
+        stopwatch.Stop();
+
+        result.Should().BeFalse();
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(3000);
+    }
+
+    [Test]
+    public void MatchesRule_WhenRegexSyntaxIsInvalid_ReturnsFalse()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+        };
+
+        var invalidMustContainRule = new RssRule
+        {
+            Name = "Invalid Regex MustContain",
+            IsEnabled = true,
+            MustContain = "[unclosed-bracket",
+        };
+
+        var invalidMustNotContainRule = new RssRule
+        {
+            Name = "Invalid Regex MustNotContain",
+            IsEnabled = true,
+            MustNotContain = "(?P<invalid_group_syntax>",
+        };
+
+        this.service.MatchesRule(release, invalidMustContainRule).Should().BeFalse();
+        this.service.MatchesRule(release, invalidMustNotContainRule).Should().BeFalse();
+    }
+
+    [Test]
+    public void MatchesRule_WhenTitleIsNull_HandlesSafely()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = null!,
+            Seeders = 10,
+        };
+
+        var rule = new RssRule
+        {
+            Name = "MustContain Rule",
+            IsEnabled = true,
+            MustContain = "Severance",
+        };
+
+        this.service.MatchesRule(release, rule).Should().BeFalse();
+    }
+
     #endregion
 
     #region Duplicate Grab Prevention and Sync Tests
