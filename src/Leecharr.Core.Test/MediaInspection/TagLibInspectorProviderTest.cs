@@ -419,6 +419,204 @@ public class TagLibInspectorProviderTest
         sdhInfo.Height.Should().Be(1080);
     }
 
+    [Test]
+    public void Inspect_StandardPcmWav_IdentifiesWavCodecChannelsSampleRateAndBitDepth()
+    {
+        var wavData = CreateWavHeader(formatTag: 1, channels: 2, sampleRate: 44100, bitsPerSample: 16);
+        using var ms = new MemoryStream(wavData);
+
+        var result = this.provider.Inspect(ms, string.Empty);
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(44100);
+        result.AudioBitDepth.Should().Be(16);
+    }
+
+    [TestCase((ushort)1, 22050, (ushort)8, "1.0", 22050, 8)]
+    [TestCase((ushort)6, 48000, (ushort)24, "5.1", 48000, 24)]
+    [TestCase((ushort)8, 96000, (ushort)32, "7.1", 96000, 32)]
+    public void Inspect_MultiChannelWav_IdentifiesChannelsSampleRateAndBitDepth(
+        ushort channels,
+        int sampleRate,
+        ushort bitsPerSample,
+        string expectedChannels,
+        int expectedSampleRate,
+        int expectedBitDepth)
+    {
+        var wavData = CreateWavHeader(formatTag: 1, channels: channels, sampleRate: (uint)sampleRate, bitsPerSample: bitsPerSample);
+        using var ms = new MemoryStream(wavData);
+
+        var result = this.provider.Inspect(ms, "stream_sample.wav");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be(expectedChannels);
+        result.AudioSampleRate.Should().Be(expectedSampleRate);
+        result.AudioBitDepth.Should().Be(expectedBitDepth);
+    }
+
+    [TestCase((ushort)1, "PCM")]
+    [TestCase((ushort)3, "IEEE Float")]
+    [TestCase((ushort)6, "ALaw")]
+    [TestCase((ushort)7, "MuLaw")]
+    [TestCase((ushort)0x0055, "MP3")]
+    [TestCase((ushort)0x00FF, "AAC")]
+    [TestCase((ushort)0x2000, "AC3")]
+    [TestCase((ushort)0x2001, "DTS")]
+    [TestCase((ushort)0xFFFE, "PCM")]
+    public void Inspect_Wav_WithVariousFormatTags_CorrectlyMapsCodec(ushort formatTag, string expectedCodec)
+    {
+        var wavData = CreateWavHeader(formatTag: formatTag, channels: 2, sampleRate: 48000, bitsPerSample: 24);
+        using var ms = new MemoryStream(wavData);
+
+        var result = this.provider.Inspect(ms, string.Empty);
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be(expectedCodec);
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(48000);
+        result.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void Inspect_Wav_WithPrecedingJunkChunk_CorrectlyParsesFmtChunk()
+    {
+        var wavData = CreateWavHeader(formatTag: 1, channels: 6, sampleRate: 48000, bitsPerSample: 24, includeJunkChunk: true);
+        using var ms = new MemoryStream(wavData);
+
+        var result = this.provider.Inspect(ms, string.Empty);
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioSampleRate.Should().Be(48000);
+        result.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void Inspect_Id3TaggedWav_CorrectlyParsesWavProperties()
+    {
+        var wavData = CreateId3v2WavHeader(formatTag: 1, channels: 6, sampleRate: 48000, bitsPerSample: 24);
+        using var ms = new MemoryStream(wavData);
+
+        var result = this.provider.Inspect(ms, "recording.wav");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioSampleRate.Should().Be(48000);
+        result.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void Inspect_WavWithUnseekableStream_ParsesSuccessfully()
+    {
+        var wavData = CreateWavHeader(formatTag: 1, channels: 2, sampleRate: 44100, bitsPerSample: 16);
+        using var unseekable = new UnseekableStream(wavData);
+
+        unseekable.CanSeek.Should().BeFalse();
+
+        var result = this.provider.Inspect(unseekable, string.Empty);
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(44100);
+        result.AudioBitDepth.Should().Be(16);
+    }
+
+    [Test]
+    public void InspectByFileName_WithWavExtension_ReturnsWavContainerInfo()
+    {
+        var result = TagLibInspectorProvider.InspectByFileName("audio_sample.wav");
+
+        result.Should().NotBeNull();
+        result!.ContainerFormat.Should().Be("WAV");
+        result.AudioCodec.Should().Be("PCM");
+    }
+
+    private static byte[] CreateWavHeader(
+        ushort formatTag = 1,
+        ushort channels = 2,
+        uint sampleRate = 44100,
+        ushort bitsPerSample = 16,
+        bool includeJunkChunk = false)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        // RIFF header
+        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+        writer.Write(0); // placeholder for RIFF size
+        writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+
+        if (includeJunkChunk)
+        {
+            writer.Write(Encoding.ASCII.GetBytes("JUNK"));
+            writer.Write(4); // 4 bytes junk
+            writer.Write(new byte[] { 0x00, 0x00, 0x00, 0x00 });
+        }
+
+        // fmt chunk
+        writer.Write(Encoding.ASCII.GetBytes("fmt "));
+        writer.Write(16); // subchunk size for standard PCM
+        writer.Write(formatTag);
+        writer.Write(channels);
+        writer.Write(sampleRate);
+        uint byteRate = sampleRate * channels * (uint)(bitsPerSample / 8);
+        writer.Write(byteRate);
+        ushort blockAlign = (ushort)(channels * (bitsPerSample / 8));
+        writer.Write(blockAlign);
+        writer.Write(bitsPerSample);
+
+        // data chunk header
+        writer.Write(Encoding.ASCII.GetBytes("data"));
+        writer.Write(0);
+
+        var data = ms.ToArray();
+        // Update RIFF chunk size at offset 4
+        int riffSize = data.Length - 8;
+        data[4] = (byte)(riffSize & 0xFF);
+        data[5] = (byte)((riffSize >> 8) & 0xFF);
+        data[6] = (byte)((riffSize >> 16) & 0xFF);
+        data[7] = (byte)((riffSize >> 24) & 0xFF);
+
+        return data;
+    }
+
+    private static byte[] CreateId3v2WavHeader(
+        ushort formatTag = 1,
+        ushort channels = 2,
+        uint sampleRate = 44100,
+        ushort bitsPerSample = 16)
+    {
+        var wav = CreateWavHeader(formatTag, channels, sampleRate, bitsPerSample);
+        using var ms = new MemoryStream();
+
+        // ID3v2 header (10 bytes): 'ID3', version 2.4, flags 0, tag size 10 (syncsafe)
+        ms.Write(Encoding.ASCII.GetBytes("ID3"));
+        ms.WriteByte(4);
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x0A });
+
+        // 10 bytes tag body
+        ms.Write(new byte[10]);
+
+        // WAV data
+        ms.Write(wav, 0, wav.Length);
+
+        return ms.ToArray();
+    }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,
