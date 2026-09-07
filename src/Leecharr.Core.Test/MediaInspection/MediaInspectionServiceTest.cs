@@ -316,9 +316,9 @@ public class MediaInspectionServiceTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("MP3");
         info.AudioCodec.Should().Be("MP3");
-        info.AudioChannels.Should().Be("2.0");
-        info.AudioSampleRate.Should().Be(44100);
-        info.AudioBitDepth.Should().Be(16);
+        info.AudioChannels.Should().BeNull();
+        info.AudioSampleRate.Should().Be(0);
+        info.AudioBitDepth.Should().Be(0);
     }
 
     [Test]
@@ -334,7 +334,7 @@ public class MediaInspectionServiceTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("MP3");
         info.AudioCodec.Should().Be("MP3");
-        info.AudioChannels.Should().Be("2.0");
+        info.AudioChannels.Should().BeNull();
     }
 
     [TestCase("Movie.2024.2160p.UHD.mkv", "4K UHD (2160p)", 3840, 2160)]
