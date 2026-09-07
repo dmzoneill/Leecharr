@@ -1061,7 +1061,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)
         {
-            var targetFile = task.Manager.Files.FirstOrDefault(f => string.Equals(f.Path, filePath, StringComparison.OrdinalIgnoreCase));
+            var normalizedPath = filePath?.Replace('\\', '/').TrimStart('/');
+            var targetFile = task.Manager.Files.FirstOrDefault(f =>
+                !string.IsNullOrEmpty(f.Path) &&
+                f.Path.Replace('\\', '/').TrimStart('/').Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
             if (targetFile != null)
             {
                 var monoPriority = priority switch
