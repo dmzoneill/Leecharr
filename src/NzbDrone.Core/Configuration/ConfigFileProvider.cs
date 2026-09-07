@@ -145,6 +145,13 @@ public class ConfigFileProvider : IConfigFileProvider
 
     private string GetValue(string key, string defaultValue)
     {
+        var envVal = Environment.GetEnvironmentVariable("LEECHARR__" + key.ToUpperInvariant())
+            ?? Environment.GetEnvironmentVariable("LEECHARR_" + key.ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(envVal))
+        {
+            return envVal;
+        }
+
         return this.config.TryGetValue(key, out var value) ? value : defaultValue;
     }
 

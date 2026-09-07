@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -104,6 +105,52 @@ public class ArrConnectionController : Controller
         return await this.TestDirectInternal(resource);
     }
 
+    public static string ResolveExternalUrl(string configuredExternalUrl, string arrType, string name)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredExternalUrl))
+        {
+            return configuredExternalUrl.Trim();
+        }
+
+        var candidates = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var cleanName = Regex.Replace(name.Trim(), @"[^a-zA-Z0-9_]", "_").ToUpperInvariant();
+            candidates.Add($"LEECHARR__ARR_{cleanName}_PUBLIC_URL");
+            candidates.Add($"LEECHARR__ARR_{cleanName}_EXTERNAL_URL");
+            candidates.Add($"LEECHARR__{cleanName}_PUBLIC_URL");
+            candidates.Add($"LEECHARR__{cleanName}_EXTERNAL_URL");
+            candidates.Add($"{cleanName}_PUBLIC_URL");
+            candidates.Add($"{cleanName}_EXTERNAL_URL");
+        }
+
+        if (!string.IsNullOrWhiteSpace(arrType))
+        {
+            var cleanType = Regex.Replace(arrType.Trim(), @"[^a-zA-Z0-9_]", "_").ToUpperInvariant();
+            candidates.Add($"LEECHARR__ARR_{cleanType}_PUBLIC_URL");
+            candidates.Add($"LEECHARR__ARR_{cleanType}_EXTERNAL_URL");
+            candidates.Add($"LEECHARR__{cleanType}_PUBLIC_URL");
+            candidates.Add($"LEECHARR__{cleanType}_EXTERNAL_URL");
+            candidates.Add($"{cleanType}_PUBLIC_URL");
+            candidates.Add($"{cleanType}_EXTERNAL_URL");
+        }
+
+        candidates.Add("LEECHARR__ARR_PUBLIC_URL");
+        candidates.Add("LEECHARR__ARR_EXTERNAL_URL");
+
+        foreach (var key in candidates)
+        {
+            var val = Environment.GetEnvironmentVariable(key);
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                return val.Trim();
+            }
+        }
+
+        return null;
+    }
+
     private static ArrConnectionResource ToResource(ArrConnectionDefinition model)
     {
         return new ArrConnectionResource
@@ -112,6 +159,7 @@ public class ArrConnectionController : Controller
             Name = model.Name,
             ArrType = model.ArrType,
             Url = model.Url,
+            ExternalUrl = ResolveExternalUrl(model.ExternalUrl, model.ArrType, model.Name),
             ApiKey = model.ApiKey,
             Enabled = model.Enable,
             SyncCategories = model.SyncCategories,
@@ -128,6 +176,7 @@ public class ArrConnectionController : Controller
             ArrType = resource.ArrType ?? "Sonarr",
             Implementation = resource.ArrType ?? "Sonarr",
             Url = resource.Url,
+            ExternalUrl = resource.ExternalUrl,
             ApiKey = resource.ApiKey,
             Enable = resource.Enabled,
             SyncCategories = resource.SyncCategories,
