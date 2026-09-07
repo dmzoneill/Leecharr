@@ -224,13 +224,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return InspectAvi(header, fileName);
         }
 
-        // 5. Check ID3v2-tagged audio (MP3, FLAC, WAV, AAC, etc.)
+        // 5. Check WAV (RIFF....WAVE)
+        if (bytesRead >= 12 && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F' &&
+            header[8] == 'W' && header[9] == 'A' && header[10] == 'V' && header[11] == 'E')
+        {
+            return InspectWav(header, fileName);
+        }
+
+        // 6. Check ID3v2-tagged audio (MP3, FLAC, WAV, AAC, etc.)
         if (header[0] == 'I' && header[1] == 'D' && header[2] == '3')
         {
             return InspectId3Tagged(header, bytesRead, fileName);
         }
 
-        // 6. Check MP3 Frame Sync (0xFF 0xFB/0xFA/etc.)
+        // 7. Check MP3 Frame Sync (0xFF 0xFB/0xFA/etc.)
         if (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0)
         {
             return InspectMp3(header, fileName);
@@ -1796,6 +1803,106 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         return info;
     }
 
+    private static MediaContainerInfo InspectWav(byte[] header, string fileName)
+    {
+        var info = new MediaContainerInfo
+        {
+            ContainerFormat = "WAV",
+            AudioCodec = "PCM",
+            AudioChannels = "2.0",
+            AudioBitDepth = 16,
+            AudioSampleRate = 44100,
+        };
+
+        int offset = 12;
+        while (offset + 8 <= header.Length)
+        {
+            var chunkId0 = (char)header[offset];
+            var chunkId1 = (char)header[offset + 1];
+            var chunkId2 = (char)header[offset + 2];
+            var chunkId3 = (char)header[offset + 3];
+
+            uint chunkSize = (uint)(header[offset + 4] |
+                                   (header[offset + 5] << 8) |
+                                   (header[offset + 6] << 16) |
+                                   (header[offset + 7] << 24));
+
+            if (chunkId0 == 'f' && chunkId1 == 'm' && chunkId2 == 't' && chunkId3 == ' ')
+            {
+                int fmtOffset = offset + 8;
+                int fmtAvailable = Math.Min((int)chunkSize, header.Length - fmtOffset);
+
+                if (fmtAvailable >= 2)
+                {
+                    ushort formatTag = (ushort)(header[fmtOffset] | (header[fmtOffset + 1] << 8));
+                    info.AudioCodec = formatTag switch
+                    {
+                        1 => "PCM",
+                        3 => "IEEE Float",
+                        6 => "ALaw",
+                        7 => "MuLaw",
+                        0x0055 => "MP3",
+                        0x00FF => "AAC",
+                        0x2000 => "AC3",
+                        0x2001 => "DTS",
+                        0xFFFE => "PCM",
+                        _ => "PCM",
+                    };
+                }
+
+                if (fmtAvailable >= 4)
+                {
+                    ushort channels = (ushort)(header[fmtOffset + 2] | (header[fmtOffset + 3] << 8));
+                    if (channels > 0)
+                    {
+                        info.AudioChannels = channels switch
+                        {
+                            1 => "1.0",
+                            2 => "2.0",
+                            6 => "5.1",
+                            8 => "7.1",
+                            _ => $"{channels}.0",
+                        };
+                    }
+                }
+
+                if (fmtAvailable >= 8)
+                {
+                    uint sampleRate = (uint)(header[fmtOffset + 4] |
+                                            (header[fmtOffset + 5] << 8) |
+                                            (header[fmtOffset + 6] << 16) |
+                                            (header[fmtOffset + 7] << 24));
+                    if (sampleRate > 0)
+                    {
+                        info.AudioSampleRate = (int)sampleRate;
+                    }
+                }
+
+                if (fmtAvailable >= 16)
+                {
+                    ushort bitsPerSample = (ushort)(header[fmtOffset + 14] | (header[fmtOffset + 15] << 8));
+                    if (bitsPerSample > 0)
+                    {
+                        info.AudioBitDepth = bitsPerSample;
+                    }
+                }
+
+                break;
+            }
+
+            long nextOffset = offset + 8L + chunkSize + (chunkSize & 1);
+            if (nextOffset <= offset || nextOffset > header.Length)
+            {
+                break;
+            }
+
+            offset = (int)nextOffset;
+        }
+
+        ApplyFilenameHints(info, fileName);
+        return info;
+    }
+
     private static MediaContainerInfo InspectMp3(byte[] header, string fileName)
     {
         var info = new MediaContainerInfo
@@ -1847,14 +1954,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 if (header[tagOffset + 8] == 'W' && header[tagOffset + 9] == 'A' &&
                     header[tagOffset + 10] == 'V' && header[tagOffset + 11] == 'E')
                 {
-                    var info = new MediaContainerInfo
-                    {
-                        ContainerFormat = "WAV",
-                        AudioCodec = "PCM",
-                    };
-
-                    ApplyFilenameHints(info, fileName);
-                    return info;
+                    return InspectWav(header.AsSpan(tagOffset).ToArray(), fileName);
                 }
 
                 if (header[tagOffset + 8] == 'A' && header[tagOffset + 9] == 'V' &&
@@ -1906,14 +2006,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 return InspectFlac(Array.Empty<byte>());
 
             case ".wav":
-                var wavInfo = new MediaContainerInfo
-                {
-                    ContainerFormat = "WAV",
-                    AudioCodec = "PCM",
-                };
-
-                ApplyFilenameHints(wavInfo, fileName);
-                return wavInfo;
+                return InspectWav(Array.Empty<byte>(), fileName);
 
             case ".aac":
                 var aacInfo = new MediaContainerInfo
@@ -1959,6 +2052,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             case ".mp3":
                 info.ContainerFormat = "MP3";
                 info.AudioCodec = "MP3";
+                return info;
+            case ".wav":
+                info.ContainerFormat = "WAV";
+                info.AudioCodec = "PCM";
                 return info;
             default:
                 return null;
