@@ -366,4 +366,49 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
     }
+
+    [Test]
+    public void MoveToCompleted_WhenSingleFileTorrentNameHasNoExtension_PreservesSourceFileExtension()
+    {
+        var source = "/downloads/incomplete/Movie.2024.1080p.mkv";
+        var dest = "/downloads/movies/Movie.2024.1080p.mkv";
+
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "movies", "Movie.2024.1080p", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(dest);
+        this.diskProvider.Received(1).MoveFile(source, dest, true);
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenSingleFileTorrentNameHasNoExtensionAndIncompleteExtOnDisk_PreservesSourceFileExtension()
+    {
+        var source = "/downloads/incomplete/Movie.2024.1080p.mkv";
+        var sourceWithExt = "/downloads/incomplete/Movie.2024.1080p.mkv.!leech";
+        var dest = "/downloads/movies/Movie.2024.1080p.mkv";
+
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.configService.IncompleteExtension.Returns(".!leech");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(sourceWithExt).Returns(true);
+
+        var success = this.storagePathService.MoveToCompleted(source, "movies", "Movie.2024.1080p", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(dest);
+        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
+    }
 }
