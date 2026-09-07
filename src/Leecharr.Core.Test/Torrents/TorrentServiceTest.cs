@@ -111,14 +111,17 @@ public class TorrentServiceTest
         // File 1: size 500 -> startPiece 0, count 1
         insertedFiles[0].PieceOffset.Should().Be(0);
         insertedFiles[0].PieceCount.Should().Be(1);
+        insertedFiles[0].Priority.Should().Be(3);
 
         // File 2: size 1200 (bytes 500-1699) -> startPiece 0, endPiece 1, count 2
         insertedFiles[1].PieceOffset.Should().Be(0);
         insertedFiles[1].PieceCount.Should().Be(2);
+        insertedFiles[1].Priority.Should().Be(3);
 
         // File 3: size 1800 (bytes 1700-3499) -> startPiece 1, endPiece 3, count 3
         insertedFiles[2].PieceOffset.Should().Be(1);
         insertedFiles[2].PieceCount.Should().Be(3);
+        insertedFiles[2].Priority.Should().Be(3);
     }
 
     [Test]
