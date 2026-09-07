@@ -192,27 +192,27 @@ export function TerminalView({
     });
   }, [cwd, autoFocus]);
 
+  const handleResize = useCallback(() => {
+    if (fitAddonRef.current && termRef.current && wsRef.current) {
+      try {
+        fitAddonRef.current.fit();
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: "resize",
+              cols: termRef.current.cols,
+              rows: termRef.current.rows,
+            }),
+          );
+        }
+      } catch {
+        // Ignored
+      }
+    }
+  }, []);
+
   useEffect(() => {
     connect();
-
-    const handleResize = () => {
-      if (fitAddonRef.current && termRef.current && wsRef.current) {
-        try {
-          fitAddonRef.current.fit();
-          if (wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "resize",
-                cols: termRef.current.cols,
-                rows: termRef.current.rows,
-              }),
-            );
-          }
-        } catch {
-          // Ignored
-        }
-      }
-    };
 
     window.addEventListener("resize", handleResize);
 
@@ -228,7 +228,24 @@ export function TerminalView({
         termRef.current.dispose();
       }
     };
-  }, [connect]);
+  }, [connect, handleResize]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      handleResize();
+      termRef.current?.focus();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [isFullscreen, handleResize]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      handleResize();
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [handleResize]);
 
   const handleCopyPath = () => {
     if (!cwd) return;
@@ -375,7 +392,7 @@ export function TerminalView({
             type="button"
             onClick={() => {
               setIsFullscreen((prev) => !prev);
-              setTimeout(() => fitAddonRef.current?.fit(), 100);
+              setTimeout(() => handleResize(), 100);
             }}
             className="btn btn-outline"
             style={{
