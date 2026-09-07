@@ -74,10 +74,14 @@ export default function LineChart({
     return { value: val, y };
   });
 
+  const offset = Math.max(0, maxPoints - data.length);
+
   const getPoint = (v: number, i: number) => {
     const rawVal = typeof v === "number" && Number.isFinite(v) ? v : 0;
     const clampedVal = Math.max(0, Math.min(rawVal, niceMax));
-    const x = PADDING.left + (i / Math.max(1, maxPoints - 1)) * chartW;
+    const x =
+      PADDING.left +
+      ((offset + i) / Math.max(1, maxPoints - 1)) * chartW;
     const y = PADDING.top + chartH - (clampedVal / niceMax) * chartH;
     return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
   };
@@ -96,10 +100,12 @@ export default function LineChart({
     data.length < 2
       ? ""
       : (() => {
-          const first = PADDING.left;
+          const first =
+            PADDING.left +
+            (offset / Math.max(1, maxPoints - 1)) * chartW;
           const last =
             PADDING.left +
-            ((data.length - 1) / Math.max(1, maxPoints - 1)) * chartW;
+            ((offset + data.length - 1) / Math.max(1, maxPoints - 1)) * chartW;
           const bottom = PADDING.top + chartH;
           const linePoints = data
             .map((v, i) => {
