@@ -28,10 +28,20 @@ export function LogViewer() {
   const handleClearLogs = () => {
     clearLogs.mutate(undefined, {
       onSuccess: () => {
-        showToast("Activity logs cleared", "info");
+        showToast(
+          t("trackerBoost.logs.logsClearedToast", "Activity logs cleared"),
+          "info",
+        );
       },
       onError: (err) => {
-        showToast(`Failed to clear logs: ${err.message}`, "error");
+        showToast(
+          t(
+            "trackerBoost.logs.clearLogsFailed",
+            "Failed to clear logs: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -96,11 +106,21 @@ export function LogViewer() {
             <option value="all">
               {t("trackerBoost.allCategories", "All Categories")}
             </option>
-            <option value="Scrape">🔍 Scrapes</option>
-            <option value="Health">🩺 Health Probes</option>
-            <option value="Discovery">📡 Discovery</option>
-            <option value="Inject">⚡ Injections</option>
-            <option value="Cycle">⚙️ Daemon Cycles</option>
+            <option value="Scrape">
+              {t("trackerBoost.logs.scrapes", "🔍 Scrapes")}
+            </option>
+            <option value="Health">
+              {t("trackerBoost.logs.healthProbes", "🩺 Health Probes")}
+            </option>
+            <option value="Discovery">
+              {t("trackerBoost.logs.discovery", "📡 Discovery")}
+            </option>
+            <option value="Inject">
+              {t("trackerBoost.logs.injections", "⚡ Injections")}
+            </option>
+            <option value="Cycle">
+              {t("trackerBoost.logs.daemonCycles", "⚙️ Daemon Cycles")}
+            </option>
             <option value="General">
               {t("trackerBoost.general", "General")}
             </option>
@@ -119,10 +139,18 @@ export function LogViewer() {
             <option value="all">
               {t("trackerBoost.allLevels", "All Levels")}
             </option>
-            <option value="Success">🟢 Success</option>
-            <option value="Info">🔵 Info</option>
-            <option value="Warn">🟡 Warning</option>
-            <option value="Error">🔴 Error</option>
+            <option value="Success">
+              {t("trackerBoost.logs.successBadge", "🟢 Success")}
+            </option>
+            <option value="Info">
+              {t("trackerBoost.logs.infoBadge", "🔵 Info")}
+            </option>
+            <option value="Warn">
+              {t("trackerBoost.logs.warningBadge", "🟡 Warning")}
+            </option>
+            <option value="Error">
+              {t("trackerBoost.logs.errorBadge", "🔴 Error")}
+            </option>
           </select>
 
           <input
@@ -173,7 +201,7 @@ export function LogViewer() {
             onClick={() => refetchLogs()}
             title={t("common.refresh", "Refresh log entries")}
           >
-            🔄 Refresh
+            {t("trackerBoost.logs.refreshBtn", "🔄 Refresh")}
           </button>
 
           <button
@@ -183,7 +211,7 @@ export function LogViewer() {
             disabled={clearLogs.isPending || (boostLogs ?? []).length === 0}
             title={t("common.clear", "Clear current log buffer")}
           >
-            🗑️ Clear Logs
+            {t("trackerBoost.logs.clearLogs", "🗑️ Clear Logs")}
           </button>
         </div>
       </div>
@@ -197,7 +225,10 @@ export function LogViewer() {
             color: "var(--text-muted)",
           }}
         >
-          Loading daemon activity logs...
+          {t(
+            "trackerBoost.logs.loadingLogs",
+            "Loading daemon activity logs...",
+          )}
         </div>
       ) : filteredLogs.length === 0 ? (
         <div
@@ -207,7 +238,10 @@ export function LogViewer() {
             color: "var(--text-muted)",
           }}
         >
-          No log entries found matching current filter.
+          {t(
+            "trackerBoost.logs.noLogsMatch",
+            "No log entries found matching current filter.",
+          )}
         </div>
       ) : (
         <div
@@ -235,19 +269,19 @@ export function LogViewer() {
             >
               <tr>
                 <th className="torrent-table-th" style={{ width: "10%" }}>
-                  Time
+                  {t("system.time", "Time")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "9%" }}>
-                  Level
+                  {t("logging.level", "Level")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "12%" }}>
-                  Category
+                  {t("trackerBoost.logs.category", "Category")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "24%" }}>
-                  Tracker / InfoHash
+                  {t("trackerBoost.logs.trackerOrHash", "Tracker / InfoHash")}
                 </th>
                 <th className="torrent-table-th" style={{ width: "45%" }}>
-                  Activity Message
+                  {t("trackerBoost.logs.activityMessage", "Activity Message")}
                 </th>
               </tr>
             </thead>
@@ -279,12 +313,12 @@ export function LogViewer() {
                         style={{ fontSize: "0.72rem" }}
                       >
                         {log.level === "Success"
-                          ? "🟢 Success"
+                          ? t("trackerBoost.logs.successBadge", "🟢 Success")
                           : log.level === "Error"
-                            ? "🔴 Error"
+                            ? t("trackerBoost.logs.errorBadge", "🔴 Error")
                             : log.level === "Warn"
-                              ? "🟡 Warn"
-                              : "🔵 Info"}
+                              ? t("trackerBoost.logs.warnBadge", "🟡 Warn")
+                              : t("trackerBoost.logs.infoBadge", "🔵 Info")}
                       </span>
                     </td>
                     <td>

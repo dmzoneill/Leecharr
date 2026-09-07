@@ -140,7 +140,9 @@ export function TerminalPage() {
         <TerminalView
           key={activePath}
           cwd={activePath}
-          title={`Shell: ${activePath}`}
+          title={t("terminal.shellTitle", "Shell: {path}", {
+            path: activePath,
+          })}
           height="100%"
         />
       </div>

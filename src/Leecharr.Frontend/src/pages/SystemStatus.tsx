@@ -140,8 +140,12 @@ function SystemStatus() {
             className={`badge ${warningOrErrorChecks.length === 0 ? "badge-seeding" : "badge-error"}`}
           >
             {warningOrErrorChecks.length === 0
-              ? "All Systems Operational"
-              : `${warningOrErrorChecks.length} Issue${warningOrErrorChecks.length > 1 ? "s" : ""}`}
+              ? t("system.allSystemsOperational")
+              : warningOrErrorChecks.length === 1
+                ? t("system.healthIssuesSingle", { count: 1 })
+                : t("system.healthIssuesPlural", {
+                    count: warningOrErrorChecks.length,
+                  })}
           </span>
         </div>
 
@@ -198,8 +202,15 @@ function SystemStatus() {
                       gap: "0.5rem",
                     }}
                   >
-                    <strong>{check.source}:</strong>
-                    <span>{check.message || check.type}</span>
+                    <strong>
+                      {t(`health.${check.source}.title`, check.source)}:
+                    </strong>
+                    <span>
+                      {t(
+                        `health.${check.source}.message`,
+                        check.message || check.type,
+                      )}
+                    </span>
                   </div>
                   <Link
                     to="/settings/general"
@@ -317,7 +328,9 @@ function SystemStatus() {
                       <span
                         className={`badge ${conn.enable ? "badge-seeding" : "badge-stopped"}`}
                       >
-                        {conn.enable ? "Enabled" : "Disabled"}
+                        {conn.enable
+                          ? t("common.enabled")
+                          : t("common.disabled")}
                       </span>
                     </td>
                     <td>
@@ -328,12 +341,14 @@ function SystemStatus() {
                         }}
                       >
                         {[
-                          conn.syncEnabled && "Sync",
-                          conn.enableAutomaticAdd && "Auto-Add",
-                          conn.webhookEnabled && "Webhook",
+                          conn.syncEnabled && t("system.features.sync", "Sync"),
+                          conn.enableAutomaticAdd &&
+                            t("system.features.autoAdd", "Auto-Add"),
+                          conn.webhookEnabled &&
+                            t("system.features.webhook", "Webhook"),
                         ]
                           .filter(Boolean)
-                          .join(" • ") || "None"}
+                          .join(" • ") || t("common.none", "None")}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -365,7 +380,10 @@ function SystemStatus() {
                     </td>
                     <td>
                       <span className="badge badge-secondary">
-                        {client.clientType}
+                        {t(
+                          `downloadClients.types.${client.clientType?.toLowerCase()}`,
+                          client.clientType,
+                        )}
                       </span>
                     </td>
                     <td>
@@ -377,7 +395,9 @@ function SystemStatus() {
                       <span
                         className={`badge ${client.enable ? "badge-seeding" : "badge-stopped"}`}
                       >
-                        {client.enable ? "Enabled" : "Disabled"}
+                        {client.enable
+                          ? t("common.enabled")
+                          : t("common.disabled")}
                       </span>
                     </td>
                     <td>
@@ -419,7 +439,10 @@ function SystemStatus() {
                     </td>
                     <td>
                       <span className="badge badge-secondary">
-                        {idx.indexerType}
+                        {t(
+                          `indexers.types.${idx.indexerType?.toLowerCase()}`,
+                          idx.indexerType,
+                        )}
                       </span>
                     </td>
                     <td>
@@ -431,7 +454,9 @@ function SystemStatus() {
                       <span
                         className={`badge ${idx.enable ? "badge-seeding" : "badge-stopped"}`}
                       >
-                        {idx.enable ? "Enabled" : "Disabled"}
+                        {idx.enable
+                          ? t("common.enabled")
+                          : t("common.disabled")}
                       </span>
                     </td>
                     <td>
@@ -441,9 +466,14 @@ function SystemStatus() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        {[idx.enableRss && "RSS", idx.enableSearch && "Search"]
+                        {[
+                          idx.enableRss && t("system.features.rss", "RSS"),
+                          idx.enableSearch &&
+                            t("system.features.search", "Search"),
+                        ]
                           .filter(Boolean)
-                          .join(" • ") || "Indexer"}
+                          .join(" • ") ||
+                          t("system.features.indexer", "Indexer")}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -660,8 +690,10 @@ function SystemStatus() {
                 </span>
                 <span className="status-value">
                   {status.databaseMigration
-                    ? `Schema #${status.databaseMigration}`
-                    : "Current"}
+                    ? t("system.schemaVersion", {
+                        version: status.databaseMigration,
+                      })
+                    : t("system.schemaCurrent")}
                 </span>
               </div>
               <div className="status-row">
@@ -684,7 +716,9 @@ function SystemStatus() {
                 </span>
                 <span className="status-value">
                   <span className="badge badge-primary">
-                    {status.isDocker ? "🐳 Docker" : "💻 Console"}
+                    {status.isDocker
+                      ? t("system.executionDocker")
+                      : t("system.executionConsole")}
                     {status.isDebug ? " (Debug)" : ""}
                   </span>
                 </span>

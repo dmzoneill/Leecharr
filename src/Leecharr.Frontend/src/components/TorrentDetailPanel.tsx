@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
+import { translate } from "../i18n/useTranslation";
 import {
   useTorrent,
   useStartSeeding,
@@ -132,17 +133,24 @@ class TabErrorBoundary extends React.Component<
       return (
         <div style={{ padding: "1.5rem", color: "var(--danger, #ef4444)" }}>
           <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
-            Failed to render tab contents
+            {translate(
+              "components.failedToRenderTab",
+              "Failed to render tab contents",
+            )}
           </div>
           <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-            {this.state.error?.message || "An unexpected error occurred."}
+            {this.state.error?.message ||
+              translate(
+                "components.anUnexpectedErrorOccurred",
+                "An unexpected error occurred.",
+              )}
           </p>
           <button
             type="button"
             className="btn btn-small"
             onClick={() => this.setState({ hasError: false, error: null })}
           >
-            Retry Tab
+            {translate("components.retryTab", "Retry Tab")}
           </button>
         </div>
       );

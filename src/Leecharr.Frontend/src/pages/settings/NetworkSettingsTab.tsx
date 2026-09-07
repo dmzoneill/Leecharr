@@ -129,19 +129,19 @@ export function NetworkSettingsTab() {
             }}
           >
             <div>
-              Local IP:{" "}
+              {t("settingsTabs.batch2.localIp")}:{" "}
               <strong>
                 {netStatus.localIp || t("settingsTabs.batch2.defaultIp")}
               </strong>
             </div>
             <div>
-              Public IP:{" "}
+              {t("settingsTabs.batch2.publicIp")}:{" "}
               <strong>
                 {netStatus.externalIp || t("settingsTabs.batch2.notDetected")}
               </strong>
             </div>
             <div>
-              UPnP Active:{" "}
+              {t("settingsTabs.batch2.upnpActive")}:{" "}
               <strong>
                 {netStatus.upnpAvailable
                   ? t("settingsTabs.batch2.yes")
@@ -149,7 +149,7 @@ export function NetworkSettingsTab() {
               </strong>
             </div>
             <div>
-              Active Port Mappings:{" "}
+              {t("settingsTabs.batch2.activePortMappings")}:{" "}
               <strong>{netStatus.portMappings?.length ?? 0}</strong>
             </div>
           </div>

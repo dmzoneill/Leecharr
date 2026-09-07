@@ -109,7 +109,14 @@ export function TrackersTab({
         refetch();
       },
       onError: (err) => {
-        showToast(`Failed to boost swarm: ${err.message}`, "error");
+        showToast(
+          t(
+            "torrents.detail.failedToBoostSwarm",
+            "Failed to boost swarm: {error}",
+            { error: err.message },
+          ),
+          "error",
+        );
       },
     });
   };
@@ -158,17 +165,17 @@ export function TrackersTab({
         det?.healthStatus === 3 ||
         false;
 
-      let statusLabel = "Untested";
+      let statusLabel = t("trackerStatus.untested", "Untested");
       if (isAttached) {
-        statusLabel = "Attached";
+        statusLabel = t("trackerStatus.attached", "Attached");
       } else if (isVerified) {
         statusLabel = `✓ Found in Swarm (${det?.seeders ?? 0}s / ${det?.leechers ?? 0}l)`;
       } else if (isAlive) {
-        statusLabel = "Online (0 Peers)";
+        statusLabel = t("trackerStatus.online", "Online (0 Peers)");
       } else if (isSlow) {
-        statusLabel = `Slow (${tr.latencyMs > 0 ? tr.latencyMs + "ms" : "High Latency"})`;
+        statusLabel = `${t("trackerStatus.slow", "Slow")} (${tr.latencyMs > 0 ? tr.latencyMs + "ms" : "High Latency"})`;
       } else if (isOffline) {
-        statusLabel = "Offline";
+        statusLabel = t("trackerStatus.offline", "Offline");
       }
 
       return {
@@ -226,7 +233,7 @@ export function TrackersTab({
             ? err.response.data.trim()
             : null) ||
           err?.message ||
-          "Failed to add tracker";
+          t("torrents.detail.failedToAddTracker", "Failed to add tracker");
         errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
       }
     }
@@ -234,7 +241,11 @@ export function TrackersTab({
     setSelectedUrls(new Set());
     if (addedCount > 0) {
       showToast(
-        `Added ${addedCount} tracker(s) to torrent and queued announce`,
+        t(
+          "torrents.detail.addedTrackersQueued",
+          "Added {count} tracker(s) to torrent and queued announce",
+          { count: addedCount },
+        ),
         "success",
       );
     }
@@ -250,11 +261,24 @@ export function TrackersTab({
       { torrentId: effectiveId, trackerId },
       {
         onSuccess: () => {
-          showToast("Tracker removed and reannounced", "success");
+          showToast(
+            t(
+              "torrents.detail.trackerRemovedSuccess",
+              "Tracker removed and reannounced",
+            ),
+            "success",
+          );
           refetch();
         },
         onError: (err) => {
-          showToast(`Failed to remove tracker: ${err.message}`, "error");
+          showToast(
+            t(
+              "torrents.detail.failedToRemoveTracker",
+              "Failed to remove tracker: {error}",
+              { error: err.message },
+            ),
+            "error",
+          );
         },
       },
     );
@@ -372,7 +396,13 @@ export function TrackersTab({
                         }}
                       >
                         <span style={{ fontSize: "0.85em" }}>{ind.icon}</span>
-                        <span>{tItem.status}</span>
+                        <span>
+                          {t(
+                            "trackerStatus." +
+                              (tItem.status || "queued").toLowerCase(),
+                            tItem.status,
+                          )}
+                        </span>
                       </span>
                     </td>
                     <td>{tItem.seeders}</td>
@@ -385,12 +415,12 @@ export function TrackersTab({
                     <td>
                       {tItem.lastAnnounce
                         ? formatDate(tItem.lastAnnounce)
-                        : "Never"}
+                        : t("common.never", "Never")}
                     </td>
                     <td>
                       {tItem.nextAnnounce
                         ? formatDate(tItem.nextAnnounce)
-                        : "Queued"}
+                        : t("torrents.states.queued", "Queued")}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div
@@ -507,8 +537,14 @@ export function TrackersTab({
           disabled={isPrivate}
           title={
             isPrivate
-              ? "Adding public trackers is disabled on private swarms (BEP 27)"
-              : "Open tracker picker to select, search, and filter trackers"
+              ? t(
+                  "torrents.detail.privateTrackerDisabledTitle",
+                  "Adding public trackers is disabled on private swarms (BEP 27)",
+                )
+              : t(
+                  "torrents.detail.openTrackerPickerTitle",
+                  "Open tracker picker to select, search, and filter trackers",
+                )
           }
         >
           <span

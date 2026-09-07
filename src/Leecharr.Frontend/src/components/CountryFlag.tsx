@@ -1,3 +1,5 @@
+import { useTranslation } from "../i18n";
+
 /**
  * Checks if an IP address is a private, loopback, or LAN address.
  */
@@ -55,6 +57,8 @@ export function CountryFlag({
   countryName,
   className,
 }: CountryFlagProps) {
+  const { t } = useTranslation();
+
   // If IP is loopback or local LAN
   if (isPrivateIp(ip)) {
     return (
@@ -67,9 +71,10 @@ export function CountryFlag({
           fontSize: "0.75rem",
           color: "var(--text-muted)",
         }}
-        title="Local / LAN Peer"
+        title={t("components.localLanPeer", "Local / LAN Peer")}
       >
-        🏠 <span style={{ fontSize: "0.7rem" }}>LAN</span>
+        🏠{" "}
+        <span style={{ fontSize: "0.7rem" }}>{t("components.lan", "LAN")}</span>
       </span>
     );
   }
@@ -81,7 +86,7 @@ export function CountryFlag({
     countryName?.trim() ||
     (isValidCode ? cleanCode : "") ||
     ip?.trim() ||
-    "Peer";
+    t("common.peers", "Peer");
 
   return (
     <span

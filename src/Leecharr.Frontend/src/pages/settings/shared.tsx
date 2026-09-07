@@ -30,7 +30,8 @@ export function SaveFeedback({
             color: "var(--danger)",
           }}
         >
-          Failed to save: {error?.message}
+          {t("settingsTabs.shared.failedToSave")}
+          {error?.message}
         </span>
       )}
       {isSuccess && !dirty && (
@@ -83,8 +84,7 @@ export function PendingChangesModal({
             lineHeight: 1.4,
           }}
         >
-          You have unsaved changes in this settings section. What would you like
-          to do?
+          {t("settingsTabs.shared.unsavedChangesDesc")}
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
@@ -106,7 +106,7 @@ export function PendingChangesModal({
             onClick={onSave}
             type="button"
           >
-            {t("settingsTabs.categories.modal.saveChanges")}
+            {t("settingsTabs.shared.saveChanges")}
           </button>
         </div>
       </div>
