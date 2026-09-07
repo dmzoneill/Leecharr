@@ -101,6 +101,7 @@ export function SecuritySettingsTab() {
     csrfProtectionEnabled: true,
     hostHeaderValidationEnabled: false,
     allowedHosts: "",
+    terminalAccessEnabled: true,
   });
 
   const [providers, setProviders] = useState<IdentityProviderDefinition[]>([]);
@@ -135,7 +136,9 @@ export function SecuritySettingsTab() {
         hostHeaderValidationEnabled:
           config.hostHeaderValidationEnabled ?? false,
         allowedHosts: config.allowedHosts ?? "",
+        terminalAccessEnabled: config.terminalAccessEnabled ?? true,
       });
+
       setDirty(false);
       setRevealedApiKey(null);
       setShowApiKey(false);
@@ -249,7 +252,9 @@ export function SecuritySettingsTab() {
         csrfProtectionEnabled: form.csrfProtectionEnabled,
         hostHeaderValidationEnabled: form.hostHeaderValidationEnabled,
         allowedHosts: form.allowedHosts,
+        terminalAccessEnabled: form.terminalAccessEnabled,
       },
+
       {
         onSuccess: () => setDirty(false),
       },
@@ -414,7 +419,15 @@ export function SecuritySettingsTab() {
             hint={t("settingsTabs.batch2.preventsDnsRebindingAttacks")}
           />
 
+          <Toggle
+            label={t("terminal.title")}
+            checked={form.terminalAccessEnabled}
+            onChange={(v) => update("terminalAccessEnabled", v)}
+            hint={t("terminal.executeCommands")}
+          />
+
           {form.hostHeaderValidationEnabled && (
+
             <TextInput
               label={t("settingsTabs.batch2.allowedHostHeadersWhitelist")}
               value={form.allowedHosts}

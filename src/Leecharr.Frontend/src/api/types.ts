@@ -332,7 +332,9 @@ export interface GeneralConfig {
   csrfProtectionEnabled?: boolean;
   hostHeaderValidationEnabled?: boolean;
   allowedHosts?: string;
+  terminalAccessEnabled?: boolean;
 }
+
 
 export interface ApiKeyResource {
   apiKey: string;
