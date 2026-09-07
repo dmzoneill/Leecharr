@@ -254,6 +254,7 @@ export function App() {
     queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
     queryClient.invalidateQueries({ queryKey: ["health"] });
     queryClient.invalidateQueries({ queryKey: ["system", "status"] });
+    queryClient.invalidateQueries({ queryKey: ["diskspace"] });
   }, [queryClient]);
 
   const { showToast } = useToast();

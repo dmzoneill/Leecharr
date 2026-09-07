@@ -51,9 +51,11 @@ export function useHealthChecks() {
 }
 
 export function useDiskSpace() {
+  const interval = useRefetchInterval();
   return useQuery<DiskSpaceInfo[]>({
     queryKey: ["diskspace"],
     queryFn: () => apiClient.get("/diskspace"),
+    refetchInterval: interval,
   });
 }
 
