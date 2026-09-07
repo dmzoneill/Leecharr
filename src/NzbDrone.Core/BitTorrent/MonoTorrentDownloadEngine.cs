@@ -783,31 +783,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             }
                         }
 
-                        if (task.Manager.Torrent?.Files?.Count > 1)
+                        var containingDir = task.Manager.ContainingDirectory;
+                        if (!string.IsNullOrWhiteSpace(containingDir) && this.diskProvider.FolderExists(containingDir))
                         {
-                            var containingDir = task.Manager.ContainingDirectory;
-                            if (!string.IsNullOrWhiteSpace(containingDir) && this.diskProvider.FolderExists(containingDir))
+                            var dirName = Path.GetFileName(containingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                            var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+                            var downloadDir = this.configService.DownloadDir ?? "/downloads";
+
+                            var isMatchingName = string.Equals(dirName, task.Manager.Torrent?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                            var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
+                                string.Equals(
+                                    Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    StringComparison.OrdinalIgnoreCase);
+                            var isRootDownload = !string.IsNullOrWhiteSpace(downloadDir) &&
+                                string.Equals(
+                                    Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    StringComparison.OrdinalIgnoreCase);
+
+                            if (isMatchingName && !isRootIncomplete && !isRootDownload)
                             {
-                                var dirName = Path.GetFileName(containingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                                var incompleteDir = this.storagePathService.GetIncompleteDirectory();
-                                var downloadDir = this.configService.DownloadDir ?? "/downloads";
-
-                                var isMatchingName = string.Equals(dirName, task.Manager.Torrent.Name, StringComparison.OrdinalIgnoreCase);
-                                var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
-                                    string.Equals(
-                                        Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                        Path.GetFullPath(incompleteDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                        StringComparison.OrdinalIgnoreCase);
-                                var isRootDownload = !string.IsNullOrWhiteSpace(downloadDir) &&
-                                    string.Equals(
-                                        Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                        Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                        StringComparison.OrdinalIgnoreCase);
-
-                                if (isMatchingName && !isRootIncomplete && !isRootDownload)
-                                {
-                                    await this.DeleteFolderWithRetryAsync(containingDir);
-                                }
+                                await this.DeleteFolderWithRetryAsync(containingDir);
                             }
                         }
                     }
@@ -1398,10 +1395,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var category = existingTask?.Category;
         var torrentName = manager.Torrent?.Name ?? infoHash;
 
-        var isMultiFile = manager.Torrent != null && manager.Torrent.Files.Count > 1;
         var basePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
-        var sourcePath = isMultiFile
-            ? (manager.ContainingDirectory ?? Path.Combine(basePath, torrentName))
+        var containingDir = manager.ContainingDirectory ?? Path.Combine(basePath, torrentName);
+        var hasContainingDir = (!string.IsNullOrWhiteSpace(manager.ContainingDirectory) && this.diskProvider.FolderExists(manager.ContainingDirectory)) ||
+                               (manager.Torrent != null && manager.Torrent.Files.Count > 1) ||
+                               this.diskProvider.FolderExists(Path.Combine(basePath, torrentName));
+
+        var sourcePath = hasContainingDir
+            ? containingDir
             : (manager.Files != null && manager.Files.Count > 0
                 ? manager.Files[0].FullPath
                 : Path.Combine(basePath, torrentName));

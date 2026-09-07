@@ -2074,7 +2074,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var dirName = Path.GetFileName(trimmedSave);
 
-        if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(dirName), t.Name, StringComparison.OrdinalIgnoreCase))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
             var savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
