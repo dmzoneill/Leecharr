@@ -179,6 +179,30 @@ public class MediaEnrichmentServiceTest
         this.inspector.Received(1).InspectFile(mediaFile);
     }
 
+    [TestCase(0)]
+    [TestCase(-1)]
+    public async Task EnrichTorrentAsync_WhenTorrentIdIsZeroOrNegative_DoesNotPersistToRepositoryOrPublishEvent(int torrentId)
+    {
+        var torrent = new Torrent
+        {
+            Id = torrentId,
+            Name = "Severance.S02E01.1080p.WEB-DL",
+            Category = "tv",
+        };
+
+        var result = await this.service.EnrichTorrentAsync(torrent);
+
+        result.Should().NotBeNull();
+        result.TorrentId.Should().Be(torrentId);
+        result.Title.Should().Be("Severance.S02E01.1080p.WEB-DL");
+        result.ArrType.Should().Be("Sonarr");
+
+        this.repository.DidNotReceive().GetByTorrentId(Arg.Is<int>(id => id <= 0));
+        this.repository.DidNotReceive().Insert(Arg.Any<TorrentMediaMetadata>());
+        this.repository.DidNotReceive().Update(Arg.Any<TorrentMediaMetadata>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<MediaEnrichedEvent>());
+    }
+
     #endregion
 
     #region Poster, Fanart, and Metadata Caching and Cleanup
@@ -533,6 +557,22 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
 
         var cachedBytes = await File.ReadAllBytesAsync(cachedPath);
         cachedBytes.Should().Equal(pngBytes);
+    }
+
+    [Test]
+    public async Task CacheArtworkAsync_WhenTorrentIdIsZero_UsesDeterministicHashDirectory()
+    {
+        var localSource = Path.Combine(this.tempDirectory, "history_poster.png");
+        var pngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52 };
+        await File.WriteAllBytesAsync(localSource, pngBytes);
+
+        var cachedPath = await this.service.CacheArtworkAsync(localSource, 0, "poster");
+
+        cachedPath.Should().NotBeNull();
+        File.Exists(cachedPath).Should().BeTrue();
+        cachedPath.Should().EndWith(".png");
+        cachedPath.Should().NotContain(Path.Combine("MediaCache", "0"));
+        cachedPath.Should().Contain("MediaCache");
     }
 
     [Test]
