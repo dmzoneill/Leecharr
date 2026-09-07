@@ -1181,4 +1181,105 @@ public class TransmissionRpcControllerTest
         torrents!.Count.Should().Be(1);
         torrents[0]["downloadDir"].Should().Be("/downloads");
     }
+
+    [Test]
+    public async Task HandleRpc_SessionStats_ReturnsActivePausedSpeedAndNestedCumulativeAndCurrentStats()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, Name = "Torrent 1", Status = TorrentStatus.Downloading, DownloadSpeed = 1024, UploadSpeed = 256, Downloaded = 5000, Uploaded = 1000 },
+            new() { Id = 2, Name = "Torrent 2", Status = TorrentStatus.Seeding, DownloadSpeed = 0, UploadSpeed = 512, Downloaded = 10000, Uploaded = 20000 },
+            new() { Id = 3, Name = "Torrent 3", Status = TorrentStatus.Paused, DownloadSpeed = 0, UploadSpeed = 0, Downloaded = 3000, Uploaded = 500 },
+            new() { Id = 4, Name = "Torrent 4", Status = TorrentStatus.Stopped, DownloadSpeed = 0, UploadSpeed = 0, Downloaded = 2000, Uploaded = 0 },
+            new() { Id = 5, Name = "Torrent 5", Status = TorrentStatus.Queued, DownloadSpeed = 0, UploadSpeed = 0, Downloaded = 0, Uploaded = 0 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-stats",
+            Tag = JsonDocument.Parse("99").RootElement,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["activeTorrentCount"].Should().Be(2); // Downloading + Seeding
+        args["pausedTorrentCount"].Should().Be(2); // Paused + Stopped
+        args["torrentCount"].Should().Be(5);
+        args["downloadSpeed"].Should().Be(1024L);
+        args["uploadSpeed"].Should().Be(768L);
+
+        var cumulative = args["cumulative-stats"] as Dictionary<string, object>;
+        cumulative.Should().NotBeNull();
+        cumulative!["downloadedBytes"].Should().Be(20000L);
+        cumulative["uploadedBytes"].Should().Be(21500L);
+        cumulative["filesAdded"].Should().Be(5);
+        cumulative["sessionCount"].Should().Be(1);
+        ((long)cumulative["secondsActive"]).Should().BeGreaterThanOrEqualTo(0);
+
+        var current = args["current-stats"] as Dictionary<string, object>;
+        current.Should().NotBeNull();
+        current!["downloadedBytes"].Should().Be(20000L);
+        current["uploadedBytes"].Should().Be(21500L);
+        current["filesAdded"].Should().Be(5);
+        current["sessionCount"].Should().Be(1);
+        ((long)current["secondsActive"]).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionStats_WhenNoTorrents_ReturnsZeroStats()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-stats",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["activeTorrentCount"].Should().Be(0);
+        args["pausedTorrentCount"].Should().Be(0);
+        args["torrentCount"].Should().Be(0);
+        args["downloadSpeed"].Should().Be(0L);
+        args["uploadSpeed"].Should().Be(0L);
+
+        var cumulative = args["cumulative-stats"] as Dictionary<string, object>;
+        cumulative.Should().NotBeNull();
+        cumulative!["downloadedBytes"].Should().Be(0L);
+        cumulative["uploadedBytes"].Should().Be(0L);
+        cumulative["filesAdded"].Should().Be(0);
+        cumulative["sessionCount"].Should().Be(1);
+
+        var current = args["current-stats"] as Dictionary<string, object>;
+        current.Should().NotBeNull();
+        current!["downloadedBytes"].Should().Be(0L);
+        current["uploadedBytes"].Should().Be(0L);
+        current["filesAdded"].Should().Be(0);
+        current["sessionCount"].Should().Be(1);
+    }
 }
