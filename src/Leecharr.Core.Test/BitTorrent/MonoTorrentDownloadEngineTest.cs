@@ -240,6 +240,74 @@ public class MonoTorrentDownloadEngineTest
         monoEngine.Should().NotBeNull();
         monoEngine!.PeerId.Text.Should().StartWith("-qB4420-");
         monoEngine.PeerId.Text.Length.Should().Be(20);
+        monoEngine.PeerId.Text.Should().NotContain("MO3002");
+
+        var connMgrProp = typeof(ClientEngine).GetProperty("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var connMgrField = typeof(ClientEngine).GetField("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? typeof(ClientEngine).GetField("<ConnectionManager>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var connMgr = connMgrProp?.GetValue(monoEngine) ?? connMgrField?.GetValue(monoEngine);
+        connMgr.Should().NotBeNull();
+
+        var localPeerIdProp = connMgr!.GetType().GetProperty("LocalPeerId", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var localPeerIdField = connMgr.GetType().GetField("<LocalPeerId>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? connMgr.GetType().GetField("LocalPeerId", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var localPeerId = (localPeerIdProp?.GetValue(connMgr) ?? localPeerIdField?.GetValue(connMgr)) as MonoTorrent.BEncoding.BEncodedString;
+        localPeerId.Should().NotBeNull();
+        localPeerId!.Text.Should().StartWith("-qB4420-");
+        localPeerId.Text.Should().NotContain("MO3002");
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_UpdatesPeerIdAndConnectionManager()
+    {
+        this.configService.PeerIdPrefix.Returns("-qB4420-");
+        this.configService.BitTorrentUserAgent.Returns("qBittorrent/4.4.2");
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine!.PeerId.Text.Should().StartWith("-qB4420-");
+
+        // Update to Deluge preset
+        this.configService.PeerIdPrefix.Returns("-DE2050-");
+        this.configService.BitTorrentUserAgent.Returns("Deluge/2.0.5 libtorrent/1.2.14.0");
+
+        this.engine.Handle(new ConfigSavedEvent());
+
+        monoEngine.PeerId.Text.Should().StartWith("-DE2050-");
+        monoEngine.PeerId.Text.Should().NotContain("MO3002");
+
+        var connMgrProp = typeof(ClientEngine).GetProperty("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var connMgrField = typeof(ClientEngine).GetField("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? typeof(ClientEngine).GetField("<ConnectionManager>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var connMgr = connMgrProp?.GetValue(monoEngine) ?? connMgrField?.GetValue(monoEngine);
+        var localPeerIdProp = connMgr!.GetType().GetProperty("LocalPeerId", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var localPeerIdField = connMgr.GetType().GetField("<LocalPeerId>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? connMgr.GetType().GetField("LocalPeerId", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var localPeerId = (localPeerIdProp?.GetValue(connMgr) ?? localPeerIdField?.GetValue(connMgr)) as MonoTorrent.BEncoding.BEncodedString;
+        localPeerId.Should().NotBeNull();
+        localPeerId!.Text.Should().StartWith("-DE2050-");
+        localPeerId.Text.Should().NotContain("MO3002");
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_WithInvalidOrLeakedPrefix_FallsBackToDefaultPreset()
+    {
+        this.configService.PeerIdPrefix.Returns("-MO3002-");
+        this.configService.BitTorrentUserAgent.Returns("MonoTorrent/3.0.2");
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.PeerId.Text.Should().StartWith("-qB4420-");
+        monoEngine.PeerId.Text.Should().NotContain("MO3002");
 
         await this.engine.StopAsync();
     }
