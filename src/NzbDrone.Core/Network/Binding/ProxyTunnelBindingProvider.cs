@@ -295,6 +295,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         // Read response headers up to \r\n\r\n
         var headerBytes = new List<byte>();
         var buffer = new byte[1];
+        var headersComplete = false;
 
         while (headerBytes.Count < 8192)
         {
@@ -312,8 +313,14 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
                 headerBytes[^2] == '\r' &&
                 headerBytes[^1] == '\n')
             {
+                headersComplete = true;
                 break;
             }
+        }
+
+        if (!headersComplete)
+        {
+            throw new InvalidOperationException("HTTP CONNECT proxy response headers exceeded 8192 bytes without terminating \r\n\r\n delimiter.");
         }
 
         var responseText = Encoding.ASCII.GetString(headerBytes.ToArray());
