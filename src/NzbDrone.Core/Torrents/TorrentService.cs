@@ -34,6 +34,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly IQueueManagerService queueManagerService;
     private readonly IStoragePathService storagePathService;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly ITorrentLogService torrentLogService;
     private readonly Logger logger;
 
     public TorrentService(
@@ -47,7 +48,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         ITrackerEntryRepository trackerEntryRepository = null,
         IQueueManagerService queueManagerService = null,
         IStoragePathService storagePathService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        ITorrentLogService torrentLogService = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -60,6 +62,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.queueManagerService = queueManagerService;
         this.storagePathService = storagePathService;
         this.appFolderInfo = appFolderInfo;
+        this.torrentLogService = torrentLogService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -770,6 +773,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var old = torrent.Status;
             torrent.Status = TorrentStatus.Checking;
             this.torrentRepository.Update(torrent);
+            this.torrentLogService?.Log(id, "Info", "Engine", "Manual force recheck initiated. Verifying piece hashes on disk...");
 
             try
             {
@@ -778,6 +782,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error rechecking torrent in download engine {0}", id);
+                this.torrentLogService?.Log(id, "Warn", "Engine", $"Recheck failed: {ex.Message}");
             }
 
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = TorrentStatus.Checking });
@@ -786,13 +791,27 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task ForceAnnounceAsync(int id)
     {
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent != null)
+        {
+            this.torrentLogService?.Log(id, "Info", "Tracker", "Manual tracker update requested (announcing to all trackers...)");
+        }
+
         try
         {
             await this.downloadEngine.ForceAnnounceAsync(id);
+            if (torrent != null)
+            {
+                this.torrentLogService?.Log(id, "Info", "Tracker", "Tracker announce signal dispatched successfully");
+            }
         }
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Error announcing torrent in download engine {0}", id);
+            if (torrent != null)
+            {
+                this.torrentLogService?.Log(id, "Warn", "Tracker", $"Tracker announce failed: {ex.Message}");
+            }
         }
     }
 

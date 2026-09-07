@@ -67,6 +67,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly IDownloadEngine downloadEngine;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ITorrentCreationService torrentCreationService;
+    private readonly ITorrentLogService torrentLogService;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -78,7 +79,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         IGeoIpService geoIpService = null,
         IDownloadEngine downloadEngine = null,
         ISafeHttpClientService safeHttpClientService = null,
-        ITorrentCreationService torrentCreationService = null)
+        ITorrentCreationService torrentCreationService = null,
+        ITorrentLogService torrentLogService = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -90,6 +92,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.downloadEngine = downloadEngine;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.torrentCreationService = torrentCreationService;
+        this.torrentLogService = torrentLogService;
     }
 
     [HttpGet]
@@ -429,6 +432,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             this.trackerEntryRepository.Update(tracker);
         }
 
+        this.torrentLogService?.Log(id, "Info", "Tracker", "Manual tracker update requested (announcing to all active trackers...)");
         await this.torrentService.ForceAnnounceAsync(id);
         return this.Ok(new { success = true, message = "Announce triggered successfully" });
     }
@@ -442,56 +446,93 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound();
         }
 
-        var list = new List<TorrentEventLogResource>();
-        var logId = 1;
-
-        list.Add(new TorrentEventLogResource
+        var entries = this.torrentLogService?.GetLogs(id, count);
+        if (entries == null || entries.Count == 0)
         {
-            Id = logId++,
-            TorrentId = id,
-            Level = "Info",
-            Source = "Engine",
-            Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
-            Timestamp = torrent.DateAdded,
-        });
+            if (this.torrentLogService != null)
+            {
+                this.torrentLogService.Log(
+                    id,
+                    "Info",
+                    "Engine",
+                    $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
+                    torrent.DateAdded);
 
-        if (!string.IsNullOrWhiteSpace(torrent.SavePath))
+                if (!string.IsNullOrWhiteSpace(torrent.SavePath))
+                {
+                    this.torrentLogService.Log(
+                        id,
+                        "Info",
+                        "Storage",
+                        $"Storage allocation configured at '{torrent.SavePath}'",
+                        torrent.DateAdded.AddSeconds(1));
+                }
+
+                if (torrent.DateCompleted.HasValue)
+                {
+                    this.torrentLogService.Log(
+                        id,
+                        "Info",
+                        "Download",
+                        "Torrent download completed (100% verified)",
+                        torrent.DateCompleted.Value);
+                }
+
+                entries = this.torrentLogService.GetLogs(id, count);
+            }
+        }
+
+        var resources = (entries ?? Array.Empty<TorrentEventLog>()).Select(e => new TorrentEventLogResource
         {
-            list.Add(new TorrentEventLogResource
+            Id = e.Id,
+            TorrentId = e.TorrentId,
+            Level = e.Level,
+            Source = e.Source,
+            Message = e.Message,
+            Timestamp = e.Timestamp,
+        }).ToList();
+
+        if (resources.Count == 0)
+        {
+            var logId = 1;
+            resources.Add(new TorrentEventLogResource
             {
                 Id = logId++,
                 TorrentId = id,
                 Level = "Info",
-                Source = "Storage",
-                Message = $"Storage allocation configured at '{torrent.SavePath}'",
-                Timestamp = torrent.DateAdded.AddSeconds(1),
+                Source = "Engine",
+                Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
+                Timestamp = torrent.DateAdded,
             });
-        }
 
-        if (torrent.DateCompleted.HasValue)
-        {
-            list.Add(new TorrentEventLogResource
+            if (!string.IsNullOrWhiteSpace(torrent.SavePath))
             {
-                Id = logId++,
-                TorrentId = id,
-                Level = "Info",
-                Source = "Download",
-                Message = "Torrent download completed (100% verified)",
-                Timestamp = torrent.DateCompleted.Value,
-            });
+                resources.Add(new TorrentEventLogResource
+                {
+                    Id = logId++,
+                    TorrentId = id,
+                    Level = "Info",
+                    Source = "Storage",
+                    Message = $"Storage allocation configured at '{torrent.SavePath}'",
+                    Timestamp = torrent.DateAdded.AddSeconds(1),
+                });
+            }
+
+            if (torrent.DateCompleted.HasValue)
+            {
+                resources.Add(new TorrentEventLogResource
+                {
+                    Id = logId++,
+                    TorrentId = id,
+                    Level = "Info",
+                    Source = "Download",
+                    Message = "Torrent download completed (100% verified)",
+                    Timestamp = torrent.DateCompleted.Value,
+                });
+            }
         }
 
-        list.Add(new TorrentEventLogResource
-        {
-            Id = logId++,
-            TorrentId = id,
-            Level = torrent.Status == TorrentStatus.Error ? "Error" : "Info",
-            Source = "Peers",
-            Message = $"Current state: {torrent.Status} (Progress: {torrent.Progress * 100:F1}%, DL: {torrent.DownloadSpeed / 1024} KB/s, UL: {torrent.UploadSpeed / 1024} KB/s, Seeds: {torrent.Seeders}, Peers: {torrent.Leechers})",
-            Timestamp = DateTime.UtcNow,
-        });
-
-        return this.Ok(list);
+        return this.Ok(resources);
     }
 
     [HttpPost]
