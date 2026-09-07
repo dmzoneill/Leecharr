@@ -22,6 +22,7 @@ public class NotificationEventHandlerTest
     private IWebhookDispatcher webhookDispatcher = null!;
     private ICustomScriptService customScriptService = null!;
     private IConfigService configService = null!;
+    private IMediaEnrichmentService mediaEnrichmentService = null!;
     private NotificationEventHandler handler = null!;
 
     [SetUp]
@@ -31,12 +32,14 @@ public class NotificationEventHandlerTest
         this.webhookDispatcher = Substitute.For<IWebhookDispatcher>();
         this.customScriptService = Substitute.For<ICustomScriptService>();
         this.configService = Substitute.For<IConfigService>();
+        this.mediaEnrichmentService = Substitute.For<IMediaEnrichmentService>();
 
         this.handler = new NotificationEventHandler(
             this.notificationRepository,
             this.webhookDispatcher,
             this.customScriptService,
-            this.configService);
+            this.configService,
+            this.mediaEnrichmentService);
     }
 
     [Test]
@@ -699,5 +702,191 @@ public class NotificationEventHandlerTest
                 payload != null &&
                 payload.GetType().GetProperty("text") != null &&
                 ((string)payload.GetType().GetProperty("text")!.GetValue(payload)!).Contains("Slack Test Torrent")));
+    }
+
+    [Test]
+    public void BuildProviderPayload_Discord_WithoutMediaMetadata_ContainsTorrentDetailsAndStatus()
+    {
+        var torrent = new Torrent
+        {
+            Id = 90,
+            Name = "Inception.2010.1080p",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 2048 * 1024 * 1024L,
+        };
+
+        var payload = NotificationEventHandler.BuildProviderPayload("Discord", "OnGrab", torrent, null, null);
+
+        var embeds = (object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!;
+        embeds.Should().NotBeEmpty();
+        var embed = embeds[0];
+        var title = (string)embed.GetType().GetProperty("title")!.GetValue(embed)!;
+        var description = (string)embed.GetType().GetProperty("description")!.GetValue(embed)!;
+
+        title.Should().Be("[OnGrab] Inception.2010.1080p");
+        description.Should().Be("Category: Movies | Status: Downloading | Progress: 50.0% | Size: 2048.00 MB");
+    }
+
+    [Test]
+    public void BuildProviderPayload_Discord_WithMediaMetadataOverview_PreservesTorrentDetailsAndAppendsOverview()
+    {
+        var torrent = new Torrent
+        {
+            Id = 91,
+            Name = "Interstellar.2014.2160p",
+            Category = "Movies (4K)",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            TotalSize = 15360 * 1024 * 1024L,
+        };
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 91,
+            Title = "Interstellar",
+            Year = 2014,
+            Overview = "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+        };
+
+        var payload = NotificationEventHandler.BuildProviderPayload("Discord", "OnDownloadComplete", torrent, meta, null);
+
+        var embeds = (object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!;
+        embeds.Should().NotBeEmpty();
+        var embed = embeds[0];
+        var title = (string)embed.GetType().GetProperty("title")!.GetValue(embed)!;
+        var description = (string)embed.GetType().GetProperty("description")!.GetValue(embed)!;
+
+        title.Should().Be("[OnDownloadComplete] Interstellar.2014.2160p");
+        description.Should().StartWith("Category: Movies (4K) | Status: Seeding | Progress: 100.0% | Size: 15360.00 MB\n\n");
+        description.Should().Contain("A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.");
+    }
+
+    [Test]
+    public void BuildProviderPayload_Discord_WithEmptyMediaMetadataOverview_ContainsOnlyTorrentDetails()
+    {
+        var torrent = new Torrent
+        {
+            Id = 92,
+            Name = "Test.Torrent.2024",
+            Category = "Default",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.25,
+            TotalSize = 1024 * 1024 * 1024L,
+        };
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 92,
+            Title = "Test Torrent",
+            Overview = "   ",
+        };
+
+        var payload = NotificationEventHandler.BuildProviderPayload("Discord", "OnGrab", torrent, meta, null);
+
+        var embeds = (object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!;
+        var embed = embeds[0];
+        var description = (string)embed.GetType().GetProperty("description")!.GetValue(embed)!;
+
+        description.Should().Be("Category: Default | Status: Downloading | Progress: 25.0% | Size: 1024.00 MB");
+    }
+
+    [Test]
+    public void BuildProviderPayload_Discord_WhenTorrentNull_UsesGenericPayloadMessageAndOverview()
+    {
+        var meta = new TorrentMediaMetadata
+        {
+            Overview = "System overview details.",
+        };
+
+        var genericPayload = new { Message = "Disk usage is 95%" };
+
+        var payload = NotificationEventHandler.BuildProviderPayload("Discord", "OnHealthIssue", null, meta, genericPayload);
+
+        var embeds = (object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!;
+        var embed = embeds[0];
+        var title = (string)embed.GetType().GetProperty("title")!.GetValue(embed)!;
+        var description = (string)embed.GetType().GetProperty("description")!.GetValue(embed)!;
+
+        title.Should().Be("[OnHealthIssue] Disk usage is 95%");
+        description.Should().Be("Disk usage is 95%\n\nSystem overview details.");
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenDiscordNotificationWithMediaEnrichment_DispatchesCombinedDetailsAndOverview()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 95,
+            Name = "Discord Channel",
+            Implementation = "Discord",
+            ConfigContract = "DiscordSettings",
+            Settings = "{\"url\":\"https://discord.com/api/webhooks/123/xyz\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 96,
+            Name = "Dune.Part.Two.2024.1080p",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.1,
+            TotalSize = 4096 * 1024 * 1024L,
+        };
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 96,
+            Title = "Dune: Part Two",
+            Year = 2024,
+            Overview = "Paul Atreides unites with Chani and the Fremen while seeking revenge.",
+        };
+
+        this.mediaEnrichmentService.GetMetadata(torrent.Id).Returns(meta);
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received().DispatchAsync(
+            "https://discord.com/api/webhooks/123/xyz",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                payload.GetType().GetProperty("embeds") != null &&
+                ((string)((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0].GetType().GetProperty("description")!.GetValue(((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0])!)
+                    .Contains("Category: Movies | Status: Downloading | Progress: 10.0% | Size: 4096.00 MB") &&
+                ((string)((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0].GetType().GetProperty("description")!.GetValue(((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0])!)
+                    .Contains("Paul Atreides unites with Chani and the Fremen while seeking revenge.")));
+    }
+
+    [Test]
+    public void SendEmailNotification_WithValidSettingsAndMediaMetadata_DoesNotThrow()
+    {
+        var torrent = new Torrent
+        {
+            Id = 97,
+            Name = "Oppenheimer.2023.2160p",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.8,
+            TotalSize = 8192 * 1024 * 1024L,
+        };
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 97,
+            Title = "Oppenheimer",
+            Overview = "The story of American scientist J. Robert Oppenheimer and his role in the Manhattan Project.",
+        };
+
+        var settings = "{\"server\":\"127.0.0.1\",\"port\":2525,\"to\":\"user@example.com\",\"from\":\"leecharr@example.com\"}";
+
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "OnGrab", torrent, meta, null);
+
+        act.Should().NotThrow();
     }
 }
