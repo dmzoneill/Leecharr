@@ -3,10 +3,17 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
@@ -28,7 +35,14 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     private readonly ConcurrentDictionary<int, TransmissionDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, long> torrentIdToTransmissionId = new();
     private readonly HashSet<int> torrentsHaltedByKillSwitch = new();
+
+    private readonly HttpClient httpClient;
+    private string transmissionSessionId = string.Empty;
+    private Process daemonProcess;
+    private CancellationTokenSource syncCts;
+    private Task syncLoopTask;
 
     private bool isRunning;
     private bool disposed;
@@ -44,7 +58,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     public string Description => "Isolated, lightweight Transmission daemon running on a local loopback socket. Maximum process isolation and low memory footprint.";
 
-    public bool IsAvailable => false;
+    public bool IsAvailable => CheckDaemonAvailability() || IsRpcEndpointConfigured();
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -77,23 +91,87 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
+
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            ConnectTimeout = TimeSpan.FromSeconds(5),
+        };
+
+        this.httpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(10),
+        };
     }
 
-    public Task<EngineHealthCheckResult> ProbeHealthAsync()
+    public async Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
-        return Task.FromResult(new EngineHealthCheckResult
+        var sw = Stopwatch.StartNew();
+        var rpcUrl = this.GetRpcUrl();
+        var checks = new List<string>();
+        var warnings = new List<string>();
+
+        try
         {
-            IsHealthy = false,
-            StatusMessage = "Engine backend is not implemented.",
-            DependencyChecks = new List<string>
+            var session = await this.SendRpcRequestAsync("session-get", new Dictionary<string, object>());
+            sw.Stop();
+
+            if (session.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args)
             {
-                "Transmission daemon sidecar: Not implemented",
-            },
-            Warnings = new List<string>
+                var ver = args.TryGetProperty("version", out var v) ? v.GetString() : "Unknown";
+                var rpcVer = args.TryGetProperty("rpc-version", out var rv) ? rv.GetInt32().ToString() : "Unknown";
+                var downloadDir = args.TryGetProperty("download-dir", out var dd) ? dd.GetString() : "Default";
+
+                checks.Add($"Transmission RPC reachable at {rpcUrl} (Latency: {sw.ElapsedMilliseconds} ms)");
+                checks.Add($"Daemon Version: {ver} (RPC Spec: v{rpcVer})");
+                checks.Add($"Default Download Directory: {downloadDir}");
+
+                return new EngineHealthCheckResult
+                {
+                    IsHealthy = true,
+                    StatusMessage = $"Transmission daemon is healthy and responding (v{ver}, {sw.ElapsedMilliseconds}ms).",
+                    DependencyChecks = checks,
+                    Warnings = warnings,
+                };
+            }
+
+            return new EngineHealthCheckResult
             {
-                "Transmission daemon engine is not implemented.",
-            },
-        });
+                IsHealthy = true,
+                StatusMessage = $"Transmission RPC responding at {rpcUrl} ({sw.ElapsedMilliseconds}ms).",
+                DependencyChecks = checks,
+                Warnings = warnings,
+            };
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            var daemonBinary = GetDaemonBinaryPath();
+            if (!string.IsNullOrWhiteSpace(daemonBinary))
+            {
+                checks.Add($"Transmission binary located: {daemonBinary}");
+                warnings.Add($"Daemon is not currently active on {rpcUrl}. It will be started automatically when the engine is activated.");
+
+                return new EngineHealthCheckResult
+                {
+                    IsHealthy = true,
+                    StatusMessage = $"Transmission daemon executable found ({Path.GetFileName(daemonBinary)}). Ready for auto-start.",
+                    DependencyChecks = checks,
+                    Warnings = warnings,
+                };
+            }
+
+            checks.Add($"Transmission RPC connection to {rpcUrl} failed: {ex.Message}");
+            warnings.Add("Neither a running Transmission daemon RPC endpoint nor a local transmission-daemon binary was detected.");
+
+            return new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"Transmission daemon is unavailable at {rpcUrl}.",
+                DependencyChecks = checks,
+                Warnings = warnings,
+            };
+        }
     }
 
     public async Task StartAsync()
@@ -103,9 +181,16 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             return;
         }
 
-        this.logger.Info("Starting Transmission daemon engine provider...");
+        this.logger.Info("Starting Transmission engine backend...");
+
+        // Ensure daemon process is running if binary is available
+        await this.EnsureDaemonRunningAsync();
+
         this.isRunning = true;
-        await Task.CompletedTask;
+        this.syncCts = new CancellationTokenSource();
+        this.syncLoopTask = Task.Run(() => this.PollDaemonStateLoopAsync(this.syncCts.Token));
+
+        this.logger.Info("Transmission engine started successfully.");
     }
 
     public async Task StopAsync()
@@ -115,11 +200,47 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             return;
         }
 
-        this.logger.Info("Stopping Transmission daemon engine provider...");
+        this.logger.Info("Stopping Transmission engine backend...");
         this.isRunning = false;
+
+        if (this.syncCts != null)
+        {
+            this.syncCts.Cancel();
+            try
+            {
+                if (this.syncLoopTask != null)
+                {
+                    await Task.WhenAny(this.syncLoopTask, Task.Delay(2000));
+                }
+            }
+            catch
+            {
+            }
+
+            this.syncCts.Dispose();
+            this.syncCts = null;
+        }
+
+        if (this.daemonProcess != null && !this.daemonProcess.HasExited)
+        {
+            try
+            {
+                this.daemonProcess.Kill(entireProcessTree: true);
+                this.daemonProcess.Dispose();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error terminating Transmission daemon child process.");
+            }
+            finally
+            {
+                this.daemonProcess = null;
+            }
+        }
+
         this.tasks.Clear();
         this.infoHashToId.Clear();
-        await Task.CompletedTask;
+        this.torrentIdToTransmissionId.Clear();
     }
 
     public async Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
@@ -129,11 +250,56 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             await this.StartAsync();
         }
 
+        var savePath = this.ResolveSavePath(torrent);
         var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
 
-        this.logger.Info("Transmission: Ingested torrent {0} ({1})", torrent.Name, torrent.InfoHash);
+        try
+        {
+            var addArgs = new Dictionary<string, object>
+            {
+                ["download-dir"] = savePath,
+                ["paused"] = false,
+            };
+
+            if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+            {
+                addArgs["metainfo"] = Convert.ToBase64String(torrentFileBytes);
+            }
+            else if (!string.IsNullOrWhiteSpace(magnetUri))
+            {
+                addArgs["filename"] = magnetUri;
+            }
+            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+            {
+                addArgs["filename"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}";
+            }
+            else
+            {
+                addArgs["filename"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+            }
+
+            var response = await this.SendRpcRequestAsync("torrent-add", addArgs);
+            if (response.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args)
+            {
+                if (args.TryGetProperty("torrent-added", out var added) || args.TryGetProperty("torrent-duplicate", out added))
+                {
+                    if (added.TryGetProperty("id", out var idProp))
+                    {
+                        var transmissionId = idProp.GetInt64();
+                        this.torrentIdToTransmissionId[torrent.Id] = transmissionId;
+                    }
+                }
+            }
+
+            this.logger.Info("Transmission: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to dispatch torrent-add to Transmission daemon for {0}. Ingested in local state.", torrent.Name);
+        }
+
         return task;
     }
 
@@ -142,10 +308,30 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         if (this.tasks.TryRemove(torrentId, out var task))
         {
             this.infoHashToId.TryRemove(task.InfoHash, out _);
+
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-remove", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                        ["delete-local-data"] = deleteFiles,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error dispatching torrent-remove to Transmission for {0}", task.InfoHash);
+            }
+            finally
+            {
+                this.torrentIdToTransmissionId.TryRemove(torrentId, out _);
+            }
+
             this.logger.Info("Transmission: Removed torrent {0} (deleteFiles: {1})", task.InfoHash, deleteFiles);
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task PauseTorrentAsync(int torrentId)
@@ -153,10 +339,24 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Paused;
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error dispatching torrent-stop to Transmission for id {0}", torrentId);
+            }
+
             this.logger.Info("Transmission: Paused torrent id {0}", torrentId);
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task ResumeTorrentAsync(int torrentId)
@@ -169,11 +369,25 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            task.Status = TorrentStatus.Downloading;
+            task.Status = task.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-start", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error dispatching torrent-start to Transmission for id {0}", torrentId);
+            }
+
             this.logger.Info("Transmission: Resumed torrent id {0}", torrentId);
         }
-
-        await Task.CompletedTask;
     }
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
@@ -193,6 +407,17 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 }
             }
         }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>());
+            }
+            catch
+            {
+            }
+        });
     }
 
     public void Handle(VpnInterfaceRestoredEvent message)
@@ -207,6 +432,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 if (this.tasks.TryGetValue(torrentId, out var task) && task.Status == TorrentStatus.Paused)
                 {
                     task.Status = task.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
+                    _ = this.ResumeTorrentAsync(torrentId);
                 }
             }
 
@@ -219,52 +445,191 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.Status = TorrentStatus.Checking;
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-verify", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error dispatching torrent-verify for id {0}", torrentId);
+            }
+
             this.logger.Info("Transmission: Triggered verify for torrent id {0}", torrentId);
+        }
+    }
+
+    public async Task ForceAnnounceAsync(int torrentId)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-reannounce", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error dispatching torrent-reannounce for id {0}", torrentId);
+            }
+        }
+    }
+
+    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                        ["trackerAdd"] = trackers.ToArray(),
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error adding trackers in Transmission for {0}", torrentId);
+            }
+        }
+    }
+
+    public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Debug("Transmission: Remove trackers triggered for torrent id {0}", torrentId);
         }
 
         await Task.CompletedTask;
     }
 
-    public async Task ForceAnnounceAsync(int torrentId)
+    public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
-        this.logger.Debug("Transmission: Reannounce triggered for torrent id {0}", torrentId);
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
+        }
+
         await Task.CompletedTask;
     }
 
-    public Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
     {
-        this.logger.Debug("Transmission: Add trackers triggered for torrent id {0}", torrentId);
-        return Task.CompletedTask;
+        try
+        {
+            var args = new Dictionary<string, object>();
+            if (maxDownloadKbps > 0)
+            {
+                args["speed-limit-down"] = maxDownloadKbps;
+                args["speed-limit-down-enabled"] = true;
+            }
+            else
+            {
+                args["speed-limit-down-enabled"] = false;
+            }
+
+            if (maxUploadKbps > 0)
+            {
+                args["speed-limit-up"] = maxUploadKbps;
+                args["speed-limit-up-enabled"] = true;
+            }
+            else
+            {
+                args["speed-limit-up-enabled"] = false;
+            }
+
+            await this.SendRpcRequestAsync("session-set", args);
+            this.logger.Info("Transmission: Set global rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error setting rate limits in Transmission");
+        }
     }
 
-    public Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
     {
-        this.logger.Debug("Transmission: Remove trackers triggered for torrent id {0}", torrentId);
-        return Task.CompletedTask;
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    var args = new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                    };
+
+                    if (maxDownloadKbps > 0)
+                    {
+                        args["downloadLimit"] = maxDownloadKbps;
+                        args["downloadLimited"] = true;
+                    }
+                    else
+                    {
+                        args["downloadLimited"] = false;
+                    }
+
+                    if (maxUploadKbps > 0)
+                    {
+                        args["uploadLimit"] = maxUploadKbps;
+                        args["uploadLimited"] = true;
+                    }
+                    else
+                    {
+                        args["uploadLimited"] = false;
+                    }
+
+                    await this.SendRpcRequestAsync("torrent-set", args);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting torrent rate limits for id {0}", torrentId);
+            }
+        }
     }
 
-    public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
     {
-        this.logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
-        return Task.CompletedTask;
-    }
-
-    public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
-    {
-        this.logger.Debug("Transmission: Set rate limits: DL {0} KB/s, UL {1} KB/s", maxDownloadKbps, maxUploadKbps);
-        return Task.CompletedTask;
-    }
-
-    public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
-    {
-        this.logger.Debug("Transmission: Set per-torrent rate limits for {0}: DL {1} KB/s, UL {2} KB/s", torrentId, maxDownloadKbps, maxUploadKbps);
-        return Task.CompletedTask;
-    }
-
-    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
-    {
-        this.logger.Debug("Transmission: Move files for torrent {0} to '{1}'", torrentId, newSavePath);
-        return Task.CompletedTask;
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-set-location", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                        ["location"] = newSavePath,
+                        ["move"] = true,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error moving files for torrent {0}", torrentId);
+            }
+        }
     }
 
     public IDownloadTask GetTask(int torrentId)
@@ -276,34 +641,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
         return this.tasks.Values;
-    }
-
-    private static bool CheckDaemonAvailability()
-    {
-        try
-        {
-            var customPath = Environment.GetEnvironmentVariable("TRANSMISSION_DAEMON_PATH");
-            if (!string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath))
-            {
-                return true;
-            }
-
-            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-            foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var full = Path.Combine(dir, "transmission-daemon");
-                if (File.Exists(full) || File.Exists(full + ".exe"))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     public TorrentEngineMetrics GetEngineMetrics() => new()
@@ -319,16 +656,262 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         this.tasks.TryGetValue(torrentId, out var task) ? task.GetResourceMetrics() : null;
 
     public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics() =>
-        System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(this.tasks.Values, t => t.GetResourceMetrics()));
+        this.tasks.Values.Select(t => t.GetResourceMetrics()).ToList();
 
     public void Dispose()
     {
         if (!this.disposed)
         {
             this.disposed = true;
-            this.tasks.Clear();
-            this.infoHashToId.Clear();
+            this.StopAsync().GetAwaiter().GetResult();
+            this.httpClient.Dispose();
         }
+    }
+
+    private async Task PollDaemonStateLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var fields = new[]
+                {
+                    "id", "hashString", "name", "status", "percentDone",
+                    "rateDownload", "rateUpload", "peersConnected", "peersSendingToUs",
+                    "peersGettingFromUs", "totalSize", "downloadedEver", "uploadedEver",
+                    "pieceCount", "pieces",
+                };
+
+                var response = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
+                {
+                    ["fields"] = fields,
+                });
+
+                if (response.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
+                {
+                    foreach (var item in torrentsArray.EnumerateArray())
+                    {
+                        var hash = item.TryGetProperty("hashString", out var h) ? h.GetString() : null;
+                        if (string.IsNullOrWhiteSpace(hash) || !this.infoHashToId.TryGetValue(hash, out var torrentId))
+                        {
+                            continue;
+                        }
+
+                        if (item.TryGetProperty("id", out var transId))
+                        {
+                            this.torrentIdToTransmissionId[torrentId] = transId.GetInt64();
+                        }
+
+                        if (this.tasks.TryGetValue(torrentId, out var task))
+                        {
+                            task.Progress = item.TryGetProperty("percentDone", out var pd) ? pd.GetDouble() : task.Progress;
+                            task.DownloadSpeed = item.TryGetProperty("rateDownload", out var rd) ? rd.GetInt64() : 0;
+                            task.UploadSpeed = item.TryGetProperty("rateUpload", out var ru) ? ru.GetInt64() : 0;
+                            task.DownloadedBytes = item.TryGetProperty("downloadedEver", out var de) ? de.GetInt64() : task.DownloadedBytes;
+                            task.UploadedBytes = item.TryGetProperty("uploadedEver", out var ue) ? ue.GetInt64() : task.UploadedBytes;
+
+                            var statusCode = item.TryGetProperty("status", out var st) ? st.GetInt32() : 0;
+                            task.Status = statusCode switch
+                            {
+                                0 => TorrentStatus.Paused,
+                                1 => TorrentStatus.Checking,
+                                2 => TorrentStatus.Checking,
+                                3 => TorrentStatus.Queued,
+                                4 => TorrentStatus.Downloading,
+                                5 => TorrentStatus.Queued,
+                                6 => TorrentStatus.Seeding,
+                                _ => TorrentStatus.Downloading,
+                            };
+
+                            if (item.TryGetProperty("peersSendingToUs", out var seeds))
+                            {
+                                task.ConnectedSeeders = seeds.GetInt32();
+                            }
+
+                            if (item.TryGetProperty("peersGettingFromUs", out var leechers))
+                            {
+                                task.ConnectedLeechers = leechers.GetInt32();
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Daemon poll sync error, will retry on next tick
+            }
+
+            try
+            {
+                await Task.Delay(1000, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    private async Task<Dictionary<string, object>> SendRpcRequestAsync(string method, Dictionary<string, object> arguments)
+    {
+        var rpcUrl = this.GetRpcUrl();
+        var payload = new Dictionary<string, object>
+        {
+            ["method"] = method,
+            ["arguments"] = arguments,
+            ["tag"] = Random.Shared.Next(1, 1000000),
+        };
+
+        var json = payload.ToJson();
+        using var request = new HttpRequestMessage(HttpMethod.Post, rpcUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+
+        if (!string.IsNullOrWhiteSpace(this.transmissionSessionId))
+        {
+            request.Headers.TryAddWithoutValidation("X-Transmission-Session-Id", this.transmissionSessionId);
+        }
+
+        var response = await this.httpClient.SendAsync(request);
+
+        // Transmission CSRF token handshake (409 Conflict)
+        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            if (response.Headers.TryGetValues("X-Transmission-Session-Id", out var values))
+            {
+                this.transmissionSessionId = values.FirstOrDefault() ?? string.Empty;
+
+                using var retryRequest = new HttpRequestMessage(HttpMethod.Post, rpcUrl)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json"),
+                };
+                retryRequest.Headers.TryAddWithoutValidation("X-Transmission-Session-Id", this.transmissionSessionId);
+
+                var retryResponse = await this.httpClient.SendAsync(retryRequest);
+                retryResponse.EnsureSuccessStatusCode();
+                var retryContent = await retryResponse.Content.ReadAsStringAsync();
+                return retryContent.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+            }
+        }
+
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        return content.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+    }
+
+    private List<object> GetRpcIdsForTorrent(int torrentId, string infoHash)
+    {
+        var list = new List<object>();
+        if (this.torrentIdToTransmissionId.TryGetValue(torrentId, out var transId))
+        {
+            list.Add(transId);
+        }
+        else if (!string.IsNullOrWhiteSpace(infoHash))
+        {
+            list.Add(infoHash);
+        }
+
+        return list;
+    }
+
+    private string GetRpcUrl()
+    {
+        var envUrl = Environment.GetEnvironmentVariable("TRANSMISSION_RPC_URL");
+        if (!string.IsNullOrWhiteSpace(envUrl))
+        {
+            return envUrl;
+        }
+
+        return "http://127.0.0.1:9091/transmission/rpc";
+    }
+
+    private static bool IsRpcEndpointConfigured()
+    {
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRANSMISSION_RPC_URL"));
+    }
+
+    private static bool CheckDaemonAvailability()
+    {
+        try
+        {
+            var binary = GetDaemonBinaryPath();
+            return !string.IsNullOrWhiteSpace(binary);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetDaemonBinaryPath()
+    {
+        var customPath = Environment.GetEnvironmentVariable("TRANSMISSION_DAEMON_PATH");
+        if (!string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath))
+        {
+            return customPath;
+        }
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var full = Path.Combine(dir, "transmission-daemon");
+            if (File.Exists(full) || File.Exists(full + ".exe"))
+            {
+                return full;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task EnsureDaemonRunningAsync()
+    {
+        var binary = GetDaemonBinaryPath();
+        if (string.IsNullOrWhiteSpace(binary))
+        {
+            return;
+        }
+
+        try
+        {
+            // Test if already answering
+            await this.SendRpcRequestAsync("session-get", new Dictionary<string, object>());
+            return;
+        }
+        catch
+        {
+            // Start daemon child process
+        }
+
+        try
+        {
+            var configDir = Path.Combine(Path.GetTempPath(), "leecharr-transmission");
+            Directory.CreateDirectory(configDir);
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = binary,
+                Arguments = $"--foreground --config-dir \"{configDir}\" --port 9091 --allowed 127.0.0.1,::1",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            this.daemonProcess = Process.Start(startInfo);
+            await Task.Delay(500);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to start transmission-daemon child process automatically.");
+        }
+    }
+
+    private string ResolveSavePath(Torrent torrent)
+    {
+        var defaultCompletedDir = this.storagePathService.GetCompletedDirectory(torrent.Category);
+        return this.categoryService.GetSavePathForCategory(torrent.Category, defaultCompletedDir);
     }
 }
 
