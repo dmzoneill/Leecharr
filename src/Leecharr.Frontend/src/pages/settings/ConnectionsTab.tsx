@@ -41,6 +41,7 @@ export function ConnectionsTab() {
     name: "Sonarr",
     arrType: "Sonarr",
     url: "http://localhost:8989",
+    externalUrl: "",
     apiKey: "",
     enable: true,
     syncEnabled: true,
@@ -180,15 +181,15 @@ export function ConnectionsTab() {
               onClick={() => handleOpenModal(conn)}
             >
               <div className="provider-card-actions">
-                {conn.url && (
+                {(conn.externalUrl || conn.url) && (
                   <a
-                    href={conn.url}
+                    href={conn.externalUrl || conn.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="provider-card-action"
                     title={t("settingsTabs.connections.openWebUI", {
                       name: conn.name,
-                      url: conn.url,
+                      url: conn.externalUrl || conn.url,
                     })}
                     onClick={(e) => e.stopPropagation()}
                     style={{ textDecoration: "none", color: "inherit" }}
@@ -267,7 +268,14 @@ export function ConnectionsTab() {
                   </span>
                 )}
               </div>
-              <div className="provider-card-info">{conn.url}</div>
+              <div className="provider-card-info">
+                {conn.url}
+                {conn.externalUrl && conn.externalUrl !== conn.url && (
+                  <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "2px" }}>
+                    ↳ {conn.externalUrl}
+                  </div>
+                )}
+              </div>
               {testResults[conn.id]?.success === true && (
                 <div className="provider-card-test provider-card-test-ok">
                   {t("settingsTabs.indexers.connectionPassed")}
@@ -355,6 +363,18 @@ export function ConnectionsTab() {
               value={editing.url || ""}
               onChange={(v) => setEditing({ ...editing, url: v })}
               placeholder="http://localhost:8989"
+            />
+            <TextInput
+              label={t("settings.externalUrl", "Public / External URL (Optional)")}
+              value={editing.externalUrl || ""}
+              onChange={(v) =>
+                setEditing({ ...editing, externalUrl: v, publicUrl: v })
+              }
+              placeholder="http://my-domain.com:8989"
+              hint={t(
+                "settings.externalUrlHint",
+                "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely while using internal container addresses).",
+              )}
             />
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
