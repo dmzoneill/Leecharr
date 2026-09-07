@@ -570,6 +570,144 @@ public class TagLibInspectorProviderTest
         sdhInfo.Height.Should().Be(1080);
     }
 
+    [Test]
+    public void Inspect_FlacStream_ExtractsStreamInfoAndCalculatesDuration()
+    {
+        // 44.1kHz, stereo (2ch), 16-bit, 882,000 samples = 20.0 seconds
+        var flacData = CreateFlacHeader(44100, 2, 16, 882000L);
+        using var ms = new MemoryStream(flacData);
+
+        var result = this.provider.Inspect(ms, "track.flac");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("FLAC");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioSampleRate.Should().Be(44100);
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioBitDepth.Should().Be(16);
+        result.DurationSeconds.Should().BeApproximately(20.0, 0.001);
+    }
+
+    [Test]
+    public void Inspect_FlacStream_MultiChannelHiRes_ExtractsMetadataAccurately()
+    {
+        // 96kHz, 5.1 surround (6ch), 24-bit, 4,800,000 samples = 50.0 seconds
+        var flacData = CreateFlacHeader(96000, 6, 24, 4800000L);
+        using var ms = new MemoryStream(flacData);
+
+        var result = this.provider.Inspect(ms, "album.flac");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("FLAC");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioSampleRate.Should().Be(96000);
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioBitDepth.Should().Be(24);
+        result.DurationSeconds.Should().BeApproximately(50.0, 0.001);
+    }
+
+    [Test]
+    public void Inspect_FlacStream_WithHeaderShorterThan26_ExtractsAudioPropertiesWithoutDuration()
+    {
+        var flacData = CreateFlacHeader(48000, 8, 24, 0);
+        var truncated = new byte[23];
+        Array.Copy(flacData, 0, truncated, 0, 23);
+
+        using var ms = new MemoryStream(truncated);
+        var result = this.provider.Inspect(ms, "truncated.flac");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("FLAC");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioSampleRate.Should().Be(48000);
+        result.AudioChannels.Should().Be("7.1");
+        result.AudioBitDepth.Should().Be(24);
+        result.DurationSeconds.Should().Be(0.0);
+    }
+
+    [Test]
+    public void Inspect_FlacStream_WithHeaderShorterThan22_LeavesAudioPropertiesUnpopulated()
+    {
+        var truncated = new byte[15];
+        truncated[0] = (byte)'f';
+        truncated[1] = (byte)'L';
+        truncated[2] = (byte)'a';
+        truncated[3] = (byte)'C';
+
+        using var ms = new MemoryStream(truncated);
+        var result = this.provider.Inspect(ms, "headeronly.flac");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("FLAC");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioSampleRate.Should().Be(0);
+        result.AudioChannels.Should().BeNull();
+        result.AudioBitDepth.Should().Be(0);
+        result.DurationSeconds.Should().Be(0.0);
+    }
+
+    [Test]
+    public void Inspect_FlacWithId3Tag_ParsesTrailingFlacStreamInfoAndDuration()
+    {
+        var flacData = CreateFlacHeader(44100, 2, 16, 441000L); // 10.0 seconds
+        var id3Tag = new byte[20];
+        id3Tag[0] = (byte)'I';
+        id3Tag[1] = (byte)'D';
+        id3Tag[2] = (byte)'3';
+        id3Tag[3] = 0x03; // ID3v2.3
+        id3Tag[4] = 0x00;
+        id3Tag[5] = 0x00;
+        // Size: 10 bytes payload -> tagOffset = 10 + 10 = 20
+        id3Tag[6] = 0x00;
+        id3Tag[7] = 0x00;
+        id3Tag[8] = 0x00;
+        id3Tag[9] = 10;
+
+        using var ms = new MemoryStream();
+        ms.Write(id3Tag, 0, id3Tag.Length);
+        ms.Write(flacData, 0, flacData.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "tagged.flac");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("FLAC");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioSampleRate.Should().Be(44100);
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioBitDepth.Should().Be(16);
+        result.DurationSeconds.Should().BeApproximately(10.0, 0.001);
+    }
+
+    private static byte[] CreateFlacHeader(int sampleRate, int channels, int bitDepth, ulong totalSamples)
+    {
+        var data = new byte[32];
+
+        // 'fLaC' magic
+        data[0] = (byte)'f';
+        data[1] = (byte)'L';
+        data[2] = (byte)'a';
+        data[3] = (byte)'C';
+        data[4] = 0x00; // METADATA_BLOCK_HEADER
+        data[5] = 0x00;
+        data[6] = 0x00;
+        data[7] = 0x22; // 34 bytes
+
+        var chMinus1 = channels - 1;
+        var bpsMinus1 = bitDepth - 1;
+
+        data[18] = (byte)((sampleRate >> 12) & 0xFF);
+        data[19] = (byte)((sampleRate >> 4) & 0xFF);
+        data[20] = (byte)(((sampleRate & 0x0F) << 4) | ((chMinus1 & 0x07) << 1) | ((bpsMinus1 >> 4) & 0x01));
+        data[21] = (byte)(((bpsMinus1 & 0x0F) << 4) | (int)((totalSamples >> 32) & 0x0F));
+        data[22] = (byte)((totalSamples >> 24) & 0xFF);
+        data[23] = (byte)((totalSamples >> 16) & 0xFF);
+        data[24] = (byte)((totalSamples >> 8) & 0xFF);
+        data[25] = (byte)(totalSamples & 0xFF);
+
+        return data;
+    }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,
