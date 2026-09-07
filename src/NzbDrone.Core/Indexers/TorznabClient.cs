@@ -238,7 +238,8 @@ public class TorznabClient : ITorznabClient
                     ?? item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase))?.Attribute("href")?.Value
                     ?? string.Empty;
                 var enclosure = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("enclosure", StringComparison.OrdinalIgnoreCase));
-                var downloadUrl = enclosure?.Attribute("url")?.Value ?? link;
+                var enclosureUrl = enclosure?.Attribute("url")?.Value;
+                var downloadUrl = !string.IsNullOrWhiteSpace(enclosureUrl) ? enclosureUrl : link;
 
                 var pubDateStr = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("pubDate", StringComparison.OrdinalIgnoreCase)
                     || e.Name.LocalName.Equals("published", StringComparison.OrdinalIgnoreCase)
