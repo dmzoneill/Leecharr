@@ -128,17 +128,25 @@ export function PieceMap({
     if (progress >= 1.0 || isSeeding) {
       return totalPieces;
     }
-    let count = 0;
-    for (let p = 0; p < totalPieces; p++) {
-      if (isPieceVerified(p)) {
-        count++;
-      }
+    if (livePieceData?.verifiedIndices && livePieceData.verifiedIndices.size > 0) {
+      return Math.min(totalPieces, livePieceData.verifiedIndices.size);
     }
-    if (count === 0 && progress > 0) {
+    if (bitfieldBytes && bitfieldBytes.length > 0) {
+      let count = 0;
+      for (let i = 0; i < bitfieldBytes.length; i++) {
+        let b = bitfieldBytes[i];
+        while (b > 0) {
+          b &= b - 1;
+          count++;
+        }
+      }
+      return Math.min(count, totalPieces);
+    }
+    if (progress > 0) {
       return Math.floor(progress * totalPieces);
     }
-    return count;
-  }, [progress, isSeeding, totalPieces, isPieceVerified]);
+    return 0;
+  }, [progress, isSeeding, totalPieces, livePieceData, bitfieldBytes]);
 
   const verifiedPercentage = useMemo(() => {
     if (progress >= 1.0 || isSeeding) {
