@@ -50,6 +50,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly INetworkBindingService networkBindingService;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly ITorrentLogService torrentLogService;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -73,6 +74,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
     public long BlockedPeersCount => Interlocked.Read(ref this.blockedPeersCount);
+
+    public int ActiveTorrentsCount => this.tasks.Count;
 
     public string ProtocolName => "BitTorrent";
 
@@ -163,7 +166,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         INatPmpPortMapperService natPmpPortMapperService = null,
         IVpnKillSwitchService vpnKillSwitchService = null,
         INetworkBindingService networkBindingService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        ITorrentLogService torrentLogService = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -175,6 +179,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.vpnKillSwitchService = vpnKillSwitchService;
         this.networkBindingService = networkBindingService;
         this.appFolderInfo = appFolderInfo;
+        this.torrentLogService = torrentLogService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -957,6 +962,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.isHaltedByKillSwitch)
         {
             this.logger.Warn("Cannot force announce torrent id {0}: VPN Kill Switch is active (fail-closed).", torrentId);
+            this.torrentLogService?.Log(torrentId, "Warn", "Tracker", "Cannot announce to tracker: VPN Kill Switch is active (fail-closed)");
             return;
         }
 
@@ -964,7 +970,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             if (task.Manager.TrackerManager != null)
             {
+                var trackerCount = task.Manager.TrackerManager.Tiers?.SelectMany(t => t.Trackers).Count() ?? 0;
                 await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                this.logger.Info("Dispatched announce request for torrent id {0} to {1} tracker(s)", torrentId, trackerCount);
+                this.torrentLogService?.Log(torrentId, "Info", "Tracker", $"Dispatched announce request to {trackerCount} tracker(s)");
             }
         }
     }
