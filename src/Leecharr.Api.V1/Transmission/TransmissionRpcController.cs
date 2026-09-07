@@ -1174,6 +1174,19 @@ public class TransmissionRpcController : ControllerBase
             piecesBase64 = Convert.ToBase64String(bytes);
         }
 
+        var rawSavePath = t.SavePath ?? string.Empty;
+        var downloadDir = rawSavePath;
+        if (!string.IsNullOrWhiteSpace(rawSavePath) && !string.IsNullOrWhiteSpace(t.Name))
+        {
+            var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var dirName = Path.GetFileName(trimmedSave);
+            if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(trimmedSave);
+                downloadDir = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            }
+        }
+
         var dict = new Dictionary<string, object>
         {
             { "id", t.Id },
@@ -1196,7 +1209,7 @@ public class TransmissionRpcController : ControllerBase
             { "peersSendingToUs", t.Seeders },
             { "peersGettingFromUs", t.Leechers },
             { "isFinished", t.Progress >= 1.0 },
-            { "downloadDir", t.SavePath ?? string.Empty },
+            { "downloadDir", downloadDir },
             { "labels", labels },
             { "errorString", isError ? "Error" : string.Empty },
             { "error", isError ? 3 : 0 },

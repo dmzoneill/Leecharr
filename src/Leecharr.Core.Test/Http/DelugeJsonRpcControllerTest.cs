@@ -684,4 +684,30 @@ public class DelugeJsonRpcControllerTest
 
         System.IO.File.Exists(tempPath).Should().BeFalse();
     }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithNestedSavePath_ResolvesSavePathCorrectly()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Spectre 2015",
+            InfoHash = "1234567890123456789012345678901234567890",
+            SavePath = "/downloads/Spectre 2015",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{},[\"name\",\"save_path\",\"download_location\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"save_path\":\"/downloads\"");
+        json.Should().Contain("\"download_location\":\"/downloads\"");
+    }
 }
