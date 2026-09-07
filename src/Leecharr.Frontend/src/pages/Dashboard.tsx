@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Torrent } from "../api/types";
 import {
   useArrConnections,
@@ -8,6 +8,7 @@ import {
   useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
+import { useTorrentStore } from "../stores/useTorrentStore";
 import { extractTrackerDomain } from "../utils/formatters";
 import { calculateAchievements } from "../utils/milestones";
 import { useTranslation } from "../i18n";
@@ -44,18 +45,62 @@ export const Dashboard: React.FC<DashboardProps> = ({
       0,
     ) || totalSize;
 
-  const totalDlSpeed = torrents.reduce(
-    (acc, t) => acc + (t.downloadSpeed || 0),
-    0,
-  );
-  const totalUlSpeed = torrents.reduce(
-    (acc, t) => acc + (t.uploadSpeed || 0),
-    0,
-  );
-  const avgRatio =
-    torrents.length > 0
-      ? torrents.reduce((acc, t) => acc + (t.ratio ?? 0), 0) / torrents.length
-      : 0;
+  const telemetry = useTorrentStore((state) => state.telemetry);
+
+  const {
+    totalDlSpeed,
+    totalUlSpeed,
+    downloadingCount,
+    seedingCount,
+    pausedCount,
+    avgRatio,
+  } = useMemo(() => {
+    let dl = 0;
+    let ul = 0;
+    let downloading = 0;
+    let seeding = 0;
+    let paused = 0;
+    let ratioSum = 0;
+
+    for (const t of torrents) {
+      const tel = telemetry[t.id];
+      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
+      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
+
+      dl += effectiveDl;
+      ul += effectiveUl;
+      ratioSum += effectiveRatio;
+
+      if (effectiveStatus === "downloading") {
+        downloading++;
+      } else if (
+        effectiveStatus === "seeding" ||
+        effectiveStatus === "completed"
+      ) {
+        seeding++;
+      } else if (
+        effectiveStatus === "paused" ||
+        effectiveStatus === "stopped" ||
+        effectiveStatus === "idle"
+      ) {
+        paused++;
+      }
+    }
+
+    const calculatedAvgRatio =
+      torrents.length > 0 ? ratioSum / torrents.length : 0;
+
+    return {
+      totalDlSpeed: dl,
+      totalUlSpeed: ul,
+      downloadingCount: downloading,
+      seedingCount: seeding,
+      pausedCount: paused,
+      avgRatio: calculatedAvgRatio,
+    };
+  }, [torrents, telemetry]);
 
   const speedsRef = useRef({ dl: totalDlSpeed, ul: totalUlSpeed });
   speedsRef.current = { dl: totalDlSpeed, ul: totalUlSpeed };
@@ -549,9 +594,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               {t("dashboard.downloadingCount", {
-                count: torrents.filter(
-                  (t) => (t.status || "").toLowerCase() === "downloading",
-                ).length,
+                count: downloadingCount,
               })}
             </div>
             <div
@@ -563,9 +606,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               {t("dashboard.seedingCount", {
-                count: torrents.filter(
-                  (t) => (t.status || "").toLowerCase() === "seeding",
-                ).length,
+                count: seedingCount,
               })}
             </div>
             <div
@@ -576,9 +617,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               {t("dashboard.pausedCount", {
-                count: torrents.filter(
-                  (t) => (t.status || "").toLowerCase() === "paused",
-                ).length,
+                count: pausedCount,
               })}
             </div>
           </div>
