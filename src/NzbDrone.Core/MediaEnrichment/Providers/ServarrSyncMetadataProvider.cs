@@ -40,10 +40,10 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         SupportsNfoParsing = false,
     };
 
-    public ServarrSyncMetadataProvider(IArrConnectionRepository arrRepository = null)
+    public ServarrSyncMetadataProvider(IArrConnectionRepository arrRepository = null, HttpClient httpClient = null)
     {
         this.arrRepository = arrRepository;
-        this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
     public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
@@ -150,35 +150,39 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var first = doc.RootElement[0];
         var meta = new MediaMetadata
         {
-            Title = first.TryGetProperty("title", out var t) ? t.GetString() : title,
-            Year = first.TryGetProperty("year", out var y) && y.TryGetInt32(out var yr) ? yr : 0,
-            Overview = first.TryGetProperty("overview", out var ov) ? ov.GetString() : string.Empty,
+            Title = first.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : title,
+            Year = first.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var yr) ? yr : 0,
+            Overview = first.TryGetProperty("overview", out var ov) && ov.ValueKind == JsonValueKind.String ? ov.GetString() : string.Empty,
             MediaType = isMovie ? "Movie" : isMusic ? "Music" : "TV",
         };
 
-        if (first.TryGetProperty("ratings", out var ratings) && ratings.TryGetProperty("value", out var rVal) && rVal.TryGetDouble(out var r))
+        if (first.TryGetProperty("ratings", out var ratings) &&
+            ratings.ValueKind == JsonValueKind.Object &&
+            ratings.TryGetProperty("value", out var rVal) &&
+            rVal.ValueKind == JsonValueKind.Number &&
+            rVal.TryGetDouble(out var r))
         {
             meta.Rating = r;
         }
 
-        if (first.TryGetProperty("imdbId", out var imdb))
+        if (first.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
         {
             meta.ImdbId = imdb.GetString();
         }
 
-        if (first.TryGetProperty("tmdbId", out var tmdb) && tmdb.TryGetInt32(out var tmdbInt))
+        if (first.TryGetProperty("tmdbId", out var tmdb) && tmdb.ValueKind == JsonValueKind.Number && tmdb.TryGetInt32(out var tmdbInt))
         {
             meta.TmdbId = tmdbInt.ToString();
         }
 
-        if (first.TryGetProperty("tvdbId", out var tvdb) && tvdb.TryGetInt32(out var tvdbInt))
+        if (first.TryGetProperty("tvdbId", out var tvdb) && tvdb.ValueKind == JsonValueKind.Number && tvdb.TryGetInt32(out var tvdbInt))
         {
             meta.TvdbId = tvdbInt.ToString();
         }
 
         if (first.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array)
         {
-            meta.Genres = string.Join(", ", g.EnumerateArray().Select(x => x.GetString()));
+            meta.Genres = string.Join(", ", g.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()));
         }
 
         if (first.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
