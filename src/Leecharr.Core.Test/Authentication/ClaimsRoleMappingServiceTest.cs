@@ -46,4 +46,56 @@ public class ClaimsRoleMappingServiceTest
         var fallbackRoles = this.service.ResolveRoles(provider, new List<string> { "random-group" }, false);
         Assert.That(fallbackRoles, Does.Contain("User"));
     }
+
+    [TestCase("admin")]
+    [TestCase("admins")]
+    [TestCase("leecharr-admins")]
+    [TestCase("ADMIN")]
+    [TestCase("Leecharr-Admins")]
+    public void ResolveRoles_WhenProviderIsNull_ShouldFallbackToDirectMatching(string adminGroup)
+    {
+        var roles = this.service.ResolveRoles(null, new List<string> { adminGroup }, false);
+
+        Assert.That(roles, Does.Contain("Admin"));
+    }
+
+    [TestCase("admin")]
+    [TestCase("admins")]
+    [TestCase("leecharr-admins")]
+    public void ResolveRoles_WhenRoleMappingRulesIsNullOrWhitespace_ShouldFallbackToDirectMatching(string adminGroup)
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            Name = "OIDC",
+            RoleMappingRules = null,
+        };
+
+        var roles = this.service.ResolveRoles(provider, new List<string> { adminGroup }, false);
+
+        Assert.That(roles, Does.Contain("Admin"));
+    }
+
+    [Test]
+    public void ResolveRoles_WhenGroupsContainNullOrWhitespace_ShouldFilterAndHandleSafely()
+    {
+        var roles = this.service.ResolveRoles(null, new List<string> { null, "   ", "admins", string.Empty }, false);
+
+        Assert.That(roles, Does.Contain("Admin"));
+    }
+
+    [Test]
+    public void ResolveRoles_WhenGroupsContainOnlyNullOrWhitespace_ShouldReturnUser()
+    {
+        var roles = this.service.ResolveRoles(null, new List<string> { null, "   ", string.Empty }, false);
+
+        Assert.That(roles, Does.Contain("User"));
+    }
+
+    [Test]
+    public void ResolveRoles_WhenNoMatch_ShouldReturnUser()
+    {
+        var roles = this.service.ResolveRoles(null, new List<string> { "developers", "testers" }, false);
+
+        Assert.That(roles, Does.Contain("User"));
+    }
 }
