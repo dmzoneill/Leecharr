@@ -1024,6 +1024,135 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_Mp3Stream_DoesNotPopulateHardcodedChannelsSampleRateOrBitDepth()
+    {
+        var mp3Data = new byte[64];
+        mp3Data[0] = 0xFF;
+        mp3Data[1] = 0xFB;
+
+        using var ms = new MemoryStream(mp3Data);
+        var result = this.provider.Inspect(ms, "track.mp3");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP3");
+        result.AudioCodec.Should().Be("MP3");
+        result.AudioChannels.Should().BeNull();
+        result.AudioSampleRate.Should().Be(0);
+        result.AudioBitDepth.Should().Be(0);
+    }
+
+    [Test]
+    public void Inspect_Mp3Stream_WithId3Tag_DoesNotPopulateHardcodedChannelsSampleRateOrBitDepth()
+    {
+        var id3Data = new byte[64];
+        id3Data[0] = (byte)'I';
+        id3Data[1] = (byte)'D';
+        id3Data[2] = (byte)'3';
+
+        using var ms = new MemoryStream(id3Data);
+        var result = this.provider.Inspect(ms, "song.mp3");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP3");
+        result.AudioCodec.Should().Be("MP3");
+        result.AudioChannels.Should().BeNull();
+        result.AudioSampleRate.Should().Be(0);
+        result.AudioBitDepth.Should().Be(0);
+    }
+
+    [Test]
+    public void InspectByFileName_WithMp3Extension_ReturnsMp3ContainerInfoWithoutHardcodedStreamProperties()
+    {
+        var result = TagLibInspectorProvider.InspectByFileName("podcast.mp3");
+
+        result.Should().NotBeNull();
+        result!.ContainerFormat.Should().Be("MP3");
+        result.AudioCodec.Should().Be("MP3");
+        result.AudioChannels.Should().BeNull();
+        result.AudioSampleRate.Should().Be(0);
+        result.AudioBitDepth.Should().Be(0);
+    }
+
+    [TestCase(48000, 1, "1.0", 48000)]
+    [TestCase(44100, 1, "1.0", 44100)]
+    [TestCase(32000, 1, "1.0", 32000)]
+    [TestCase(48000, 2, "2.0", 48000)]
+    [TestCase(44100, 2, "2.0", 44100)]
+    [TestCase(32000, 2, "2.0", 32000)]
+    public void InspectFile_Mp3_AccuratelyPopulatesTagLibProperties(int sampleRate, int channels, string expectedChannels, int expectedSampleRate)
+    {
+        var mp3Bytes = CreateMp3Data(sampleRate, channels, frameCount: 20);
+        var tempFile = Path.Combine(Path.GetTempPath(), $"leecharr_test_{Guid.NewGuid():N}.mp3");
+
+        try
+        {
+            File.WriteAllBytes(tempFile, mp3Bytes);
+
+            var result = this.provider.InspectFile(tempFile);
+
+            result.Should().NotBeNull();
+            result.ContainerFormat.Should().Be("MP3");
+            result.AudioChannels.Should().Be(expectedChannels);
+            result.AudioSampleRate.Should().Be(expectedSampleRate);
+            result.AudioCodec.Should().NotBeNullOrEmpty();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    private static byte[] CreateMp3Data(int sampleRate, int channels, int frameCount = 10)
+    {
+        using var ms = new MemoryStream();
+
+        // ID3v2 header (10 bytes): 'ID3', version 2.3, flags 0, tag size 10 (syncsafe)
+        ms.Write(Encoding.ASCII.GetBytes("ID3"));
+        ms.WriteByte(3);
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x0A });
+        ms.Write(new byte[10]);
+
+        byte sampleRateBits;
+        int frameSize;
+        int bitrate = 128000;
+        switch (sampleRate)
+        {
+            case 48000:
+                sampleRateBits = 0x01;
+                frameSize = 144 * bitrate / 48000;
+                break;
+            case 32000:
+                sampleRateBits = 0x02;
+                frameSize = 144 * bitrate / 32000;
+                break;
+            case 44100:
+            default:
+                sampleRateBits = 0x00;
+                frameSize = 144 * bitrate / 44100;
+                break;
+        }
+
+        byte channelBits = channels == 1 ? (byte)0x03 : (byte)0x00;
+
+        for (int i = 0; i < frameCount; i++)
+        {
+            var frame = new byte[frameSize];
+            frame[0] = 0xFF;
+            frame[1] = 0xFB;
+            frame[2] = (byte)((0x09 << 4) | (sampleRateBits << 2));
+            frame[3] = (byte)(channelBits << 6);
+            ms.Write(frame, 0, frame.Length);
+        }
+
+        return ms.ToArray();
+    }
+
+    [Test]
     public void Inspect_AviWithFilenameAudioHint_AppliesFilenameAudioHintWhenStreamAudioMissing()
     {
         var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: null);
