@@ -114,9 +114,12 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length === 0) return "";
+    const offset = Math.max(0, maxPoints - data.length);
     return data
       .map((point, i) => {
-        const x = PADDING.left + (i / Math.max(1, maxPoints - 1)) * chartWidth;
+        const x =
+          PADDING.left +
+          ((offset + i) / Math.max(1, maxPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
@@ -129,15 +132,20 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length < 2) return "";
+    const offset = Math.max(0, maxPoints - data.length);
     const bottom = PADDING.top + chartHeight;
-    const firstX = PADDING.left;
+    const firstX =
+      PADDING.left +
+      (offset / Math.max(1, maxPoints - 1)) * chartWidth;
     const lastX =
       PADDING.left +
-      ((data.length - 1) / Math.max(1, maxPoints - 1)) * chartWidth;
+      ((offset + data.length - 1) / Math.max(1, maxPoints - 1)) * chartWidth;
 
     const linePoints = data
       .map((point, i) => {
-        const x = PADDING.left + (i / Math.max(1, maxPoints - 1)) * chartWidth;
+        const x =
+          PADDING.left +
+          ((offset + i) / Math.max(1, maxPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
