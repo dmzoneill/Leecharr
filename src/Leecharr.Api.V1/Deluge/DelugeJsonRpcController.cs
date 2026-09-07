@@ -1434,19 +1434,32 @@ public class DelugeJsonRpcController : ControllerBase
             numFiles = 0;
         }
 
+        var rawSavePath = t.SavePath ?? string.Empty;
+        var savePath = rawSavePath;
+        if (!string.IsNullOrWhiteSpace(rawSavePath) && !string.IsNullOrWhiteSpace(t.Name))
+        {
+            var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var dirName = Path.GetFileName(trimmedSave);
+            if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(trimmedSave);
+                savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            }
+        }
+
         var status = new Dictionary<string, object>
         {
             { "name", t.Name },
-            { "hash", t.InfoHash },
-            { "state", stateStr },
-            { "progress", t.Progress * 100.0 },
             { "total_size", t.TotalSize },
-            { "total_done", t.Downloaded },
-            { "total_uploaded", t.Uploaded },
+            { "total_done", (long)(t.TotalSize * t.Progress) },
+            { "total_wanted", t.TotalSize },
+            { "total_remaining", (long)(t.TotalSize * (1.0 - t.Progress)) },
             { "total_payload_download", t.Downloaded },
             { "total_payload_upload", t.Uploaded },
-            { "download_payload_rate", t.DownloadSpeed },
-            { "upload_payload_rate", t.UploadSpeed },
+            { "progress", t.Progress * 100.0 },
+            { "state", stateStr },
+            { "download_payload_rate", (long)t.DownloadSpeed },
+            { "upload_payload_rate", (long)t.UploadSpeed },
             { "eta", t.Eta },
             { "ratio", t.Ratio },
             { "num_seeds", t.Seeders },
@@ -1457,12 +1470,14 @@ public class DelugeJsonRpcController : ControllerBase
             { "files", filesList },
             { "file_priorities", filePriorities },
             { "file_progress", fileProgress },
-            { "save_path", t.SavePath ?? string.Empty },
+            { "save_path", savePath },
+            { "download_location", savePath },
             { "label", t.Category ?? string.Empty },
             { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "is_seed", t.Status == TorrentStatus.Seeding },
             { "paused", t.Status == TorrentStatus.Paused },
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
+            { "hash", t.InfoHash },
             { "all_time_download", t.Downloaded },
             { "active_time", (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds },
             { "seeding_time", t.SeedingTimeSeconds },
