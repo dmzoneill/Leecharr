@@ -159,6 +159,34 @@ public class VpnKillSwitchServiceTest
     }
 
     [Test]
+    public void GetVpnInterfaceIpAddress_WhenRequestingIPv6_ResolvesIPv6Address()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var testIpv6 = IPAddress.Parse("2001:db8::1");
+        this.service.InterfaceIpResolver = (_, family) => family == AddressFamily.InterNetworkV6 ? testIpv6 : null;
+        this.service.InterfaceStatusCheck = _ => true;
+
+        var resolvedIp = this.service.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6);
+        resolvedIp.Should().Be(testIpv6);
+    }
+
+    [Test]
+    public void ResolveInterfaceIpDefault_WhenInterfaceDoesNotExist_ReturnsNull()
+    {
+        var resolvedIpv4 = this.service.ResolveInterfaceIpDefault("nonexistent_tun_9999", AddressFamily.InterNetwork);
+        var resolvedIpv6 = this.service.ResolveInterfaceIpDefault("nonexistent_tun_9999", AddressFamily.InterNetworkV6);
+
+        resolvedIpv4.Should().BeNull();
+        resolvedIpv6.Should().BeNull();
+    }
+
+    [Test]
     public void MonoTorrentDownloadEngine_WhenKillSwitchDrops_ImmediatelyHaltsAndSetsHaltedState()
     {
         var storagePathService = Substitute.For<IStoragePathService>();

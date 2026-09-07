@@ -1971,13 +1971,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 return null;
             }
 
-            var unicast = nic.GetIPProperties()?.UnicastAddresses
-                .FirstOrDefault(a => a.Address.AddressFamily == family &&
-                                     !IPAddress.IsLoopback(a.Address) &&
-                                     !a.Address.Equals(IPAddress.Any) &&
-                                     !a.Address.Equals(IPAddress.None));
+            var props = nic.GetIPProperties();
+            if (props == null || props.UnicastAddresses == null)
+            {
+                return null;
+            }
 
-            return unicast?.Address;
+            return ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
         }
         catch (Exception ex)
         {
