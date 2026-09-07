@@ -62,4 +62,41 @@ public class BlocklistProvidersTest
         provider.IsIpBlocked("172.16.0.5").Should().BeTrue();
         provider.IsIpBlocked("172.16.0.6").Should().BeFalse();
     }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_IPv4MappedIPv6Cidr_ParsesAndMatchesCorrectly()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var rules = new List<string>
+        {
+            "::ffff:192.168.1.0/120", // Equivalent to 192.168.1.0/24
+            "::ffff:10.0.0.1/128", // Equivalent to 10.0.0.1/32
+            "::ffff:172.16.0.0/96", // Prefix length exactly 96 (maps to 0.0.0.0/0)
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(3);
+        provider.IsIpBlocked("192.168.1.50").Should().BeTrue();
+        provider.IsIpBlocked("10.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:192.168.1.50").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:10.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("8.8.8.8").Should().BeTrue(); // blocked because ::ffff:172.16.0.0/96 clamps to /0
+    }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_IPv4MappedIPv6CidrPrefixLessThan96_ClampsToZero()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var rules = new List<string>
+        {
+            "::ffff:192.168.1.0/64", // Prefix length < 96 clamps to 0 (blocks all IPv4)
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(1);
+        provider.IsIpBlocked("1.1.1.1").Should().BeTrue();
+        provider.IsIpBlocked("203.0.113.1").Should().BeTrue();
+    }
 }
