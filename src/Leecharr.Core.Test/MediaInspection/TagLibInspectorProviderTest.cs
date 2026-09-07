@@ -199,6 +199,136 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_Mp4WithAac5Point1_DetectsAacAnd5Point1Channels()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("avc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("mp4a", 6, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_51_aac.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("H.264");
+        result.AudioCodec.Should().Be("AAC");
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
+    public void Inspect_Mp4WithAac7Point1_DetectsAacAnd7Point1Channels()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("avc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("mp4a", 8, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_71_aac.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("H.264");
+        result.AudioCodec.Should().Be("AAC");
+        result.AudioChannels.Should().Be("7.1");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithAc3Stereo_DetectsAc3And2Point0Channels()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("hvc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("ac-3", 2, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_stereo_ac3.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().Be("2.0");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithEac3Stereo_DetectsEac3And2Point0Channels()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("hvc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("ec-3", 2, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_stereo_eac3.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+        result.AudioChannels.Should().Be("2.0");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithFlacSurround_DetectsFlacAnd5Point1Channels()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("av01", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("flac", 6, 24, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_flac_51.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioBitDepth.Should().Be(24);
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
     public void Inspect_MultiTrackMkv_PreservesPrimaryTrueHdAndPopulatesSubtitleTracks()
     {
         var audioTracks = new (string, int)[]
