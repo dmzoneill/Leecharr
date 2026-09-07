@@ -42,6 +42,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
     const isDownloading = statusLower === "downloading";
     const isSeeding = statusLower === "seeding";
     const isPaused = statusLower === "paused";
+    const isChecking = statusLower === "checking";
 
     return (
       <div
@@ -179,15 +180,19 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               border: "1px solid var(--border)",
               color: isSeeding
                 ? "var(--success)"
-                : isDownloading
-                  ? "var(--accent)"
-                  : "var(--text-muted)",
+                : isChecking
+                  ? "var(--info, #38bdf8)"
+                  : isDownloading
+                    ? "var(--accent)"
+                    : "var(--text-muted)",
             }}
           >
-            {t(
-              "torrentStatus." + (mergedTorrent.status || "idle").toLowerCase(),
-              mergedTorrent.status || "Idle",
-            )}
+            {isChecking
+              ? `${t("torrentStatus.checking", "Checking")} (${((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%)`
+              : t(
+                  "torrentStatus." + (mergedTorrent.status || "idle").toLowerCase(),
+                  mergedTorrent.status || "Idle",
+                )}
           </div>
         </div>
 
@@ -235,7 +240,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             }}
           >
             <span>{formatFileSize(mergedTorrent.totalSize)}</span>
-            <span style={{ fontWeight: 600 }}>
+            <span style={{ fontWeight: 600, color: isChecking ? "var(--info, #38bdf8)" : undefined }}>
               {((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%
             </span>
           </div>
@@ -253,7 +258,11 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               style={{
                 height: "100%",
                 width: `${Math.min(100, Math.max(0, (mergedTorrent.progress ?? 0) * 100))}%`,
-                backgroundColor: isSeeding ? "var(--success)" : "var(--accent)",
+                backgroundColor: isSeeding
+                  ? "var(--success)"
+                  : isChecking
+                    ? "var(--info, #38bdf8)"
+                    : "var(--accent)",
                 transition: "width 0.3s",
               }}
             />
