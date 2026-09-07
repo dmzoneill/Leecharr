@@ -611,7 +611,9 @@ function Statistics() {
                       className={`badge ${badge.isUnlocked ? "badge-primary" : "badge-secondary"}`}
                       style={{ fontSize: "0.75rem" }}
                     >
-                      {badge.isUnlocked ? "✓ Unlocked" : "In Progress"}
+                      {badge.isUnlocked
+                        ? t("statistics.unlocked", "✓ Unlocked")
+                        : t("statistics.inProgress", "In Progress")}
                     </span>
                   </div>
 

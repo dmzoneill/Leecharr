@@ -31,12 +31,25 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
       "\n",
     );
     navigator.clipboard.writeText(uniqueUrls);
-    showToast(`Copied ${trackers.length} tracker URLs to clipboard!`, "info");
+    showToast(
+      t(
+        "trackerBoost.radar.copiedUrlsToast",
+        "Copied {count} tracker URLs to clipboard!",
+        { count: trackers.length },
+      ),
+      "info",
+    );
   };
 
   const handleExportTrackers = () => {
     if (!trackers || trackers.length === 0) {
-      showToast("No trackers available to export", "info");
+      showToast(
+        t(
+          "trackerBoost.radar.noTrackersExport",
+          "No trackers available to export",
+        ),
+        "info",
+      );
       return;
     }
     const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join(
@@ -50,7 +63,11 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
     link.click();
     URL.revokeObjectURL(url);
     showToast(
-      `Exported ${trackers.length} tracker endpoints to .txt!`,
+      t(
+        "trackerBoost.radar.exportedTrackersToast",
+        "Exported {count} tracker endpoints to .txt!",
+        { count: trackers.length },
+      ),
       "success",
     );
   };
@@ -62,12 +79,25 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
       { url: newTrackerUrl.trim() },
       {
         onSuccess: () => {
-          showToast("Custom tracker added successfully", "success");
+          showToast(
+            t(
+              "trackerBoost.radar.trackerAddedSuccess",
+              "Custom tracker added successfully",
+            ),
+            "success",
+          );
           setNewTrackerUrl("");
           setIsAddingTracker(false);
         },
         onError: (err) => {
-          showToast(`Failed to add tracker: ${err.message}`, "error");
+          showToast(
+            t(
+              "trackerBoost.radar.trackerAddFailed",
+              "Failed to add tracker: {error}",
+              { error: err.message },
+            ),
+            "error",
+          );
         },
       },
     );
@@ -197,7 +227,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             <option value="feeds">
               {t("trackerBoost.publicFeeds", "Public Feeds")}
             </option>
-            <option value="manual">Manual Entry</option>
+            <option value="manual">
+              {t("trackerBoost.manualEntry", "Manual Entry")}
+            </option>
           </select>
         </div>
         <div
@@ -216,7 +248,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               "Copy all tracker URLs to clipboard",
             )}
           >
-            📋 Copy All
+            {t("trackerBoost.radar.copyAll", "📋 Copy All")}
           </button>
           <button
             className="btn btn-action"
@@ -226,7 +258,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               "Download verified and active trackers as a .txt file",
             )}
           >
-            📤 Export (.txt)
+            {t("trackerBoost.radar.exportTxt", "📤 Export (.txt)")}
           </button>
           {onOpenBulkImport && (
             <button
@@ -237,14 +269,14 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                 "Paste multiple tracker URLs at once",
               )}
             >
-              📥 Bulk Import
+              {t("trackerBoost.radar.bulkImport", "📥 Bulk Import")}
             </button>
           )}
           <button
             className="btn btn-primary"
             onClick={() => setIsAddingTracker(true)}
           >
-            + Add Single
+            {t("trackerBoost.radar.addSingle", "+ Add Single")}
           </button>
         </div>
       </div>
@@ -267,14 +299,14 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             className="btn btn-primary"
             disabled={addTracker.isPending}
           >
-            Save
+            {t("common.save", "Save")}
           </button>
           <button
             type="button"
             className="btn btn-outline"
             onClick={() => setIsAddingTracker(false)}
           >
-            Cancel
+            {t("common.cancel", "Cancel")}
           </button>
         </form>
       )}
@@ -302,28 +334,28 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
           >
             <tr>
               <th className="torrent-table-th" style={{ width: "38%" }}>
-                Tracker Endpoint
+                {t("trackerBoost.matrix.trackerEndpoint", "Tracker Endpoint")}
               </th>
               <th className="torrent-table-th" style={{ width: "10%" }}>
-                Protocol
+                {t("trackerBoost.protocol", "Protocol")}
               </th>
               <th className="torrent-table-th" style={{ width: "16%" }}>
-                Source
+                {t("trackerBoost.radar.source", "Source")}
               </th>
               <th className="torrent-table-th" style={{ width: "12%" }}>
-                Status
+                {t("common.status", "Status")}
               </th>
               <th className="torrent-table-th" style={{ width: "10%" }}>
-                Latency
+                {t("trackerBoost.latency", "Latency")}
               </th>
               <th className="torrent-table-th" style={{ width: "14%" }}>
-                Verified Swarms
+                {t("trackerBoost.radar.verifiedSwarms", "Verified Swarms")}
               </th>
               <th
                 className="torrent-table-th"
                 style={{ width: "10%", textAlign: "right" }}
               >
-                Actions
+                {t("trackerBoost.matrix.actions", "Actions")}
               </th>
             </tr>
           </thead>
@@ -376,7 +408,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                   {tr.latencyMs > 0 ? `${tr.latencyMs}ms` : "-"}
                 </td>
                 <td>
-                  {tr.totalVerifiedTorrents ?? tr.totalSwarmsFound} swarms
+                  {t("trackerBoost.radar.swarmsCountLower", "{count} swarms", {
+                    count: tr.totalVerifiedTorrents ?? tr.totalSwarmsFound,
+                  })}
                 </td>
                 <td style={{ textAlign: "right" }}>
                   <button
@@ -387,7 +421,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                     }}
                     onClick={() => deleteTracker.mutate(tr.id)}
                   >
-                    Delete
+                    {t("common.delete", "Delete")}
                   </button>
                 </td>
               </tr>

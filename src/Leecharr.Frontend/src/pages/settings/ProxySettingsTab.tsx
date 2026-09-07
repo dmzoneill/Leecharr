@@ -76,7 +76,7 @@ export function ProxySettingsTab() {
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading proxy settings...
+        {t("settingsTabs.proxy.loading")}
       </div>
     );
   }
@@ -110,10 +110,10 @@ export function ProxySettingsTab() {
             value={form.proxyType}
             onChange={(v) => update("proxyType", v)}
             options={[
-              { value: "none", label: "None / Direct Connection" },
-              { value: "socks5", label: "SOCKS5 Proxy (Recommended)" },
-              { value: "socks4", label: "SOCKS4 Proxy" },
-              { value: "http", label: "HTTP / HTTPS Proxy" },
+              { value: "none", label: t("settingsTabs.proxy.typeNone") },
+              { value: "socks5", label: t("settingsTabs.proxy.typeSocks5") },
+              { value: "socks4", label: t("settingsTabs.proxy.typeSocks4") },
+              { value: "http", label: t("settingsTabs.proxy.typeHttp") },
             ]}
           />
 
@@ -122,7 +122,7 @@ export function ProxySettingsTab() {
             value={form.proxyHost}
             onChange={(v) => update("proxyHost", v)}
             disabled={!isProxyActive}
-            hint="e.g. 127.0.0.1 or proxy.vpnprovider.com"
+            hint={t("settingsTabs.proxy.hostHint")}
           />
 
           <NumberInput
@@ -132,7 +132,7 @@ export function ProxySettingsTab() {
             disabled={!isProxyActive}
             min={1}
             max={65535}
-            hint="Standard SOCKS5 port: 1080"
+            hint={t("settingsTabs.proxy.portHint")}
           />
         </div>
 
@@ -192,7 +192,7 @@ export function ProxySettingsTab() {
             label={t("settings.anonymousMode")}
             checked={form.anonymousMode}
             onChange={(v) => update("anonymousMode", v)}
-            hint="Strips user-agent strings, suppresses client identification headers, and hides listening ports"
+            hint={t("settingsTabs.proxy.anonymousModeHint")}
           />
 
           <Toggle
@@ -200,7 +200,7 @@ export function ProxySettingsTab() {
             checked={form.forceProxy}
             onChange={(v) => update("forceProxy", v)}
             disabled={!isProxyActive}
-            hint="Completely abort network transfers if the proxy server becomes unreachable"
+            hint={t("settingsTabs.proxy.forceProxyHint")}
           />
         </div>
       </SectionCard>

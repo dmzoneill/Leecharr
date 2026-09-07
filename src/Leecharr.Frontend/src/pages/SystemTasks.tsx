@@ -26,33 +26,68 @@ interface CommandItem {
   result?: string | null;
 }
 
-function formatTaskName(typeName: string): string {
+function formatTaskName(
+  typeName: string,
+  t?: (k: string, p?: any) => string,
+): string {
   if (!typeName) return "";
   const shortName = typeName.includes(".")
     ? typeName.split(".").pop() || typeName
     : typeName;
+  const taskKey = shortName.replace(/Task$/, "");
+  if (t) {
+    const translated = t(`tasks.${taskKey}`);
+    if (translated && translated !== `tasks.${taskKey}`) {
+      return translated;
+    }
+    const fullTranslated = t(`tasks.${shortName}`);
+    if (fullTranslated && fullTranslated !== `tasks.${shortName}`) {
+      return fullTranslated;
+    }
+  }
   return shortName.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
-function formatInterval(minutes: number): string {
+function formatInterval(
+  minutes: number,
+  t?: (k: string, p?: any) => string,
+): string {
   if (minutes < 1) {
-    return `${Math.round(minutes * 60)} seconds`;
+    const secs = Math.round(minutes * 60);
+    return t ? t("common.time.seconds", { count: secs }) : `${secs} seconds`;
   }
   if (minutes < 60) {
-    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    return t
+      ? minutes === 1
+        ? t("common.time.minute", { count: minutes })
+        : t("common.time.minutes", { count: minutes })
+      : `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   }
   const hours = Math.floor(minutes / 60);
   if (minutes % 60 === 0) {
     if (hours >= 24 && hours % 24 === 0) {
       const days = hours / 24;
-      return `${days} day${days !== 1 ? "s" : ""}`;
+      return t
+        ? days === 1
+          ? t("common.time.day", { count: days })
+          : t("common.time.days", { count: days })
+        : `${days} day${days !== 1 ? "s" : ""}`;
     }
-    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+    return t
+      ? hours === 1
+        ? t("common.time.hour", { count: hours })
+        : t("common.time.hours", { count: hours })
+      : `${hours} hour${hours !== 1 ? "s" : ""}`;
   }
-  return `${hours}h ${minutes % 60}m`;
+  return t
+    ? t("common.time.hoursAndMinutes", { hours, minutes: minutes % 60 })
+    : `${hours}h ${minutes % 60}m`;
 }
 
-function formatRelativeTime(dateStr?: string | null): string {
+function formatRelativeTime(
+  dateStr?: string | null,
+  t?: (k: string, p?: any) => string,
+): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
   if (isNaN(date.getTime()) || date.getFullYear() < 1970) {
@@ -70,17 +105,35 @@ function formatRelativeTime(dateStr?: string | null): string {
 
   let text: string;
   if (seconds < 60) {
-    text = "just now";
+    text = t ? t("common.time.justNow") : "just now";
     return text;
   } else if (minutes < 60) {
-    text = `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    text = t
+      ? minutes === 1
+        ? t("common.time.minute", { count: minutes })
+        : t("common.time.minutes", { count: minutes })
+      : `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   } else if (hours < 24) {
-    text = `${hours} hour${hours !== 1 ? "s" : ""}`;
+    text = t
+      ? hours === 1
+        ? t("common.time.hour", { count: hours })
+        : t("common.time.hours", { count: hours })
+      : `${hours} hour${hours !== 1 ? "s" : ""}`;
   } else {
-    text = `${days} day${days !== 1 ? "s" : ""}`;
+    text = t
+      ? days === 1
+        ? t("common.time.day", { count: days })
+        : t("common.time.days", { count: days })
+      : `${days} day${days !== 1 ? "s" : ""}`;
   }
 
-  return isFuture ? `in ${text}` : `${text} ago`;
+  return isFuture
+    ? t
+      ? t("common.time.inFuture", { time: text })
+      : `in ${text}`
+    : t
+      ? t("common.time.ago", { time: text })
+      : `${text} ago`;
 }
 
 function formatDuration(durationStr?: string | null): string {
@@ -278,16 +331,16 @@ function SystemTasks() {
                   <tr key={task.typeName} className="torrent-table-row">
                     <td>
                       <strong style={{ color: "var(--text-primary)" }}>
-                        {formatTaskName(task.typeName)}
+                        {formatTaskName(task.typeName, t)}
                       </strong>
                     </td>
                     <td>
                       <span className="badge badge-secondary">
-                        ⏱️ {formatInterval(task.interval)}
+                        ⏱️ {formatInterval(task.interval, t)}
                       </span>
                     </td>
                     <td title={formatDateTime(task.lastExecution)}>
-                      {formatRelativeTime(task.lastExecution)}
+                      {formatRelativeTime(task.lastExecution, t)}
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>
@@ -303,7 +356,7 @@ function SystemTasks() {
                         fontWeight: 500,
                       }}
                     >
-                      {formatRelativeTime(task.nextExecution)}
+                      {formatRelativeTime(task.nextExecution, t)}
                     </td>
                   </tr>
                 ))}
@@ -389,10 +442,14 @@ function SystemTasks() {
                         className={statusClass(cmd.status)}
                         style={{ marginRight: "0.5rem" }}
                       >
-                        {statusIcon(cmd.status)} {cmd.status}
+                        {statusIcon(cmd.status)}{" "}
+                        {t(
+                          `commandStatus.${cmd.status?.toLowerCase()}`,
+                          cmd.status,
+                        )}
                       </span>
                       <strong style={{ color: "var(--text-primary)" }}>
-                        {formatTaskName(cmd.name)}
+                        {formatTaskName(cmd.name, t)}
                       </strong>
                       {cmd.message && (
                         <span
@@ -404,13 +461,13 @@ function SystemTasks() {
                       )}
                     </td>
                     <td title={formatDateTime(cmd.queued || cmd.queuedAt)}>
-                      {formatRelativeTime(cmd.queued || cmd.queuedAt)}
+                      {formatRelativeTime(cmd.queued || cmd.queuedAt, t)}
                     </td>
                     <td title={formatDateTime(cmd.started || cmd.startedAt)}>
-                      {formatRelativeTime(cmd.started || cmd.startedAt)}
+                      {formatRelativeTime(cmd.started || cmd.startedAt, t)}
                     </td>
                     <td title={formatDateTime(cmd.ended || cmd.endedAt)}>
-                      {formatRelativeTime(cmd.ended || cmd.endedAt)}
+                      {formatRelativeTime(cmd.ended || cmd.endedAt, t)}
                     </td>
                     <td>
                       <code style={{ fontSize: "0.8rem" }}>

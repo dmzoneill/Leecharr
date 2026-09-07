@@ -100,10 +100,7 @@ export function DhtSettingsTab() {
 
     const handleError = (err: any) => {
       hasError = true;
-      showToast(
-        err?.message || "Failed to save DHT discovery settings",
-        "error",
-      );
+      showToast(err?.message || t("settingsTabs.dht.failedToSave"), "error");
     };
 
     if (btConfig) {
@@ -150,7 +147,7 @@ export function DhtSettingsTab() {
   if (btLoading || protoLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
-        Loading DHT discovery settings...
+        {t("settingsTabs.dht.loading")}
       </div>
     );
   }
@@ -175,7 +172,7 @@ export function DhtSettingsTab() {
             label={t("settings.enableMainlineDHT")}
             checked={form.enableDht}
             onChange={(v) => update("enableDht", v)}
-            hint="Find peers without requiring centralized tracker responses"
+            hint={t("settingsTabs.dht.enableDhtHint")}
           />
 
           <TextInput
@@ -183,7 +180,7 @@ export function DhtSettingsTab() {
             value={form.dhtBootstrapNodes}
             onChange={(v) => update("dhtBootstrapNodes", v)}
             disabled={!form.enableDht}
-            hint="Comma-separated bootstrap routers used on startup"
+            hint={t("settingsTabs.dht.bootstrapNodesHint")}
           />
 
           <div
@@ -248,7 +245,7 @@ export function DhtSettingsTab() {
                 checked={form.dhtRateLimitEnabled}
                 onChange={(v) => update("dhtRateLimitEnabled", v)}
                 disabled={!form.enableDht}
-                hint="Protects upstream bandwidth from UDP query floods"
+                hint={t("settingsTabs.dht.rateLimitHint")}
               />
 
               <NumberInput
@@ -281,7 +278,7 @@ export function DhtSettingsTab() {
               label={t("settings.enablePeerExchangePEXBEP")}
               checked={form.enablePex}
               onChange={(v) => update("enablePex", v)}
-              hint="Exchanges known peer IP addresses directly with connected swarm peers"
+              hint={t("settingsTabs.dht.pexHint")}
             />
             <div
               style={{
@@ -316,7 +313,7 @@ export function DhtSettingsTab() {
               label={t("settings.localPeerDiscoveryLPDLS")}
               checked={form.enableLpd}
               onChange={(v) => update("enableLpd", v)}
-              hint="Multicast subnet broadcasts (239.192.152.143:6771) for maximum LAN speeds"
+              hint={t("settingsTabs.dht.lpdHint")}
             />
           </div>
         </div>
@@ -330,7 +327,7 @@ export function DhtSettingsTab() {
           label={t("settings.defaultTrackersCommaOrNew")}
           value={form.defaultTrackers}
           onChange={(v) => update("defaultTrackers", v)}
-          hint="e.g. udp://tracker.opentrackr.org:1337/announce, udp://open.stealth.si:80/announce"
+          hint={t("settingsTabs.dht.defaultTrackersHint")}
         />
       </SectionCard>
     </div>

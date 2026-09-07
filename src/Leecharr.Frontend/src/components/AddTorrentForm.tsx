@@ -210,9 +210,17 @@ export function AddTorrentForm({
               const failedNames = new Set(result.failed.map((f) => f.fileName));
               setFiles((prev) => prev.filter((f) => failedNames.has(f.name)));
               setResultMessage(
-                `${result.added.length} added, ${result.failed.length} skipped: ${result.failed
-                  .map((f) => `${f.fileName} (${f.reason})`)
-                  .join("; ")}`,
+                t(
+                  "addTorrent.bulkAddSummary",
+                  "{addedCount} added, {failedCount} skipped: {details}",
+                  {
+                    addedCount: result.added.length,
+                    failedCount: result.failed.length,
+                    details: result.failed
+                      .map((f) => `${f.fileName} (${f.reason})`)
+                      .join("; "),
+                  },
+                ),
               );
             } else {
               showToast(
@@ -1282,7 +1290,9 @@ export function AddTorrentForm({
                                     color: "var(--accent, #ffd166)",
                                   }}
                                 >
-                                  {rel.indexerName || rel.indexer || "Indexer"}
+                                  {rel.indexerName ||
+                                    rel.indexer ||
+                                    t("components.indexer", "Indexer")}
                                 </span>
                               </td>
 

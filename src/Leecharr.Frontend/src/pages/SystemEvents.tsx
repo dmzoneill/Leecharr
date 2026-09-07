@@ -121,6 +121,7 @@ function SortArrow({ direction }: { direction: "asc" | "desc" }) {
 
 function EventLevelIcon({ level }: { level: LogLevel }) {
   const { t } = useTranslation();
+  const label = t(`logging.levels.${level.toLowerCase()}`, level);
   switch (level) {
     case "Info":
       return (
@@ -128,7 +129,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-primary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          Info
+          {label}
         </span>
       );
     case "Warn":
@@ -137,7 +138,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-queued"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          Warn
+          {label}
         </span>
       );
     case "Error":
@@ -146,7 +147,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-error"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          Error
+          {label}
         </span>
       );
     case "Debug":
@@ -155,7 +156,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          Debug
+          {label}
         </span>
       );
     case "Trace":
@@ -164,7 +165,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
           className="badge badge-secondary"
           style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
         >
-          Trace
+          {label}
         </span>
       );
   }

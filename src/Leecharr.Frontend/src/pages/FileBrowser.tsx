@@ -179,22 +179,42 @@ export function FileBrowser() {
   };
 
   const handleCreateFolder = async (
-    name: string,
-    parentFolder: FileManagerFile,
+    nameOrParent?: any,
+    parentFolder?: FileManagerFile,
   ) => {
+    let name = typeof nameOrParent === "string" ? nameOrParent : "";
+    const parent =
+      (typeof nameOrParent === "object" ? nameOrParent?.path : null) ||
+      parentFolder?.path ||
+      activePath ||
+      "/downloads";
+    if (!name) {
+      name =
+        window.prompt(
+          t("filebrowser.enterFolderName", "Enter new folder name:"),
+        ) || "";
+    }
+    if (!name || !name.trim()) return;
     const trimmed = name.trim();
-    if (!trimmed) return;
     try {
-      const parent = parentFolder?.path || currentPath || listing?.path || "/";
       const targetPath =
         parent === "/" || parent.endsWith("/")
           ? `${parent}${trimmed}`
           : `${parent}/${trimmed}`;
       await mkdirMutation.mutateAsync(targetPath);
-      showToast(`Created folder "${trimmed}"`, "success");
+      showToast(
+        t("filebrowser.createdFolder", 'Created folder "{name}"', {
+          name: trimmed,
+        }),
+        "success",
+      );
       refetch();
     } catch (err: any) {
-      showToast(err?.message || "Failed to create folder", "error");
+      showToast(
+        err?.message ||
+          t("filebrowser.failedToCreateFolder", "Failed to create folder"),
+        "error",
+      );
     }
   };
 
@@ -206,10 +226,18 @@ export function FileBrowser() {
         path: file.path,
         newName: trimmed,
       });
-      showToast(`Renamed to "${trimmed}"`, "success");
+      showToast(
+        t("filebrowser.renamedTo", 'Renamed to "{name}"', {
+          name: trimmed,
+        }),
+        "success",
+      );
       refetch();
     } catch (err: any) {
-      showToast(err?.message || "Failed to rename", "error");
+      showToast(
+        err?.message || t("filebrowser.failedToRename", "Failed to rename"),
+        "error",
+      );
     }
   };
 
@@ -221,20 +249,27 @@ export function FileBrowser() {
       title:
         count === 1
           ? selectedFiles[0].isDirectory
-            ? "Delete Folder"
-            : "Delete File"
-          : "Delete Selected Items",
+            ? t("filebrowser.deleteFolderTitle", "Delete Folder")
+            : t("filebrowser.deleteFileTitle", "Delete File")
+          : t("filebrowser.deleteSelectedTitle", "Delete Selected Items"),
       message: (
         <span>
-          Are you sure you want to delete{" "}
+          {t("filebrowser.deleteConfirm", "Are you sure you want to delete")}{" "}
           <strong>
-            {count === 1 ? selectedFiles[0].name : `${count} items`}
+            {count === 1
+              ? selectedFiles[0].name
+              : t("filebrowser.itemCount", "{count} items", { count })}
           </strong>
           ?
         </span>
       ),
       danger: true,
-      confirmText: count === 1 ? "Delete" : `Delete ${count} Items`,
+      confirmText:
+        count === 1
+          ? t("common.delete", "Delete")
+          : t("filebrowser.deleteCountItems", "Delete {count} Items", {
+              count,
+            }),
     });
 
     if (!ok) return;
@@ -242,14 +277,26 @@ export function FileBrowser() {
     try {
       if (count === 1) {
         await deleteMutation.mutateAsync(selectedFiles[0].path);
-        showToast(`Deleted "${selectedFiles[0].name}"`, "info");
+        showToast(
+          t("filebrowser.deletedItem", 'Deleted "{name}"', {
+            name: selectedFiles[0].name,
+          }),
+          "info",
+        );
       } else {
         await batchDeleteMutation.mutateAsync(selectedFiles.map((f) => f.path));
-        showToast(`Deleted ${count} items`, "info");
+        showToast(
+          t("filebrowser.deletedMultiple", "Deleted {count} items", { count }),
+          "info",
+        );
       }
       refetch();
     } catch (err: any) {
-      showToast(err?.message || "Failed to delete item(s)", "error");
+      showToast(
+        err?.message ||
+          t("filebrowser.failedToDelete", "Failed to delete item(s)"),
+        "error",
+      );
     }
   };
 
@@ -265,7 +312,11 @@ export function FileBrowser() {
   const handleCut = (selectedFiles: FileManagerFile[]) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
     showToast(
-      `Cut ${selectedFiles.length} item${selectedFiles.length === 1 ? "" : "s"}. Navigate to a destination folder to Paste.`,
+      t(
+        "filebrowser.cutItemsNavigate",
+        "Cut {count} item(s). Navigate to a destination folder to Paste.",
+        { count: selectedFiles.length },
+      ),
       "info",
     );
   };
@@ -273,7 +324,11 @@ export function FileBrowser() {
   const handleCopy = (selectedFiles: FileManagerFile[]) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
     showToast(
-      `Copied ${selectedFiles.length} item${selectedFiles.length === 1 ? "" : "s"}. Navigate to a destination folder to Paste.`,
+      t(
+        "filebrowser.copiedItemsNavigate",
+        "Copied {count} item(s). Navigate to a destination folder to Paste.",
+        { count: selectedFiles.length },
+      ),
       "info",
     );
   };
@@ -292,17 +347,31 @@ export function FileBrowser() {
         operation: operationType,
       });
       showToast(
-        `${operationType === "move" ? "Moved" : "Copied"} ${copiedFiles.length} item${copiedFiles.length === 1 ? "" : "s"} to "${destinationFolder?.name || dest}"`,
+        t("filebrowser.pasteSuccess", '{op} {count} item(s) to "{dest}"', {
+          op:
+            operationType === "move"
+              ? t("filebrowser.moved", "Moved")
+              : t("filebrowser.copied", "Copied"),
+          count: copiedFiles.length,
+          dest: destinationFolder?.name || dest,
+        }),
         "success",
       );
       refetch();
     } catch (err: any) {
-      showToast(err?.message || `Failed to ${operationType} item(s)`, "error");
+      showToast(
+        err?.message ||
+          t("filebrowser.failedToPaste", "Failed to paste item(s)"),
+        "error",
+      );
     }
   };
 
   const handleFileUploaded = () => {
-    showToast("File uploaded successfully", "success");
+    showToast(
+      t("filebrowser.fileUploadedSuccess", "File uploaded successfully"),
+      "success",
+    );
     refetch();
   };
 
@@ -329,7 +398,7 @@ export function FileBrowser() {
         >
           ⏳
         </span>
-        Loading file browser...
+        {t("filebrowser.loadingBrowser", "Loading file browser...")}
       </div>
     );
   }
@@ -353,7 +422,10 @@ export function FileBrowser() {
         >
           ⚠️
         </span>
-        Failed to load directory listing.
+        {t(
+          "filebrowser.failedToLoadDirectory",
+          "Failed to load directory listing.",
+        )}
       </div>
     );
   }
@@ -382,7 +454,7 @@ export function FileBrowser() {
           <span style={{ fontSize: "1.4rem" }}>🗂️</span>
           <div>
             <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
-              File Browser
+              {t("filebrowser.title", "File Browser")}
             </h2>
             <p
               style={{
@@ -391,10 +463,15 @@ export function FileBrowser() {
                 color: "var(--text-muted)",
               }}
             >
-              {dirStats.folderCount} folder
-              {dirStats.folderCount === 1 ? "" : "s"} &bull;{" "}
-              {dirStats.fileCount} file{dirStats.fileCount === 1 ? "" : "s"}{" "}
-              &bull; {formatBytes(dirStats.totalSize)} total
+              {t("filebrowser.folderCount", "{count} folder(s)", {
+                count: dirStats.folderCount,
+              })}{" "}
+              &bull;{" "}
+              {t("filebrowser.fileCount", "{count} file(s)", {
+                count: dirStats.fileCount,
+              })}{" "}
+              &bull; {formatBytes(dirStats.totalSize)}{" "}
+              {t("common.total", "total")}
             </p>
           </div>
         </div>
@@ -415,7 +492,7 @@ export function FileBrowser() {
             disabled={!listing?.parent || listing.parent === listing.path}
             title={t("filebrowser.parentDirectory", "Go to parent directory")}
           >
-            ⬆ Up
+            ⬆ {t("filebrowser.up", "Up")}
           </button>
           <button
             type="button"
@@ -424,7 +501,7 @@ export function FileBrowser() {
             onClick={() => refetch()}
             title={t("common.refresh", "Refresh")}
           >
-            🔄 Refresh
+            🔄 {t("common.refresh", "Refresh")}
           </button>
           <button
             type="button"
@@ -433,7 +510,7 @@ export function FileBrowser() {
             onClick={handleCopyPath}
             title={t("filebrowser.copyPath", "Copy current path to clipboard")}
           >
-            📋 Copy Path
+            📋 {t("filebrowser.copyPath", "Copy Path")}
           </button>
           <button
             type="button"
@@ -485,25 +562,34 @@ export function FileBrowser() {
             color: "var(--accent, #ffd166)",
             cursor: "pointer",
             fontSize: "0.85rem",
+            padding: "0.1rem 0.35rem",
+            borderRadius: "3px",
+            fontFamily: "monospace",
           }}
         >
           /
         </button>
         {segments.map((seg, idx) => (
           <React.Fragment key={seg.fullPath}>
-            <span
-              style={{ color: "var(--text-muted, #8a879e)", flexShrink: 0 }}
-            >
-              /
-            </span>
+            <span style={{ color: "var(--text-muted, #8a879e)" }}>/</span>
             <button
               type="button"
               onClick={() => navigateTo(seg.fullPath)}
               style={{
-                background: "none",
+                background:
+                  idx === segments.length - 1
+                    ? "rgba(255, 209, 102, 0.15)"
+                    : "none",
                 border: "none",
-                color: "var(--text-primary, #f8f4ed)",
+                color:
+                  idx === segments.length - 1
+                    ? "var(--accent, #ffd166)"
+                    : "var(--text-primary, #f8f4ed)",
+                fontWeight: idx === segments.length - 1 ? 600 : 400,
                 cursor: "pointer",
+                padding: "0.15rem 0.4rem",
+                borderRadius: "4px",
+                fontFamily: "monospace",
                 fontSize: "0.85rem",
               }}
             >
@@ -524,7 +610,7 @@ export function FileBrowser() {
             color: "var(--danger, #ef4444)",
           }}
         >
-          Directory does not exist:{" "}
+          {t("filebrowser.directoryDoesNotExist", "Directory does not exist:")}{" "}
           <code style={{ wordBreak: "break-all" }}>{displayPath}</code>
         </div>
       )}
@@ -659,7 +745,7 @@ export function FileBrowser() {
                   style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
                   onClick={() => handleDownloadFile(previewPath)}
                 >
-                  📥 Download
+                  📥 {t("common.download", "Download")}
                 </button>
                 <button
                   type="button"
@@ -688,7 +774,7 @@ export function FileBrowser() {
                     color: "var(--text-muted)",
                   }}
                 >
-                  Loading file preview...
+                  {t("filebrowser.loadingPreview", "Loading file preview...")}
                 </div>
               ) : previewData?.type === "image" ? (
                 <div
@@ -743,7 +829,7 @@ export function FileBrowser() {
                     📄
                   </span>
                   <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem" }}>
-                    Binary / Media File
+                    {t("filebrowser.binaryMediaFile", "Binary / Media File")}
                   </h4>
                   <p
                     style={{
@@ -752,9 +838,10 @@ export function FileBrowser() {
                       color: "var(--text-muted, #8a879e)",
                     }}
                   >
-                    Direct inline text preview is not available for this file
-                    type. You can download the file or open the directory in
-                    terminal.
+                    {t(
+                      "filebrowser.binaryPreviewNotice",
+                      "Direct inline text preview is not available for this file type. You can download the file or open the directory in terminal.",
+                    )}
                   </p>
                   <div
                     style={{
@@ -768,7 +855,7 @@ export function FileBrowser() {
                       className="btn btn-primary"
                       onClick={() => handleDownloadFile(previewPath)}
                     >
-                      📥 Download File (
+                      📥 {t("filebrowser.downloadFile", "Download File")} (
                       {previewData?.size ? formatBytes(previewData.size) : ""})
                     </button>
                     <button
@@ -779,7 +866,7 @@ export function FileBrowser() {
                         handleOpenInCli();
                       }}
                     >
-                      💻 Open in Terminal
+                      💻 {t("filebrowser.openInTerminal", "Open in Terminal")}
                     </button>
                   </div>
                 </div>

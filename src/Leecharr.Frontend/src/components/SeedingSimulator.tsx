@@ -39,8 +39,9 @@ export function SeedingSimulator({
   }, [remainingUploadBytes, currentUploadSpeed]);
 
   const formatDuration = (sec: number | null): string => {
-    if (sec === null) return "Unknown (speed is 0 B/s)";
-    if (sec <= 0) return "Achieved! 🎉";
+    if (sec === null)
+      return t("statistics.unknownZeroSpeed", "Unknown (speed is 0 B/s)");
+    if (sec <= 0) return t("statistics.achieved", "Achieved! 🎉");
     const days = Math.floor(sec / 86400);
     const hours = Math.floor((sec % 86400) / 3600);
     const minutes = Math.floor((sec % 3600) / 60);

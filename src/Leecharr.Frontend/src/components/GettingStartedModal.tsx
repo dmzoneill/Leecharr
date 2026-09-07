@@ -1042,7 +1042,10 @@ export function GettingStartedModal({
                         setSonarrTestResult(null);
                       }}
                       placeholder="leecharr"
-                      hint="Hostname or IP for Sonarr to reach Leecharr (leave empty for default)"
+                      hint={t(
+                        "gettingStarted.webhookHostHintSonarr",
+                        "Hostname or IP for Sonarr to reach Leecharr (leave empty for default)",
+                      )}
                     />
                   )}
 
@@ -1261,7 +1264,10 @@ export function GettingStartedModal({
                         setRadarrTestResult(null);
                       }}
                       placeholder="leecharr"
-                      hint="Hostname or IP for Radarr to reach Leecharr (leave empty for default)"
+                      hint={t(
+                        "gettingStarted.webhookHostHintRadarr",
+                        "Hostname or IP for Radarr to reach Leecharr (leave empty for default)",
+                      )}
                     />
                   )}
 
@@ -1480,7 +1486,10 @@ export function GettingStartedModal({
                         setLidarrTestResult(null);
                       }}
                       placeholder="leecharr"
-                      hint="Hostname or IP for Lidarr to reach Leecharr (leave empty for default)"
+                      hint={t(
+                        "gettingStarted.webhookHostHintLidarr",
+                        "Hostname or IP for Lidarr to reach Leecharr (leave empty for default)",
+                      )}
                     />
                   )}
 
