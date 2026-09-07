@@ -570,7 +570,6 @@ public class TagLibInspectorProviderTest
         sdhInfo.Height.Should().Be(1080);
     }
 
-<<<<<<< HEAD
     [Test]
     public void Inspect_FlacStream_ExtractsStreamInfoAndCalculatesDuration()
     {
