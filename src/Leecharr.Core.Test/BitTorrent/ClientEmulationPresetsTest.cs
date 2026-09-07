@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Linq;
+using System.Reflection;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -65,6 +67,41 @@ public class ClientEmulationPresetsTest
             userAgent.Should().NotContain("MO3002");
             peerIdPrefix.Should().NotContain("MO3002");
             peerIdPrefix.Should().NotStartWith("-MO");
+        }
+    }
+
+    [Test]
+    public void ConfigureGlobalMonoTorrentDefaults_PatchesAllMonoTorrentAssembliesAndDhtMessage()
+    {
+        MonoTorrentDownloadEngine.ConfigureGlobalMonoTorrentDefaults("-qB4420-");
+
+        var monoTorrentAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => a.GetName().Name?.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase) == true)
+            .ToList();
+
+        monoTorrentAssemblies.Should().NotBeEmpty();
+
+        foreach (var asm in monoTorrentAssemblies)
+        {
+            var gitInfoType = asm.GetType("MonoTorrent.GitInfoHelper");
+            if (gitInfoType != null)
+            {
+                var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+                var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+
+                clientVer.Should().Be("qB4420");
+                dhtVer.Should().Be("qB4420");
+            }
+
+            var dhtMsgType = asm.GetType("MonoTorrent.Dht.Messages.DhtMessage");
+            if (dhtMsgType != null)
+            {
+                var dhtVersionField = dhtMsgType.GetField("DhtVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                    ?? dhtMsgType.GetField("<DhtVersion>k__BackingField", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                var dhtVersionVal = dhtVersionField?.GetValue(null)?.ToString();
+
+                dhtVersionVal.Should().Be("qB4420");
+            }
         }
     }
 }

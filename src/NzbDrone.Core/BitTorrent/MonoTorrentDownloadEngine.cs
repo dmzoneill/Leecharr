@@ -2094,9 +2094,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private static void ConfigureGlobalMonoTorrentDefaults(string prefix)
+    internal static void ConfigureGlobalMonoTorrentDefaults(string prefix)
     {
         if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+        }
+
+        if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
         {
             prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
         }
@@ -2104,13 +2109,67 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         try
         {
             var cleanVersion = ClientEmulationPresets.CleanClientVersion(prefix);
-            var gitInfoType = typeof(ClientEngine).Assembly.GetType("MonoTorrent.GitInfoHelper");
-            if (gitInfoType != null)
+
+            var knownMonoTorrentAssemblyNames = new[]
             {
-                gitInfoType.GetProperty("ClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                    ?.SetValue(null, cleanVersion);
-                gitInfoType.GetProperty("DhtClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                    ?.SetValue(null, cleanVersion);
+                "MonoTorrent",
+                "MonoTorrent.Client",
+                "MonoTorrent.Dht",
+                "MonoTorrent.Factories",
+                "MonoTorrent.Trackers",
+                "MonoTorrent.PiecePicking",
+                "MonoTorrent.Messages"
+            };
+
+            foreach (var asmName in knownMonoTorrentAssemblyNames)
+            {
+                try
+                {
+                    Assembly.Load(new AssemblyName(asmName));
+                }
+                catch
+                {
+                }
+            }
+
+            var monoTorrentAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => a.GetName().Name?.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+
+            foreach (var asm in monoTorrentAssemblies)
+            {
+                try
+                {
+                    var gitInfoType = asm.GetType("MonoTorrent.GitInfoHelper");
+                    if (gitInfoType != null)
+                    {
+                        gitInfoType.GetProperty("ClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?.SetValue(null, cleanVersion);
+                        gitInfoType.GetProperty("DhtClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?.SetValue(null, cleanVersion);
+                        gitInfoType.GetField("<ClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?.SetValue(null, cleanVersion);
+                        gitInfoType.GetField("<DhtClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?.SetValue(null, cleanVersion);
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    var dhtMsgType = asm.GetType("MonoTorrent.Dht.Messages.DhtMessage");
+                    if (dhtMsgType != null)
+                    {
+                        var dhtVersionField = dhtMsgType.GetField("DhtVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?? dhtMsgType.GetField("<DhtVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        dhtVersionField?.SetValue(null, new BEncodedString(cleanVersion));
+                    }
+                }
+                catch
+                {
+                }
             }
         }
         catch
