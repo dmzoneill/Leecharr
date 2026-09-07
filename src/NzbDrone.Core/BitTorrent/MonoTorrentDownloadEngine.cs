@@ -1430,16 +1430,29 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var torrentName = manager.Torrent?.Name ?? infoHash;
 
         var basePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
+        var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+        var downloadDir = this.configService?.DownloadDir;
+
+        var isMultiFile = (manager.Torrent != null && manager.Torrent.Files.Count > 1) ||
+                          (manager.Files != null && manager.Files.Count > 1);
+
+        var isRootIncompleteOrBase = !string.IsNullOrWhiteSpace(manager.ContainingDirectory) &&
+                                     (string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), basePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), incompleteDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), downloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase));
+
         var containingDir = manager.ContainingDirectory ?? Path.Combine(basePath, torrentName);
-        var hasContainingDir = (!string.IsNullOrWhiteSpace(manager.ContainingDirectory) && this.diskProvider.FolderExists(manager.ContainingDirectory)) ||
-                               (manager.Torrent != null && manager.Torrent.Files.Count > 1) ||
-                               this.diskProvider.FolderExists(Path.Combine(basePath, torrentName));
+        var hasContainingDir = isMultiFile ||
+                               (!isRootIncompleteOrBase && !string.IsNullOrWhiteSpace(manager.ContainingDirectory) && this.diskProvider.FolderExists(manager.ContainingDirectory)) ||
+                               (!isRootIncompleteOrBase && this.diskProvider.FolderExists(Path.Combine(basePath, torrentName)) && !string.Equals(Path.Combine(basePath, torrentName), basePath, StringComparison.OrdinalIgnoreCase));
 
         var sourcePath = hasContainingDir
             ? containingDir
-            : (manager.Files != null && manager.Files.Count > 0
+            : (manager.Files != null && manager.Files.Count > 0 && !string.IsNullOrWhiteSpace(manager.Files[0].FullPath)
                 ? manager.Files[0].FullPath
-                : Path.Combine(basePath, torrentName));
+                : (manager.Torrent != null && manager.Torrent.Files.Count > 0
+                    ? Path.Combine(basePath, manager.Torrent.Files[0].Path)
+                    : Path.Combine(basePath, torrentName)));
 
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;
