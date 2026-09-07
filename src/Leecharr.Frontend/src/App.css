@@ -1794,17 +1794,15 @@ body {
 }
 
 /* Number input spinbutton formatting */
-input[type="number"].form-input {
+input[type="number"] {
   -moz-appearance: textfield;
-  padding-right: 0.35rem;
+  appearance: textfield;
 }
 
-input[type="number"].form-input::-webkit-outer-spin-button,
-input[type="number"].form-input::-webkit-inner-spin-button {
-  opacity: 0.6;
-  height: 1.4em;
-  cursor: pointer;
-  margin-left: 3px;
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .form-section-title {
