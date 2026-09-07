@@ -768,4 +768,39 @@ public class TorrentServiceTest
         this.torrentRepository.DidNotReceive().Insert(Arg.Any<Torrent>());
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
     }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenTorrentExists_UpdatesStatusToCheckingAndPublishesEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "Rechecking Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.Get(99).Returns(torrent);
+
+        await this.service.ForceRecheckAsync(99);
+
+        torrent.Status.Should().Be(TorrentStatus.Checking);
+        this.torrentRepository.Received(1).Update(torrent);
+        await this.downloadEngine.Received(1).ForceRecheckAsync(99);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
+            e.Torrent.Id == 99 &&
+            e.OldStatus == TorrentStatus.Downloading &&
+            e.NewStatus == TorrentStatus.Checking));
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenTorrentNotFound_DoesNothing()
+    {
+        this.torrentRepository.Get(999).Returns((Torrent)null);
+
+        await this.service.ForceRecheckAsync(999);
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+        await this.downloadEngine.DidNotReceive().ForceRecheckAsync(Arg.Any<int>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStatusChangedEvent>());
+    }
 }

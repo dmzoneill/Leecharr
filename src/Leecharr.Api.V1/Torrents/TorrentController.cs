@@ -680,24 +680,24 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpPost("{id:int}/pause")]
-    public async Task<ActionResult> Pause(int id)
+    public async Task<ActionResult<TorrentResource>> Pause(int id)
     {
         await this.torrentService.PauseAsync(id);
-        return this.Ok();
+        return this.GetById(id);
     }
 
     [HttpPost("{id:int}/resume")]
-    public async Task<ActionResult> Resume(int id)
+    public async Task<ActionResult<TorrentResource>> Resume(int id)
     {
         await this.torrentService.ResumeAsync(id);
-        return this.Ok();
+        return this.GetById(id);
     }
 
     [HttpPost("{id:int}/recheck")]
-    public async Task<ActionResult> Recheck(int id)
+    public async Task<ActionResult<TorrentResource>> Recheck(int id)
     {
         await this.torrentService.ForceRecheckAsync(id);
-        return this.Ok();
+        return this.GetById(id);
     }
 
     [HttpPut("{id:int}")]

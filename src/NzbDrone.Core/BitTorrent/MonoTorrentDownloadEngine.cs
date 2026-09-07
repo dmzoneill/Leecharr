@@ -941,7 +941,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
-            await task.Manager.HashCheckAsync(true);
+            var manager = task.Manager;
+            if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
+            {
+                await manager.StopAsync();
+            }
+
+            await manager.HashCheckAsync(autoStart: true);
             this.logger.Info("Triggered hash recheck for torrent id {0}", torrentId);
         }
     }

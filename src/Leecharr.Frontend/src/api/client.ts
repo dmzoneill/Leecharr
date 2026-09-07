@@ -185,11 +185,11 @@ export const api = {
   getTorrentFiles: (id: number) =>
     fetchJson<TorrentFile[]>(`${BASE_URL}/torrents/${id}/files`),
   pauseTorrent: (id: number) =>
-    fetchJson<void>(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
+    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
   resumeTorrent: (id: number) =>
-    fetchJson<void>(`${BASE_URL}/torrents/${id}/resume`, { method: "POST" }),
+    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/resume`, { method: "POST" }),
   recheckTorrent: (id: number) =>
-    fetchJson<void>(`${BASE_URL}/torrents/${id}/recheck`, { method: "POST" }),
+    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/recheck`, { method: "POST" }),
   deleteTorrent: (id: number, deleteFiles = false) =>
     fetchJson<void>(`${BASE_URL}/torrents/${id}?deleteFiles=${deleteFiles}`, {
       method: "DELETE",

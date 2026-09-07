@@ -437,7 +437,6 @@ public class BackupController : Controller
                     {
                         var fileName = Path.GetFileName(entry.FullName);
                         if (string.Equals(fileName, "leecharr.db", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(fileName, "leecharr.db-wal", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
                         {
                             var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
@@ -452,7 +451,7 @@ public class BackupController : Controller
                 {
                     try
                     {
-                        using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+                        using (var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly"))
                         {
                             conn.Open();
                             using var cmd = conn.CreateCommand();
@@ -475,6 +474,27 @@ public class BackupController : Controller
                     finally
                     {
                         SqliteConnection.ClearAllPools();
+                        if (global::System.IO.File.Exists(walPath))
+                        {
+                            try
+                            {
+                                global::System.IO.File.Delete(walPath);
+                            }
+                            catch
+                            {
+                            }
+                        }
+
+                        if (global::System.IO.File.Exists(shmPath))
+                        {
+                            try
+                            {
+                                global::System.IO.File.Delete(shmPath);
+                            }
+                            catch
+                            {
+                            }
+                        }
                     }
                 }
 
