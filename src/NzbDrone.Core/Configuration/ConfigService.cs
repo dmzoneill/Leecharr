@@ -443,6 +443,8 @@ public interface IConfigService
 
     string PrimaryClient { get; }
 
+    string ClientEmulationPreset { get; }
+
     double BehaviorVariation { get; }
 
     bool ClientProfileSwitching { get; }
@@ -832,7 +834,10 @@ public class ConfigService : IConfigService
         get
         {
             var val = this.GetValue("BitTorrentUserAgent", string.Empty);
-            if (!string.IsNullOrWhiteSpace(val) && val != "Leecharr/1.0")
+            if (!string.IsNullOrWhiteSpace(val) &&
+                val != "Leecharr/1.0" &&
+                !val.Contains("MO3002", StringComparison.OrdinalIgnoreCase) &&
+                !val.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase))
             {
                 return val;
             }
@@ -846,7 +851,10 @@ public class ConfigService : IConfigService
         get
         {
             var val = this.GetValue("PeerIdPrefix", string.Empty);
-            if (!string.IsNullOrWhiteSpace(val) && val != "-LC1000-")
+            if (!string.IsNullOrWhiteSpace(val) &&
+                val != "-LC1000-" &&
+                !val.Contains("MO3002", StringComparison.OrdinalIgnoreCase) &&
+                !val.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
             {
                 return val;
             }
@@ -1121,7 +1129,9 @@ public class ConfigService : IConfigService
     // Simulation
     public bool ClientBehaviorEngineEnabled => this.GetValueBoolean("ClientBehaviorEngineEnabled", true);
 
-    public string PrimaryClient => this.GetValue("PrimaryClient", "qBittorrent");
+    public string PrimaryClient => this.GetValue("PrimaryClient", this.GetValue("ClientEmulationPreset", ClientEmulationPresets.DefaultClient));
+
+    public string ClientEmulationPreset => this.PrimaryClient;
 
     public double BehaviorVariation => this.GetValueDouble("BehaviorVariation", 0.15);
 
