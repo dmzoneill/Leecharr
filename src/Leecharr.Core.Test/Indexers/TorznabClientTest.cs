@@ -469,6 +469,115 @@ public class TorznabClientTest
         capturedUri.Query.Should().Contain("t=search");
     }
 
+    [Test]
+    public async Task TestConnectionAsync_WhenCapsReturnsErrorWithUnescapedAmpersand_ReturnsDescriptiveFailure()
+    {
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"<error code=""100"" description=""Invalid credentials & API key"" />"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "TrackerError",
+            Url = "https://indexer.local/api",
+            ApiKey = "bad_key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Torznab error (100): Invalid credentials & API key");
+    }
+
+    [Test]
+    public async Task TestConnectionAsync_WhenCapsReturnsErrorWithInvalidControlChars_ReturnsDescriptiveFailure()
+    {
+        var badChars = "\x01\x02\x08\x0B\x0C\x1F";
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($@"<error code=""200"" description=""Access Denied{badChars}"" />"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "TrackerControlChars",
+            Url = "https://indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Torznab error (200): Access Denied");
+    }
+
+    [Test]
+    public async Task TestConnectionAsync_WhenSearchFallbackReturnsErrorWithUnescapedAmpersand_ReturnsDescriptiveFailure()
+    {
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.Query.Contains("t=caps"))
+            {
+                // Return something that is not caps and not error, so fallback to search is triggered
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<unknown></unknown>"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"<error code=""101"" description=""Search query failed & rejected"" />"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "TrackerFallbackError",
+            Url = "https://indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Torznab error (101): Search query failed & rejected");
+    }
+
+    [Test]
+    public void SafeParseXml_WithUnescapedAmpersandsAndControlCharacters_ParsesDocumentCorrectly()
+    {
+        var rawXml = "<root attr=\"value & more &amp; &lt;tag&gt; \x01\x02\">Text & Content &#169;</root>";
+        var doc = TorznabClient.SafeParseXml(rawXml);
+
+        doc.Should().NotBeNull();
+        doc.Root.Should().NotBeNull();
+        doc.Root!.Attribute("attr")?.Value.Should().Be("value & more & <tag> ");
+        doc.Root!.Value.Should().Be("Text & Content ©");
+    }
+
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
