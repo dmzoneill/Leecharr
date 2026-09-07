@@ -2106,9 +2106,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         {
             ContainerFormat = "MP3",
             AudioCodec = "MP3",
-            AudioChannels = "2.0",
-            AudioSampleRate = 44100,
-            AudioBitDepth = 16,
         };
 
         ApplyFilenameHints(info, fileName);
