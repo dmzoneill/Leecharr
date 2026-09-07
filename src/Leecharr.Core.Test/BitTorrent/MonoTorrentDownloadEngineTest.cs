@@ -1860,6 +1860,7 @@ public class MonoTorrentDownloadEngineTest
     [Test]
     public async Task OnTorrentCompletedAsync_SingleFileTorrent_DoesNotPassIncompleteDirectoryAsSourcePath()
     {
+        this.diskProvider.FolderExists(this.testIncompleteDir).Returns(true);
         var torrentBytes = CreateSampleSingleFileTorrentBytes("SingleFileMovie.mkv");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
