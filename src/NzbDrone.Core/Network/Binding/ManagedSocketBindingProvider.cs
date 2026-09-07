@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -92,7 +93,8 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         try
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             return nic != null && nic.OperationalStatus == OperationalStatus.Up;
         }
@@ -103,12 +105,13 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         }
     }
 
-    private static IPAddress GetInterfaceIp(string interfaceName, AddressFamily addressFamily)
+    internal static IPAddress GetInterfaceIp(string interfaceName, AddressFamily addressFamily)
     {
         try
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null)
             {
@@ -116,14 +119,76 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             }
 
             var props = nic.GetIPProperties();
-            var unicast = props.UnicastAddresses
-                .FirstOrDefault(u => u.Address.AddressFamily == addressFamily);
+            if (props == null || props.UnicastAddresses == null)
+            {
+                return null;
+            }
 
-            return unicast?.Address;
+            return SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, addressFamily);
         }
         catch
         {
             return null;
         }
+    }
+
+    internal static IPAddress SelectIpAddress(IEnumerable<IPAddress> addresses, IPInterfaceProperties props, AddressFamily addressFamily)
+    {
+        int? scopeIndex = null;
+        if (props != null)
+        {
+            try
+            {
+                scopeIndex = props.GetIPv6Properties()?.Index;
+            }
+            catch
+            {
+            }
+        }
+
+        return SelectIpAddress(addresses, scopeIndex, addressFamily);
+    }
+
+    internal static IPAddress SelectIpAddress(IEnumerable<IPAddress> addresses, int? ipv6ScopeIndex, AddressFamily addressFamily)
+    {
+        if (addresses == null)
+        {
+            return null;
+        }
+
+        var addrList = addresses.Where(a => a.AddressFamily == addressFamily).ToList();
+
+        if (addressFamily == AddressFamily.InterNetworkV6)
+        {
+            var globalIp = addrList.FirstOrDefault(a =>
+                !a.IsIPv6LinkLocal &&
+                !a.IsIPv6SiteLocal &&
+                !IPAddress.IsLoopback(a) &&
+                !a.Equals(IPAddress.IPv6Any) &&
+                !a.Equals(IPAddress.IPv6None));
+
+            if (globalIp != null)
+            {
+                return globalIp;
+            }
+
+            var linkLocal = addrList.FirstOrDefault(a => a.IsIPv6LinkLocal);
+            if (linkLocal != null)
+            {
+                if (ipv6ScopeIndex.HasValue && linkLocal.ScopeId == 0)
+                {
+                    linkLocal.ScopeId = ipv6ScopeIndex.Value;
+                }
+
+                return linkLocal;
+            }
+
+            return null;
+        }
+
+        return addrList.FirstOrDefault(a =>
+            !IPAddress.IsLoopback(a) &&
+            !a.Equals(IPAddress.Any) &&
+            !a.Equals(IPAddress.None));
     }
 }
