@@ -710,4 +710,71 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"save_path\":\"/downloads\"");
         json.Should().Contain("\"download_location\":\"/downloads\"");
     }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_CoreAddTorrentMagnet_WithVariousBooleanFormatsForAddPaused_DoesNotThrowAndParsesCorrectly(string addPausedJson, bool expectedPaused)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnetUri = "magnet:?xt=urn:btih:1234567890123456789012345678901234567890&dn=Test";
+        var added = new Torrent
+        {
+            Id = 1,
+            InfoHash = "1234567890123456789012345678901234567890",
+            Name = "Test",
+        };
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, expectedPaused).Returns(added);
+
+        var json = $"{{\"method\":\"core.add_torrent_magnet\",\"params\":[\"{magnetUri}\",{{\"add_paused\":{addPausedJson}}}],\"id\":1}}";
+        using var doc = JsonDocument.Parse(json);
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var resultJson = JsonSerializer.Serialize(jsonResult.Value);
+        resultJson.Should().Contain(added.InfoHash);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnetUri, null, null, expectedPaused);
+    }
+
+    [TestCase("true", true)]
+    [TestCase("false", false)]
+    [TestCase("1", true)]
+    [TestCase("0", false)]
+    [TestCase("\"true\"", true)]
+    [TestCase("\"false\"", false)]
+    [TestCase("\"1\"", true)]
+    [TestCase("\"0\"", false)]
+    [TestCase("null", false)]
+    public async Task HandleRpc_CoreRemoveTorrent_WithVariousBooleanFormatsForDeleteData_DoesNotThrowAndParsesCorrectly(string deleteDataJson, bool expectedDelete)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var infoHash = "1234567890123456789012345678901234567890";
+        var torrent = new Torrent { Id = 42, InfoHash = infoHash };
+        this.torrentService.GetByInfoHash(infoHash).Returns(torrent);
+
+        var json = $"{{\"method\":\"core.remove_torrent\",\"params\":[\"{infoHash}\",{deleteDataJson}],\"id\":1}}";
+        using var doc = JsonDocument.Parse(json);
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var resultJson = JsonSerializer.Serialize(jsonResult.Value);
+        resultJson.Should().Contain("\"result\":true");
+
+        await this.torrentService.Received(1).DeleteAsync(42, expectedDelete);
+    }
 }
