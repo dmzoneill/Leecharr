@@ -16,7 +16,7 @@ public class TorrentFile : ModelBase
 
     public int PieceCount { get; set; }
 
-    public int Priority { get; set; }
+    public int Priority { get; set; } = 3;
 
     public double Progress { get; set; }
 
