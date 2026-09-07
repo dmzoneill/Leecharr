@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useCallback, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { FileManager } from "@cubone/react-file-manager";
 import "@cubone/react-file-manager/dist/style.css";
 import {
@@ -44,15 +44,11 @@ export function FileBrowser() {
   const activeLang = languages.find((l) => l.code === language);
   const cuboneLanguage = activeLang?.cuboneLanguage || "en-US";
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const confirm = useConfirm();
   const { showToast } = useToast();
 
-  const queryPath =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("path") || undefined
-      : undefined;
-
-  const [currentPath, setCurrentPath] = useState<string>(queryPath || "");
+  const currentPath = searchParams.get("path") || "";
   const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   const {
@@ -72,18 +68,9 @@ export function FileBrowser() {
     !!previewPath,
   );
 
-  useEffect(() => {
-    if (listing?.path && !currentPath) {
-      setCurrentPath(listing.path);
-    }
-  }, [listing, currentPath]);
-
   const navigateTo = useCallback((path: string) => {
-    setCurrentPath(path);
-    const url = new URL(window.location.href);
-    url.searchParams.set("path", path);
-    window.history.replaceState({}, "", url.toString());
-  }, []);
+    setSearchParams(path ? { path } : {});
+  }, [setSearchParams]);
 
   const handleNavigateUp = () => {
     if (listing?.parent && listing.parent !== listing.path) {
