@@ -168,4 +168,46 @@ public class TransmissionRpcTests : IntegrationTestBase
         getResult.GetProperty("result").GetString().Should().Be("success");
         getResult.GetProperty("arguments").GetProperty("torrents").GetArrayLength().Should().Be(0);
     }
+
+    [Test]
+    public async Task SessionStats_WithSessionHeader_ReturnsCompleteStats()
+    {
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+        {
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "session-stats", tag = 30 }), System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+        var response = await this.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.GetProperty("result").GetString().Should().Be("success");
+        var args = root.GetProperty("arguments");
+        args.TryGetProperty("activeTorrentCount", out _).Should().BeTrue();
+        args.TryGetProperty("pausedTorrentCount", out _).Should().BeTrue();
+        args.TryGetProperty("torrentCount", out _).Should().BeTrue();
+        args.TryGetProperty("downloadSpeed", out _).Should().BeTrue();
+        args.TryGetProperty("uploadSpeed", out _).Should().BeTrue();
+
+        var cumulative = args.GetProperty("cumulative-stats");
+        cumulative.TryGetProperty("downloadedBytes", out _).Should().BeTrue();
+        cumulative.TryGetProperty("uploadedBytes", out _).Should().BeTrue();
+        cumulative.TryGetProperty("filesAdded", out _).Should().BeTrue();
+        cumulative.TryGetProperty("sessionCount", out _).Should().BeTrue();
+        cumulative.TryGetProperty("secondsActive", out _).Should().BeTrue();
+
+        var current = args.GetProperty("current-stats");
+        current.TryGetProperty("downloadedBytes", out _).Should().BeTrue();
+        current.TryGetProperty("uploadedBytes", out _).Should().BeTrue();
+        current.TryGetProperty("filesAdded", out _).Should().BeTrue();
+        current.TryGetProperty("sessionCount", out _).Should().BeTrue();
+        current.TryGetProperty("secondsActive", out _).Should().BeTrue();
+    }
 }
