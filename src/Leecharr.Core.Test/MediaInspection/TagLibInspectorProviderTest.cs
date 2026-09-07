@@ -1036,6 +1036,7 @@ public class TagLibInspectorProviderTest
         result.AudioCodec.Should().Be("DTS");
         result.AudioChannels.Should().Be("5.1");
     }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,

@@ -366,6 +366,7 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
     }
+
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
