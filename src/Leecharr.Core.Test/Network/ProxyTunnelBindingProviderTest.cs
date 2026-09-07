@@ -299,4 +299,133 @@ public class ProxyTunnelBindingProviderTest
             await proxyServerTask;
         }
     }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Http_WhenHeadersExceed8KBWithoutDelimiter_ThrowsInvalidOperationException()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            string line;
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+            }
+
+            // Send > 8192 bytes of headers without terminating \r\n\r\n delimiter
+            var giantHeader = "HTTP/1.1 200 OK\r\nX-Debug-Data: " + new string('A', 8500);
+            var response = Encoding.ASCII.GetBytes(giantHeader);
+            await stream.WriteAsync(response, 0, response.Length);
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("http");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            var act = async () => await provider.ConnectTunnelAsync("tracker.domain.com", 8080);
+
+            var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+            ex.WithMessage("*exceeded 8192 bytes without terminating*");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Http_WhenProxyClosesConnectionDuringHandshake_ThrowsIOException()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            string line;
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+            }
+
+            // Immediately close connection without sending response
+            client.Client.Shutdown(SocketShutdown.Both);
+            client.Close();
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("http");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            var act = async () => await provider.ConnectTunnelAsync("tracker.domain.com", 8080);
+
+            await act.Should().ThrowAsync<IOException>();
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Http_WhenProxyReturnsNon200Status_ThrowsInvalidOperationException()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            string line;
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+            }
+
+            // Send 403 Forbidden
+            var response = Encoding.ASCII.GetBytes("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
+            await stream.WriteAsync(response, 0, response.Length);
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("http");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            var act = async () => await provider.ConnectTunnelAsync("tracker.domain.com", 8080);
+
+            var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+            ex.WithMessage("*non-200 status*");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
 }
