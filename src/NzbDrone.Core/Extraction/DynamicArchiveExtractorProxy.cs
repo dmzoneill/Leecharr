@@ -205,7 +205,16 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         this.diskProvider.EnsureFolder(targetDir);
 
         var active = Volatile.Read(ref this.activeProvider);
-        var success = await active.ExtractAsync(archiveFilePath, targetDir);
+        var success = false;
+
+        try
+        {
+            success = await active.ExtractAsync(archiveFilePath, targetDir);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Active extractor '{0}' failed for '{1}' with exception.", active.ProviderId, archiveFilePath);
+        }
 
         if (!success && !active.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
         {
