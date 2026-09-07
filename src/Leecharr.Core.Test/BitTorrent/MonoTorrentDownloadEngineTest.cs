@@ -1266,6 +1266,32 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetFilePriorityAsync_WhenPathHasWindowsBackslashesOrLeadingSlashes_MatchesAndUpdatesPriority()
+    {
+        var multiBytes = CreateSampleMultiFileTorrentBytes("multi_priority_test");
+        var parsed = MonoTorrent.Torrent.Load(multiBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 81,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "multi_priority_test",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: multiBytes);
+
+        await this.engine.SetFilePriorityAsync(81, @"\subfolder\file1.dat", 0);
+        task.Manager.Files[0].Priority.Should().Be(MonoTorrent.Priority.DoNotDownload);
+
+        await this.engine.SetFilePriorityAsync(81, "/subfolder/file1.dat", 4);
+        task.Manager.Files[0].Priority.Should().Be(MonoTorrent.Priority.High);
+
+        await this.engine.SetFilePriorityAsync(81, @"subfolder\file1.dat", 2);
+        task.Manager.Files[0].Priority.Should().Be(MonoTorrent.Priority.Low);
+    }
+
+    [Test]
     public async Task AddTorrentAsync_WhenTorrentIsPrivateAndBep27Enabled_DisablesDhtAndPex()
     {
         this.configService.EnableBep27PrivateTorrents.Returns(true);
