@@ -1217,10 +1217,54 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task ResumeTorrentAsync_WhenTorrentNotFound_DoesNotThrow()
+    public async Task ForceRecheckAsync_WhenTorrentNotFound_DoesNotThrow()
     {
-        var act = async () => await this.engine.ResumeTorrentAsync(9999);
+        var act = async () => await this.engine.ForceRecheckAsync(9999);
         await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenTorrentExists_InitiatesHashCheck()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("to_recheck.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 42,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "to_recheck.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.ForceRecheckAsync(42);
+
+        var task = this.engine.GetTask(42);
+        task.Should().NotBeNull();
+        task!.Status.Should().BeOneOf(TorrentStatus.Checking, TorrentStatus.Downloading, TorrentStatus.Stopped, TorrentStatus.Paused);
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenTorrentIsRunning_StopsAndHashChecks()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("to_recheck_running.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 43,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "to_recheck_running.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var act = async () => await this.engine.ForceRecheckAsync(43);
+        await act.Should().NotThrowAsync();
+
+        var task = this.engine.GetTask(43);
+        task.Should().NotBeNull();
     }
 
     #endregion
