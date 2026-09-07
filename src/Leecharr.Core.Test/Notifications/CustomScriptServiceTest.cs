@@ -1,5 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
+using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
@@ -12,11 +14,43 @@ namespace Leecharr.Core.Test.Notifications;
 public class CustomScriptServiceTest
 {
     private CustomScriptService service = null!;
+    private string tempDirectory = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.service = new CustomScriptService();
+        this.tempDirectory = Path.Combine(Path.GetTempPath(), "LeecharrCustomScriptTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(this.tempDirectory);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        if (Directory.Exists(this.tempDirectory))
+        {
+            try
+            {
+                Directory.Delete(this.tempDirectory, true);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private string CreateExecutableScript(string scriptContent)
+    {
+        var scriptName = OperatingSystem.IsWindows() ? "test_script.bat" : "test_script.sh";
+        var scriptPath = Path.Combine(this.tempDirectory, scriptName);
+        File.WriteAllText(scriptPath, scriptContent);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        return scriptPath;
     }
 
     [Test]
@@ -24,6 +58,73 @@ public class CustomScriptServiceTest
     {
         var result = await this.service.ExecuteScriptAsync("/path/to/nonexistent/script.sh", new Torrent(), "OnDownloadComplete");
         result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenScriptSucceeds_ReturnsTrue()
+    {
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\necho Success stdout\r\necho Success stderr 1>&2\r\nexit /b 0"
+            : "#!/bin/sh\necho \"Success stdout\"\necho \"Success stderr\" >&2\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenScriptFails_ReturnsFalse()
+    {
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\necho Failure\r\nexit /b 1"
+            : "#!/bin/sh\necho \"Failure\"\nexit 1\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenScriptTimesOut_ReturnsFalseAndKillsProcess()
+    {
+        var timeoutService = new CustomScriptService(
+            scriptTimeout: TimeSpan.FromMilliseconds(200),
+            streamDrainTimeout: TimeSpan.FromMilliseconds(100));
+
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\nping 127.0.0.1 -n 10 >nul\r\nexit /b 0"
+            : "#!/bin/sh\nsleep 5\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var startTime = DateTime.UtcNow;
+        var result = await timeoutService.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+        var elapsed = DateTime.UtcNow - startTime;
+
+        result.Should().BeFalse();
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenChildProcessInheritsStdioPipes_CompletesWithinDrainTimeout()
+    {
+        // Spawns background process that keeps stdio pipe open and exits parent immediately
+        var drainService = new CustomScriptService(
+            scriptTimeout: TimeSpan.FromSeconds(10),
+            streamDrainTimeout: TimeSpan.FromMilliseconds(500));
+
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\nstart /b cmd /c \"ping 127.0.0.1 -n 10 >nul\"\r\nexit /b 0"
+            : "#!/bin/sh\n(sleep 10 &)\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var startTime = DateTime.UtcNow;
+        var result = await drainService.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+        var elapsed = DateTime.UtcNow - startTime;
+
+        result.Should().BeTrue();
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
     }
 
     [Test]
