@@ -36,6 +36,8 @@ namespace NzbDrone.Core.BitTorrent;
 public class MonoTorrentDownloadEngine : ITorrentEngine,
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<VpnInterfaceRestoredEvent>,
+    IHandle<ConfigSavedEvent>,
+    IHandle<ConfigFileSavedEvent>,
     IDisposable
 {
     private readonly IConfigService configService;
@@ -404,6 +406,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var userAgent = this.configService.BitTorrentUserAgent;
         var peerIdPrefix = this.configService.PeerIdPrefix;
 
+        ConfigureGlobalMonoTorrentDefaults(peerIdPrefix);
+
         WebProxy webProxy = null;
         if (this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService.ProxyHost))
@@ -437,11 +441,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
 
             var client = new HttpClient(handler);
-            if (!string.IsNullOrWhiteSpace(userAgent))
+            var currentUserAgent = this.configService.BitTorrentUserAgent;
+            if (string.IsNullOrWhiteSpace(currentUserAgent))
             {
-                client.DefaultRequestHeaders.Remove("User-Agent");
-                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
+                currentUserAgent = ClientEmulationPresets.DefaultUserAgent;
             }
+
+            client.DefaultRequestHeaders.Remove("User-Agent");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
 
             return client;
         });
@@ -2030,11 +2037,57 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public void Handle(ConfigSavedEvent message)
+    {
+        if (this.engine != null)
+        {
+            this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+        }
+    }
+
+    public void Handle(ConfigFileSavedEvent message)
+    {
+        if (this.engine != null)
+        {
+            this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+        }
+    }
+
+    private static void ConfigureGlobalMonoTorrentDefaults(string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+        }
+
+        try
+        {
+            var cleanVersion = ClientEmulationPresets.CleanClientVersion(prefix);
+            var gitInfoType = typeof(ClientEngine).Assembly.GetType("MonoTorrent.GitInfoHelper");
+            if (gitInfoType != null)
+            {
+                gitInfoType.GetProperty("ClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                    ?.SetValue(null, cleanVersion);
+                gitInfoType.GetProperty("DhtClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                    ?.SetValue(null, cleanVersion);
+            }
+        }
+        catch
+        {
+            // Best-effort configuration of MonoTorrent static version info
+        }
+    }
+
     private static BEncodedString GeneratePeerId(string prefix)
     {
         if (string.IsNullOrWhiteSpace(prefix))
         {
-            prefix = "-qB4420-";
+            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+        }
+
+        if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
         }
 
         var lengthRemaining = 20 - prefix.Length;
@@ -2061,6 +2114,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private void ApplyCustomPeerId(ClientEngine clientEngine, string prefix)
     {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = this.configService.PeerIdPrefix;
+        }
+
+        ConfigureGlobalMonoTorrentDefaults(prefix);
+
         if (clientEngine == null)
         {
             return;
@@ -2068,13 +2128,26 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
+            var customPeerId = GeneratePeerId(prefix);
+
             var peerIdField = typeof(ClientEngine).GetField("<PeerId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance);
             if (peerIdField != null)
             {
-                var customPeerId = GeneratePeerId(prefix);
                 peerIdField.SetValue(clientEngine, customPeerId);
-                this.logger.Info("Configured MonoTorrent download client Peer ID: '{0}' (User-Agent: '{1}')", customPeerId.Text, this.configService.BitTorrentUserAgent);
             }
+
+            var connManagerProp = typeof(ClientEngine).GetProperty("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var connManagerField = typeof(ClientEngine).GetField("ConnectionManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? typeof(ClientEngine).GetField("<ConnectionManager>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var connMgr = connManagerProp?.GetValue(clientEngine) ?? connManagerField?.GetValue(clientEngine);
+            if (connMgr != null)
+            {
+                var localPeerIdField = connMgr.GetType().GetField("<LocalPeerId>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? connMgr.GetType().GetField("LocalPeerId", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                localPeerIdField?.SetValue(connMgr, customPeerId);
+            }
+
+            this.logger.Info("Configured MonoTorrent download client Peer ID: '{0}' (User-Agent: '{1}')", customPeerId.Text, this.configService.BitTorrentUserAgent);
         }
         catch (Exception ex)
         {

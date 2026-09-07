@@ -23,4 +23,26 @@ public static class ClientEmulationPresets
             _ => (DefaultUserAgent, DefaultPeerIdPrefix),
         };
     }
+
+    public static string CleanClientVersion(string peerIdPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(peerIdPrefix))
+        {
+            return "qB4420";
+        }
+
+        var cleaned = peerIdPrefix.Trim('-');
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            return "qB4420";
+        }
+
+        return cleaned.Length > 6 ? cleaned.Substring(0, 6) : cleaned;
+    }
+
+    public static string CleanClientIdentifier(string peerIdPrefix)
+    {
+        var cleaned = CleanClientVersion(peerIdPrefix);
+        return cleaned.Length >= 2 ? cleaned.Substring(0, 2) : "qB";
+    }
 }
