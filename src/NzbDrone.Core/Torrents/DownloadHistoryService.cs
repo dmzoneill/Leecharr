@@ -502,7 +502,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Size = file.Size,
                     PieceOffset = startPiece,
                     PieceCount = pieceCount,
-                    Priority = 1,
+                    Priority = 3,
                     Progress = isCompleted ? 1.0 : 0.0,
                 };
                 torrentFiles.Add(torrentFile);
