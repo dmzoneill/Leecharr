@@ -1793,9 +1793,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var t in this.ResolveTorrents(hashes))
+            var torrents = this.ResolveTorrents(hashes);
+            for (var i = torrents.Count - 1; i >= 0; i--)
             {
-                await this.torrentService.MoveQueueAsync(t.Id, "top");
+                await this.torrentService.MoveQueueAsync(torrents[i].Id, "top");
             }
         }
 
@@ -1807,7 +1808,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var t in this.ResolveTorrents(hashes))
+            var torrents = this.ResolveTorrents(hashes);
+            foreach (var t in torrents)
             {
                 await this.torrentService.MoveQueueAsync(t.Id, "bottom");
             }
@@ -1821,7 +1823,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var t in this.ResolveTorrents(hashes))
+            var torrents = this.ResolveTorrents(hashes).OrderBy(t => t.QueuePosition).ToList();
+            foreach (var t in torrents)
             {
                 await this.torrentService.MoveQueueAsync(t.Id, "up");
             }
@@ -1835,7 +1838,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrWhiteSpace(hashes))
         {
-            foreach (var t in this.ResolveTorrents(hashes))
+            var torrents = this.ResolveTorrents(hashes).OrderByDescending(t => t.QueuePosition).ToList();
+            foreach (var t in torrents)
             {
                 await this.torrentService.MoveQueueAsync(t.Id, "down");
             }
@@ -2032,16 +2036,16 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Ok(this.qbittorrentSearchService.GetCategories());
     }
 
-    private IEnumerable<Torrent> ResolveTorrents(string hashes)
+    private List<Torrent> ResolveTorrents(string hashes)
     {
         if (string.IsNullOrWhiteSpace(hashes))
         {
-            return Enumerable.Empty<Torrent>();
+            return new List<Torrent>();
         }
 
         if (string.Equals(hashes.Trim(), "all", StringComparison.OrdinalIgnoreCase))
         {
-            return this.torrentService.GetAll();
+            return this.torrentService.GetAll().OrderBy(t => t.QueuePosition).ToList();
         }
 
         var hashList = hashes.Split('|', StringSplitOptions.RemoveEmptyEntries);

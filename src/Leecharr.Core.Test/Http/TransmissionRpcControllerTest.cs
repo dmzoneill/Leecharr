@@ -1181,6 +1181,7 @@ public class TransmissionRpcControllerTest
         torrents!.Count.Should().Be(1);
         torrents[0]["downloadDir"].Should().Be("/downloads");
     }
+<<<<<<< HEAD
 
     [Test]
     public async Task HandleRpc_SessionStats_ReturnsActivePausedSpeedAndNestedCumulativeAndCurrentStats()
@@ -1281,5 +1282,131 @@ public class TransmissionRpcControllerTest
         current["uploadedBytes"].Should().Be(0L);
         current["filesAdded"].Should().Be(0);
         current["sessionCount"].Should().Be(1);
+    }
+
+    [Test]
+    public async Task HandleRpc_QueueMoveTop_BatchIds_PreservesRelativeOrder_ByIteratingInReverse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[10, 20, 30]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "queue-move-top",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "top");
+            await this.torrentService.MoveQueueAsync(20, "top");
+            await this.torrentService.MoveQueueAsync(10, "top");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_QueueMoveBottom_BatchIds_PreservesRelativeOrder_ByIteratingInForward()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[10, 20, 30]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "queue-move-bottom",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(10, "bottom");
+            await this.torrentService.MoveQueueAsync(20, "bottom");
+            await this.torrentService.MoveQueueAsync(30, "bottom");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_QueueMoveUp_BatchIds_ProcessesInAscendingQueuePositionOrder()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrentA = new Torrent { Id = 10, QueuePosition = 4 };
+        var torrentB = new Torrent { Id = 20, QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, QueuePosition = 3 };
+        this.torrentService.Get(10).Returns(torrentA);
+        this.torrentService.Get(20).Returns(torrentB);
+        this.torrentService.Get(30).Returns(torrentC);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[10, 20, 30]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "queue-move-up",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(20, "up");
+            await this.torrentService.MoveQueueAsync(30, "up");
+            await this.torrentService.MoveQueueAsync(10, "up");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_QueueMoveDown_BatchIds_ProcessesInDescendingQueuePositionOrder()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrentA = new Torrent { Id = 10, QueuePosition = 2 };
+        var torrentB = new Torrent { Id = 20, QueuePosition = 3 };
+        var torrentC = new Torrent { Id = 30, QueuePosition = 4 };
+        this.torrentService.Get(10).Returns(torrentA);
+        this.torrentService.Get(20).Returns(torrentB);
+        this.torrentService.Get(30).Returns(torrentC);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[10, 20, 30]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "queue-move-down",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "down");
+            await this.torrentService.MoveQueueAsync(20, "down");
+            await this.torrentService.MoveQueueAsync(10, "down");
+        });
     }
 }
