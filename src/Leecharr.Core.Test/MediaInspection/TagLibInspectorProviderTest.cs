@@ -570,6 +570,7 @@ public class TagLibInspectorProviderTest
         sdhInfo.Height.Should().Be(1080);
     }
 
+<<<<<<< HEAD
     [Test]
     public void Inspect_FlacStream_ExtractsStreamInfoAndCalculatesDuration()
     {
@@ -904,6 +905,137 @@ public class TagLibInspectorProviderTest
         ms.Write(wav, 0, wav.Length);
 
         return ms.ToArray();
+    }
+
+    [Test]
+    public void Inspect_AviWithXvidAndAc3Surround_DetectsXvidAndAc3With5Point1Channels()
+    {
+        var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: 0x2000, audioChannels: 6, audioSampleRate: 48000);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "movie.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.VideoCodec.Should().Be("Xvid / MPEG-4");
+        result.Width.Should().Be(1280);
+        result.Height.Should().Be(720);
+        result.Resolution.Should().Be("720p");
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().Be("5.1");
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
+    public void Inspect_AviWithH264AndPcmStereo_DetectsH264AndPcmWith2Point0Channels()
+    {
+        var aviData = CreateAviHeader("H264", 1920, 1080, audioFormatTag: 0x0001, audioChannels: 2, audioSampleRate: 44100, audioBitsPerSample: 16);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "clip.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.VideoCodec.Should().Be("H.264");
+        result.Width.Should().Be(1920);
+        result.Height.Should().Be(1080);
+        result.Resolution.Should().Be("1080p");
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(44100);
+        result.AudioBitDepth.Should().Be(16);
+    }
+
+    [Test]
+    public void Inspect_AviWithDivxAndMp3_DetectsXvidAndMp3()
+    {
+        var aviData = CreateAviHeader("DIVX", 640, 480, audioFormatTag: 0x0055, audioChannels: 2, audioSampleRate: 44100);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "episode.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.VideoCodec.Should().Be("Xvid / MPEG-4");
+        result.Width.Should().Be(640);
+        result.Height.Should().Be(480);
+        result.Resolution.Should().Be("480p");
+        result.AudioCodec.Should().Be("MP3");
+        result.AudioChannels.Should().Be("2.0");
+        result.AudioSampleRate.Should().Be(44100);
+    }
+
+    [Test]
+    public void Inspect_AviWithDtsSurround_DetectsDtsAnd5Point1Channels()
+    {
+        var aviData = CreateAviHeader("XVID", 1920, 1080, audioFormatTag: 0x2001, audioChannels: 6, audioSampleRate: 48000);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "film.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.AudioCodec.Should().Be("DTS");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_AviWithMonoAudio_Detects1Point0Channel()
+    {
+        var aviData = CreateAviHeader("XVID", 640, 480, audioFormatTag: 0x0001, audioChannels: 1, audioSampleRate: 22050);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "classic.avi");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("PCM");
+        result.AudioChannels.Should().Be("1.0");
+    }
+
+    [Test]
+    public void Inspect_SilentAviWithoutAudioStream_LeavesAudioCodecAndChannelsNull()
+    {
+        var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: null);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "cctv_footage.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.VideoCodec.Should().Be("Xvid / MPEG-4");
+        result.Width.Should().Be(1280);
+        result.Height.Should().Be(720);
+        result.AudioCodec.Should().BeNull();
+        result.AudioChannels.Should().BeNull();
+    }
+
+    [Test]
+    public void Inspect_AviWithUnseekableStream_ParsesSuccessfully()
+    {
+        var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: 0x2000, audioChannels: 6);
+        using var unseekable = new UnseekableStream(aviData);
+
+        var result = this.provider.Inspect(unseekable, "stream.avi");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("AVI");
+        result.VideoCodec.Should().Be("Xvid / MPEG-4");
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_AviWithFilenameAudioHint_AppliesFilenameAudioHintWhenStreamAudioMissing()
+    {
+        var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: null);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "My.Movie.2005.DTS.5.1.avi");
+
+        result.Should().NotBeNull();
+        result.VideoCodec.Should().Be("Xvid / MPEG-4");
+        result.AudioCodec.Should().Be("DTS");
+        result.AudioChannels.Should().Be("5.1");
     }
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
@@ -1309,6 +1441,147 @@ public class TagLibInspectorProviderTest
         }
 
         return CreateMp4Box("moov", ms.ToArray());
+    }
+
+    private static byte[] CreateAviHeader(
+        string videoFourCC,
+        int width,
+        int height,
+        ushort? audioFormatTag = null,
+        ushort audioChannels = 2,
+        uint audioSampleRate = 44100,
+        ushort audioBitsPerSample = 16)
+    {
+        using var ms = new MemoryStream();
+        using var riffBody = new MemoryStream();
+        using var hdrlBody = new MemoryStream();
+
+        // avih chunk (56 bytes)
+        using (var avihMs = new MemoryStream())
+        {
+            avihMs.Write(BitConverter.GetBytes(33333U)); // dwMicroSecPerFrame
+            avihMs.Write(BitConverter.GetBytes(1000000U)); // dwMaxBytesPerSec
+            avihMs.Write(BitConverter.GetBytes(0U)); // dwPaddingGranularity
+            avihMs.Write(BitConverter.GetBytes(0U)); // dwFlags
+            avihMs.Write(BitConverter.GetBytes(1000U)); // dwTotalFrames
+            avihMs.Write(BitConverter.GetBytes(0U)); // dwInitialFrames
+            avihMs.Write(BitConverter.GetBytes((uint)(audioFormatTag.HasValue ? 2 : 1))); // dwStreams
+            avihMs.Write(BitConverter.GetBytes(0U)); // dwSuggestedBufferSize
+            avihMs.Write(BitConverter.GetBytes((uint)width)); // dwWidth
+            avihMs.Write(BitConverter.GetBytes((uint)height)); // dwHeight
+            avihMs.Write(new byte[16]); // dwReserved
+
+            var avihBytes = avihMs.ToArray();
+            hdrlBody.Write(Encoding.ASCII.GetBytes("avih"));
+            hdrlBody.Write(BitConverter.GetBytes((uint)avihBytes.Length));
+            hdrlBody.Write(avihBytes);
+        }
+
+        // Video strl LIST
+        using (var videoStrl = new MemoryStream())
+        {
+            // strh
+            using (var strhMs = new MemoryStream())
+            {
+                strhMs.Write(Encoding.ASCII.GetBytes("vids"));
+                var fccBytes = Encoding.ASCII.GetBytes((videoFourCC + "    ").Substring(0, 4));
+                strhMs.Write(fccBytes);
+                strhMs.Write(new byte[48]); // other strh fields
+
+                var strhBytes = strhMs.ToArray();
+                videoStrl.Write(Encoding.ASCII.GetBytes("strh"));
+                videoStrl.Write(BitConverter.GetBytes((uint)strhBytes.Length));
+                videoStrl.Write(strhBytes);
+            }
+
+            // strf (BITMAPINFOHEADER - 40 bytes)
+            using (var strfMs = new MemoryStream())
+            {
+                strfMs.Write(BitConverter.GetBytes(40U)); // biSize
+                strfMs.Write(BitConverter.GetBytes(width)); // biWidth
+                strfMs.Write(BitConverter.GetBytes(height)); // biHeight
+                strfMs.Write(BitConverter.GetBytes((ushort)1)); // biPlanes
+                strfMs.Write(BitConverter.GetBytes((ushort)24)); // biBitCount
+                var fccBytes = Encoding.ASCII.GetBytes((videoFourCC + "    ").Substring(0, 4));
+                strfMs.Write(fccBytes); // biCompression
+                strfMs.Write(BitConverter.GetBytes(width * height * 3)); // biSizeImage
+                strfMs.Write(BitConverter.GetBytes(0)); // biXPelsPerMeter
+                strfMs.Write(BitConverter.GetBytes(0)); // biYPelsPerMeter
+                strfMs.Write(BitConverter.GetBytes(0U)); // biClrUsed
+                strfMs.Write(BitConverter.GetBytes(0U)); // biClrImportant
+
+                var strfBytes = strfMs.ToArray();
+                videoStrl.Write(Encoding.ASCII.GetBytes("strf"));
+                videoStrl.Write(BitConverter.GetBytes((uint)strfBytes.Length));
+                videoStrl.Write(strfBytes);
+            }
+
+            var videoStrlBytes = videoStrl.ToArray();
+            hdrlBody.Write(Encoding.ASCII.GetBytes("LIST"));
+            hdrlBody.Write(BitConverter.GetBytes((uint)(videoStrlBytes.Length + 4)));
+            hdrlBody.Write(Encoding.ASCII.GetBytes("strl"));
+            hdrlBody.Write(videoStrlBytes);
+        }
+
+        // Audio strl LIST (if audioFormatTag present)
+        if (audioFormatTag.HasValue)
+        {
+            using var audioStrl = new MemoryStream();
+
+            // strh
+            using (var strhMs = new MemoryStream())
+            {
+                strhMs.Write(Encoding.ASCII.GetBytes("auds"));
+                strhMs.Write(new byte[4]); // fccHandler
+                strhMs.Write(new byte[48]);
+
+                var strhBytes = strhMs.ToArray();
+                audioStrl.Write(Encoding.ASCII.GetBytes("strh"));
+                audioStrl.Write(BitConverter.GetBytes((uint)strhBytes.Length));
+                audioStrl.Write(strhBytes);
+            }
+
+            // strf (WAVEFORMATEX - 18 bytes)
+            using (var strfMs = new MemoryStream())
+            {
+                strfMs.Write(BitConverter.GetBytes(audioFormatTag.Value)); // wFormatTag
+                strfMs.Write(BitConverter.GetBytes(audioChannels)); // nChannels
+                strfMs.Write(BitConverter.GetBytes(audioSampleRate)); // nSamplesPerSec
+                uint avgBytesPerSec = audioSampleRate * audioChannels * (uint)(audioBitsPerSample / 8);
+                strfMs.Write(BitConverter.GetBytes(avgBytesPerSec)); // nAvgBytesPerSec
+                ushort blockAlign = (ushort)(audioChannels * (audioBitsPerSample / 8));
+                ushort effectiveBlockAlign = blockAlign == 0 ? (ushort)1 : blockAlign;
+                strfMs.Write(BitConverter.GetBytes(effectiveBlockAlign)); // nBlockAlign
+                strfMs.Write(BitConverter.GetBytes(audioBitsPerSample)); // wBitsPerSample
+                ushort cbSize = 0;
+                strfMs.Write(BitConverter.GetBytes(cbSize)); // cbSize
+
+                var strfBytes = strfMs.ToArray();
+                audioStrl.Write(Encoding.ASCII.GetBytes("strf"));
+                audioStrl.Write(BitConverter.GetBytes((uint)strfBytes.Length));
+                audioStrl.Write(strfBytes);
+            }
+
+            var audioStrlBytes = audioStrl.ToArray();
+            hdrlBody.Write(Encoding.ASCII.GetBytes("LIST"));
+            hdrlBody.Write(BitConverter.GetBytes((uint)(audioStrlBytes.Length + 4)));
+            hdrlBody.Write(Encoding.ASCII.GetBytes("strl"));
+            hdrlBody.Write(audioStrlBytes);
+        }
+
+        var hdrlBytes = hdrlBody.ToArray();
+        riffBody.Write(Encoding.ASCII.GetBytes("LIST"));
+        riffBody.Write(BitConverter.GetBytes((uint)(hdrlBytes.Length + 4)));
+        riffBody.Write(Encoding.ASCII.GetBytes("hdrl"));
+        riffBody.Write(hdrlBytes);
+
+        var riffPayload = riffBody.ToArray();
+        ms.Write(Encoding.ASCII.GetBytes("RIFF"));
+        ms.Write(BitConverter.GetBytes((uint)(riffPayload.Length + 4)));
+        ms.Write(Encoding.ASCII.GetBytes("AVI "));
+        ms.Write(riffPayload);
+
+        return ms.ToArray();
     }
 
     private sealed class UnseekableStream : Stream
