@@ -12,6 +12,7 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Authentication;
@@ -81,7 +82,19 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [NonAction]
     public void OnActionExecuting(ActionExecutingContext context)
     {
-        var actionName = context.ActionDescriptor.RouteValues["action"];
+        string actionName = null;
+        if (context.ActionDescriptor?.RouteValues != null &&
+            context.ActionDescriptor.RouteValues.TryGetValue("action", out var val))
+        {
+            actionName = val;
+        }
+
+        if (string.IsNullOrEmpty(actionName) &&
+            context.ActionDescriptor is ControllerActionDescriptor cad)
+        {
+            actionName = cad.ActionName;
+        }
+
         if (string.Equals(actionName, nameof(this.Login), StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -126,7 +139,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey))
         {
-            if (string.Equals(apiKey, this.configFileProvider.ApiKey, StringComparison.Ordinal))
+            if (RpcAuthenticationHelper.FixedTimeEquals(apiKey, this.configFileProvider.ApiKey))
             {
                 return true;
             }
@@ -144,8 +157,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var masterApiKey = this.configFileProvider.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(masterApiKey) &&
-                ((!string.IsNullOrWhiteSpace(password) && string.Equals(password, masterApiKey, StringComparison.Ordinal)) ||
-                 (!string.IsNullOrWhiteSpace(username) && string.Equals(username, masterApiKey, StringComparison.Ordinal))))
+                ((!string.IsNullOrWhiteSpace(password) && RpcAuthenticationHelper.FixedTimeEquals(password, masterApiKey)) ||
+                 (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterApiKey))))
             {
                 authenticated = true;
             }
