@@ -52,6 +52,8 @@ public class GeneralConfigResource : RestResource
     public bool HostHeaderValidationEnabled { get; set; } = false;
 
     public string AllowedHosts { get; set; } = string.Empty;
+
+    public bool TerminalAccessEnabled { get; set; } = true;
 }
 
 public static class GeneralConfigResourceMapper
@@ -73,6 +75,7 @@ public static class GeneralConfigResourceMapper
             BindAddress = fileProvider.BindAddress,
             UrlBase = fileProvider.UrlBase,
             AuthenticationEnabled = fileProvider.AuthenticationEnabled,
+            TerminalAccessEnabled = fileProvider.TerminalAccessEnabled,
             ApiKey = fileProvider.ApiKey.Length > 4
                 ? new string('*', fileProvider.ApiKey.Length - 4) + fileProvider.ApiKey[^4..]
                 : new string('*', fileProvider.ApiKey.Length),

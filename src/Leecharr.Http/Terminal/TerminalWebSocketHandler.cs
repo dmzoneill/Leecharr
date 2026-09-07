@@ -46,6 +46,14 @@ public static class TerminalWebSocketHandler
             return;
         }
 
+        if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync("Terminal process execution is disabled in security configuration.");
+            await context.Response.CompleteAsync();
+            return;
+        }
+
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -74,7 +82,25 @@ public static class TerminalWebSocketHandler
         int rows = int.TryParse(context.Request.Query["rows"], out int r) ? Math.Max(5, r) : 30;
 
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-        await using var session = ptyService.CreateSession(cwd, cols, rows);
+        ITerminalSession session;
+        try
+        {
+            session = ptyService.CreateSession(cwd, cols, rows);
+        }
+        catch (Exception ex)
+        {
+            var errPayload = JsonSerializer.Serialize(new { type = "output", data = $"\r\n\x1b[1;31m[Terminal session error: {ex.Message}]\x1b[0m\r\n" });
+            var errBytes = Encoding.UTF8.GetBytes(errPayload);
+            if (webSocket.State == WebSocketState.Open)
+            {
+                await webSocket.SendAsync(new ArraySegment<byte>(errBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, ex.Message, CancellationToken.None);
+            }
+
+            return;
+        }
+
+        await using var sessionDisposer = session;
 
         using var cts = new CancellationTokenSource();
         var sendLock = new SemaphoreSlim(1, 1);
@@ -82,6 +108,7 @@ public static class TerminalWebSocketHandler
         async Task SafeSendTextAsync(string text, CancellationToken ct)
         {
             var bytes = Encoding.UTF8.GetBytes(text);
+
             await sendLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
