@@ -204,7 +204,7 @@ public class EngineResourceMetricsTest
     }
 
     [Test]
-    public async Task EmbeddedTransmissionEngine_ProbeHealthAsync_ReturnsUnhealthyAndNotImplemented()
+    public async Task EmbeddedTransmissionEngine_ProbeHealthAsync_ReturnsValidHealthResult()
     {
         using var engine = new EmbeddedTransmissionEngine(
             this.configService,
@@ -213,16 +213,17 @@ public class EngineResourceMetricsTest
             this.diskProvider,
             this.eventAggregator);
 
-        engine.IsAvailable.Should().BeFalse();
+        engine.EngineId.Should().Be("Transmission");
+        engine.ProtocolName.Should().Be("BitTorrent");
 
         var result = await engine.ProbeHealthAsync();
         result.Should().NotBeNull();
-        result.IsHealthy.Should().BeFalse();
-        result.StatusMessage.Should().Contain("not implemented");
+        result.StatusMessage.Should().NotBeNullOrWhiteSpace();
+        result.DependencyChecks.Should().NotBeNull();
     }
 
     [Test]
-    public async Task LibTorrentDownloadEngine_ProbeHealthAsync_ReturnsUnhealthyAndNotImplemented()
+    public async Task LibTorrentDownloadEngine_ProbeHealthAsync_ReturnsValidHealthResult()
     {
         using var engine = new LibTorrentDownloadEngine(
             this.configService,
@@ -231,11 +232,12 @@ public class EngineResourceMetricsTest
             this.diskProvider,
             this.eventAggregator);
 
-        engine.IsAvailable.Should().BeFalse();
+        engine.EngineId.Should().Be("LibTorrent");
+        engine.ProtocolName.Should().Be("BitTorrent");
 
         var result = await engine.ProbeHealthAsync();
         result.Should().NotBeNull();
-        result.IsHealthy.Should().BeFalse();
-        result.StatusMessage.Should().Contain("not implemented");
+        result.StatusMessage.Should().NotBeNullOrWhiteSpace();
+        result.DependencyChecks.Should().NotBeNull();
     }
 }
