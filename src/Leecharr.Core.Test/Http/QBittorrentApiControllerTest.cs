@@ -688,4 +688,46 @@ public class QBittorrentApiControllerTest
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).RenameFileAsync(1, "folder/file1.mkv", "folder/file1_new.mkv");
     }
+
+    [Test]
+    public void GetTorrentsInfo_WithNestedSavePath_ResolvesSavePathAndContentPathCorrectly()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "Spectre 2015",
+            SavePath = "/downloads/Spectre 2015",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var response = this.controller.GetTorrentsInfo();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(1);
+        list[0]["save_path"].Should().Be("/downloads");
+        list[0]["content_path"].Should().Be("/downloads/Spectre 2015");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithBaseSavePath_ResolvesSavePathAndContentPathCorrectly()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "Spectre 2015",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var response = this.controller.GetTorrentsInfo();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(1);
+        list[0]["save_path"].Should().Be("/downloads");
+        list[0]["content_path"].Should().Be("/downloads/Spectre 2015");
+    }
 }
