@@ -18,17 +18,27 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
 
     public Torrent GetByInfoHash(string infoHash)
     {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return null;
+        }
+
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<Torrent>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash)",
             new { InfoHash = infoHash });
     }
 
     public bool ExistsByInfoHash(string infoHash)
     {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return false;
+        }
+
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<int>(
-            $"SELECT COUNT(1) FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+            $"SELECT COUNT(1) FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash)",
             new { InfoHash = infoHash }) > 0;
     }
 
