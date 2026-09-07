@@ -9,6 +9,7 @@ using System.Threading;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Binding;
 
 namespace NzbDrone.Core.Network.Vpn;
 
@@ -316,7 +317,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService
         }
     }
 
-    private IPAddress ResolveInterfaceIpDefault(string interfaceName, AddressFamily family)
+    internal IPAddress ResolveInterfaceIpDefault(string interfaceName, AddressFamily family)
     {
         try
         {
@@ -329,13 +330,13 @@ public class VpnKillSwitchService : IVpnKillSwitchService
                 return null;
             }
 
-            var addr = nic.GetIPProperties()?.UnicastAddresses
-                .FirstOrDefault(a => a.Address.AddressFamily == family &&
-                                     !IPAddress.IsLoopback(a.Address) &&
-                                     !a.Address.Equals(IPAddress.Any) &&
-                                     !a.Address.Equals(IPAddress.None));
+            var props = nic.GetIPProperties();
+            if (props == null || props.UnicastAddresses == null)
+            {
+                return null;
+            }
 
-            return addr?.Address;
+            return ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
         }
         catch (Exception ex)
         {
