@@ -366,4 +366,56 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
     }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void MoveToCompleted_WhenSourcePathIsNullOrWhitespace_ReturnsFalseAndSetsDestinationToNull(string invalidSource)
+    {
+        var success = this.storagePathService.MoveToCompleted(invalidSource, "tv", "ValidTorrentName", out var finalDestination);
+
+        success.Should().BeFalse();
+        finalDestination.Should().BeNull();
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void MoveToCompleted_WhenTorrentNameIsNullOrWhitespace_ReturnsFalseAndSetsDestinationToNull(string invalidTorrentName)
+    {
+        var success = this.storagePathService.MoveToCompleted("/downloads/incomplete/file.mkv", "tv", invalidTorrentName, out var finalDestination);
+
+        success.Should().BeFalse();
+        finalDestination.Should().BeNull();
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void GetWorkingPath_WhenTorrentNameIsNullOrWhitespace_ReturnsIncompleteDir(string invalidTorrentName)
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+
+        var path = this.storagePathService.GetWorkingPath("hash123", invalidTorrentName);
+
+        path.Should().Be("/downloads/incomplete");
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void GetFinalPath_WhenTorrentNameIsNullOrWhitespace_ReturnsCompletedDir(string invalidTorrentName)
+    {
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var path = this.storagePathService.GetFinalPath("tv", invalidTorrentName);
+
+        path.Should().Be("/downloads/tv");
+    }
 }
