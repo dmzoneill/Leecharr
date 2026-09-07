@@ -96,6 +96,7 @@ public class DownloadHistoryController : Controller
                 Id = record.TorrentId ?? 0,
                 Name = record.Title,
                 InfoHash = record.InfoHash ?? string.Empty,
+                Category = record.Source,
             };
             var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
             if (metadata != null)
@@ -218,7 +219,7 @@ public class DownloadHistoryController : Controller
     private DownloadHistoryResource ToResource(DownloadHistory model)
     {
         TorrentMediaMetadata metadata = null;
-        if (model.TorrentId.HasValue && this.mediaMetadataRepository != null)
+        if (model.TorrentId.HasValue && model.TorrentId.Value > 0 && this.mediaMetadataRepository != null)
         {
             metadata = this.mediaMetadataRepository.GetByTorrentId(model.TorrentId.Value);
         }
