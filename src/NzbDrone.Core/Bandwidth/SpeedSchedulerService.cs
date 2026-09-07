@@ -145,7 +145,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             };
         }
 
-        if (this.configService.AlternativeSpeedEnabled)
+        if (this.configService.AlternativeSpeedEnabled || this.IsConfigScheduleActive(now))
         {
             var isPaused = this.configService.AltDownloadSpeedKbps < 0 || this.configService.AltUploadSpeedKbps < 0;
             var isThrottled = this.configService.AltDownloadSpeedKbps > 0 || this.configService.AltUploadSpeedKbps > 0;
@@ -213,5 +213,61 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     public void Dispose()
     {
         this.timer?.Dispose();
+    }
+
+    private bool IsConfigDayActive(DayOfWeek day)
+    {
+        return day switch
+        {
+            DayOfWeek.Sunday => this.configService.SchedulerSunday,
+            DayOfWeek.Monday => this.configService.SchedulerMonday,
+            DayOfWeek.Tuesday => this.configService.SchedulerTuesday,
+            DayOfWeek.Wednesday => this.configService.SchedulerWednesday,
+            DayOfWeek.Thursday => this.configService.SchedulerThursday,
+            DayOfWeek.Friday => this.configService.SchedulerFriday,
+            DayOfWeek.Saturday => this.configService.SchedulerSaturday,
+            _ => false,
+        };
+    }
+
+    private bool IsConfigScheduleActive(DateTime now)
+    {
+        if (!this.configService.SchedulerEnabled)
+        {
+            return false;
+        }
+
+        var startHour = Math.Clamp(this.configService.SchedulerStartHour, 0, 23);
+        var startMinute = Math.Clamp(this.configService.SchedulerStartMinute, 0, 59);
+        var endHour = Math.Clamp(this.configService.SchedulerEndHour, 0, 23);
+        var endMinute = Math.Clamp(this.configService.SchedulerEndMinute, 0, 59);
+
+        var startTime = new TimeOnly(startHour, startMinute);
+        var endTime = new TimeOnly(endHour, endMinute, 59, 999);
+        var currentTimeOnly = TimeOnly.FromDateTime(now);
+        var today = now.DayOfWeek;
+        var prevDay = (DayOfWeek)(((int)now.DayOfWeek + 6) % 7);
+
+        if (startTime <= endTime)
+        {
+            return this.IsConfigDayActive(today) &&
+                currentTimeOnly >= startTime &&
+                currentTimeOnly <= endTime;
+        }
+        else
+        {
+            // Overnight schedule (e.g. 22:00 to 06:00)
+            if (currentTimeOnly >= startTime)
+            {
+                return this.IsConfigDayActive(today);
+            }
+
+            if (currentTimeOnly <= endTime)
+            {
+                return this.IsConfigDayActive(prevDay);
+            }
+
+            return false;
+        }
     }
 }
