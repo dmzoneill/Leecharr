@@ -25,6 +25,9 @@ import {
   TorrentIcon,
   SettingsIcon,
   SystemIcon,
+  FolderIcon,
+  TrackerBoostIcon,
+  TerminalIcon,
 } from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
@@ -569,17 +572,7 @@ export function App() {
             style={{ cursor: "pointer" }}
             title="Tracker Boost Swarm Optimization & Discovery"
           >
-            <span
-              style={{
-                fontSize: "1.05rem",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "16px",
-              }}
-            >
-              ⚡
-            </span>
+            <TrackerBoostIcon size={16} />
             <span>{t("nav.trackerBoost")}</span>
           </div>
 
@@ -590,19 +583,7 @@ export function App() {
             style={{ cursor: "pointer" }}
             title="Interactive Download Shell & File Inspector"
           >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "16px",
-                fontFamily: "monospace",
-                fontSize: "0.85rem",
-                fontWeight: "bold",
-              }}
-            >
-              &gt;_
-            </span>
+            <TerminalIcon size={16} />
             <span>{t("nav.terminalCli")}</span>
           </div>
 
@@ -613,17 +594,7 @@ export function App() {
             style={{ cursor: "pointer" }}
             title={t("nav.browseFiles")}
           >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "16px",
-                fontSize: "1rem",
-              }}
-            >
-              📁
-            </span>
+            <FolderIcon size={16} />
             <span>{t("nav.fileBrowser")}</span>
           </div>
 
