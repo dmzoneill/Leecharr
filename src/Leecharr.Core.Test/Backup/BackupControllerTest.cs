@@ -736,4 +736,165 @@ public class BackupControllerTest
 
         result.Should().BeTrue();
     }
+
+    [Test]
+    public void PruneOldBackups_WhenBackupsExceedMaxCount_PrunesOldestArchives()
+    {
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            var path = this.CreateSampleBackup($"Leecharr_backup_count_{i}.zip");
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-10 + i));
+        }
+
+        var deleted = this.controller.PruneOldBackups(backupDir, maxBackupsToKeep: 3, maxAgeDays: 365);
+        deleted.Should().Be(2);
+
+        var remaining = Directory.GetFiles(backupDir, "*.zip");
+        remaining.Length.Should().Be(3);
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_count_5.zip");
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_count_4.zip");
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_count_3.zip");
+        remaining.Select(Path.GetFileName).Should().NotContain("Leecharr_backup_count_1.zip");
+        remaining.Select(Path.GetFileName).Should().NotContain("Leecharr_backup_count_2.zip");
+    }
+
+    [Test]
+    public void PruneOldBackups_WhenBackupsOlderThanMaxAge_PrunesAgedArchives()
+    {
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+
+        var pathToday = this.CreateSampleBackup("Leecharr_backup_today.zip");
+        File.SetLastWriteTimeUtc(pathToday, DateTime.UtcNow);
+
+        var path10Days = this.CreateSampleBackup("Leecharr_backup_10days.zip");
+        File.SetLastWriteTimeUtc(path10Days, DateTime.UtcNow.AddDays(-10));
+
+        var path35Days = this.CreateSampleBackup("Leecharr_backup_35days.zip");
+        File.SetLastWriteTimeUtc(path35Days, DateTime.UtcNow.AddDays(-35));
+
+        var path60Days = this.CreateSampleBackup("Leecharr_backup_60days.zip");
+        File.SetLastWriteTimeUtc(path60Days, DateTime.UtcNow.AddDays(-60));
+
+        var deleted = this.controller.PruneOldBackups(backupDir, maxBackupsToKeep: 10, maxAgeDays: 28);
+        deleted.Should().Be(2);
+
+        var remaining = Directory.GetFiles(backupDir, "*.zip");
+        remaining.Length.Should().Be(2);
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_today.zip");
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_10days.zip");
+        remaining.Select(Path.GetFileName).Should().NotContain("Leecharr_backup_35days.zip");
+        remaining.Select(Path.GetFileName).Should().NotContain("Leecharr_backup_60days.zip");
+    }
+
+    [Test]
+    public void PruneOldBackups_WhenAllBackupsOlderThanMaxAge_PreservesNewestBackup()
+    {
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+
+        var path30Days = this.CreateSampleBackup("Leecharr_backup_30days.zip");
+        File.SetLastWriteTimeUtc(path30Days, DateTime.UtcNow.AddDays(-30));
+
+        var path40Days = this.CreateSampleBackup("Leecharr_backup_40days.zip");
+        File.SetLastWriteTimeUtc(path40Days, DateTime.UtcNow.AddDays(-40));
+
+        var path50Days = this.CreateSampleBackup("Leecharr_backup_50days.zip");
+        File.SetLastWriteTimeUtc(path50Days, DateTime.UtcNow.AddDays(-50));
+
+        var deleted = this.controller.PruneOldBackups(backupDir, maxBackupsToKeep: 10, maxAgeDays: 28);
+        deleted.Should().Be(2);
+
+        var remaining = Directory.GetFiles(backupDir, "*.zip");
+        remaining.Length.Should().Be(1);
+        remaining.Select(Path.GetFileName).Should().Contain("Leecharr_backup_30days.zip");
+    }
+
+    [Test]
+    public void PruneOldBackups_WhenDirectoryHasSubdirectories_PrunesBothManualAndScheduledDirectories()
+    {
+        var manualDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        var scheduledDir = Path.Combine(this.testTempDir, "Backups", "scheduled");
+        Directory.CreateDirectory(manualDir);
+        Directory.CreateDirectory(scheduledDir);
+
+        for (var i = 1; i <= 4; i++)
+        {
+            var mPath = Path.Combine(manualDir, $"Leecharr_manual_{i}.zip");
+            using (var zip = ZipFile.Open(mPath, ZipArchiveMode.Create))
+            {
+                zip.CreateEntry("config.xml");
+            }
+
+            File.SetLastWriteTimeUtc(mPath, DateTime.UtcNow.AddDays(-10 + i));
+
+            var sPath = Path.Combine(scheduledDir, $"Leecharr_sched_{i}.zip");
+            using (var zip = ZipFile.Open(sPath, ZipArchiveMode.Create))
+            {
+                zip.CreateEntry("config.xml");
+            }
+
+            File.SetLastWriteTimeUtc(sPath, DateTime.UtcNow.AddDays(-10 + i));
+        }
+
+        var backupsRoot = Path.Combine(this.testTempDir, "Backups");
+        var deleted = this.controller.PruneOldBackups(backupsRoot, maxBackupsToKeep: 2, maxAgeDays: 365);
+        deleted.Should().Be(4);
+
+        Directory.GetFiles(manualDir, "*.zip").Length.Should().Be(2);
+        Directory.GetFiles(scheduledDir, "*.zip").Length.Should().Be(2);
+    }
+
+    [Test]
+    public void Create_WhenExistingBackupsExceedRetention_AutomaticallyPrunesOlderBackups()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.BackupRetentionMaxCount.Returns(3);
+        configService.BackupRetentionDays.Returns(365);
+
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        var testController = new BackupController(
+            this.appFolderInfo,
+            configService: configService,
+            configFileProvider: configProvider);
+
+        var manualDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(manualDir);
+
+        for (var i = 1; i <= 4; i++)
+        {
+            var p = Path.Combine(manualDir, $"Leecharr_backup_old_{i}.zip");
+            using (var zip = ZipFile.Open(p, ZipArchiveMode.Create))
+            {
+                zip.CreateEntry("config.xml");
+            }
+
+            File.SetLastWriteTimeUtc(p, DateTime.UtcNow.AddHours(-10 + i));
+        }
+
+        var configPath = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(configPath, "<config/>");
+
+        var createResult = testController.Create();
+        createResult.Result.Should().BeOfType<OkObjectResult>();
+
+        var remaining = Directory.GetFiles(manualDir, "*.zip");
+        remaining.Length.Should().Be(3);
+    }
+
+    [Test]
+    public void PruneOldBackups_WhenDirectoryDoesNotExistOrIsEmpty_ReturnsZeroWithoutError()
+    {
+        var nonExistent = Path.Combine(this.testTempDir, "non_existent_backups_dir");
+        var empty = Path.Combine(this.testTempDir, "empty_backups_dir");
+        Directory.CreateDirectory(empty);
+
+        this.controller.PruneOldBackups(nonExistent).Should().Be(0);
+        this.controller.PruneOldBackups(empty).Should().Be(0);
+        this.controller.PruneOldBackups(null!).Should().Be(0);
+        this.controller.PruneOldBackups(string.Empty).Should().Be(0);
+    }
 }

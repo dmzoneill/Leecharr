@@ -280,6 +280,13 @@ public class BackupController : Controller
             };
 
             this.logger.Info("Created manual backup archive at {0} ({1} bytes, Database: {2}, IncludesDb: {3})", zipPath, fi.Length, dbTypeStr, includesDb);
+
+            var backupDir = Path.Combine(this.appFolderInfo.AppDataFolder, "Backups");
+            this.PruneOldBackups(
+                backupDir,
+                this.configService?.BackupRetentionMaxCount ?? 14,
+                this.configService?.BackupRetentionDays ?? 28);
+
             return this.Ok(backup);
         }
         catch (Exception ex)
@@ -513,6 +520,105 @@ public class BackupController : Controller
         {
             this.logger.Error(ex, "Failed to restore backup archive from {0}", backup.Path);
             return this.StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    public int PruneOldBackups(string backupDirectory, int maxBackupsToKeep = 14, int maxAgeDays = 28)
+    {
+        if (string.IsNullOrWhiteSpace(backupDirectory) || !Directory.Exists(backupDirectory))
+        {
+            return 0;
+        }
+
+        var effectiveMaxKeep = maxBackupsToKeep > 0 ? maxBackupsToKeep : (this.configService?.BackupRetentionMaxCount ?? 14);
+        var effectiveMaxAge = maxAgeDays > 0 ? maxAgeDays : (this.configService?.BackupRetentionDays ?? 28);
+        var deletedCount = 0;
+
+        try
+        {
+            var subDirs = Directory.GetDirectories(backupDirectory, "*", SearchOption.AllDirectories);
+            foreach (var subDir in subDirs)
+            {
+                deletedCount += this.PruneDirectoryBackups(subDir, effectiveMaxKeep, effectiveMaxAge);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to inspect subdirectories in backup directory {0}", backupDirectory);
+        }
+
+        deletedCount += this.PruneDirectoryBackups(backupDirectory, effectiveMaxKeep, effectiveMaxAge);
+        return deletedCount;
+    }
+
+    private int PruneDirectoryBackups(string directory, int maxBackupsToKeep, int maxAgeDays)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var files = Directory.GetFiles(directory, "*.zip", SearchOption.TopDirectoryOnly);
+            if (files.Length == 0)
+            {
+                return 0;
+            }
+
+            var cutoffDate = maxAgeDays > 0 ? DateTime.UtcNow.AddDays(-maxAgeDays) : DateTime.MinValue;
+
+            var orderedFiles = files
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                .ToList();
+
+            var toDelete = new List<FileInfo>();
+
+            for (var i = 0; i < orderedFiles.Count; i++)
+            {
+                var fi = orderedFiles[i];
+
+                // Never delete the single newest backup to prevent leaving 0 backups
+                if (i == 0)
+                {
+                    continue;
+                }
+
+                if (maxBackupsToKeep > 0 && i >= maxBackupsToKeep)
+                {
+                    toDelete.Add(fi);
+                }
+                else if (maxAgeDays > 0 && fi.LastWriteTimeUtc < cutoffDate)
+                {
+                    toDelete.Add(fi);
+                }
+            }
+
+            var deleted = 0;
+            foreach (var file in toDelete)
+            {
+                try
+                {
+                    if (file.Exists)
+                    {
+                        file.Delete();
+                        this.logger.Info("Pruned old backup archive: {0}", file.FullName);
+                        deleted++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to delete old backup archive: {0}", file.FullName);
+                }
+            }
+
+            return deleted;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to prune backup directory {0}", directory);
+            return 0;
         }
     }
 
