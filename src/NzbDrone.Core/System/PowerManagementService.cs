@@ -20,10 +20,23 @@ public class PowerManagementService : IPowerManagementService
         this.hostLifetime = hostLifetime;
     }
 
+    internal Func<string, string[], Task<bool>> ProcessRunner { get; set; }
+
+    internal Func<bool, bool, bool, bool> WindowsSetSuspendStateInvoker { get; set; }
+
+    internal Func<bool> ContainerDetector { get; set; }
+
+    internal OSPlatform? TargetPlatformOverride { get; set; }
+
     public bool IsInContainer
     {
         get
         {
+            if (this.ContainerDetector != null)
+            {
+                return this.ContainerDetector();
+            }
+
             try
             {
                 return File.Exists("/.dockerenv") ||
@@ -60,17 +73,17 @@ public class PowerManagementService : IPowerManagementService
                 return true;
             }
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            if (this.IsPlatform(OSPlatform.Linux))
             {
                 return await this.ExecuteLinuxPowerActionAsync(action);
             }
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (this.IsPlatform(OSPlatform.Windows))
             {
                 return await this.ExecuteWindowsPowerActionAsync(action);
             }
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (this.IsPlatform(OSPlatform.OSX))
             {
                 return await this.ExecuteOsxPowerActionAsync(action);
             }
@@ -83,6 +96,23 @@ public class PowerManagementService : IPowerManagementService
             this.logger.Error(ex, "Failed to execute power action: {0}", action);
             return false;
         }
+    }
+
+    [DllImport("powrprof.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetSuspendState(
+        [MarshalAs(UnmanagedType.Bool)] bool hibernate,
+        [MarshalAs(UnmanagedType.Bool)] bool forceCritical,
+        [MarshalAs(UnmanagedType.Bool)] bool disableWakeEvent);
+
+    private bool IsPlatform(OSPlatform platform)
+    {
+        if (this.TargetPlatformOverride.HasValue)
+        {
+            return this.TargetPlatformOverride.Value == platform;
+        }
+
+        return RuntimeInformation.IsOSPlatform(platform);
     }
 
     private void StopApplication()
@@ -102,9 +132,9 @@ public class PowerManagementService : IPowerManagementService
     {
         var (cmd, args) = action switch
         {
-            PowerAction.Shutdown => ("systemctl", "poweroff"),
-            PowerAction.Suspend => ("systemctl", "suspend"),
-            PowerAction.Hibernate => ("systemctl", "hibernate"),
+            PowerAction.Shutdown => ("systemctl", new[] { "poweroff" }),
+            PowerAction.Suspend => ("systemctl", new[] { "suspend" }),
+            PowerAction.Hibernate => ("systemctl", new[] { "hibernate" }),
             _ => (null, null),
         };
 
@@ -118,28 +148,44 @@ public class PowerManagementService : IPowerManagementService
 
     private async Task<bool> ExecuteWindowsPowerActionAsync(PowerAction action)
     {
-        var (cmd, args) = action switch
+        switch (action)
         {
-            PowerAction.Shutdown => ("shutdown", "/s /t 60 /c \"Leecharr completed queue\""),
-            PowerAction.Suspend => ("rundll32.exe", "powrprof.dll,SetSuspendState 0,1,0"),
-            PowerAction.Hibernate => ("shutdown", "/h"),
-            _ => (null, null),
-        };
+            case PowerAction.Shutdown:
+                return await this.RunProcessAsync("shutdown", new[] { "/s", "/t", "60", "/c", "Leecharr completed queue" });
+            case PowerAction.Suspend:
+                return this.InvokeWindowsSetSuspendState(hibernate: false, forceCritical: false, disableWakeEvent: false);
+            case PowerAction.Hibernate:
+                return this.InvokeWindowsSetSuspendState(hibernate: true, forceCritical: false, disableWakeEvent: false);
+            default:
+                return false;
+        }
+    }
 
-        if (cmd == null)
+    private bool InvokeWindowsSetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent)
+    {
+        try
         {
+            if (this.WindowsSetSuspendStateInvoker != null)
+            {
+                return this.WindowsSetSuspendStateInvoker(hibernate, forceCritical, disableWakeEvent);
+            }
+
+            return SetSuspendState(hibernate, forceCritical, disableWakeEvent);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to invoke Windows SetSuspendState(hibernate={0}, forceCritical={1}, disableWakeEvent={2})", hibernate, forceCritical, disableWakeEvent);
             return false;
         }
-
-        return await this.RunProcessAsync(cmd, args);
     }
 
     private async Task<bool> ExecuteOsxPowerActionAsync(PowerAction action)
     {
         var (cmd, args) = action switch
         {
-            PowerAction.Shutdown => ("osascript", "-e 'tell app \"System Events\" to shut down'"),
-            PowerAction.Suspend => ("pmset", "sleepnow"),
+            PowerAction.Shutdown => ("osascript", new[] { "-e", "tell app \"System Events\" to shut down" }),
+            PowerAction.Suspend => ("pmset", new[] { "sleepnow" }),
+            PowerAction.Hibernate => ("pmset", new[] { "sleepnow" }),
             _ => (null, null),
         };
 
@@ -151,8 +197,13 @@ public class PowerManagementService : IPowerManagementService
         return await this.RunProcessAsync(cmd, args);
     }
 
-    private async Task<bool> RunProcessAsync(string fileName, string arguments)
+    private async Task<bool> RunProcessAsync(string fileName, string[] arguments)
     {
+        if (this.ProcessRunner != null)
+        {
+            return await this.ProcessRunner(fileName, arguments);
+        }
+
         try
         {
             using var proc = new Process
@@ -160,11 +211,18 @@ public class PowerManagementService : IPowerManagementService
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = fileName,
-                    Arguments = arguments,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 },
             };
+
+            if (arguments != null)
+            {
+                foreach (var arg in arguments)
+                {
+                    proc.StartInfo.ArgumentList.Add(arg);
+                }
+            }
 
             proc.Start();
             await proc.WaitForExitAsync();
@@ -172,7 +230,7 @@ public class PowerManagementService : IPowerManagementService
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to run power command '{0} {1}'", fileName, arguments);
+            this.logger.Error(ex, "Failed to run power command '{0} {1}'", fileName, arguments != null ? string.Join(" ", arguments) : string.Empty);
             return false;
         }
     }
