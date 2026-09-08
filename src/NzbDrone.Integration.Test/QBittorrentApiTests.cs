@@ -171,6 +171,7 @@ public class QBittorrentApiTests : IntegrationTestBase
         var verifyJson = await verifyResponse.Content.ReadAsStringAsync();
         verifyJson.Should().Be("[]");
     }
+<<<<<<< HEAD
 
     [Test]
     public async Task GetTorrentsInfo_WithTagAndFilter_ReturnsFilteredResults()
@@ -215,6 +216,40 @@ public class QBittorrentApiTests : IntegrationTestBase
         var deleteForm = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("hashes", hash1),
+            new KeyValuePair<string, string>("deleteFiles", "true"),
+        });
+        await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
+    }
+
+    [Test]
+    public async Task TorrentLifecycle_AddWithDownloadPath_SetsSavePath()
+    {
+        const string hash = "2123456789abcdef0123456789abcdef0123456a";
+        var magnet = $"magnet:?xt=urn:btih:{hash}&dn=QBitDownloadPathTorrent";
+        var customPath = "/downloads/custom_qbit_dir";
+
+        // Add Torrent with downloadPath parameter
+        var addForm = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("urls", magnet),
+            new KeyValuePair<string, string>("downloadPath", customPath),
+            new KeyValuePair<string, string>("paused", "true"),
+        });
+
+        var addResponse = await this.Client.PostAsync("/api/v2/torrents/add", addForm);
+        addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Verify save_path matches customPath in torrent info
+        var infoResponse = await this.GetAsync($"/api/v2/torrents/info?hashes={hash}");
+        infoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var infoJson = await infoResponse.Content.ReadAsStringAsync();
+        infoJson.Should().Contain(hash);
+        infoJson.Should().Contain(customPath);
+
+        // Clean up
+        var deleteForm = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("hashes", hash),
             new KeyValuePair<string, string>("deleteFiles", "true"),
         });
         await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
