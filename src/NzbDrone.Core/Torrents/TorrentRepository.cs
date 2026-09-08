@@ -38,7 +38,15 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         }
         catch
         {
-            transaction.Rollback();
+            try
+            {
+                transaction.Rollback();
+            }
+            catch
+            {
+                // Ignore rollback exceptions if transaction is already completed
+            }
+
             throw;
         }
 

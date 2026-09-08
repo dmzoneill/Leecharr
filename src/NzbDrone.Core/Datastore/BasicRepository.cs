@@ -189,7 +189,15 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             }
             catch
             {
-                transaction.Rollback();
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch
+                {
+                    // Ignore rollback exceptions if transaction is already completed
+                }
+
                 throw;
             }
         });
