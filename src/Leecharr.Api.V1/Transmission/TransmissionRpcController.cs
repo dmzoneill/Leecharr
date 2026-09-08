@@ -215,13 +215,46 @@ public class TransmissionRpcController : ControllerBase
 
         try
         {
-            switch (request.Method.ToLowerInvariant())
+            var method = request.Method.ToLowerInvariant();
+            return method switch
             {
-                case "session-get":
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object>
+                "session-get" => this.HandleSessionGet(tag),
+                "session-set" => this.HandleSessionSet(request, tag),
+                "session-stats" => this.HandleSessionStats(tag),
+                "session-close" => this.HandleSessionClose(tag),
+                "torrent-get" => this.HandleTorrentGet(request, tag),
+                "torrent-add" => await this.HandleTorrentAddAsync(request, tag),
+                "torrent-set" => await this.HandleTorrentSetAsync(request, tag),
+                "torrent-set-location" => await this.HandleTorrentSetLocationAsync(request, tag),
+                "free-space" => this.HandleFreeSpace(request, tag),
+                "queue-move-top" => await this.HandleQueueMoveAsync(request, tag, "top"),
+                "queue-move-up" => await this.HandleQueueMoveAsync(request, tag, "up"),
+                "queue-move-down" => await this.HandleQueueMoveAsync(request, tag, "down"),
+                "queue-move-bottom" => await this.HandleQueueMoveAsync(request, tag, "bottom"),
+                "torrent-start" or "torrent-start-now" => await this.HandleTorrentStartAsync(request, tag),
+                "torrent-stop" => await this.HandleTorrentStopAsync(request, tag),
+                "torrent-verify" => await this.HandleTorrentVerifyAsync(request, tag),
+                "torrent-reannounce" => await this.HandleTorrentReannounceAsync(request, tag),
+                "torrent-remove" => await this.HandleTorrentRemoveAsync(request, tag),
+                "torrent-rename-path" => await this.HandleTorrentRenamePathAsync(request, tag),
+                "port-test" => this.HandlePortTest(tag),
+                "blocklist-update" => await this.HandleBlocklistUpdateAsync(tag),
+                _ => this.HandleUnknownMethod(request, tag),
+            };
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error handling Transmission RPC method: {0}", request.Method);
+            return this.Ok(new TransmissionRpcResponse { Result = ex.Message, Tag = tag });
+        }
+    }
+
+    private IActionResult HandleSessionGet(object tag)
+    {
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
                         {
                             { "version", "3.00 (Leecharr)" },
                             { "rpc-version", 17 },
@@ -249,128 +282,132 @@ public class TransmissionRpcController : ControllerBase
                             { "script-torrent-done-seeding-filename", this.configService.ScriptTorrentDoneSeedingFilename ?? string.Empty },
                             { "script-torrent-done-seeding-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneSeedingFilename) },
                         },
-                        Tag = tag,
-                    });
+            Tag = tag,
+        });
+    }
 
-                case "session-set":
-                    if (request.Arguments != null)
-                    {
-                        var updates = new Dictionary<string, object>();
+    private IActionResult HandleSessionSet(TransmissionRpcRequest request, object tag)
+    {
+        if (request.Arguments != null)
+        {
+            var updates = new Dictionary<string, object>();
 
-                        if (request.Arguments.TryGetValue("download-dir", out var dlDir) && dlDir.ValueKind == JsonValueKind.String)
-                        {
-                            updates["DownloadDir"] = dlDir.GetString();
-                        }
+            if (request.Arguments.TryGetValue("download-dir", out var dlDir) && dlDir.ValueKind == JsonValueKind.String)
+            {
+                updates["DownloadDir"] = dlDir.GetString();
+            }
 
-                        if (request.Arguments.TryGetValue("incomplete-dir", out var incDir) && incDir.ValueKind == JsonValueKind.String)
-                        {
-                            updates["IncompleteDownloadDir"] = incDir.GetString();
-                        }
+            if (request.Arguments.TryGetValue("incomplete-dir", out var incDir) && incDir.ValueKind == JsonValueKind.String)
+            {
+                updates["IncompleteDownloadDir"] = incDir.GetString();
+            }
 
-                        if (request.Arguments.TryGetValue("speed-limit-down", out var dlLimit) && dlLimit.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["MaxDownloadSpeedKbps"] = dlLimit.GetInt32();
-                        }
+            if (request.Arguments.TryGetValue("speed-limit-down", out var dlLimit) && dlLimit.ValueKind == JsonValueKind.Number)
+            {
+                updates["MaxDownloadSpeedKbps"] = dlLimit.GetInt32();
+            }
 
-                        if (request.Arguments.TryGetValue("speed-limit-down-enabled", out var dlLimitEnabled))
-                        {
-                            if (!SafeGetBoolean(dlLimitEnabled))
-                            {
-                                updates["MaxDownloadSpeedKbps"] = 0;
-                            }
-                        }
+            if (request.Arguments.TryGetValue("speed-limit-down-enabled", out var dlLimitEnabled))
+            {
+                if (!SafeGetBoolean(dlLimitEnabled))
+                {
+                    updates["MaxDownloadSpeedKbps"] = 0;
+                }
+            }
 
-                        if (request.Arguments.TryGetValue("speed-limit-up", out var upLimit) && upLimit.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["MaxUploadSpeedKbps"] = upLimit.GetInt32();
-                        }
+            if (request.Arguments.TryGetValue("speed-limit-up", out var upLimit) && upLimit.ValueKind == JsonValueKind.Number)
+            {
+                updates["MaxUploadSpeedKbps"] = upLimit.GetInt32();
+            }
 
-                        if (request.Arguments.TryGetValue("speed-limit-up-enabled", out var upLimitEnabled))
-                        {
-                            if (!SafeGetBoolean(upLimitEnabled))
-                            {
-                                updates["MaxUploadSpeedKbps"] = 0;
-                            }
-                        }
+            if (request.Arguments.TryGetValue("speed-limit-up-enabled", out var upLimitEnabled))
+            {
+                if (!SafeGetBoolean(upLimitEnabled))
+                {
+                    updates["MaxUploadSpeedKbps"] = 0;
+                }
+            }
 
-                        if (request.Arguments.TryGetValue("seedRatioLimit", out var seedRatioLimit) && seedRatioLimit.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["GlobalSeedRatioLimit"] = seedRatioLimit.GetDouble();
-                        }
+            if (request.Arguments.TryGetValue("seedRatioLimit", out var seedRatioLimit) && seedRatioLimit.ValueKind == JsonValueKind.Number)
+            {
+                updates["GlobalSeedRatioLimit"] = seedRatioLimit.GetDouble();
+            }
 
-                        if (request.Arguments.TryGetValue("seedRatioLimited", out var seedRatioLimited))
-                        {
-                            if (!SafeGetBoolean(seedRatioLimited))
-                            {
-                                updates["GlobalSeedRatioLimit"] = 0.0;
-                            }
-                        }
+            if (request.Arguments.TryGetValue("seedRatioLimited", out var seedRatioLimited))
+            {
+                if (!SafeGetBoolean(seedRatioLimited))
+                {
+                    updates["GlobalSeedRatioLimit"] = 0.0;
+                }
+            }
 
-                        if (request.Arguments.TryGetValue("alt-speed-down", out var altDl) && altDl.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["AltDownloadSpeedKbps"] = altDl.GetInt32();
-                        }
+            if (request.Arguments.TryGetValue("alt-speed-down", out var altDl) && altDl.ValueKind == JsonValueKind.Number)
+            {
+                updates["AltDownloadSpeedKbps"] = altDl.GetInt32();
+            }
 
-                        if (request.Arguments.TryGetValue("alt-speed-up", out var altUp) && altUp.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["AltUploadSpeedKbps"] = altUp.GetInt32();
-                        }
+            if (request.Arguments.TryGetValue("alt-speed-up", out var altUp) && altUp.ValueKind == JsonValueKind.Number)
+            {
+                updates["AltUploadSpeedKbps"] = altUp.GetInt32();
+            }
 
-                        if (request.Arguments.TryGetValue("alt-speed-enabled", out var altEn))
-                        {
-                            updates["AlternativeSpeedEnabled"] = SafeGetBoolean(altEn);
-                        }
+            if (request.Arguments.TryGetValue("alt-speed-enabled", out var altEn))
+            {
+                updates["AlternativeSpeedEnabled"] = SafeGetBoolean(altEn);
+            }
 
-                        if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
-                        {
-                            updates["ListeningPort"] = peerPort.GetInt32();
-                        }
+            if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
+            {
+                updates["ListeningPort"] = peerPort.GetInt32();
+            }
 
-                        if (request.Arguments.TryGetValue("blocklist-enabled", out var blEn))
-                        {
-                            updates["BlocklistEnabled"] = SafeGetBoolean(blEn);
-                        }
+            if (request.Arguments.TryGetValue("blocklist-enabled", out var blEn))
+            {
+                updates["BlocklistEnabled"] = SafeGetBoolean(blEn);
+            }
 
-                        if (request.Arguments.TryGetValue("blocklist-url", out var blUrl) && blUrl.ValueKind == JsonValueKind.String)
-                        {
-                            updates["BlocklistUrl"] = blUrl.GetString();
-                        }
+            if (request.Arguments.TryGetValue("blocklist-url", out var blUrl) && blUrl.ValueKind == JsonValueKind.String)
+            {
+                updates["BlocklistUrl"] = blUrl.GetString();
+            }
 
-                        if (request.Arguments.TryGetValue("script-torrent-done-filename", out var doneFile) && doneFile.ValueKind == JsonValueKind.String)
-                        {
-                            updates["ScriptTorrentDoneFilename"] = doneFile.GetString();
-                        }
+            if (request.Arguments.TryGetValue("script-torrent-done-filename", out var doneFile) && doneFile.ValueKind == JsonValueKind.String)
+            {
+                updates["ScriptTorrentDoneFilename"] = doneFile.GetString();
+            }
 
-                        if (request.Arguments.TryGetValue("script-torrent-added-filename", out var addedFile) && addedFile.ValueKind == JsonValueKind.String)
-                        {
-                            updates["ScriptTorrentAddedFilename"] = addedFile.GetString();
-                        }
+            if (request.Arguments.TryGetValue("script-torrent-added-filename", out var addedFile) && addedFile.ValueKind == JsonValueKind.String)
+            {
+                updates["ScriptTorrentAddedFilename"] = addedFile.GetString();
+            }
 
-                        if (request.Arguments.TryGetValue("script-torrent-done-seeding-filename", out var seedingFile) && seedingFile.ValueKind == JsonValueKind.String)
-                        {
-                            updates["ScriptTorrentDoneSeedingFilename"] = seedingFile.GetString();
-                        }
+            if (request.Arguments.TryGetValue("script-torrent-done-seeding-filename", out var seedingFile) && seedingFile.ValueKind == JsonValueKind.String)
+            {
+                updates["ScriptTorrentDoneSeedingFilename"] = seedingFile.GetString();
+            }
 
-                        if (updates.Count > 0)
-                        {
-                            this.configService.SaveConfigDictionary(updates);
-                        }
-                    }
+            if (updates.Count > 0)
+            {
+                this.configService.SaveConfigDictionary(updates);
+            }
+        }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                case "session-stats":
-                    var allTorrents = this.torrentService.GetAll().ToList();
-                    var activeTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
-                    var pausedTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped);
-                    var totalDownloaded = allTorrents.Sum(t => t.Downloaded);
-                    var totalUploaded = allTorrents.Sum(t => t.Uploaded);
-                    var secondsActive = (long)Math.Max(0, (DateTime.UtcNow - ServiceStartTime).TotalSeconds);
+    private IActionResult HandleSessionStats(object tag)
+    {
+        var allTorrents = this.torrentService.GetAll().ToList();
+        var activeTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
+        var pausedTorrents = allTorrents.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped);
+        var totalDownloaded = allTorrents.Sum(t => t.Downloaded);
+        var totalUploaded = allTorrents.Sum(t => t.Uploaded);
+        var secondsActive = (long)Math.Max(0, (DateTime.UtcNow - ServiceStartTime).TotalSeconds);
 
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object>
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
                         {
                             { "activeTorrentCount", activeTorrents },
                             { "downloadSpeed", allTorrents.Sum(t => t.DownloadSpeed) },
@@ -398,601 +435,623 @@ public class TransmissionRpcController : ControllerBase
                                 }
                             },
                         },
-                        Tag = tag,
-                    });
+            Tag = tag,
+        });
+    }
 
-                case "torrent-get":
-                    var isRecentlyActive = IsRecentlyActive(request.Arguments);
-                    var torrents = this.torrentService.GetAll();
-                    var targetIds = this.ExtractIds(request.Arguments);
-                    if (targetIds.Count > 0)
-                    {
-                        var targetIdSet = targetIds.ToHashSet();
-                        torrents = torrents.Where(t => targetIdSet.Contains(t.Id));
-                    }
-                    else if (isRecentlyActive)
-                    {
-                        torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading ||
-                                                       t.Status == TorrentStatus.Seeding ||
-                                                       t.Status == TorrentStatus.Checking ||
-                                                       t.DownloadSpeed > 0 ||
-                                                       t.UploadSpeed > 0 ||
-                                                       !string.IsNullOrWhiteSpace(t.ErrorMessage));
-                    }
+    private IActionResult HandleTorrentGet(TransmissionRpcRequest request, object tag)
+    {
+        var isRecentlyActive = IsRecentlyActive(request.Arguments);
+        var torrents = this.torrentService.GetAll();
+        var targetIds = this.ExtractIds(request.Arguments);
+        if (targetIds.Count > 0)
+        {
+            var targetIdSet = targetIds.ToHashSet();
+            torrents = torrents.Where(t => targetIdSet.Contains(t.Id));
+        }
+        else if (isRecentlyActive)
+        {
+            torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading ||
+                                           t.Status == TorrentStatus.Seeding ||
+                                           t.Status == TorrentStatus.Checking ||
+                                           t.DownloadSpeed > 0 ||
+                                           t.UploadSpeed > 0 ||
+                                           !string.IsNullOrWhiteSpace(t.ErrorMessage));
+        }
 
-                    HashSet<string> requestedFields = null;
-                    if (request.Arguments != null && request.Arguments.TryGetValue("fields", out var fieldsVal) && fieldsVal.ValueKind == JsonValueKind.Array)
-                    {
-                        requestedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var f in fieldsVal.EnumerateArray())
-                        {
-                            if (f.ValueKind == JsonValueKind.String)
-                            {
-                                requestedFields.Add(f.GetString());
-                            }
-                        }
-                    }
+        HashSet<string> requestedFields = null;
+        if (request.Arguments != null && request.Arguments.TryGetValue("fields", out var fieldsVal) && fieldsVal.ValueKind == JsonValueKind.Array)
+        {
+            requestedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in fieldsVal.EnumerateArray())
+            {
+                if (f.ValueKind == JsonValueKind.String)
+                {
+                    requestedFields.Add(f.GetString());
+                }
+            }
+        }
 
-                    var mappedTorrents = torrents.Select(t => this.MapTorrentToTransmission(t, requestedFields)).ToList();
-                    var responseArgs = new Dictionary<string, object>
+        var mappedTorrents = torrents.Select(t => this.MapTorrentToTransmission(t, requestedFields)).ToList();
+        var responseArgs = new Dictionary<string, object>
                     {
                         { "torrents", mappedTorrents },
                     };
 
-                    if (isRecentlyActive)
+        if (isRecentlyActive)
+        {
+            responseArgs["removed"] = GetRecentlyRemovedIds();
+        }
+
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = responseArgs,
+            Tag = tag,
+        });
+    }
+
+    private async Task<IActionResult> HandleTorrentSetAsync(TransmissionRpcRequest request, object tag)
+    {
+        var setIds = this.ExtractIds(request.Arguments);
+        foreach (var id in setIds)
+        {
+            var t = this.torrentService.Get(id);
+            if (t != null)
+            {
+                if (request.Arguments.TryGetValue("bandwidthPriority", out var bpVal) && bpVal.ValueKind == JsonValueKind.Number)
+                {
+                    t.Priority = bpVal.GetInt32();
+                }
+
+                if (request.Arguments.TryGetValue("labels", out var lblVal) && lblVal.ValueKind == JsonValueKind.Array)
+                {
+                    var lbls = lblVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                    if (lbls.Count > 0)
                     {
-                        responseArgs["removed"] = GetRecentlyRemovedIds();
+                        t.Category = lbls[0];
+                        t.Label = string.Join(",", lbls);
                     }
+                }
 
-                    return this.Ok(new TransmissionRpcResponse
+                if (request.Arguments.TryGetValue("seedRatioLimit", out var ratioVal))
+                {
+                    t.TargetRatio = ratioVal.GetDouble();
+                }
+
+                if (request.Arguments.TryGetValue("seedIdleLimit", out var idleVal) && idleVal.ValueKind == JsonValueKind.Number)
+                {
+                    t.TargetSeedTimeMinutes = idleVal.GetInt32();
+                }
+
+                if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal) && dlLimitVal.ValueKind == JsonValueKind.Number)
+                {
+                    t.DownloadLimit = dlLimitVal.GetInt32();
+                }
+
+                if (request.Arguments.TryGetValue("downloadLimited", out var dlLimitedVal))
+                {
+                    if (!SafeGetBoolean(dlLimitedVal))
                     {
-                        Result = "success",
-                        Arguments = responseArgs,
-                        Tag = tag,
-                    });
+                        t.DownloadLimit = 0;
+                    }
+                }
 
-                case "torrent-add":
-                    return await this.HandleTorrentAddAsync(request, tag);
+                if (request.Arguments.TryGetValue("uploadLimit", out var ulLimitVal) && ulLimitVal.ValueKind == JsonValueKind.Number)
+                {
+                    t.UploadLimit = ulLimitVal.GetInt32();
+                }
 
-                case "torrent-set":
-                    var setIds = this.ExtractIds(request.Arguments);
-                    foreach (var id in setIds)
+                if (request.Arguments.TryGetValue("uploadLimited", out var ulLimitedVal))
+                {
+                    if (!SafeGetBoolean(ulLimitedVal))
                     {
-                        var t = this.torrentService.Get(id);
-                        if (t != null)
+                        t.UploadLimit = 0;
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("location", out var locVal) && locVal.ValueKind == JsonValueKind.String)
+                {
+                    var targetLocation = locVal.GetString();
+                    if (!string.IsNullOrWhiteSpace(targetLocation) && !string.Equals(t.SavePath, targetLocation, StringComparison.OrdinalIgnoreCase))
+                    {
+                        await this.torrentService.SetLocationAsync(t.Id, targetLocation, moveFiles: true);
+                        t.SavePath = targetLocation;
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
+                {
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var item in unwantedVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Number)
                         {
-                            if (request.Arguments.TryGetValue("bandwidthPriority", out var bpVal) && bpVal.ValueKind == JsonValueKind.Number)
+                            var idx = item.GetInt32();
+                            if (idx >= 0 && idx < files.Count)
                             {
-                                t.Priority = bpVal.GetInt32();
+                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 0);
                             }
+                        }
+                    }
+                }
 
-                            if (request.Arguments.TryGetValue("labels", out var lblVal) && lblVal.ValueKind == JsonValueKind.Array)
+                if (request.Arguments.TryGetValue("files-wanted", out var wantedVal) && wantedVal.ValueKind == JsonValueKind.Array)
+                {
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var item in wantedVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Number)
+                        {
+                            var idx = item.GetInt32();
+                            if (idx >= 0 && idx < files.Count)
                             {
-                                var lbls = lblVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
-                                if (lbls.Count > 0)
+                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
+                            }
+                        }
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("priority-high", out var prioHighVal) && prioHighVal.ValueKind == JsonValueKind.Array)
+                {
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var item in prioHighVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Number)
+                        {
+                            var idx = item.GetInt32();
+                            if (idx >= 0 && idx < files.Count)
+                            {
+                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 4);
+                            }
+                        }
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("priority-low", out var prioLowVal) && prioLowVal.ValueKind == JsonValueKind.Array)
+                {
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var item in prioLowVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Number)
+                        {
+                            var idx = item.GetInt32();
+                            if (idx >= 0 && idx < files.Count)
+                            {
+                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 2);
+                            }
+                        }
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("priority-normal", out var prioNormVal) && prioNormVal.ValueKind == JsonValueKind.Array)
+                {
+                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                    foreach (var item in prioNormVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Number)
+                        {
+                            var idx = item.GetInt32();
+                            if (idx >= 0 && idx < files.Count)
+                            {
+                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
+                            }
+                        }
+                    }
+                }
+
+                if (request.Arguments.TryGetValue("trackerAdd", out var trackerAddVal) && trackerAddVal.ValueKind == JsonValueKind.Array)
+                {
+                    var addedUrls = new List<string>();
+                    foreach (var item in trackerAddVal.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String)
+                        {
+                            var url = item.GetString();
+                            if (!string.IsNullOrWhiteSpace(url))
+                            {
+                                addedUrls.Add(url);
+                                if (this.trackerEntryRepository != null)
                                 {
-                                    t.Category = lbls[0];
-                                    t.Label = string.Join(",", lbls);
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("seedRatioLimit", out var ratioVal))
-                            {
-                                t.TargetRatio = ratioVal.GetDouble();
-                            }
-
-                            if (request.Arguments.TryGetValue("seedIdleLimit", out var idleVal) && idleVal.ValueKind == JsonValueKind.Number)
-                            {
-                                t.TargetSeedTimeMinutes = idleVal.GetInt32();
-                            }
-
-                            if (request.Arguments.TryGetValue("downloadLimit", out var dlLimitVal) && dlLimitVal.ValueKind == JsonValueKind.Number)
-                            {
-                                t.DownloadLimit = dlLimitVal.GetInt32();
-                            }
-
-                            if (request.Arguments.TryGetValue("downloadLimited", out var dlLimitedVal))
-                            {
-                                if (!SafeGetBoolean(dlLimitedVal))
-                                {
-                                    t.DownloadLimit = 0;
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("uploadLimit", out var ulLimitVal) && ulLimitVal.ValueKind == JsonValueKind.Number)
-                            {
-                                t.UploadLimit = ulLimitVal.GetInt32();
-                            }
-
-                            if (request.Arguments.TryGetValue("uploadLimited", out var ulLimitedVal))
-                            {
-                                if (!SafeGetBoolean(ulLimitedVal))
-                                {
-                                    t.UploadLimit = 0;
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("location", out var locVal) && locVal.ValueKind == JsonValueKind.String)
-                            {
-                                var targetLocation = locVal.GetString();
-                                if (!string.IsNullOrWhiteSpace(targetLocation) && !string.Equals(t.SavePath, targetLocation, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    await this.torrentService.SetLocationAsync(t.Id, targetLocation, moveFiles: true);
-                                    t.SavePath = targetLocation;
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                foreach (var item in unwantedVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
+                                    var existing = this.trackerEntryRepository.GetByTorrentId(t.Id)?.FirstOrDefault(x => string.Equals(x.Url, url, StringComparison.OrdinalIgnoreCase));
+                                    if (existing == null)
                                     {
-                                        var idx = item.GetInt32();
-                                        if (idx >= 0 && idx < files.Count)
+                                        this.trackerEntryRepository.Insert(new TrackerEntry
                                         {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 0);
-                                        }
+                                            TorrentId = t.Id,
+                                            Url = url,
+                                            Tier = 0,
+                                            Enabled = true,
+                                        });
                                     }
+                                }
+
+                                if (string.IsNullOrWhiteSpace(t.TrackerUrl))
+                                {
+                                    t.TrackerUrl = url;
                                 }
                             }
-
-                            if (request.Arguments.TryGetValue("files-wanted", out var wantedVal) && wantedVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                foreach (var item in wantedVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
-                                    {
-                                        var idx = item.GetInt32();
-                                        if (idx >= 0 && idx < files.Count)
-                                        {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("priority-high", out var prioHighVal) && prioHighVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                foreach (var item in prioHighVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
-                                    {
-                                        var idx = item.GetInt32();
-                                        if (idx >= 0 && idx < files.Count)
-                                        {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 4);
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("priority-low", out var prioLowVal) && prioLowVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                foreach (var item in prioLowVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
-                                    {
-                                        var idx = item.GetInt32();
-                                        if (idx >= 0 && idx < files.Count)
-                                        {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 2);
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("priority-normal", out var prioNormVal) && prioNormVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                foreach (var item in prioNormVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
-                                    {
-                                        var idx = item.GetInt32();
-                                        if (idx >= 0 && idx < files.Count)
-                                        {
-                                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("trackerAdd", out var trackerAddVal) && trackerAddVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var addedUrls = new List<string>();
-                                foreach (var item in trackerAddVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.String)
-                                    {
-                                        var url = item.GetString();
-                                        if (!string.IsNullOrWhiteSpace(url))
-                                        {
-                                            addedUrls.Add(url);
-                                            if (this.trackerEntryRepository != null)
-                                            {
-                                                var existing = this.trackerEntryRepository.GetByTorrentId(t.Id)?.FirstOrDefault(x => string.Equals(x.Url, url, StringComparison.OrdinalIgnoreCase));
-                                                if (existing == null)
-                                                {
-                                                    this.trackerEntryRepository.Insert(new TrackerEntry
-                                                    {
-                                                        TorrentId = t.Id,
-                                                        Url = url,
-                                                        Tier = 0,
-                                                        Enabled = true,
-                                                    });
-                                                }
-                                            }
-
-                                            if (string.IsNullOrWhiteSpace(t.TrackerUrl))
-                                            {
-                                                t.TrackerUrl = url;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (addedUrls.Count > 0 && this.downloadEngine != null)
-                                {
-                                    await this.downloadEngine.AddTrackersAsync(t.Id, addedUrls);
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("trackerRemove", out var trackerRemoveVal) && trackerRemoveVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var removedUrls = new List<string>();
-                                foreach (var item in trackerRemoveVal.EnumerateArray())
-                                {
-                                    if (item.ValueKind == JsonValueKind.Number)
-                                    {
-                                        var trkId = item.GetInt32();
-                                        var tracker = this.trackerEntryRepository?.Get(trkId);
-                                        if (tracker == null && this.trackerEntryRepository != null)
-                                        {
-                                            var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
-                                            tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
-                                        }
-
-                                        if (tracker != null)
-                                        {
-                                            if (!string.IsNullOrWhiteSpace(tracker.Url))
-                                            {
-                                                removedUrls.Add(tracker.Url);
-                                            }
-
-                                            this.trackerEntryRepository?.Delete(tracker.Id);
-                                        }
-                                        else if (trkId == 1 && !string.IsNullOrWhiteSpace(t.TrackerUrl))
-                                        {
-                                            removedUrls.Add(t.TrackerUrl);
-                                            t.TrackerUrl = string.Empty;
-                                        }
-                                    }
-                                }
-
-                                if (removedUrls.Count > 0 && this.downloadEngine != null)
-                                {
-                                    await this.downloadEngine.RemoveTrackersAsync(t.Id, removedUrls);
-                                }
-                            }
-
-                            if (request.Arguments.TryGetValue("trackerReplace", out var trackerReplaceVal) && trackerReplaceVal.ValueKind == JsonValueKind.Array)
-                            {
-                                var pairs = new List<(int Id, string NewUrl)>();
-                                if (trackerReplaceVal.GetArrayLength() == 2 && trackerReplaceVal[0].ValueKind == JsonValueKind.Number && trackerReplaceVal[1].ValueKind == JsonValueKind.String)
-                                {
-                                    pairs.Add((trackerReplaceVal[0].GetInt32(), trackerReplaceVal[1].GetString()));
-                                }
-                                else
-                                {
-                                    foreach (var pairElem in trackerReplaceVal.EnumerateArray())
-                                    {
-                                        if (pairElem.ValueKind == JsonValueKind.Array && pairElem.GetArrayLength() >= 2 &&
-                                            pairElem[0].ValueKind == JsonValueKind.Number && pairElem[1].ValueKind == JsonValueKind.String)
-                                        {
-                                            pairs.Add((pairElem[0].GetInt32(), pairElem[1].GetString()));
-                                        }
-                                    }
-                                }
-
-                                foreach (var (trkId, newUrl) in pairs)
-                                {
-                                    if (string.IsNullOrWhiteSpace(newUrl))
-                                    {
-                                        continue;
-                                    }
-
-                                    var tracker = this.trackerEntryRepository?.Get(trkId);
-                                    if (tracker == null && this.trackerEntryRepository != null)
-                                    {
-                                        var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
-                                        tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
-                                    }
-
-                                    if (tracker != null)
-                                    {
-                                        var oldUrl = tracker.Url;
-                                        tracker.Url = newUrl;
-                                        this.trackerEntryRepository?.Update(tracker);
-
-                                        if (this.downloadEngine != null)
-                                        {
-                                            if (!string.IsNullOrWhiteSpace(oldUrl))
-                                            {
-                                                await this.downloadEngine.RemoveTrackersAsync(t.Id, new[] { oldUrl });
-                                            }
-
-                                            await this.downloadEngine.AddTrackersAsync(t.Id, new[] { newUrl });
-                                        }
-                                    }
-                                    else
-                                    {
-                                        t.TrackerUrl = newUrl;
-                                    }
-                                }
-                            }
-
-                            await this.torrentService.UpdateAsync(t);
                         }
                     }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
-
-                case "torrent-set-location":
-                    var locIds = this.ExtractIds(request.Arguments, false);
-                    var newLocation = request.Arguments != null && request.Arguments.TryGetValue("location", out var locElem)
-                        ? locElem.GetString()
-                        : null;
-                    var shouldMove = true;
-                    if (request.Arguments != null && request.Arguments.TryGetValue("move", out var moveElem))
+                    if (addedUrls.Count > 0 && this.downloadEngine != null)
                     {
-                        shouldMove = SafeGetBoolean(moveElem, defaultValue: true);
+                        await this.downloadEngine.AddTrackersAsync(t.Id, addedUrls);
                     }
+                }
 
-                    if (!string.IsNullOrWhiteSpace(newLocation))
+                if (request.Arguments.TryGetValue("trackerRemove", out var trackerRemoveVal) && trackerRemoveVal.ValueKind == JsonValueKind.Array)
+                {
+                    var removedUrls = new List<string>();
+                    foreach (var item in trackerRemoveVal.EnumerateArray())
                     {
-                        foreach (var id in locIds)
+                        if (item.ValueKind == JsonValueKind.Number)
                         {
-                            await this.torrentService.SetLocationAsync(id, newLocation, shouldMove);
+                            var trkId = item.GetInt32();
+                            var tracker = this.trackerEntryRepository?.Get(trkId);
+                            if (tracker == null && this.trackerEntryRepository != null)
+                            {
+                                var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
+                                tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                            }
+
+                            if (tracker != null)
+                            {
+                                if (!string.IsNullOrWhiteSpace(tracker.Url))
+                                {
+                                    removedUrls.Add(tracker.Url);
+                                }
+
+                                this.trackerEntryRepository?.Delete(tracker.Id);
+                            }
+                            else if (trkId == 1 && !string.IsNullOrWhiteSpace(t.TrackerUrl))
+                            {
+                                removedUrls.Add(t.TrackerUrl);
+                                t.TrackerUrl = string.Empty;
+                            }
                         }
                     }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                    if (removedUrls.Count > 0 && this.downloadEngine != null)
+                    {
+                        await this.downloadEngine.RemoveTrackersAsync(t.Id, removedUrls);
+                    }
+                }
 
-                case "free-space":
-                    var freePath = request.Arguments != null && request.Arguments.TryGetValue("path", out var pElem)
+                if (request.Arguments.TryGetValue("trackerReplace", out var trackerReplaceVal) && trackerReplaceVal.ValueKind == JsonValueKind.Array)
+                {
+                    var pairs = new List<(int Id, string NewUrl)>();
+                    if (trackerReplaceVal.GetArrayLength() == 2 && trackerReplaceVal[0].ValueKind == JsonValueKind.Number && trackerReplaceVal[1].ValueKind == JsonValueKind.String)
+                    {
+                        pairs.Add((trackerReplaceVal[0].GetInt32(), trackerReplaceVal[1].GetString()));
+                    }
+                    else
+                    {
+                        foreach (var pairElem in trackerReplaceVal.EnumerateArray())
+                        {
+                            if (pairElem.ValueKind == JsonValueKind.Array && pairElem.GetArrayLength() >= 2 &&
+                                pairElem[0].ValueKind == JsonValueKind.Number && pairElem[1].ValueKind == JsonValueKind.String)
+                            {
+                                pairs.Add((pairElem[0].GetInt32(), pairElem[1].GetString()));
+                            }
+                        }
+                    }
+
+                    foreach (var (trkId, newUrl) in pairs)
+                    {
+                        if (string.IsNullOrWhiteSpace(newUrl))
+                        {
+                            continue;
+                        }
+
+                        var tracker = this.trackerEntryRepository?.Get(trkId);
+                        if (tracker == null && this.trackerEntryRepository != null)
+                        {
+                            var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
+                            tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                        }
+
+                        if (tracker != null)
+                        {
+                            var oldUrl = tracker.Url;
+                            tracker.Url = newUrl;
+                            this.trackerEntryRepository?.Update(tracker);
+
+                            if (this.downloadEngine != null)
+                            {
+                                if (!string.IsNullOrWhiteSpace(oldUrl))
+                                {
+                                    await this.downloadEngine.RemoveTrackersAsync(t.Id, new[] { oldUrl });
+                                }
+
+                                await this.downloadEngine.AddTrackersAsync(t.Id, new[] { newUrl });
+                            }
+                        }
+                        else
+                        {
+                            t.TrackerUrl = newUrl;
+                        }
+                    }
+                }
+
+                await this.torrentService.UpdateAsync(t);
+            }
+        }
+
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
+
+    private async Task<IActionResult> HandleTorrentSetLocationAsync(TransmissionRpcRequest request, object tag)
+    {
+        var locIds = this.ExtractIds(request.Arguments, false);
+        var newLocation = request.Arguments != null && request.Arguments.TryGetValue("location", out var locElem)
+            ? locElem.GetString()
+            : null;
+        var shouldMove = true;
+        if (request.Arguments != null && request.Arguments.TryGetValue("move", out var moveElem))
+        {
+            shouldMove = SafeGetBoolean(moveElem, defaultValue: true);
+        }
+
+        if (!string.IsNullOrWhiteSpace(newLocation))
+        {
+            foreach (var id in locIds)
+            {
+                await this.torrentService.SetLocationAsync(id, newLocation, shouldMove);
+            }
+        }
+
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
+
+    private IActionResult HandleFreeSpace(TransmissionRpcRequest request, object tag)
+    {
+        var freePath = request.Arguments != null && request.Arguments.TryGetValue("path", out var pElem)
                         ? pElem.GetString()
                         : (this.configService.DownloadDir ?? "/downloads");
 
-                    long? freeBytes = null;
-                    long? totalBytes = null;
+        long? freeBytes = null;
+        long? totalBytes = null;
 
-                    if (!string.IsNullOrWhiteSpace(freePath) && this.diskProvider != null)
-                    {
-                        try
-                        {
-                            freeBytes = this.diskProvider.GetAvailableSpace(freePath);
-                            totalBytes = this.diskProvider.GetTotalSize(freePath);
-                        }
-                        catch
-                        {
-                            // Fall through to fallback
-                        }
-                    }
+        if (!string.IsNullOrWhiteSpace(freePath) && this.diskProvider != null)
+        {
+            try
+            {
+                freeBytes = this.diskProvider.GetAvailableSpace(freePath);
+                totalBytes = this.diskProvider.GetTotalSize(freePath);
+            }
+            catch
+            {
+                // Fall through to fallback
+            }
+        }
 
-                    freeBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? 0L;
-                    totalBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? 0L;
+        freeBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? 0L;
+        totalBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? 0L;
 
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object>
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
                         {
                             { "path", freePath },
                             { "size-bytes", freeBytes },
                             { "total_size", totalBytes },
                         },
-                        Tag = tag,
-                    });
+            Tag = tag,
+        });
+    }
 
-                case "queue-move-top":
-                    var qTopIds = this.ExtractIds(request.Arguments);
-                    for (var i = qTopIds.Count - 1; i >= 0; i--)
-                    {
-                        await this.torrentService.MoveQueueAsync(qTopIds[i], "top");
-                    }
+    private async Task<IActionResult> HandleQueueMoveAsync(TransmissionRpcRequest request, object tag, string direction)
+    {
+        var qIds = this.ExtractIds(request.Arguments);
+        switch (direction)
+        {
+            case "top":
+                for (var i = qIds.Count - 1; i >= 0; i--)
+                {
+                    await this.torrentService.MoveQueueAsync(qIds[i], "top");
+                }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                break;
 
-                case "queue-move-up":
-                    var qUpIds = this.ExtractIds(request.Arguments);
-                    var orderedUpIds = qUpIds
-                        .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
-                        .OrderBy(x => x.Torrent?.QueuePosition ?? int.MaxValue)
-                        .Select(x => x.Id);
-                    foreach (var id in orderedUpIds)
-                    {
-                        await this.torrentService.MoveQueueAsync(id, "up");
-                    }
+            case "up":
+                var orderedUpIds = qIds
+                    .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
+                    .OrderBy(x => x.Torrent?.QueuePosition ?? int.MaxValue)
+                    .Select(x => x.Id);
+                foreach (var id in orderedUpIds)
+                {
+                    await this.torrentService.MoveQueueAsync(id, "up");
+                }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                break;
 
-                case "queue-move-down":
-                    var qDownIds = this.ExtractIds(request.Arguments);
-                    var orderedDownIds = qDownIds
-                        .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
-                        .OrderByDescending(x => x.Torrent?.QueuePosition ?? int.MinValue)
-                        .Select(x => x.Id);
-                    foreach (var id in orderedDownIds)
-                    {
-                        await this.torrentService.MoveQueueAsync(id, "down");
-                    }
+            case "down":
+                var orderedDownIds = qIds
+                    .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
+                    .OrderByDescending(x => x.Torrent?.QueuePosition ?? int.MinValue)
+                    .Select(x => x.Id);
+                foreach (var id in orderedDownIds)
+                {
+                    await this.torrentService.MoveQueueAsync(id, "down");
+                }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                break;
 
-                case "queue-move-bottom":
-                    var qBottomIds = this.ExtractIds(request.Arguments);
-                    foreach (var id in qBottomIds)
-                    {
-                        await this.torrentService.MoveQueueAsync(id, "bottom");
-                    }
+            case "bottom":
+                foreach (var id in qIds)
+                {
+                    await this.torrentService.MoveQueueAsync(id, "bottom");
+                }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                break;
+        }
 
-                case "torrent-start":
-                case "torrent-start-now":
-                    var startIds = this.ExtractIds(request.Arguments, true);
-                    foreach (var id in startIds)
-                    {
-                        await this.torrentService.ResumeAsync(id);
-                    }
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    private async Task<IActionResult> HandleTorrentStartAsync(TransmissionRpcRequest request, object tag)
+    {
+        var startIds = this.ExtractIds(request.Arguments, true);
+        foreach (var id in startIds)
+        {
+            await this.torrentService.ResumeAsync(id);
+        }
 
-                case "torrent-stop":
-                    var stopIds = this.ExtractIds(request.Arguments, true);
-                    foreach (var id in stopIds)
-                    {
-                        await this.torrentService.PauseAsync(id);
-                    }
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    private async Task<IActionResult> HandleTorrentStopAsync(TransmissionRpcRequest request, object tag)
+    {
+        var stopIds = this.ExtractIds(request.Arguments, true);
+        foreach (var id in stopIds)
+        {
+            await this.torrentService.PauseAsync(id);
+        }
 
-                case "torrent-verify":
-                    var verifyIds = this.ExtractIds(request.Arguments, true);
-                    foreach (var id in verifyIds)
-                    {
-                        await this.torrentService.ForceRecheckAsync(id);
-                    }
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    private async Task<IActionResult> HandleTorrentVerifyAsync(TransmissionRpcRequest request, object tag)
+    {
+        var verifyIds = this.ExtractIds(request.Arguments, true);
+        foreach (var id in verifyIds)
+        {
+            await this.torrentService.ForceRecheckAsync(id);
+        }
 
-                case "torrent-reannounce":
-                    var reannounceIds = this.ExtractIds(request.Arguments, true);
-                    foreach (var id in reannounceIds)
-                    {
-                        await this.torrentService.ForceAnnounceAsync(id);
-                    }
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    private async Task<IActionResult> HandleTorrentReannounceAsync(TransmissionRpcRequest request, object tag)
+    {
+        var reannounceIds = this.ExtractIds(request.Arguments, true);
+        foreach (var id in reannounceIds)
+        {
+            await this.torrentService.ForceAnnounceAsync(id);
+        }
 
-                case "torrent-remove":
-                    var removeIds = this.ExtractIds(request.Arguments, false);
-                    var deleteLocalData = false;
-                    if (request.Arguments != null && request.Arguments.TryGetValue("delete-local-data", out var delVal))
-                    {
-                        deleteLocalData = SafeGetBoolean(delVal);
-                    }
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    foreach (var id in removeIds)
-                    {
-                        RecordRemovedId(id);
-                        await this.torrentService.DeleteAsync(id, deleteLocalData);
-                    }
+    private async Task<IActionResult> HandleTorrentRemoveAsync(TransmissionRpcRequest request, object tag)
+    {
+        var removeIds = this.ExtractIds(request.Arguments, false);
+        var deleteLocalData = false;
+        if (request.Arguments != null && request.Arguments.TryGetValue("delete-local-data", out var delVal))
+        {
+            deleteLocalData = SafeGetBoolean(delVal);
+        }
 
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+        foreach (var id in removeIds)
+        {
+            RecordRemovedId(id);
+            await this.torrentService.DeleteAsync(id, deleteLocalData);
+        }
 
-                case "torrent-rename-path":
-                    var renameIds = this.ExtractIds(request.Arguments);
-                    var targetId = renameIds.FirstOrDefault();
-                    string oldPath = null;
-                    string newName = null;
+        return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+    }
 
-                    if (request.Arguments != null)
-                    {
-                        if (request.Arguments.TryGetValue("path", out var pathElem))
-                        {
-                            oldPath = pathElem.GetString()?.Replace('\\', '/')?.TrimStart('/');
-                        }
+    private async Task<IActionResult> HandleTorrentRenamePathAsync(TransmissionRpcRequest request, object tag)
+    {
+        var renameIds = this.ExtractIds(request.Arguments);
+        var targetId = renameIds.FirstOrDefault();
+        string oldPath = null;
+        string newName = null;
 
-                        if (request.Arguments.TryGetValue("name", out var nameElem))
-                        {
-                            newName = nameElem.GetString()?.Replace('\\', '/')?.Trim('/');
-                        }
-                    }
+        if (request.Arguments != null)
+        {
+            if (request.Arguments.TryGetValue("path", out var pathElem))
+            {
+                oldPath = pathElem.GetString()?.Replace('\\', '/')?.TrimStart('/');
+            }
 
-                    if (targetId > 0 && !string.IsNullOrWhiteSpace(oldPath) && !string.IsNullOrWhiteSpace(newName))
-                    {
-                        var parentDir = Path.GetDirectoryName(oldPath)?.Replace('\\', '/');
-                        var newRelativePath = string.IsNullOrEmpty(parentDir) || parentDir == "."
-                            ? newName
-                            : $"{parentDir}/{newName}";
+            if (request.Arguments.TryGetValue("name", out var nameElem))
+            {
+                newName = nameElem.GetString()?.Replace('\\', '/')?.Trim('/');
+            }
+        }
 
-                        var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
-                        var isDirectFile = files.Any(f => f.Path != null && f.Path.Replace('\\', '/').TrimStart('/').Equals(oldPath, StringComparison.OrdinalIgnoreCase));
+        if (targetId > 0 && !string.IsNullOrWhiteSpace(oldPath) && !string.IsNullOrWhiteSpace(newName))
+        {
+            var parentDir = Path.GetDirectoryName(oldPath)?.Replace('\\', '/');
+            var newRelativePath = string.IsNullOrEmpty(parentDir) || parentDir == "."
+                ? newName
+                : $"{parentDir}/{newName}";
 
-                        if (isDirectFile)
-                        {
-                            await this.torrentService.RenameFileAsync(targetId, oldPath, newRelativePath);
-                        }
-                        else
-                        {
-                            await this.torrentService.RenameFolderAsync(targetId, oldPath, newRelativePath);
-                        }
-                    }
+            var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
+            var isDirectFile = files.Any(f => f.Path != null && f.Path.Replace('\\', '/').TrimStart('/').Equals(oldPath, StringComparison.OrdinalIgnoreCase));
 
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object>
+            if (isDirectFile)
+            {
+                await this.torrentService.RenameFileAsync(targetId, oldPath, newRelativePath);
+            }
+            else
+            {
+                await this.torrentService.RenameFolderAsync(targetId, oldPath, newRelativePath);
+            }
+        }
+
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
                         {
                             { "path", oldPath },
                             { "name", newName },
                             { "id", targetId },
                         },
-                        Tag = tag,
-                    });
+            Tag = tag,
+        });
+    }
 
-                case "port-test":
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object> { { "port-is-open", true } },
-                        Tag = tag,
-                    });
+    private IActionResult HandlePortTest(object tag)
+    {
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object> { { "port-is-open", true } },
+            Tag = tag,
+        });
+    }
 
-                case "blocklist-update":
-                    var blocklistSize = 0;
-                    if (this.blocklistUpdateService != null)
-                    {
-                        blocklistSize = await this.blocklistUpdateService.UpdateRulesAsync();
-                    }
-                    else if (this.blocklistService != null)
-                    {
-                        blocklistSize = this.blocklistService.TotalRulesLoaded;
-                    }
+    private async Task<IActionResult> HandleBlocklistUpdateAsync(object tag)
+    {
+        var blocklistSize = 0;
+        if (this.blocklistUpdateService != null)
+        {
+            blocklistSize = await this.blocklistUpdateService.UpdateRulesAsync();
+        }
+        else if (this.blocklistService != null)
+        {
+            blocklistSize = this.blocklistService.TotalRulesLoaded;
+        }
 
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Arguments = new Dictionary<string, object>
+        return this.Ok(new TransmissionRpcResponse
+        {
+            Result = "success",
+            Arguments = new Dictionary<string, object>
                         {
                             { "blocklist-size", blocklistSize },
                         },
-                        Tag = tag,
-                    });
+            Tag = tag,
+        });
+    }
 
-                case "session-close":
-                    return this.Ok(new TransmissionRpcResponse
-                    {
-                        Result = "success",
-                        Tag = tag,
-                    });
-
-                default:
-                    this.logger.Debug("Unhandled Transmission RPC method: {0}", request.Method);
-                    return this.Ok(new TransmissionRpcResponse { Result = $"unknown method: {request.Method}", Tag = tag });
-            }
-        }
-        catch (Exception ex)
+    private IActionResult HandleSessionClose(object tag)
+    {
+        return this.Ok(new TransmissionRpcResponse
         {
-            this.logger.Error(ex, "Error handling Transmission RPC method: {0}", request.Method);
-            return this.Ok(new TransmissionRpcResponse { Result = ex.Message, Tag = tag });
-        }
+            Result = "success",
+            Tag = tag,
+        });
+    }
+
+    private IActionResult HandleUnknownMethod(TransmissionRpcRequest request, object tag)
+    {
+        this.logger.Debug("Unhandled Transmission RPC method: {0}", request.Method);
+        return this.Ok(new TransmissionRpcResponse { Result = $"unknown method: {request.Method}", Tag = tag });
     }
 
     private async Task<IActionResult> HandleTorrentAddAsync(TransmissionRpcRequest request, object tag)

@@ -393,296 +393,348 @@ public class Aria2RpcController : ControllerBase
     {
         var cleanParams = GetCleanParams(parameters);
 
-        switch (method.ToLowerInvariant())
+        return method.ToLowerInvariant() switch
         {
-            case "aria2.getversion":
-                return new
-                {
-                    version = "1.36.0",
-                    enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" },
-                };
+            "aria2.getversion" => this.HandleGetVersion(),
+            "aria2.getsessioninfo" => this.HandleGetSessionInfo(),
+            "aria2.getglobalstat" => this.HandleGetGlobalStat(),
+            "aria2.tellactive" => this.HandleTellActive(),
+            "aria2.tellwaiting" => this.HandleTellWaiting(cleanParams),
+            "aria2.tellstopped" => this.HandleTellStopped(cleanParams),
+            "aria2.tellstatus" => this.HandleTellStatus(cleanParams),
+            "aria2.addtorrent" => await this.HandleAddTorrentAsync(cleanParams),
+            "aria2.adduri" => await this.HandleAddUriAsync(cleanParams),
+            "aria2.remove" or "aria2.forceremove" => await this.HandleRemoveAsync(cleanParams),
+            "aria2.purgedownloadresult" or "aria2.removedownloadresult" => await this.HandlePurgeDownloadResultAsync(cleanParams),
+            "aria2.pause" or "aria2.forcepause" => await this.HandlePauseAsync(cleanParams),
+            "aria2.unpause" or "aria2.forceunpause" => await this.HandleUnpauseAsync(cleanParams),
+            "aria2.geturis" => this.HandleGetUris(cleanParams),
+            "aria2.getfiles" => this.HandleGetFiles(cleanParams),
+            "aria2.getpeers" => this.HandleGetPeers(cleanParams),
+            "aria2.getservers" => Array.Empty<object>(),
+            "aria2.getglobaloption" => this.HandleGetGlobalOption(),
+            "aria2.getoption" => this.HandleGetOption(cleanParams),
+            "aria2.changeposition" => await this.HandleChangePositionAsync(cleanParams),
+            "aria2.changeoption" or "aria2.changeglobaloption" => await this.HandleChangeOptionAsync(cleanParams),
+            "system.multicall" => await this.HandleSystemMulticallAsync(cleanParams),
+            "system.listmethods" => this.HandleSystemListMethods(),
+            _ => throw new InvalidOperationException($"Method {method} is not supported."),
+        };
+    }
 
-            case "aria2.getsessioninfo":
-                return new
-                {
-                    sessionId = Guid.NewGuid().ToString("N"),
-                };
+    private object HandleGetVersion()
+    {
+        return new
+        {
+            version = "1.36.0",
+            enabledFeatures = new[] { "BitTorrent", "GZip", "HTTPS", "MessageDigest", "Async DNS" },
+        };
+    }
 
-            case "aria2.getglobalstat":
-                var allT = this.torrentService.GetAll().ToList();
-                return new
-                {
-                    downloadSpeed = allT.Sum(t => t.DownloadSpeed).ToString(),
-                    uploadSpeed = allT.Sum(t => t.UploadSpeed).ToString(),
-                    numActive = allT.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString(),
-                    numWaiting = allT.Count(t => t.Status == TorrentStatus.Queued).ToString(),
-                    numStopped = allT.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString(),
-                };
+    private object HandleGetSessionInfo()
+    {
+        return new
+        {
+            sessionId = Guid.NewGuid().ToString("N"),
+        };
+    }
 
-            case "aria2.tellactive":
-                return this.torrentService.GetAll()
+    private object HandleGetGlobalStat()
+    {
+        var allT = this.torrentService.GetAll().ToList();
+        return new
+        {
+            downloadSpeed = allT.Sum(t => t.DownloadSpeed).ToString(),
+            uploadSpeed = allT.Sum(t => t.UploadSpeed).ToString(),
+            numActive = allT.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString(),
+            numWaiting = allT.Count(t => t.Status == TorrentStatus.Queued).ToString(),
+            numStopped = allT.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString(),
+        };
+    }
+
+    private object HandleTellActive()
+    {
+        return this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
                     .Select(this.MapTorrentToAria2)
                     .ToList();
+    }
 
-            case "aria2.tellwaiting":
-                var waitingOffset = 0;
-                var waitingNum = int.MaxValue;
-                if (cleanParams.Count > 0)
+    private object HandleTellWaiting(List<JsonElement> cleanParams)
+    {
+        var waitingOffset = 0;
+        var waitingNum = int.MaxValue;
+        if (cleanParams.Count > 0)
+        {
+            if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var wo))
+            {
+                waitingOffset = wo;
+            }
+            else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var woStr))
+            {
+                waitingOffset = woStr;
+            }
+        }
+
+        if (cleanParams.Count > 1)
+        {
+            if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var wn))
+            {
+                waitingNum = wn;
+            }
+            else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var wnStr))
+            {
+                waitingNum = wnStr;
+            }
+        }
+
+        var waitingList = this.torrentService.GetAll()
+            .Where(t => t.Status == TorrentStatus.Queued)
+            .ToList();
+        return SliceList(waitingList, waitingOffset, waitingNum)
+            .Select(this.MapTorrentToAria2)
+            .ToList();
+    }
+
+    private object HandleTellStopped(List<JsonElement> cleanParams)
+    {
+        var stoppedOffset = 0;
+        var stoppedNum = int.MaxValue;
+        if (cleanParams.Count > 0)
+        {
+            if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var so))
+            {
+                stoppedOffset = so;
+            }
+            else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var soStr))
+            {
+                stoppedOffset = soStr;
+            }
+        }
+
+        if (cleanParams.Count > 1)
+        {
+            if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var sn))
+            {
+                stoppedNum = sn;
+            }
+            else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var snStr))
+            {
+                stoppedNum = snStr;
+            }
+        }
+
+        var stoppedList = this.torrentService.GetAll()
+            .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
+            .ToList();
+        return SliceList(stoppedList, stoppedOffset, stoppedNum)
+            .Select(this.MapTorrentToAria2)
+            .ToList();
+    }
+
+    private object HandleTellStatus(List<JsonElement> cleanParams)
+    {
+        var gid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var torrent = this.FindByGid(gid);
+        return torrent != null ? this.MapTorrentToAria2(torrent) : new object();
+    }
+
+    private async Task<object> HandleAddTorrentAsync(List<JsonElement> cleanParams)
+    {
+        if (cleanParams.Count > 0)
+        {
+            var b64 = cleanParams[0].GetString();
+            if (!string.IsNullOrWhiteSpace(b64))
+            {
+                var savePath = (string)null;
+                var isPaused = false;
+                if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
                 {
-                    if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var wo))
+                    var opts = cleanParams[1];
+                    if (opts.TryGetProperty("dir", out var dirProp))
                     {
-                        waitingOffset = wo;
+                        savePath = dirProp.GetString();
                     }
-                    else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var woStr))
-                    {
-                        waitingOffset = woStr;
-                    }
-                }
 
-                if (cleanParams.Count > 1)
-                {
-                    if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var wn))
+                    if (opts.TryGetProperty("pause", out var pauseProp))
                     {
-                        waitingNum = wn;
-                    }
-                    else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var wnStr))
-                    {
-                        waitingNum = wnStr;
-                    }
-                }
-
-                var waitingList = this.torrentService.GetAll()
-                    .Where(t => t.Status == TorrentStatus.Queued)
-                    .ToList();
-                return SliceList(waitingList, waitingOffset, waitingNum)
-                    .Select(this.MapTorrentToAria2)
-                    .ToList();
-
-            case "aria2.tellstopped":
-                var stoppedOffset = 0;
-                var stoppedNum = int.MaxValue;
-                if (cleanParams.Count > 0)
-                {
-                    if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var so))
-                    {
-                        stoppedOffset = so;
-                    }
-                    else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var soStr))
-                    {
-                        stoppedOffset = soStr;
-                    }
-                }
-
-                if (cleanParams.Count > 1)
-                {
-                    if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var sn))
-                    {
-                        stoppedNum = sn;
-                    }
-                    else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var snStr))
-                    {
-                        stoppedNum = snStr;
-                    }
-                }
-
-                var stoppedList = this.torrentService.GetAll()
-                    .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
-                    .ToList();
-                return SliceList(stoppedList, stoppedOffset, stoppedNum)
-                    .Select(this.MapTorrentToAria2)
-                    .ToList();
-
-            case "aria2.tellstatus":
-                var gid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var torrent = this.FindByGid(gid);
-                return torrent != null ? this.MapTorrentToAria2(torrent) : new object();
-
-            case "aria2.addtorrent":
-                if (cleanParams.Count > 0)
-                {
-                    var b64 = cleanParams[0].GetString();
-                    if (!string.IsNullOrWhiteSpace(b64))
-                    {
-                        var savePath = (string)null;
-                        var isPaused = false;
-                        if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
+                        if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
                         {
-                            var opts = cleanParams[1];
-                            if (opts.TryGetProperty("dir", out var dirProp))
-                            {
-                                savePath = dirProp.GetString();
-                            }
+                            isPaused = true;
+                        }
+                    }
+                }
+                else if (cleanParams.Count > 2 && cleanParams[2].ValueKind == JsonValueKind.Object)
+                {
+                    var opts = cleanParams[2];
+                    if (opts.TryGetProperty("dir", out var dirProp))
+                    {
+                        savePath = dirProp.GetString();
+                    }
 
-                            if (opts.TryGetProperty("pause", out var pauseProp))
+                    if (opts.TryGetProperty("pause", out var pauseProp))
+                    {
+                        if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
+                        {
+                            isPaused = true;
+                        }
+                    }
+                }
+
+                var bytes = Convert.FromBase64String(b64);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
+                return GetGidFromInfoHash(added?.InfoHash);
+            }
+        }
+
+        return Guid.NewGuid().ToString("N")[..16];
+    }
+
+    private async Task<object> HandleAddUriAsync(List<JsonElement> cleanParams)
+    {
+        if (cleanParams.Count > 0)
+        {
+            var urisArray = cleanParams[0];
+            if (urisArray.ValueKind == JsonValueKind.Array && urisArray.GetArrayLength() > 0)
+            {
+                var uri = urisArray[0].GetString();
+                if (!string.IsNullOrWhiteSpace(uri))
+                {
+                    var savePath = (string)null;
+                    var isPaused = false;
+                    if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
+                    {
+                        var opts = cleanParams[1];
+                        if (opts.TryGetProperty("dir", out var dirProp))
+                        {
+                            savePath = dirProp.GetString();
+                        }
+
+                        if (opts.TryGetProperty("pause", out var pauseProp))
+                        {
+                            if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
                             {
-                                if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
-                                {
-                                    isPaused = true;
-                                }
+                                isPaused = true;
                             }
                         }
-                        else if (cleanParams.Count > 2 && cleanParams[2].ValueKind == JsonValueKind.Object)
-                        {
-                            var opts = cleanParams[2];
-                            if (opts.TryGetProperty("dir", out var dirProp))
-                            {
-                                savePath = dirProp.GetString();
-                            }
+                    }
 
-                            if (opts.TryGetProperty("pause", out var pauseProp))
-                            {
-                                if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
-                                {
-                                    isPaused = true;
-                                }
-                            }
-                        }
-
-                        var bytes = Convert.FromBase64String(b64);
+                    if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var added = await this.torrentService.AddFromMagnetAsync(uri, null, savePath, isPaused);
+                        return GetGidFromInfoHash(added?.InfoHash);
+                    }
+                    else
+                    {
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
                         return GetGidFromInfoHash(added?.InfoHash);
                     }
                 }
+            }
+        }
 
-                return Guid.NewGuid().ToString("N")[..16];
+        return Guid.NewGuid().ToString("N")[..16];
+    }
 
-            case "aria2.adduri":
-                if (cleanParams.Count > 0)
-                {
-                    var urisArray = cleanParams[0];
-                    if (urisArray.ValueKind == JsonValueKind.Array && urisArray.GetArrayLength() > 0)
-                    {
-                        var uri = urisArray[0].GetString();
-                        if (!string.IsNullOrWhiteSpace(uri))
-                        {
-                            var savePath = (string)null;
-                            var isPaused = false;
-                            if (cleanParams.Count > 1 && cleanParams[1].ValueKind == JsonValueKind.Object)
-                            {
-                                var opts = cleanParams[1];
-                                if (opts.TryGetProperty("dir", out var dirProp))
-                                {
-                                    savePath = dirProp.GetString();
-                                }
+    private async Task<object> HandleRemoveAsync(List<JsonElement> cleanParams)
+    {
+        var removeGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var toRemove = this.FindByGid(removeGid);
+        if (toRemove != null)
+        {
+            await this.torrentService.DeleteAsync(toRemove.Id, false);
+        }
 
-                                if (opts.TryGetProperty("pause", out var pauseProp))
-                                {
-                                    if (pauseProp.ValueKind == JsonValueKind.True || (pauseProp.ValueKind == JsonValueKind.String && pauseProp.GetString() == "true"))
-                                    {
-                                        isPaused = true;
-                                    }
-                                }
-                            }
+        return removeGid ?? "OK";
+    }
 
-                            if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var added = await this.torrentService.AddFromMagnetAsync(uri, null, savePath, isPaused);
-                                return GetGidFromInfoHash(added?.InfoHash);
-                            }
-                            else
-                            {
-                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
-                                var parsed = this.torrentFileParser.Parse(bytes);
-                                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
-                                return GetGidFromInfoHash(added?.InfoHash);
-                            }
-                        }
-                    }
-                }
+    private async Task<object> HandlePurgeDownloadResultAsync(List<JsonElement> cleanParams)
+    {
+        var resGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        if (!string.IsNullOrWhiteSpace(resGid))
+        {
+            var toRemoveRes = this.FindByGid(resGid);
+            if (toRemoveRes != null)
+            {
+                await this.torrentService.DeleteAsync(toRemoveRes.Id, false);
+            }
+        }
 
-                return Guid.NewGuid().ToString("N")[..16];
+        return "OK";
+    }
 
-            case "aria2.remove":
-            case "aria2.forceremove":
-                var removeGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var toRemove = this.FindByGid(removeGid);
-                if (toRemove != null)
-                {
-                    await this.torrentService.DeleteAsync(toRemove.Id, false);
-                }
+    private async Task<object> HandlePauseAsync(List<JsonElement> cleanParams)
+    {
+        var pauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var toPause = this.FindByGid(pauseGid);
+        if (toPause != null)
+        {
+            await this.torrentService.PauseAsync(toPause.Id);
+        }
 
-                return removeGid ?? "OK";
+        return pauseGid ?? "OK";
+    }
 
-            case "aria2.purgedownloadresult":
-            case "aria2.removedownloadresult":
-                var resGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                if (!string.IsNullOrWhiteSpace(resGid))
-                {
-                    var toRemoveRes = this.FindByGid(resGid);
-                    if (toRemoveRes != null)
-                    {
-                        await this.torrentService.DeleteAsync(toRemoveRes.Id, false);
-                    }
-                }
+    private async Task<object> HandleUnpauseAsync(List<JsonElement> cleanParams)
+    {
+        var unpauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var toUnpause = this.FindByGid(unpauseGid);
+        if (toUnpause != null)
+        {
+            await this.torrentService.ResumeAsync(toUnpause.Id);
+        }
 
-                return "OK";
+        return unpauseGid ?? "OK";
+    }
 
-            case "aria2.pause":
-            case "aria2.forcepause":
-                var pauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var toPause = this.FindByGid(pauseGid);
-                if (toPause != null)
-                {
-                    await this.torrentService.PauseAsync(toPause.Id);
-                }
-
-                return pauseGid ?? "OK";
-
-            case "aria2.unpause":
-            case "aria2.forceunpause":
-                var unpauseGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var toUnpause = this.FindByGid(unpauseGid);
-                if (toUnpause != null)
-                {
-                    await this.torrentService.ResumeAsync(toUnpause.Id);
-                }
-
-                return unpauseGid ?? "OK";
-
-            case "aria2.geturis":
-                var urisGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var urisTorrent = this.FindByGid(urisGid);
-                if (urisTorrent != null && !string.IsNullOrWhiteSpace(urisTorrent.TrackerUrl))
-                {
-                    return new[]
-                    {
+    private object HandleGetUris(List<JsonElement> cleanParams)
+    {
+        var urisGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var urisTorrent = this.FindByGid(urisGid);
+        if (urisTorrent != null && !string.IsNullOrWhiteSpace(urisTorrent.TrackerUrl))
+        {
+            return new[]
+            {
                         new
                         {
                             uri = urisTorrent.TrackerUrl,
                             status = "used",
                         },
                     };
-                }
+        }
 
-                return Array.Empty<object>();
+        return Array.Empty<object>();
+    }
 
-            case "aria2.getfiles":
-                var filesGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var filesTorrent = this.FindByGid(filesGid);
-                if (filesTorrent != null)
+    private object HandleGetFiles(List<JsonElement> cleanParams)
+    {
+        var filesGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var filesTorrent = this.FindByGid(filesGid);
+        if (filesTorrent != null)
+        {
+            var saveDir = filesTorrent.SavePath ?? this.configService.DownloadDir ?? "/downloads";
+            var files = this.torrentFileService.GetFiles(filesTorrent.Id)?.ToList();
+            var downloadTask = this.torrentService?.GetDownloadTask(filesTorrent.Id);
+            if (files != null && files.Count > 0)
+            {
+                TorrentFileProgressEnricher.Enrich(filesTorrent, files, downloadTask);
+                return files.Select((f, idx) => new
                 {
-                    var saveDir = filesTorrent.SavePath ?? this.configService.DownloadDir ?? "/downloads";
-                    var files = this.torrentFileService.GetFiles(filesTorrent.Id)?.ToList();
-                    var downloadTask = this.torrentService?.GetDownloadTask(filesTorrent.Id);
-                    if (files != null && files.Count > 0)
-                    {
-                        TorrentFileProgressEnricher.Enrich(filesTorrent, files, downloadTask);
-                        return files.Select((f, idx) => new
-                        {
-                            index = (idx + 1).ToString(),
-                            path = global::System.IO.Path.Combine(saveDir, f.Path ?? string.Empty),
-                            length = f.Size.ToString(),
-                            completedLength = f.BytesCompleted.ToString(),
-                            selected = f.Priority > 0 ? "true" : "false",
-                            uris = Array.Empty<object>(),
-                        }).ToList();
-                    }
+                    index = (idx + 1).ToString(),
+                    path = global::System.IO.Path.Combine(saveDir, f.Path ?? string.Empty),
+                    length = f.Size.ToString(),
+                    completedLength = f.BytesCompleted.ToString(),
+                    selected = f.Priority > 0 ? "true" : "false",
+                    uris = Array.Empty<object>(),
+                }).ToList();
+            }
 
-                    return new object[]
-                    {
+            return new object[]
+            {
                         new
                         {
                             index = "1",
@@ -692,39 +744,40 @@ public class Aria2RpcController : ControllerBase
                             selected = "true",
                             uris = Array.Empty<object>(),
                         },
-                    };
-                }
+            };
+        }
 
-                return Array.Empty<object>();
+        return Array.Empty<object>();
+    }
 
-            case "aria2.getpeers":
-                var peersGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-                var peersTorrent = this.FindByGid(peersGid);
-                if (peersTorrent != null)
-                {
-                    var downloadTask = this.torrentService?.GetDownloadTask(peersTorrent.Id);
-                    var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<NzbDrone.Core.BitTorrent.PeerInfo>();
-                    return swarmPeers.Select(p => new
-                    {
-                        peerId = p.Client ?? string.Empty,
-                        ip = p.Ip ?? string.Empty,
-                        port = p.Port.ToString(),
-                        bitfield = string.Empty,
-                        amChoking = p.ClientIsChoked.ToString().ToLowerInvariant(),
-                        peerChoking = p.IsChoked.ToString().ToLowerInvariant(),
-                        downloadSpeed = p.DownloadSpeed.ToString(),
-                        uploadSpeed = p.UploadSpeed.ToString(),
-                        seeder = (p.Progress >= 1.0).ToString().ToLowerInvariant(),
-                    }).ToList();
-                }
+    private object HandleGetPeers(List<JsonElement> cleanParams)
+    {
+        var peersGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
+        var peersTorrent = this.FindByGid(peersGid);
+        if (peersTorrent != null)
+        {
+            var downloadTask = this.torrentService?.GetDownloadTask(peersTorrent.Id);
+            var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<NzbDrone.Core.BitTorrent.PeerInfo>();
+            return swarmPeers.Select(p => new
+            {
+                peerId = p.Client ?? string.Empty,
+                ip = p.Ip ?? string.Empty,
+                port = p.Port.ToString(),
+                bitfield = string.Empty,
+                amChoking = p.ClientIsChoked.ToString().ToLowerInvariant(),
+                peerChoking = p.IsChoked.ToString().ToLowerInvariant(),
+                downloadSpeed = p.DownloadSpeed.ToString(),
+                uploadSpeed = p.UploadSpeed.ToString(),
+                seeder = (p.Progress >= 1.0).ToString().ToLowerInvariant(),
+            }).ToList();
+        }
 
-                return Array.Empty<object>();
+        return Array.Empty<object>();
+    }
 
-            case "aria2.getservers":
-                return Array.Empty<object>();
-
-            case "aria2.getglobaloption":
-                return new Dictionary<string, string>
+    private object HandleGetGlobalOption()
+    {
+        return new Dictionary<string, string>
                 {
                     { "dir", this.configService.DownloadDir ?? "/downloads" },
                     { "max-overall-download-limit", (this.configService.MaxDownloadSpeedKbps * 1024).ToString() },
@@ -732,149 +785,158 @@ public class Aria2RpcController : ControllerBase
                     { "max-download-limit", "0" },
                     { "max-upload-limit", "0" },
                 };
+    }
 
-            case "aria2.getoption":
-                var goParams = GetCleanParams(parameters);
-                var goGid = goParams.Count > 0 && goParams[0].ValueKind == JsonValueKind.String ? goParams[0].GetString() : null;
-                var goTorrent = !string.IsNullOrWhiteSpace(goGid) ? this.FindByGid(goGid) : null;
-                if (goTorrent != null)
-                {
-                    var optDir = !string.IsNullOrWhiteSpace(goTorrent.SavePath)
-                        ? goTorrent.SavePath
-                        : (this.configService.DownloadDir ?? "/downloads");
-                    return new Dictionary<string, string>
+    private object HandleGetOption(List<JsonElement> cleanParams)
+    {
+        var goParams = cleanParams;
+        var goGid = goParams.Count > 0 && goParams[0].ValueKind == JsonValueKind.String ? goParams[0].GetString() : null;
+        var goTorrent = !string.IsNullOrWhiteSpace(goGid) ? this.FindByGid(goGid) : null;
+        if (goTorrent != null)
+        {
+            var optDir = !string.IsNullOrWhiteSpace(goTorrent.SavePath)
+                ? goTorrent.SavePath
+                : (this.configService.DownloadDir ?? "/downloads");
+            return new Dictionary<string, string>
                     {
                         { "dir", optDir },
                         { "max-download-limit", (goTorrent.DownloadLimit * 1024).ToString() },
                         { "max-upload-limit", (goTorrent.UploadLimit * 1024).ToString() },
                     };
-                }
+        }
 
-                return new Dictionary<string, string>
+        return new Dictionary<string, string>
                 {
                     { "dir", this.configService.DownloadDir ?? "/downloads" },
                     { "max-download-limit", "0" },
                     { "max-upload-limit", "0" },
                 };
+    }
 
-            case "aria2.changeposition":
-                var cpParams = GetCleanParams(parameters);
-                if (cpParams.Count >= 3)
+    private async Task<object> HandleChangePositionAsync(List<JsonElement> cleanParams)
+    {
+        var cpParams = cleanParams;
+        if (cpParams.Count >= 3)
+        {
+            var cpGid = cpParams[0].GetString();
+            var cpOffset = cpParams[1].GetInt32();
+            var cpHow = cpParams[2].GetString()?.ToLowerInvariant();
+            var t = this.FindByGid(cpGid);
+            if (t != null)
+            {
+                var dir = "down";
+                if (cpHow == "pos_set" && cpOffset == 0)
                 {
-                    var cpGid = cpParams[0].GetString();
-                    var cpOffset = cpParams[1].GetInt32();
-                    var cpHow = cpParams[2].GetString()?.ToLowerInvariant();
-                    var t = this.FindByGid(cpGid);
-                    if (t != null)
-                    {
-                        var dir = "down";
-                        if (cpHow == "pos_set" && cpOffset == 0)
-                        {
-                            dir = "top";
-                        }
-                        else if (cpHow == "pos_end")
-                        {
-                            dir = "bottom";
-                        }
-                        else if (cpOffset < 0)
-                        {
-                            dir = "up";
-                        }
-
-                        await this.torrentService.MoveQueueAsync(t.Id, dir);
-                        return 1;
-                    }
+                    dir = "top";
+                }
+                else if (cpHow == "pos_end")
+                {
+                    dir = "bottom";
+                }
+                else if (cpOffset < 0)
+                {
+                    dir = "up";
                 }
 
-                return 0;
+                await this.torrentService.MoveQueueAsync(t.Id, dir);
+                return 1;
+            }
+        }
 
-            case "aria2.changeoption":
-            case "aria2.changeglobaloption":
-                var coParams = GetCleanParams(parameters);
-                var optDictElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.Object);
-                var gidElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.String);
-                var gidStr = gidElem.ValueKind == JsonValueKind.String ? gidElem.GetString() : null;
+        return 0;
+    }
 
-                if (!string.IsNullOrWhiteSpace(gidStr) && this.torrentService != null)
+    private async Task<object> HandleChangeOptionAsync(List<JsonElement> cleanParams)
+    {
+        var coParams = cleanParams;
+        var optDictElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.Object);
+        var gidElem = coParams.FirstOrDefault(p => p.ValueKind == JsonValueKind.String);
+        var gidStr = gidElem.ValueKind == JsonValueKind.String ? gidElem.GetString() : null;
+
+        if (!string.IsNullOrWhiteSpace(gidStr) && this.torrentService != null)
+        {
+            var t = this.FindByGid(gidStr);
+            if (t != null && optDictElem.ValueKind == JsonValueKind.Object)
+            {
+                if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && TryParseSpeedLimit(tdl, out var tdlBps))
                 {
-                    var t = this.FindByGid(gidStr);
-                    if (t != null && optDictElem.ValueKind == JsonValueKind.Object)
+                    t.DownloadLimit = tdlBps / 1024;
+                }
+
+                if (optDictElem.TryGetProperty("max-upload-limit", out var tul) && TryParseSpeedLimit(tul, out var tulBps))
+                {
+                    t.UploadLimit = tulBps / 1024;
+                }
+
+                await this.torrentService.UpdateAsync(t);
+
+                if (optDictElem.TryGetProperty("select-file", out var sfElem) && this.torrentFileService != null)
+                {
+                    var sfStr = sfElem.GetString();
+                    if (!string.IsNullOrWhiteSpace(sfStr))
                     {
-                        if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && TryParseSpeedLimit(tdl, out var tdlBps))
+                        var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                        var selectedIndices = ParseAria2FileIndices(sfStr);
+                        for (var fIdx = 0; fIdx < files.Count; fIdx++)
                         {
-                            t.DownloadLimit = tdlBps / 1024;
-                        }
-
-                        if (optDictElem.TryGetProperty("max-upload-limit", out var tul) && TryParseSpeedLimit(tul, out var tulBps))
-                        {
-                            t.UploadLimit = tulBps / 1024;
-                        }
-
-                        await this.torrentService.UpdateAsync(t);
-
-                        if (optDictElem.TryGetProperty("select-file", out var sfElem) && this.torrentFileService != null)
-                        {
-                            var sfStr = sfElem.GetString();
-                            if (!string.IsNullOrWhiteSpace(sfStr))
-                            {
-                                var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                                var selectedIndices = ParseAria2FileIndices(sfStr);
-                                for (var fIdx = 0; fIdx < files.Count; fIdx++)
-                                {
-                                    // 1-based indices in aria2
-                                    var prio = selectedIndices.Contains(fIdx + 1) ? 1 : 0;
-                                    await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
-                                }
-                            }
+                            // 1-based indices in aria2
+                            var prio = selectedIndices.Contains(fIdx + 1) ? 1 : 0;
+                            await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, prio);
                         }
                     }
                 }
+            }
+        }
 
-                if (optDictElem.ValueKind == JsonValueKind.Object)
+        if (optDictElem.ValueKind == JsonValueKind.Object)
+        {
+            var updateDict = new Dictionary<string, object>();
+            if (optDictElem.TryGetProperty("max-overall-download-limit", out var dlOpt) && TryParseSpeedLimit(dlOpt, out var dlBps))
+            {
+                updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
+            }
+
+            if (optDictElem.TryGetProperty("max-overall-upload-limit", out var ulOpt) && TryParseSpeedLimit(ulOpt, out var ulBps))
+            {
+                updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
+            }
+
+            if (updateDict.Count > 0)
+            {
+                this.configService.SaveConfigDictionary(updateDict);
+            }
+        }
+
+        return "OK";
+    }
+
+    private async Task<object> HandleSystemMulticallAsync(List<JsonElement> cleanParams)
+    {
+        if (cleanParams.Count > 0)
+        {
+            var calls = cleanParams[0];
+            var results = new List<object>();
+            if (calls.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var call in calls.EnumerateArray())
                 {
-                    var updateDict = new Dictionary<string, object>();
-                    if (optDictElem.TryGetProperty("max-overall-download-limit", out var dlOpt) && TryParseSpeedLimit(dlOpt, out var dlBps))
+                    if (call.TryGetProperty("methodName", out var mn) && call.TryGetProperty("params", out var p))
                     {
-                        updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
-                    }
-
-                    if (optDictElem.TryGetProperty("max-overall-upload-limit", out var ulOpt) && TryParseSpeedLimit(ulOpt, out var ulBps))
-                    {
-                        updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
-                    }
-
-                    if (updateDict.Count > 0)
-                    {
-                        this.configService.SaveConfigDictionary(updateDict);
+                        var subRes = await this.ExecuteMethodAsync(mn.GetString() ?? string.Empty, p);
+                        results.Add(new object[] { subRes });
                     }
                 }
+            }
 
-                return "OK";
+            return results;
+        }
 
-            case "system.multicall":
-                if (cleanParams.Count > 0)
-                {
-                    var calls = cleanParams[0];
-                    var results = new List<object>();
-                    if (calls.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var call in calls.EnumerateArray())
-                        {
-                            if (call.TryGetProperty("methodName", out var mn) && call.TryGetProperty("params", out var p))
-                            {
-                                var subRes = await this.ExecuteMethodAsync(mn.GetString() ?? string.Empty, p);
-                                results.Add(new object[] { subRes });
-                            }
-                        }
-                    }
+        return new List<object>();
+    }
 
-                    return results;
-                }
-
-                return new List<object>();
-
-            case "system.listmethods":
-                return new[]
+    private object HandleSystemListMethods()
+    {
+        return new[]
                 {
                     "aria2.addUri",
                     "aria2.addTorrent",
@@ -908,11 +970,6 @@ public class Aria2RpcController : ControllerBase
                     "system.multicall",
                     "system.listMethods",
                 };
-
-            default:
-                this.logger.Debug("Unhandled Aria2 RPC method: {0}", method);
-                return "OK";
-        }
     }
 
     private static List<T> SliceList<T>(List<T> list, int offset, int num)
