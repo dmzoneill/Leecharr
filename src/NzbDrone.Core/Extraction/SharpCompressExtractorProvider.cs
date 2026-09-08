@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Torrents;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 
@@ -126,12 +127,6 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
-        var canonicalTarget = Path.GetFullPath(targetDir);
-        if (!canonicalTarget.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
-        {
-            canonicalTarget += Path.DirectorySeparatorChar;
-        }
-
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         async Task<bool> ExtractActionAsync()
@@ -162,15 +157,24 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         cancellationToken.ThrowIfCancellationRequested();
 
                         var entryKey = entry.Key;
-                        if (string.IsNullOrEmpty(entryKey))
+                        if (string.IsNullOrWhiteSpace(entryKey))
                         {
                             continue;
                         }
 
                         var entryPath = entryKey.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
-                        var targetFilePath = Path.GetFullPath(Path.Combine(targetDir, entryPath));
+                        string targetFilePath;
+                        try
+                        {
+                            targetFilePath = Path.GetFullPath(Path.Combine(targetDir, entryPath));
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Invalid path in archive '{0}' for entry '{1}'. Skipping entry.", archivePath, entryKey);
+                            continue;
+                        }
 
-                        if (!targetFilePath.StartsWith(canonicalTarget, StringComparison.OrdinalIgnoreCase))
+                        if (!TorrentPathValidator.IsStrictSubPath(targetDir, targetFilePath))
                         {
                             this.logger.Warn("ZipSlip traversal detected in archive '{0}' for entry '{1}'. Skipping entry.", archivePath, entryKey);
                             continue;
