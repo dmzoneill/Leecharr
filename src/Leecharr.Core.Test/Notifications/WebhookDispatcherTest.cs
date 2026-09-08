@@ -453,4 +453,25 @@ public class WebhookDispatcherTest
 
         customDispatcher.Timeout.Should().Be(TimeSpan.FromSeconds(45));
     }
+
+    [TestCase(double.PositiveInfinity, "Infinity")]
+    [TestCase(double.NegativeInfinity, "-Infinity")]
+    [TestCase(double.NaN, "NaN")]
+    public async Task DispatchAsync_WhenPayloadContainsNonFiniteDouble_SerializesSuccessfullyAndDispatches(double nonFiniteValue, string expectedToken)
+    {
+        var payload = new
+        {
+            eventType = "OnGrab",
+            ratio = nonFiniteValue,
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", payload);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        var body = await request.Content!.ReadAsStringAsync();
+        body.Should().Contain($"\"ratio\":\"{expectedToken}\"");
+    }
 }
