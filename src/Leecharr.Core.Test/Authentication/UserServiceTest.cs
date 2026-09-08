@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Authentication;
 
@@ -137,6 +138,53 @@ public class UserServiceTest
         var authenticated = this.userService.Authenticate("jdoe", "WrongPassword");
 
         Assert.That(authenticated, Is.Null);
+    }
+
+    [Test]
+    public void UpdatePassword_WhenCalled_InvalidatesUserSessionsAndClearsCache()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+        var service = new UserService(this.userRepository, this.logger, sessionRepo, sessionCache);
+
+        var user = service.CreateUser("alice", "OriginalPassword1!", "alice@example.com");
+
+        service.UpdatePassword(user.Id, "NewPassword456!");
+
+        sessionRepo.Received(1).DeleteByUserId(user.Id);
+        sessionCache.Received(1).ClearCache();
+    }
+
+    [Test]
+    public void Delete_WhenCalled_InvalidatesUserSessionsAndClearsCache()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+        var service = new UserService(this.userRepository, this.logger, sessionRepo, sessionCache);
+
+        var user = service.CreateUser("bob", "Password123!", "bob@example.com");
+
+        service.Delete(user.Id);
+
+        sessionRepo.Received(1).DeleteByUserId(user.Id);
+        sessionCache.Received(1).ClearCache();
+        Assert.That(this.userRepository.Get(user.Id), Is.Null);
+    }
+
+    [Test]
+    public void Update_WhenCalled_InvalidatesUserSessionsAndClearsCache()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+        var service = new UserService(this.userRepository, this.logger, sessionRepo, sessionCache);
+
+        var user = service.CreateUser("carol", "Password123!", "carol@example.com", roles: new List<string> { "Admin" });
+
+        user.Roles = "[\"User\"]";
+        service.Update(user);
+
+        sessionRepo.Received(1).DeleteByUserId(user.Id);
+        sessionCache.Received(1).ClearCache();
     }
 
     private class InMemoryUserRepository : IUserRepository
