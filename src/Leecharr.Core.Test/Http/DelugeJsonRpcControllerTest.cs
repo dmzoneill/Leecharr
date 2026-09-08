@@ -244,7 +244,7 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
-    public async Task HandleRpc_CoreSetTorrentOptions_WithMoveCompletedPath_InvokesSetLocationAsync()
+    public async Task HandleRpc_CoreSetTorrentOptions_WithMoveCompletedPath_DoesNotPrematurelyRelocateFiles()
     {
         var context = new DefaultHttpContext();
         context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
@@ -266,7 +266,7 @@ public class DelugeJsonRpcControllerTest
         var jsonResult = (JsonResult)result;
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":true");
-        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/completed", moveFiles: true);
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
         await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
     }
 
@@ -404,6 +404,46 @@ public class DelugeJsonRpcControllerTest
         var jsonResult = (JsonResult)result;
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":250000000000");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetFreeSpaceBytes_WithCustomPath_QueriesDiskProvider()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(350_000_000_000L);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space_bytes\",\"params\":[\"/mnt/storage\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":350000000000");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreEnableAndDisablePlugin_ReturnsTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var enableDoc = JsonDocument.Parse("{\"method\":\"core.enable_plugin\",\"params\":[\"Label\"],\"id\":1}");
+        var enableResult = await this.controller.HandleRpc(enableDoc.RootElement);
+
+        enableResult.Should().BeOfType<JsonResult>();
+        var enableJson = JsonSerializer.Serialize(((JsonResult)enableResult).Value);
+        enableJson.Should().Contain("\"result\":true");
+
+        using var disableDoc = JsonDocument.Parse("{\"method\":\"core.disable_plugin\",\"params\":[\"Label\"],\"id\":2}");
+        var disableResult = await this.controller.HandleRpc(disableDoc.RootElement);
+
+        disableResult.Should().BeOfType<JsonResult>();
+        var disableJson = JsonSerializer.Serialize(((JsonResult)disableResult).Value);
+        disableJson.Should().Contain("\"result\":true");
     }
 
     [Test]

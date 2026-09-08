@@ -122,4 +122,16 @@ public class ApiKeyAuthenticationHandlerTest
 
         result.None.Should().BeTrue();
     }
+
+    [Test]
+    public async Task AuthenticateAsync_WithEmptyAccessTokenInQuery_ReturnsNoResult()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("test-secret-key");
+        this.httpContext.Request.QueryString = new QueryString("?access_token=");
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.None.Should().BeTrue();
+    }
 }

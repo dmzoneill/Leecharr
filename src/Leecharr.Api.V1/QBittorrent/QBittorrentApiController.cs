@@ -484,8 +484,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
-        var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
+        var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
 
         // 1. URLs (magnets or http/https torrent links)
         if (!string.IsNullOrWhiteSpace(urls))
@@ -958,9 +957,46 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.Content("Ok.", "text/plain");
         }
 
+        var newTags = tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .ToList();
+
+        if (newTags.Count == 0)
+        {
+            return this.Content("Ok.", "text/plain");
+        }
+
+        if (this.tagRepository != null)
+        {
+            var existingTags = this.tagRepository.All().Select(x => x.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var tag in newTags)
+            {
+                if (!existingTags.Contains(tag))
+                {
+                    this.tagRepository.Insert(new Tag { Label = tag });
+                    existingTags.Add(tag);
+                }
+            }
+        }
+
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            torrent.Label = tags;
+            var currentTags = (torrent.Label ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList();
+
+            foreach (var tag in newTags)
+            {
+                if (!currentTags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                {
+                    currentTags.Add(tag);
+                }
+            }
+
+            torrent.Label = string.Join(", ", currentTags);
             await this.torrentService.UpdateAsync(torrent);
         }
 

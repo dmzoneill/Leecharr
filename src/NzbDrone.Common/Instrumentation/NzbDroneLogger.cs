@@ -14,6 +14,7 @@ public static class NzbDroneLogger
 {
     public static void Register(StartupContext startupContext = null, IAppFolderInfo appFolderInfo = null)
     {
+        appFolderInfo ??= new AppFolderInfo(startupContext);
         var config = new LoggingConfiguration();
 
         var consoleLevel = LogLevel.Info;
@@ -49,9 +50,7 @@ public static class NzbDroneLogger
         config.AddTarget(ringBufferTarget);
         config.AddRule(LogLevel.Trace, LogLevel.Fatal, ringBufferTarget);
 
-        var logDir = appFolderInfo != null
-            ? Path.Combine(appFolderInfo.AppDataFolder, "logs")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "logs");
+        var logDir = Path.Combine(appFolderInfo.AppDataFolder, "logs");
 
         try
         {

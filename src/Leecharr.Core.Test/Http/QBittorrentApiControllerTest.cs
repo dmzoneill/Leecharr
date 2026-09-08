@@ -396,7 +396,7 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public async Task AddAndRemoveTags_WithHashesAll_UpdatesTagsOnAllTorrents()
+    public async Task AddAndRemoveTags_WithHashesAll_PreservesAndMergesTagsOnAllTorrents()
     {
         var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "oldTag" };
         var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2", Label = "oldTag" };
@@ -404,13 +404,46 @@ public class QBittorrentApiControllerTest
 
         var addResult = await this.controller.AddTags("all", "tag1, tag2");
         addResult.Should().BeOfType<ContentResult>();
-        torrent1.Label.Should().Be("tag1, tag2");
-        torrent2.Label.Should().Be("tag1, tag2");
+        torrent1.Label.Should().Be("oldTag, tag1, tag2");
+        torrent2.Label.Should().Be("oldTag, tag1, tag2");
 
         var removeResult = await this.controller.RemoveTags("all", "tag1");
         removeResult.Should().BeOfType<ContentResult>();
-        torrent1.Label.Should().Be("tag2");
-        torrent2.Label.Should().Be("tag2");
+        torrent1.Label.Should().Be("oldTag, tag2");
+        torrent2.Label.Should().Be("oldTag, tag2");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithSequentialDownloadTrue_SetsSequentialDownload()
+    {
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "magnet:?xt=urn:btih:hash1",
+            sequentialDownload: "true",
+            firstLastPiecePrio: "false");
+
+        result.Should().BeOfType<ContentResult>();
+        addedTorrent.SequentialDownload.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(addedTorrent);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithFirstLastPiecePrioOnly_DoesNotSetSequentialDownload()
+    {
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "magnet:?xt=urn:btih:hash1",
+            sequentialDownload: "false",
+            firstLastPiecePrio: "true");
+
+        result.Should().BeOfType<ContentResult>();
+        addedTorrent.SequentialDownload.Should().BeFalse();
     }
 
     [Test]
