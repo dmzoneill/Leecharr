@@ -402,6 +402,12 @@ public class CertificateManager : ICertificateManager
 
         public string PostgresPassword => string.Empty;
 
+        public bool AllowPrivateNetworkRequests => false;
+
+        public string AllowedSsrfHostnames => string.Empty;
+
+        public string AllowedSsrfSubnets => string.Empty;
+
         public void SaveConfigDictionary(Dictionary<string, object> values)
         {
         }

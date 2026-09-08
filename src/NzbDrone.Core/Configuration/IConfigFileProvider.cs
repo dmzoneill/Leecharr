@@ -42,5 +42,11 @@ public interface IConfigFileProvider
 
     string PostgresPassword { get; }
 
+    bool AllowPrivateNetworkRequests { get; }
+
+    string AllowedSsrfHostnames { get; }
+
+    string AllowedSsrfSubnets { get; }
+
     void SaveConfigDictionary(Dictionary<string, object> values);
 }

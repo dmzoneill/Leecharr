@@ -135,7 +135,71 @@ public class SafeHttpClientServiceTest
 
     #endregion
 
-    #region Payload Response Size Limit Tests
+    #region SSRF Allowlist and LAN Support Tests
+
+    [Test]
+    public void AllowPrivateNetworkRequests_WhenTrue_PermitsLanAndLoopbackIps()
+    {
+        this.service.AllowPrivateNetworkRequests = true;
+
+        this.service.IsBlockedIp(IPAddress.Parse("127.0.0.1")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("192.168.1.100")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("10.1.2.3")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("172.16.5.10")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.IPv6Loopback).Should().BeFalse();
+
+        // Cloud metadata remains blocked
+        this.service.IsBlockedIp(IPAddress.Parse("169.254.169.254")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("0.0.0.0")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("255.255.255.255")).Should().BeTrue();
+
+        var act = () => this.service.ValidateUrl("http://localhost:9696/api/v1/indexer");
+        act.Should().NotThrow();
+
+        var actIp = () => this.service.ValidateUrl("http://192.168.1.50:9696/api/v1/indexer");
+        actIp.Should().NotThrow();
+    }
+
+    [Test]
+    public void AllowedSsrfHostnames_WhenConfigured_PermitsSpecificAndWildcardHosts()
+    {
+        this.service.AllowedSsrfHostnames = "prowlarr, *.local, sonarr.lan";
+
+        this.service.IsAllowedHost("prowlarr").Should().BeTrue();
+        this.service.IsAllowedHost("PROWLARR").Should().BeTrue();
+        this.service.IsAllowedHost("indexer.local").Should().BeTrue();
+        this.service.IsAllowedHost("sonarr.lan").Should().BeTrue();
+        this.service.IsAllowedHost("unauthorized.com").Should().BeFalse();
+
+        var actProwlarr = () => this.service.ValidateUrl("http://prowlarr:9696/api/v1/indexer");
+        actProwlarr.Should().NotThrow();
+
+        var actLocal = () => this.service.ValidateUrl("http://my-indexer.local:8080/torznab");
+        actLocal.Should().NotThrow();
+    }
+
+    [Test]
+    public void AllowedSsrfSubnets_WhenConfigured_PermitsCidrRangesAndSpecificIps()
+    {
+        this.service.AllowedSsrfSubnets = "192.168.0.0/16, 10.50.0.0/24, 172.20.0.5";
+
+        this.service.IsBlockedIp(IPAddress.Parse("192.168.1.1")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("192.168.254.10")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("10.50.0.15")).Should().BeFalse();
+        this.service.IsBlockedIp(IPAddress.Parse("172.20.0.5")).Should().BeFalse();
+
+        // Other private subnets not in allowlist remain blocked
+        this.service.IsBlockedIp(IPAddress.Parse("10.10.0.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("172.16.0.1")).Should().BeTrue();
+        this.service.IsBlockedIp(IPAddress.Parse("127.0.0.1")).Should().BeTrue();
+
+        var act = () => this.service.ValidateUrl("http://192.168.1.1:9696/api/v1/indexer");
+        act.Should().NotThrow();
+    }
+
+    #endregion
+
+    #region Payload Response Size Limit and Timeout Tests
 
     [Test]
     public async Task DownloadBytesAsync_WhenContentLengthExceedsLimit_ThrowsInvalidOperationExceptionImmediately()
@@ -165,17 +229,14 @@ public class SafeHttpClientServiceTest
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                // 500 bytes payload
                 Content = new ByteArrayContent(new byte[500]),
             };
-            // Remove Content-Length header to simulate chunked/streaming transfer
             response.Content.Headers.ContentLength = null;
             return response;
         });
 
         using var safeClient = new SafeHttpClientService(handler);
 
-        // Limit to 100 bytes
         var act = async () => await safeClient.DownloadBytesAsync("https://93.184.216.34/chunked.torrent", maxSizeBytes: 100);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
@@ -196,6 +257,22 @@ public class SafeHttpClientServiceTest
         var result = await safeClient.DownloadBytesAsync("https://93.184.216.34/valid.torrent", maxSizeBytes: 1000);
 
         result.Should().BeEquivalentTo(expectedBytes);
+    }
+
+    [Test]
+    public async Task DownloadStringAsync_ReturnsStringSuccessfully()
+    {
+        var expectedString = "<caps><server/></caps>";
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(expectedString),
+        });
+
+        using var safeClient = new SafeHttpClientService(handler);
+
+        var result = await safeClient.DownloadStringAsync("https://93.184.216.34/api?t=caps", timeout: TimeSpan.FromSeconds(5));
+
+        result.Should().Be(expectedString);
     }
 
     [TestCase("http://127.0.0.1/ssrf.torrent")]

@@ -74,6 +74,9 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["SslCertPassword"] = resource.SslCertPassword ?? string.Empty,
             ["RedirectHttpToHttps"] = resource.RedirectHttpToHttps,
             ["TerminalAccessEnabled"] = resource.TerminalAccessEnabled,
+            ["AllowPrivateNetworkRequests"] = resource.AllowPrivateNetworkRequests,
+            ["AllowedSsrfHostnames"] = resource.AllowedSsrfHostnames ?? string.Empty,
+            ["AllowedSsrfSubnets"] = resource.AllowedSsrfSubnets ?? string.Empty,
         };
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);

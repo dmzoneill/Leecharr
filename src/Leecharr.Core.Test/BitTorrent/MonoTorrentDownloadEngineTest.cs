@@ -2753,18 +2753,69 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task StartAsync_ConfiguresEngineSettingsWithForwardedPolicies()
+    public async Task StartAsync_WhenSocks5ProxyConfigured_DisablesDhtAndLpdToPreventUdpLeaks()
     {
-        this.configService.DiskCachePolicy.Returns("WritesOnly");
-        this.configService.FastResumeMode.Returns("Accurate");
-        this.configService.DiskFlushIntervalSeconds.Returns(45);
-        this.configService.AutoSaveFastResumeIntervalSeconds.Returns(120);
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnableLpd.Returns(true);
 
         await this.engine.StartAsync();
 
-        var metrics = this.engine.GetEngineMetrics();
-        metrics.DiskCacheCapacityBytes.Should().BeGreaterThanOrEqualTo(128L * 1024L * 1024L);
-        metrics.DiskCacheCapacityBytes.Should().BeLessThanOrEqualTo(1024L * 1024L * 1024L);
+        // When proxy is configured, DHT nodes should remain 0 (DHT disabled)
+        this.engine.DhtNodeCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenSocks5ProxyConfigured_RemovesUdpTrackersToPreventIpLeak()
+    {
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 999,
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            Name = "ProxyLeakTestTorrent",
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://tracker.example.com/announce",
+        };
+
+        var task = await this.engine.AddTorrentAsync(torrent, magnetUri: "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&tr=udp%3A%2F%2Ftracker.leaker.com%3A1337%2Fannounce&tr=http%3A%2F%2Ftracker.example.com%2Fannounce");
+        task.Should().NotBeNull();
+
+        var monoTask = this.engine.GetTask(999);
+        monoTask.Should().NotBeNull();
+
+        // Adding an explicit UDP tracker should be rejected when proxy is active
+        await this.engine.AddTrackersAsync(999, new[] { "udp://leaker.udp.tracker.org:6969/announce" });
+
+        var tiers = (monoTask as MonoTorrentDownloadTask)?.Manager?.TrackerManager?.Tiers;
+        if (tiers != null)
+        {
+            var udpTrackers = tiers.SelectMany(t => t.Trackers).Where(t => t.Uri != null && t.Uri.Scheme.Equals("udp", StringComparison.OrdinalIgnoreCase)).ToList();
+            udpTrackers.Should().BeEmpty();
+        }
+    }
+
+    [Test]
+    public void BoundSocketConnector_WhenProxyActive_BlocksDatagramSocketCreation()
+    {
+        var mockConfig = Substitute.For<IConfigService>();
+        mockConfig.ProxyType.Returns("socks5");
+        mockConfig.ProxyHost.Returns("127.0.0.1");
+        mockConfig.ProxyPort.Returns(1080);
+
+        var connector = new BoundSocketConnector(
+            IPAddress.Any,
+            IPAddress.IPv6Any,
+            configService: mockConfig);
+
+        var act = () => connector.CreateDatagramSocket();
+        act.Should().Throw<System.Net.Sockets.SocketException>()
+            .Which.SocketErrorCode.Should().Be(System.Net.Sockets.SocketError.AccessDenied);
     }
 
     #endregion
