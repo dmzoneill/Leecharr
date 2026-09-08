@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useId } from "react";
-import { useSpeedHistory, useSeedingStats } from "../api/hooks";
+import { useSpeedHistory, useSeedingStats, useTorrents } from "../api/hooks";
+import { useTorrentStore } from "../stores/useTorrentStore";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 
@@ -99,6 +100,28 @@ export function SpeedGraph({
 
   const { data: serverHistory } = useSpeedHistory();
   const { data: stats } = useSeedingStats();
+  const { data: torrents } = useTorrents();
+  const telemetry = useTorrentStore((state) => state.telemetry);
+
+  const liveSpeeds = useMemo(() => {
+    let dl = 0;
+    let ul = 0;
+    const torrentList = torrents ?? [];
+    for (const t of torrentList) {
+      const tel = telemetry[t.id];
+      dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+      ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+    }
+    return {
+      downloadSpeed:
+        dl > 0 || !stats?.downloadSpeed ? dl : Number(stats.downloadSpeed) || 0,
+      uploadSpeed:
+        ul > 0 || !stats?.uploadSpeed ? ul : Number(stats.uploadSpeed) || 0,
+    };
+  }, [torrents, telemetry, stats]);
+
+  const liveSpeedsRef = useRef(liveSpeeds);
+  liveSpeedsRef.current = liveSpeeds;
 
   const currentTfConfig = useMemo(
     () => TIMEFRAMES.find((tf) => tf.key === timeframe) || TIMEFRAMES[0],
@@ -145,21 +168,22 @@ export function SpeedGraph({
     setRawHistory(points);
   }, [serverHistory]);
 
-  // Append real-time stats
+  // Append real-time speeds at regular intervals and on telemetry updates
   useEffect(() => {
-    if (!stats) return;
+    const interval = setInterval(() => {
+      const { uploadSpeed, downloadSpeed } = liveSpeedsRef.current;
+      const now = Date.now();
 
-    const uploadSpeed = Number(stats.uploadSpeed) || 0;
-    const downloadSpeed = Number(stats.downloadSpeed) || 0;
-    const now = Date.now();
+      setRawHistory((prev) => {
+        const next = [...prev, { uploadSpeed, downloadSpeed, time: now }];
+        // Keep up to 24h of history
+        const cutoff = now - 24 * 60 * 60 * 1000;
+        return next.filter((p) => p.time >= cutoff);
+      });
+    }, 1500);
 
-    setRawHistory((prev) => {
-      const next = [...prev, { uploadSpeed, downloadSpeed, time: now }];
-      // Keep up to 24h of history
-      const cutoff = now - 24 * 60 * 60 * 1000;
-      return next.filter((p) => p.time >= cutoff);
-    });
-  }, [stats]);
+    return () => clearInterval(interval);
+  }, []);
 
   // Resample points according to active timeframe
   const displayPoints = useMemo(() => {
@@ -171,8 +195,8 @@ export function SpeedGraph({
     const relevant = rawHistory.filter((p) => p.time >= startTime - intervalMs);
 
     if (relevant.length === 0) {
-      const currentUp = Number(stats?.uploadSpeed) || 0;
-      const currentDown = Number(stats?.downloadSpeed) || 0;
+      const currentUp = liveSpeeds.uploadSpeed;
+      const currentDown = liveSpeeds.downloadSpeed;
       if (currentUp === 0 && currentDown === 0) {
         return [];
       }
@@ -217,7 +241,7 @@ export function SpeedGraph({
     }
 
     return sampled;
-  }, [rawHistory, currentTfConfig, stats]);
+  }, [rawHistory, currentTfConfig, liveSpeeds]);
 
   const svgWidth = Math.max(300, containerWidth);
   const chartWidth = Math.max(100, svgWidth - PADDING.left - PADDING.right);

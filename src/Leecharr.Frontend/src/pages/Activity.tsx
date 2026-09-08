@@ -1,7 +1,8 @@
 import { useTranslation } from "../i18n";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats, useSpeedHistory } from "../api/hooks";
+import { useTorrentStore } from "../stores/useTorrentStore";
 import { formatSpeed, formatRatio } from "../utils/formatters";
 import LineChart from "../components/LineChart";
 
@@ -27,6 +28,7 @@ function Activity() {
   const { data: torrents } = useTorrents();
   const { data: stats } = useSeedingStats();
   const { data: serverHistory } = useSpeedHistory();
+  const telemetry = useTorrentStore((state) => state.telemetry);
 
   const [history, setHistory] = useState<HistoryState>({
     uploadSpeed: [],
@@ -38,9 +40,66 @@ function Activity() {
   });
 
   const seededRef = useRef(false);
-  const lastStatsRef = useRef<typeof stats>(undefined);
-  const torrentsRef = useRef(torrents);
-  torrentsRef.current = torrents;
+
+  // Compute instantaneous real-time metrics combining server stats and live SignalR telemetry
+  const liveStats = useMemo(() => {
+    let dl = 0;
+    let ul = 0;
+    let active = 0;
+    let peers = 0;
+    let ratioSum = 0;
+    const list = torrents ?? [];
+
+    for (const t of list) {
+      const tel = telemetry[t.id];
+      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
+      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
+      const effectiveSeeders = tel?.seeders ?? t.seeders ?? 0;
+      const effectiveLeechers = tel?.leechers ?? t.leechers ?? 0;
+
+      dl += effectiveDl;
+      ul += effectiveUl;
+      ratioSum += effectiveRatio;
+      peers += effectiveSeeders + effectiveLeechers;
+
+      if (
+        effectiveStatus === "downloading" ||
+        effectiveStatus === "seeding" ||
+        effectiveStatus === "checking" ||
+        effectiveStatus === "allocating" ||
+        effectiveStatus === "metadata" ||
+        effectiveStatus === "active"
+      ) {
+        active++;
+      }
+    }
+
+    const calculatedAvgRatio =
+      list.length > 0
+        ? ratioSum / list.length
+        : sanitizeNumber(stats?.averageRatio ?? stats?.globalRatio ?? 0);
+
+    const resolvedUl = ul > 0 || !stats?.uploadSpeed ? ul : stats.uploadSpeed;
+    const resolvedDl = dl > 0 || !stats?.downloadSpeed ? dl : stats.downloadSpeed;
+    const resolvedActive =
+      active > 0 || stats?.activeTorrents === undefined
+        ? active
+        : stats.activeTorrents;
+
+    return {
+      uploadSpeed: resolvedUl,
+      downloadSpeed: resolvedDl,
+      activeTorrents: resolvedActive,
+      peerConnections: peers,
+      ratio: calculatedAvgRatio,
+      networkActivity: resolvedUl + resolvedDl,
+    };
+  }, [torrents, telemetry, stats]);
+
+  const liveStatsRef = useRef(liveStats);
+  liveStatsRef.current = liveStats;
 
   useEffect(() => {
     if (!serverHistory || seededRef.current) return;
@@ -50,7 +109,7 @@ function Activity() {
     const up = recent.map((s) => sanitizeNumber(s.uploadSpeed));
     const down = recent.map((s) => sanitizeNumber(s.downloadSpeed));
     const act = recent.map((s) => sanitizeNumber(s.activeTorrents));
-    const peers = recent.map((s) => sanitizeNumber(s.totalPeers));
+    const peerCounts = recent.map((s) => sanitizeNumber(s.totalPeers));
     const rat = recent.map((s) => sanitizeNumber(s.averageRatio));
     const net = recent.map(
       (s) => sanitizeNumber(s.uploadSpeed) + sanitizeNumber(s.downloadSpeed),
@@ -60,24 +119,14 @@ function Activity() {
       uploadSpeed: up,
       downloadSpeed: down,
       activeTorrents: act,
-      peerConnections: peers,
+      peerConnections: peerCounts,
       ratio: rat,
       networkActivity: net,
     });
   }, [serverHistory]);
 
+  // Push new real-time data point every 1.5s interval to keep live charts streaming
   useEffect(() => {
-    if (!stats || stats === lastStatsRef.current) return;
-    lastStatsRef.current = stats;
-
-    const upSpeed = sanitizeNumber(stats.uploadSpeed);
-    const downSpeed = sanitizeNumber(stats.downloadSpeed);
-
-    const totalPeers = (torrentsRef.current ?? []).reduce(
-      (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-      0,
-    );
-
     const push = (arr: number[], val: number) => {
       const next = [...arr, sanitizeNumber(val)];
       if (next.length > MAX_POINTS) {
@@ -86,44 +135,27 @@ function Activity() {
       return next;
     };
 
-    setHistory((curr) => ({
-      uploadSpeed: push(curr.uploadSpeed, upSpeed),
-      downloadSpeed: push(curr.downloadSpeed, downSpeed),
-      activeTorrents: push(
-        curr.activeTorrents,
-        sanitizeNumber(stats.activeTorrents),
-      ),
-      peerConnections: push(curr.peerConnections, sanitizeNumber(totalPeers)),
-      ratio: push(
-        curr.ratio,
-        sanitizeNumber(stats.averageRatio ?? stats.globalRatio),
-      ),
-      networkActivity: push(curr.networkActivity, upSpeed + downSpeed),
-    }));
-  }, [stats]);
+    const interval = setInterval(() => {
+      const cur = liveStatsRef.current;
+      setHistory((curr) => ({
+        uploadSpeed: push(curr.uploadSpeed, cur.uploadSpeed),
+        downloadSpeed: push(curr.downloadSpeed, cur.downloadSpeed),
+        activeTorrents: push(curr.activeTorrents, cur.activeTorrents),
+        peerConnections: push(curr.peerConnections, cur.peerConnections),
+        ratio: push(curr.ratio, cur.ratio),
+        networkActivity: push(curr.networkActivity, cur.networkActivity),
+      }));
+    }, 1500);
 
-  const currentUpload =
-    history.uploadSpeed.length > 0
-      ? history.uploadSpeed[history.uploadSpeed.length - 1]
-      : 0;
-  const currentDownload =
-    history.downloadSpeed.length > 0
-      ? history.downloadSpeed[history.downloadSpeed.length - 1]
-      : 0;
-  const currentActive =
-    stats?.activeTorrents ??
-    (history.activeTorrents.length > 0
-      ? history.activeTorrents[history.activeTorrents.length - 1]
-      : 0);
-  const currentPeers = (torrents ?? []).reduce(
-    (sum, t) => sum + (t.seeders || 0) + (t.leechers || 0),
-    0,
-  );
-  const currentRatio =
-    stats?.averageRatio ??
-    stats?.globalRatio ??
-    (history.ratio.length > 0 ? history.ratio[history.ratio.length - 1] : 0);
-  const currentNetwork = currentUpload + currentDownload;
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentUpload = liveStats.uploadSpeed;
+  const currentDownload = liveStats.downloadSpeed;
+  const currentActive = liveStats.activeTorrents;
+  const currentPeers = liveStats.peerConnections;
+  const currentRatio = liveStats.ratio;
+  const currentNetwork = liveStats.networkActivity;
 
   return (
     <div className="content-area">
