@@ -24,6 +24,7 @@ export function TerminalView({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
+  const resizeTimeoutRef = useRef<number | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
@@ -34,6 +35,10 @@ export function TerminalView({
     if (!containerRef.current) return;
 
     // Clean up existing session if any
+    if (resizeTimeoutRef.current) {
+      window.clearTimeout(resizeTimeoutRef.current);
+      resizeTimeoutRef.current = null;
+    }
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -193,22 +198,28 @@ export function TerminalView({
   }, [cwd, autoFocus]);
 
   const handleResize = useCallback(() => {
-    if (fitAddonRef.current && termRef.current && wsRef.current) {
-      try {
-        fitAddonRef.current.fit();
-        if (wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: "resize",
-              cols: termRef.current.cols,
-              rows: termRef.current.rows,
-            }),
-          );
-        }
-      } catch {
-        // Ignored
-      }
+    if (resizeTimeoutRef.current) {
+      window.clearTimeout(resizeTimeoutRef.current);
     }
+
+    resizeTimeoutRef.current = window.setTimeout(() => {
+      if (fitAddonRef.current && termRef.current && wsRef.current) {
+        try {
+          fitAddonRef.current.fit();
+          if (wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: "resize",
+                cols: termRef.current.cols,
+                rows: termRef.current.rows,
+              }),
+            );
+          }
+        } catch {
+          // Ignored
+        }
+      }
+    }, 100);
   }, []);
 
   useEffect(() => {
@@ -218,6 +229,9 @@ export function TerminalView({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (resizeTimeoutRef.current) {
+        window.clearTimeout(resizeTimeoutRef.current);
+      }
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
       }
