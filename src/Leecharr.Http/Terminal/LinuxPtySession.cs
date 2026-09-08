@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -22,6 +23,7 @@ public sealed class LinuxPtySession : ITerminalSession
     {
         this.masterFd = masterFd;
         this.pid = pid;
+        this.StartWatcher();
     }
 
     public static LinuxPtySession Start(string cwd, int cols, int rows)
@@ -134,19 +136,84 @@ public sealed class LinuxPtySession : ITerminalSession
 
         try
         {
-            NativePty.Kill(this.pid, 15); // SIGTERM
             NativePty.Close(this.masterFd);
-            NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
         }
         catch
         {
             // Ignored on teardown
         }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                NativePty.Kill(this.pid, 15); // SIGTERM
+            }
+            catch
+            {
+            }
+
+            var sw = Stopwatch.StartNew();
+            bool reaped = false;
+
+            while (sw.ElapsedMilliseconds < 1500)
+            {
+                int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                if (res > 0 || res < 0)
+                {
+                    reaped = true;
+                    break;
+                }
+
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+
+            if (!reaped)
+            {
+                try
+                {
+                    NativePty.Kill(this.pid, 9); // SIGKILL
+                }
+                catch
+                {
+                }
+
+                var killSw = Stopwatch.StartNew();
+                while (killSw.ElapsedMilliseconds < 2000)
+                {
+                    int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                    if (res > 0 || res < 0)
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+            }
+        });
     }
 
     public ValueTask DisposeAsync()
     {
         this.Kill();
         return ValueTask.CompletedTask;
+    }
+
+    private void StartWatcher()
+    {
+        _ = Task.Run(async () =>
+        {
+            while (this.disposed == 0)
+            {
+                int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                if (res > 0 || res < 0)
+                {
+                    this.Kill();
+                    return;
+                }
+
+                await Task.Delay(200).ConfigureAwait(false);
+            }
+        });
     }
 }

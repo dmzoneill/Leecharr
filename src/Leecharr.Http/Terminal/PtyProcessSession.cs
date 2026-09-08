@@ -122,67 +122,113 @@ else:
         var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? cwd : "/tmp";
         string controlPipePath = null;
         FileStream controlPipeStream = null;
+        Process proc = null;
 
-        ProcessStartInfo startInfo;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3")))
+        try
         {
-            var pyBinary = File.Exists("/usr/bin/python3") ? "/usr/bin/python3" : "/bin/python3";
-            controlPipePath = Path.Combine(Path.GetTempPath(), $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
-            CreateFifo(controlPipePath);
-
-            var b64Script = Convert.ToBase64String(Encoding.UTF8.GetBytes(PythonPtyScript));
-            var pyCommand = $"import base64; exec(base64.b64decode('{b64Script}'))";
-
-            startInfo = new ProcessStartInfo
+            ProcessStartInfo startInfo;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3")))
             {
-                FileName = pyBinary,
-                Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows} \"{controlPipePath}\"",
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = safeCwd,
-            };
-        }
-        else
-        {
-            var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-            var shell = isWindows ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh");
-            var args = isWindows ? "-NoLogo" : "-i";
+                var pyBinary = File.Exists("/usr/bin/python3") ? "/usr/bin/python3" : "/bin/python3";
+                controlPipePath = Path.Combine(Path.GetTempPath(), $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
+                CreateFifo(controlPipePath);
 
-            startInfo = new ProcessStartInfo
-            {
-                FileName = shell,
-                Arguments = args,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = safeCwd,
-            };
-        }
+                var b64Script = Convert.ToBase64String(Encoding.UTF8.GetBytes(PythonPtyScript));
+                var pyCommand = $"import base64; exec(base64.b64decode('{b64Script}'))";
 
-        startInfo.EnvironmentVariables["TERM"] = "xterm-256color";
-        startInfo.EnvironmentVariables["COLORTERM"] = "truecolor";
-
-        var proc = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to launch terminal process");
-
-        if (controlPipePath != null && File.Exists(controlPipePath))
-        {
-            try
-            {
-                controlPipeStream = new FileStream(controlPipePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+                startInfo = new ProcessStartInfo
+                {
+                    FileName = pyBinary,
+                    Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows} \"{controlPipePath}\"",
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = safeCwd,
+                };
             }
-            catch
+            else
             {
-                controlPipeStream = null;
-            }
-        }
+                var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+                var shell = isWindows ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh");
+                var args = isWindows ? "-NoLogo" : "-i";
 
-        return new PtyProcessSession(proc, controlPipePath, controlPipeStream);
+                startInfo = new ProcessStartInfo
+                {
+                    FileName = shell,
+                    Arguments = args,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = safeCwd,
+                };
+            }
+
+            startInfo.EnvironmentVariables["TERM"] = "xterm-256color";
+            startInfo.EnvironmentVariables["COLORTERM"] = "truecolor";
+
+            proc = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("Failed to launch terminal process");
+
+            if (controlPipePath != null && File.Exists(controlPipePath))
+            {
+                try
+                {
+                    controlPipeStream = new FileStream(controlPipePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+                }
+                catch
+                {
+                    controlPipeStream = null;
+                }
+            }
+
+            return new PtyProcessSession(proc, controlPipePath, controlPipeStream);
+        }
+        catch
+        {
+            if (controlPipeStream != null)
+            {
+                try
+                {
+                    controlPipeStream.Dispose();
+                }
+                catch
+                {
+                }
+            }
+
+            if (controlPipePath != null && File.Exists(controlPipePath))
+            {
+                try
+                {
+                    File.Delete(controlPipePath);
+                }
+                catch
+                {
+                }
+            }
+
+            if (proc != null)
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        proc.Kill(entireProcessTree: true);
+                    }
+
+                    proc.Dispose();
+                }
+                catch
+                {
+                }
+            }
+
+            throw;
+        }
     }
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)

@@ -129,7 +129,9 @@ public static class TerminalWebSocketHandler
 
         var readPtyTask = Task.Run(async () =>
         {
+            var decoder = Encoding.UTF8.GetDecoder();
             var buffer = new byte[4096];
+            var charBuffer = new char[4096];
             try
             {
                 while (!cts.IsCancellationRequested && webSocket.State == WebSocketState.Open)
@@ -140,9 +142,13 @@ public static class TerminalWebSocketHandler
                         break;
                     }
 
-                    string text = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    var payload = JsonSerializer.Serialize(new { type = "output", data = text });
-                    await SafeSendTextAsync(payload, cts.Token);
+                    int charCount = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
+                    if (charCount > 0)
+                    {
+                        string text = new string(charBuffer, 0, charCount);
+                        var payload = JsonSerializer.Serialize(new { type = "output", data = text });
+                        await SafeSendTextAsync(payload, cts.Token);
+                    }
                 }
             }
             catch
