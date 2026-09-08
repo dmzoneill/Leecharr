@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -13,9 +14,12 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Core.Test.Http;
 
@@ -29,6 +33,10 @@ public class TransmissionRpcControllerTest
     private IConfigFileProvider configFileProvider = null!;
     private IDiskSpaceService diskSpaceService = null!;
     private IDiskProvider diskProvider = null!;
+    private IDownloadEngine downloadEngine = null!;
+    private ITrackerEntryRepository trackerEntryRepository = null!;
+    private IBlocklistUpdateService blocklistUpdateService = null!;
+    private IBlocklistService blocklistService = null!;
     private TransmissionRpcController controller = null!;
 
     [SetUp]
@@ -41,9 +49,15 @@ public class TransmissionRpcControllerTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskSpaceService = Substitute.For<IDiskSpaceService>();
         this.diskProvider = Substitute.For<IDiskProvider>();
+        this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        this.blocklistUpdateService = Substitute.For<IBlocklistUpdateService>();
+        this.blocklistService = Substitute.For<IBlocklistService>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+
+        this.torrentService.GetDownloadTask(Arg.Any<int>()).Returns(x => this.downloadEngine.GetTask(x.Arg<int>()));
 
         this.controller = new TransmissionRpcController(
             this.torrentService,
@@ -52,7 +66,11 @@ public class TransmissionRpcControllerTest
             this.configService,
             diskSpaceService: this.diskSpaceService,
             configFileProvider: this.configFileProvider,
-            diskProvider: this.diskProvider);
+            diskProvider: this.diskProvider,
+            downloadEngine: this.downloadEngine,
+            trackerEntryRepository: this.trackerEntryRepository,
+            blocklistUpdateService: this.blocklistUpdateService,
+            blocklistService: this.blocklistService);
     }
 
     [Test]
@@ -1501,5 +1519,290 @@ public class TransmissionRpcControllerTest
         response!.Result.Should().Be("success");
 
         await this.torrentService.Received(1).DeleteAsync(1, expectedDelete);
+    }
+
+    [Test]
+    public async Task HandleRpc_BlocklistUpdate_InvokesBlocklistUpdate_AndReturnsBlocklistSize()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.blocklistUpdateService.UpdateRulesAsync(Arg.Any<System.Threading.CancellationToken>()).Returns(Task.FromResult(4242));
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "blocklist-update",
+            Tag = JsonDocument.Parse("123").RootElement,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+        response.Tag.Should().Be(123L);
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["blocklist-size"].Should().Be(4242);
+
+        await this.blocklistUpdateService.Received(1).UpdateRulesAsync(Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionClose_ReturnsSuccessResponse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-close",
+            Tag = JsonDocument.Parse("77").RootElement,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+        response.Tag.Should().Be(77L);
+    }
+
+    [Test]
+    public async Task HandleRpc_TagNullPreservation_WhenNoTagProvided_ReturnsNullTag()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+        response.Tag.Should().BeNull();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_PopulatesMissingTransmission3And4Fields()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Ubuntu Linux 24.04 ISO",
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 1000000L,
+            Priority = 1,
+            DateAdded = DateTime.UtcNow.AddHours(-2),
+            LastActive = DateTime.UtcNow.AddMinutes(-5),
+            TrackerUrl = "http://tracker.ubuntu.com/announce",
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { testTorrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.IsStalled.Returns(true);
+        this.downloadEngine.GetTask(1).Returns(mockTask);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        var torrents = args!["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents.Should().HaveCount(1);
+
+        var t = torrents![0];
+        t["bandwidthPriority"].Should().Be(1);
+        t["corruptEver"].Should().Be(0L);
+        t["desiredAvailable"].Should().Be(500000L);
+        ((long)t["editDate"]).Should().BeGreaterThan(0L);
+        t["etaIdle"].Should().Be(-1L);
+        t["group"].Should().Be(string.Empty);
+        t["isStalled"].Should().Be(true);
+        t["magnetLink"].ToString().Should().StartWith("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567");
+        t["magnetLink"].ToString().Should().Contain("dn=Ubuntu%20Linux%2024.04%20ISO");
+        t["manualAnnounceTime"].Should().Be(0L);
+        ((int)t["maxConnectedPeers"]).Should().BeGreaterThan(0);
+        t["metadataPercentComplete"].Should().Be(1.0);
+        t["percentComplete"].Should().Be(0.5);
+        ((long)t["startDate"]).Should().BeGreaterThan(0L);
+        t["torrentFile"].Should().Be(string.Empty);
+        t["trackerList"].Should().Be("http://tracker.ubuntu.com/announce");
+        t["wanted"].Should().NotBeNull();
+        t["webseeds"].Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithBandwidthPriority_UpdatesPriority()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+            Priority = 0,
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var bpDoc = JsonDocument.Parse("1");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["bandwidthPriority"] = bpDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        testTorrent.Priority.Should().Be(1);
+        await this.torrentService.Received(1).UpdateAsync(testTorrent);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerAdd_AddsTrackers()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry>());
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerAddDoc = JsonDocument.Parse("[\"http://tracker1.org/announce\", \"http://tracker2.org/announce\"]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerAdd"] = trackerAddDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(2).Insert(Arg.Any<TrackerEntry>());
+        await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Count() == 2));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerRemove_RemovesTrackers()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var existingTracker = new TrackerEntry { Id = 10, TorrentId = 1, Url = "http://removetracker.org/announce" };
+        this.trackerEntryRepository.Get(10).Returns(existingTracker);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerRemoveDoc = JsonDocument.Parse("[10]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerRemove"] = trackerRemoveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(1).Delete(10);
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://removetracker.org/announce")));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerReplace_ReplacesTrackers()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var existingTracker = new TrackerEntry { Id = 10, TorrentId = 1, Url = "http://oldtracker.org/announce" };
+        this.trackerEntryRepository.Get(10).Returns(existingTracker);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerReplaceDoc = JsonDocument.Parse("[[10, \"http://newtracker.org/announce\"]]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerReplace"] = trackerReplaceDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        existingTracker.Url.Should().Be("http://newtracker.org/announce");
+        this.trackerEntryRepository.Received(1).Update(existingTracker);
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://oldtracker.org/announce")));
+        await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://newtracker.org/announce")));
     }
 }
