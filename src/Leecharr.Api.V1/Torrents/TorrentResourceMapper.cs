@@ -80,6 +80,10 @@ public static class TorrentResourceMapper
             LastActive = model.LastActive,
             TagIds = model.TagIds,
             SeedingTime = model.SeedingTimeSeconds,
+            IsImported = model.IsImported,
+            ImportedAt = model.ImportedAt,
+            ImportedByArr = model.ImportedByArr,
+            ImportPath = model.ImportPath,
             Bitfield = bitfield,
         };
 
