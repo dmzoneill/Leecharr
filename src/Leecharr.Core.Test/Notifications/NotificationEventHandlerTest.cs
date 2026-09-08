@@ -364,6 +364,18 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
+    public void SendEmailNotification_WhenSmtpSenderThrows_PropagatesException()
+    {
+        var settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"user@example.com\"}";
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" }, (client, mail) =>
+        {
+            throw new System.Net.Mail.SmtpException("Connection refused");
+        });
+
+        act.Should().Throw<System.Net.Mail.SmtpException>().WithMessage("Connection refused");
+    }
+
+    [Test]
     public async Task Handle_TorrentStatusChangedEvent_WhenStoppedAndCompleted_DoesNotFireSeedGoalReached()
     {
         var notification = new NotificationDefinition
