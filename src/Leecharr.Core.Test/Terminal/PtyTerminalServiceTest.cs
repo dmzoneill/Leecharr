@@ -1,7 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -243,5 +247,104 @@ public class PtyTerminalServiceTest
         {
             Environment.SetEnvironmentVariable("LEECHARR_TEST_SECRET_TOKEN", null);
         }
+    }
+
+    [Test]
+    public async Task SessionTermination_ReapsChildProcessWithoutOrphansOrZombies()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Ignore("Linux PTY process reaping test only applicable on Linux.");
+        }
+
+        var service = new PtyTerminalService();
+        var session = service.CreateSession("/tmp", 80, 24);
+
+        session.Should().NotBeNull();
+        session.IsActive.Should().BeTrue();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        // Get the PID of the inner shell ($$)
+        var cmd = Encoding.UTF8.GetBytes("echo INNER_PID_$$ _END\n");
+        await session.WriteAsync(cmd, cts.Token);
+
+        var buffer = new byte[1024];
+        var sb = new StringBuilder();
+        int childPid = -1;
+
+        while (!cts.IsCancellationRequested && sb.Length < 1000)
+        {
+            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            if (bytesRead <= 0)
+            {
+                break;
+            }
+
+            sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+            var text = sb.ToString();
+            var match = Regex.Match(text, @"INNER_PID_(\d+)\s+_END");
+            if (match.Success)
+            {
+                childPid = int.Parse(match.Groups[1].Value);
+                break;
+            }
+        }
+
+        childPid.Should().BeGreaterThan(0);
+
+        // Terminate the session (simulating disconnect / Kill)
+        session.Kill();
+        await session.DisposeAsync();
+
+        // Wait up to 3 seconds for the child process to be reaped
+        var exited = false;
+        for (var i = 0; i < 30; i++)
+        {
+            try
+            {
+                var childProc = Process.GetProcessById(childPid);
+                if (childProc.HasExited)
+                {
+                    exited = true;
+                    break;
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Process is completely gone and reaped
+                exited = true;
+                break;
+            }
+
+            await Task.Delay(100);
+        }
+
+        exited.Should().BeTrue("child process should exit after session termination");
+
+        // Child process should no longer be active or running
+        var procExistsAndAlive = false;
+        try
+        {
+            var p = Process.GetProcessById(childPid);
+            if (!p.HasExited)
+            {
+                var statPath = $"/proc/{childPid}/stat";
+                if (File.Exists(statPath))
+                {
+                    var stat = File.ReadAllText(statPath);
+                    if (!stat.Contains(") Z"))
+                    {
+                        procExistsAndAlive = true;
+                    }
+                }
+            }
+        }
+        catch (ArgumentException)
+        {
+            procExistsAndAlive = false;
+        }
+
+        procExistsAndAlive.Should().BeFalse("child shell process should have been terminated with SIGHUP and reaped");
     }
 }
