@@ -114,4 +114,104 @@ public class UTorrentWebUiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync(magnet, "tv-shows", "/downloads/custom", false);
     }
+
+    [Test]
+    public async Task HandleWebUi_QueueTop_WithMultiHash_MovesInReverseOrder()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", QueuePosition = 1 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        var result = await this.controller.HandleWebUi(null!, "queuetop", "hashA,hashB,hashC", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "top");
+            await this.torrentService.MoveQueueAsync(20, "top");
+            await this.torrentService.MoveQueueAsync(10, "top");
+        });
+    }
+
+    [Test]
+    public async Task HandleWebUi_QueueBottom_WithMultiHash_MovesInForwardOrder()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", QueuePosition = 1 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        var result = await this.controller.HandleWebUi(null!, "queuebottom", "hashA|hashB|hashC", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(10, "bottom");
+            await this.torrentService.MoveQueueAsync(20, "bottom");
+            await this.torrentService.MoveQueueAsync(30, "bottom");
+        });
+    }
+
+    [Test]
+    public async Task HandleWebUi_QueueUp_WithMultiHash_MovesInAscendingQueuePositionOrder()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", QueuePosition = 4 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        var result = await this.controller.HandleWebUi(null!, "queueup", "hashA,hashB,hashC", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(20, "up");
+            await this.torrentService.MoveQueueAsync(30, "up");
+            await this.torrentService.MoveQueueAsync(10, "up");
+        });
+    }
+
+    [Test]
+    public async Task HandleWebUi_QueueDown_WithMultiHash_MovesInDescendingQueuePositionOrder()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", QueuePosition = 2 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", QueuePosition = 3 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", QueuePosition = 4 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        var result = await this.controller.HandleWebUi(null!, "queuedown", "hashA,hashB,hashC", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "down");
+            await this.torrentService.MoveQueueAsync(20, "down");
+            await this.torrentService.MoveQueueAsync(10, "down");
+        });
+    }
 }
