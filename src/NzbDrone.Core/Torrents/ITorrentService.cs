@@ -42,4 +42,10 @@ public interface ITorrentService
     Task SetLocationAsync(int id, string newSavePath, bool moveFiles = true);
 
     Task SetCategoryAsync(int id, string category);
+
+    int GetEffectiveDownloadLimit(Torrent torrent);
+
+    int GetEffectiveUploadLimit(Torrent torrent);
+
+    Task PropagateCategoryLimitsAsync(NzbDrone.Core.Categories.Category category);
 }
