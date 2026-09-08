@@ -234,17 +234,30 @@ public class SabnzbdApiController : ControllerBase
 
                     return this.Ok(new { status = true });
                 }
-                else if (queueSubAction == "priority" || queueSubAction.StartsWith("move_"))
+                else if (queueSubAction == "priority")
                 {
                     var target = this.torrentService.GetByInfoHash(queueVal);
                     if (target != null)
                     {
-                        if (queueSubAction == "priority" && int.TryParse(queueVal2, out var prio))
+                        var prioStr = !string.IsNullOrWhiteSpace(queueVal2)
+                            ? queueVal2
+                            : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority);
+
+                        if (TryParsePriority(prioStr, out var prio))
                         {
                             target.Priority = prio;
                             await this.torrentService.UpdateAsync(target);
                         }
-                        else if (queueSubAction.Contains("top") || queueVal2 == "0")
+                    }
+
+                    return this.Ok(new { status = true });
+                }
+                else if (queueSubAction.StartsWith("move_") || queueSubAction.StartsWith("move") || queueSubAction == "switch")
+                {
+                    var target = this.torrentService.GetByInfoHash(queueVal);
+                    if (target != null)
+                    {
+                        if (queueSubAction.Contains("top") || queueVal2 == "0")
                         {
                             await this.torrentService.MoveQueueAsync(target.Id, "top");
                         }
@@ -287,7 +300,7 @@ public class SabnzbdApiController : ControllerBase
                             mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
                             status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "Paused" : "Downloading",
                             cat = t.Category ?? "default",
-                            priority = "Normal",
+                            priority = GetPriorityString(t.Priority),
                             timeleft = timeleftStr,
                             percentage = ((int)(t.Progress * 100)).ToString(),
                         };
@@ -394,7 +407,7 @@ public class SabnzbdApiController : ControllerBase
                         if (added != null)
                         {
                             var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                            if (int.TryParse(prioStr, out var pVal))
+                            if (TryParsePriority(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
                                 await this.torrentService.UpdateAsync(added);
@@ -412,7 +425,7 @@ public class SabnzbdApiController : ControllerBase
                         if (added != null)
                         {
                             var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                            if (int.TryParse(prioStr, out var pVal))
+                            if (TryParsePriority(prioStr, out var pVal))
                             {
                                 added.Priority = pVal;
                                 await this.torrentService.UpdateAsync(added);
@@ -442,7 +455,7 @@ public class SabnzbdApiController : ControllerBase
                     if (added != null)
                     {
                         var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (int.TryParse(prioStr, out var pVal))
+                        if (TryParsePriority(prioStr, out var pVal))
                         {
                             added.Priority = pVal;
                             await this.torrentService.UpdateAsync(added);
@@ -468,7 +481,7 @@ public class SabnzbdApiController : ControllerBase
                     if (added != null)
                     {
                         var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (int.TryParse(prioStr, out var pVal))
+                        if (TryParsePriority(prioStr, out var pVal))
                         {
                             added.Priority = pVal;
                             await this.torrentService.UpdateAsync(added);
@@ -493,7 +506,7 @@ public class SabnzbdApiController : ControllerBase
                     if (added != null)
                     {
                         var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (int.TryParse(prioStr, out var pVal))
+                        if (TryParsePriority(prioStr, out var pVal))
                         {
                             added.Priority = pVal;
                             await this.torrentService.UpdateAsync(added);
@@ -570,6 +583,25 @@ public class SabnzbdApiController : ControllerBase
 
                 return this.Ok(new { status = true });
 
+            case "priority":
+            case "set_priority":
+                var directPrioVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+                var directPrioVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
+                    ? this.Request.Query["value2"].ToString()
+                    : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority));
+
+                if (!string.IsNullOrWhiteSpace(directPrioVal))
+                {
+                    var t = this.torrentService.GetByInfoHash(directPrioVal);
+                    if (t != null && TryParsePriority(directPrioVal2, out var directPrio))
+                    {
+                        t.Priority = directPrio;
+                        await this.torrentService.UpdateAsync(t);
+                    }
+                }
+
+                return this.Ok(new { status = true });
+
             default:
                 return this.Ok(new { status = true, version = "4.3.2" });
         }
@@ -605,6 +637,59 @@ public class SabnzbdApiController : ControllerBase
         {
             return 0L;
         }
+    }
+
+    private static bool TryParsePriority(string priorityInput, out int priority)
+    {
+        priority = 0;
+        if (string.IsNullOrWhiteSpace(priorityInput))
+        {
+            return false;
+        }
+
+        if (int.TryParse(priorityInput, out priority))
+        {
+            return true;
+        }
+
+        switch (priorityInput.Trim().ToLowerInvariant())
+        {
+            case "paused":
+            case "pause":
+            case "stop":
+            case "stopped":
+                priority = -2;
+                return true;
+            case "low":
+                priority = -1;
+                return true;
+            case "normal":
+            case "default":
+                priority = 0;
+                return true;
+            case "high":
+                priority = 1;
+                return true;
+            case "force":
+            case "forced":
+                priority = 2;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static string GetPriorityString(int priority)
+    {
+        return priority switch
+        {
+            -2 => "Paused",
+            -1 => "Low",
+            0 => "Normal",
+            1 => "High",
+            2 => "Force",
+            _ => priority > 0 ? "High" : (priority < -1 ? "Paused" : "Normal"),
+        };
     }
 
     private static bool IsComplete(Torrent t) =>
