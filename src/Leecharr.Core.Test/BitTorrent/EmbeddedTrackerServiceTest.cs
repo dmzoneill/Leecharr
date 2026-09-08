@@ -968,6 +968,148 @@ public class EmbeddedTrackerServiceTest
         dict["tracker id"].ToString().Should().Be("custom-tracker-session-42");
     }
 
+    [Test]
+    public void ProcessAnnounce_WhenNumWantIsZero_ReturnsZeroPeers_Compact()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xE1;
+
+        // Register 5 peers in swarm
+        for (var i = 1; i <= 5; i++)
+        {
+            this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse($"10.0.0.{i}"),
+                Port = 6880 + i,
+                Left = 100,
+            });
+        }
+
+        // Request with NumWant = 0 (compact)
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.100"),
+            Port = 6890,
+            Left = 100,
+            NumWant = 0,
+            Compact = true,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        var peers = (BEncodedString)dict["peers"];
+        peers.Span.Length.Should().Be(0);
+        ((BEncodedNumber)dict["complete"]).Number.Should().Be(0);
+        ((BEncodedNumber)dict["incomplete"]).Number.Should().Be(6); // 5 previous + 1 current
+    }
+
+    [Test]
+    public void ProcessAnnounce_WhenNumWantIsZero_ReturnsZeroPeers_NonCompact()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xE2;
+
+        // Register 3 peers
+        for (var i = 1; i <= 3; i++)
+        {
+            this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse($"10.0.1.{i}"),
+                Port = 6880 + i,
+                Left = 100,
+            });
+        }
+
+        // Request with NumWant = 0 (non-compact)
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.1.100"),
+            Port = 6890,
+            Left = 100,
+            NumWant = 0,
+            Compact = false,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        var peerList = (BEncodedList)dict["peers"];
+        peerList.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ProcessAnnounce_WhenNumWantIsNegative_ReturnsDefaultMaxPeers()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xE3;
+
+        // Register 10 peers
+        for (var i = 1; i <= 10; i++)
+        {
+            this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse($"10.0.2.{i}"),
+                Port = 6880 + i,
+                Left = 100,
+            });
+        }
+
+        // Request with NumWant = -1 (non-compact)
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.2.100"),
+            Port = 6890,
+            Left = 100,
+            NumWant = -1,
+            Compact = false,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        var peerList = (BEncodedList)dict["peers"];
+        peerList.Count.Should().Be(10);
+    }
+
+    [Test]
+    public void ProcessAnnounce_WhenNumWantExceedsMaxPeers_ClampsToMaxPeers()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xE4;
+
+        this.configService.TrackerMaxPeersPerAnnounce.Returns(3);
+
+        // Register 5 peers
+        for (var i = 1; i <= 5; i++)
+        {
+            this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse($"10.0.3.{i}"),
+                Port = 6880 + i,
+                Left = 100,
+            });
+        }
+
+        // Request with NumWant = 50, but max is 3
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.3.100"),
+            Port = 6890,
+            Left = 100,
+            NumWant = 50,
+            Compact = false,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        var peerList = (BEncodedList)dict["peers"];
+        peerList.Count.Should().Be(3);
+    }
+
     private sealed class FakeTimeProvider : TimeProvider
     {
         private DateTimeOffset now = DateTimeOffset.UtcNow;
