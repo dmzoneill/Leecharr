@@ -95,6 +95,20 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
         return this.repository.GetByStatus(CommandStatus.Queued);
     }
 
+    public void FailStaleCommands()
+    {
+        var runningCommands = this.repository.GetByStatus(CommandStatus.Running) ?? Enumerable.Empty<CommandModel>();
+
+        foreach (var command in runningCommands)
+        {
+            this.logger.Warn("Marking stale command {0} (ID: {1}) as Failed due to application restart", command.Name, command.Id);
+            command.Status = CommandStatus.Failed;
+            command.EndedAt = DateTime.UtcNow;
+            command.Message = "Command was interrupted by application restart.";
+            this.repository.Update(command);
+        }
+    }
+
     private void CleanupOldCommands()
     {
         var cutoff = DateTime.UtcNow.AddDays(-7);
