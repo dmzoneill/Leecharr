@@ -26,6 +26,7 @@ export function TerminalView({
   const pingIntervalRef = useRef<number | null>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const copyTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef<number>(0);
   const isExplicitExitRef = useRef<boolean>(false);
   const isUnmountedRef = useRef<boolean>(false);
@@ -285,6 +286,10 @@ export function TerminalView({
         window.clearTimeout(resizeTimeoutRef.current);
         resizeTimeoutRef.current = null;
       }
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
@@ -326,7 +331,15 @@ export function TerminalView({
     if (!cwd) return;
     navigator.clipboard.writeText(cwd);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimeoutRef.current) {
+      window.clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = window.setTimeout(() => {
+      if (!isUnmountedRef.current) {
+        setCopied(false);
+      }
+      copyTimeoutRef.current = null;
+    }, 2000);
   };
 
   const handleClear = () => {
@@ -467,7 +480,6 @@ export function TerminalView({
             type="button"
             onClick={() => {
               setIsFullscreen((prev) => !prev);
-              setTimeout(() => handleResize(), 100);
             }}
             className="btn btn-outline"
             style={{
