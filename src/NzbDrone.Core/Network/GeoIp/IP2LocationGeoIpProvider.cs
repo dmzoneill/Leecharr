@@ -15,6 +15,7 @@ namespace NzbDrone.Core.Network.GeoIp;
 
 public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 {
+    private static readonly BigInteger IPv6MaxLimit = (BigInteger.One << 128) - 1;
     private readonly IDiskProvider diskProvider;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
@@ -178,11 +179,19 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                         this.fileStream.Seek(rowOffset, SeekOrigin.Begin);
                         var ipFrom = this.binaryReader.ReadUInt32();
 
-                        var ipToOffset = (this.baseAddress - 1) + ((mid + 1) * rowSize);
-                        this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
-                        var ipTo = this.binaryReader.ReadUInt32();
+                        uint ipTo;
+                        if (mid >= (long)this.ipv4Count - 1L)
+                        {
+                            ipTo = uint.MaxValue;
+                        }
+                        else
+                        {
+                            var ipToOffset = (this.baseAddress - 1) + ((mid + 1) * rowSize);
+                            this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
+                            ipTo = this.binaryReader.ReadUInt32();
+                        }
 
-                        if (ipNum >= ipFrom && ipNum < ipTo)
+                        if (ipNum >= ipFrom && (mid >= (long)this.ipv4Count - 1L ? ipNum <= ipTo : ipNum < ipTo))
                         {
                             var result = this.ReadRecordData(rowOffset, 4);
                             result.IpAddress = ipAddress;
@@ -227,17 +236,25 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
                         var ipFrom = new BigInteger(fromBytes, isUnsigned: true, isBigEndian: false);
 
-                        var ipToOffset = (this.baseAddressIPv6 - 1) + ((mid + 1) * rowSize);
-                        this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
-                        var toBytes = this.binaryReader.ReadBytes(16);
-                        if (toBytes.Length < 16)
+                        BigInteger ipTo;
+                        if (mid >= (long)this.ipv6Count - 1L)
                         {
-                            break;
+                            ipTo = IPv6MaxLimit;
+                        }
+                        else
+                        {
+                            var ipToOffset = (this.baseAddressIPv6 - 1) + ((mid + 1) * rowSize);
+                            this.fileStream.Seek(ipToOffset, SeekOrigin.Begin);
+                            var toBytes = this.binaryReader.ReadBytes(16);
+                            if (toBytes.Length < 16)
+                            {
+                                break;
+                            }
+
+                            ipTo = new BigInteger(toBytes, isUnsigned: true, isBigEndian: false);
                         }
 
-                        var ipTo = new BigInteger(toBytes, isUnsigned: true, isBigEndian: false);
-
-                        if (ipNum >= ipFrom && ipNum < ipTo)
+                        if (ipNum >= ipFrom && (mid >= (long)this.ipv6Count - 1L ? ipNum <= ipTo : ipNum < ipTo))
                         {
                             var result = this.ReadRecordData(rowOffset, 16);
                             result.IpAddress = ipAddress;
