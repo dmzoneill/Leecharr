@@ -231,6 +231,19 @@ public class UserSessionTest
         session.ExpiresAt.Should().Be(later);
     }
 
+    [Test]
+    public void UserSession_AbsoluteExpiry_DefaultsToNinetyDaysFromCreatedAt()
+    {
+        var created = DateTime.UtcNow.AddDays(-10);
+        var session = new UserSession { CreatedAt = created };
+
+        session.AbsoluteExpiry.Should().BeCloseTo(created.AddDays(90), TimeSpan.FromSeconds(1));
+
+        var customAbsolute = DateTime.UtcNow.AddDays(50);
+        session.AbsoluteExpiry = customAbsolute;
+        session.AbsoluteExpiry.Should().Be(customAbsolute);
+    }
+
     #endregion
 
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)

@@ -22,6 +22,15 @@ public class UserSession : ModelBase
         set => this.Expiry = value;
     }
 
+    private DateTime? absoluteExpiry;
+
+    [Ignore]
+    public DateTime AbsoluteExpiry
+    {
+        get => this.absoluteExpiry ?? this.CreatedAt.AddDays(90);
+        set => this.absoluteExpiry = value;
+    }
+
     [Ignore]
     public bool IsRevoked { get; set; }
 
