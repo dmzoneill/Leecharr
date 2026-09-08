@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using FluentAssertions;
 using Leecharr.Api.V1.Tracker;
@@ -52,13 +53,15 @@ public class EmbeddedTrackerControllerTest
     [Test]
     public void GetTorrents_ReturnsEmptyArray()
     {
+        this.trackerService.GetAllSwarms().Returns(Array.Empty<TrackerSwarmInfo>());
+
         var actionResult = this.controller.GetTorrents();
         var okResult = actionResult as OkObjectResult;
 
         okResult.Should().NotBeNull();
-        var val = okResult!.Value as object[];
+        var val = okResult!.Value as IReadOnlyList<TrackerSwarmInfo>;
         val.Should().NotBeNull();
-        val!.Length.Should().Be(0);
+        val.Should().BeEmpty();
     }
 
     [Test]
