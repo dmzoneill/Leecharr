@@ -27,6 +27,7 @@ namespace Leecharr.Api.V1.Auth;
 [V1ApiController("auth")]
 public class AuthController : ControllerBase
 {
+    public const int MaxTrackedIps = 10000;
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan AttemptWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
@@ -847,6 +848,49 @@ public class AuthController : ControllerBase
         return true;
     }
 
+    public static int TrackedLoginAttemptsCount => LoginAttempts.Count;
+
+    public static void RecordFailedLoginAttempt(string ipAddress, int failures = 1, DateTime? windowStart = null, DateTime? lockoutUntil = null)
+    {
+        var start = windowStart ?? DateTime.UtcNow;
+        LoginAttempts[ipAddress] = (failures, start, lockoutUntil);
+    }
+
+    public static void PruneExpiredLoginAttempts(DateTime? utcNow = null, int maxTrackedIps = MaxTrackedIps)
+    {
+        var now = utcNow ?? DateTime.UtcNow;
+        foreach (var kvp in LoginAttempts)
+        {
+            if (kvp.Value.LockoutUntil.HasValue)
+            {
+                if (now >= kvp.Value.LockoutUntil.Value)
+                {
+                    LoginAttempts.TryRemove(kvp.Key, out _);
+                }
+            }
+            else if (now - kvp.Value.WindowStart > AttemptWindow)
+            {
+                LoginAttempts.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        if (maxTrackedIps > 0 && LoginAttempts.Count > maxTrackedIps)
+        {
+            var targetCount = maxTrackedIps / 2;
+            var excess = Math.Max(1, LoginAttempts.Count - targetCount);
+            var toRemove = LoginAttempts
+                .OrderBy(kvp => kvp.Value.WindowStart)
+                .Take(excess)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in toRemove)
+            {
+                LoginAttempts.TryRemove(key, out _);
+            }
+        }
+    }
+
     private bool IsLoginThrottled(string ipAddress)
     {
         var now = DateTime.UtcNow;
@@ -877,6 +921,8 @@ public class AuthController : ControllerBase
 
     private void RecordFailedLogin(string ipAddress)
     {
+        PruneExpiredLoginAttempts();
+
         var now = DateTime.UtcNow;
         LoginAttempts.AddOrUpdate(
             ipAddress,
