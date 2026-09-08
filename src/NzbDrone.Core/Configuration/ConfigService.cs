@@ -520,6 +520,10 @@ public interface IConfigService
 
     int DatabaseRestoreTimeoutSeconds { get; }
 
+    int BackupRetentionDays { get; }
+
+    int BackupRetentionMaxCount { get; }
+
     // Advanced & Logging
     bool LogToFile { get; }
 
@@ -1239,6 +1243,10 @@ public class ConfigService : IConfigService
     public int DatabaseBackupTimeoutSeconds => this.GetValueInt("DatabaseBackupTimeoutSeconds", 600);
 
     public int DatabaseRestoreTimeoutSeconds => this.GetValueInt("DatabaseRestoreTimeoutSeconds", 600);
+
+    public int BackupRetentionDays => this.GetValueInt("BackupRetentionDays", 28);
+
+    public int BackupRetentionMaxCount => this.GetValueInt("BackupRetentionMaxCount", 14);
 
     // Advanced & Logging
     public bool LogToFile => this.GetValueBoolean("LogToFile", true);
