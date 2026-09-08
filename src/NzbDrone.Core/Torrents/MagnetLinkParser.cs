@@ -32,14 +32,21 @@ public static class MagnetLinkParser
             throw new ArgumentException("Magnet URI cannot be null or empty", nameof(magnetUri));
         }
 
-        if (!magnetUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+        var cleanUri = magnetUri.Trim();
+        var fragmentIndex = cleanUri.IndexOf('#');
+        if (fragmentIndex >= 0)
+        {
+            cleanUri = cleanUri.Substring(0, fragmentIndex);
+        }
+
+        if (!cleanUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
         {
             throw new FormatException("Invalid magnet link prefix");
         }
 
         var result = new ParsedMagnetLink();
-        var query = magnetUri.Substring("magnet:?".Length);
-        var parameters = query.Split('&');
+        var query = cleanUri.Substring("magnet:?".Length);
+        var parameters = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var param in parameters)
         {
@@ -81,14 +88,6 @@ public static class MagnetLinkParser
                             result.V2InfoHash = hash.Substring(4).ToLowerInvariant();
                         }
                         else if (hash.Length == 64 && IsValidHex(hash))
-                        {
-                            result.V2InfoHash = hash.ToLowerInvariant();
-                        }
-                        else if (hash.Length == 32)
-                        {
-                            result.V2InfoHash = Base32ToHex(hash).ToLowerInvariant();
-                        }
-                        else if (hash.Length == 40 && IsValidHex(hash))
                         {
                             result.V2InfoHash = hash.ToLowerInvariant();
                         }
