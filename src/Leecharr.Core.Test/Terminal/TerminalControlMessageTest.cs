@@ -248,19 +248,9 @@ public class TerminalControlMessageTest
         var chunk1 = rawBytes[..4];
         var chunk2 = rawBytes[4..];
 
-        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
-        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                var mem = callInfo.Arg<Memory<byte>>();
-                if (chunks.TryDequeue(out var chunk))
-                {
-                    chunk.CopyTo(mem);
-                    return ValueTask.FromResult(chunk.Length);
-                }
-
-                return ValueTask.FromResult(0);
-            });
+        var testSession = new TestTerminalSession(chunk1, chunk2);
+        var ptySvc = Substitute.For<IPtyTerminalService>();
+        ptySvc.CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>()).Returns(testSession);
 
         var fakeWs = new FakeWebSocket();
         var context = new DefaultHttpContext();
@@ -268,7 +258,7 @@ public class TerminalControlMessageTest
         context.Response.Body = new MemoryStream();
         context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
 
-        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+        await TerminalWebSocketHandler.HandleWebSocket(context, ptySvc, this.configService, this.configFileProvider);
 
         var outputData = new StringBuilder();
         foreach (var msg in fakeWs.SentMessages)
@@ -295,19 +285,9 @@ public class TerminalControlMessageTest
         var chunk1 = rawBytes[..10];
         var chunk2 = rawBytes[10..];
 
-        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
-        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                var mem = callInfo.Arg<Memory<byte>>();
-                if (chunks.TryDequeue(out var chunk))
-                {
-                    chunk.CopyTo(mem);
-                    return ValueTask.FromResult(chunk.Length);
-                }
-
-                return ValueTask.FromResult(0);
-            });
+        var testSession = new TestTerminalSession(chunk1, chunk2);
+        var ptySvc = Substitute.For<IPtyTerminalService>();
+        ptySvc.CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>()).Returns(testSession);
 
         var fakeWs = new FakeWebSocket();
         var context = new DefaultHttpContext();
@@ -315,7 +295,7 @@ public class TerminalControlMessageTest
         context.Response.Body = new MemoryStream();
         context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
 
-        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+        await TerminalWebSocketHandler.HandleWebSocket(context, ptySvc, this.configService, this.configFileProvider);
 
         var outputData = new StringBuilder();
         foreach (var msg in fakeWs.SentMessages)
@@ -342,19 +322,9 @@ public class TerminalControlMessageTest
         var chunk1 = rawBytes[..5];
         var chunk2 = rawBytes[5..];
 
-        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
-        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                var mem = callInfo.Arg<Memory<byte>>();
-                if (chunks.TryDequeue(out var chunk))
-                {
-                    chunk.CopyTo(mem);
-                    return ValueTask.FromResult(chunk.Length);
-                }
-
-                return ValueTask.FromResult(0);
-            });
+        var testSession = new TestTerminalSession(chunk1, chunk2);
+        var ptySvc = Substitute.For<IPtyTerminalService>();
+        ptySvc.CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>()).Returns(testSession);
 
         var fakeWs = new FakeWebSocket();
         var context = new DefaultHttpContext();
@@ -362,7 +332,7 @@ public class TerminalControlMessageTest
         context.Response.Body = new MemoryStream();
         context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
 
-        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+        await TerminalWebSocketHandler.HandleWebSocket(context, ptySvc, this.configService, this.configFileProvider);
 
         var outputData = new StringBuilder();
         foreach (var msg in fakeWs.SentMessages)
@@ -379,14 +349,56 @@ public class TerminalControlMessageTest
         outputData.ToString().Should().Be(originalText);
     }
 
+    private sealed class TestTerminalSession : ITerminalSession
+    {
+        private readonly Queue<byte[]> chunks;
+
+        public TestTerminalSession(params byte[][] chunks)
+        {
+            this.chunks = new Queue<byte[]>(chunks);
+        }
+
+        public int ProcessId => 1234;
+
+        public bool IsActive => true;
+
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (this.chunks.TryDequeue(out var chunk))
+            {
+                chunk.CopyTo(buffer);
+                return ValueTask.FromResult(chunk.Length);
+            }
+
+            return ValueTask.FromResult(0);
+        }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public void Resize(int cols, int rows)
+        {
+        }
+
+        public void Kill()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     private sealed class FakeWebSocket : WebSocket
     {
         private readonly Queue<byte[]> incomingMessages = new();
+        private bool hasEnqueued;
         private WebSocketState state = WebSocketState.Open;
 
         public List<string> SentMessages { get; } = new();
 
-        public void EnqueueMessage(string text) => this.incomingMessages.Enqueue(Encoding.UTF8.GetBytes(text));
+        public void EnqueueMessage(string text)
+        {
+            this.hasEnqueued = true;
+            this.incomingMessages.Enqueue(Encoding.UTF8.GetBytes(text));
+        }
 
         public override WebSocketCloseStatus? CloseStatus => WebSocketCloseStatus.NormalClosure;
 
@@ -414,17 +426,31 @@ public class TerminalControlMessageTest
         {
         }
 
-        public override Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+        public override async Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            if (this.incomingMessages.Count == 0 || cancellationToken.IsCancellationRequested)
+            if (this.incomingMessages.Count > 0)
             {
-                this.state = WebSocketState.CloseReceived;
-                return Task.FromResult(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed"));
+                var msg = this.incomingMessages.Dequeue();
+                Buffer.BlockCopy(msg, 0, buffer.Array!, buffer.Offset, msg.Length);
+                return new WebSocketReceiveResult(msg.Length, WebSocketMessageType.Text, true);
             }
 
-            var msg = this.incomingMessages.Dequeue();
-            Buffer.BlockCopy(msg, 0, buffer.Array!, buffer.Offset, msg.Length);
-            return Task.FromResult(new WebSocketReceiveResult(msg.Length, WebSocketMessageType.Text, true));
+            if (this.hasEnqueued || cancellationToken.IsCancellationRequested)
+            {
+                this.state = WebSocketState.CloseReceived;
+                return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
+            }
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            this.state = WebSocketState.CloseReceived;
+            return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
         }
 
         public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
