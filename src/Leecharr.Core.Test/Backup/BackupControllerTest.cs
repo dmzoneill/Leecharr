@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Backup;
 using Microsoft.AspNetCore.Mvc;
@@ -131,26 +132,26 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenRequestIsNull_ReturnsBadRequest()
+    public async Task Restore_WhenRequestIsNull_ReturnsBadRequest()
     {
-        var result = this.controller.Restore(null!);
+        var result = await this.controller.Restore(null!);
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Test]
-    public void Restore_WhenBackupNotFound_ReturnsBadRequest()
+    public async Task Restore_WhenBackupNotFound_ReturnsBadRequest()
     {
-        var result = this.controller.Restore(new RestoreBackupRequest { BackupId = 999 });
+        var result = await this.controller.Restore(new RestoreBackupRequest { BackupId = 999 });
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Test]
-    public void Restore_WhenMatchedByBackupId_RestoresBackupFiles()
+    public async Task Restore_WhenMatchedByBackupId_RestoresBackupFiles()
     {
         var fileName = "Leecharr_backup_20260904_120000.zip";
         this.CreateSampleBackup(fileName, dbContent: "restored-db-data", configContent: "<restored-config/>");
 
-        var result = this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
+        var result = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -173,12 +174,12 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenMatchedByFileName_RestoresBackupFiles()
+    public async Task Restore_WhenMatchedByFileName_RestoresBackupFiles()
     {
         var fileName = "Leecharr_backup_20260904_120000.zip";
         this.CreateSampleBackup(fileName, dbContent: "restored-by-filename", configContent: "<config-by-filename/>");
 
-        var result = this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
+        var result = await this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -195,12 +196,12 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenMatchedByPath_RestoresBackupFiles()
+    public async Task Restore_WhenMatchedByPath_RestoresBackupFiles()
     {
         var fileName = "Leecharr_backup_20260904_120000.zip";
         var zipPath = this.CreateSampleBackup(fileName, dbContent: "restored-by-path", configContent: "<config-by-path/>");
 
-        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -217,7 +218,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenBackupDatabaseIsCorruptedText_Returns500AndPreservesLiveDatabaseAndConfig()
+    public async Task Restore_WhenBackupDatabaseIsCorruptedText_Returns500AndPreservesLiveDatabaseAndConfig()
     {
         // 1. Setup live database and config
         var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -238,7 +239,7 @@ public class BackupControllerTest
         this.CreateSampleBackup(fileName, dbContent: "this is corrupt non-sqlite text", configContent: "<corrupted-config/>", rawDbContent: true);
 
         // 3. Attempt restore
-        var result = this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
+        var result = await this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
         result.Should().BeOfType<ObjectResult>();
         var objResult = (ObjectResult)result;
         objResult.StatusCode.Should().Be(500);
@@ -259,7 +260,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenBackupDatabaseIsEmpty_Returns500AndPreservesLiveDatabaseAndConfig()
+    public async Task Restore_WhenBackupDatabaseIsEmpty_Returns500AndPreservesLiveDatabaseAndConfig()
     {
         // 1. Setup live database and config
         var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -289,7 +290,7 @@ public class BackupControllerTest
         }
 
         // 3. Attempt restore
-        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<ObjectResult>();
         var objResult = (ObjectResult)result;
         objResult.StatusCode.Should().Be(500);
@@ -309,7 +310,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenBackupArchiveIsCorruptedZip_Returns500AndPreservesLiveDatabaseAndConfig()
+    public async Task Restore_WhenBackupArchiveIsCorruptedZip_Returns500AndPreservesLiveDatabaseAndConfig()
     {
         // 1. Setup live database and config
         var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -332,7 +333,7 @@ public class BackupControllerTest
         File.WriteAllBytes(corruptZipPath, new byte[] { 0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFE, 0x00, 0x00 });
 
         // 3. Attempt restore
-        var result = this.controller.Restore(new RestoreBackupRequest { Path = corruptZipPath });
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = corruptZipPath });
         result.Should().BeOfType<ObjectResult>();
         var objResult = (ObjectResult)result;
         objResult.StatusCode.Should().Be(500);
@@ -352,7 +353,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenBackupDatabaseIntegrityCheckFails_Returns500AndPreservesLiveDatabaseAndConfig()
+    public async Task Restore_WhenBackupDatabaseIntegrityCheckFails_Returns500AndPreservesLiveDatabaseAndConfig()
     {
         // 1. Setup live database and config
         var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -407,7 +408,7 @@ public class BackupControllerTest
         File.Delete(tempDbPath);
 
         // 3. Attempt restore
-        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<ObjectResult>();
         var objResult = (ObjectResult)result;
         objResult.StatusCode.Should().Be(500);
@@ -427,7 +428,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Create_WhenSQLiteDatabaseInWalMode_CheckpointsWalAndIncludesWalInArchive()
+    public async Task Create_WhenSQLiteDatabaseInWalMode_CheckpointsWalAndIncludesWalInArchive()
     {
         var dbPath = Path.Combine(this.testTempDir, "leecharr.db");
         using var activeConn = new SqliteConnection($"Data Source={dbPath}");
@@ -439,7 +440,7 @@ public class BackupControllerTest
         var walPath = Path.Combine(this.testTempDir, "leecharr.db-wal");
         File.Exists(walPath).Should().BeTrue("WAL file should exist while connection is active in WAL mode");
 
-        var result = this.controller.Create();
+        var result = await this.controller.Create();
         result.Result.Should().BeOfType<OkObjectResult>();
 
         var okResult = (OkObjectResult)result.Result!;
@@ -472,12 +473,12 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Create_WhenNoDatabaseExists_CreatesBackupWithConfig()
+    public async Task Create_WhenNoDatabaseExists_CreatesBackupWithConfig()
     {
         var configPath = Path.Combine(this.testTempDir, "config.xml");
         File.WriteAllText(configPath, "<config><port>8989</port></config>");
 
-        var result = this.controller.Create();
+        var result = await this.controller.Create();
         result.Result.Should().BeOfType<OkObjectResult>();
 
         var okResult = (OkObjectResult)result.Result!;
@@ -490,7 +491,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenStaleWalAndShmExist_DeletesStaleWalAndShmFiles()
+    public async Task Restore_WhenStaleWalAndShmExist_DeletesStaleWalAndShmFiles()
     {
         var walPath = Path.Combine(this.testTempDir, "leecharr.db-wal");
         var shmPath = Path.Combine(this.testTempDir, "leecharr.db-shm");
@@ -500,7 +501,7 @@ public class BackupControllerTest
         var fileName = "Leecharr_backup_20260904_120000.zip";
         this.CreateSampleBackup(fileName, dbContent: "fresh-db-data", configContent: "<config/>");
 
-        var result = this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
+        var result = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         result.Should().BeOfType<OkObjectResult>();
 
         File.Exists(walPath).Should().BeFalse("Stale WAL file must be deleted before extracting restored DB");
@@ -520,7 +521,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenStaleWalFromPriorDatabasePresent_RestoresCleanlyWithoutDiskImageMalformed()
+    public async Task Restore_WhenStaleWalFromPriorDatabasePresent_RestoresCleanlyWithoutDiskImageMalformed()
     {
         // 1. Create original database state and archive it
         var dbPath = Path.Combine(this.testTempDir, "leecharr.db");
@@ -534,7 +535,7 @@ public class BackupControllerTest
 
         SqliteConnection.ClearAllPools();
 
-        var createResult = this.controller.Create();
+        var createResult = await this.controller.Create();
         createResult.Result.Should().BeOfType<OkObjectResult>();
 
         // 2. Simulate subsequent database activity leaving stale WAL and SHM files with invalid salt
@@ -546,7 +547,7 @@ public class BackupControllerTest
         File.Exists(shmPath).Should().BeTrue();
 
         // 3. Trigger restore of the initial backup
-        var restoreResult = this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
+        var restoreResult = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         restoreResult.Should().BeOfType<OkObjectResult>();
 
         // 4. Verify stale WAL and SHM were deleted
@@ -571,7 +572,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenBackupIncludesWal_ExtractsWalAndIntegrityCheckPasses()
+    public async Task Restore_WhenBackupIncludesWal_ExtractsWalAndIntegrityCheckPasses()
     {
         var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
         Directory.CreateDirectory(backupDir);
@@ -603,7 +604,7 @@ public class BackupControllerTest
         File.WriteAllText(Path.Combine(this.testTempDir, "leecharr.db-wal"), "stale-wal");
         File.WriteAllText(Path.Combine(this.testTempDir, "leecharr.db-shm"), "stale-shm");
 
-        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -647,25 +648,25 @@ public class BackupControllerTest
 
         protected override string FindPsqlExecutable() => this.SimulatePsqlExecutableFound ? "psql" : null!;
 
-        protected override bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+        protected override Task<bool> RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
         {
             if (!this.SimulatePgDumpSuccess)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             global::System.IO.File.WriteAllText(outputPath, "-- PostgreSQL test database dump");
-            return true;
+            return Task.FromResult(true);
         }
 
-        protected override bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+        protected override Task<bool> RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
         {
-            return this.SimulatePsqlRestoreSuccess;
+            return Task.FromResult(this.SimulatePsqlRestoreSuccess);
         }
     }
 
     [Test]
-    public void Create_WhenPostgreSqlConfiguredAndPgDumpSucceeds_IncludesPostgresDumpAndIgnoresStaleSqliteFiles()
+    public async Task Create_WhenPostgreSqlConfiguredAndPgDumpSucceeds_IncludesPostgresDumpAndIgnoresStaleSqliteFiles()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -687,7 +688,7 @@ public class BackupControllerTest
         var configPath = Path.Combine(this.testTempDir, "config.xml");
         File.WriteAllText(configPath, "<config><PostgresHost>localhost</PostgresHost></config>");
 
-        var result = pgController.Create();
+        var result = await pgController.Create();
         result.Result.Should().BeOfType<OkObjectResult>();
 
         var okResult = (OkObjectResult)result.Result!;
@@ -704,7 +705,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Create_WhenPostgreSqlConfiguredAndPgDumpExecutableNotFound_FailsLoudlyWith500()
+    public async Task Create_WhenPostgreSqlConfiguredAndPgDumpExecutableNotFound_FailsLoudlyWith500()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -720,7 +721,7 @@ public class BackupControllerTest
             SimulatePgDumpExecutableFound = false,
         };
 
-        var result = pgController.Create();
+        var result = await pgController.Create();
         result.Result.Should().BeOfType<ObjectResult>();
 
         var objResult = (ObjectResult)result.Result!;
@@ -728,7 +729,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Create_WhenPostgreSqlConfiguredAndPgDumpFails_FailsLoudlyWith500()
+    public async Task Create_WhenPostgreSqlConfiguredAndPgDumpFails_FailsLoudlyWith500()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -744,7 +745,7 @@ public class BackupControllerTest
             SimulatePgDumpSuccess = false,
         };
 
-        var result = pgController.Create();
+        var result = await pgController.Create();
         result.Result.Should().BeOfType<ObjectResult>();
 
         var objResult = (ObjectResult)result.Result!;
@@ -752,7 +753,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenPostgreSqlConfiguredAndPsqlRestoreFails_FailsLoudlyWith500()
+    public async Task Restore_WhenPostgreSqlConfiguredAndPsqlRestoreFails_FailsLoudlyWith500()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -787,7 +788,7 @@ public class BackupControllerTest
             }
         }
 
-        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<ObjectResult>();
 
         var objResult = (ObjectResult)result;
@@ -795,7 +796,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Restore_WhenPostgreSqlConfiguredAndPsqlRestoreSucceeds_RestoresSuccessfully()
+    public async Task Restore_WhenPostgreSqlConfiguredAndPsqlRestoreSucceeds_RestoresSuccessfully()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -830,12 +831,12 @@ public class BackupControllerTest
             }
         }
 
-        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
     }
 
     [Test]
-    public void Restore_WhenPostgreSqlConfigured_ExtractsConfigAndDoesNotCorruptOrCheckSqlite()
+    public async Task Restore_WhenPostgreSqlConfigured_ExtractsConfigAndDoesNotCorruptOrCheckSqlite()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -859,7 +860,7 @@ public class BackupControllerTest
             writer.Write("<pg-config/>");
         }
 
-        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredConfig = Path.Combine(this.testTempDir, "config.xml");
@@ -879,10 +880,10 @@ public class BackupControllerTest
         {
         }
 
-        public bool TestRunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+        public Task<bool> TestRunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
             => this.RunPgDump(pgDumpExe, host, port, user, password, dbName, outputPath);
 
-        public bool TestRunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+        public Task<bool> TestRunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
             => this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, sqlScriptPath);
     }
 
@@ -900,23 +901,23 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void RunPgDump_WhenExecutableDoesNotExist_ReturnsFalse()
+    public async Task RunPgDump_WhenExecutableDoesNotExist_ReturnsFalse()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
-        var result = controller.TestRunPgDump("non_existent_binary_for_pg_dump", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "out.sql"));
+        var result = await controller.TestRunPgDump("non_existent_binary_for_pg_dump", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "out.sql"));
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPsqlRestore_WhenExecutableDoesNotExist_ReturnsFalse()
+    public async Task RunPsqlRestore_WhenExecutableDoesNotExist_ReturnsFalse()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
-        var result = controller.TestRunPsqlRestore("non_existent_binary_for_psql", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "in.sql"));
+        var result = await controller.TestRunPsqlRestore("non_existent_binary_for_psql", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "in.sql"));
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPgDump_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
+    public async Task RunPgDump_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
     {
         var configService = Substitute.For<IConfigService>();
         configService.DatabaseBackupTimeoutSeconds.Returns(1);
@@ -927,13 +928,13 @@ public class BackupControllerTest
             : "#!/bin/sh\nsleep 10\n");
 
         var outputPath = Path.Combine(this.testTempDir, "timeout_dump.sql");
-        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", null, "db", outputPath);
+        var result = await controller.TestRunPgDump(script, "localhost", 5432, "postgres", null, "db", outputPath);
 
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPsqlRestore_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
+    public async Task RunPsqlRestore_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
     {
         var configService = Substitute.For<IConfigService>();
         configService.DatabaseRestoreTimeoutSeconds.Returns(1);
@@ -945,13 +946,13 @@ public class BackupControllerTest
 
         var sqlPath = Path.Combine(this.testTempDir, "restore.sql");
         File.WriteAllText(sqlPath, "-- sql script");
-        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", null, "db", sqlPath);
+        var result = await controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", null, "db", sqlPath);
 
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPgDump_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
+    public async Task RunPgDump_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
         var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
@@ -959,13 +960,13 @@ public class BackupControllerTest
             : "#!/bin/sh\necho 'pg_dump error' >&2\nexit 1\n");
 
         var outputPath = Path.Combine(this.testTempDir, "failed_dump.sql");
-        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
+        var result = await controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
 
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPsqlRestore_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
+    public async Task RunPsqlRestore_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
         var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
@@ -974,13 +975,13 @@ public class BackupControllerTest
 
         var sqlPath = Path.Combine(this.testTempDir, "restore_fail.sql");
         File.WriteAllText(sqlPath, "-- sql script");
-        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
+        var result = await controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
 
         result.Should().BeFalse();
     }
 
     [Test]
-    public void RunPgDump_WhenProcessSucceedsAndProducesOutput_ReturnsTrue()
+    public async Task RunPgDump_WhenProcessSucceedsAndProducesOutput_ReturnsTrue()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
         var outputPath = Path.Combine(this.testTempDir, "success_dump.sql");
@@ -989,7 +990,7 @@ public class BackupControllerTest
             ? $"@echo off\r\necho pg_dump success > \"{outputPath}\"\r\nexit /b 0"
             : $"#!/bin/sh\necho 'pg_dump success' > \"{outputPath}\"\nexit 0\n");
 
-        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
+        var result = await controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
 
         result.Should().BeTrue();
         File.Exists(outputPath).Should().BeTrue();
@@ -997,7 +998,7 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void RunPsqlRestore_WhenProcessSucceeds_ReturnsTrue()
+    public async Task RunPsqlRestore_WhenProcessSucceeds_ReturnsTrue()
     {
         var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
         var sqlPath = Path.Combine(this.testTempDir, "restore_success.sql");
@@ -1007,7 +1008,7 @@ public class BackupControllerTest
             ? "@echo off\r\necho restore success\r\nexit /b 0"
             : "#!/bin/sh\necho 'restore success'\nexit 0\n");
 
-        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
+        var result = await controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
 
         result.Should().BeTrue();
     }
