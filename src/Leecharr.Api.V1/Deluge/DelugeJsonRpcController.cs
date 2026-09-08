@@ -76,7 +76,12 @@ public class DelugeJsonRpcController : ControllerBase
             return true;
         }
 
-        if (this.Request.Cookies.TryGetValue("_session_id", out var sid1) && !string.IsNullOrWhiteSpace(sid1))
+        if (this.HttpContext?.Items.TryGetValue("deluge-session", out var itemSid) == true && itemSid is string s && AuthenticatedSessions.IsValid(s))
+        {
+            return true;
+        }
+
+        if (this.Request?.Cookies.TryGetValue("_session_id", out var sid1) == true && !string.IsNullOrWhiteSpace(sid1))
         {
             if (AuthenticatedSessions.IsValid(sid1))
             {
@@ -84,7 +89,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        if (this.Request.Cookies.TryGetValue("deluge-session", out var sid2) && !string.IsNullOrWhiteSpace(sid2))
+        if (this.Request?.Cookies.TryGetValue("deluge-session", out var sid2) == true && !string.IsNullOrWhiteSpace(sid2))
         {
             if (AuthenticatedSessions.IsValid(sid2))
             {
@@ -180,14 +185,19 @@ public class DelugeJsonRpcController : ControllerBase
                 {
                     var sid = Guid.NewGuid().ToString("N");
                     AuthenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
+                    if (this.HttpContext != null)
+                    {
+                        this.HttpContext.Items["deluge-session"] = sid;
+                    }
+
                     var cookieOptions = new CookieOptions
                     {
                         HttpOnly = true,
                         SameSite = SameSiteMode.Lax,
                         Path = "/",
                     };
-                    this.Response.Cookies.Append("_session_id", sid, cookieOptions);
-                    this.Response.Cookies.Append("deluge-session", sid, cookieOptions);
+                    this.Response?.Cookies.Append("_session_id", sid, cookieOptions);
+                    this.Response?.Cookies.Append("deluge-session", sid, cookieOptions);
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
                 }
@@ -203,18 +213,24 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (lowerMethod == "auth.delete_session")
             {
-                if (this.Request.Cookies.TryGetValue("_session_id", out var sid1) && !string.IsNullOrWhiteSpace(sid1))
+                if (this.HttpContext?.Items.TryGetValue("deluge-session", out var itemSid) == true && itemSid is string s)
+                {
+                    AuthenticatedSessions.RemoveSession(s);
+                    this.HttpContext.Items.Remove("deluge-session");
+                }
+
+                if (this.Request?.Cookies.TryGetValue("_session_id", out var sid1) == true && !string.IsNullOrWhiteSpace(sid1))
                 {
                     AuthenticatedSessions.RemoveSession(sid1);
                 }
 
-                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid2) && !string.IsNullOrWhiteSpace(sid2))
+                if (this.Request?.Cookies.TryGetValue("deluge-session", out var sid2) == true && !string.IsNullOrWhiteSpace(sid2))
                 {
                     AuthenticatedSessions.RemoveSession(sid2);
                 }
 
-                this.Response.Cookies.Delete("_session_id");
-                this.Response.Cookies.Delete("deluge-session");
+                this.Response?.Cookies.Delete("_session_id");
+                this.Response?.Cookies.Delete("deluge-session");
 
                 return this.DelugeResult(new { result = true, error = (object)null, id });
             }

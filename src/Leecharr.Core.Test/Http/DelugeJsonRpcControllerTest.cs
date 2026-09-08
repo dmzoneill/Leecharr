@@ -1634,4 +1634,90 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"error\":null");
     }
+
+    [Test]
+    public async Task HandleRpc_Multicall_AuthLoginFollowedByCoreGetConfig_SuccessfullyAuthenticatesSubsequentCall()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[{\"method\":\"auth.login\",\"params\":[\"deluge_secret_key\"],\"id\":1},{\"method\":\"core.get_config\",\"params\":[],\"id\":2}]");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        json.Should().NotContain("Not authenticated");
+        json.Should().Contain("\"id\":1");
+        json.Should().Contain("\"id\":2");
+
+        using var responseDoc = JsonDocument.Parse(json);
+        responseDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        responseDoc.RootElement.GetArrayLength().Should().Be(2);
+
+        var first = responseDoc.RootElement[0];
+        first.GetProperty("result").GetBoolean().Should().BeTrue();
+        first.GetProperty("id").GetInt64().Should().Be(1);
+
+        var second = responseDoc.RootElement[1];
+        second.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+        second.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Object);
+        second.GetProperty("id").GetInt64().Should().Be(2);
+    }
+
+    [Test]
+    public async Task HandleRpc_Multicall_AuthLoginFollowedByWebGetTorrentsStatus_SuccessfullyAuthenticatesSubsequentCall()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        using var doc = JsonDocument.Parse("[{\"method\":\"auth.login\",\"params\":[\"deluge_secret_key\"],\"id\":1},{\"method\":\"web.get_torrents_status\",\"params\":[{}, []],\"id\":2}]");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        json.Should().NotContain("Not authenticated");
+
+        using var responseDoc = JsonDocument.Parse(json);
+        responseDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        responseDoc.RootElement.GetArrayLength().Should().Be(2);
+
+        var first = responseDoc.RootElement[0];
+        first.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        var second = responseDoc.RootElement[1];
+        second.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+        second.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Object);
+        second.GetProperty("result").GetProperty("torrents").ValueKind.Should().Be(JsonValueKind.Object);
+    }
+
+    [Test]
+    public async Task HandleRpc_Multicall_AuthLoginFailed_SubsequentCallsReturnUnauthenticated()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[{\"method\":\"auth.login\",\"params\":[\"wrong_key\"],\"id\":1},{\"method\":\"core.get_config\",\"params\":[],\"id\":2}]");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var responseDoc = JsonDocument.Parse(json);
+        responseDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        responseDoc.RootElement.GetArrayLength().Should().Be(2);
+
+        var first = responseDoc.RootElement[0];
+        first.GetProperty("result").GetBoolean().Should().BeFalse();
+
+        var second = responseDoc.RootElement[1];
+        second.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
+        second.GetProperty("error").GetProperty("message").GetString().Should().Be("Not authenticated");
+    }
 }
