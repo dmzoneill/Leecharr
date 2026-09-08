@@ -327,22 +327,39 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
-    public void SendEmailNotification_WithNullOrEmptySettings_DoesNotThrow()
+    public void SendEmailNotification_WithNullOrEmptySettings_ThrowsArgumentException()
     {
         var act1 = () => NotificationEventHandler.SendEmailNotification(null, "Test", null, null, new { Message = "Test" });
         var act2 = () => NotificationEventHandler.SendEmailNotification(string.Empty, "Test", null, null, new { Message = "Test" });
 
-        act1.Should().NotThrow();
-        act2.Should().NotThrow();
+        act1.Should().Throw<ArgumentException>();
+        act2.Should().Throw<ArgumentException>();
     }
 
     [Test]
-    public void SendEmailNotification_WithoutRecipient_DoesNotThrow()
+    public void SendEmailNotification_WithoutRecipient_ThrowsInvalidOperationException()
     {
         var settings = "{\"server\":\"smtp.example.com\",\"port\":587}";
         var act = () => NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" });
 
-        act.Should().NotThrow();
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Test]
+    public void SendEmailNotification_WithValidSettingsAndCustomSender_ExecutesSuccessfully()
+    {
+        var settings = "{\"server\":\"smtp.example.com\",\"port\":587,\"to\":\"user@example.com\",\"from\":\"bot@example.com\"}";
+        var senderCalled = false;
+        NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" }, (client, mail) =>
+        {
+            senderCalled = true;
+            client.Host.Should().Be("smtp.example.com");
+            client.Port.Should().Be(587);
+            mail.To[0].Address.Should().Be("user@example.com");
+            mail.From!.Address.Should().Be("bot@example.com");
+        });
+
+        senderCalled.Should().BeTrue();
     }
 
     [Test]
@@ -905,7 +922,11 @@ public class NotificationEventHandlerTest
 
         var settings = "{\"server\":\"127.0.0.1\",\"port\":2525,\"to\":\"user@example.com\",\"from\":\"leecharr@example.com\"}";
 
-        var act = () => NotificationEventHandler.SendEmailNotification(settings, "OnGrab", torrent, meta, null);
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "OnGrab", torrent, meta, null, (client, mail) =>
+        {
+            mail.Body.Should().Contain("Oppenheimer");
+            mail.Subject.Should().Contain("Oppenheimer.2023.2160p");
+        });
 
         act.Should().NotThrow();
     }

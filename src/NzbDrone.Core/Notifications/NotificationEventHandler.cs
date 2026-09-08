@@ -934,102 +934,108 @@ public class NotificationEventHandler :
         return genericPayload;
     }
 
-    public static void SendEmailNotification(string settings, string eventType, Torrent torrent, dynamic meta, object genericPayload)
+    public static void SendEmailNotification(
+        string settings,
+        string eventType,
+        Torrent torrent,
+        dynamic meta,
+        object genericPayload,
+        Action<System.Net.Mail.SmtpClient, System.Net.Mail.MailMessage> smtpSender = null)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
-            return;
+            throw new ArgumentException("Email settings are required.", nameof(settings));
         }
 
-        try
+        var host = "localhost";
+        var port = 25;
+        var ssl = false;
+        string user = null;
+        string pass = null;
+        var from = "leecharr@localhost";
+        string to = null;
+
+        if (settings.TrimStart().StartsWith("{"))
         {
-            var host = "localhost";
-            var port = 25;
-            var ssl = false;
-            string user = null;
-            string pass = null;
-            var from = "leecharr@localhost";
-            string to = null;
-
-            if (settings.TrimStart().StartsWith("{"))
+            using var doc = System.Text.Json.JsonDocument.Parse(settings);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("server", out var s) || root.TryGetProperty("host", out s))
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(settings);
-                var root = doc.RootElement;
-                if (root.TryGetProperty("server", out var s) || root.TryGetProperty("host", out s))
-                {
-                    host = s.GetString() ?? host;
-                }
+                host = s.GetString() ?? host;
+            }
 
-                if (root.TryGetProperty("port", out var p))
+            if (root.TryGetProperty("port", out var p))
+            {
+                if (p.TryGetInt32(out var pInt))
                 {
-                    if (p.TryGetInt32(out var pInt))
-                    {
-                        port = pInt;
-                    }
-                    else if (int.TryParse(p.GetString(), out var pParsed))
-                    {
-                        port = pParsed;
-                    }
+                    port = pInt;
                 }
-
-                if (root.TryGetProperty("useSsl", out var sslProp) || root.TryGetProperty("ssl", out sslProp))
+                else if (int.TryParse(p.GetString(), out var pParsed))
                 {
-                    ssl = sslProp.GetBoolean();
-                }
-
-                if (root.TryGetProperty("username", out var u) || root.TryGetProperty("user", out u))
-                {
-                    user = u.GetString();
-                }
-
-                if (root.TryGetProperty("password", out var pwd) || root.TryGetProperty("pass", out pwd))
-                {
-                    pass = pwd.GetString();
-                }
-
-                if (root.TryGetProperty("from", out var f))
-                {
-                    from = f.GetString() ?? from;
-                }
-
-                if (root.TryGetProperty("to", out var tProp) || root.TryGetProperty("recipient", out tProp))
-                {
-                    to = tProp.GetString();
+                    port = pParsed;
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(to))
+            if (root.TryGetProperty("useSsl", out var sslProp) || root.TryGetProperty("ssl", out sslProp))
             {
-                return;
+                ssl = sslProp.GetBoolean();
             }
 
-            var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
-            var subject = $"[Leecharr] [{eventType}] {torrentName}";
-            var torrentDetails = torrent != null
-                ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : ExtractMessage(genericPayload, $"Event: {eventType}");
-            var overview = ExtractOverview(meta);
-            var body = !string.IsNullOrWhiteSpace(overview)
-                ? $"{torrentDetails}\n\n{overview}"
-                : torrentDetails;
-
-            using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
-            using var client = new System.Net.Mail.SmtpClient(host, port)
+            if (root.TryGetProperty("username", out var u) || root.TryGetProperty("user", out u))
             {
-                EnableSsl = ssl,
-                Timeout = 10000,
-            };
-
-            if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
-            {
-                client.Credentials = new System.Net.NetworkCredential(user, pass);
+                user = u.GetString();
             }
 
+            if (root.TryGetProperty("password", out var pwd) || root.TryGetProperty("pass", out pwd))
+            {
+                pass = pwd.GetString();
+            }
+
+            if (root.TryGetProperty("from", out var f))
+            {
+                from = f.GetString() ?? from;
+            }
+
+            if (root.TryGetProperty("to", out var tProp) || root.TryGetProperty("recipient", out tProp))
+            {
+                to = tProp.GetString();
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(to))
+        {
+            throw new InvalidOperationException("Recipient email address ('to') is required.");
+        }
+
+        var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
+        var subject = $"[Leecharr] [{eventType}] {torrentName}";
+        var torrentDetails = torrent != null
+            ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+            : ExtractMessage(genericPayload, $"Event: {eventType}");
+        var overview = ExtractOverview(meta);
+        var body = !string.IsNullOrWhiteSpace(overview)
+            ? $"{torrentDetails}\n\n{overview}"
+            : torrentDetails;
+
+        using var mail = new System.Net.Mail.MailMessage(from, to, subject, body);
+        using var client = new System.Net.Mail.SmtpClient(host, port)
+        {
+            EnableSsl = ssl,
+            Timeout = 10000,
+        };
+
+        if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
+        {
+            client.Credentials = new System.Net.NetworkCredential(user, pass);
+        }
+
+        if (smtpSender != null)
+        {
+            smtpSender(client, mail);
+        }
+        else
+        {
             client.Send(mail);
-        }
-        catch (Exception ex)
-        {
-            LogManager.GetCurrentClassLogger().Warn(ex, "Failed to send email notification for event {0}", eventType);
         }
     }
 

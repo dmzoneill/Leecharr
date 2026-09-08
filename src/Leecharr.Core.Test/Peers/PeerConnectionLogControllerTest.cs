@@ -170,4 +170,33 @@ public class PeerConnectionLogControllerTest
         records.Should().OnlyContain(r => r.InfoHash.StartsWith("new_"));
         records.Should().NotBeEmpty();
     }
+
+    [Test]
+    public void GetLogs_And_GetGraph_DoNotIngestActivePeersIntoHistoryRecords()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Live Torrent", InfoHash = "livehash" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.GetPeers().Returns(new List<PeerInfo>
+        {
+            new() { Ip = "1.1.1.1", Port = 5000, Client = "ClientA", IsEncrypted = true },
+        });
+        this.downloadEngine.GetTask(1).Returns(downloadTask);
+
+        // Before calling GetLogs / GetGraph, history is empty
+        this.historyService.GetRecords().Should().BeEmpty();
+
+        var logsResult = this.controller.GetLogs(null, null, null);
+        logsResult.Result.Should().BeOfType<OkObjectResult>();
+
+        // After calling GetLogs, history remains empty (no fake Connected events recorded on GET)
+        this.historyService.GetRecords().Should().BeEmpty();
+
+        var graphResult = this.controller.GetGraph(null, null);
+        graphResult.Result.Should().BeOfType<OkObjectResult>();
+
+        // After calling GetGraph, history remains empty
+        this.historyService.GetRecords().Should().BeEmpty();
+    }
 }
