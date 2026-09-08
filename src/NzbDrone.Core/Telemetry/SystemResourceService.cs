@@ -74,6 +74,14 @@ public class SystemResourceService : ISystemResourceService
         var now = DateTime.UtcNow;
         double cpuPercent;
 
+        try
+        {
+            CurrentProcess.Refresh();
+        }
+        catch
+        {
+        }
+
         lock (CpuLock)
         {
             var elapsed = (now - lastSampleTime).TotalMilliseconds;
@@ -81,7 +89,6 @@ public class SystemResourceService : ISystemResourceService
             {
                 try
                 {
-                    CurrentProcess.Refresh();
                     var totalTime = CurrentProcess.TotalProcessorTime;
                     var cpuUsedMs = (totalTime - lastTotalProcessorTime).TotalMilliseconds;
                     lastSampleTime = now;
