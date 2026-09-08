@@ -8,7 +8,7 @@ import {
   useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
-import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import { extractTrackerDomain } from "../utils/formatters";
 import { calculateAchievements } from "../utils/milestones";
 import { useTranslation } from "../i18n";
@@ -45,8 +45,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       0,
     ) || totalSize;
 
-  const telemetry = useTorrentStore((state) => state.telemetry);
-
   const {
     totalDlSpeed,
     totalUlSpeed,
@@ -54,53 +52,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     seedingCount,
     pausedCount,
     avgRatio,
-  } = useMemo(() => {
-    let dl = 0;
-    let ul = 0;
-    let downloading = 0;
-    let seeding = 0;
-    let paused = 0;
-    let ratioSum = 0;
-
-    for (const t of torrents) {
-      const tel = telemetry[t.id];
-      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
-      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
-      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
-
-      dl += effectiveDl;
-      ul += effectiveUl;
-      ratioSum += effectiveRatio;
-
-      if (effectiveStatus === "downloading") {
-        downloading++;
-      } else if (
-        effectiveStatus === "seeding" ||
-        effectiveStatus === "completed"
-      ) {
-        seeding++;
-      } else if (
-        effectiveStatus === "paused" ||
-        effectiveStatus === "stopped" ||
-        effectiveStatus === "idle"
-      ) {
-        paused++;
-      }
-    }
-
-    const calculatedAvgRatio =
-      torrents.length > 0 ? ratioSum / torrents.length : 0;
-
-    return {
-      totalDlSpeed: dl,
-      totalUlSpeed: ul,
-      downloadingCount: downloading,
-      seedingCount: seeding,
-      pausedCount: paused,
-      avgRatio: calculatedAvgRatio,
-    };
-  }, [torrents, telemetry]);
+  } = useAggregatedTorrentMetrics(torrents);
 
   const [timeframe, setTimeframe] = useState<"60s" | "5m" | "15m" | "1h" | "24h">("60s");
 
