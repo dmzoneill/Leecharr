@@ -449,6 +449,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 {
                     ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
                 }
+                else if (span.IndexOf("A_EAC3/JOC"u8) >= 0 || span.IndexOf("A_EAC3-JOC"u8) >= 0)
+                {
+                    ApplyAudioCodec(info, "Dolby Atmos", "5.1", 48);
+                }
                 else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
                 {
                     ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
@@ -886,6 +890,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                  codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
         {
             return ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
+        }
+        else if (codecId.StartsWith("A_EAC3/JOC", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApplyAudioCodec(info, "Dolby Atmos", "5.1", 48);
         }
         else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||

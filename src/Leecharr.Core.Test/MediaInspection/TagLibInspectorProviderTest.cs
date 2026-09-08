@@ -81,6 +81,8 @@ public class TagLibInspectorProviderTest
     [TestCase("A_FLAC", 6, "FLAC", "5.1")]
     [TestCase("A_AC3", 2, "AC3 / Dolby Digital", "2.0")]
     [TestCase("A_EAC3", 2, "E-AC3 / Dolby Digital Plus", "2.0")]
+    [TestCase("A_EAC3/JOC", 6, "Dolby Atmos", "5.1")]
+    [TestCase("A_EAC3/JOC", 8, "Dolby Atmos", "7.1")]
     [TestCase("A_TRUEHD", 6, "Dolby TrueHD / Atmos", "5.1")]
     public void Inspect_Matroska_EbmlChannelsOverridesCodecIdDefaults(string audioCodecId, int channelCount, string expectedCodec, string expectedChannels)
     {
