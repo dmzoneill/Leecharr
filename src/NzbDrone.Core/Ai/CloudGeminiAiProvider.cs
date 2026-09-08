@@ -97,7 +97,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}?key={Uri.EscapeDataString(apiKey)}";
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var response = await this.httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
             sw.Stop();
@@ -174,6 +174,18 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
         return trimmed;
     }
 
+    private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (string.Equals(element.GetString(), "yes", StringComparison.OrdinalIgnoreCase) || element.GetString() == "1"),
+            JsonValueKind.Number => element.TryGetInt64(out var n) ? n != 0 : (element.TryGetDouble(out var d) && Math.Abs(d) > double.Epsilon),
+            _ => defaultValue,
+        };
+    }
+
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
     {
         if (string.IsNullOrWhiteSpace(releaseName))
@@ -241,9 +253,9 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                                 Languages = languages,
                                 Season = root.TryGetProperty("season", out var sn) && sn.TryGetInt32(out var snVal) ? snVal : (root.TryGetProperty("seasonNumber", out var snOld) && snOld.TryGetInt32(out var snOldVal) ? snOldVal : null),
                                 Episode = root.TryGetProperty("episode", out var en) && en.TryGetInt32(out var enVal) ? enVal : (root.TryGetProperty("episodeNumber", out var enOld) && enOld.TryGetInt32(out var enOldVal) ? enOldVal : null),
-                                IsProper = root.TryGetProperty("isProper", out var ip) && ip.GetBoolean(),
-                                IsRepack = root.TryGetProperty("isRepack", out var ir) && ir.GetBoolean(),
-                                IsRemux = root.TryGetProperty("isRemux", out var irx) && irx.GetBoolean(),
+                                IsProper = root.TryGetProperty("isProper", out var ip) && SafeGetBoolean(ip),
+                                IsRepack = root.TryGetProperty("isRepack", out var ir) && SafeGetBoolean(ir),
+                                IsRemux = root.TryGetProperty("isRemux", out var irx) && SafeGetBoolean(irx),
                                 ConfidenceScore = root.TryGetProperty("confidenceScore", out var cs) && cs.TryGetDouble(out var csVal) ? csVal : 0.95,
                             };
                             parsed.AdditionalTags["Engine"] = this.ProviderId;
@@ -354,7 +366,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                         var root = doc.RootElement;
                         var riskLevel = root.TryGetProperty("riskLevel", out var rl) ? rl.GetString() ?? "Safe" : "Safe";
                         var riskScore = root.TryGetProperty("riskScore", out var rs) && rs.TryGetDouble(out var rsVal) ? rsVal : 0.0;
-                        var isSuspicious = root.TryGetProperty("isSuspicious", out var susp) ? susp.GetBoolean() : (riskScore > 0.3);
+                        var isSuspicious = root.TryGetProperty("isSuspicious", out var susp) ? SafeGetBoolean(susp, riskScore > 0.3) : (riskScore > 0.3);
 
                         var suspiciousFiles = new List<string>();
                         if (root.TryGetProperty("suspiciousFiles", out var sfArr) && sfArr.ValueKind == JsonValueKind.Array)
@@ -440,7 +452,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                 var json = JsonSerializer.Serialize(payload);
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}:generateContent?key={Uri.EscapeDataString(apiKey)}";
                 using var response = await this.httpClient.PostAsync(url, content, cts.Token);
 
                 if (response.IsSuccessStatusCode)
