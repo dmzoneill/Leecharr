@@ -298,8 +298,10 @@ public class IndexerController : Controller
 
         var catId = ParseCategoryId(category);
         var isMulti = indexers.Count > 1;
-        var fetchLimit = isMulti ? Math.Min(effectiveOffset + effectiveLimit, 200) : effectiveLimit;
-        var fetchOffset = isMulti ? 0 : effectiveOffset;
+        var fetchLimit = isMulti
+            ? (effectiveOffset > 0 && effectiveOffset < 100 ? Math.Min(effectiveOffset + effectiveLimit, 100) : Math.Min(effectiveLimit, 100))
+            : effectiveLimit;
+        var fetchOffset = isMulti && effectiveOffset < 100 ? 0 : effectiveOffset;
 
         using var semaphore = new SemaphoreSlim(6);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -379,7 +381,7 @@ public class IndexerController : Controller
         }
 
         var sortedResults = filteredResults.OrderByDescending(r => r.Seeders).ToList();
-        var paginatedResults = isMulti
+        var paginatedResults = isMulti && fetchOffset == 0
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
 

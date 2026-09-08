@@ -207,6 +207,7 @@ public class DynamicGeoIpProxyTest
     [Test]
     public async Task LookupAsync_WhenActiveProviderReturnsEmptyCountryCode_CascadesToAvailableOnlineApiProvider()
     {
+        this.ip2LocationProvider.IsAvailable.Returns(false);
         this.maxMindProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo { IpAddress = "8.8.8.8" }));
         this.onlineApiProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
         {
@@ -229,6 +230,7 @@ public class DynamicGeoIpProxyTest
     [Test]
     public async Task LookupAsync_WhenActiveProviderThrows_CascadesToAvailableOnlineApiProvider()
     {
+        this.ip2LocationProvider.IsAvailable.Returns(false);
         this.maxMindProvider.LookupAsync("8.8.8.8").Returns<Task<GeoLocationInfo>>(_ => throw new System.IO.IOException("Disk read error"));
         this.onlineApiProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
         {

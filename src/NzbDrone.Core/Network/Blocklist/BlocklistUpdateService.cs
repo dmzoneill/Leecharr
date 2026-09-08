@@ -151,9 +151,10 @@ public class BlocklistUpdateService : IBlocklistUpdateService
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                if (!string.IsNullOrWhiteSpace(line))
+                var trimmed = line.Trim();
+                if (!string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("#") && !trimmed.StartsWith("//"))
                 {
-                    yield return line.Trim();
+                    yield return trimmed;
                 }
             }
 
@@ -184,9 +185,10 @@ public class BlocklistUpdateService : IBlocklistUpdateService
                         string line;
                         while ((line = reader.ReadLine()) != null)
                         {
-                            if (!string.IsNullOrWhiteSpace(line))
+                            var trimmed = line.Trim();
+                            if (!string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("#") && !trimmed.StartsWith("//"))
                             {
-                                yield return line.Trim();
+                                yield return trimmed;
                             }
                         }
                     }
@@ -206,9 +208,10 @@ public class BlocklistUpdateService : IBlocklistUpdateService
         string rawLine;
         while ((rawLine = rawReader.ReadLine()) != null)
         {
-            if (!string.IsNullOrWhiteSpace(rawLine))
+            var trimmed = rawLine.Trim();
+            if (!string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("#") && !trimmed.StartsWith("//"))
             {
-                yield return rawLine.Trim();
+                yield return trimmed;
             }
         }
     }
