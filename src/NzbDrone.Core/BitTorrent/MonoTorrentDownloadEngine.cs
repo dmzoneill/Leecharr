@@ -912,7 +912,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         {
                             var dirName = Path.GetFileName(containingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                             var incompleteDir = this.storagePathService.GetIncompleteDirectory();
-                            var downloadDir = this.configService.DownloadDir ?? "/downloads";
+                            var downloadDir = this.storagePathService.GetCompletedDirectory(null);
+                            var categoryDownloadDir = !string.IsNullOrWhiteSpace(task.Category) ? this.storagePathService.GetCompletedDirectory(task.Category) : null;
 
                             var isMatchingName = string.Equals(dirName, task.Manager.Torrent?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
                             var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
@@ -925,8 +926,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                     Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                     Path.GetFullPath(downloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                                     StringComparison.OrdinalIgnoreCase);
+                            var isRootCategory = !string.IsNullOrWhiteSpace(categoryDownloadDir) &&
+                                string.Equals(
+                                    Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    Path.GetFullPath(categoryDownloadDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                                    StringComparison.OrdinalIgnoreCase);
 
-                            if (isMatchingName && !isRootIncomplete && !isRootDownload)
+                            if (isMatchingName && !isRootIncomplete && !isRootDownload && !isRootCategory)
                             {
                                 await this.DeleteFolderWithRetryAsync(containingDir);
                             }
@@ -3060,6 +3066,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private IList<PeerId> cachedMonoPeers;
     private DateTime lastPeersUpdate = DateTime.MinValue;
     private bool isUpdatingPeers;
+    private DateTime lastTaskProtocolSample = DateTime.UtcNow;
+    private long lastTaskProtoDown;
+    private long lastTaskProtoUp;
+    private long lastTaskProtoDownSpeed;
+    private long lastTaskProtoUpSpeed;
 
     public string WorkingPath { get; set; }
 
@@ -3818,11 +3829,15 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         var openConns = this.Manager.OpenConnections;
         var isDownloading = this.Manager.State == TorrentState.Downloading || this.Manager.State == TorrentState.Starting;
-        var piecesInFlight = isDownloading ? Math.Min(openConns * 2, Math.Max(0, totalPieces - completedPieces)) : 0;
+        var inFlightBlocks = this.Picker?.InFlightBlockCount ?? 0;
+        var piecesInFlight = inFlightBlocks > 0
+            ? inFlightBlocks
+            : (isDownloading && this.Picker == null ? Math.Min(openConns * 2, Math.Max(0, totalPieces - completedPieces)) : 0);
         var pieceLength = this.Manager.Torrent?.PieceLength ?? (totalPieces > 0 && this.Manager.Torrent != null ? (int)(this.Manager.Torrent.Size / totalPieces) : 262144);
         var hashFails = this.Manager.HashFails;
         var wastedBytes = (long)hashFails * pieceLength;
-        var estMemBuffer = (long)piecesInFlight * pieceLength;
+        var estMemBuffer = (long)piecesInFlight * (this.Picker != null ? PiecePicker.DefaultBlockSize : pieceLength);
+        var diskPendingWrites = isDownloading ? inFlightBlocks : 0;
 
         var availabilityList = this.PieceAvailability;
         var swarmAvailability = 0.0;
@@ -3840,6 +3855,37 @@ public class MonoTorrentDownloadTask : IDownloadTask
         var isInactive = this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
         var downSpeed = isInactive ? 0 : (monitor?.DownloadRate ?? 0);
         var upSpeed = isInactive ? 0 : (monitor?.UploadRate ?? 0);
+
+        var now = DateTime.UtcNow;
+        var protoElapsedSec = Math.Max(0.001, (now - this.lastTaskProtocolSample).TotalSeconds);
+        var taskProtoDownSpeed = this.lastTaskProtoDownSpeed;
+        var taskProtoUpSpeed = this.lastTaskProtoUpSpeed;
+
+        if (isInactive)
+        {
+            taskProtoDownSpeed = 0;
+            taskProtoUpSpeed = 0;
+            this.lastTaskProtoDown = protoDown;
+            this.lastTaskProtoUp = protoUp;
+            this.lastTaskProtocolSample = now;
+            this.lastTaskProtoDownSpeed = 0;
+            this.lastTaskProtoUpSpeed = 0;
+        }
+        else if (protoElapsedSec >= 0.5)
+        {
+            var deltaProtoDown = protoDown - this.lastTaskProtoDown;
+            var deltaProtoUp = protoUp - this.lastTaskProtoUp;
+
+            taskProtoDownSpeed = (deltaProtoDown >= 0 && this.lastTaskProtoDown > 0) ? (long)Math.Max(0, Math.Round(deltaProtoDown / protoElapsedSec)) : 0;
+            taskProtoUpSpeed = (deltaProtoUp >= 0 && this.lastTaskProtoUp > 0) ? (long)Math.Max(0, Math.Round(deltaProtoUp / protoElapsedSec)) : 0;
+
+            this.lastTaskProtoDown = protoDown;
+            this.lastTaskProtoUp = protoUp;
+            this.lastTaskProtocolSample = now;
+            this.lastTaskProtoDownSpeed = taskProtoDownSpeed;
+            this.lastTaskProtoUpSpeed = taskProtoUpSpeed;
+        }
+
         var totalSize = this.Manager.Torrent?.Size ?? (long)totalPieces * pieceLength;
         long? etaSeconds = null;
         if (!isInactive && isDownloading && downSpeed > 0 && totalSize > dataDown)
@@ -3864,8 +3910,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
             TotalBytes = totalSize,
             PayloadDownloadSpeed = downSpeed,
             PayloadUploadSpeed = upSpeed,
-            ProtocolDownloadSpeed = 0,
-            ProtocolUploadSpeed = 0,
+            ProtocolDownloadSpeed = taskProtoDownSpeed,
+            ProtocolUploadSpeed = taskProtoUpSpeed,
             DownloadedPayload = dataDown,
             UploadedPayload = dataUp,
             ProtocolDownloaded = protoDown,
@@ -3885,7 +3931,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             PieceLength = pieceLength,
             HashFails = hashFails,
             WastedBytes = wastedBytes,
-            DiskPendingWrites = piecesInFlight,
+            DiskPendingWrites = diskPendingWrites,
             EstimatedMemoryBufferBytes = estMemBuffer,
             SwarmAvailability = swarmAvailability,
             Ratio = ratio,

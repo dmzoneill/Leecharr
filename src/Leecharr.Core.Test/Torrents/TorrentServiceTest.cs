@@ -1119,4 +1119,64 @@ public class TorrentServiceTest
             torrents.ElementAt(1).Id == 1 && torrents.ElementAt(1).QueuePosition == 2 &&
             torrents.ElementAt(2).Id == 2 && torrents.ElementAt(2).QueuePosition == 3));
     }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WithConfiguredAnnounceInterval_SetsTrackerAnnounceInterval()
+    {
+        this.configService.AnnounceIntervalSeconds.Returns(900);
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "abcdef1234567890abcdef1234567890abcdef12",
+            Name = "TrackerIntervalTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+            AnnounceUrl = "http://tracker.example.com/announce",
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            t.Id = 99;
+            t.DateAdded = DateTime.UtcNow;
+            return t;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed);
+
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(entry =>
+            entry.TorrentId == 99 &&
+            entry.AnnounceInterval == 900 &&
+            entry.Url == "http://tracker.example.com/announce"));
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_UsesStoragePathServiceForEffectiveSavePath()
+    {
+        this.storagePathService.GetCompletedDirectory("movies").Returns("/storage/pool/movies");
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "fedcba0987654321fedcba0987654321fedcba09",
+            Name = "StoragePathTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 101;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies");
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be("/storage/pool/movies");
+    }
 }
