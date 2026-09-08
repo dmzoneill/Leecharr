@@ -4242,7 +4242,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             {
                 socket.Bind(new IPEndPoint(localV4, localPort));
             }
-            else if (localPort > 0)
+            else if (localPort > 0 || socket.SocketType == SocketType.Dgram)
             {
                 socket.Bind(new IPEndPoint(IPAddress.Any, localPort));
             }
@@ -4258,7 +4258,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             {
                 socket.Bind(new IPEndPoint(localV6, localPort));
             }
-            else if (localPort > 0)
+            else if (localPort > 0 || socket.SocketType == SocketType.Dgram)
             {
                 socket.Bind(new IPEndPoint(IPAddress.IPv6Any, localPort));
             }

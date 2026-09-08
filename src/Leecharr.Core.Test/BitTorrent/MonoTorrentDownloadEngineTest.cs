@@ -2604,6 +2604,40 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_WithWildcardAddressAndEphemeralPort0_ExplicitlyBindsSocket()
+    {
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Any,
+            () => IPAddress.IPv6Any);
+
+        using var udpSocket = connector.CreateDatagramSocket(System.Net.Sockets.AddressFamily.InterNetwork, localPort: 0);
+
+        udpSocket.Should().NotBeNull();
+        udpSocket.SocketType.Should().Be(System.Net.Sockets.SocketType.Dgram);
+        udpSocket.ProtocolType.Should().Be(System.Net.Sockets.ProtocolType.Udp);
+        udpSocket.IsBound.Should().BeTrue();
+        ((IPEndPoint)udpSocket.LocalEndPoint!).Address.Should().Be(IPAddress.Any);
+        ((IPEndPoint)udpSocket.LocalEndPoint!).Port.Should().BeGreaterThan(0);
+    }
+
+    [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_IPv6WithWildcardAddressAndEphemeralPort0_ExplicitlyBindsSocket()
+    {
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Any,
+            () => IPAddress.IPv6Any);
+
+        using var udpSocket = connector.CreateDatagramSocket(System.Net.Sockets.AddressFamily.InterNetworkV6, localPort: 0);
+
+        udpSocket.Should().NotBeNull();
+        udpSocket.SocketType.Should().Be(System.Net.Sockets.SocketType.Dgram);
+        udpSocket.ProtocolType.Should().Be(System.Net.Sockets.ProtocolType.Udp);
+        udpSocket.IsBound.Should().BeTrue();
+        ((IPEndPoint)udpSocket.LocalEndPoint!).Address.Should().Be(IPAddress.IPv6Any);
+        ((IPEndPoint)udpSocket.LocalEndPoint!).Port.Should().BeGreaterThan(0);
+    }
+
+    [Test]
     public void BoundSocketConnector_CreateDatagramSocket_WhenLocalIpv4IsNull_ThrowsNetworkUnreachable()
     {
         var connector = new BoundSocketConnector(
