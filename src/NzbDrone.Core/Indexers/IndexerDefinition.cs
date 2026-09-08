@@ -36,4 +36,8 @@ public class IndexerDefinition : ModelBase
     public int DownloadClientId { get; set; }
 
     public List<int> Tags { get; set; } = new();
+
+    public int? ProwlarrIndexerId { get; set; }
+
+    public bool IsProwlarrManaged { get; set; }
 }
