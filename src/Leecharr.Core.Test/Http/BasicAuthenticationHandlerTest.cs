@@ -171,4 +171,46 @@ public class BasicAuthenticationHandlerTest
             failResult.Failure!.Message.Should().Be("Invalid Basic authentication credentials.");
         }
     }
+
+    [Test]
+    public async Task AuthenticateAsync_WithDatabaseUserCredentials_ReturnsSuccessWithRoles()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("apikey-not-matching");
+
+        var userService = Substitute.For<NzbDrone.Core.Authentication.IUserService>();
+        userService.Authenticate("dbuser", "secretpass").Returns(new NzbDrone.Core.Authentication.User
+        {
+            Id = 5,
+            Username = "dbuser",
+            Email = "dbuser@example.com",
+            DisplayName = "DB User",
+            Roles = "[\"Admin\",\"User\"]",
+        });
+
+        var optionsMonitor = Substitute.For<IOptionsMonitor<BasicAuthenticationOptions>>();
+        optionsMonitor.Get(BasicAuthenticationOptions.DefaultScheme).Returns(new BasicAuthenticationOptions());
+
+        var h = new BasicAuthenticationHandler(
+            optionsMonitor,
+            NullLoggerFactory.Instance,
+            UrlEncoder.Default,
+            this.configFileProvider,
+            userService);
+
+        var ctx = new DefaultHttpContext();
+        ctx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.0.2.2");
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("dbuser:secretpass"));
+        ctx.Request.Headers["Authorization"] = "Basic " + encoded;
+
+        var scheme = new AuthenticationScheme(BasicAuthenticationOptions.DefaultScheme, null, typeof(BasicAuthenticationHandler));
+        await h.InitializeAsync(scheme, ctx);
+
+        var result = await h.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal.Identity.Name.Should().Be("dbuser");
+        result.Principal.IsInRole("Admin").Should().BeTrue();
+        result.Principal.IsInRole("User").Should().BeTrue();
+    }
 }
