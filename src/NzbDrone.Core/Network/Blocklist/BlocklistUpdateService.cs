@@ -39,23 +39,22 @@ public class BlocklistUpdateService : IBlocklistUpdateService
             return 0;
         }
 
-        var rules = new List<string>();
+        var sources = new List<Func<IEnumerable<string>>>();
 
         // 1. Ingest from local file path if configured
         if (!string.IsNullOrWhiteSpace(this.configService.BlocklistPath))
         {
             try
             {
-                if (File.Exists(this.configService.BlocklistPath))
+                var filePath = this.configService.BlocklistPath;
+                if (File.Exists(filePath))
                 {
-                    var fileBytes = await File.ReadAllBytesAsync(this.configService.BlocklistPath, cancellationToken);
-                    var fileLines = ParseLines(fileBytes);
-                    rules.AddRange(fileLines);
-                    this.logger.Info("Read {0} raw blocklist lines from local path '{1}'.", fileLines.Count, this.configService.BlocklistPath);
+                    sources.Add(() => StreamFileLines(filePath));
+                    this.logger.Info("Configured local blocklist file source '{0}'.", filePath);
                 }
                 else
                 {
-                    this.logger.Warn("Configured blocklist path does not exist: '{0}'", this.configService.BlocklistPath);
+                    this.logger.Warn("Configured blocklist path does not exist: '{0}'", filePath);
                 }
             }
             catch (Exception ex)
@@ -76,9 +75,8 @@ public class BlocklistUpdateService : IBlocklistUpdateService
 
                 if (urlBytes != null && urlBytes.Length > 0)
                 {
-                    var urlLines = ParseLines(urlBytes);
-                    rules.AddRange(urlLines);
-                    this.logger.Info("Downloaded {0} raw blocklist lines from URL '{1}'.", urlLines.Count, this.configService.BlocklistUrl);
+                    sources.Add(() => ParseLines(urlBytes));
+                    this.logger.Info("Downloaded {0} bytes from blocklist URL '{1}'.", urlBytes.Length, this.configService.BlocklistUrl);
                 }
             }
             catch (Exception ex)
@@ -87,83 +85,140 @@ public class BlocklistUpdateService : IBlocklistUpdateService
             }
         }
 
-        if (rules.Count > 0)
+        if (sources.Count > 0)
         {
-            var loaded = await this.blocklistService.LoadRulesAsync(rules);
-            this.logger.Info("Blocklist rules refreshed: {0} rules loaded into active provider.", loaded);
-            return loaded;
+            IEnumerable<string> StreamAllRules()
+            {
+                foreach (var source in sources)
+                {
+                    foreach (var line in source())
+                    {
+                        yield return line;
+                    }
+                }
+            }
+
+            var loaded = await this.blocklistService.LoadRulesAsync(StreamAllRules());
+            if (loaded > 0)
+            {
+                this.logger.Info("Blocklist rules refreshed: {0} rules loaded into active provider.", loaded);
+                return loaded;
+            }
         }
 
         this.logger.Warn("No blocklist rules could be ingested from configured sources.");
         return 0;
     }
 
-    private static List<string> ParseLines(byte[] data)
+    public static IEnumerable<string> ParseLines(byte[] data)
     {
-        var lines = new List<string>();
         if (data == null || data.Length == 0)
         {
-            return lines;
+            yield break;
+        }
+
+        using var memStream = new MemoryStream(data, writable: false);
+        foreach (var line in ParseLines(memStream))
+        {
+            yield return line;
+        }
+    }
+
+    public static IEnumerable<string> ParseLines(Stream stream)
+    {
+        if (stream == null)
+        {
+            yield break;
+        }
+
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        var header = new byte[4];
+        var bytesRead = stream.Read(header, 0, 4);
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
         }
 
         // 1. Check GZip magic header (0x1f 0x8b)
-        if (data.Length >= 2 && data[0] == 0x1f && data[1] == 0x8b)
+        if (bytesRead >= 2 && header[0] == 0x1f && header[1] == 0x8b)
         {
-            using var stream = new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            using var reader = new StreamReader(gzipStream, Encoding.UTF8);
             string line;
             while ((line = reader.ReadLine()) != null)
             {
                 if (!string.IsNullOrWhiteSpace(line))
                 {
-                    lines.Add(line.Trim());
+                    yield return line.Trim();
                 }
             }
 
-            return lines;
+            yield break;
         }
 
         // 2. Check ZIP archive magic header (0x50 0x4B 0x03 0x04)
-        if (data.Length >= 4 && data[0] == 0x50 && data[1] == 0x4B && (data[2] == 0x03 || data[2] == 0x05 || data[2] == 0x07))
+        if (bytesRead >= 4 && header[0] == 0x50 && header[1] == 0x4B && (header[2] == 0x03 || header[2] == 0x05 || header[2] == 0x07))
         {
+            ZipArchive archive = null;
             try
             {
-                using var memStream = new MemoryStream(data);
-                using var archive = new ZipArchive(memStream, ZipArchiveMode.Read);
-                foreach (var entry in archive.Entries)
+                archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            }
+            catch
+            {
+                archive = null;
+            }
+
+            if (archive != null)
+            {
+                using (archive)
                 {
-                    using var entryStream = entry.Open();
-                    using var reader = new StreamReader(entryStream, Encoding.UTF8);
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
+                    foreach (var entry in archive.Entries)
                     {
-                        if (!string.IsNullOrWhiteSpace(line))
+                        using var entryStream = entry.Open();
+                        using var reader = new StreamReader(entryStream, Encoding.UTF8);
+                        string line;
+                        while ((line = reader.ReadLine()) != null)
                         {
-                            lines.Add(line.Trim());
+                            if (!string.IsNullOrWhiteSpace(line))
+                            {
+                                yield return line.Trim();
+                            }
                         }
                     }
                 }
 
-                return lines;
-            }
-            catch
-            {
-                // If zip extraction fails, fallback to raw text parsing
+                yield break;
             }
         }
 
         // 3. Fallback to raw text
-        using var rawStream = new MemoryStream(data);
-        using var rawReader = new StreamReader(rawStream, Encoding.UTF8);
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        using var rawReader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
         string rawLine;
         while ((rawLine = rawReader.ReadLine()) != null)
         {
             if (!string.IsNullOrWhiteSpace(rawLine))
             {
-                lines.Add(rawLine.Trim());
+                yield return rawLine.Trim();
             }
         }
+    }
 
-        return lines;
+    private static IEnumerable<string> StreamFileLines(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        foreach (var line in ParseLines(stream))
+        {
+            yield return line;
+        }
     }
 }
