@@ -46,6 +46,12 @@ public class MessageHubTest
         this.hubCallerContext.Features.Returns(this.featureCollection);
     }
 
+    [TearDown]
+    public void TearDown()
+    {
+        MessageHub.ResetForTesting();
+    }
+
     [Test]
     public async Task OnConnectedAsync_WhenAuthDisabled_AcceptsConnectionAndSendsVersion()
     {
