@@ -8,12 +8,9 @@ namespace NzbDrone.Core.Authentication;
 
 public class UserRepository : BasicRepository<User>, IUserRepository
 {
-    private readonly IDatabase database;
-
     public UserRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public override User Insert(User model)
@@ -57,10 +54,10 @@ public class UserRepository : BasicRepository<User>, IUserRepository
         }
 
         var normalized = username.Trim().ToLowerInvariant();
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Username\" = @Username",
-            new { Username = normalized });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<User>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Username\" = @Username",
+                new { Username = normalized }));
     }
 
     public User FindByEmail(string email)
@@ -71,32 +68,32 @@ public class UserRepository : BasicRepository<User>, IUserRepository
         }
 
         var normalized = email.Trim().ToLowerInvariant();
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email",
-            new { Email = normalized });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<User>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email",
+                new { Email = normalized }));
     }
 
     public User FindByIdentifier(Guid identifier)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Identifier\" = @Identifier",
-            new { Identifier = identifier });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<User>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Identifier\" = @Identifier",
+                new { Identifier = identifier }));
     }
 
     public User FindByExternalId(string providerId, string externalSubjectId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"ExternalProviderId\" = @ProviderId AND \"ExternalSubjectId\" = @ExternalSubjectId",
-            new { ProviderId = providerId, ExternalSubjectId = externalSubjectId });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<User>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"ExternalProviderId\" = @ProviderId AND \"ExternalSubjectId\" = @ExternalSubjectId",
+                new { ProviderId = providerId, ExternalSubjectId = externalSubjectId }));
     }
 
     public int GetUserCount()
     {
-        using var connection = this.database.OpenConnection();
-        return connection.ExecuteScalar<int>($"SELECT COUNT(*) FROM \"{this.table}\"");
+        return this.ExecuteWithRetry(connection =>
+            connection.ExecuteScalar<int>($"SELECT COUNT(*) FROM \"{this.table}\""));
     }
 
     private static void NormalizeUser(User model)

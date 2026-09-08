@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
@@ -265,5 +266,131 @@ public class BasicRepositoryTest
         sql.Should().Contain("\"TagIds\"");
         sql.Should().Contain("\"Ratio\"");
         sql.Should().Contain("\"Progress\"");
+    }
+
+    [Test]
+    public void ExecuteWithRetry_RetriesOnSqliteBusy_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        var result = repo.TestExecuteWithRetry(conn =>
+        {
+            attempts++;
+            if (attempts < 3)
+            {
+                throw new SqliteException("database is locked", 5);
+            }
+
+            return 42;
+        });
+
+        attempts.Should().Be(3);
+        result.Should().Be(42);
+    }
+
+    [Test]
+    public void ExecuteWithRetry_Void_RetriesOnSqliteBusy_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        repo.TestExecuteWithRetry(conn =>
+        {
+            attempts++;
+            if (attempts < 2)
+            {
+                throw new SqliteException("database is locked", 5);
+            }
+        });
+
+        attempts.Should().Be(2);
+    }
+
+    [Test]
+    public async Task ExecuteWithRetryAsync_RetriesOnSqliteBusy_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        var result = await repo.TestExecuteWithRetryAsync(async conn =>
+        {
+            await Task.Yield();
+            attempts++;
+            if (attempts < 3)
+            {
+                throw new SqliteException("database is locked", 5);
+            }
+
+            return "success";
+        });
+
+        attempts.Should().Be(3);
+        result.Should().Be("success");
+    }
+
+    [Test]
+    public async Task ExecuteWithRetryAsync_Void_RetriesOnSqliteBusy_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        await repo.TestExecuteWithRetryAsync(async conn =>
+        {
+            await Task.Yield();
+            attempts++;
+            if (attempts < 2)
+            {
+                throw new SqliteException("database is locked", 5);
+            }
+        });
+
+        attempts.Should().Be(2);
+    }
+
+    [Test]
+    public void ExecuteWithRetry_ThrowsNonBusySqliteException_WithoutRetrying()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        var act = () => repo.TestExecuteWithRetry<int>(conn =>
+        {
+            attempts++;
+            throw new SqliteException("syntax error", 1);
+        });
+
+        act.Should().Throw<SqliteException>().Where(ex => ex.SqliteErrorCode == 1);
+        attempts.Should().Be(1);
+    }
+
+    private class TestableRepository : BasicRepository<Torrent>
+    {
+        public TestableRepository(IDatabase database, IEventAggregator eventAggregator = null)
+            : base(database, eventAggregator)
+        {
+        }
+
+        public TResult TestExecuteWithRetry<TResult>(Func<System.Data.IDbConnection, TResult> action) =>
+            this.ExecuteWithRetry(action);
+
+        public void TestExecuteWithRetry(Action<System.Data.IDbConnection> action) =>
+            this.ExecuteWithRetry(action);
+
+        public Task<TResult> TestExecuteWithRetryAsync<TResult>(Func<System.Data.IDbConnection, Task<TResult>> action) =>
+            this.ExecuteWithRetryAsync(action);
+
+        public Task TestExecuteWithRetryAsync(Func<System.Data.IDbConnection, Task> action) =>
+            this.ExecuteWithRetryAsync(action);
     }
 }

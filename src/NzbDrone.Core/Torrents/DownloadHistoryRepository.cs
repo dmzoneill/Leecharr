@@ -10,12 +10,9 @@ namespace NzbDrone.Core.Torrents;
 
 public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDownloadHistoryRepository
 {
-    private readonly IDatabase database;
-
     public DownloadHistoryRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public override DownloadHistory Insert(DownloadHistory model)
@@ -59,23 +56,22 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         }
 
         var normalized = infoHash.Trim().ToLowerInvariant();
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
-            new { InfoHash = normalized });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<DownloadHistory>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+                new { InfoHash = normalized }));
     }
 
     public DownloadHistory FindByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
-            new { TorrentId = torrentId });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<DownloadHistory>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
+                new { TorrentId = torrentId }));
     }
 
     public List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500)
     {
-        using var connection = this.database.OpenConnection();
         var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
         var parameters = new DynamicParameters();
 
@@ -99,13 +95,14 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
             parameters.Add("Limit", limit);
         }
 
-        return connection.Query<DownloadHistory>(sql.ToString(), parameters).ToList();
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<DownloadHistory>(sql.ToString(), parameters).ToList());
     }
 
     public void DeleteAll()
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute($"DELETE FROM \"{this.table}\"");
+        this.ExecuteWithRetry(connection =>
+            connection.Execute($"DELETE FROM \"{this.table}\""));
     }
 
     private static void NormalizeDownloadHistory(DownloadHistory model)
