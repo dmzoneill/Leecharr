@@ -460,16 +460,32 @@ public class FloodApiControllerTest
         output.Should().Contain("Stream Torrent");
     }
 
-    [TestCase(TorrentStatus.Downloading, "downloading")]
-    [TestCase(TorrentStatus.Seeding, "seeding")]
-    [TestCase(TorrentStatus.Completed, "complete")]
-    [TestCase(TorrentStatus.Checking, "checking")]
-    [TestCase(TorrentStatus.Paused, "stopped")]
-    [TestCase(TorrentStatus.Stopped, "complete")]
-    [TestCase(TorrentStatus.Error, "error")]
-    [TestCase(TorrentStatus.Queued, "inactive")]
-    public void MapToFloodStatus_MapsStatusCorrectly(TorrentStatus status, string expected)
+    [TestCase(TorrentStatus.Downloading, 0.5, "downloading")]
+    [TestCase(TorrentStatus.Seeding, 1.0, "seeding")]
+    [TestCase(TorrentStatus.Completed, 1.0, "complete")]
+    [TestCase(TorrentStatus.Checking, 0.2, "checking")]
+    [TestCase(TorrentStatus.Paused, 0.0, "stopped")]
+    [TestCase(TorrentStatus.Paused, 0.5, "stopped")]
+    [TestCase(TorrentStatus.Paused, 1.0, "complete")]
+    [TestCase(TorrentStatus.Stopped, 0.0, "stopped")]
+    [TestCase(TorrentStatus.Stopped, 0.45, "stopped")]
+    [TestCase(TorrentStatus.Stopped, 1.0, "complete")]
+    [TestCase(TorrentStatus.Error, 0.1, "error")]
+    [TestCase(TorrentStatus.Queued, 0.0, "inactive")]
+    public void MapToFloodStatus_WithProgress_MapsStatusCorrectly(TorrentStatus status, double progress, string expected)
     {
-        FloodApiController.MapToFloodStatus(status).Should().Be(expected);
+        FloodApiController.MapToFloodStatus(status, progress).Should().Be(expected);
+    }
+
+    [Test]
+    public void MapToFloodStatus_WithTorrent_MapsCorrectly()
+    {
+        FloodApiController.MapToFloodStatus((Torrent)null!).Should().Be("inactive");
+
+        var incompleteStopped = new Torrent { Status = TorrentStatus.Stopped, Progress = 0.35 };
+        FloodApiController.MapToFloodStatus(incompleteStopped).Should().Be("stopped");
+
+        var completeStopped = new Torrent { Status = TorrentStatus.Stopped, Progress = 1.0 };
+        FloodApiController.MapToFloodStatus(completeStopped).Should().Be("complete");
     }
 }
