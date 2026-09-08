@@ -1013,4 +1013,89 @@ public class TorrentServiceTest
         this.service.GetEffectiveDownloadLimit(torrentOverride).Should().Be(7500);
         this.service.GetEffectiveUploadLimit(torrentOverride).Should().Be(2500);
     }
+
+    [Test]
+    public void Get_WhenZeroDownloadedAndZeroTotalSize_CalculatesZeroRatioWithoutDivisionByZero()
+    {
+        var torrent = new Torrent
+        {
+            Id = 701,
+            Name = "Zero Size Torrent",
+            TotalSize = 0,
+            Downloaded = 0,
+            Uploaded = 1000,
+            Progress = 0.0,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentRepository.Get(701).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.0);
+        task.DownloadedBytes.Returns(0);
+        task.UploadedBytes.Returns(1000);
+        this.downloadEngine.GetTask(701).Returns(task);
+
+        var result = this.service.Get(701);
+
+        result.Ratio.Should().Be(0.0);
+        double.IsNaN(result.Ratio).Should().BeFalse();
+        double.IsInfinity(result.Ratio).Should().BeFalse();
+    }
+
+    [Test]
+    public void Get_WhenZeroSizeAndZeroUploaded_CalculatesZeroRatioWithoutDivisionByZero()
+    {
+        var torrent = new Torrent
+        {
+            Id = 702,
+            Name = "Zero Size Zero Uploaded Torrent",
+            TotalSize = 0,
+            Downloaded = 0,
+            Uploaded = 0,
+            Progress = 0.0,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentRepository.Get(702).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.0);
+        task.DownloadedBytes.Returns(0);
+        task.UploadedBytes.Returns(0);
+        this.downloadEngine.GetTask(702).Returns(task);
+
+        var result = this.service.Get(702);
+
+        result.Ratio.Should().Be(0.0);
+        double.IsNaN(result.Ratio).Should().BeFalse();
+        double.IsInfinity(result.Ratio).Should().BeFalse();
+    }
+
+    [Test]
+    public void Get_WhenZeroDownloadedWithPositiveTotalSizeAndZeroUploaded_CalculatesZeroRatio()
+    {
+        var torrent = new Torrent
+        {
+            Id = 703,
+            Name = "Zero Uploaded Torrent",
+            TotalSize = 5000,
+            Downloaded = 0,
+            Uploaded = 0,
+            Progress = 0.0,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentRepository.Get(703).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.0);
+        task.DownloadedBytes.Returns(0);
+        task.UploadedBytes.Returns(0);
+        this.downloadEngine.GetTask(703).Returns(task);
+
+        var result = this.service.Get(703);
+
+        result.Ratio.Should().Be(0.0);
+    }
 }

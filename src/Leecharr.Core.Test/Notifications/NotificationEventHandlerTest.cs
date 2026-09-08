@@ -25,13 +25,32 @@ public class NotificationEventHandlerTest
     private IConfigService configService = null!;
     private IMediaEnrichmentService mediaEnrichmentService = null!;
     private NotificationEventHandler handler = null!;
+    private TaskCompletionSource<bool> webhookTcs = null!;
+    private TaskCompletionSource<bool> scriptTcs = null!;
 
     [SetUp]
     public void SetUp()
     {
+        this.webhookTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.scriptTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         this.notificationRepository = Substitute.For<INotificationRepository>();
         this.webhookDispatcher = Substitute.For<IWebhookDispatcher>();
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(ci =>
+            {
+                this.webhookTcs.TrySetResult(true);
+                return Task.CompletedTask;
+            });
+
         this.customScriptService = Substitute.For<ICustomScriptService>();
+        this.customScriptService.ExecuteScriptAsync(Arg.Any<string>(), Arg.Any<Torrent>(), Arg.Any<string>())
+            .Returns(ci =>
+            {
+                this.scriptTcs.TrySetResult(true);
+                return Task.CompletedTask;
+            });
+
         this.configService = Substitute.For<IConfigService>();
         this.mediaEnrichmentService = Substitute.For<IMediaEnrichmentService>();
 
@@ -73,7 +92,7 @@ public class NotificationEventHandlerTest
             NewStatus = TorrentStatus.Stalled,
         });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -109,7 +128,7 @@ public class NotificationEventHandlerTest
             NewStatus = TorrentStatus.Downloading,
         });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -141,7 +160,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new HealthIssueEvent(torrent, "Tracker", "Tracker error: Connection refused", isResolved: false));
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -172,7 +191,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new HealthIssueEvent(torrent, "Tracker", "Tracker recovered", isResolved: true));
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -263,7 +282,7 @@ public class NotificationEventHandlerTest
             NewStatus = TorrentStatus.Stalled,
         });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.telegram.org/botbot-secret-123/sendMessage",
@@ -300,7 +319,7 @@ public class NotificationEventHandlerTest
             NewStatus = TorrentStatus.Stalled,
         });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.pushover.net/1/messages.json",
@@ -358,7 +377,7 @@ public class NotificationEventHandlerTest
             NewStatus = TorrentStatus.Stopped,
         });
 
-        await Task.Delay(100);
+        await Task.Delay(10);
 
         await this.webhookDispatcher.DidNotReceive().DispatchAsync(
             Arg.Any<string>(),
@@ -398,7 +417,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentSeedGoalReachedEvent(torrent));
 
-        await Task.Delay(150);
+        await Task.WhenAll(this.webhookTcs.Task, this.scriptTcs.Task).WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/seedgoal",
@@ -444,7 +463,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -476,7 +495,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new HealthIssueEvent(torrent, "Tracker", "Connection reset", isResolved: false));
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -501,7 +520,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new ApplicationUpdatedEvent { PreviousVersion = "1.0.0", NewVersion = "1.1.0" });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -526,7 +545,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new VpnKillSwitchTriggeredEvent("wg0"));
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
@@ -601,7 +620,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.telegram.org/botbot-token-abc/sendMessage",
@@ -655,7 +674,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://apprise-server:8000/notify",
@@ -695,7 +714,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://hooks.slack.com/services/T00/B00/X00",
@@ -851,7 +870,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
 
-        await Task.Delay(100);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://discord.com/api/webhooks/123/xyz",
@@ -916,6 +935,19 @@ public class NotificationEventHandlerTest
 
         this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { healthNotification, manualNotification });
 
+        var multiWebhookTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dispatchCount = 0;
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(ci =>
+            {
+                if (System.Threading.Interlocked.Increment(ref dispatchCount) >= 2)
+                {
+                    multiWebhookTcs.TrySetResult(true);
+                }
+
+                return Task.CompletedTask;
+            });
+
         var torrent = new Torrent
         {
             Id = 55,
@@ -932,7 +964,7 @@ public class NotificationEventHandlerTest
             ErrorMessage = "Corrupt archive volume",
         });
 
-        await Task.Delay(100);
+        await multiWebhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "http://test/webhook-health",
@@ -996,7 +1028,7 @@ public class NotificationEventHandlerTest
 
         this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
-        await Task.Delay(150);
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "http://test/webhook-nested",

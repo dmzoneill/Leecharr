@@ -398,4 +398,28 @@ public class UdpTrackerServiceTest
         receivedPeerIp.Should().Be(peerIpv6);
         BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(36, 2)).Should().Be(6881);
     }
+
+    [TestCase(0)]
+    [TestCase(4)]
+    [TestCase(8)]
+    [TestCase(11)]
+    [TestCase(12)] // 8-byte conn id + 4-byte action, missing 4-byte transaction id
+    [TestCase(15)] // 1 byte short of 16-byte header
+    public void HandlePacket_TruncatedTransactionIdOrHeader_ReturnsNullWithoutThrowing(int packetLength)
+    {
+        var packet = new byte[packetLength];
+        if (packetLength >= 8)
+        {
+            BinaryPrimitives.WriteInt64BigEndian(packet.AsSpan(0, 8), 0x41727101980L);
+        }
+
+        if (packetLength >= 12)
+        {
+            BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8, 4), 0); // Action = Connect
+        }
+
+        var result = this.udpTrackerService.HandlePacket(packet, new IPEndPoint(IPAddress.Loopback, 12345));
+
+        result.Should().BeNull();
+    }
 }

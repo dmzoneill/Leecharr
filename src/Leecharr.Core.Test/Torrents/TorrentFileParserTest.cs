@@ -623,4 +623,33 @@ public class TorrentFileParserTest
         act.Should().Throw<InvalidTorrentFileException>()
             .WithMessage("*exceeds maximum recursion depth*");
     }
+
+    [Test]
+    public void Parse_WhenBytesEmpty_ThrowsInvalidTorrentFileException()
+    {
+        var act = () => this.parser.Parse(Array.Empty<byte>());
+        act.Should().Throw<InvalidTorrentFileException>();
+    }
+
+    [Test]
+    public void Parse_WhenTorrentBufferIsTruncated_ThrowsInvalidTorrentFileException()
+    {
+        var validBytes = CreateTorrentBytes();
+        var truncatedBytes = new byte[validBytes.Length / 2];
+        Array.Copy(validBytes, truncatedBytes, truncatedBytes.Length);
+
+        var act = () => this.parser.Parse(truncatedBytes);
+        act.Should().Throw<InvalidTorrentFileException>();
+    }
+
+    [TestCase("d4:info")]
+    [TestCase("d4:infod12:piece lengthi16384e")]
+    [TestCase("d")]
+    public void Parse_WhenBencodeStructureIsTruncated_ThrowsInvalidTorrentFileException(string truncatedBencode)
+    {
+        var bytes = Encoding.UTF8.GetBytes(truncatedBencode);
+
+        var act = () => this.parser.Parse(bytes);
+        act.Should().Throw<InvalidTorrentFileException>();
+    }
 }

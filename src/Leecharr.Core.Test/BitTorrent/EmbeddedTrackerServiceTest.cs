@@ -334,15 +334,16 @@ public class EmbeddedTrackerServiceTest
     [Test]
     public void ProcessAnnounce_SwarmLimitReached_PrunesInactivePeersFromUnregisteredSwarms()
     {
+        var fakeTime = new FakeTimeProvider();
+        using var tracker = new EmbeddedTrackerService(this.configService, this.torrentRepository, maxSwarms: 2, timeProvider: fakeTime);
         this.configService.TrackerAnnounceInterval.Returns(1);
-        this.trackerService.MaxSwarms = 2;
 
         var hex1 = "1111111111111111111111111111111111111111";
         var hex2 = "2222222222222222222222222222222222222222";
         var hex3 = "3333333333333333333333333333333333333333";
 
         // Peer announces to swarm 1 first
-        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        tracker.ProcessAnnounce(new TrackerAnnounceRequest
         {
             InfoHashHex = hex1,
             RemoteIp = IPAddress.Parse("10.0.0.1"),
@@ -351,7 +352,7 @@ public class EmbeddedTrackerServiceTest
         });
 
         // Peer announces to swarm 2 second
-        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        tracker.ProcessAnnounce(new TrackerAnnounceRequest
         {
             InfoHashHex = hex2,
             RemoteIp = IPAddress.Parse("10.0.0.2"),
@@ -359,10 +360,10 @@ public class EmbeddedTrackerServiceTest
             Left = 100,
         });
 
-        this.trackerService.ActiveSwarmsCount.Should().Be(2);
+        tracker.ActiveSwarmsCount.Should().Be(2);
 
-        // Wait for peer in swarm 1 & 2 to exceed 2x interval (2 seconds)
-        Thread.Sleep(2100);
+        // Advance time past 2x interval (2 seconds)
+        fakeTime.Advance(TimeSpan.FromSeconds(3));
 
         // Now announce to swarm 3 (new swarm). Capacity is full (2/2), but inactive peers in unregistered swarms are pruned.
         var req = new TrackerAnnounceRequest
@@ -373,11 +374,11 @@ public class EmbeddedTrackerServiceTest
             Left = 0,
         };
 
-        var bytes = this.trackerService.ProcessAnnounce(req);
+        var bytes = tracker.ProcessAnnounce(req);
         var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
         dict.ContainsKey("failure reason").Should().BeFalse();
 
-        this.trackerService.ActiveSwarmsCount.Should().BeGreaterThan(0);
+        tracker.ActiveSwarmsCount.Should().BeGreaterThan(0);
     }
 
     [Test]
@@ -965,5 +966,14 @@ public class EmbeddedTrackerServiceTest
         var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
         dict.ContainsKey("tracker id").Should().BeTrue();
         dict["tracker id"].ToString().Should().Be("custom-tracker-session-42");
+    }
+
+    private sealed class FakeTimeProvider : TimeProvider
+    {
+        private DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        public override DateTimeOffset GetUtcNow() => this.now;
+
+        public void Advance(TimeSpan delta) => this.now += delta;
     }
 }
