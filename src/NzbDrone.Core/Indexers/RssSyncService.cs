@@ -82,108 +82,82 @@ public class RssSyncService : IRssSyncService
 
             var grabbedCount = 0;
 
-        foreach (var indexer in activeIndexers)
-        {
-            try
+            foreach (var indexer in activeIndexers)
             {
-                var releases = await this.torznabClient.FetchRssAsync(indexer);
-                foreach (var release in releases)
+                try
                 {
-                    if (release != null)
+                    var releases = await this.torznabClient.FetchRssAsync(indexer);
+                    foreach (var release in releases)
                     {
-                        if (!string.IsNullOrWhiteSpace(release.InfoHash))
+                        if (release != null)
                         {
-                            release.InfoHash = MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
-                        }
-                        else if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
-                        {
-                            try
+                            if (!string.IsNullOrWhiteSpace(release.InfoHash))
                             {
-                                var parsed = MagnetLinkParser.Parse(release.MagnetUrl);
-                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                release.InfoHash = MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
+                            {
+                                try
                                 {
-                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                    var parsed = MagnetLinkParser.Parse(release.MagnetUrl);
+                                    if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                    {
+                                        release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                    }
+                                }
+                                catch
+                                {
                                 }
                             }
-                            catch
+                            else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
                             {
-                            }
-                        }
-                        else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
-                        {
-                            try
-                            {
-                                var parsed = MagnetLinkParser.Parse(release.DownloadUrl);
-                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                try
                                 {
-                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                    var parsed = MagnetLinkParser.Parse(release.DownloadUrl);
+                                    if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                    {
+                                        release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                    }
+                                }
+                                catch
+                                {
                                 }
                             }
-                            catch
-                            {
-                            }
                         }
-                    }
 
-                    var releaseId = GetReleaseId(release);
-                    if (this.IsAlreadyGrabbed(release, releaseId))
-                    {
-                        continue;
-                    }
-
-                    foreach (var rule in activeRules)
-                    {
-                        if (rule.IndexerIds != null && rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
+                        var releaseId = GetReleaseId(release);
+                        if (this.IsAlreadyGrabbed(release, releaseId))
                         {
                             continue;
                         }
 
-                        if (this.MatchesRule(release, rule))
+                        foreach (var rule in activeRules)
                         {
-                            this.logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
-
-                            string categoryName = null;
-                            string savePath = null;
-                            if (rule.CategoryId > 0 && this.categoryService != null)
+                            if (rule.IndexerIds != null && rule.IndexerIds.Count > 0 && !rule.IndexerIds.Contains(indexer.Id))
                             {
-                                var cat = this.categoryService.Get(rule.CategoryId);
-                                categoryName = cat?.Name;
-                                savePath = cat?.SavePath;
+                                continue;
                             }
 
-                            Torrent addedTorrent = null;
-                            var grabbed = false;
-                            try
+                            if (this.MatchesRule(release, rule))
                             {
-                                if (!string.IsNullOrEmpty(release.MagnetUrl))
+                                this.logger.Info("RSS Rule '{0}' matched release: '{1}'. Grabbing...", rule.Name, release.Title);
+
+                                string categoryName = null;
+                                string savePath = null;
+                                if (rule.CategoryId > 0 && this.categoryService != null)
                                 {
-                                    var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash);
-                                    if (!string.IsNullOrWhiteSpace(magnetInfoHash))
-                                    {
-                                        var existingTorrent = this.torrentService?.GetByInfoHash(magnetInfoHash);
-                                        var existingHistory = this.downloadHistoryService?.GetByInfoHash(magnetInfoHash);
-
-                                        if (existingTorrent != null || existingHistory != null)
-                                        {
-                                            if (!string.IsNullOrEmpty(releaseId))
-                                            {
-                                                this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                            }
-
-                                            this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
-                                            this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
-                                            break;
-                                        }
-                                    }
-
-                                    addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl, categoryName, savePath);
-                                    grabbed = true;
+                                    var cat = this.categoryService.Get(rule.CategoryId);
+                                    categoryName = cat?.Name;
+                                    savePath = cat?.SavePath;
                                 }
-                                else if (!string.IsNullOrEmpty(release.DownloadUrl))
+
+                                Torrent addedTorrent = null;
+                                var grabbed = false;
+                                try
                                 {
-                                    if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                                    if (!string.IsNullOrEmpty(release.MagnetUrl))
                                     {
-                                        var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash);
+                                        var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash);
                                         if (!string.IsNullOrWhiteSpace(magnetInfoHash))
                                         {
                                             var existingTorrent = this.torrentService?.GetByInfoHash(magnetInfoHash);
@@ -202,52 +176,103 @@ public class RssSyncService : IRssSyncService
                                             }
                                         }
 
-                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl, categoryName, savePath);
+                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl, categoryName, savePath);
                                         grabbed = true;
                                     }
-                                    else
+                                    else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                     {
-                                        var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
-                                        var parsed = this.torrentFileParser.Parse(torrentBytes);
-                                        var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
-
-                                        if (!string.IsNullOrWhiteSpace(parsedInfoHash))
+                                        if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            var existingTorrent = this.torrentService?.GetByInfoHash(parsedInfoHash);
-                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsedInfoHash);
-
-                                            if (existingTorrent != null || existingHistory != null)
+                                            var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash);
+                                            if (!string.IsNullOrWhiteSpace(magnetInfoHash))
                                             {
-                                                if (!string.IsNullOrEmpty(releaseId))
+                                                var existingTorrent = this.torrentService?.GetByInfoHash(magnetInfoHash);
+                                                var existingHistory = this.downloadHistoryService?.GetByInfoHash(magnetInfoHash);
+
+                                                if (existingTorrent != null || existingHistory != null)
                                                 {
-                                                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                                                    if (!string.IsNullOrEmpty(releaseId))
+                                                    {
+                                                        this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                                                    }
+
+                                                    this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
+                                                    this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
+                                                    break;
                                                 }
-
-                                                this.grabbedReleaseIds.TryAdd(parsedInfoHash, 0);
-                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
-                                                break;
                                             }
-                                        }
 
-                                        addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
-                                        grabbed = true;
+                                            addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl, categoryName, savePath);
+                                            grabbed = true;
+                                        }
+                                        else
+                                        {
+                                            var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+                                            var parsed = this.torrentFileParser.Parse(torrentBytes);
+                                            var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
+
+                                            if (!string.IsNullOrWhiteSpace(parsedInfoHash))
+                                            {
+                                                var existingTorrent = this.torrentService?.GetByInfoHash(parsedInfoHash);
+                                                var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsedInfoHash);
+
+                                                if (existingTorrent != null || existingHistory != null)
+                                                {
+                                                    if (!string.IsNullOrEmpty(releaseId))
+                                                    {
+                                                        this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                                                    }
+
+                                                    this.grabbedReleaseIds.TryAdd(parsedInfoHash, 0);
+                                                    this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
+                                                    break;
+                                                }
+                                            }
+
+                                            addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
+                                            grabbed = true;
+                                        }
                                     }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                this.logger.Error(ex, "Failed to grab release {0}", release.Title);
-                            }
-
-                            if (grabbed && addedTorrent != null)
-                            {
-                                var normalizedAddedHash = MagnetLinkParser.NormalizeInfoHash(addedTorrent.InfoHash);
-                                var existingHistoryEntry = !string.IsNullOrEmpty(normalizedAddedHash)
-                                    ? this.downloadHistoryService?.GetByInfoHash(normalizedAddedHash)
-                                    : null;
-
-                                if (existingHistoryEntry != null)
+                                catch (Exception ex)
                                 {
+                                    this.logger.Error(ex, "Failed to grab release {0}", release.Title);
+                                }
+
+                                if (grabbed && addedTorrent != null)
+                                {
+                                    var normalizedAddedHash = MagnetLinkParser.NormalizeInfoHash(addedTorrent.InfoHash);
+                                    var existingHistoryEntry = !string.IsNullOrEmpty(normalizedAddedHash)
+                                        ? this.downloadHistoryService?.GetByInfoHash(normalizedAddedHash)
+                                        : null;
+
+                                    if (existingHistoryEntry != null)
+                                    {
+                                        if (!string.IsNullOrEmpty(releaseId))
+                                        {
+                                            this.grabbedReleaseIds.TryAdd(releaseId, 0);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(normalizedAddedHash))
+                                        {
+                                            this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
+                                        }
+
+                                        this.logger.Info("Release '{0}' with infohash '{1}' already exists in download history. Skipping duplicate recording.", release.Title, normalizedAddedHash);
+                                        break;
+                                    }
+
+                                    var effectiveMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
+                                        ? release.MagnetUrl
+                                        : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
+
+                                    this.downloadHistoryService?.RecordTorrentAdded(
+                                        addedTorrent,
+                                        source: $"RSS: {rule.Name}",
+                                        magnetUrl: effectiveMagnet,
+                                        downloadUrl: release.DownloadUrl,
+                                        indexerName: indexer.Name);
+
                                     if (!string.IsNullOrEmpty(releaseId))
                                     {
                                         this.grabbedReleaseIds.TryAdd(releaseId, 0);
@@ -258,51 +283,26 @@ public class RssSyncService : IRssSyncService
                                         this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
                                     }
 
-                                    this.logger.Info("Release '{0}' with infohash '{1}' already exists in download history. Skipping duplicate recording.", release.Title, normalizedAddedHash);
+                                    grabbedCount++;
                                     break;
                                 }
-
-                                var effectiveMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
-                                    ? release.MagnetUrl
-                                    : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
-
-                                this.downloadHistoryService?.RecordTorrentAdded(
-                                    addedTorrent,
-                                    source: $"RSS: {rule.Name}",
-                                    magnetUrl: effectiveMagnet,
-                                    downloadUrl: release.DownloadUrl,
-                                    indexerName: indexer.Name);
-
-                                if (!string.IsNullOrEmpty(releaseId))
-                                {
-                                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                }
-
-                                if (!string.IsNullOrEmpty(normalizedAddedHash))
-                                {
-                                    this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
-                                }
-
-                                grabbedCount++;
-                                break;
                             }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error syncing RSS for indexer: {0}", indexer.Name);
+                }
             }
-            catch (Exception ex)
-            {
-                this.logger.Error(ex, "Error syncing RSS for indexer: {0}", indexer.Name);
-            }
-        }
 
-        return grabbedCount;
+            return grabbedCount;
+        }
+        finally
+        {
+            this.syncLock.Release();
+        }
     }
-    finally
-    {
-        this.syncLock.Release();
-    }
-}
 
     private bool IsAlreadyGrabbed(TorznabSearchResult release, string releaseId)
     {

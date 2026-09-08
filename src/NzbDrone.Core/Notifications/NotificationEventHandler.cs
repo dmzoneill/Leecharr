@@ -233,20 +233,37 @@ public class NotificationEventHandler :
 
     public void Handle(HealthIssueEvent message)
     {
-        var torrent = message.Torrent ?? (message.TorrentId > 0 ? this.torrentRepository?.Get(message.TorrentId) : null);
-        if (torrent == null)
+        if (message == null)
         {
             return;
         }
 
-        if (message.IsResolved)
+        var torrent = message.Torrent ?? (message.TorrentId > 0 ? this.torrentRepository?.Get(message.TorrentId) : null);
+        if (torrent != null)
         {
-            this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", torrent);
+            if (message.IsResolved)
+            {
+                this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", torrent);
+            }
+            else
+            {
+                this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", torrent);
+            }
+
+            return;
         }
-        else
+
+        var eventType = message.IsResolved ? "OnHealthRestored" : "OnHealthIssue";
+        var payload = new
         {
-            this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", torrent);
-        }
+            EventType = eventType,
+            Source = message.Source,
+            Message = message.Message,
+            IsResolved = message.IsResolved,
+            Timestamp = DateTime.UtcNow,
+        };
+
+        this.DispatchGeneric(n => message.IsResolved ? n.OnHealthRestored : n.OnHealthIssue, eventType, payload);
     }
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
@@ -267,7 +284,6 @@ public class NotificationEventHandler :
             });
         }
 
-        var activeNotifications = this.notificationRepository.GetEnabled().Where(n => n.OnHealthIssue).ToList();
         var payload = new
         {
             EventType = "OnHealthIssue",
@@ -275,55 +291,7 @@ public class NotificationEventHandler :
             Timestamp = DateTime.UtcNow,
         };
 
-        foreach (var notif in activeNotifications)
-        {
-            if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
-            {
-                var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, "OnHealthIssue", scriptArgs).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error executing custom script for OnHealthIssue");
-                    }
-                });
-            }
-            else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
-            {
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        SendEmailNotification(notif.Settings, "OnHealthIssue", null, null, payload);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error sending email notification for OnHealthIssue");
-                    }
-                });
-            }
-            else
-            {
-                var providerPayload = BuildProviderPayload(notif.Implementation, "OnHealthIssue", null, null, payload, notif.Settings);
-                var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
-                var customHeaders = ResolveCustomHeaders(notif.Settings);
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error dispatching webhook notification for OnHealthIssue");
-                    }
-                });
-            }
-        }
+        this.DispatchGeneric(n => n.OnHealthIssue, "OnHealthIssue", payload);
     }
 
     public void Handle(ApplicationUpdatedEvent message)
@@ -333,7 +301,6 @@ public class NotificationEventHandler :
             return;
         }
 
-        var activeNotifications = this.notificationRepository.GetEnabled().Where(n => n.OnApplicationUpdate).ToList();
         var payload = new
         {
             EventType = "OnApplicationUpdate",
@@ -342,6 +309,17 @@ public class NotificationEventHandler :
             Message = $"Leecharr updated to version {message.NewVersion}",
             Timestamp = DateTime.UtcNow,
         };
+
+        this.DispatchGeneric(n => n.OnApplicationUpdate, "OnApplicationUpdate", payload);
+    }
+
+    private void DispatchGeneric(Func<NotificationDefinition, bool> predicate, string eventType, object payload)
+    {
+        var activeNotifications = this.notificationRepository.GetEnabled().Where(predicate).ToList();
+        if (activeNotifications.Count == 0)
+        {
+            return;
+        }
 
         foreach (var notif in activeNotifications)
         {
@@ -352,11 +330,11 @@ public class NotificationEventHandler :
                 {
                     try
                     {
-                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, "OnApplicationUpdate", scriptArgs).ConfigureAwait(false);
+                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, eventType, scriptArgs).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Error(ex, "Error executing custom script for OnApplicationUpdate");
+                        this.logger.Error(ex, "Error executing custom script for {0}", eventType);
                     }
                 });
             }
@@ -366,17 +344,17 @@ public class NotificationEventHandler :
                 {
                     try
                     {
-                        SendEmailNotification(notif.Settings, "OnApplicationUpdate", null, null, payload);
+                        SendEmailNotification(notif.Settings, eventType, null, null, payload);
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Error(ex, "Error sending email notification for OnApplicationUpdate");
+                        this.logger.Error(ex, "Error sending email notification for {0}", eventType);
                     }
                 });
             }
             else
             {
-                var providerPayload = BuildProviderPayload(notif.Implementation, "OnApplicationUpdate", null, null, payload, notif.Settings);
+                var providerPayload = BuildProviderPayload(notif.Implementation, eventType, null, null, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
                 var customHeaders = ResolveCustomHeaders(notif.Settings);
                 Task.Run(async () =>
@@ -387,7 +365,7 @@ public class NotificationEventHandler :
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Error(ex, "Error dispatching notification for OnApplicationUpdate");
+                        this.logger.Error(ex, "Error dispatching webhook notification for {0}", eventType);
                     }
                 });
             }

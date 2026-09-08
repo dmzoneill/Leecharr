@@ -1239,4 +1239,95 @@ public class NotificationEventHandlerTest
             "OnApplicationUpdate",
             "--update");
     }
+
+    [Test]
+    public async Task Handle_HealthIssueEvent_WhenSystemLevelNotResolved_DispatchesHealthIssueNotification()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 64,
+            Name = "System Health Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/system-health",
+            OnHealthIssue = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new HealthIssueEvent(torrent: null, "DiskSpace", "Disk space is critically low (<5GB free)", isResolved: false));
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/system-health",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                (string)payload.GetType().GetProperty("EventType")!.GetValue(payload)! == "OnHealthIssue" &&
+                (string)payload.GetType().GetProperty("Source")!.GetValue(payload)! == "DiskSpace" &&
+                (string)payload.GetType().GetProperty("Message")!.GetValue(payload)! == "Disk space is critically low (<5GB free)" &&
+                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == false));
+    }
+
+    [Test]
+    public async Task Handle_HealthIssueEvent_WhenSystemLevelResolved_DispatchesHealthRestoredNotification()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 65,
+            Name = "System Health Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/system-health-restored",
+            OnHealthRestored = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new HealthIssueEvent(torrentId: 0, "DiskSpace", "Disk space has been restored", isResolved: true));
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/system-health-restored",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                (string)payload.GetType().GetProperty("EventType")!.GetValue(payload)! == "OnHealthRestored" &&
+                (string)payload.GetType().GetProperty("Source")!.GetValue(payload)! == "DiskSpace" &&
+                (string)payload.GetType().GetProperty("Message")!.GetValue(payload)! == "Disk space has been restored" &&
+                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == true));
+    }
+
+    [Test]
+    public async Task Handle_HealthIssueEvent_WhenSystemLevelAndCustomScriptConfigured_ExecutesCustomScriptWithNullTorrent()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 66,
+            Name = "System Health Script",
+            Implementation = "CustomScript",
+            ConfigContract = "CustomScriptSettings",
+            Settings = "{\"path\": \"/opt/scripts/health-alert.sh\", \"arguments\": \"--system\"}",
+            OnHealthIssue = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new HealthIssueEvent(torrentId: 0, "Database", "Database connection timeout", isResolved: false));
+
+        await this.scriptTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/health-alert.sh",
+            null,
+            "OnHealthIssue",
+            "--system");
+    }
+
+    [Test]
+    public void Handle_HealthIssueEvent_WhenMessageIsNull_DoesNotThrow()
+    {
+        var act = () => this.handler.Handle((HealthIssueEvent)null!);
+        act.Should().NotThrow();
+    }
 }
