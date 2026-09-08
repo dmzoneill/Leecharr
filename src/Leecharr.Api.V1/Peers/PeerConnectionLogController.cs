@@ -33,44 +33,12 @@ public class PeerConnectionLogController : Controller
         this.historyService = historyService ?? new PeerConnectionHistoryService(geoIpService);
     }
 
-    private void IngestActivePeers()
-    {
-        var torrents = this.torrentService?.GetAll();
-        if (torrents == null)
-        {
-            return;
-        }
-
-        foreach (var torrent in torrents)
-        {
-            var task = this.downloadEngine?.GetTask(torrent.Id);
-            if (task != null)
-            {
-                foreach (var peer in task.GetPeers())
-                {
-                    this.historyService.RecordEvent(new PeerConnectionEvent
-                    {
-                        InfoHash = torrent.InfoHash,
-                        TorrentName = torrent.Name,
-                        RemoteIp = peer.Ip,
-                        RemotePort = peer.Port,
-                        PeerId = peer.Client,
-                        IsEncrypted = peer.IsEncrypted,
-                        EventType = "Connected",
-                        Timestamp = DateTime.UtcNow,
-                    });
-                }
-            }
-        }
-    }
-
     [HttpGet]
     public ActionResult<List<PeerConnectionLogResource>> GetLogs(
         [FromQuery] DateTime? start,
         [FromQuery] DateTime? end,
         [FromQuery] string infoHash)
     {
-        this.IngestActivePeers();
         var records = this.historyService.GetRecords(start, end, infoHash);
         var logs = records.Select(r => new PeerConnectionLogResource
         {
@@ -134,7 +102,6 @@ public class PeerConnectionLogController : Controller
         [FromQuery] DateTime? start,
         [FromQuery] DateTime? end)
     {
-        this.IngestActivePeers();
         var records = this.historyService.GetRecords(start, end);
         var nodes = new List<PeerGraphNode>();
         var links = new List<PeerGraphLink>();

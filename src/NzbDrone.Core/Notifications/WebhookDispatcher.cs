@@ -26,24 +26,117 @@ public class WebhookDispatcher : IWebhookDispatcher
     private readonly HttpClient httpClient;
     private readonly AsyncRetryPolicy<HttpResponseMessage> retryPolicy;
     private readonly Logger logger;
+    private readonly TimeSpan timeout;
+    private readonly bool allowLoopback;
 
-    public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null)
+    public TimeSpan Timeout => this.timeout;
+
+    public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null, TimeSpan? timeout = null, bool allowLoopback = false)
         : this(
-            httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(10) } : new HttpClient { Timeout = TimeSpan.FromSeconds(10) }),
-            null)
+            httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = timeout ?? TimeSpan.FromSeconds(10) } : new HttpClient { Timeout = timeout ?? TimeSpan.FromSeconds(10) }),
+            null,
+            timeout,
+            allowLoopback)
     {
     }
 
-    public WebhookDispatcher(HttpClient httpClient)
-        : this(null, httpClient)
+    public WebhookDispatcher(HttpClient httpClient, TimeSpan? timeout = null, bool allowLoopback = false)
+        : this(null, httpClient, timeout, allowLoopback)
     {
     }
 
-    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy)
+    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy, TimeSpan? timeout = null, bool allowLoopback = false)
     {
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.timeout = timeout ?? TimeSpan.FromSeconds(10);
+        this.allowLoopback = allowLoopback;
+        this.httpClient = httpClient ?? new HttpClient { Timeout = this.timeout };
         this.logger = LogManager.GetCurrentClassLogger();
         this.retryPolicy = retryPolicy ?? CreateRetryPolicy();
+    }
+
+    public static bool IsValidTargetUrl(string targetUrl, bool allowLoopback = false)
+    {
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        if (allowLoopback)
+        {
+            return true;
+        }
+
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(host, "instance-data", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(host, "metadata.google.internal", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            if (IPAddress.IsLoopback(ip))
+            {
+                return false;
+            }
+
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                var bytes = ip.GetAddressBytes();
+                if (bytes[0] == 127 ||
+                    bytes[0] == 0 ||
+                    (bytes[0] == 169 && bytes[1] == 254) ||
+                    (bytes[0] == 255 && bytes[1] == 255 && bytes[2] == 255 && bytes[3] == 255) ||
+                    bytes[0] >= 224)
+                {
+                    return false;
+                }
+            }
+            else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
+                {
+                    return false;
+                }
+
+                if (IPAddress.IPv6Any.Equals(ip) || IPAddress.IPv6None.Equals(ip) || IPAddress.IPv6Loopback.Equals(ip))
+                {
+                    return false;
+                }
+
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    var ipv4 = ip.MapToIPv4();
+                    var bytes = ipv4.GetAddressBytes();
+                    if (bytes[0] == 127 ||
+                        bytes[0] == 0 ||
+                        (bytes[0] == 169 && bytes[1] == 254) ||
+                        bytes[0] >= 224)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     internal static AsyncRetryPolicy<HttpResponseMessage> CreateRetryPolicy(
@@ -78,6 +171,12 @@ public class WebhookDispatcher : IWebhookDispatcher
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
+            return false;
+        }
+
+        if (!IsValidTargetUrl(targetUrl, this.allowLoopback))
+        {
+            this.logger.Warn("Webhook dispatch blocked: Invalid or prohibited target URL (SSRF protection): {0}", targetUrl);
             return false;
         }
 
