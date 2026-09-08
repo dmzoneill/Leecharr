@@ -135,32 +135,37 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                         return;
                     }
 
-                    int? categoryId = int.TryParse(category, out var parsedCat) && parsedCat > 0
+                    var trimmedCategory = category?.Trim();
+                    int? categoryId = int.TryParse(trimmedCategory, out var parsedCat) && parsedCat > 0
                         ? parsedCat
-                        : category?.ToLowerInvariant() switch
+                        : trimmedCategory?.ToLowerInvariant() switch
                         {
                             "movies" => 2000,
                             "movies_hd" or "movies-hd" or "movies/hd" => 2040,
                             "movies_sd" or "movies-sd" or "movies/sd" => 2030,
-                            "movies_uhd" or "movies-uhd" or "movies/uhd" or "movies_4k" => 2045,
+                            "movies_uhd" or "movies-uhd" or "movies/uhd" or "movies_4k" or "movies-4k" or "movies/4k" => 2045,
+                            "movies_bluray" or "movies-bluray" or "movies/bluray" => 2050,
+                            "movies_3d" or "movies-3d" or "movies/3d" => 2060,
                             "tv" => 5000,
                             "tv_hd" or "tv-hd" or "tv/hd" => 5040,
                             "tv_sd" or "tv-sd" or "tv/sd" => 5030,
-                            "tv_uhd" or "tv-uhd" or "tv/uhd" or "tv_4k" => 5045,
-                            "tv_anime" or "anime" => 5070,
-                            "music" => 3000,
-                            "music_mp3" or "music-mp3" or "music/mp3" => 3010,
-                            "music_flac" or "music-flac" or "music/flac" or "music_lossless" => 3040,
-                            "audiobook" or "audiobooks" => 3030,
+                            "tv_uhd" or "tv-uhd" or "tv/uhd" or "tv_4k" or "tv-4k" or "tv/4k" => 5045,
+                            "tv_anime" or "tv-anime" or "tv/anime" or "anime" => 5070,
+                            "tv_doc" or "tv-doc" or "tv/doc" or "tv_documentary" or "tv/documentary" => 5080,
+                            "audio" or "music" => 3000,
+                            "music_mp3" or "music-mp3" or "music/mp3" or "audio_mp3" or "audio-mp3" or "audio/mp3" => 3010,
+                            "music_flac" or "music-flac" or "music/flac" or "music_lossless" or "music-lossless" or "music/lossless" or "audio_lossless" or "audio-lossless" or "audio/lossless" or "audio_flac" or "audio-flac" or "audio/flac" => 3040,
+                            "audiobook" or "audiobooks" or "audio_audiobook" or "audio/audiobook" => 3030,
                             "games" => 1000,
                             "games_pc" or "games-pc" or "games/pc" => 1010,
-                            "games_console" or "games-console" => 1020,
-                            "software" => 4000,
-                            "software_pc" or "software-pc" => 4010,
-                            "software_mac" or "software-mac" => 4020,
-                            "books" => 7000,
-                            "books_ebook" or "ebooks" or "ebook" => 7020,
-                            "books_comics" or "comics" => 7030,
+                            "games_console" or "games-console" or "games/console" => 1020,
+                            "pc" or "software" => 4000,
+                            "software_pc" or "software-pc" or "software/pc" => 4010,
+                            "software_mac" or "software-mac" or "software/mac" => 4020,
+                            "books" or "ebooks" or "ebook" => 7000,
+                            "books_ebook" or "books-ebook" or "books/ebook" => 7020,
+                            "books_comics" or "books-comics" or "books/comics" or "comics" => 7030,
+                            "books_mags" or "books-mags" or "books/mags" or "magazines" or "mags" => 7010,
                             _ => null,
                         };
 
