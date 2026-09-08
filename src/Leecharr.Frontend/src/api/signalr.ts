@@ -1,5 +1,6 @@
+import React, { useState, useEffect } from "react";
 import * as signalR from "@microsoft/signalr";
-import { apiClient } from "./client";
+import { apiClient, getUrlBase } from "./client";
 
 export type MessageHandler = (message: {
   name: string;
@@ -10,6 +11,7 @@ export type MessageHandler = (message: {
 export type ReconnectingHandler = (error?: Error) => void;
 export type ReconnectedHandler = (connectionId?: string) => void;
 export type CloseHandler = (error?: Error) => void;
+export type ConnectionStateChangeHandler = (connected: boolean) => void;
 
 export function isUnauthorizedError(error: unknown): boolean {
   if (!error) return false;
@@ -84,6 +86,7 @@ class SignalRManager {
   private reconnectingHandlers: Set<ReconnectingHandler> = new Set();
   private reconnectedHandlers: Set<ReconnectedHandler> = new Set();
   private closeHandlers: Set<CloseHandler> = new Set();
+  private connectionStateHandlers: Set<ConnectionStateChangeHandler> = new Set();
 
   private isStarting = false;
   private isStopped = false;
@@ -92,10 +95,7 @@ class SignalRManager {
 
   private ensureConnection(): signalR.HubConnection {
     if (!this.connection) {
-      const urlBase =
-        typeof window !== "undefined" && (window as any).Leecharr?.urlBase
-          ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
-          : "";
+      const urlBase = getUrlBase();
 
       const apiKey = apiClient.getApiKey();
       const connectionOptions: signalR.IHttpConnectionOptions = {};
@@ -120,6 +120,7 @@ class SignalRManager {
 
       this.connection.onreconnecting((error) => {
         console.warn("SignalR connection reconnecting:", error);
+        this.notifyConnectionChange(false);
         for (const handler of this.reconnectingHandlers) {
           try {
             handler(error);
@@ -132,6 +133,7 @@ class SignalRManager {
       this.connection.onreconnected((connectionId) => {
         console.info("SignalR connection reconnected:", connectionId);
         this.coldStartRetryCount = 0;
+        this.notifyConnectionChange(true);
         for (const handler of this.reconnectedHandlers) {
           try {
             handler(connectionId);
@@ -143,6 +145,7 @@ class SignalRManager {
 
       this.connection.onclose((error) => {
         console.warn("SignalR connection closed:", error);
+        this.notifyConnectionChange(false);
         for (const handler of this.closeHandlers) {
           try {
             handler(error);
@@ -191,6 +194,13 @@ class SignalRManager {
     };
   }
 
+  public onConnectionChange(cb: ConnectionStateChangeHandler): () => void {
+    this.connectionStateHandlers.add(cb);
+    return () => {
+      this.connectionStateHandlers.delete(cb);
+    };
+  }
+
   public subscribe(handler: MessageHandler): () => void {
     this.messageHandlers.add(handler);
     return () => {
@@ -205,6 +215,7 @@ class SignalRManager {
       this.connection &&
       this.connection.state === signalR.HubConnectionState.Connected
     ) {
+      this.notifyConnectionChange(true);
       return;
     }
 
@@ -237,14 +248,19 @@ class SignalRManager {
           this.retryTimeout = null;
         }
 
+        this.notifyConnectionChange(true);
         if (wasRetrying) {
           this.notifyReconnected(conn.connectionId || undefined);
         }
       } else {
         this.isStarting = false;
+        if (conn.state === signalR.HubConnectionState.Connected) {
+          this.notifyConnectionChange(true);
+        }
       }
     } catch (err) {
       this.isStarting = false;
+      this.notifyConnectionChange(false);
 
       const errorObj = err instanceof Error ? err : new Error(String(err));
       this.notifyReconnecting(errorObj);
@@ -275,6 +291,7 @@ class SignalRManager {
     if (this.connection) {
       await this.connection.stop();
     }
+    this.notifyConnectionChange(false);
   }
 
   private scheduleColdStartRetry(): void {
@@ -323,6 +340,56 @@ class SignalRManager {
       }
     }
   }
+
+  private notifyConnectionChange(connected: boolean): void {
+    for (const handler of this.connectionStateHandlers) {
+      try {
+        handler(connected);
+      } catch (e) {
+        console.error("Error in SignalR onConnectionChange handler:", e);
+      }
+    }
+  }
 }
 
 export const signalRManager = new SignalRManager();
+
+export function useIsSignalRConnected(): boolean {
+  const [connected, setConnected] = useState<boolean>(() =>
+    signalRManager.isConnected(),
+  );
+
+  useEffect(() => {
+    setConnected(signalRManager.isConnected());
+    const unsub = signalRManager.onConnectionChange((isConnected) => {
+      setConnected(isConnected);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  return connected;
+}
+
+export function useIsDocumentVisible(): boolean {
+  const [visible, setVisible] = useState<boolean>(() =>
+    typeof document !== "undefined"
+      ? document.visibilityState === "visible"
+      : true,
+  );
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handleVisibilityChange = () => {
+      setVisible(document.visibilityState === "visible");
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  return visible;
+}
+

@@ -171,8 +171,31 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => response.statusText);
-    throw new Error(errorText || `HTTP Error ${response.status}`);
+    let message = `HTTP Error ${response.status}`;
+    let data: any = null;
+    try {
+      const text = await response.text();
+      if (text) {
+        data = text;
+        try {
+          const json = JSON.parse(text);
+          data = json;
+          message = json.message || json.title || text;
+        } catch {
+          message = text;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    const error: any = new Error(message);
+    error.status = response.status;
+    error.response = {
+      status: response.status,
+      statusText: response.statusText,
+      data,
+    };
+    throw error;
   }
 
   return parseResponseBody<T>(response);
@@ -374,14 +397,18 @@ export const api = {
     if (key) {
       (headers as Record<string, string>)["X-Api-Key"] = key;
     }
-    const response = await fetch(`/api/v2/torrents/renameFile`, {
+    const response = await fetch(`${getUrlBase()}/api/v2/torrents/renameFile`, {
       method: "POST",
       headers,
       body: params.toString(),
     });
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || `Failed to rename (${response.status})`);
+      const text = await response.text().catch(() => response.statusText);
+      const error: any = new Error(
+        text || `Failed to rename (${response.status})`,
+      );
+      error.status = response.status;
+      throw error;
     }
     return response;
   },
@@ -401,14 +428,18 @@ export const api = {
     if (key) {
       (headers as Record<string, string>)["X-Api-Key"] = key;
     }
-    const response = await fetch(`/api/v2/torrents/renameFolder`, {
+    const response = await fetch(`${getUrlBase()}/api/v2/torrents/renameFolder`, {
       method: "POST",
       headers,
       body: params.toString(),
     });
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || `Failed to rename (${response.status})`);
+      const text = await response.text().catch(() => response.statusText);
+      const error: any = new Error(
+        text || `Failed to rename (${response.status})`,
+      );
+      error.status = response.status;
+      throw error;
     }
     return response;
   },

@@ -3,7 +3,7 @@ import { useTranslation } from "../../i18n";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { apiClient } from "../../api/client";
+import { apiClient, getUrlBase } from "../../api/client";
 
 export interface TerminalViewProps {
   cwd?: string;
@@ -136,12 +136,7 @@ export function TerminalView({
       params.set("apikey", apiKey);
     }
 
-    const urlBase =
-      typeof window !== "undefined" && (window as any).Leecharr?.urlBase
-        ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
-        : "";
-
-    const wsUrl = `${protocol}//${window.location.host}${urlBase}/api/v1/terminal/ws?${params.toString()}`;
+    const wsUrl = `${protocol}//${window.location.host}${getUrlBase()}/api/v1/terminal/ws?${params.toString()}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

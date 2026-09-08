@@ -13,6 +13,7 @@ import { formatDate } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../TrackerFavicon";
+import { ErrorBoundary } from "../ErrorBoundary";
 import TrackerMultiSelectModal, {
   TrackerPickerItem,
 } from "../TrackerMultiSelectModal";
@@ -628,17 +629,19 @@ export function TrackersTab({
         </button>
       </div>
 
-      <TrackerMultiSelectModal
-        isOpen={showPickerModal}
-        onClose={() => setShowPickerModal(false)}
-        trackers={pickerTrackers}
-        selectedUrls={selectedUrls}
-        onToggleUrl={handleToggleUrl}
-        onSelectBatch={handleSelectBatch}
-        onClearSelection={handleClearSelection}
-        onAddAndAnnounce={handleAddAndAnnounceSelected}
-        isAdding={isAddingBatch}
-      />
+      <ErrorBoundary title="Tracker Picker">
+        <TrackerMultiSelectModal
+          isOpen={showPickerModal}
+          onClose={() => setShowPickerModal(false)}
+          trackers={pickerTrackers}
+          selectedUrls={selectedUrls}
+          onToggleUrl={handleToggleUrl}
+          onSelectBatch={handleSelectBatch}
+          onClearSelection={handleClearSelection}
+          onAddAndAnnounce={handleAddAndAnnounceSelected}
+          isAdding={isAddingBatch}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

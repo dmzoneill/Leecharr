@@ -3,6 +3,7 @@ import { useArrConnections, useDownloadHistory } from "../api/hooks";
 import { getMediaDeepLink } from "../utils/arrLinks";
 import { useConfirm } from "../context/ConfirmContext";
 import { PromptModal } from "./PromptModal";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { useTranslation } from "../i18n";
 import type { Torrent } from "../api/types";
 
@@ -600,19 +601,21 @@ export function TorrentContextMenu({
         </div>
       </div>
       {promptConfig && (
-        <PromptModal
-          isOpen={true}
-          title={promptConfig.title}
-          message={promptConfig.message}
-          defaultValue={promptConfig.defaultValue}
-          placeholder={promptConfig.placeholder}
-          inputType={promptConfig.inputType}
-          min={promptConfig.min}
-          confirmText={promptConfig.confirmText}
-          validate={promptConfig.validate}
-          onConfirm={promptConfig.onConfirm}
-          onCancel={handlePromptCancel}
-        />
+        <ErrorBoundary title="Prompt Dialog">
+          <PromptModal
+            isOpen={true}
+            title={promptConfig.title}
+            message={promptConfig.message}
+            defaultValue={promptConfig.defaultValue}
+            placeholder={promptConfig.placeholder}
+            inputType={promptConfig.inputType}
+            min={promptConfig.min}
+            confirmText={promptConfig.confirmText}
+            validate={promptConfig.validate}
+            onConfirm={promptConfig.onConfirm}
+            onCancel={handlePromptCancel}
+          />
+        </ErrorBoundary>
       )}
     </>
   );
