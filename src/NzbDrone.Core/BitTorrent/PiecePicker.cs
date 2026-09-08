@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.BitTorrent;
 
@@ -15,6 +16,24 @@ public class BlockRequest
     public int BlockLength { get; set; }
 
     public DateTime RequestedAt { get; set; }
+}
+
+public class BlockCancelledEventArgs : EventArgs
+{
+    public int PieceIndex { get; set; }
+
+    public int BlockOffset { get; set; }
+
+    public int BlockLength { get; set; }
+
+    public List<string> CancelledPeerIds { get; set; } = new();
+}
+
+public class BlockInFlightInfo
+{
+    public DateTime FirstRequestedAt { get; set; }
+
+    public Dictionary<string, DateTime> PeerRequests { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public class PieceState
@@ -44,11 +63,12 @@ public class PiecePicker
     private readonly int pieceCount;
     private readonly int pieceLength;
     private readonly long totalSize;
+    private readonly IConfigService configService;
     private readonly PieceState[] pieces;
     private readonly int[] swarmAvailability;
-    private readonly Dictionary<string, DateTime> inFlightBlocks = new();
+    private readonly Dictionary<string, BlockInFlightInfo> inFlightBlocks = new();
 
-    public PiecePicker(int pieceCount, int pieceLength, long totalSize, TimeSpan? requestTimeout = null)
+    public PiecePicker(int pieceCount, int pieceLength, long totalSize, TimeSpan? requestTimeout = null, IConfigService configService = null)
     {
         if (pieceCount <= 0)
         {
@@ -68,6 +88,7 @@ public class PiecePicker
         this.pieceCount = pieceCount;
         this.pieceLength = pieceLength;
         this.totalSize = totalSize;
+        this.configService = configService;
         if (requestTimeout.HasValue)
         {
             this.RequestTimeout = requestTimeout.Value;
@@ -96,7 +117,11 @@ public class PiecePicker
         }
     }
 
+    public event Action<BlockCancelledEventArgs> BlockCancelled;
+
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    public bool EndGamePickerEnabled { get; set; } = true;
 
     public int InFlightBlockCount
     {
@@ -176,6 +201,12 @@ public class PiecePicker
 
     public bool IsEndgameMode()
     {
+        var isEnabled = this.configService?.EndGamePickerEnabled ?? this.EndGamePickerEnabled;
+        if (!isEnabled)
+        {
+            return false;
+        }
+
         lock (this.syncLock)
         {
             var activePieces = this.pieces.Where(p => p.Priority > 0 && !p.IsComplete).ToList();
@@ -185,21 +216,40 @@ public class PiecePicker
                 return false;
             }
 
-            var totalActiveBlocks = this.pieces.Where(p => p.Priority > 0).Sum(p => p.TotalBlocks);
-            // Only enter endgame if torrent had more than 30 blocks initially and is near completion,
-            // or if all remaining blocks are already in flight.
-            return (totalActiveBlocks > 30 && remainingBlocks <= 30) ||
-                   (this.inFlightBlocks.Count >= remainingBlocks);
+            var totalActivePieces = this.pieces.Count(p => p.Priority > 0);
+            if (totalActivePieces == 0)
+            {
+                return false;
+            }
+
+            var remainingPieces = activePieces.Count;
+            var totalActiveBytes = this.pieces.Where(p => p.Priority > 0).Sum(p => (long)p.Length);
+            var remainingBytes = activePieces.Sum(p => (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize > p.Length ? p.Length : (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize);
+
+            // Endgame mode triggers when remaining pieces <= 20 (and nearing completion if total pieces > 20)
+            // or when remaining bytes < 2% of total active bytes, or when all remaining blocks are in flight.
+            var isNearEnd = (totalActivePieces > 20 && remainingPieces <= 20) ||
+                            (totalActiveBytes > 0 && remainingBytes < totalActiveBytes && ((double)remainingBytes / totalActiveBytes) < 0.02);
+
+            return isNearEnd || (this.inFlightBlocks.Count >= remainingBlocks);
         }
     }
 
-    public List<BlockRequest> PickBlocks(bool[] peerBitfield, int maxRequests, bool sequentialMode = false)
+    public List<BlockRequest> PickBlocks(
+        bool[] peerBitfield,
+        int maxRequests,
+        bool sequentialMode = false,
+        string peerId = null,
+        bool isSnubbed = false)
     {
         var requests = new List<BlockRequest>();
         if (!this.IsValidPeerBitfield(peerBitfield) || maxRequests <= 0)
         {
             return requests;
         }
+
+        // When a peer is snubbed (inactive > 60s), only probe with at most 1 block request
+        var effectiveMaxRequests = isSnubbed ? Math.Min(1, maxRequests) : maxRequests;
 
         lock (this.syncLock)
         {
@@ -222,20 +272,42 @@ public class PiecePicker
 
                     var blockKey = $"{pieceIndex}:{blockIdx}";
                     var isEndgame = this.IsEndgameMode();
+                    var now = DateTime.UtcNow;
 
-                    if (!isEndgame && this.inFlightBlocks.TryGetValue(blockKey, out var requestedAt))
+                    if (this.inFlightBlocks.TryGetValue(blockKey, out var existingInfo))
                     {
-                        if (DateTime.UtcNow - requestedAt < this.RequestTimeout)
+                        if (!isEndgame)
                         {
-                            continue;
+                            var isTimedOut = now - existingInfo.FirstRequestedAt >= this.RequestTimeout;
+                            if (!isTimedOut)
+                            {
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            // In endgame mode: avoid sending duplicate in-flight requests to the exact same peer
+                            if (!string.IsNullOrEmpty(peerId) && existingInfo.PeerRequests.ContainsKey(peerId))
+                            {
+                                continue;
+                            }
                         }
                     }
 
                     var offset = blockIdx * DefaultBlockSize;
                     var length = Math.Min(DefaultBlockSize, piece.Length - offset);
 
-                    var now = DateTime.UtcNow;
-                    this.inFlightBlocks[blockKey] = now;
+                    if (!this.inFlightBlocks.TryGetValue(blockKey, out var info))
+                    {
+                        info = new BlockInFlightInfo { FirstRequestedAt = now };
+                        this.inFlightBlocks[blockKey] = info;
+                    }
+
+                    if (!string.IsNullOrEmpty(peerId))
+                    {
+                        info.PeerRequests[peerId] = now;
+                    }
+
                     requests.Add(new BlockRequest
                     {
                         PieceIndex = pieceIndex,
@@ -244,7 +316,7 @@ public class PiecePicker
                         RequestedAt = now,
                     });
 
-                    if (requests.Count >= maxRequests)
+                    if (requests.Count >= effectiveMaxRequests)
                     {
                         return requests;
                     }
@@ -320,6 +392,13 @@ public class PiecePicker
 
     public bool MarkBlockReceived(int pieceIndex, int blockOffset, int length)
     {
+        return this.MarkBlockReceived(pieceIndex, blockOffset, length, null, out _);
+    }
+
+    public bool MarkBlockReceived(int pieceIndex, int blockOffset, int length, string receivedFromPeerId, out List<string> cancelledPeers)
+    {
+        cancelledPeers = new List<string>();
+
         lock (this.syncLock)
         {
             if (pieceIndex < 0 || pieceIndex >= this.pieceCount)
@@ -347,7 +426,29 @@ public class PiecePicker
             }
 
             var blockKey = $"{pieceIndex}:{blockIdx}";
-            this.inFlightBlocks.Remove(blockKey);
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            {
+                foreach (var peer in info.PeerRequests.Keys)
+                {
+                    if (!string.IsNullOrEmpty(peer) && !string.Equals(peer, receivedFromPeerId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cancelledPeers.Add(peer);
+                    }
+                }
+
+                this.inFlightBlocks.Remove(blockKey);
+            }
+
+            if (cancelledPeers.Count > 0)
+            {
+                this.BlockCancelled?.Invoke(new BlockCancelledEventArgs
+                {
+                    PieceIndex = pieceIndex,
+                    BlockOffset = blockOffset,
+                    BlockLength = length,
+                    CancelledPeerIds = new List<string>(cancelledPeers),
+                });
+            }
 
             if (!piece.BlockBitfield[blockIdx])
             {
@@ -362,6 +463,23 @@ public class PiecePicker
             }
 
             return false;
+        }
+    }
+
+    public List<string> GetDuplicateInFlightPeers(int pieceIndex, int blockOffset, string excludingPeerId = null)
+    {
+        lock (this.syncLock)
+        {
+            var blockIdx = blockOffset / DefaultBlockSize;
+            var blockKey = $"{pieceIndex}:{blockIdx}";
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            {
+                return info.PeerRequests.Keys
+                    .Where(p => !string.IsNullOrEmpty(p) && !string.Equals(p, excludingPeerId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return new List<string>();
         }
     }
 
@@ -397,7 +515,7 @@ public class PiecePicker
         }
     }
 
-    public void CancelBlock(int pieceIndex, int blockOffset)
+    public void CancelBlock(int pieceIndex, int blockOffset, string peerId = null)
     {
         lock (this.syncLock)
         {
@@ -407,7 +525,22 @@ public class PiecePicker
             }
 
             var blockIdx = blockOffset / DefaultBlockSize;
-            this.inFlightBlocks.Remove($"{pieceIndex}:{blockIdx}");
+            var blockKey = $"{pieceIndex}:{blockIdx}";
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            {
+                if (!string.IsNullOrEmpty(peerId))
+                {
+                    info.PeerRequests.Remove(peerId);
+                    if (info.PeerRequests.Count == 0)
+                    {
+                        this.inFlightBlocks.Remove(blockKey);
+                    }
+                }
+                else
+                {
+                    this.inFlightBlocks.Remove(blockKey);
+                }
+            }
         }
     }
 
@@ -418,7 +551,7 @@ public class PiecePicker
             var effectiveTimeout = timeout ?? this.RequestTimeout;
             var cutoff = DateTime.UtcNow - effectiveTimeout;
             var expired = this.inFlightBlocks
-                .Where(kvp => kvp.Value <= cutoff)
+                .Where(kvp => kvp.Value.FirstRequestedAt <= cutoff)
                 .Select(kvp => kvp.Key)
                 .ToList();
 
