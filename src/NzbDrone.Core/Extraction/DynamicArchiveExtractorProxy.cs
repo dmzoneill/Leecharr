@@ -188,7 +188,12 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         return this.availableProviders.Any(p => p.CanExtract(filePath));
     }
 
-    public async Task<bool> ExtractArchiveAsync(string archiveFilePath, string destinationDirectory = null)
+    public async Task<bool> ExtractArchiveAsync(
+        string archiveFilePath,
+        string destinationDirectory = null,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(archiveFilePath) || !this.diskProvider.FileExists(archiveFilePath))
         {
@@ -209,7 +214,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
 
         try
         {
-            success = await active.ExtractAsync(archiveFilePath, targetDir);
+            success = await active.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -224,7 +229,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
                 this.logger.Warn("Active extractor '{0}' failed for '{1}'. Attempting fallback to SharpCompress...", active.ProviderId, archiveFilePath);
                 try
                 {
-                    success = await fallback.ExtractAsync(archiveFilePath, targetDir);
+                    success = await fallback.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
                     if (success)
                     {
                         this.logger.Info("SharpCompress fallback extraction succeeded for '{0}'.", archiveFilePath);

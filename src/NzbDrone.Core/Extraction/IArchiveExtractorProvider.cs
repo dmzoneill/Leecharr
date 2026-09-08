@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,7 +22,12 @@ public interface IArchiveExtractorProvider
 
     Task<ExtractorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default);
+    Task<bool> ExtractAsync(
+        string archivePath,
+        string destinationPath,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default);
 
     bool CanExtract(string filePath);
 }

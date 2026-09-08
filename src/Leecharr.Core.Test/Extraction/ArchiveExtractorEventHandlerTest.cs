@@ -51,7 +51,7 @@ public class ArchiveExtractorEventHandlerTest
     [TestCase("movie.7z.001", false)]
     [TestCase("movie.rar.001", false)]
     [TestCase("movie.zip.001", false)]
-    [TestCase("movie.z01", false)]
+    [TestCase("movie.z01", true)]
     [TestCase("movie.zip", false)]
     [TestCase("movie.7z", false)]
     [TestCase("movie.part02.rar", true)]
@@ -62,6 +62,7 @@ public class ArchiveExtractorEventHandlerTest
     [TestCase("movie.002", true)]
     [TestCase("movie.003", true)]
     [TestCase("movie.z02", true)]
+    [TestCase("movie.z99", true)]
     [TestCase("movie.7z.002", true)]
     [TestCase("movie.zip.003", true)]
     public void IsSecondaryVolume_IdentifiesPrimaryAndSecondaryArchiveVolumes(string filePath, bool isSecondary)
@@ -82,7 +83,7 @@ public class ArchiveExtractorEventHandlerTest
         this.handler.Handle(message);
 
         this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
-        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>());
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -114,8 +115,12 @@ public class ArchiveExtractorEventHandlerTest
         this.extractorService.IsArchiveFile("movie.part03.rar").Returns(true);
         this.extractorService.IsArchiveFile("sample.nfo").Returns(false);
 
-        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
-        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
 
         var signal = new ManualResetEventSlim(false);
         this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
@@ -128,11 +133,19 @@ public class ArchiveExtractorEventHandlerTest
         // Exactly one extraction call for the primary volume part01
         await this.extractorService.Received(1).ExtractArchiveAsync(
             Arg.Is<string>(p => p.EndsWith("movie.part01.rar")),
-            Arg.Any<string>());
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
 
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e =>
             e.Torrent.Id == 10 &&
             e.ArchivePath.EndsWith("movie.part01.rar")));
+
+        // Verifies receipt marker was written
+        this.diskProvider.Received().WriteAllText(
+            Arg.Is<string>(p => p.Contains(".leecharr_extracted_movie.part01.rar")),
+            Arg.Any<string>());
     }
 
     [Test]
@@ -148,8 +161,12 @@ public class ArchiveExtractorEventHandlerTest
 
         this.torrentFileService.GetFiles(20).Returns(files);
         this.extractorService.IsArchiveFile("corrupt.zip").Returns(true);
-        this.diskProvider.FileExists(Arg.Any<string>()).Returns(true);
-        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(false));
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
 
         this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
@@ -175,8 +192,12 @@ public class ArchiveExtractorEventHandlerTest
 
         this.torrentFileService.GetFiles(30).Returns(files);
         this.extractorService.IsArchiveFile("single-movie.rar").Returns(true);
-        this.diskProvider.FileExists(singleFilePath).Returns(true);
-        this.extractorService.ExtractArchiveAsync(singleFilePath, parentDir).Returns(Task.FromResult(true));
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.extractorService.ExtractArchiveAsync(singleFilePath, parentDir, Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
 
         var signal = new ManualResetEventSlim(false);
         this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
@@ -186,7 +207,7 @@ public class ArchiveExtractorEventHandlerTest
         var received = signal.Wait(TimeSpan.FromSeconds(3));
         received.Should().BeTrue();
 
-        await this.extractorService.Received(1).ExtractArchiveAsync(singleFilePath, parentDir);
+        await this.extractorService.Received(1).ExtractArchiveAsync(singleFilePath, parentDir, Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e =>
             e.Torrent.Id == 30 &&
             e.ArchivePath == singleFilePath &&
@@ -213,7 +234,62 @@ public class ArchiveExtractorEventHandlerTest
 
         Thread.Sleep(200);
 
-        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>());
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+    }
+
+    [Test]
+    public void Handle_WhenArchiveAlreadyExtractedByReceiptFile_SkipsReExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 50, Name = "Already.Extracted", SavePath = "/downloads/Already.Extracted" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 50, Path = "movie.rar", Size = 50000000 },
+        };
+
+        this.torrentFileService.GetFiles(50).Returns(files);
+        this.extractorService.IsArchiveFile("movie.rar").Returns(true);
+
+        // Simulate that archive file exists AND .leecharr_extracted_movie.rar receipt marker exists
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith("movie.rar"))).Returns(true);
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted_movie.rar"))).Returns(true);
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        Thread.Sleep(200);
+
+        // Verify extraction was skipped idempotently
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+    }
+
+    [Test]
+    public void Handle_WhenArchiveAlreadyInGlobalReceiptFile_SkipsReExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 51, Name = "Global.Receipt.Torrent", SavePath = "/downloads/Global.Receipt.Torrent" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 51, Path = "video.zip", Size = 50000000 },
+        };
+
+        this.torrentFileService.GetFiles(51).Returns(files);
+        this.extractorService.IsArchiveFile("video.zip").Returns(true);
+
+        // Specific receipt does not exist, but global .leecharr_extracted exists and contains "video.zip"
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith("video.zip"))).Returns(true);
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted_video.zip"))).Returns(false);
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted"))).Returns(true);
+        this.diskProvider.ReadAllText(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted"))).Returns("other.rar\nvideo.zip\n");
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        Thread.Sleep(200);
+
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
     }
 }

@@ -40,7 +40,7 @@ public class DynamicArchiveExtractorProxyTest
             var path = call.Arg<string>();
             return path.EndsWith(".zip") || path.EndsWith(".rar") || path.EndsWith(".7z");
         });
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
         this.sevenZipProvider = Substitute.For<IArchiveExtractorProvider>();
@@ -55,7 +55,7 @@ public class DynamicArchiveExtractorProxyTest
             var path = call.Arg<string>();
             return path.EndsWith(".7z") || path.EndsWith(".rar") || path.EndsWith(".zip");
         });
-        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
         this.unrarProvider = Substitute.For<IArchiveExtractorProvider>();
@@ -70,7 +70,7 @@ public class DynamicArchiveExtractorProxyTest
             var path = call.Arg<string>();
             return path.EndsWith(".rar");
         });
-        this.unrarProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.unrarProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
         this.configService = Substitute.For<IConfigService>();
@@ -208,7 +208,17 @@ public class DynamicArchiveExtractorProxyTest
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.zip", "/dest/dir");
 
         result.Should().BeTrue();
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.zip", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.zip", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ExtractArchiveAsync_WithPasswordAndCandidates_DelegatesToActiveProvider()
+    {
+        var candidates = new List<string> { "pass1", "pass2" };
+        var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.zip", "/dest/dir", "secret", candidates);
+
+        result.Should().BeTrue();
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.zip", "/dest/dir", "secret", candidates, Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -219,83 +229,83 @@ public class DynamicArchiveExtractorProxyTest
         var result = await this.proxy.ExtractArchiveAsync("/path/to/missing.zip", "/dest/dir");
 
         result.Should().BeFalse();
-        await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ExtractArchiveAsync_WhenActiveProviderFails_FallsBackToSharpCompress()
     {
         await this.proxy.SwitchProviderAsync("SevenZip");
-        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(false));
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.rar", "/dest/dir");
 
         result.Should().BeTrue();
-        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ExtractArchiveAsync_WhenActiveProviderThrowsException_FallsBackToSharpCompressAndSucceeds()
     {
         await this.proxy.SwitchProviderAsync("SevenZip");
-        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new System.IO.InvalidDataException("Corrupted archive header"));
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.rar", "/dest/dir");
 
         result.Should().BeTrue();
-        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ExtractArchiveAsync_WhenActiveProviderThrowsException_AndSharpCompressFails_ReturnsFalse()
     {
         await this.proxy.SwitchProviderAsync("SevenZip");
-        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new System.InvalidOperationException("Process crashed"));
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(false));
 
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.rar", "/dest/dir");
 
         result.Should().BeFalse();
-        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ExtractArchiveAsync_WhenActiveProviderThrowsException_AndSharpCompressThrowsException_ReturnsFalse()
     {
         await this.proxy.SwitchProviderAsync("SevenZip");
-        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sevenZipProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new System.InvalidOperationException("Primary extractor failure"));
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new System.IO.IOException("Disk read error"));
 
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.rar", "/dest/dir");
 
         result.Should().BeFalse();
-        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sevenZipProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.rar", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ExtractArchiveAsync_WhenSharpCompressIsActiveAndThrowsException_ReturnsFalseWithoutFallbackLoop()
     {
-        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        this.sharpCompressProvider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new System.IO.InvalidDataException("Unreadable file"));
 
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.zip", "/dest/dir");
 
         result.Should().BeFalse();
-        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.zip", "/dest/dir", Arg.Any<CancellationToken>());
+        await this.sharpCompressProvider.Received(1).ExtractAsync("/path/to/archive.zip", "/dest/dir", Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Test]

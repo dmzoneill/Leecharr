@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -73,6 +74,14 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                     ? Path.GetDirectoryName(Path.GetFullPath(savePath)) ?? savePath
                     : savePath;
 
+                var password = this.configService?.GetValue("ArchivePassword", (string)null);
+                var passwordsStr = this.configService?.GetValue("ArchivePasswords", (string)null);
+                IReadOnlyList<string> candidatePasswords = null;
+                if (!string.IsNullOrWhiteSpace(passwordsStr))
+                {
+                    candidatePasswords = passwordsStr.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                }
+
                 foreach (var file in files)
                 {
                     if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
@@ -89,11 +98,20 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
 
                         if (this.diskProvider.FileExists(fullPath))
                         {
-                            this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
                             var destDir = Path.GetDirectoryName(fullPath) ?? rootDir;
-                            var success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir);
+
+                            if (this.IsArchiveAlreadyExtracted(destDir, fullPath))
+                            {
+                                this.logger.Debug("Archive {0} has already been extracted (receipt found). Skipping auto-extraction for torrent {1}.", fullPath, message.Torrent.Name);
+                                continue;
+                            }
+
+                            this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                            var success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
                             if (success)
                             {
+                                this.RecordExtractionReceipt(destDir, fullPath);
+
                                 this.eventAggregator.PublishEvent(new ArchiveExtractionCompletedEvent
                                 {
                                     Torrent = message.Torrent,
@@ -120,7 +138,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         }
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
-        if (Regex.IsMatch(ext, @"^\.(r\d{2}|\d{3}|z\d{2})$", RegexOptions.IgnoreCase) && ext != ".001" && ext != ".z01")
+        if (Regex.IsMatch(ext, @"^\.(r\d{2}|\d{3}|z\d{2})$", RegexOptions.IgnoreCase) && ext != ".001")
         {
             return true;
         }
@@ -138,5 +156,63 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         }
 
         return false;
+    }
+
+    private bool IsArchiveAlreadyExtracted(string destinationDirectory, string archiveFilePath)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(archiveFilePath);
+            var receiptPath = Path.Combine(destinationDirectory, $".leecharr_extracted_{fileName}");
+            if (this.diskProvider.FileExists(receiptPath))
+            {
+                return true;
+            }
+
+            var globalReceipt = Path.Combine(destinationDirectory, ".leecharr_extracted");
+            if (this.diskProvider.FileExists(globalReceipt))
+            {
+                var text = this.diskProvider.ReadAllText(globalReceipt);
+                if (!string.IsNullOrEmpty(text) && text.Contains(fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error checking extraction receipt for {0}", archiveFilePath);
+        }
+
+        return false;
+    }
+
+    private void RecordExtractionReceipt(string destinationDirectory, string archiveFilePath)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(archiveFilePath);
+            var receiptPath = Path.Combine(destinationDirectory, $".leecharr_extracted_{fileName}");
+            var content = $"Extracted: {DateTime.UtcNow:o}\nArchive: {fileName}\n";
+            this.diskProvider.WriteAllText(receiptPath, content);
+
+            var globalReceipt = Path.Combine(destinationDirectory, ".leecharr_extracted");
+            if (this.diskProvider.FileExists(globalReceipt))
+            {
+                var existing = this.diskProvider.ReadAllText(globalReceipt);
+                if (!existing.Contains(fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    this.diskProvider.WriteAllText(globalReceipt, existing + fileName + Environment.NewLine);
+                }
+            }
+            else
+            {
+                this.diskProvider.WriteAllText(globalReceipt, fileName + Environment.NewLine);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to write extraction receipt for archive {0}", archiveFilePath);
+        }
     }
 }
