@@ -1101,7 +1101,7 @@ public class TorrentServiceTest
     }
 
     [Test]
-    public async Task MoveQueueAsync_UpdatesQueuePositionsViaBatchUpdateMany()
+    public async Task MoveQueueAsync_UpdatesQueuePositionsViaBatchUpdateMany_AndPublishesUpdatedEvents()
     {
         var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
         var t2 = new Torrent { Id = 2, Name = "T2", QueuePosition = 2 };
@@ -1118,6 +1118,42 @@ public class TorrentServiceTest
             torrents.ElementAt(0).Id == 3 && torrents.ElementAt(0).QueuePosition == 1 &&
             torrents.ElementAt(1).Id == 1 && torrents.ElementAt(1).QueuePosition == 2 &&
             torrents.ElementAt(2).Id == 2 && torrents.ElementAt(2).QueuePosition == 3));
+
+        this.eventAggregator.Received(3).PublishEvent(Arg.Any<TorrentUpdatedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 3 && e.Torrent.QueuePosition == 1));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 1 && e.Torrent.QueuePosition == 2));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 2 && e.Torrent.QueuePosition == 3));
+    }
+
+    [Test]
+    public async Task MoveQueueAsync_NonExistentTorrent_DoesNotUpdateOrPublish()
+    {
+        this.torrentRepository.Get(999).Returns((Torrent)null!);
+
+        await this.service.MoveQueueAsync(999, "top");
+
+        this.torrentRepository.DidNotReceive().UpdateMany(Arg.Any<IEnumerable<Torrent>>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentUpdatedEvent>());
+    }
+
+    [Test]
+    public async Task MoveQueueAsync_ReordersUpAndDownPositions()
+    {
+        var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "T2", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 3, Name = "T3", QueuePosition = 3 };
+
+        this.torrentRepository.Get(2).Returns(t2);
+        this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
+
+        await this.service.MoveQueueAsync(2, "up");
+
+        this.torrentRepository.Received(1).UpdateMany(Arg.Is<IEnumerable<Torrent>>(torrents =>
+            torrents != null &&
+            torrents.Count() == 3 &&
+            torrents.ElementAt(0).Id == 2 && torrents.ElementAt(0).QueuePosition == 1 &&
+            torrents.ElementAt(1).Id == 1 && torrents.ElementAt(1).QueuePosition == 2 &&
+            torrents.ElementAt(2).Id == 3 && torrents.ElementAt(2).QueuePosition == 3));
     }
 
     [Test]
