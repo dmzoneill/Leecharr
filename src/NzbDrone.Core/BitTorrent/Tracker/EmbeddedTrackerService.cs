@@ -62,6 +62,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     private readonly IConfigService configService;
     private readonly ITorrentRepository torrentRepository;
+    private readonly TimeProvider timeProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, SwarmState> swarms = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer cleanupTimer;
@@ -70,10 +71,12 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
     public EmbeddedTrackerService(
         IConfigService configService = null,
         ITorrentRepository torrentRepository = null,
-        int? maxSwarms = null)
+        int? maxSwarms = null,
+        TimeProvider timeProvider = null)
     {
         this.configService = configService;
         this.torrentRepository = torrentRepository;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         this.MaxSwarms = maxSwarms ?? (configService != null && configService.TrackerMaxSwarms > 0
             ? configService.TrackerMaxSwarms
             : DefaultMaxSwarms);
@@ -94,6 +97,8 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             TimeSpan.FromMinutes(1),
             TimeSpan.FromMinutes(1));
     }
+
+    private DateTime UtcNow => this.timeProvider.GetUtcNow().UtcDateTime;
 
     public bool IsEnabled => this.configService?.TrackerServerEnabled ?? true;
 
@@ -162,7 +167,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             lock (existing)
             {
                 existing.IsRegistered = true;
-                existing.LastActivityUtc = DateTime.UtcNow;
+                existing.LastActivityUtc = this.UtcNow;
             }
 
             return;
@@ -177,14 +182,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         var swarm = this.swarms.GetOrAdd(normalizedHex, _ => new SwarmState
         {
             InfoHash = normalizedBytes,
-            LastActivityUtc = DateTime.UtcNow,
+            LastActivityUtc = this.UtcNow,
             IsRegistered = true,
         });
 
         lock (swarm)
         {
             swarm.IsRegistered = true;
-            swarm.LastActivityUtc = DateTime.UtcNow;
+            swarm.LastActivityUtc = this.UtcNow;
         }
     }
 
@@ -281,7 +286,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                 var newSwarm = new SwarmState
                 {
                     InfoHash = validBytes,
-                    LastActivityUtc = DateTime.UtcNow,
+                    LastActivityUtc = this.UtcNow,
                 };
 
                 swarm = this.swarms.GetOrAdd(hexKey, newSwarm);
@@ -291,7 +296,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             {
                 if (this.swarms.TryGetValue(hexKey, out var current) && ReferenceEquals(current, swarm))
                 {
-                    swarm.LastActivityUtc = DateTime.UtcNow;
+                    swarm.LastActivityUtc = this.UtcNow;
 
                     if (isStopped)
                     {
@@ -322,7 +327,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                         peer.Uploaded = request.Uploaded;
                         peer.Downloaded = request.Downloaded;
                         peer.Left = request.Left;
-                        peer.LastAnnounceUtc = DateTime.UtcNow;
+                        peer.LastAnnounceUtc = this.UtcNow;
 
                         if (isCompleted && !wasSeeder)
                         {
@@ -495,7 +500,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     public void PruneInactivePeers(TimeSpan timeout)
     {
-        var cutoff = DateTime.UtcNow - timeout;
+        var cutoff = this.UtcNow - timeout;
         var isPrivate = this.configService?.TrackerPrivateMode ?? false;
 
         foreach (var kvp in this.swarms)
@@ -542,7 +547,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     private void PruneStalePeers(SwarmState swarm, TimeSpan timeout, string hexKey)
     {
-        var cutoff = DateTime.UtcNow - timeout;
+        var cutoff = this.UtcNow - timeout;
         foreach (var kvp in swarm.Peers)
         {
             if (kvp.Value.LastAnnounceUtc < cutoff)

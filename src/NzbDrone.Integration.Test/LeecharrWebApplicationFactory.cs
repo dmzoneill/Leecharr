@@ -2,11 +2,13 @@
 
 using System;
 using System.IO;
-using System.Net;
+using System.Linq;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Threading;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Host;
 
@@ -33,12 +35,13 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
             "leecharr-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.tempDir);
 
-        var port = FindFreePort();
-        this.BaseUrl = $"http://127.0.0.1:{port}";
-
         var startupContext = new StartupContext("--data=" + this.tempDir);
-        this.app = Bootstrap.CreateApplication(startupContext, new[] { this.BaseUrl });
+        this.app = Bootstrap.CreateApplication(startupContext, new[] { "http://127.0.0.1:0" });
         this.app.StartAsync().GetAwaiter().GetResult();
+
+        var server = this.app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+        var addressesFeature = server.Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>();
+        this.BaseUrl = addressesFeature?.Addresses?.FirstOrDefault() ?? "http://127.0.0.1:0";
 
         this.LoadApiKey();
         this.Client = new HttpClient { BaseAddress = new Uri(this.BaseUrl) };
@@ -96,13 +99,6 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         {
             throw new InvalidOperationException($"Test server failed to start at {this.BaseUrl}");
         }
-    }
-
-    private static int FindFreePort()
-    {
-        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-        return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
     public void Dispose()

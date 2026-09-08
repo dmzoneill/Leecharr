@@ -45,6 +45,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly ICategoryService categoryService;
     private readonly IProwlarrSyncService prowlarrSyncService;
     private readonly IManageCommandQueue commandQueueManager;
+    private readonly TimeSpan backgroundLoopInterval;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -69,7 +70,8 @@ public class AppLifetime : IHostedService, IDisposable
         IAppFolderInfo appFolderInfo = null,
         ICategoryService categoryService = null,
         IProwlarrSyncService prowlarrSyncService = null,
-        IManageCommandQueue commandQueueManager = null)
+        IManageCommandQueue commandQueueManager = null,
+        TimeSpan? backgroundLoopInterval = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -88,6 +90,7 @@ public class AppLifetime : IHostedService, IDisposable
         this.categoryService = categoryService;
         this.prowlarrSyncService = prowlarrSyncService;
         this.commandQueueManager = commandQueueManager;
+        this.backgroundLoopInterval = backgroundLoopInterval ?? TimeSpan.FromSeconds(1);
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -312,7 +315,7 @@ public class AppLifetime : IHostedService, IDisposable
         {
             try
             {
-                await Task.Delay(1000, token);
+                await Task.Delay(this.backgroundLoopInterval, token);
 
                 var tasks = this.downloadEngine?.GetAllTasks()?.ToList();
                 if (tasks != null && tasks.Any(t => t.Status == TorrentStatus.Downloading))
