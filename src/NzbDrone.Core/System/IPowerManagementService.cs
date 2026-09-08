@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Threading.Tasks;
 
 namespace NzbDrone.Core.SystemServices;
@@ -18,4 +19,12 @@ public interface IPowerManagementService
     Task<bool> ExecutePowerActionAsync(PowerAction action);
 
     bool IsInContainer { get; }
+
+    bool IsSleepInhibited { get; }
+
+    int ActiveSleepInhibitionLeases { get; }
+
+    IDisposable InhibitSleep(string reason);
+
+    void SetSleepInhibited(bool inhibit, string reason);
 }
