@@ -177,6 +177,43 @@ public class VpnKillSwitchServiceTest
     }
 
     [Test]
+    public void GetVpnInterfaceIpAddress_WhenResolvedIPv6IsLinkLocal_ReturnsNull()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var linkLocalIpv6 = IPAddress.Parse("fe80::1");
+        this.service.InterfaceIpResolver = (_, family) => family == AddressFamily.InterNetworkV6 ? linkLocalIpv6 : null;
+        this.service.InterfaceStatusCheck = _ => true;
+
+        var resolvedIp = this.service.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6);
+        resolvedIp.Should().BeNull();
+    }
+
+    [Test]
+    public void GetVpnInterfaceIpAddress_WhenResolvedIPv6IsSiteLocalOrMulticast_ReturnsNull()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        this.service.InterfaceStatusCheck = _ => true;
+
+        this.service.InterfaceIpResolver = (_, family) => family == AddressFamily.InterNetworkV6 ? IPAddress.Parse("fec0::1") : null;
+        this.service.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6).Should().BeNull();
+
+        this.service.InterfaceIpResolver = (_, family) => family == AddressFamily.InterNetworkV6 ? IPAddress.Parse("ff02::1") : null;
+        this.service.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6).Should().BeNull();
+    }
+
+    [Test]
     public void ResolveInterfaceIpDefault_WhenInterfaceDoesNotExist_ReturnsNull()
     {
         var resolvedIpv4 = this.service.ResolveInterfaceIpDefault("nonexistent_tun_9999", AddressFamily.InterNetwork);
