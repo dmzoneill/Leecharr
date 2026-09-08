@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -213,6 +214,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpPost]
     [Route("api/auth/authenticate")]
+    [Route("auth/authenticate")]
     public IActionResult Authenticate([FromBody] FloodAuthRequest request = null)
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
@@ -306,6 +308,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/auth/verify")]
+    [Route("auth/verify")]
     public IActionResult Verify()
     {
         var isAllowed = this.IsFloodAuthenticated();
@@ -314,6 +317,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/client/settings")]
+    [Route("client/settings")]
     public IActionResult GetClientSettings()
     {
         return this.Ok(new
@@ -324,7 +328,45 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/torrents")]
+    [Route("torrents")]
     public IActionResult GetTorrents()
+    {
+        var dict = this.BuildTorrentDictionary();
+        return this.Ok(new { torrents = dict });
+    }
+
+    [HttpGet]
+    [Route("api/activity-stream")]
+    [Route("activity-stream")]
+    public async Task ActivityStream(CancellationToken cancellationToken = default)
+    {
+        this.Response.ContentType = "text/event-stream";
+        this.Response.Headers.CacheControl = "no-cache";
+        this.Response.Headers.Connection = "keep-alive";
+
+        var dict = this.BuildTorrentDictionary();
+        var json = JsonSerializer.Serialize(dict);
+        await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", cancellationToken);
+        await this.Response.Body.FlushAsync(cancellationToken);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(2000, cancellationToken);
+                var updateDict = this.BuildTorrentDictionary();
+                var updateJson = JsonSerializer.Serialize(updateDict);
+                await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {updateJson}\n\n", cancellationToken);
+                await this.Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected or test completed
+        }
+    }
+
+    public Dictionary<string, object> BuildTorrentDictionary()
     {
         var torrents = this.torrentService.GetAll().ToList();
         var dict = new Dictionary<string, object>();
@@ -347,7 +389,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
                 eta = t.Eta > 0 ? t.Eta : (t.Progress >= 1.0 ? 0 : (t.DownloadSpeed > 0 ? (Math.Max(0, t.TotalSize - t.Downloaded) / t.DownloadSpeed) : 8640000)),
-                status = new[] { this.MapToFloodStatus(t.Status) },
+                status = new[] { MapToFloodStatus(t.Status) },
                 tags = string.IsNullOrWhiteSpace(t.Category)
                     ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
                     : new[] { t.Category },
@@ -362,10 +404,10 @@ public class FloodApiController : ControllerBase, IActionFilter
             };
         }
 
-        return this.Ok(new { torrents = dict });
+        return dict;
     }
 
-    private string MapToFloodStatus(TorrentStatus status)
+    public static string MapToFloodStatus(TorrentStatus status)
     {
         return status switch
         {
@@ -691,6 +733,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/torrents/{hash}/peers")]
+    [Route("torrents/{hash}/peers")]
     public IActionResult GetTorrentPeers([FromRoute] string hash)
     {
         if (string.IsNullOrWhiteSpace(hash))
