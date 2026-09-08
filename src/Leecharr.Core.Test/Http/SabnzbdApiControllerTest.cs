@@ -736,4 +736,170 @@ public class SabnzbdApiControllerTest
         var status = doc.RootElement.GetProperty("status");
         status.GetProperty("paused").GetBoolean().Should().BeTrue();
     }
+
+    [Test]
+    public async Task HandleApi_Queue_SortsByQueuePositionAscendingAndFallbackToDateAdded()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+
+        var baseDate = new DateTime(2025, 1, 1, 10, 0, 0, DateTimeKind.Utc);
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "third", Name = "Third", Status = TorrentStatus.Downloading, QueuePosition = 2, DateAdded = baseDate },
+            new Torrent { Id = 2, InfoHash = "first", Name = "First", Status = TorrentStatus.Downloading, QueuePosition = 0, DateAdded = baseDate },
+            new Torrent { Id = 3, InfoHash = "second-earlier", Name = "SecondEarlier", Status = TorrentStatus.Downloading, QueuePosition = 1, DateAdded = baseDate.AddMinutes(10) },
+            new Torrent { Id = 4, InfoHash = "second-later", Name = "SecondLater", Status = TorrentStatus.Downloading, QueuePosition = 1, DateAdded = baseDate.AddMinutes(20) },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var slots = doc.RootElement.GetProperty("queue").GetProperty("slots");
+        slots.GetArrayLength().Should().Be(4);
+        slots[0].GetProperty("nzo_id").GetString().Should().Be("first");
+        slots[1].GetProperty("nzo_id").GetString().Should().Be("second-earlier");
+        slots[2].GetProperty("nzo_id").GetString().Should().Be("second-later");
+        slots[3].GetProperty("nzo_id").GetString().Should().Be("third");
+    }
+
+    [Test]
+    public async Task HandleApi_History_SortsByDateCompletedDescendingAndFallbackToDateAdded()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+
+        var baseDate = new DateTime(2025, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                InfoHash = "oldest-completed",
+                Name = "T1",
+                Status = TorrentStatus.Completed,
+                Progress = 1.0,
+                TotalSize = 1000,
+                DateAdded = baseDate,
+                DateCompleted = baseDate.AddHours(1),
+            },
+            new Torrent
+            {
+                Id = 2,
+                InfoHash = "newest-completed",
+                Name = "T2",
+                Status = TorrentStatus.Completed,
+                Progress = 1.0,
+                TotalSize = 2000,
+                DateAdded = baseDate,
+                DateCompleted = baseDate.AddHours(5),
+            },
+            new Torrent
+            {
+                Id = 3,
+                InfoHash = "no-completed-date-recent-added",
+                Name = "T3",
+                Status = TorrentStatus.Completed,
+                Progress = 1.0,
+                TotalSize = 3000,
+                DateAdded = baseDate.AddHours(3),
+                DateCompleted = null,
+            },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "history",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var slots = doc.RootElement.GetProperty("history").GetProperty("slots");
+        slots.GetArrayLength().Should().Be(3);
+        slots[0].GetProperty("nzo_id").GetString().Should().Be("newest-completed");
+        slots[1].GetProperty("nzo_id").GetString().Should().Be("no-completed-date-recent-added");
+        slots[2].GetProperty("nzo_id").GetString().Should().Be("oldest-completed");
+    }
+
+    [Test]
+    public async Task HandleApi_QueueActions_WithNzoPrefixes_StripsPrefixAndPerformsAction()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 55, InfoHash = "targethash123", Category = "movies" };
+        this.torrentService.GetByInfoHash("targethash123").Returns(torrent);
+
+        // Pause with SABnzbd_nzo_ prefix
+        var resultPause = await this.controller.HandleApi(
+            mode: "queue",
+            name: "pause",
+            value: "SABnzbd_nzo_targethash123",
+            cat: null,
+            priority: null,
+            output: null);
+        resultPause.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).PauseAsync(55);
+
+        // Resume with nzo_ prefix
+        var resultResume = await this.controller.HandleApi(
+            mode: "queue",
+            name: "resume",
+            value: "nzo_targethash123",
+            cat: null,
+            priority: null,
+            output: null);
+        resultResume.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).ResumeAsync(55);
+
+        // Delete with SABnzbd_nzo_ prefix
+        var resultDelete = await this.controller.HandleApi(
+            mode: "queue",
+            name: "delete",
+            value: "SABnzbd_nzo_targethash123",
+            cat: null,
+            priority: null,
+            output: null);
+        resultDelete.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).DeleteAsync(55, false);
+
+        // Change cat with nzo_ prefix
+        context.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "value2", "tv" }
+        });
+        var resultCat = await this.controller.HandleApi(
+            mode: "queue",
+            name: "change_cat",
+            value: "nzo_targethash123",
+            cat: null,
+            priority: null,
+            output: null);
+        resultCat.Should().BeOfType<OkObjectResult>();
+        torrent.Category.Should().Be("tv");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
 }
