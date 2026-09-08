@@ -47,32 +47,77 @@ public class MessageHub : Hub
                 var masterApiKey = config.ApiKey;
                 if (!string.IsNullOrWhiteSpace(masterApiKey))
                 {
-                    if (httpContext.Request.Headers.TryGetValue("X-Api-Key", out var headerKey) &&
+                    if (httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+                    {
+                        var authStr = authHeader.ToString().Trim();
+                        if (authStr.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var token = authStr["Bearer ".Length..].Trim();
+                            if (FixedTimeEquals(token, masterApiKey))
+                            {
+                                isAuth = true;
+                            }
+                        }
+                        else if (authStr.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var param = authStr["Basic ".Length..].Trim();
+                            try
+                            {
+                                var credentialBytes = Convert.FromBase64String(param);
+                                var credentials = System.Text.Encoding.UTF8.GetString(credentialBytes).Split(':', 2);
+                                var username = credentials.Length > 0 ? credentials[0] : string.Empty;
+                                var password = credentials.Length > 1 ? credentials[1] : string.Empty;
+
+                                if (FixedTimeEquals(password, masterApiKey) || FixedTimeEquals(username, masterApiKey))
+                                {
+                                    isAuth = true;
+                                }
+                                else
+                                {
+                                    var userService = httpContext.RequestServices?.GetService(typeof(NzbDrone.Core.Authentication.IUserService)) as NzbDrone.Core.Authentication.IUserService;
+                                    if (userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+                                    {
+                                        var user = userService.Authenticate(username, password);
+                                        if (user != null)
+                                        {
+                                            isAuth = true;
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                // Ignore malformed Basic auth header
+                            }
+                        }
+                    }
+
+                    if (!isAuth && httpContext.Request.Headers.TryGetValue("X-Api-Key", out var headerKey) &&
                         FixedTimeEquals(headerKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
-                    else if (httpContext.Request.Headers.TryGetValue("ApiKey", out var customApiKey) &&
+                    else if (!isAuth && httpContext.Request.Headers.TryGetValue("ApiKey", out var customApiKey) &&
                              FixedTimeEquals(customApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
-                    else if (httpContext.Request.Query.TryGetValue("access_token", out var queryToken) &&
+                    else if (!isAuth && httpContext.Request.Query.TryGetValue("access_token", out var queryToken) &&
                              FixedTimeEquals(queryToken.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
-                    else if (httpContext.Request.Query.TryGetValue("apikey", out var queryApiKey) &&
+                    else if (!isAuth && httpContext.Request.Query.TryGetValue("apikey", out var queryApiKey) &&
                              FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
-                    else if (httpContext.Request.Query.TryGetValue("api_key", out var queryApiKey2) &&
+                    else if (!isAuth && httpContext.Request.Query.TryGetValue("api_key", out var queryApiKey2) &&
                              FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
-                    else if (httpContext.Request.Query.TryGetValue("token", out var queryToken2) &&
+                    else if (!isAuth && httpContext.Request.Query.TryGetValue("token", out var queryToken2) &&
                              FixedTimeEquals(queryToken2.ToString(), masterApiKey))
                     {
                         isAuth = true;

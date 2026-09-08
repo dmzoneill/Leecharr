@@ -216,4 +216,42 @@ public class QueueManagerServiceTest
         await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
         await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(3);
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenResumeThrows_DoesNotUpdateStatusOrDatabase()
+    {
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 1 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+        this.downloadEngine.ResumeTorrentAsync(1).Returns(Task.FromException(new System.InvalidOperationException("Engine error")));
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Queued);
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStatusChangedEvent>());
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenPauseThrows_DoesNotUpdateStatusOrDatabase()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "T2", Status = TorrentStatus.Downloading, Progress = 0.2, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+        this.downloadEngine.PauseTorrentAsync(2).Returns(Task.FromException(new System.InvalidOperationException("Engine error")));
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 2));
+    }
 }

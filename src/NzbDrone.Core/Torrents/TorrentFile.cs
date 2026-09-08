@@ -21,5 +21,8 @@ public class TorrentFile : ModelBase
     public double Progress { get; set; }
 
     [Ignore]
+    public long ByteOffset { get; set; }
+
+    [Ignore]
     public long BytesCompleted { get; set; }
 }
