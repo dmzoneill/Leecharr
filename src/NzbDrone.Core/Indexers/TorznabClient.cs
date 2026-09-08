@@ -24,6 +24,11 @@ public interface ITorznabClient
 {
     Task<List<TorznabSearchResult>> SearchAsync(
         IndexerDefinition indexer,
+        TorznabSearchCriteria criteria,
+        System.Threading.CancellationToken cancellationToken = default);
+
+    Task<List<TorznabSearchResult>> SearchAsync(
+        IndexerDefinition indexer,
         string query,
         int? categoryId = null,
         int limit = 50,
@@ -196,7 +201,7 @@ public class TorznabClient : ITorznabClient
         return Math.Max(1, effectiveLimit);
     }
 
-    public async Task<List<TorznabSearchResult>> SearchAsync(
+    public Task<List<TorznabSearchResult>> SearchAsync(
         IndexerDefinition indexer,
         string query,
         int? categoryId = null,
@@ -216,88 +221,118 @@ public class TorznabClient : ITorznabClient
         string isbn = null,
         System.Threading.CancellationToken cancellationToken = default)
     {
+        var criteria = new TorznabSearchCriteria
+        {
+            Query = query,
+            CategoryId = categoryId,
+            Limit = limit,
+            Offset = offset,
+            Season = season,
+            Ep = ep,
+            ImdbId = imdbId,
+            TmdbId = tmdbId,
+            SearchType = searchType,
+            TvdbId = tvdbId,
+            Rid = rid,
+            Year = year,
+            Artist = artist,
+            Album = album,
+            Author = author,
+            Isbn = isbn,
+        };
+
+        return this.SearchAsync(indexer, criteria, cancellationToken);
+    }
+
+    public async Task<List<TorznabSearchResult>> SearchAsync(
+        IndexerDefinition indexer,
+        TorznabSearchCriteria criteria,
+        System.Threading.CancellationToken cancellationToken = default)
+    {
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
         {
             return new List<TorznabSearchResult>();
         }
 
+        criteria ??= new TorznabSearchCriteria();
+
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
-            var mode = !string.IsNullOrWhiteSpace(searchType)
-                ? searchType
-                : (season.HasValue || ep.HasValue || !string.IsNullOrWhiteSpace(tvdbId) || !string.IsNullOrWhiteSpace(rid)
+            var mode = !string.IsNullOrWhiteSpace(criteria.SearchType)
+                ? criteria.SearchType
+                : (criteria.Season.HasValue || criteria.Ep.HasValue || !string.IsNullOrWhiteSpace(criteria.TvdbId) || !string.IsNullOrWhiteSpace(criteria.Rid)
                     ? "tvsearch"
-                    : (!string.IsNullOrWhiteSpace(imdbId) || !string.IsNullOrWhiteSpace(tmdbId)
+                    : (!string.IsNullOrWhiteSpace(criteria.ImdbId) || !string.IsNullOrWhiteSpace(criteria.TmdbId)
                         ? "movie"
-                        : (!string.IsNullOrWhiteSpace(artist) || !string.IsNullOrWhiteSpace(album)
+                        : (!string.IsNullOrWhiteSpace(criteria.Artist) || !string.IsNullOrWhiteSpace(criteria.Album)
                             ? "music"
-                            : (!string.IsNullOrWhiteSpace(author) || !string.IsNullOrWhiteSpace(isbn)
+                            : (!string.IsNullOrWhiteSpace(criteria.Author) || !string.IsNullOrWhiteSpace(criteria.Isbn)
                                 ? "book"
                                 : "search"))));
 
-            var effectiveLimit = this.ResolveEffectiveLimit(indexer, limit);
-            var queryParams = $"t={mode}&limit={effectiveLimit}&offset={offset}";
+            var effectiveLimit = this.ResolveEffectiveLimit(indexer, criteria.Limit);
+            var queryParams = $"t={mode}&limit={effectiveLimit}&offset={criteria.Offset}";
 
-            if (!string.IsNullOrWhiteSpace(query))
+            if (!string.IsNullOrWhiteSpace(criteria.Query))
             {
-                queryParams += $"&q={Uri.EscapeDataString(query)}";
+                queryParams += $"&q={Uri.EscapeDataString(criteria.Query)}";
             }
 
-            if (season.HasValue)
+            if (criteria.Season.HasValue)
             {
-                queryParams += $"&season={season.Value}";
+                queryParams += $"&season={criteria.Season.Value}";
             }
 
-            if (ep.HasValue)
+            if (criteria.Ep.HasValue)
             {
-                queryParams += $"&ep={ep.Value}";
+                queryParams += $"&ep={criteria.Ep.Value}";
             }
 
-            if (!string.IsNullOrWhiteSpace(imdbId))
+            if (!string.IsNullOrWhiteSpace(criteria.ImdbId))
             {
-                var normalizedImdb = Regex.Replace(imdbId.Trim(), @"^tt", string.Empty, RegexOptions.IgnoreCase);
+                var normalizedImdb = Regex.Replace(criteria.ImdbId.Trim(), @"^tt", string.Empty, RegexOptions.IgnoreCase);
                 queryParams += $"&imdbid={Uri.EscapeDataString(normalizedImdb)}";
             }
 
-            if (!string.IsNullOrWhiteSpace(tmdbId))
+            if (!string.IsNullOrWhiteSpace(criteria.TmdbId))
             {
-                queryParams += $"&tmdbid={Uri.EscapeDataString(tmdbId.Trim())}";
+                queryParams += $"&tmdbid={Uri.EscapeDataString(criteria.TmdbId.Trim())}";
             }
 
-            if (!string.IsNullOrWhiteSpace(tvdbId))
+            if (!string.IsNullOrWhiteSpace(criteria.TvdbId))
             {
-                queryParams += $"&tvdbid={Uri.EscapeDataString(tvdbId.Trim())}";
+                queryParams += $"&tvdbid={Uri.EscapeDataString(criteria.TvdbId.Trim())}";
             }
 
-            if (!string.IsNullOrWhiteSpace(rid))
+            if (!string.IsNullOrWhiteSpace(criteria.Rid))
             {
-                queryParams += $"&rid={Uri.EscapeDataString(rid.Trim())}";
+                queryParams += $"&rid={Uri.EscapeDataString(criteria.Rid.Trim())}";
             }
 
-            if (year.HasValue)
+            if (criteria.Year.HasValue)
             {
-                queryParams += $"&year={year.Value}";
+                queryParams += $"&year={criteria.Year.Value}";
             }
 
-            if (!string.IsNullOrWhiteSpace(artist))
+            if (!string.IsNullOrWhiteSpace(criteria.Artist))
             {
-                queryParams += $"&artist={Uri.EscapeDataString(artist.Trim())}";
+                queryParams += $"&artist={Uri.EscapeDataString(criteria.Artist.Trim())}";
             }
 
-            if (!string.IsNullOrWhiteSpace(album))
+            if (!string.IsNullOrWhiteSpace(criteria.Album))
             {
-                queryParams += $"&album={Uri.EscapeDataString(album.Trim())}";
+                queryParams += $"&album={Uri.EscapeDataString(criteria.Album.Trim())}";
             }
 
-            if (!string.IsNullOrWhiteSpace(author))
+            if (!string.IsNullOrWhiteSpace(criteria.Author))
             {
-                queryParams += $"&author={Uri.EscapeDataString(author.Trim())}";
+                queryParams += $"&author={Uri.EscapeDataString(criteria.Author.Trim())}";
             }
 
-            if (!string.IsNullOrWhiteSpace(isbn))
+            if (!string.IsNullOrWhiteSpace(criteria.Isbn))
             {
-                queryParams += $"&isbn={Uri.EscapeDataString(isbn.Trim())}";
+                queryParams += $"&isbn={Uri.EscapeDataString(criteria.Isbn.Trim())}";
             }
 
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
@@ -305,9 +340,9 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
             }
 
-            if (categoryId.HasValue && categoryId.Value > 0)
+            if (criteria.CategoryId.HasValue && criteria.CategoryId.Value > 0)
             {
-                queryParams += $"&cat={categoryId.Value}";
+                queryParams += $"&cat={criteria.CategoryId.Value}";
             }
             else if (indexer.Categories != null && indexer.Categories.Count > 0)
             {
