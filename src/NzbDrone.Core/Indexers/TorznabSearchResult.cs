@@ -22,6 +22,8 @@ public class TorznabSearchResult
 
     public int Leechers { get; set; }
 
+    public int Peers { get; set; }
+
     public double DownloadVolumeFactor { get; set; } = 1.0;
 
     public double UploadVolumeFactor { get; set; } = 1.0;
