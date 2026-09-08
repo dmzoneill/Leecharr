@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Organizer;
 
@@ -247,5 +248,39 @@ public class FileNameBuilderTest
 
         var seasonDir = this.builder.BuildSeasonDirectory(epContext);
         seasonDir.Should().Be("Specials");
+    }
+
+    [Test]
+    public void BuildFileName_UsesInjectedSanitizerAndTruncator()
+    {
+        var mockSanitizer = Substitute.For<IFileNameSanitizer>();
+        var mockTruncator = Substitute.For<IPathTruncator>();
+
+        mockSanitizer.SanitizeFileName(Arg.Any<string>(), Arg.Any<ColonReplacementFormat>(), Arg.Any<string>())
+            .Returns("custom_sanitized_name.mkv");
+        mockTruncator.TruncateFileName("custom_sanitized_name.mkv")
+            .Returns("custom_sanitized_truncated_name.mkv");
+
+        var customBuilder = new FileNameBuilder(mockSanitizer, mockTruncator);
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Test Show",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 1 },
+            EpisodeTitles = new List<string> { "Test Episode" },
+            Extension = "mkv",
+        };
+
+        var config = new NamingConfig
+        {
+            StandardEpisodeFormat = "{Series Title} - S{season:00}E{episode:00} - {Episode Title}",
+            ReplaceIllegalCharacters = true,
+        };
+
+        var result = customBuilder.BuildFileName(context, namingConfig: config);
+
+        result.Should().Be("custom_sanitized_truncated_name.mkv");
+        mockSanitizer.Received(1).SanitizeFileName(Arg.Any<string>(), Arg.Any<ColonReplacementFormat>(), Arg.Any<string>());
+        mockTruncator.Received(1).TruncateFileName("custom_sanitized_name.mkv");
     }
 }

@@ -42,34 +42,6 @@ public class FileNameBuilder : IFileNameBuilder
 
     public string BuildFileName(EpisodeNamingContext context, string pattern = null, NamingConfig namingConfig = null)
     {
-        return BuildFileNameStatic(context, pattern, namingConfig);
-    }
-
-    public string BuildFileName(MovieNamingContext context, string pattern = null, NamingConfig namingConfig = null)
-    {
-        return BuildFileNameStatic(context, pattern, namingConfig);
-    }
-
-    public string BuildSeriesDirectory(EpisodeNamingContext context, string pattern = null, NamingConfig namingConfig = null)
-    {
-        return BuildSeriesDirectoryStatic(context, pattern, namingConfig);
-    }
-
-    public string BuildSeasonDirectory(EpisodeNamingContext context, string pattern = null, NamingConfig namingConfig = null)
-    {
-        return BuildSeasonDirectoryStatic(context, pattern, namingConfig);
-    }
-
-    public string BuildMovieDirectory(MovieNamingContext context, string pattern = null, NamingConfig namingConfig = null)
-    {
-        return BuildMovieDirectoryStatic(context, pattern, namingConfig);
-    }
-
-    public static string BuildFileNameStatic(
-        EpisodeNamingContext context,
-        string pattern = null,
-        NamingConfig namingConfig = null)
-    {
         if (context == null)
         {
             return string.Empty;
@@ -84,7 +56,7 @@ public class FileNameBuilder : IFileNameBuilder
                     ? config.AnimeEpisodeFormat
                     : config.StandardEpisodeFormat));
 
-        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config), config);
+        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config, this.fileNameSanitizer), config);
         var cleaned = CleanBuiltString(replaced);
 
         var extension = !string.IsNullOrWhiteSpace(context.Extension)
@@ -94,19 +66,16 @@ public class FileNameBuilder : IFileNameBuilder
         var fullFileName = cleaned + extension;
         if (config.ReplaceIllegalCharacters)
         {
-            fullFileName = FileNameSanitizer.SanitizeFileNameStatic(
+            fullFileName = this.fileNameSanitizer.SanitizeFileName(
                 fullFileName,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
 
-        return PathTruncator.TruncateFileNameStatic(fullFileName);
+        return this.pathTruncator.TruncateFileName(fullFileName);
     }
 
-    public static string BuildFileNameStatic(
-        MovieNamingContext context,
-        string pattern = null,
-        NamingConfig namingConfig = null)
+    public string BuildFileName(MovieNamingContext context, string pattern = null, NamingConfig namingConfig = null)
     {
         if (context == null)
         {
@@ -118,7 +87,7 @@ public class FileNameBuilder : IFileNameBuilder
             ? pattern
             : config.StandardMovieFormat;
 
-        var replaced = ReplaceTokens(template, token => ResolveMovieToken(token, context, config), config);
+        var replaced = ReplaceTokens(template, token => ResolveMovieToken(token, context, config, this.fileNameSanitizer), config);
         var cleaned = CleanBuiltString(replaced);
 
         var extension = !string.IsNullOrWhiteSpace(context.Extension)
@@ -128,19 +97,16 @@ public class FileNameBuilder : IFileNameBuilder
         var fullFileName = cleaned + extension;
         if (config.ReplaceIllegalCharacters)
         {
-            fullFileName = FileNameSanitizer.SanitizeFileNameStatic(
+            fullFileName = this.fileNameSanitizer.SanitizeFileName(
                 fullFileName,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
 
-        return PathTruncator.TruncateFileNameStatic(fullFileName);
+        return this.pathTruncator.TruncateFileName(fullFileName);
     }
 
-    public static string BuildSeriesDirectoryStatic(
-        EpisodeNamingContext context,
-        string pattern = null,
-        NamingConfig namingConfig = null)
+    public string BuildSeriesDirectory(EpisodeNamingContext context, string pattern = null, NamingConfig namingConfig = null)
     {
         if (context == null)
         {
@@ -149,24 +115,21 @@ public class FileNameBuilder : IFileNameBuilder
 
         var config = namingConfig ?? new NamingConfig();
         var template = !string.IsNullOrWhiteSpace(pattern) ? pattern : config.SeriesFolderFormat;
-        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config), config);
+        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config, this.fileNameSanitizer), config);
         var cleaned = CleanBuiltString(replaced);
 
         if (config.ReplaceIllegalCharacters)
         {
-            cleaned = FileNameSanitizer.SanitizeFolderNameStatic(
+            cleaned = this.fileNameSanitizer.SanitizeFolderName(
                 cleaned,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
 
-        return PathTruncator.TruncateFolderNameStatic(cleaned);
+        return this.pathTruncator.TruncateFolderName(cleaned);
     }
 
-    public static string BuildSeasonDirectoryStatic(
-        EpisodeNamingContext context,
-        string pattern = null,
-        NamingConfig namingConfig = null)
+    public string BuildSeasonDirectory(EpisodeNamingContext context, string pattern = null, NamingConfig namingConfig = null)
     {
         if (context == null)
         {
@@ -180,24 +143,21 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         var template = !string.IsNullOrWhiteSpace(pattern) ? pattern : config.SeasonFolderFormat;
-        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config), config);
+        var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config, this.fileNameSanitizer), config);
         var cleaned = CleanBuiltString(replaced);
 
         if (config.ReplaceIllegalCharacters)
         {
-            cleaned = FileNameSanitizer.SanitizeFolderNameStatic(
+            cleaned = this.fileNameSanitizer.SanitizeFolderName(
                 cleaned,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
 
-        return PathTruncator.TruncateFolderNameStatic(cleaned);
+        return this.pathTruncator.TruncateFolderName(cleaned);
     }
 
-    public static string BuildMovieDirectoryStatic(
-        MovieNamingContext context,
-        string pattern = null,
-        NamingConfig namingConfig = null)
+    public string BuildMovieDirectory(MovieNamingContext context, string pattern = null, NamingConfig namingConfig = null)
     {
         if (context == null)
         {
@@ -206,18 +166,58 @@ public class FileNameBuilder : IFileNameBuilder
 
         var config = namingConfig ?? new NamingConfig();
         var template = !string.IsNullOrWhiteSpace(pattern) ? pattern : config.MovieFolderFormat;
-        var replaced = ReplaceTokens(template, token => ResolveMovieToken(token, context, config), config);
+        var replaced = ReplaceTokens(template, token => ResolveMovieToken(token, context, config, this.fileNameSanitizer), config);
         var cleaned = CleanBuiltString(replaced);
 
         if (config.ReplaceIllegalCharacters)
         {
-            cleaned = FileNameSanitizer.SanitizeFolderNameStatic(
+            cleaned = this.fileNameSanitizer.SanitizeFolderName(
                 cleaned,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
 
-        return PathTruncator.TruncateFolderNameStatic(cleaned);
+        return this.pathTruncator.TruncateFolderName(cleaned);
+    }
+
+    public static string BuildFileNameStatic(
+        EpisodeNamingContext context,
+        string pattern = null,
+        NamingConfig namingConfig = null)
+    {
+        return new FileNameBuilder().BuildFileName(context, pattern, namingConfig);
+    }
+
+    public static string BuildFileNameStatic(
+        MovieNamingContext context,
+        string pattern = null,
+        NamingConfig namingConfig = null)
+    {
+        return new FileNameBuilder().BuildFileName(context, pattern, namingConfig);
+    }
+
+    public static string BuildSeriesDirectoryStatic(
+        EpisodeNamingContext context,
+        string pattern = null,
+        NamingConfig namingConfig = null)
+    {
+        return new FileNameBuilder().BuildSeriesDirectory(context, pattern, namingConfig);
+    }
+
+    public static string BuildSeasonDirectoryStatic(
+        EpisodeNamingContext context,
+        string pattern = null,
+        NamingConfig namingConfig = null)
+    {
+        return new FileNameBuilder().BuildSeasonDirectory(context, pattern, namingConfig);
+    }
+
+    public static string BuildMovieDirectoryStatic(
+        MovieNamingContext context,
+        string pattern = null,
+        NamingConfig namingConfig = null)
+    {
+        return new FileNameBuilder().BuildMovieDirectory(context, pattern, namingConfig);
     }
 
     private static string ReplaceTokens(
@@ -237,7 +237,7 @@ public class FileNameBuilder : IFileNameBuilder
         });
     }
 
-    private static string ResolveEpisodeToken(Match match, EpisodeNamingContext context, NamingConfig config)
+    private static string ResolveEpisodeToken(Match match, EpisodeNamingContext context, NamingConfig config, IFileNameSanitizer sanitizer = null)
     {
         var tokenName = match.Groups["token"].Value.Trim();
         var format = match.Groups["format"].Success ? match.Groups["format"].Value : null;
@@ -251,7 +251,7 @@ public class FileNameBuilder : IFileNameBuilder
             case "seriescleantitle":
                 return !string.IsNullOrWhiteSpace(context.SeriesCleanTitle)
                     ? context.SeriesCleanTitle
-                    : FileNameSanitizer.CleanTitleStatic(context.SeriesTitle);
+                    : (sanitizer != null ? sanitizer.CleanTitle(context.SeriesTitle) : FileNameSanitizer.CleanTitleStatic(context.SeriesTitle));
 
             case "season":
                 {
@@ -275,7 +275,7 @@ public class FileNameBuilder : IFileNameBuilder
                 return FormatEpisodeTitles(context.EpisodeTitles);
 
             case "episodecleantitle":
-                return FormatEpisodeCleanTitles(context.EpisodeCleanTitles, context.EpisodeTitles);
+                return FormatEpisodeCleanTitles(context.EpisodeCleanTitles, context.EpisodeTitles, sanitizer);
 
             case "absolute":
                 {
@@ -336,7 +336,7 @@ public class FileNameBuilder : IFileNameBuilder
         }
     }
 
-    private static string ResolveMovieToken(Match match, MovieNamingContext context, NamingConfig config)
+    private static string ResolveMovieToken(Match match, MovieNamingContext context, NamingConfig config, IFileNameSanitizer sanitizer = null)
     {
         var tokenName = match.Groups["token"].Value.Trim();
         var format = match.Groups["format"].Success ? match.Groups["format"].Value : null;
@@ -350,7 +350,7 @@ public class FileNameBuilder : IFileNameBuilder
             case "moviecleantitle":
                 return !string.IsNullOrWhiteSpace(context.MovieCleanTitle)
                     ? context.MovieCleanTitle
-                    : FileNameSanitizer.CleanTitleStatic(context.MovieTitle);
+                    : (sanitizer != null ? sanitizer.CleanTitle(context.MovieTitle) : FileNameSanitizer.CleanTitleStatic(context.MovieTitle));
 
             case "releaseyear":
             case "movieyear":
@@ -483,7 +483,7 @@ public class FileNameBuilder : IFileNameBuilder
         return string.Join(" + ", titles.Where(t => !string.IsNullOrWhiteSpace(t)));
     }
 
-    private static string FormatEpisodeCleanTitles(List<string> cleanTitles, List<string> originalTitles)
+    private static string FormatEpisodeCleanTitles(List<string> cleanTitles, List<string> originalTitles, IFileNameSanitizer sanitizer = null)
     {
         if (cleanTitles != null && cleanTitles.Count > 0)
         {
@@ -494,7 +494,7 @@ public class FileNameBuilder : IFileNameBuilder
         {
             return string.Join(" + ", originalTitles
                 .Where(t => !string.IsNullOrWhiteSpace(t))
-                .Select(FileNameSanitizer.CleanTitleStatic));
+                .Select(t => sanitizer != null ? sanitizer.CleanTitle(t) : FileNameSanitizer.CleanTitleStatic(t)));
         }
 
         return string.Empty;
