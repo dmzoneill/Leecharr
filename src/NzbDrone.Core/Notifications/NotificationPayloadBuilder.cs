@@ -111,7 +111,7 @@ public static class NotificationPayloadBuilder
             {
                 using var doc = JsonDocument.Parse(trimmed);
                 var root = doc.RootElement;
-                if (root.TryGetProperty("url", out var u) || root.TryGetProperty("Url", out u) || root.TryGetProperty("webhookUrl", out u))
+                if (root.TryGetProperty("url", out var u) || root.TryGetProperty("Url", out u) || root.TryGetProperty("webhookUrl", out u) || root.TryGetProperty("serverUrl", out u) || root.TryGetProperty("ServerUrl", out u))
                 {
                     candidateUrl = u.GetString() ?? trimmed;
                 }
