@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Network.Blocklist;
 
@@ -162,5 +164,103 @@ public class BlocklistProvidersTest
         provider.IsIpBlocked("192.168.1.50").Should().BeTrue();
         provider.IsIpBlocked("::ffff:192.168.1.50").Should().BeTrue();
         provider.IsIpBlocked("192.168.2.50").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task LinuxIpSetBlocklistProvider_WhenKernelExecutionSucceeds_ActivatesKernelOffloadAndPopulatesRules()
+    {
+        var diskMock = NSubstitute.Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
+        diskMock.FileExists("/usr/sbin/ipset").Returns(true);
+
+        var executedCommands = new List<(string Args, string Stdin)>();
+
+        var provider = new TestableLinuxIpSetBlocklistProvider(
+            diskMock,
+            (args, stdin) =>
+            {
+                executedCommands.Add((args, stdin));
+                return Task.FromResult((0, "ipset v7.19", string.Empty));
+            });
+
+        var rules = new List<string>
+        {
+            "192.168.1.0/24 # subnet",
+            "10.0.0.1 // single host",
+            "2001:db8::/32 ; ipv6 prefix",
+            "::ffff:172.16.0.0/120",
+        };
+
+        var loaded = await provider.LoadRulesAsync(rules);
+        loaded.Should().Be(4);
+        provider.IsKernelOffloadActive.Should().BeTrue();
+
+        provider.IsIpBlocked("192.168.1.100").Should().BeTrue();
+        provider.IsIpBlocked("10.0.0.1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1::5").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.5").Should().BeTrue();
+        provider.IsIpBlocked("8.8.8.8").Should().BeFalse();
+
+        executedCommands.Should().Contain(c => c.Args == "restore" && c.Stdin.Contains("add leecharr_tmp_v4 192.168.1.0/24 -exist"));
+        executedCommands.Should().Contain(c => c.Args == "restore" && c.Stdin.Contains("add leecharr_tmp_v6 2001:db8::/32 -exist"));
+
+        var health = await provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().Contain("kernel netfilter offload enabled");
+
+        provider.ClearRules();
+        provider.RuleCount.Should().Be(0);
+        provider.IsKernelOffloadActive.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task LinuxIpSetBlocklistProvider_WhenKernelExecutionFails_FallsBackToUserSpaceRadixTree()
+    {
+        var diskMock = NSubstitute.Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
+        diskMock.FileExists("/usr/sbin/ipset").Returns(true);
+
+        var provider = new TestableLinuxIpSetBlocklistProvider(
+            diskMock,
+            (args, stdin) => Task.FromResult((1, string.Empty, "ipset v7.19: Kernel error received: Operation not permitted")));
+
+        var rules = new List<string>
+        {
+            "192.168.1.0/24",
+            "10.0.0.50",
+        };
+
+        var loaded = await provider.LoadRulesAsync(rules);
+        loaded.Should().Be(2);
+        provider.IsKernelOffloadActive.Should().BeFalse();
+
+        // User space lookups still work via Radix tree
+        provider.IsIpBlocked("192.168.1.100").Should().BeTrue();
+        provider.IsIpBlocked("10.0.0.50").Should().BeTrue();
+        provider.IsIpBlocked("10.0.0.51").Should().BeFalse();
+
+        var health = await provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().Contain("user-space fallback mode");
+        health.Warnings.Should().Contain(w => w.Contains("Operation not permitted"));
+    }
+
+    private class TestableLinuxIpSetBlocklistProvider : LinuxIpSetBlocklistProvider
+    {
+        private readonly Func<string, string, Task<(int ExitCode, string StdOut, string StdErr)>> commandExecutor;
+
+        public TestableLinuxIpSetBlocklistProvider(
+            NzbDrone.Common.Disk.IDiskProvider diskProvider,
+            Func<string, string, Task<(int ExitCode, string StdOut, string StdErr)>> commandExecutor)
+            : base(diskProvider)
+        {
+            this.commandExecutor = commandExecutor;
+        }
+
+        protected override Task<(int ExitCode, string StdOut, string StdErr)> ExecuteIpSetCommandAsync(
+            string arguments,
+            string stdIn = null,
+            System.Threading.CancellationToken cancellationToken = default)
+        {
+            return this.commandExecutor(arguments, stdIn);
+        }
     }
 }
