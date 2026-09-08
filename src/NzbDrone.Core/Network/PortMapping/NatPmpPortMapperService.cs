@@ -461,7 +461,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
         var targetGateway = this.ResolveGateway(gateway);
-        if (targetGateway == null)
+        if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
         {
             return null;
         }
@@ -497,7 +497,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
         var targetGateway = this.ResolveGateway(gateway);
-        if (targetGateway == null)
+        if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
         {
             return new NatPmpMappingResult
             {
@@ -837,7 +837,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         CancellationToken cancellationToken)
     {
         var targetGateway = gateway ?? mapping.GatewayAddress ?? this.ResolveGateway();
-        if (targetGateway == null)
+        if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
         {
             this.logger.Warn("Cannot renew NAT-PMP mapping for {0} {1}: No gateway found.", mapping.Protocol, mapping.InternalPort);
             mapping.NextRenewalUtc = DateTime.UtcNow.AddSeconds(60);
@@ -967,6 +967,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         int maxAttempts = 3,
         CancellationToken cancellationToken = default)
     {
+        if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return null;
+        }
+
         var delayMs = 250;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -978,19 +983,27 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             UdpClient udp = null;
             try
             {
-                udp = new UdpClient();
+                udp = new UdpClient(AddressFamily.InterNetwork);
                 var endpoint = new IPEndPoint(targetGateway, this.gatewayPort);
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(Math.Min(delayMs * 2, 2000));
 
                 await udp.SendAsync(request, request.Length, endpoint).ConfigureAwait(false);
-                var result = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
-                var buffer = result.Buffer;
 
-                if (buffer.Length >= 2 && buffer[0] == 0x00 && buffer[1] == expectedResponseOpcode)
+                while (!cts.IsCancellationRequested)
                 {
-                    return buffer;
+                    var result = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                    if (!targetGateway.Equals(result.RemoteEndPoint.Address) || result.RemoteEndPoint.Port != this.gatewayPort)
+                    {
+                        continue;
+                    }
+
+                    var buffer = result.Buffer;
+                    if (buffer.Length >= 2 && buffer[0] == 0x00 && buffer[1] == expectedResponseOpcode)
+                    {
+                        return buffer;
+                    }
                 }
             }
             catch (OperationCanceledException)
