@@ -297,7 +297,8 @@ public class IndexerController : Controller
         }
 
         var catId = ParseCategoryId(category);
-        var fetchLimit = effectiveLimit;
+        var isMulti = indexers.Count > 1;
+        var fetchLimit = isMulti ? Math.Min(effectiveLimit, 100) : effectiveLimit;
         var fetchOffset = effectiveOffset;
 
         using var semaphore = new SemaphoreSlim(6);
