@@ -34,6 +34,8 @@ public interface IConfigService
 
     bool AutoExtractArchives { get; }
 
+    int MaxConcurrentExtractions { get; }
+
     string ActiveMediaInspector { get; }
 
     string ActiveNetworkBindingProvider { get; }
@@ -695,6 +697,8 @@ public class ConfigService : IConfigService
     public string ActiveArchiveExtractor => this.GetValue("ActiveArchiveExtractor", "SharpCompress");
 
     public bool AutoExtractArchives => this.GetValueBoolean("AutoExtractArchives", false);
+
+    public int MaxConcurrentExtractions => this.GetValueInt("MaxConcurrentExtractions", 2);
 
     public string ActiveMediaInspector => this.GetValue("ActiveMediaInspector", "TagLib");
 

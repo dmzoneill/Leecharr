@@ -15,6 +15,8 @@ namespace NzbDrone.Core.Extraction;
 public class UnrarExtractorProvider : IArchiveExtractorProvider
 {
     private readonly IDiskProvider diskProvider;
+    private readonly TimeSpan? baseTimeout;
+    private readonly int minutesPerGb;
     private readonly Logger logger;
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -32,6 +34,10 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     public bool IsAvailable => FindBinary() != null;
 
+    public TimeSpan BaseTimeout => this.baseTimeout ?? ArchiveTimeoutCalculator.DefaultBaseTimeout;
+
+    public int MinutesPerGigabyte => this.minutesPerGb;
+
     public ArchiveExtractorCapabilities Capabilities { get; } = new()
     {
         SupportsRar5 = true,
@@ -44,10 +50,20 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         SupportsRecoveryVolumes = true,
     };
 
-    public UnrarExtractorProvider(IDiskProvider diskProvider)
+    public UnrarExtractorProvider(
+        IDiskProvider diskProvider,
+        TimeSpan? baseTimeout = null,
+        int minutesPerGb = ArchiveTimeoutCalculator.DefaultMinutesPerGigabyte)
     {
         this.diskProvider = diskProvider;
+        this.baseTimeout = baseTimeout;
+        this.minutesPerGb = minutesPerGb > 0 ? minutesPerGb : ArchiveTimeoutCalculator.DefaultMinutesPerGigabyte;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public TimeSpan CalculateTimeout(string archivePath)
+    {
+        return ArchiveTimeoutCalculator.CalculateDynamicTimeout(archivePath, this.diskProvider, this.baseTimeout, this.minutesPerGb);
     }
 
     public Task<ExtractorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
@@ -132,7 +148,8 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                     ? targetDir
                     : targetDir + Path.DirectorySeparatorChar;
 
-                this.logger.Info("UnRAR extracting '{0}' to '{1}' using '{2}'...", archivePath, normalizedDest, binary);
+                var timeout = this.CalculateTimeout(archivePath);
+                this.logger.Info("UnRAR extracting '{0}' (timeout: {1:N0}m) to '{2}' using '{3}'...", archivePath, timeout.TotalMinutes, normalizedDest, binary);
 
                 var startInfo = new ProcessStartInfo
                 {
@@ -162,7 +179,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                 process.Start();
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromMinutes(30));
+                cts.CancelAfter(timeout);
 
                 var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
                 var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);

@@ -333,4 +333,95 @@ public class ArchiveExtractorEventHandlerTest
         this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
     }
+
+    [Test]
+    public void Constructor_SetsConcurrencyLimit_FromConfigServiceOrParameter()
+    {
+        this.configService.MaxConcurrentExtractions.Returns(4);
+        var customHandler = new ArchiveExtractorEventHandler(
+            this.extractorService,
+            this.torrentFileService,
+            this.diskProvider,
+            this.eventAggregator,
+            this.configService);
+
+        customHandler.ConcurrencyLimit.Should().Be(4);
+        customHandler.ConcurrencySemaphore.CurrentCount.Should().Be(4);
+
+        var explicitHandler = new ArchiveExtractorEventHandler(
+            this.extractorService,
+            this.torrentFileService,
+            this.diskProvider,
+            this.eventAggregator,
+            this.configService,
+            maxConcurrentExtractions: 1);
+
+        explicitHandler.ConcurrencyLimit.Should().Be(1);
+        explicitHandler.ConcurrencySemaphore.CurrentCount.Should().Be(1);
+    }
+
+    [Test]
+    public void Handle_ConcurrencyQueue_ThrottlesConcurrentExtractions()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+        var customHandler = new ArchiveExtractorEventHandler(
+            this.extractorService,
+            this.torrentFileService,
+            this.diskProvider,
+            this.eventAggregator,
+            this.configService,
+            maxConcurrentExtractions: 1);
+
+        var activeExtractions = 0;
+        var maxObservedConcurrency = 0;
+        var lockObj = new object();
+
+        this.extractorService.IsArchiveFile(Arg.Any<string>()).Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call => !call.Arg<string>().Contains(".leecharr_extracted"));
+
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                lock (lockObj)
+                {
+                    activeExtractions++;
+                    if (activeExtractions > maxObservedConcurrency)
+                    {
+                        maxObservedConcurrency = activeExtractions;
+                    }
+                }
+
+                await Task.Delay(100);
+
+                lock (lockObj)
+                {
+                    activeExtractions--;
+                }
+
+                return true;
+            });
+
+        var torrent1 = new Torrent { Id = 101, Name = "Torrent.1", SavePath = "/downloads/Torrent.1" };
+        var torrent2 = new Torrent { Id = 102, Name = "Torrent.2", SavePath = "/downloads/Torrent.2" };
+
+        this.torrentFileService.GetFiles(101).Returns(new List<TorrentFile> { new() { Id = 1, TorrentId = 101, Path = "file1.zip", Size = 1000 } });
+        this.torrentFileService.GetFiles(102).Returns(new List<TorrentFile> { new() { Id = 2, TorrentId = 102, Path = "file2.zip", Size = 1000 } });
+
+        var completedCount = 0;
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ =>
+        {
+            if (Interlocked.Increment(ref completedCount) == 2)
+            {
+                signal.Set();
+            }
+        });
+
+        customHandler.Handle(new TorrentDownloadCompletedEvent(torrent1));
+        customHandler.Handle(new TorrentDownloadCompletedEvent(torrent2));
+
+        var finished = signal.Wait(TimeSpan.FromSeconds(5));
+        finished.Should().BeTrue();
+        maxObservedConcurrency.Should().Be(1);
+    }
 }

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
@@ -260,6 +261,97 @@ public class ArchiveExtractorServiceTest
 
         // Verify that the file was NOT created outside the destination directory
         File.Exists(outsideTarget).Should().BeFalse();
+    }
+
+    [Test]
+    public void SharpCompressExtractor_BufferSize_DefaultsTo128Kb_AndAcceptsCustomSize()
+    {
+        var diskProvider = new DiskProvider();
+        var defaultProvider = new SharpCompressExtractorProvider(diskProvider);
+        defaultProvider.BufferSize.Should().Be(128 * 1024);
+
+        var customProvider = new SharpCompressExtractorProvider(diskProvider, bufferSize: 512 * 1024);
+        customProvider.BufferSize.Should().Be(512 * 1024);
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ExtractsValidZipArchive_WithCustomHighThroughputBuffer()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "high_throughput.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "high_throughput_output");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("large_chunk_data.bin");
+            using var entryStream = entry.Open();
+            var randomData = new byte[256 * 1024]; // 256 KB
+            new Random(42).NextBytes(randomData);
+            await entryStream.WriteAsync(randomData);
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider, bufferSize: 256 * 1024);
+
+        var success = await provider.ExtractAsync(zipPath, outputDir);
+        success.Should().BeTrue();
+
+        var extractedFile = Path.Combine(outputDir, "large_chunk_data.bin");
+        File.Exists(extractedFile).Should().BeTrue();
+        new FileInfo(extractedFile).Length.Should().Be(256 * 1024);
+    }
+
+    [Test]
+    public void ArchiveExtractorService_ConcurrencyLimit_DefaultsToTwo_AndAcceptsCustomValue()
+    {
+        var defaultService = new ArchiveExtractorService(this.diskProvider);
+        defaultService.ConcurrencyLimit.Should().Be(2);
+        defaultService.ConcurrencySemaphore.CurrentCount.Should().Be(2);
+
+        var customService = new ArchiveExtractorService(this.diskProvider, maxConcurrentExtractions: 4);
+        customService.ConcurrencyLimit.Should().Be(4);
+        customService.ConcurrencySemaphore.CurrentCount.Should().Be(4);
+    }
+
+    [Test]
+    public async Task ArchiveExtractorService_ExtractArchiveAsync_ThrottlesConcurrencyViaSemaphore()
+    {
+        var provider = Substitute.For<IArchiveExtractorProvider>();
+        var activeExtractions = 0;
+        var maxObservedConcurrency = 0;
+        var lockObj = new object();
+
+        provider.ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(async _ =>
+            {
+                lock (lockObj)
+                {
+                    activeExtractions++;
+                    if (activeExtractions > maxObservedConcurrency)
+                    {
+                        maxObservedConcurrency = activeExtractions;
+                    }
+                }
+
+                await Task.Delay(50);
+
+                lock (lockObj)
+                {
+                    activeExtractions--;
+                }
+
+                return true;
+            });
+
+        var boundedService = new ArchiveExtractorService(provider, maxConcurrentExtractions: 1);
+
+        var task1 = boundedService.ExtractArchiveAsync("/path/1.zip");
+        var task2 = boundedService.ExtractArchiveAsync("/path/2.zip");
+        var task3 = boundedService.ExtractArchiveAsync("/path/3.zip");
+
+        var results = await Task.WhenAll(task1, task2, task3);
+        results.Should().AllBeEquivalentTo(true);
+        maxObservedConcurrency.Should().Be(1);
     }
 
     #endregion
