@@ -222,7 +222,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         return model;
     }
 
-    public void Delete(int id)
+    public virtual void Delete(int id)
     {
         var existing = this.Get(id);
         RetryPolicy.Execute(() =>

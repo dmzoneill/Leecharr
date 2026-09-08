@@ -1,7 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
-using System.Linq;
+using Dapper;
 using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Indexers;
@@ -17,23 +17,35 @@ public interface IIndexerRepository : IBasicRepository<IndexerDefinition>
 
 public class IndexerRepository : BasicRepository<IndexerDefinition>, IIndexerRepository
 {
+    private readonly IDatabase database;
+
     public IndexerRepository(IDatabase database)
         : base(database)
     {
+        this.database = database;
     }
 
     public IEnumerable<IndexerDefinition> GetEnabled()
     {
-        return this.All().Where(i => i.Enable).OrderBy(i => i.Priority);
+        using var connection = this.database.OpenConnection();
+        return connection.Query<IndexerDefinition>(
+            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
+            new { Enable = true });
     }
 
     public IEnumerable<IndexerDefinition> GetSearchEnabled()
     {
-        return this.All().Where(i => i.Enable && i.EnableSearch).OrderBy(i => i.Priority);
+        using var connection = this.database.OpenConnection();
+        return connection.Query<IndexerDefinition>(
+            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable AND \"EnableSearch\" = @EnableSearch ORDER BY \"Priority\"",
+            new { Enable = true, EnableSearch = true });
     }
 
     public IEnumerable<IndexerDefinition> GetRssEnabled()
     {
-        return this.All().Where(i => i.Enable && i.EnableRss).OrderBy(i => i.Priority);
+        using var connection = this.database.OpenConnection();
+        return connection.Query<IndexerDefinition>(
+            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable AND \"EnableRss\" = @EnableRss ORDER BY \"Priority\"",
+            new { Enable = true, EnableRss = true });
     }
 }

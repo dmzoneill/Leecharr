@@ -49,7 +49,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
         // 3. UserSessions Table
         this.Create.Table("UserSessions")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
-            .WithColumn("UserId").AsInt32().NotNullable()
+            .WithColumn("UserId").AsInt32().NotNullable().ForeignKey("Users", "Id").OnDelete(System.Data.Rule.Cascade)
             .WithColumn("SessionToken").AsString(255).NotNullable().Unique()
             .WithColumn("RefreshToken").AsString(255).Nullable()
             .WithColumn("Expiry").AsDateTime().NotNullable()
@@ -61,7 +61,7 @@ public class AddAuthAndIdentityProviders : NzbDroneMigrationBase
         // 4. UserExternalLogins Table
         this.Create.Table("UserExternalLogins")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
-            .WithColumn("UserId").AsInt32().NotNullable()
+            .WithColumn("UserId").AsInt32().NotNullable().ForeignKey("Users", "Id").OnDelete(System.Data.Rule.Cascade)
             .WithColumn("LoginProvider").AsString(100).NotNullable()
             .WithColumn("ProviderKey").AsString(255).NotNullable()
             .WithColumn("ProviderDisplayName").AsString(255).Nullable()
