@@ -147,7 +147,8 @@ public class UTorrentWebUiController : ControllerBase
                         }
                         else
                         {
-                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(effS);
+                            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(effS, maxSizeBytes: maxTorrentBytes);
                             var parsed = this.torrentFileParser.Parse(bytes);
                             await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCategory, targetDir, false, bytes);
                         }

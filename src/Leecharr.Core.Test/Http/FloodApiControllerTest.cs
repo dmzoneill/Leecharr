@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -140,5 +141,56 @@ public class FloodApiControllerTest
             "/downloads/movies",
             true,
             Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public void GetPeers_WithActiveSwarm_MapsChokingAndEncryptionFlags()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Flood Torrent",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+        };
+        this.torrentService.GetByInfoHash("aabbccddeeff00112233445566778899aabbccdd").Returns(torrent);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.GetPeers().Returns(new List<PeerInfo>
+        {
+            new PeerInfo
+            {
+                Ip = "10.0.0.1",
+                Client = "Transmission/3.00",
+                DownloadSpeed = 50000,
+                UploadSpeed = 20000,
+                Progress = 0.5,
+                Flags = "uE",
+                IsEncrypted = true,
+                IsIncoming = true,
+                IsUtp = true,
+                IsChoked = false,
+                IsInterested = true,
+                ClientIsChoked = true,
+                ClientIsInterested = false,
+            },
+        });
+        this.torrentService.GetDownloadTask(42).Returns(mockTask);
+
+        var result = this.controller.GetTorrentPeers("aabbccddeeff00112233445566778899aabbccdd");
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.EnumerateArray().ToList();
+        array.Count.Should().Be(1);
+        var peer = array[0];
+        peer.GetProperty("address").GetString().Should().Be("10.0.0.1");
+        peer.GetProperty("isEncrypted").GetBoolean().Should().BeTrue();
+        peer.GetProperty("isIncoming").GetBoolean().Should().BeTrue();
+        peer.GetProperty("isUtp").GetBoolean().Should().BeTrue();
+        peer.GetProperty("peerIsChoked").GetBoolean().Should().BeFalse();
+        peer.GetProperty("peerIsInterested").GetBoolean().Should().BeTrue();
+        peer.GetProperty("clientIsChoked").GetBoolean().Should().BeTrue();
+        peer.GetProperty("clientIsInterested").GetBoolean().Should().BeFalse();
     }
 }
