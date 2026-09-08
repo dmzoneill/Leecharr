@@ -38,15 +38,26 @@ public class CommandWorker : BackgroundService
                         break;
                     }
 
-                    this.commandExecutor.Execute(command);
+                    await this.commandExecutor.ExecuteAsync(command, stoppingToken);
                 }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
                 this.logger.Error(ex, "Command worker error");
             }
 
-            await Task.Delay(PollInterval, stoppingToken);
+            try
+            {
+                await Task.Delay(PollInterval, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 }

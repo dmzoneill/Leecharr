@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common;
 using NzbDrone.Common.Serializer;
@@ -29,6 +31,11 @@ public class CommandExecutor : ICommandExecutor
 
     public void Execute(CommandModel command)
     {
+        this.ExecuteAsync(command, CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    public async Task ExecuteAsync(CommandModel command, CancellationToken cancellationToken = default)
+    {
         if (command == null)
         {
             return;
@@ -52,26 +59,87 @@ public class CommandExecutor : ICommandExecutor
             }
 
             var typedCommand = DeserializeCommand(command.Body, commandType);
-            var handlerType = typeof(IExecute<>).MakeGenericType(commandType);
+            var asyncHandlerType = typeof(IExecuteAsync<>).MakeGenericType(commandType);
+            var syncHandlerType = typeof(IExecute<>).MakeGenericType(commandType);
 
-            object handler;
+            object handler = null;
+            MethodInfo executeMethod = null;
+            bool isAsync = false;
+
             try
             {
-                handler = this.serviceFactory.Build(handlerType);
+                handler = this.serviceFactory.Build(asyncHandlerType);
+                if (handler != null)
+                {
+                    executeMethod = asyncHandlerType.GetMethod("ExecuteAsync");
+                    isAsync = true;
+                }
             }
-            catch (Exception ex)
+            catch
             {
-                this.logger.Warn(ex, "No handler registered for '{0}'", command.Name);
+                // Fall back to sync handler
+            }
+
+            if (handler == null)
+            {
+                try
+                {
+                    handler = this.serviceFactory.Build(syncHandlerType);
+                    if (handler != null)
+                    {
+                        executeMethod = syncHandlerType.GetMethod("Execute");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "No handler registered for '{0}'", command.Name);
+                    command.Status = CommandStatus.Failed;
+                    command.Message = $"No handler for command: {command.Name}";
+                    return;
+                }
+            }
+
+            if (handler == null || executeMethod == null)
+            {
+                this.logger.Warn("No handler registered for '{0}'", command.Name);
                 command.Status = CommandStatus.Failed;
                 command.Message = $"No handler for command: {command.Name}";
                 return;
             }
 
-            var executeMethod = handlerType.GetMethod("Execute");
-            executeMethod!.Invoke(handler, new[] { typedCommand });
+            if (isAsync)
+            {
+                var parameters = executeMethod.GetParameters();
+                object[] args = parameters.Length switch
+                {
+                    1 => new object[] { typedCommand },
+                    2 => new object[] { typedCommand, cancellationToken },
+                    _ => new object[] { typedCommand },
+                };
+
+                var task = (Task)executeMethod.Invoke(handler, args)!;
+                if (task != null)
+                {
+                    await task.ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                var result = executeMethod.Invoke(handler, new[] { typedCommand });
+                if (result is Task task)
+                {
+                    await task.ConfigureAwait(false);
+                }
+            }
 
             command.Status = CommandStatus.Completed;
             this.logger.Debug("Completed {0}", command.Name);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            command.Status = CommandStatus.Failed;
+            command.Message = "Command execution cancelled.";
+            this.logger.Warn("Command {0} was cancelled", command.Name);
         }
         catch (Exception ex)
         {
