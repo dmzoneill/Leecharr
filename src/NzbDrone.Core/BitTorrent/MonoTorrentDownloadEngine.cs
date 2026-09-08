@@ -461,7 +461,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var userAgent = this.configService.BitTorrentUserAgent;
         var peerIdPrefix = this.configService.PeerIdPrefix;
 
-        ConfigureGlobalMonoTorrentDefaults(peerIdPrefix);
+        ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent);
 
         WebProxy webProxy = null;
         if (this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
@@ -2503,7 +2503,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    internal static void ConfigureGlobalMonoTorrentDefaults(string prefix)
+    internal static void ConfigureGlobalMonoTorrentDefaults(string prefix, string userAgent = null)
     {
         if (string.IsNullOrWhiteSpace(prefix))
         {
@@ -2513,6 +2513,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
         {
             prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+        }
+
+        if (string.IsNullOrWhiteSpace(userAgent) ||
+            userAgent.Contains("MO3002", StringComparison.OrdinalIgnoreCase) ||
+            userAgent.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+        {
+            userAgent = ClientEmulationPresets.GetUserAgentForPrefix(prefix);
         }
 
         try
@@ -2553,11 +2560,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     if (gitInfoType != null)
                     {
                         gitInfoType.GetProperty("ClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                            ?.SetValue(null, cleanVersion);
+                            ?.SetValue(null, userAgent);
                         gitInfoType.GetProperty("DhtClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?.SetValue(null, cleanVersion);
                         gitInfoType.GetField("<ClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                            ?.SetValue(null, cleanVersion);
+                            ?.SetValue(null, userAgent);
                         gitInfoType.GetField("<DhtClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?.SetValue(null, cleanVersion);
                     }
@@ -2628,7 +2635,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             prefix = this.configService.PeerIdPrefix;
         }
 
-        ConfigureGlobalMonoTorrentDefaults(prefix);
+        var userAgent = this.configService.BitTorrentUserAgent;
+        ConfigureGlobalMonoTorrentDefaults(prefix, userAgent);
 
         if (clientEngine == null)
         {
