@@ -26,6 +26,17 @@ public class MagnetLinkParserTest
     }
 
     [Test]
+    public void Parse_WhenUriContainsFragment_StripsFragmentAndParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Ubuntu.iso#some-fragment-identifier";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        parsed.DisplayName.Should().Be("Ubuntu.iso");
+    }
+
+    [Test]
     public void Parse_WhenBase32InfoHash_ConvertsToHex()
     {
         // 32-character base32 hash for 20 bytes (e.g. 20 zero bytes = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)
@@ -108,5 +119,16 @@ public class MagnetLinkParserTest
         parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
         parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
         parsed.DisplayName.Should().Be("DirectSha");
+    }
+
+    [TestCase("0123456789abcdef0123456789abcdef01234567")] // 40-hex chars (SHA-1)
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 32-char Base32
+    [TestCase("1220invalid")]
+    public void Parse_WhenBtmhContainsInvalidOrSha1Hash_ThrowsFormatException(string invalidBtmh)
+    {
+        var magnet = $"magnet:?xt=urn:btmh:{invalidBtmh}&dn=Invalid";
+
+        Action act = () => MagnetLinkParser.Parse(magnet);
+        act.Should().Throw<FormatException>();
     }
 }
