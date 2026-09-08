@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useId } from "react";
 import { useSpeedHistory, useSeedingStats } from "../api/hooks";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
@@ -89,6 +89,7 @@ export function SpeedGraph({
   defaultTimeframe = "60s",
 }: SpeedGraphProps) {
   const { t } = useTranslation();
+  const gradientId = useId().replace(/:/g, "_");
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] =
     useState<number>(DEFAULT_SVG_WIDTH);
@@ -172,15 +173,25 @@ export function SpeedGraph({
     if (relevant.length === 0) {
       const currentUp = Number(stats?.uploadSpeed) || 0;
       const currentDown = Number(stats?.downloadSpeed) || 0;
-      return Array.from({ length: pointCount }, () => ({
-        uploadSpeed: currentUp,
-        downloadSpeed: currentDown,
-      }));
+      if (currentUp === 0 && currentDown === 0) {
+        return [];
+      }
+      return [
+        {
+          uploadSpeed: currentUp,
+          downloadSpeed: currentDown,
+        },
+      ];
     }
 
+    const minTime = relevant[0].time;
     const sampled: Array<{ uploadSpeed: number; downloadSpeed: number }> = [];
     for (let i = 0; i < pointCount; i++) {
       const targetTime = startTime + i * intervalMs;
+      // Skip points before the earliest recorded history to anchor sparse data to present
+      if (targetTime < minTime - intervalMs * 0.75) {
+        continue;
+      }
       // Find nearest point within window
       let closest = relevant[0];
       let minDiff = Math.abs(relevant[0].time - targetTime);
@@ -195,6 +206,13 @@ export function SpeedGraph({
       sampled.push({
         uploadSpeed: closest.uploadSpeed,
         downloadSpeed: closest.downloadSpeed,
+      });
+    }
+
+    if (sampled.length === 0 && relevant.length > 0) {
+      sampled.push({
+        uploadSpeed: relevant[relevant.length - 1].uploadSpeed,
+        downloadSpeed: relevant[relevant.length - 1].downloadSpeed,
       });
     }
 
@@ -220,18 +238,19 @@ export function SpeedGraph({
     return { value, y };
   });
 
-  const totalPoints = displayPoints.length;
+  const effectiveMaxPoints = currentTfConfig?.pointCount ?? maxPoints;
 
   const toPoints = (
     data: Array<{ uploadSpeed: number; downloadSpeed: number }>,
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length === 0) return "";
+    const offset = Math.max(0, effectiveMaxPoints - data.length);
     return data
       .map((point, i) => {
         const x =
           PADDING.left +
-          (i / Math.max(1, totalPoints - 1)) * chartWidth;
+          ((offset + i) / Math.max(1, effectiveMaxPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
@@ -244,15 +263,21 @@ export function SpeedGraph({
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length < 2) return "";
+    const offset = Math.max(0, effectiveMaxPoints - data.length);
     const bottom = PADDING.top + chartHeight;
-    const firstX = PADDING.left;
-    const lastX = PADDING.left + chartWidth;
+    const firstX =
+      PADDING.left +
+      (offset / Math.max(1, effectiveMaxPoints - 1)) * chartWidth;
+    const lastX =
+      PADDING.left +
+      ((offset + data.length - 1) / Math.max(1, effectiveMaxPoints - 1)) *
+        chartWidth;
 
     const linePoints = data
       .map((point, i) => {
         const x =
           PADDING.left +
-          (i / Math.max(1, totalPoints - 1)) * chartWidth;
+          ((offset + i) / Math.max(1, effectiveMaxPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
@@ -421,11 +446,23 @@ export function SpeedGraph({
           style={{ overflow: "visible", display: "block" }}
         >
           <defs>
-            <linearGradient id="speedUploadGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`speedUploadGrad_${gradientId}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="0%" stopColor="#c8a84e" stopOpacity="0.3" />
               <stop offset="100%" stopColor="#c8a84e" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="speedDownloadGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`speedDownloadGrad_${gradientId}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="0%" stopColor="#e74c3c" stopOpacity="0.25" />
               <stop offset="100%" stopColor="#e74c3c" stopOpacity="0.0" />
             </linearGradient>
@@ -469,9 +506,17 @@ export function SpeedGraph({
           ))}
 
           {/* Area Fills */}
-          {uploadArea && <path d={uploadArea} fill="url(#speedUploadGrad)" />}
+          {uploadArea && (
+            <path
+              d={uploadArea}
+              fill={`url(#speedUploadGrad_${gradientId})`}
+            />
+          )}
           {downloadArea && (
-            <path d={downloadArea} fill="url(#speedDownloadGrad)" />
+            <path
+              d={downloadArea}
+              fill={`url(#speedDownloadGrad_${gradientId})`}
+            />
           )}
 
           {/* Polylines */}
