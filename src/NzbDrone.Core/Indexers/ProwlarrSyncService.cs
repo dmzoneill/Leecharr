@@ -261,8 +261,10 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 return 0;
             }
 
-            var torrentIndexers = indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
-            if (torrentIndexers.Count == 0)
+            var supportedIndexers = indexers.Where(i =>
+                string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(i.Protocol, "usenet", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (supportedIndexers.Count == 0)
             {
                 var allExisting = this.repository.All().ToList();
                 var prowlarrToDelete = allExisting
@@ -278,7 +280,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
 
             using var semaphore = new SemaphoreSlim(8);
-            var tasks = torrentIndexers.Select(async pIndexer =>
+            var tasks = supportedIndexers.Select(async pIndexer =>
             {
                 await semaphore.WaitAsync();
                 try
@@ -307,15 +309,20 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
                 syncedProwlarrIds.Add(pIndexer.Id);
 
+                var isUsenet = string.Equals(pIndexer.Protocol, "usenet", StringComparison.OrdinalIgnoreCase);
+                var implementation = !string.IsNullOrWhiteSpace(pIndexer.Implementation)
+                    ? pIndexer.Implementation
+                    : (isUsenet ? "Newznab" : "Torznab");
+
                 var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
-                               ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
+                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
                     this.repository.Insert(new IndexerDefinition
                     {
                         Name = pIndexer.Name,
-                        Implementation = "Torznab",
+                        Implementation = implementation,
                         ConfigContract = "ProwlarrSettings",
                         Url = feedUrl,
                         ApiKey = apiKey,
@@ -331,6 +338,15 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 else
                 {
                     existing.Name = pIndexer.Name;
+                    if (!string.IsNullOrWhiteSpace(pIndexer.Implementation))
+                    {
+                        existing.Implementation = pIndexer.Implementation;
+                    }
+                    else if (string.IsNullOrWhiteSpace(existing.Implementation))
+                    {
+                        existing.Implementation = implementation;
+                    }
+
                     existing.Url = feedUrl;
                     existing.ApiKey = apiKey;
                     existing.Enable = pIndexer.Enable;
