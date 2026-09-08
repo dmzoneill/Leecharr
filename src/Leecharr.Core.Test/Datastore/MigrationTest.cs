@@ -259,4 +259,41 @@ public class MigrationTest
         columns.Should().Contain("Cast");
         columns.Should().Contain("BannerUrl");
     }
+
+    [Test]
+    public void Migration026_CreatesMissingPerformanceIndexes()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT count(*) FROM sqlite_master 
+            WHERE type='index' AND name IN (
+                'IX_DownloadHistory_TorrentId',
+                'IX_Commands_Status_QueuedAt',
+                'IX_Commands_Status_EndedAt',
+                'IX_TrackerBoostTrackers_Enabled_Status_LatencyMs'
+            );";
+
+        var count = Convert.ToInt32(command.ExecuteScalar());
+        count.Should().Be(4);
+    }
 }

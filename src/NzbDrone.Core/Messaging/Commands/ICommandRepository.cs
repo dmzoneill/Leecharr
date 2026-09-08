@@ -10,5 +10,7 @@ public interface ICommandRepository : IBasicRepository<CommandModel>
 {
     IEnumerable<CommandModel> GetByStatus(CommandStatus status);
 
+    IEnumerable<CommandModel> GetRecent(int limit = 50);
+
     void DeleteOldTerminalCommands(DateTime cutoff);
 }
