@@ -110,8 +110,9 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         try
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => (string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase)) &&
+                                     n.OperationalStatus == OperationalStatus.Up);
 
             if (nic == null)
             {
