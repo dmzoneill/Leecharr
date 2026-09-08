@@ -1383,7 +1383,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.queue_top":
                     var topHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in topHashes)
+                    foreach (var hash in Enumerable.Reverse(topHashes))
                     {
                         var t = this.torrentService.GetByInfoHash(hash);
                         if (t != null)
@@ -1396,26 +1396,30 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.queue_up":
                     var upHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in upHashes)
+                    var upTorrents = upHashes
+                        .Select(h => this.torrentService.GetByInfoHash(h))
+                        .Where(t => t != null)
+                        .OrderBy(t => t.QueuePosition)
+                        .ToList();
+
+                    foreach (var t in upTorrents)
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
-                        if (t != null)
-                        {
-                            await this.torrentService.MoveQueueAsync(t.Id, "up");
-                        }
+                        await this.torrentService.MoveQueueAsync(t.Id, "up");
                     }
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.queue_down":
                     var downHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in downHashes)
+                    var downTorrents = downHashes
+                        .Select(h => this.torrentService.GetByInfoHash(h))
+                        .Where(t => t != null)
+                        .OrderByDescending(t => t.QueuePosition)
+                        .ToList();
+
+                    foreach (var t in downTorrents)
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
-                        if (t != null)
-                        {
-                            await this.torrentService.MoveQueueAsync(t.Id, "down");
-                        }
+                        await this.torrentService.MoveQueueAsync(t.Id, "down");
                     }
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
