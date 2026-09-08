@@ -13,7 +13,7 @@ public class UserService : IUserService
 {
     private const int SaltByteSize = 16;
     private const int HashByteSize = 32;
-    private const int DefaultIterations = 100000;
+    private const int DefaultIterations = 600000;
 
     private readonly IUserRepository userRepository;
     private readonly Logger logger;
@@ -41,6 +41,15 @@ public class UserService : IUserService
         {
             this.logger.Warn("Failed login attempt for username: {0}", username);
             return null;
+        }
+
+        if (user.Iterations < DefaultIterations)
+        {
+            user.PasswordHash = this.HashPassword(password, out var salt);
+            user.Salt = salt;
+            user.Iterations = DefaultIterations;
+            user.UpdatedAt = DateTime.UtcNow;
+            this.logger.Info("Upgraded password hash iterations to {0} for user: {1}", DefaultIterations, username);
         }
 
         user.LastLogin = DateTime.UtcNow;

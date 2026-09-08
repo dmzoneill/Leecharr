@@ -93,7 +93,7 @@ public class CookieSessionManager : ICookieSessionManager
             }
         }
 
-        if (session == null || session.IsRevoked || session.Expiry < now)
+        if (session == null || session.IsRevoked || session.Expiry < now || session.AbsoluteExpiry < now)
         {
             this.sessionCache.TryRemove(token, out _);
             this.logger.Warn("Rejecting revoked or expired session '{0}'.", token);
@@ -111,7 +111,19 @@ public class CookieSessionManager : ICookieSessionManager
         // Sliding Expiry: If context.ShouldRenew is true, or if session.Expiry - DateTime.UtcNow < renewalThreshold
         if (context.ShouldRenew || (session.Expiry - now < renewalThreshold))
         {
-            var newExpiry = isPersistent ? now.AddDays(30) : now.AddHours(8);
+            var calculatedExpiry = isPersistent ? now.AddDays(30) : now.AddHours(8);
+            var maxExpiry = session.AbsoluteExpiry;
+            var newExpiry = calculatedExpiry > maxExpiry ? maxExpiry : calculatedExpiry;
+
+            if (newExpiry <= now)
+            {
+                this.sessionCache.TryRemove(token, out _);
+                this.logger.Warn("Rejecting session '{0}' exceeding absolute expiry.", token);
+                context.RejectPrincipal();
+                await this.SignOutSafelyAsync(context);
+                return;
+            }
+
             session.Expiry = newExpiry;
             session.LastActivity = now;
 
@@ -156,7 +168,7 @@ public class CookieSessionManager : ICookieSessionManager
 
         if (this.sessionCache.TryGetValue(token, out var cached) && now - cached.CachedAt < this.cacheTtl)
         {
-            return cached.Session != null && !cached.Session.IsRevoked && cached.Session.Expiry >= now;
+            return cached.Session != null && !cached.Session.IsRevoked && cached.Session.Expiry >= now && cached.Session.AbsoluteExpiry >= now;
         }
 
         var session = this.userSessionRepository.FindBySessionToken(token);
@@ -165,7 +177,7 @@ public class CookieSessionManager : ICookieSessionManager
             this.sessionCache[token] = (session, now);
         }
 
-        return session != null && !session.IsRevoked && session.Expiry >= now;
+        return session != null && !session.IsRevoked && session.Expiry >= now && session.AbsoluteExpiry >= now;
     }
 
     public void InvalidateCache(string token)
