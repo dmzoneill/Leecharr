@@ -407,4 +407,15 @@ public class VpnKillSwitchServiceTest
         this.service.IsFailClosedActive.Should().BeTrue();
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnKillSwitchTriggeredEvent>(e => e.InterfaceName == "tun0"));
     }
+
+    [Test]
+    public void Dispose_UnhooksEventHandlersAndDisposesTimerSafely()
+    {
+        this.service.Dispose();
+        this.service.CheckVpnState().Should().BeFalse();
+
+        // Repeated dispose should be idempotent
+        var act = () => this.service.Dispose();
+        act.Should().NotThrow();
+    }
 }
