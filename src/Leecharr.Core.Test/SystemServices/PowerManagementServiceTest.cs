@@ -555,4 +555,52 @@ public class PowerManagementServiceTest
         capturedFlags.Should().HaveCount(2);
         capturedFlags[1].Should().Be(0x80000000); // ES_CONTINUOUS
     }
+
+    [Test]
+    public void IsInContainer_WhenDotnetRunningInContainerEnvVarSet_ReturnsTrue()
+    {
+        var original = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+        try
+        {
+            Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", "true");
+            var service = new PowerManagementService();
+            service.IsInContainer.Should().BeTrue();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", original);
+        }
+    }
+
+    [Test]
+    public void IsInContainer_WhenContainerEnvVarSet_ReturnsTrue()
+    {
+        var original = Environment.GetEnvironmentVariable("container");
+        try
+        {
+            Environment.SetEnvironmentVariable("container", "podman");
+            var service = new PowerManagementService();
+            service.IsInContainer.Should().BeTrue();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("container", original);
+        }
+    }
+
+    [Test]
+    public void IsInContainer_WhenKubernetesServiceHostEnvVarSet_ReturnsTrue()
+    {
+        var original = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST");
+        try
+        {
+            Environment.SetEnvironmentVariable("KUBERNETES_SERVICE_HOST", "10.0.0.1");
+            var service = new PowerManagementService();
+            service.IsInContainer.Should().BeTrue();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("KUBERNETES_SERVICE_HOST", original);
+        }
+    }
 }
