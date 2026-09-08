@@ -13,6 +13,9 @@ public static class TableMapping
 {
     private static readonly ConcurrentDictionary<Type, string> TableNames = new();
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
+    private static readonly ConcurrentDictionary<(Type Type, string Table), string> InsertSqlCache = new();
+    private static readonly ConcurrentDictionary<(Type Type, string Table), string> UpdateSqlCache = new();
+    private static readonly ConcurrentDictionary<(Type Type, string Table), string> DeleteSqlCache = new();
 
     public static void Register<TModel>(string tableName)
         where TModel : ModelBase
@@ -35,28 +38,58 @@ public static class TableMapping
         return type.Name + "s";
     }
 
-    public static string GetInsertSql<TModel>(string table, TModel model)
+    public static string GetInsertSql<TModel>(string table, TModel model = null)
         where TModel : ModelBase
     {
-        var properties = GetWritableProperties(typeof(TModel));
-        var columns = string.Join(", ", properties.Select(p => $"\"{p.Name}\""));
-        var parameters = string.Join(", ", properties.Select(p => $"@{p.Name}"));
-
-        return $"INSERT INTO \"{table}\" ({columns}) VALUES ({parameters})";
+        return GetInsertSql(typeof(TModel), table);
     }
 
-    public static string GetUpdateSql<TModel>(string table, TModel model)
+    public static string GetInsertSql(Type type, string table)
+    {
+        return InsertSqlCache.GetOrAdd((type, table), static key =>
+        {
+            var properties = GetWritableProperties(key.Type);
+            var columns = string.Join(", ", properties.Select(p => $"\"{p.Name}\""));
+            var parameters = string.Join(", ", properties.Select(p => $"@{p.Name}"));
+
+            return $"INSERT INTO \"{key.Table}\" ({columns}) VALUES ({parameters})";
+        });
+    }
+
+    public static string GetUpdateSql<TModel>(string table, TModel model = null)
         where TModel : ModelBase
     {
-        var properties = GetWritableProperties(typeof(TModel));
-        var setClauses = string.Join(", ", properties.Select(p => $"\"{p.Name}\" = @{p.Name}"));
+        return GetUpdateSql(typeof(TModel), table);
+    }
 
-        return $"UPDATE \"{table}\" SET {setClauses} WHERE \"Id\" = @Id";
+    public static string GetUpdateSql(Type type, string table)
+    {
+        return UpdateSqlCache.GetOrAdd((type, table), static key =>
+        {
+            var properties = GetWritableProperties(key.Type);
+            var setClauses = string.Join(", ", properties.Select(p => $"\"{p.Name}\" = @{p.Name}"));
+
+            return $"UPDATE \"{key.Table}\" SET {setClauses} WHERE \"Id\" = @Id";
+        });
+    }
+
+    public static string GetDeleteSql<TModel>(string table)
+        where TModel : ModelBase
+    {
+        return GetDeleteSql(typeof(TModel), table);
+    }
+
+    public static string GetDeleteSql(Type type, string table)
+    {
+        return DeleteSqlCache.GetOrAdd((type, table), static key => $"DELETE FROM \"{key.Table}\" WHERE \"Id\" = @Id");
     }
 
     public static void ClearCache()
     {
         PropertyCache.Clear();
+        InsertSqlCache.Clear();
+        UpdateSqlCache.Clear();
+        DeleteSqlCache.Clear();
     }
 
     private static PropertyInfo[] GetWritableProperties(Type type)

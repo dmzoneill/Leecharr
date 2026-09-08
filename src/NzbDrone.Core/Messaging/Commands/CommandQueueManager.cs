@@ -82,9 +82,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
 
     public IEnumerable<CommandModel> GetAll()
     {
-        return this.repository.All()
-            .OrderByDescending(c => c.QueuedAt)
-            .Take(50);
+        return this.repository.GetRecent(50);
     }
 
     public IEnumerable<CommandModel> GetStarted()
