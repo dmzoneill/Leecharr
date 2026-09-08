@@ -255,6 +255,39 @@ public class DynamicMediaInspectorProxyTest
     }
 
     [Test]
+    public async Task Inspect_WhenActiveProviderThrowsException_FallsBackToTagLib()
+    {
+        await this.proxy.SwitchProviderAsync("MediaInfo");
+        this.mediaInfoProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("Corrupted stream in MediaInfo"));
+
+        using var stream = new MemoryStream(new byte[16]);
+        var info = this.proxy.Inspect(stream, "sample.mp4");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("MP4");
+        info.Resolution.Should().Be("1080p");
+        this.mediaInfoProvider.Received(1).Inspect(stream, "sample.mp4");
+        this.tagLibProvider.Received(1).Inspect(stream, "sample.mp4");
+    }
+
+    [Test]
+    public async Task Inspect_WhenActiveProviderReturnsNull_FallsBackToTagLib()
+    {
+        await this.proxy.SwitchProviderAsync("MediaInfo");
+        this.mediaInfoProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>()).Returns((MediaContainerInfo)null!);
+
+        using var stream = new MemoryStream(new byte[16]);
+        var info = this.proxy.Inspect(stream, "sample.mp4");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("MP4");
+        info.Resolution.Should().Be("1080p");
+        this.mediaInfoProvider.Received(1).Inspect(stream, "sample.mp4");
+        this.tagLibProvider.Received(1).Inspect(stream, "sample.mp4");
+    }
+
+    [Test]
     public void Inspect_WhenActiveAndFallbackThrowException_ReturnsGracefulFallback()
     {
         this.tagLibProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>()).Returns(_ => throw new InvalidOperationException("Corrupt stream"));
