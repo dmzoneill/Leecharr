@@ -213,4 +213,104 @@ public class CommandExecutorTest
 
         queue.Received(1).FailStaleCommands();
     }
+
+    [Test]
+    [TestCase("WatchFolderScan")]
+    [TestCase("WatchFolderScanCommand")]
+    [TestCase("watchfolderscan")]
+    [TestCase("RssSync")]
+    [TestCase("RssSyncCommand")]
+    [TestCase("rsssync")]
+    [TestCase("VpnKillSwitchCheck")]
+    [TestCase("VpnKillSwitchCheckCommand")]
+    [TestCase("vpnkillswitchcheck")]
+    [TestCase("ProwlarrSync")]
+    [TestCase("ProwlarrSyncCommand")]
+    [TestCase("prowlarrsync")]
+    [TestCase("Backup")]
+    [TestCase("BackupCommand")]
+    [TestCase("backup")]
+    public async Task ExecuteAsync_ResolvesAndExecutesSystemTaskCommands(string commandName)
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 10,
+            Name = commandName,
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var executeAsyncCalled = false;
+
+        this.serviceFactory.Build(Arg.Any<Type>()).Returns(callInfo =>
+        {
+            var requestedType = callInfo.Arg<Type>();
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.WatchFolder.WatchFolderScanCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.WatchFolder.WatchFolderScanCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.WatchFolder.WatchFolderScanCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.Indexers.RssSyncCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.Indexers.RssSyncCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.Indexers.RssSyncCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.Network.VpnKillSwitchCheckCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.Network.VpnKillSwitchCheckCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.Network.VpnKillSwitchCheckCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.Indexers.ProwlarrSyncCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.Indexers.ProwlarrSyncCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.Indexers.ProwlarrSyncCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.Backup.BackupCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.Backup.BackupCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.Backup.BackupCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            return null;
+        });
+
+        await this.executor.ExecuteAsync(commandModel);
+
+        executeAsyncCalled.Should().BeTrue();
+        commandModel.Status.Should().Be(CommandStatus.Completed);
+    }
 }
