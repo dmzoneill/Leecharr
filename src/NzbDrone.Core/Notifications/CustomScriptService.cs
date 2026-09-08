@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -33,6 +34,100 @@ public class CustomScriptService : ICustomScriptService
         this.mediaEnrichmentService = mediaEnrichmentService;
         this.scriptTimeout = scriptTimeout ?? TimeSpan.FromSeconds(60);
         this.streamDrainTimeout = streamDrainTimeout ?? TimeSpan.FromSeconds(3);
+    }
+
+    internal static (string FileName, string Arguments) ResolveInterpreter(string scriptPath, string arguments)
+    {
+        var ext = Path.GetExtension(scriptPath).ToLowerInvariant();
+        var args = arguments ?? string.Empty;
+
+        if (OperatingSystem.IsWindows())
+        {
+            switch (ext)
+            {
+                case ".bat":
+                case ".cmd":
+                    return ("cmd.exe", $"/c \"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".py":
+                case ".pyw":
+                    return ("python", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".ps1":
+                    return ("powershell.exe", $"-ExecutionPolicy Bypass -File \"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                default:
+                    return (scriptPath, args);
+            }
+        }
+        else
+        {
+            switch (ext)
+            {
+                case ".sh":
+                    return ("/bin/sh", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".bash":
+                    return ("/bin/bash", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".py":
+                case ".pyw":
+                    return ("python3", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                default:
+                    return (scriptPath, args);
+            }
+        }
+    }
+
+    internal static void SanitizeEnvironment(System.Collections.Specialized.StringDictionary environmentVariables)
+    {
+        var keysToRemove = new List<string>();
+        foreach (string key in environmentVariables.Keys)
+        {
+            if (IsSensitiveEnvironmentVariable(key))
+            {
+                keysToRemove.Add(key);
+            }
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            environmentVariables.Remove(key);
+        }
+    }
+
+    internal static bool IsSensitiveEnvironmentVariable(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        if (key.StartsWith("LEECHARR_TORRENT_", StringComparison.OrdinalIgnoreCase) ||
+            key.StartsWith("LEECHARR_MEDIA_", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("LEECHARR_EVENT_TYPE", StringComparison.OrdinalIgnoreCase) ||
+            key.StartsWith("TR_", StringComparison.OrdinalIgnoreCase) ||
+            key.StartsWith("TORRENT_", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var upper = key.ToUpperInvariant();
+
+        if (upper.StartsWith("LEECHARR__") ||
+            upper.StartsWith("DATABASE_") ||
+            upper.StartsWith("POSTGRES_") ||
+            upper.StartsWith("DB_") ||
+            upper.StartsWith("REDIS_") ||
+            upper.StartsWith("SECRET_") ||
+            upper.StartsWith("API_KEY") ||
+            upper.StartsWith("PROXY_"))
+        {
+            return true;
+        }
+
+        var sensitiveKeywords = new[]
+        {
+            "PASSWORD", "PASSWD", "SECRET", "API_KEY", "APIKEY", "TOKEN", "CREDENTIAL", "AUTH",
+            "CONNECTIONSTRING", "PRIVATE_KEY",
+        };
+
+        return sensitiveKeywords.Any(k => upper.Contains(k));
     }
 
     internal static Dictionary<string, string> BuildEnvironmentVariables(string eventType, Torrent torrent, TorrentMediaMetadata meta = null)
@@ -98,16 +193,21 @@ public class CustomScriptService : ICustomScriptService
                 ? torrent.SavePath
                 : (Path.GetDirectoryName(scriptPath) ?? Environment.CurrentDirectory);
 
+            var (resolvedFileName, resolvedArgs) = ResolveInterpreter(scriptPath, arguments);
+
             var startInfo = new ProcessStartInfo
             {
-                FileName = scriptPath,
-                Arguments = arguments ?? string.Empty,
+                FileName = resolvedFileName,
+                Arguments = resolvedArgs,
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+
+            // Sanitize inherited environment variables
+            SanitizeEnvironment(startInfo.EnvironmentVariables);
 
             // Inject Servarr / Leecharr standard environment variables
             var meta = torrent != null ? this.mediaEnrichmentService?.GetMetadata(torrent.Id) : null;
