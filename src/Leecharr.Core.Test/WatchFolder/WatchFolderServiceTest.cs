@@ -43,6 +43,7 @@ public class WatchFolderServiceTest
         this.configService.WatchFolderPath.Returns(this.tempDirectory);
         this.configService.WatchFolderAutoStartTorrents.Returns(true);
         this.configService.WatchFolderDeleteAddedTorrents.Returns(true);
+        this.configService.WatchFolderDebounceMilliseconds.Returns(10);
 
         this.diskProvider.FolderExists(this.tempDirectory).Returns(true);
 
@@ -299,6 +300,60 @@ public class WatchFolderServiceTest
         using var lockStream = File.Open(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
 
         this.service.IsFileReady(lockedFile).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileDoesNotExist_ReturnsFalse()
+    {
+        var nonExistent = Path.Combine(this.tempDirectory, "missing.torrent");
+        var result = await this.service.IsFileStabilizedAsync(nonExistent, TimeSpan.FromMilliseconds(10));
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileIsEmpty_ReturnsFalse()
+    {
+        var emptyFile = Path.Combine(this.tempDirectory, "empty_stabilize.torrent");
+        await File.WriteAllBytesAsync(emptyFile, Array.Empty<byte>());
+
+        var result = await this.service.IsFileStabilizedAsync(emptyFile, TimeSpan.FromMilliseconds(10));
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileIsLocked_ReturnsFalse()
+    {
+        var lockedFile = Path.Combine(this.tempDirectory, "locked_stabilize.torrent");
+        await File.WriteAllBytesAsync(lockedFile, new byte[] { 1, 2, 3 });
+
+        using var lockStream = File.Open(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var result = await this.service.IsFileStabilizedAsync(lockedFile, TimeSpan.FromMilliseconds(10));
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileSizeChangesDuringDebounce_ReturnsFalse()
+    {
+        var growingFile = Path.Combine(this.tempDirectory, "growing.torrent");
+        await File.WriteAllBytesAsync(growingFile, new byte[] { 1, 2, 3 });
+
+        var checkTask = this.service.IsFileStabilizedAsync(growingFile, TimeSpan.FromMilliseconds(100));
+
+        await Task.Delay(30);
+        await File.WriteAllBytesAsync(growingFile, new byte[] { 1, 2, 3, 4, 5, 6 });
+
+        var result = await checkTask;
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileSizeIsStableAndUnlocked_ReturnsTrue()
+    {
+        var stableFile = Path.Combine(this.tempDirectory, "stable.torrent");
+        await File.WriteAllBytesAsync(stableFile, new byte[] { 1, 2, 3, 4 });
+
+        var result = await this.service.IsFileStabilizedAsync(stableFile, TimeSpan.FromMilliseconds(20));
+        result.Should().BeTrue();
     }
 
     #endregion

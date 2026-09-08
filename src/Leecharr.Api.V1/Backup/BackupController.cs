@@ -52,18 +52,21 @@ public class BackupController : Controller
     private readonly IDiskProvider diskProvider;
     private readonly IConnectionStringFactory connectionStringFactory;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public BackupController(
         IAppFolderInfo appFolderInfo,
         IDiskProvider diskProvider = null,
         IConnectionStringFactory connectionStringFactory = null,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        IConfigService configService = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.diskProvider = diskProvider;
         this.connectionStringFactory = connectionStringFactory;
         this.configFileProvider = configFileProvider;
+        this.configService = configService;
     }
 
     private bool IsPostgreSql()
@@ -176,30 +179,34 @@ public class BackupController : Controller
 
             if (isPostgres)
             {
-                var pgDumpExe = CliProcessDiscovery.FindExecutable("pg_dump");
+                var pgDumpExe = this.FindPgDumpExecutable();
                 var host = this.configFileProvider?.PostgresHost;
                 var port = this.configFileProvider?.PostgresPort ?? 5432;
                 var user = this.configFileProvider?.PostgresUser;
                 var password = this.configFileProvider?.PostgresPassword;
                 var dbName = this.configFileProvider?.PostgresMainDb;
 
-                if (!string.IsNullOrEmpty(pgDumpExe) && !string.IsNullOrEmpty(host) && !string.IsNullOrEmpty(dbName))
+                if (string.IsNullOrEmpty(pgDumpExe))
                 {
-                    tempDumpFile = Path.Combine(Path.GetTempPath(), $"leecharr_postgres_{Guid.NewGuid():N}.sql");
-                    var dumpSuccess = this.RunPgDump(pgDumpExe, host, port, user, password, dbName, tempDumpFile);
-                    if (dumpSuccess)
-                    {
-                        includesDb = true;
-                    }
-                    else
-                    {
-                        this.logger.Warn("pg_dump execution failed or produced empty file; creating backup with config only.");
-                    }
+                    this.logger.Error("pg_dump executable not found on system PATH. Unable to create PostgreSQL database backup.");
+                    throw new FileNotFoundException("pg_dump executable was not found on system PATH. Unable to create PostgreSQL database backup.");
                 }
-                else
+
+                if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(dbName))
                 {
-                    this.logger.Warn("pg_dump executable not found or PostgreSQL parameters missing; creating config-only backup for PostgreSQL instance.");
+                    this.logger.Error("PostgreSQL host or database name configuration is missing.");
+                    throw new InvalidOperationException("PostgreSQL host or database name configuration is missing.");
                 }
+
+                tempDumpFile = Path.Combine(Path.GetTempPath(), $"leecharr_postgres_{Guid.NewGuid():N}.sql");
+                var dumpSuccess = this.RunPgDump(pgDumpExe, host, port, user, password, dbName, tempDumpFile);
+                if (!dumpSuccess)
+                {
+                    this.logger.Error("pg_dump execution failed or timed out during PostgreSQL backup.");
+                    throw new InvalidOperationException("PostgreSQL backup failed: pg_dump execution failed or timed out.");
+                }
+
+                includesDb = true;
             }
             else
             {
@@ -364,7 +371,7 @@ public class BackupController : Controller
 
                     if (tempSqlPath != null && global::System.IO.File.Exists(tempSqlPath))
                     {
-                        var psqlExe = CliProcessDiscovery.FindExecutable("psql");
+                        var psqlExe = this.FindPsqlExecutable();
                         var host = this.configFileProvider?.PostgresHost;
                         var port = this.configFileProvider?.PostgresPort ?? 5432;
                         var user = this.configFileProvider?.PostgresUser;
@@ -381,8 +388,8 @@ public class BackupController : Controller
                             }
                             else
                             {
-                                this.logger.Warn("Failed to execute psql restore from backup {0}", backup.Path);
-                                return this.Ok(new { success = true, message = "Config restored, but psql restoration failed. Please inspect database logs and restart Leecharr." });
+                                this.logger.Error("Failed to execute psql restore from backup {0}", backup.Path);
+                                return this.StatusCode(500, new { success = false, message = "psql database restoration failed or timed out. Please inspect database logs." });
                             }
                         }
                         else
@@ -509,7 +516,23 @@ public class BackupController : Controller
         }
     }
 
-    private bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+    protected virtual string FindPgDumpExecutable() => CliProcessDiscovery.FindExecutable("pg_dump");
+
+    protected virtual string FindPsqlExecutable() => CliProcessDiscovery.FindExecutable("psql");
+
+    private int GetBackupTimeoutSeconds()
+    {
+        var timeout = this.configService?.DatabaseBackupTimeoutSeconds ?? 600;
+        return timeout > 0 ? timeout : 600;
+    }
+
+    private int GetRestoreTimeoutSeconds()
+    {
+        var timeout = this.configService?.DatabaseRestoreTimeoutSeconds ?? 600;
+        return timeout > 0 ? timeout : 600;
+    }
+
+    protected virtual bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
     {
         try
         {
@@ -531,20 +554,43 @@ public class BackupController : Controller
             using var proc = Process.Start(psi);
             if (proc == null)
             {
+                this.logger.Error("Failed to start pg_dump process.");
                 return false;
             }
 
-            proc.WaitForExit(30000);
-            return proc.ExitCode == 0 && global::System.IO.File.Exists(outputPath) && new FileInfo(outputPath).Length > 0;
+            var timeoutSeconds = this.GetBackupTimeoutSeconds();
+            var exited = proc.WaitForExit(timeoutSeconds * 1000);
+            if (!exited)
+            {
+                try
+                {
+                    proc.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                this.logger.Error("pg_dump process timed out after {0} seconds", timeoutSeconds);
+                return false;
+            }
+
+            if (proc.ExitCode != 0)
+            {
+                var stderr = proc.StandardError.ReadToEnd();
+                this.logger.Error("pg_dump failed with exit code {0}: {1}", proc.ExitCode, stderr);
+                return false;
+            }
+
+            return global::System.IO.File.Exists(outputPath) && new FileInfo(outputPath).Length > 0;
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "pg_dump execution failed");
+            this.logger.Error(ex, "pg_dump execution threw an exception");
             return false;
         }
     }
 
-    private bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+    protected virtual bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
     {
         try
         {
@@ -566,15 +612,38 @@ public class BackupController : Controller
             using var proc = Process.Start(psi);
             if (proc == null)
             {
+                this.logger.Error("Failed to start psql process.");
                 return false;
             }
 
-            proc.WaitForExit(60000);
-            return proc.ExitCode == 0;
+            var timeoutSeconds = this.GetRestoreTimeoutSeconds();
+            var exited = proc.WaitForExit(timeoutSeconds * 1000);
+            if (!exited)
+            {
+                try
+                {
+                    proc.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                this.logger.Error("psql restore process timed out after {0} seconds", timeoutSeconds);
+                return false;
+            }
+
+            if (proc.ExitCode != 0)
+            {
+                var stderr = proc.StandardError.ReadToEnd();
+                this.logger.Error("psql restore failed with exit code {0}: {1}", proc.ExitCode, stderr);
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "psql restore execution failed");
+            this.logger.Error(ex, "psql restore execution threw an exception");
             return false;
         }
     }
