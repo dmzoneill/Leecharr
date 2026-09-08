@@ -66,10 +66,14 @@ class SignalRManager {
           ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
           : "";
 
+      const apiKey = apiClient.getApiKey();
+      const connectionOptions: signalR.IHttpConnectionOptions = {};
+      if (apiKey && apiKey.trim().length > 0) {
+        connectionOptions.accessTokenFactory = () => apiClient.getApiKey() || "";
+      }
+
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${urlBase}/signalr/messages`, {
-          accessTokenFactory: () => apiClient.getApiKey() || "",
-        })
+        .withUrl(`${urlBase}/signalr/messages`, connectionOptions)
         .withAutomaticReconnect(new ExponentialBackoffRetryPolicy())
         .build();
 

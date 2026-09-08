@@ -2926,7 +2926,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     flags += "c";
                 }
 
-                var isEncrypted = p.EncryptionType.ToString() != "None";
+                var isEncrypted = p.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
                 if (isEncrypted)
                 {
                     flags += "E";
@@ -2979,7 +2979,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         foreach (var p in peers)
         {
-            if (p.EncryptionType.ToString() != "None")
+            if (p.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText)
             {
                 encryptedCount++;
             }
@@ -2988,8 +2988,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 plaintextCount++;
             }
 
-            var clientStr = p.ClientApp.Client.ToString();
-            if (clientStr.Contains("uTP", StringComparison.OrdinalIgnoreCase))
+            var isUtp = (p.Uri != null && string.Equals(p.Uri.Scheme, "utp", StringComparison.OrdinalIgnoreCase)) ||
+                        p.ClientApp.Client.ToString().Contains("uTP", StringComparison.OrdinalIgnoreCase);
+            if (isUtp)
             {
                 utpCount++;
             }

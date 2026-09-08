@@ -41,20 +41,20 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 
     public string FlareSolverrUrl { get; set; } = "http://localhost:8191/v1";
 
-    public FlareSolverrTransportProvider(IConfigService configService = null)
+    public FlareSolverrTransportProvider(IConfigService configService = null, HttpClient httpClient = null)
     {
         this.configService = configService;
-        this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
     }
 
     public async Task<HttpTransportHealthCheckResult> ProbeHealthAsync()
     {
+        var url = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
+            ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
+            : this.FlareSolverrUrl;
+
         try
         {
-            var url = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
-                ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
-                : this.FlareSolverrUrl;
-
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var resp = await this.httpClient.GetAsync(url, cts.Token);
             if (resp.IsSuccessStatusCode)
@@ -73,9 +73,9 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 
         return new HttpTransportHealthCheckResult
         {
-            IsHealthy = true,
-            StatusMessage = "FlareSolverr provider registered (service probe deferred or offline).",
-            Warnings = { $"FlareSolverr endpoint at {this.FlareSolverrUrl} is not currently responding." },
+            IsHealthy = false,
+            StatusMessage = $"FlareSolverr endpoint at {url} is offline or unreachable.",
+            Warnings = { $"FlareSolverr endpoint at {url} is not currently responding." },
         };
     }
 

@@ -283,7 +283,39 @@ public class DynamicHttpTransportProxyTest
 
         var health = await provider.ProbeHealthAsync();
         health.Should().NotBeNull();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("offline or unreachable");
+    }
+
+    private class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+
+        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.handler(request));
+        }
+    }
+
+    [Test]
+    public async Task ConcreteProviders_FlareSolverrTransportProvider_WhenOnline_ReturnsHealthy()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var client = new HttpClient(mockHandler);
+        using var provider = new FlareSolverrTransportProvider(config, client);
+
+        var health = await provider.ProbeHealthAsync();
+        health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().Contain("is responding");
     }
 
     [Test]

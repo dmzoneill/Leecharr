@@ -17,7 +17,8 @@ public static class ConsoleApp
         try
         {
             var startupContext = new StartupContext(args);
-            NzbDroneLogger.Register(startupContext);
+            var appFolderInfo = new AppFolderInfo(startupContext);
+            NzbDroneLogger.Register(startupContext, appFolderInfo);
 
             Logger.Info("Starting Leecharr Console - {0}", BuildInfo.Version);
             Bootstrap.Start(startupContext);
