@@ -23,6 +23,8 @@ public interface IWatchFolderService : IDisposable
 
     bool IsFileReady(string path);
 
+    Task<bool> IsFileStabilizedAsync(string path, TimeSpan? debounceDelay = null);
+
     Task<bool> ProcessFileAsync(string file, string folder = null);
 
     void StartWatcher();
@@ -105,6 +107,63 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         }
         catch (Exception)
         {
+            return false;
+        }
+    }
+
+    public virtual async Task<bool> IsFileStabilizedAsync(string path, TimeSpan? debounceDelay = null)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        long initialSize;
+        try
+        {
+            if (!this.IsFileReady(path))
+            {
+                return false;
+            }
+
+            var fileInfo = new FileInfo(path);
+            initialSize = fileInfo.Length;
+            if (initialSize <= 0)
+            {
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed initial stability check for '{0}'", path);
+            return false;
+        }
+
+        var delay = debounceDelay ?? TimeSpan.FromMilliseconds(this.configService?.WatchFolderDebounceMilliseconds > 0 ? this.configService.WatchFolderDebounceMilliseconds : 500);
+        if (delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay).ConfigureAwait(false);
+        }
+
+        try
+        {
+            if (!this.IsFileReady(path))
+            {
+                return false;
+            }
+
+            var fileInfo = new FileInfo(path);
+            if (fileInfo.Length <= 0 || fileInfo.Length != initialSize)
+            {
+                this.logger.Debug("File size unstable for '{0}': initial={1}, current={2}", path, initialSize, fileInfo.Length);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed second phase stability check for '{0}'", path);
             return false;
         }
     }
@@ -269,9 +328,9 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         {
             folder ??= this.configService.WatchFolderPath;
 
-            if (!this.IsFileReady(file))
+            if (!await this.IsFileStabilizedAsync(file).ConfigureAwait(false))
             {
-                this.logger.Debug("Watch folder file '{0}' is locked or still being written. Skipping this scan cycle.", file);
+                this.logger.Debug("Watch folder file '{0}' is locked, empty, or still being written. Skipping this scan cycle.", file);
                 return false;
             }
 
