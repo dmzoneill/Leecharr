@@ -245,9 +245,14 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
                 return true;
             }
 
-            var bytes = addr.GetAddressBytes();
-            if (bytes.Length == 4)
+            if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
             {
+                Span<byte> bytes = stackalloc byte[4];
+                if (!addr.TryWriteBytes(bytes, out _))
+                {
+                    return false;
+                }
+
                 // 10.0.0.0/8
                 if (bytes[0] == 10)
                 {
@@ -284,11 +289,17 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
                     return true;
                 }
             }
-            else if (bytes.Length == 16)
+            else if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
             {
                 if (addr.Equals(System.Net.IPAddress.IPv6Loopback))
                 {
                     return true;
+                }
+
+                Span<byte> bytes = stackalloc byte[16];
+                if (!addr.TryWriteBytes(bytes, out _))
+                {
+                    return false;
                 }
 
                 // Link-local fe80::/10

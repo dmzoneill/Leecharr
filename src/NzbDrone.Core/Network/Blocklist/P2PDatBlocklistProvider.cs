@@ -65,7 +65,12 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return false;
         }
 
-        var ipBytes = parsedIp.GetAddressBytes();
+        Span<byte> ipBytes = stackalloc byte[4];
+        if (!parsedIp.TryWriteBytes(ipBytes, out _))
+        {
+            return false;
+        }
+
         var ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
 
         List<IpRange> snapshot;
@@ -256,8 +261,12 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             if (startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
                 endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
             {
-                var sBytes = startIp.GetAddressBytes();
-                var eBytes = endIp.GetAddressBytes();
+                Span<byte> sBytes = stackalloc byte[4];
+                Span<byte> eBytes = stackalloc byte[4];
+                if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+                {
+                    return false;
+                }
 
                 var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
                 var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
@@ -310,7 +319,12 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
         if (singleIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
         {
-            var bytes = singleIp.GetAddressBytes();
+            Span<byte> bytes = stackalloc byte[4];
+            if (!singleIp.TryWriteBytes(bytes, out _))
+            {
+                return false;
+            }
+
             var num = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
             range = new IpRange(num, num, name);
             return true;
