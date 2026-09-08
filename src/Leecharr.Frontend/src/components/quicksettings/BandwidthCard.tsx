@@ -76,7 +76,10 @@ export const BandwidthCard: React.FC = () => {
       {
         onError: (err: any) => {
           showToast(
-            t("quickSettings.failedToUpdateSpeed", [err.message]),
+            t("quickSettings.failedToUpdateSpeed", {
+              error: err.message,
+              0: err.message,
+            }),
             "error",
           );
         },
@@ -191,18 +194,20 @@ export const BandwidthCard: React.FC = () => {
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${dlPercent}%, rgba(255, 255, 255, 0.12) ${dlPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
               }}
-              title={t("quickSettings.maxDownload", [
-                formatSpeedLimit(localDl),
-              ])}
+              title={t("quickSettings.maxDownload", {
+                0: formatSpeedLimit(localDl),
+                limit: formatSpeedLimit(localDl),
+              })}
               aria-label={t("quickSettings.maxDownloadSpeedLimit")}
             />
             <button
               type="button"
               className={`quick-slider-bound ${localDl === DL_STEPS[DL_STEPS.length - 1] ? "active" : ""}`}
               onClick={() => setDlDirect(DL_STEPS[DL_STEPS.length - 1])}
-              title={t("quickSettings.setDownloadToMax", [
-                formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
-              ])}
+              title={t("quickSettings.setDownloadToMax", {
+                0: formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
+                limit: formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
+              })}
             >
               100M
             </button>
@@ -239,16 +244,20 @@ export const BandwidthCard: React.FC = () => {
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${ulPercent}%, rgba(255, 255, 255, 0.12) ${ulPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
               }}
-              title={t("quickSettings.maxUpload", [formatSpeedLimit(localUl)])}
+              title={t("quickSettings.maxUpload", {
+                0: formatSpeedLimit(localUl),
+                limit: formatSpeedLimit(localUl),
+              })}
               aria-label={t("quickSettings.maxUploadSpeedLimit")}
             />
             <button
               type="button"
               className={`quick-slider-bound ${localUl === UL_STEPS[UL_STEPS.length - 1] ? "active" : ""}`}
               onClick={() => setUlDirect(UL_STEPS[UL_STEPS.length - 1])}
-              title={t("quickSettings.setUploadToMax", [
-                formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),
-              ])}
+              title={t("quickSettings.setUploadToMax", {
+                0: formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),
+                limit: formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),
+              })}
             >
               50M
             </button>
