@@ -91,6 +91,8 @@ public interface IConfigService
 
     int FastResumeIntervalMinutes { get; }
 
+    int LowDiskSpaceThresholdMb { get; }
+
     // Watch Folder
     bool WatchFolderEnabled { get; }
 
@@ -748,6 +750,8 @@ public class ConfigService : IConfigService
     public int DiskFlushIntervalSeconds => this.GetValueInt("DiskFlushIntervalSeconds", 30);
 
     public int FastResumeIntervalMinutes => this.GetValueInt("FastResumeIntervalMinutes", 5);
+
+    public int LowDiskSpaceThresholdMb => this.GetValueInt("LowDiskSpaceThresholdMb", 500);
 
     // Watch Folder
     public bool WatchFolderEnabled => this.GetValueBoolean("WatchFolderEnabled", false);

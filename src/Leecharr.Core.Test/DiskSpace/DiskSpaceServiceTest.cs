@@ -147,4 +147,22 @@ public class DiskSpaceServiceTest
             }
         }
     }
+
+    [Test]
+    public void GetDiskSpace_WhenIncompleteDownloadDirConfigured_IncludesIncompleteDownloads()
+    {
+        this.configService.DownloadDir.Returns("/downloads/torrents");
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+
+        this.diskProvider.GetAvailableSpace("/downloads/torrents").Returns(50_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads/torrents").Returns(100_000_000_000L);
+
+        this.diskProvider.GetAvailableSpace("/downloads/incomplete").Returns(30_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads/incomplete").Returns(80_000_000_000L);
+
+        var result = this.service.GetDiskSpace();
+
+        result.Should().Contain(d => d.Label == "Downloads" && d.Path == "/downloads/torrents" && d.FreeSpace == 50_000_000_000L);
+        result.Should().Contain(d => d.Label == "Incomplete Downloads" && d.Path == "/downloads/incomplete" && d.FreeSpace == 30_000_000_000L);
+    }
 }

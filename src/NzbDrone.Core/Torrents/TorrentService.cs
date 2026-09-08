@@ -946,23 +946,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     OldStatus = oldStatus,
                     NewStatus = torrent.Status,
                 });
-
-                if (torrent.Status == TorrentStatus.Stalled)
-                {
-                    this.eventAggregator.PublishEvent(new HealthIssueEvent(
-                        torrent,
-                        "Tracker",
-                        !string.IsNullOrWhiteSpace(torrent.ErrorMessage) ? torrent.ErrorMessage : "Torrent stalled due to tracker failure.",
-                        isResolved: false));
-                }
-                else if (oldStatus == TorrentStatus.Stalled)
-                {
-                    this.eventAggregator.PublishEvent(new HealthIssueEvent(
-                        torrent,
-                        "Tracker",
-                        "Tracker recovered and peers connected.",
-                        isResolved: true));
-                }
             }
 
             // Record completion timestamp when torrent reaches Seeding

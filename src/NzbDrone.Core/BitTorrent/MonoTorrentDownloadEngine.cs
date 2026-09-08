@@ -172,7 +172,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.configService = configService;
         this.storagePathService = storagePathService;
         this.categoryService = categoryService;
-        this.diskProvider = diskProvider;
+        this.diskProvider = diskProvider ?? new DiskProvider();
         this.eventAggregator = eventAggregator;
         this.blocklistService = blocklistService;
         this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService();
@@ -698,6 +698,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
         }
 
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+        var thresholdBytes = thresholdMb * 1024L * 1024L;
+        var availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
+        var isLowDiskSpace = availableSpace.HasValue && availableSpace.Value < thresholdBytes;
+
         var downloadTask = new MonoTorrentDownloadTask(
             torrent.Id,
             torrent.InfoHash,
@@ -706,7 +711,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             parsedTorrent,
             this.blocklistService,
             () => Interlocked.Increment(ref this.blockedPeersCount),
-            this.configService);
+            this.configService,
+            workingPath);
+        downloadTask.SavePath = completedDir;
         this.tasks[torrent.Id] = downloadTask;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
         if (manager.InfoHashes?.V1 != null)
@@ -722,7 +729,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         manager.TorrentStateChanged += this.OnTorrentStateChanged;
         manager.PieceHashed += this.OnPieceHashed;
 
-        if (parsedTorrent != null)
+        if (!isLowDiskSpace && parsedTorrent != null)
         {
             await this.PreallocateFilesAsync(manager, workingPath, parsedTorrent).ConfigureAwait(false);
         }
@@ -732,6 +739,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             await manager.PauseAsync();
             torrent.Status = TorrentStatus.Paused;
             this.logger.Warn("VPN Kill Switch active (fail-closed). Added torrent {0} in paused state.", torrent.Name);
+        }
+        else if (isLowDiskSpace)
+        {
+            await manager.PauseAsync();
+            downloadTask.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+            torrent.Status = TorrentStatus.Paused;
+            torrent.ErrorMessage = downloadTask.ErrorMessage;
+            this.logger.Warn("Insufficient free disk space on '{0}' for torrent '{1}' ({2} MB available, {3} MB threshold). Added torrent in paused state.", workingPath, torrent.Name, availableSpace.Value / (1024 * 1024), thresholdMb);
         }
         else if (torrent.Status == TorrentStatus.Paused)
         {
@@ -912,6 +927,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+            var thresholdBytes = thresholdMb * 1024L * 1024L;
+            var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager?.SavePath;
+            if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+            {
+                var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
+                if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
+                {
+                    task.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+                    this.logger.Warn("Cannot resume torrent id {0}: Insufficient free disk space ({1} MB available, {2} MB threshold).", torrentId, availableSpace.Value / (1024 * 1024), thresholdMb);
+                    return;
+                }
+            }
+        }
+
         lock (this.pendingTorrentsLock)
         {
             var pendingIndex = this.pendingTorrents.FindIndex(p => p.Torrent?.Id == torrentId);
@@ -921,9 +953,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var activeTask) && activeTask.Manager != null)
         {
-            await task.Manager.StartAsync();
+            activeTask.ClearStorageFull(this.eventAggregator);
+            await activeTask.Manager.StartAsync();
             this.logger.Info("Resumed torrent id {0}", torrentId);
         }
     }
@@ -936,12 +969,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+        var thresholdBytes = thresholdMb * 1024L * 1024L;
+
         foreach (var task in this.tasks.Values)
         {
             if (task.Manager != null)
             {
+                var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager.SavePath;
+                if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+                {
+                    var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
+                    if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
+                    {
+                        task.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+                        this.logger.Warn("Skipping resume for torrent id {0}: Insufficient free disk space.", task.TorrentId);
+                        continue;
+                    }
+                }
+
                 try
                 {
+                    task.ClearStorageFull(this.eventAggregator);
                     await task.Manager.StartAsync();
                     this.logger.Info("Resumed torrent id {0}", task.TorrentId);
                 }
@@ -1529,15 +1578,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             Interlocked.Increment(ref this.totalPiecesHashed);
 
-            if (e.HashPassed)
+            if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
-                this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
-                if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
+                if (this.tasks.TryGetValue(torrentId, out var task))
                 {
+                    var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+                    var thresholdBytes = thresholdMb * 1024L * 1024L;
+                    task.CheckDiskSpace(this.diskProvider, thresholdBytes, this.eventAggregator);
+                }
+
+                if (e.HashPassed)
+                {
+                    this.logger.Trace("Piece {0} verified for torrent {1} (progress: {2:P1})", e.PieceIndex, infoHash, manager.Progress / 100.0);
                     this.eventAggregator.PublishEvent(new PieceVerifiedEvent(torrentId, e.PieceIndex));
                 }
+                else
+                {
+                    Interlocked.Increment(ref this.totalHashFails);
+                    this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+                }
             }
-            else
+            else if (!e.HashPassed)
             {
                 Interlocked.Increment(ref this.totalHashFails);
                 this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
@@ -2074,8 +2135,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.engineStateLock.Dispose();
     }
 
+    public void CheckDiskSpaceHealth()
+    {
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+        var thresholdBytes = thresholdMb * 1024L * 1024L;
+
+        foreach (var task in this.tasks.Values)
+        {
+            try
+            {
+                task.CheckDiskSpace(this.diskProvider, thresholdBytes, this.eventAggregator);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error checking disk space health for torrent {0}", task.TorrentId);
+            }
+        }
+    }
+
     public void CheckTrackerHealth()
     {
+        this.CheckDiskSpaceHealth();
+
         foreach (var task in this.tasks.Values)
         {
             try
@@ -2407,10 +2488,15 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     private bool isTrackerStalled;
+    private bool isStorageFull;
     private string errorMessage;
     private IList<PeerId> cachedMonoPeers;
     private DateTime lastPeersUpdate = DateTime.MinValue;
     private bool isUpdatingPeers;
+
+    public string WorkingPath { get; set; }
+
+    public string SavePath { get; set; }
 
     public MonoTorrentDownloadTask(
         int torrentId,
@@ -2420,7 +2506,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         MtTorrent initialTorrent = null,
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        string workingPath = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
@@ -2430,6 +2517,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
         this.configService = configService;
+        this.WorkingPath = workingPath;
 
         if (manager != null)
         {
@@ -2579,6 +2667,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public bool IsStalled => this.isTrackerStalled;
 
+    public bool IsStorageFull => this.isStorageFull;
+
+    public bool IsOutOfDiskSpace => this.isStorageFull;
+
     public string ErrorMessage => this.errorMessage;
 
     public bool IsPrivate => this.Manager?.Torrent?.IsPrivate == true ||
@@ -2592,6 +2684,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
             if (this.Manager == null)
             {
                 return TorrentStatus.Stopped;
+            }
+
+            if (this.isStorageFull)
+            {
+                return TorrentStatus.Paused;
             }
 
             if (this.isTrackerStalled && this.Manager.State != TorrentState.Paused)
@@ -2766,6 +2863,81 @@ public class MonoTorrentDownloadTask : IDownloadTask
         {
             eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "Tracker", "Tracker recovered", isResolved: true));
         }
+    }
+
+    internal void SetStorageFull(string message, IEventAggregator eventAggregator = null)
+    {
+        var wasFull = this.isStorageFull;
+        this.isStorageFull = true;
+        this.errorMessage = !string.IsNullOrWhiteSpace(message) ? message : "StorageFull: Free disk space dropped below low-disk threshold (500 MB).";
+
+        if (!wasFull)
+        {
+            eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "DiskSpace", this.errorMessage, isResolved: false));
+        }
+    }
+
+    internal void ClearStorageFull(IEventAggregator eventAggregator = null)
+    {
+        var wasFull = this.isStorageFull;
+        this.isStorageFull = false;
+        if (this.errorMessage != null && this.errorMessage.StartsWith("StorageFull", StringComparison.OrdinalIgnoreCase))
+        {
+            this.errorMessage = null;
+        }
+
+        if (wasFull)
+        {
+            eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "DiskSpace", "Disk space restored.", isResolved: true));
+        }
+    }
+
+    public bool CheckDiskSpace(IDiskProvider diskProvider, long thresholdBytes, IEventAggregator eventAggregator = null)
+    {
+        if (this.Manager == null || diskProvider == null)
+        {
+            return false;
+        }
+
+        var path = this.WorkingPath ?? this.SavePath ?? this.Manager.SavePath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var freeSpace = diskProvider.GetAvailableSpace(path);
+        if (!freeSpace.HasValue)
+        {
+            return false;
+        }
+
+        if (freeSpace.Value < thresholdBytes)
+        {
+            var isDownloading = this.Manager.State is TorrentState.Downloading or TorrentState.Starting or TorrentState.Metadata or TorrentState.Hashing or TorrentState.Error;
+            if (isDownloading && this.Progress < 1.0)
+            {
+                try
+                {
+                    if (this.Manager.State != TorrentState.Paused && this.Manager.State != TorrentState.Stopping && this.Manager.State != TorrentState.Stopped)
+                    {
+                        this.Manager.PauseAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to pause manager during low-disk condition for torrent {0}", this.TorrentId);
+                }
+
+                this.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({freeSpace.Value / (1024 * 1024)} MB available, {thresholdBytes / (1024 * 1024)} MB required).", eventAggregator);
+                return true;
+            }
+        }
+        else if (this.isStorageFull)
+        {
+            this.ClearStorageFull(eventAggregator);
+        }
+
+        return false;
     }
 
     public long TotalBytes => this.Manager?.Torrent?.Size ?? this.initialTorrent?.Size ?? 0;
