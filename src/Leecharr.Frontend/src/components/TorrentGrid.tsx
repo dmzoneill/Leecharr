@@ -11,7 +11,6 @@ import {
   formatSeconds,
 } from "../utils/formatters";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
-import { useConfirm } from "../context/ConfirmContext";
 import { useTranslation } from "../i18n";
 
 export interface TorrentGridCardProps {
@@ -33,7 +32,6 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
     onDelete,
   }) => {
     const { t } = useTranslation();
-    const confirm = useConfirm();
     const telemetry = useTorrentStore((state) => state.telemetry[tTorrent.id]);
     const mergedTorrent = useMemo(
       () => applyTelemetry(tTorrent, telemetry),
@@ -336,18 +334,8 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             )}
             <button
               className="btn btn-small btn-danger"
-              onClick={async () => {
-                const ok = await confirm({
-                  title: t("torrents.grid.removeTitle"),
-                  message: t("torrents.grid.removeConfirm", {
-                    name: mergedTorrent.name,
-                  }),
-                  danger: true,
-                  confirmText: t("common.delete"),
-                });
-                if (ok) {
-                  onDelete({ id: mergedTorrent.id, deleteFiles: false });
-                }
+              onClick={() => {
+                onDelete({ id: mergedTorrent.id, deleteFiles: false });
               }}
             >
               {t("torrents.grid.delete")}
