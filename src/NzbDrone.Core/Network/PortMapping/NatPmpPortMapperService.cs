@@ -51,73 +51,31 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
 
+    private static readonly string[] VirtualInterfacePatterns =
+    [
+        "docker",
+        "veth",
+        "vmnet",
+        "vboxnet",
+        "wsl",
+        "hyper-v",
+        "vethernet",
+        "virbr",
+        "vmware",
+        "virtualbox",
+        "cni",
+        "flannel",
+        "calico",
+        "tailscale",
+        "zerotier",
+    ];
+
     public static IPAddress DiscoverDefaultGateway(string boundInterface = null)
     {
         try
         {
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces()
-                .Where(ni => ni.OperationalStatus == OperationalStatus.Up &&
-                             ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-                .ToList();
-
-            // 1. If a specific bound interface is provided and active, prioritize its gateway
-            if (!string.IsNullOrWhiteSpace(boundInterface) &&
-                !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase))
-            {
-                var boundNic = interfaces.FirstOrDefault(n =>
-                    string.Equals(n.Name, boundInterface, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(n.Id, boundInterface, StringComparison.OrdinalIgnoreCase));
-
-                if (boundNic != null)
-                {
-                    var gw = GetGatewayFromInterface(boundNic);
-                    if (gw != null)
-                    {
-                        return gw;
-                    }
-                }
-            }
-
-            // 2. Look for VPN / Tunnel interfaces first (tun, wg, ppp, tap, vpn, utun, etc.)
-            var vpnNic = interfaces.FirstOrDefault(n =>
-                n.Name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
-                n.Name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
-                n.Name.StartsWith("ppp", StringComparison.OrdinalIgnoreCase) ||
-                n.Name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
-                n.Name.StartsWith("vpn", StringComparison.OrdinalIgnoreCase) ||
-                n.Name.StartsWith("utun", StringComparison.OrdinalIgnoreCase));
-
-            if (vpnNic != null)
-            {
-                var vpnGw = GetGatewayFromInterface(vpnNic);
-                if (vpnGw != null)
-                {
-                    return vpnGw;
-                }
-            }
-
-            // 3. Fall back to non-Docker interfaces or any interface with a gateway
-            // Filter out default Docker bridge IP 172.17.0.1 if other non-docker gateways are available
-            IPAddress fallbackGateway = null;
-            foreach (var ni in interfaces)
-            {
-                var gw = GetGatewayFromInterface(ni);
-                if (gw != null)
-                {
-                    var gwStr = gw.ToString();
-                    if (gwStr == "172.17.0.1")
-                    {
-                        fallbackGateway ??= gw;
-                    }
-                    else
-                    {
-                        return gw;
-                    }
-                }
-            }
-
-            return fallbackGateway;
+            var candidates = GetSystemNetworkCandidates();
+            return SelectBestGateway(candidates, boundInterface);
         }
         catch
         {
@@ -125,16 +83,237 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
     }
 
-    private static IPAddress GetGatewayFromInterface(NetworkInterface ni)
+    public static IPAddress SelectBestGateway(IEnumerable<NatPmpNetworkInterfaceCandidate> candidates, string boundInterface = null)
+    {
+        if (candidates == null)
+        {
+            return null;
+        }
+
+        var candidateList = candidates.ToList();
+
+        // 1. If a specific bound interface is provided and active, prioritize its gateway
+        if (!string.IsNullOrWhiteSpace(boundInterface) &&
+            !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var boundNic = candidateList.FirstOrDefault(n =>
+                string.Equals(n.Name, boundInterface, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Id, boundInterface, StringComparison.OrdinalIgnoreCase));
+
+            if (boundNic != null && boundNic.GatewayAddresses.Count > 0)
+            {
+                var matchedGw = boundNic.GatewayAddresses.FirstOrDefault(gw =>
+                    boundNic.UnicastAddresses.Any(u => u.Mask != null && IsInSameSubnet(u.Address, gw, u.Mask)));
+
+                return matchedGw ?? boundNic.GatewayAddresses[0];
+            }
+        }
+
+        // 2. Physical interfaces: Ethernet, Wireless80211 without virtual description/name patterns
+        // Filter out Tunnel, PPP, Loopback, and down interfaces
+        // Verify candidate interfaces have an active non-APIPA IPv4 unicast address
+        var physicalCandidates = candidateList
+            .Where(c => c.OperationalStatus == OperationalStatus.Up &&
+                        c.InterfaceType != NetworkInterfaceType.Loopback &&
+                        c.InterfaceType != NetworkInterfaceType.Tunnel &&
+                        c.InterfaceType != NetworkInterfaceType.Ppp &&
+                        IsPhysicalInterfaceType(c.InterfaceType) &&
+                        !IsVirtualInterfaceName(c.Name, c.Description) &&
+                        c.UnicastAddresses.Any(u => IsValidIpv4UnicastAddress(u.Address)) &&
+                        c.GatewayAddresses.Any(IsValidGatewayAddress))
+            .ToList();
+
+        if (physicalCandidates.Count > 0)
+        {
+            // First look for physical candidates where the gateway matches the unicast subnet
+            foreach (var physical in physicalCandidates)
+            {
+                var subnetMatchedGateway = physical.GatewayAddresses
+                    .FirstOrDefault(gw => physical.UnicastAddresses.Any(u => u.Mask != null && IsInSameSubnet(u.Address, gw, u.Mask)));
+
+                if (subnetMatchedGateway != null)
+                {
+                    return subnetMatchedGateway;
+                }
+            }
+
+            // Otherwise return the first valid gateway on the first physical adapter
+            return physicalCandidates[0].GatewayAddresses.First(IsValidGatewayAddress);
+        }
+
+        // 3. Fallback to other candidate interfaces (virtual bridges, VPNs, etc.)
+        // Filter out tunnel/loopback/down unless valid gateway exists; deprioritize Docker default bridge 172.17.0.1
+        var fallbackCandidates = candidateList
+            .Where(c => c.OperationalStatus == OperationalStatus.Up &&
+                        c.InterfaceType != NetworkInterfaceType.Loopback &&
+                        c.UnicastAddresses.Any(u => IsValidIpv4UnicastAddress(u.Address)) &&
+                        c.GatewayAddresses.Any(IsValidGatewayAddress))
+            .ToList();
+
+        IPAddress dockerBridgeGateway = null;
+        foreach (var fallback in fallbackCandidates)
+        {
+            foreach (var gw in fallback.GatewayAddresses.Where(IsValidGatewayAddress))
+            {
+                if (gw.ToString() == "172.17.0.1" || fallback.Name.Contains("docker", StringComparison.OrdinalIgnoreCase))
+                {
+                    dockerBridgeGateway ??= gw;
+                }
+                else
+                {
+                    return gw;
+                }
+            }
+        }
+
+        return dockerBridgeGateway;
+    }
+
+    public static bool IsVirtualInterfaceName(string name, string description = null)
+    {
+        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(description))
+        {
+            return false;
+        }
+
+        foreach (var pattern in VirtualInterfacePatterns)
+        {
+            if (!string.IsNullOrEmpty(name) && name.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(description) && description.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsPhysicalInterfaceType(NetworkInterfaceType type)
+    {
+        return type == NetworkInterfaceType.Ethernet ||
+               type == NetworkInterfaceType.Wireless80211 ||
+               type == NetworkInterfaceType.GigabitEthernet ||
+               type == NetworkInterfaceType.FastEthernetFx ||
+               type == NetworkInterfaceType.FastEthernetT;
+    }
+
+    public static bool IsValidIpv4UnicastAddress(IPAddress address)
+    {
+        if (address == null || address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(address) || Equals(address, IPAddress.Any) || Equals(address, IPAddress.None))
+        {
+            return false;
+        }
+
+        var bytes = address.GetAddressBytes();
+
+        // Filter out 0.0.0.0
+        if (bytes[0] == 0)
+        {
+            return false;
+        }
+
+        // Filter out APIPA (169.254.0.0/16)
+        if (bytes[0] == 169 && bytes[1] == 254)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static bool IsValidGatewayAddress(IPAddress address)
+    {
+        if (address == null || address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(address) || Equals(address, IPAddress.Any) || Equals(address, IPAddress.None))
+        {
+            return false;
+        }
+
+        var bytes = address.GetAddressBytes();
+
+        // 0.0.0.0 is not a valid gateway
+        if (bytes[0] == 0)
+        {
+            return false;
+        }
+
+        // 169.254.x.x APIPA is not a valid gateway
+        if (bytes[0] == 169 && bytes[1] == 254)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static bool IsInSameSubnet(IPAddress ip, IPAddress gateway, IPAddress mask)
+    {
+        if (ip == null || gateway == null || mask == null)
+        {
+            return false;
+        }
+
+        if (ip.AddressFamily != AddressFamily.InterNetwork ||
+            gateway.AddressFamily != AddressFamily.InterNetwork ||
+            mask.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        var ipBytes = ip.GetAddressBytes();
+        var gwBytes = gateway.GetAddressBytes();
+        var maskBytes = mask.GetAddressBytes();
+
+        // Ignore invalid masks like 0.0.0.0 or 255.255.255.255
+        if ((maskBytes[0] == 0 && maskBytes[1] == 0 && maskBytes[2] == 0 && maskBytes[3] == 0) ||
+            (maskBytes[0] == 255 && maskBytes[1] == 255 && maskBytes[2] == 255 && maskBytes[3] == 255))
+        {
+            return false;
+        }
+
+        var ipInt = BinaryPrimitives.ReadUInt32BigEndian(ipBytes);
+        var gwInt = BinaryPrimitives.ReadUInt32BigEndian(gwBytes);
+        var maskInt = BinaryPrimitives.ReadUInt32BigEndian(maskBytes);
+
+        return (ipInt & maskInt) == (gwInt & maskInt);
+    }
+
+    public static bool IsVpnInterfaceName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("ppp", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("vpn", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static IPAddress GetGatewayFromInterface(NetworkInterface ni)
     {
         try
         {
             var props = ni.GetIPProperties();
             var gw = props.GatewayAddresses
-                .FirstOrDefault(g => g.Address.AddressFamily == AddressFamily.InterNetwork &&
-                                     !IPAddress.IsLoopback(g.Address) &&
-                                     !Equals(g.Address, IPAddress.Any) &&
-                                     !Equals(g.Address, IPAddress.None));
+                .FirstOrDefault(g => IsValidGatewayAddress(g.Address));
 
             if (gw != null)
             {
@@ -145,17 +324,12 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             // check if there is a unicast IPv4 address and resolve the default subnet gateway (e.g. .1)
             var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
                                       ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                      ni.Name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
-                                      ni.Name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
-                                      ni.Name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
-                                      ni.Name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
+                                      IsVpnInterfaceName(ni.Name);
 
             if (isVpnOrPointToPoint)
             {
                 var unicast = props.UnicastAddresses
-                    .FirstOrDefault(u => u.Address.AddressFamily == AddressFamily.InterNetwork &&
-                                         !IPAddress.IsLoopback(u.Address) &&
-                                         !Equals(u.Address, IPAddress.Any));
+                    .FirstOrDefault(u => IsValidIpv4UnicastAddress(u.Address));
 
                 if (unicast != null)
                 {
@@ -174,6 +348,87 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
 
         return null;
+    }
+
+    private static List<NatPmpNetworkInterfaceCandidate> GetSystemNetworkCandidates()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>();
+        try
+        {
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                try
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up ||
+                        ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                    {
+                        continue;
+                    }
+
+                    var props = ni.GetIPProperties();
+                    var unicasts = new List<(IPAddress Address, IPAddress Mask)>();
+                    if (props.UnicastAddresses != null)
+                    {
+                        foreach (var u in props.UnicastAddresses)
+                        {
+                            if (u.Address != null && IsValidIpv4UnicastAddress(u.Address))
+                            {
+                                unicasts.Add((u.Address, u.IPv4Mask));
+                            }
+                        }
+                    }
+
+                    var gateways = new List<IPAddress>();
+                    if (props.GatewayAddresses != null)
+                    {
+                        foreach (var gw in props.GatewayAddresses)
+                        {
+                            if (gw.Address != null && IsValidGatewayAddress(gw.Address))
+                            {
+                                gateways.Add(gw.Address);
+                            }
+                        }
+                    }
+
+                    // For VPN / point-to-point interfaces where GatewayAddresses is empty in Linux,
+                    // check if there is a unicast IPv4 address and resolve default subnet gateway (.1)
+                    if (gateways.Count == 0 && unicasts.Count > 0)
+                    {
+                        var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
+                                                  ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
+                                                  IsVpnInterfaceName(ni.Name);
+
+                        if (isVpnOrPointToPoint)
+                        {
+                            var bytes = unicasts[0].Address.GetAddressBytes();
+                            if (bytes[3] != 1)
+                            {
+                                var gwBytes = (byte[])bytes.Clone();
+                                gwBytes[3] = 1;
+                                gateways.Add(new IPAddress(gwBytes));
+                            }
+                        }
+                    }
+
+                    candidates.Add(new NatPmpNetworkInterfaceCandidate(
+                        ni.Name,
+                        ni.Description,
+                        ni.Id,
+                        ni.NetworkInterfaceType,
+                        ni.OperationalStatus,
+                        unicasts,
+                        gateways));
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return candidates;
     }
 
     private string GetEffectiveBoundInterface()

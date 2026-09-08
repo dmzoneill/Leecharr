@@ -3,10 +3,20 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace NzbDrone.Core.Network.PortMapping;
+
+public record NatPmpNetworkInterfaceCandidate(
+    string Name,
+    string Description,
+    string Id,
+    NetworkInterfaceType InterfaceType,
+    OperationalStatus OperationalStatus,
+    IReadOnlyList<(IPAddress Address, IPAddress Mask)> UnicastAddresses,
+    IReadOnlyList<IPAddress> GatewayAddresses);
 
 public enum NatPmpProtocol
 {
