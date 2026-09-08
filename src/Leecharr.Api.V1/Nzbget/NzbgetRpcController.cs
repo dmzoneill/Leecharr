@@ -304,7 +304,11 @@ public class NzbgetRpcController : ControllerBase
                             }
                         }
 
-                        foreach (var targetId in targetIds)
+                        var orderedIds = command == "groupmovetop"
+                            ? targetIds.AsEnumerable().Reverse()
+                            : targetIds;
+
+                        foreach (var targetId in orderedIds)
                         {
                             if (command == "grouppause")
                             {
@@ -668,7 +672,11 @@ public class NzbgetRpcController : ControllerBase
             ExtractIds(idArg, targetIds);
         }
 
-        foreach (var targetId in targetIds)
+        var orderedIds = command == "groupmovetop"
+            ? targetIds.AsEnumerable().Reverse()
+            : targetIds;
+
+        foreach (var targetId in orderedIds)
         {
             if (command == "grouppause")
             {
