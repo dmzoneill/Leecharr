@@ -376,7 +376,7 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public async Task SetForceStart_WithHashesAll_SetsForceStartOnAllTorrents()
+    public async Task SetForceStart_WithHashesAll_SetsForceStartOnAllTorrentsAndResumes()
     {
         var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
         var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
@@ -389,6 +389,22 @@ public class QBittorrentApiControllerTest
         torrent2.ForceStart.Should().BeTrue();
         await this.torrentService.Received(1).UpdateAsync(torrent1);
         await this.torrentService.Received(1).UpdateAsync(torrent2);
+        await this.torrentService.Received(1).ResumeAsync(1);
+        await this.torrentService.Received(1).ResumeAsync(2);
+    }
+
+    [Test]
+    public async Task SetForceStart_WithForceFalse_UpdatesFlagWithoutCallingResume()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", ForceStart = true };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1 });
+
+        var result = await this.controller.SetForceStart("hash1", "false");
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.ForceStart.Should().BeFalse();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
     }
 
     [Test]
