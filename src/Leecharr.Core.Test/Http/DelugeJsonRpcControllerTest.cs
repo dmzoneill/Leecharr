@@ -1800,4 +1800,102 @@ public class DelugeJsonRpcControllerTest
         var pieces = tStatus.GetProperty("pieces").EnumerateArray().Select(x => x.GetInt32()).ToList();
         pieces.Should().Equal(1, 0, 1, 0);
     }
+
+    [Test]
+    public async Task HandleRpc_CoreQueueTop_MovesTorrentsInReverseOrderToPreserveBatchOrdering()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tA = new Torrent { Id = 1, InfoHash = "hashA", QueuePosition = 3 };
+        var tB = new Torrent { Id = 2, InfoHash = "hashB", QueuePosition = 4 };
+        this.torrentService.GetByInfoHash("hashA").Returns(tA);
+        this.torrentService.GetByInfoHash("hashB").Returns(tB);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.queue_top\",\"params\":[[\"hashA\",\"hashB\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        Received.InOrder(() =>
+        {
+            this.torrentService.MoveQueueAsync(2, "top");
+            this.torrentService.MoveQueueAsync(1, "top");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreQueueBottom_MovesTorrentsInNaturalOrder()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tA = new Torrent { Id = 1, InfoHash = "hashA", QueuePosition = 1 };
+        var tB = new Torrent { Id = 2, InfoHash = "hashB", QueuePosition = 2 };
+        this.torrentService.GetByInfoHash("hashA").Returns(tA);
+        this.torrentService.GetByInfoHash("hashB").Returns(tB);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.queue_bottom\",\"params\":[[\"hashA\",\"hashB\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        Received.InOrder(() =>
+        {
+            this.torrentService.MoveQueueAsync(1, "bottom");
+            this.torrentService.MoveQueueAsync(2, "bottom");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreQueueUp_SortsTorrentsByQueuePositionAscending()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tA = new Torrent { Id = 1, InfoHash = "hashA", QueuePosition = 5 };
+        var tB = new Torrent { Id = 2, InfoHash = "hashB", QueuePosition = 2 };
+        var tC = new Torrent { Id = 3, InfoHash = "hashC", QueuePosition = 4 };
+        this.torrentService.GetByInfoHash("hashA").Returns(tA);
+        this.torrentService.GetByInfoHash("hashB").Returns(tB);
+        this.torrentService.GetByInfoHash("hashC").Returns(tC);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.queue_up\",\"params\":[[\"hashA\",\"hashB\",\"hashC\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        Received.InOrder(() =>
+        {
+            this.torrentService.MoveQueueAsync(2, "up");
+            this.torrentService.MoveQueueAsync(3, "up");
+            this.torrentService.MoveQueueAsync(1, "up");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreQueueDown_SortsTorrentsByQueuePositionDescending()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tA = new Torrent { Id = 1, InfoHash = "hashA", QueuePosition = 5 };
+        var tB = new Torrent { Id = 2, InfoHash = "hashB", QueuePosition = 2 };
+        var tC = new Torrent { Id = 3, InfoHash = "hashC", QueuePosition = 4 };
+        this.torrentService.GetByInfoHash("hashA").Returns(tA);
+        this.torrentService.GetByInfoHash("hashB").Returns(tB);
+        this.torrentService.GetByInfoHash("hashC").Returns(tC);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.queue_down\",\"params\":[[\"hashB\",\"hashA\",\"hashC\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        Received.InOrder(() =>
+        {
+            this.torrentService.MoveQueueAsync(1, "down");
+            this.torrentService.MoveQueueAsync(3, "down");
+            this.torrentService.MoveQueueAsync(2, "down");
+        });
+    }
 }
