@@ -344,6 +344,55 @@ public class SecurityMiddlewareTest
         CsrfProtectionMiddleware.IsAuthPath(path).Should().Be(expected);
     }
 
+    [TestCase("/json", true)]
+    [TestCase("/json/rpc", true)]
+    [TestCase("/gui", true)]
+    [TestCase("/gui/token.html", true)]
+    [TestCase("/jsonrpc", true)]
+    [TestCase("/api/v2/torrents/info", true)]
+    [TestCase("/transmission/rpc", true)]
+    [TestCase("/webapi/DownloadStation/task.cgi", true)]
+    [TestCase("/rpc", true)]
+    [TestCase("/RPC2", true)]
+    [TestCase("/RPC1", true)]
+    [TestCase("/nzbget", true)]
+    [TestCase("/hadouken", true)]
+    [TestCase("/aria2", true)]
+    [TestCase("/api/v1/torrents", false)]
+    [TestCase("/custom/route", false)]
+    public void CsrfProtectionMiddleware_IsRpcPath_StrictMatching(string path, bool expected)
+    {
+        CsrfProtectionMiddleware.IsRpcPath(path).Should().Be(expected);
+    }
+
+    [TestCase("/json")]
+    [TestCase("/gui")]
+    [TestCase("/jsonrpc")]
+    [TestCase("/api/v2/torrents/add")]
+    [TestCase("/transmission/rpc")]
+    [TestCase("/webapi/DownloadStation/task.cgi")]
+    public async Task CsrfProtectionMiddleware_AllowsRpcEndpointsWithoutOriginOrReferer(string path)
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Path = path;
+        context.Request.Host = new HostString("localhost:7889");
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
     [Test]
     public async Task SecurityHeadersMiddleware_EmitsStandardSecurityHeadersOnHttp()
     {
