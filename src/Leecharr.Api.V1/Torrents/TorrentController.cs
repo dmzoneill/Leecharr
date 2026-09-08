@@ -307,7 +307,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 TotalAnnounces = 0,
                 SuccessfulAnnounces = 0,
             };
-            this.trackerEntryRepository.Insert(fallback);
             dbTrackers.Add(fallback);
         }
 

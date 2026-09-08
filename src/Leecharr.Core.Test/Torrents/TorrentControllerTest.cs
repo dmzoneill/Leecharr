@@ -91,6 +91,35 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public void GetTrackers_WhenNoDbTrackers_ReturnsFallbackWithoutDatabaseInsert()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test Torrent",
+            TrackerUrl = "http://tracker.example.com/announce",
+            Seeders = 10,
+            Leechers = 5,
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentService.Get(42).Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry>());
+
+        var result = this.controller.GetTrackers(42);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<TrackerResource>>().Subject;
+        list.Should().HaveCount(1);
+        list[0].Url.Should().Be("http://tracker.example.com/announce");
+        list[0].Seeders.Should().Be(10);
+        list[0].Leechers.Should().Be(5);
+
+        this.trackerEntryRepository.DidNotReceive().Insert(Arg.Any<TrackerEntry>());
+    }
+
+    [Test]
     public async Task Update_PersistsForceStartTargetRatioSeedTimeShareLimitActionCategoryAndLabel()
     {
         var existing = new Torrent
