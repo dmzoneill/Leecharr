@@ -527,6 +527,90 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenOnlyUploadPaused_SetsUploadTo1AndDownloadToUnthrottled()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Upload Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 0,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.DidNotReceive().PauseAllAsync();
+        await downloadEngine.Received(1).SetRateLimitsAsync(0, 1);
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenOnlyDownloadPaused_SetsDownloadTo1AndUploadToUnthrottled()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Download Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = 0,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.DidNotReceive().PauseAllAsync();
+        await downloadEngine.Received(1).SetRateLimitsAsync(1, 0);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenAsymmetricSchedule_SetsCorrectDirectionalPauseFlags()
+    {
+        var uploadPausedSchedule = new SpeedSchedule
+        {
+            Name = "Upload Pause",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "23:59:59",
+            MaxDownloadSpeed = 5000,
+            MaxUploadSpeed = -1,
+            IsEnabled = true,
+            Priority = 10,
+        };
+
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule> { uploadPausedSchedule });
+
+        var limits = this.service.GetCurrentLimits();
+
+        limits.IsPaused.Should().BeTrue();
+        limits.IsDownloadPaused.Should().BeFalse();
+        limits.IsUploadPaused.Should().BeTrue();
+        limits.MaxDownloadSpeedKbps.Should().Be(5000);
+        limits.MaxUploadSpeedKbps.Should().Be(0);
+    }
+
+    [Test]
     public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_ResumesAllTorrentsAndAppliesNormalLimits()
     {
         var downloadEngine = Substitute.For<IDownloadEngine>();
