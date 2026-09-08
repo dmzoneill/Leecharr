@@ -63,10 +63,13 @@
   --topbar-bg: #faf6ee;
   --bg-primary: #f5f0e5;
   --bg-secondary: #fdfaf4;
+  --bg-card: #fdfaf4;
+  --bg-card-hover: #e8e0d0;
   --bg-hover: #e8e0d0;
   --bg-hover-elevated: #ddd4c2;
   --border: #d4cbb8;
   --border-light: rgb(90 72 40 / 8%);
+  --bg-lighter: #f0ebe0;
   --text-primary: #2a2418;
   --text-secondary: #4a4030;
   --text-muted: #7a7060;
