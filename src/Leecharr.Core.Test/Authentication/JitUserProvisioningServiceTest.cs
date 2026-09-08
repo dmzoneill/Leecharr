@@ -82,6 +82,178 @@ public class JitUserProvisioningServiceTest
         Assert.That(result.LastLogin, Is.Not.Null);
     }
 
+    [Test]
+    public void ProvisionOrUpdateUser_LocalUserCollision_ShouldNotHijackAndDisambiguateUsername()
+    {
+        var localAdmin = new User
+        {
+            Id = 1,
+            Username = "admin",
+            Email = "admin@example.com",
+            Roles = "[\"Admin\"]",
+            ExternalProviderId = null,
+            ExternalSubjectId = null,
+        };
+        this.userRepository.Insert(localAdmin);
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-attacker",
+            "admin",
+            "admin@example.com",
+            "Attacker",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.Not.EqualTo(1));
+        Assert.That(result.Username, Is.EqualTo("admin_authentik"));
+        Assert.That(result.ExternalProviderId, Is.EqualTo("authentik"));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("sub-attacker"));
+
+        var adminAfter = this.userRepository.Get(1);
+        Assert.That(adminAfter.ExternalProviderId, Is.Null);
+        Assert.That(adminAfter.ExternalSubjectId, Is.Null);
+        Assert.That(adminAfter.Username, Is.EqualTo("admin"));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_CrossProviderCollision_ShouldNotOverwriteAndDisambiguateUsername()
+    {
+        var githubUser = new User
+        {
+            Id = 10,
+            Username = "alice",
+            Email = "alice@example.com",
+            ExternalProviderId = "github",
+            ExternalSubjectId = "gh-123",
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(githubUser);
+
+        var googleProfile = new ExternalUserProfile(
+            "google",
+            "goog-456",
+            "alice",
+            "alice@example.com",
+            "Alice Google",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(googleProfile);
+
+        Assert.That(result.Id, Is.Not.EqualTo(10));
+        Assert.That(result.Username, Is.EqualTo("alice_google"));
+        Assert.That(result.ExternalProviderId, Is.EqualTo("google"));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("goog-456"));
+
+        var githubAfter = this.userRepository.Get(10);
+        Assert.That(githubAfter.ExternalProviderId, Is.EqualTo("github"));
+        Assert.That(githubAfter.ExternalSubjectId, Is.EqualTo("gh-123"));
+        Assert.That(githubAfter.Username, Is.EqualTo("alice"));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_MultipleCollisions_ShouldAppendNumericSuffix()
+    {
+        this.userRepository.Insert(new User { Id = 1, Username = "bob", ExternalProviderId = "local" });
+        this.userRepository.Insert(new User { Id = 2, Username = "bob_google", ExternalProviderId = "google-other" });
+
+        var profile = new ExternalUserProfile(
+            "google",
+            "goog-789",
+            "bob",
+            "bob@example.com",
+            "Bob",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Username, Is.EqualTo("bob_google_2"));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_SameProviderMatchingEmailOrUsername_ShouldLinkAccount()
+    {
+        var unlinkedSameProviderUser = new User
+        {
+            Id = 5,
+            Username = "carol",
+            Email = "carol@example.com",
+            ExternalProviderId = "keycloak",
+            ExternalSubjectId = null,
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(unlinkedSameProviderUser);
+
+        var profile = new ExternalUserProfile(
+            "keycloak",
+            "kc-sub-new",
+            "carol",
+            "carol@example.com",
+            "Carol K",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.EqualTo(5));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("kc-sub-new"));
+        Assert.That(result.Username, Is.EqualTo("carol"));
+    }
+
+    [TestCase("https://example.com/avatar.png", "https://example.com/avatar.png")]
+    [TestCase("http://cdn.example.org/pic.jpg", "http://cdn.example.org/pic.jpg")]
+    [TestCase("javascript:alert(1)", null)]
+    [TestCase("data:image/png;base64,iVBORw0KGgoAAAANSUhEUg", null)]
+    [TestCase("ftp://example.com/pic.png", null)]
+    [TestCase("/relative/path.png", null)]
+    [TestCase("not a valid uri", null)]
+    [TestCase("", null)]
+    [TestCase(null, null)]
+    public void ProvisionOrUpdateUser_AvatarUrlSanitization_ShouldOnlyAcceptHttpAndHttps(string inputAvatarUrl, string expectedAvatarUrl)
+    {
+        var profile = new ExternalUserProfile(
+            "authentik",
+            $"sub-{Guid.NewGuid()}",
+            $"user_{Guid.NewGuid():N}",
+            "test@example.com",
+            "Test User",
+            new List<string> { "users" },
+            inputAvatarUrl);
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.AvatarUrl, Is.EqualTo(expectedAvatarUrl));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_ExistingUser_InvalidAvatarUrlInProfile_ShouldNotOverwriteValidAvatar()
+    {
+        var existingUser = new User
+        {
+            Id = 88,
+            Username = "dave",
+            ExternalProviderId = "authentik",
+            ExternalSubjectId = "sub-88",
+            AvatarUrl = "https://example.com/valid.png",
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(existingUser);
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-88",
+            "dave",
+            "dave@example.com",
+            "Dave",
+            new List<string> { "users" },
+            "javascript:alert(1)");
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.EqualTo(88));
+        Assert.That(result.AvatarUrl, Is.EqualTo("https://example.com/valid.png"));
+    }
+
     private class StubClaimsRoleMappingService : IClaimsRoleMappingService
     {
         public List<string> ResolveRoles(IdentityProviderDefinition provider, IReadOnlyList<string> rawGroups, bool isFirstUser)
@@ -185,6 +357,10 @@ public class JitUserProvisioningServiceTest
             if (model.Id == 0)
             {
                 model.Id = this.nextId++;
+            }
+            else if (model.Id >= this.nextId)
+            {
+                this.nextId = model.Id + 1;
             }
 
             this.users.Add(model);
