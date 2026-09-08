@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -844,7 +845,7 @@ public class RssSyncServiceTest
     }
 
     [Test]
-    public async Task SyncRssFeedsAsync_WhenConcurrentCallsMade_SecondCallReturnsZeroGracefully()
+    public async Task SyncRssFeedsAsync_WhenConcurrentCallsMade_SerializesExecutionAndPreventsDuplicateGrabs()
     {
         var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
         this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
@@ -862,19 +863,91 @@ public class RssSyncServiceTest
 
         var tcs = new TaskCompletionSource<List<TorznabSearchResult>>();
 
-        this.torznabClient.FetchRssAsync(indexer).Returns(tcs.Task);
+        this.torznabClient.FetchRssAsync(indexer).Returns(
+            _ => tcs.Task,
+            _ => Task.FromResult(new List<TorznabSearchResult> { release }));
 
         // Start first sync call which will pause inside FetchRssAsync
         var firstTask = this.service.SyncRssFeedsAsync();
 
-        // Second call while first is still running should return 0 immediately
-        var secondCount = await this.service.SyncRssFeedsAsync();
+        // Second call while first is still running will wait on SemaphoreSlim
+        var secondTask = this.service.SyncRssFeedsAsync();
+        secondTask.IsCompleted.Should().BeFalse();
+
+        // Complete the first fetch
+        tcs.SetResult(new List<TorznabSearchResult> { release });
+
+        var results = await Task.WhenAll(firstTask, secondTask);
+        var firstCount = results[0];
+        var secondCount = results[1];
+
+        firstCount.Should().Be(1);
         secondCount.Should().Be(0);
 
-        // Now complete the first call
-        tcs.SetResult(new List<TorznabSearchResult> { release });
-        var firstCount = await firstTask;
-        firstCount.Should().Be(1);
+        // Verify torrent service only called once
+        await this.torrentService.Received(1).AddFromMagnetAsync(release.MagnetUrl, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenMultipleConcurrentInvocations_AllSerializedWithoutDeadlock()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:multi-concurrent-test",
+            Title = "Multi.Concurrent.Release.2024",
+            MagnetUrl = "magnet:?xt=urn:btih:4444444444444444444444444444444444444444",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        // Launch 5 concurrent sync tasks simultaneously
+        var tasks = new List<Task<int>>();
+        for (var i = 0; i < 5; i++)
+        {
+            tasks.Add(Task.Run(() => this.service.SyncRssFeedsAsync()));
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        // Exactly one task should grab the release, others should see it already grabbed
+        results.Sum().Should().Be(1);
+        await this.torrentService.Received(1).AddFromMagnetAsync(release.MagnetUrl, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenCancellationTokenCancelledWhileWaiting_ThrowsOperationCanceledException()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var tcs = new TaskCompletionSource<List<TorznabSearchResult>>();
+        this.torznabClient.FetchRssAsync(indexer).Returns(tcs.Task);
+
+        // First task holds the lock
+        var firstTask = this.service.SyncRssFeedsAsync();
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        // Second task waits with cancellation token
+        var secondTask = this.service.SyncRssFeedsAsync(cts.Token);
+
+        cts.Cancel();
+
+        var act = async () => await secondTask;
+        await act.Should().ThrowAsync<System.OperationCanceledException>();
+
+        // Cleanup first task
+        tcs.SetResult(new List<TorznabSearchResult>());
+        await firstTask;
     }
 
     [Test]
