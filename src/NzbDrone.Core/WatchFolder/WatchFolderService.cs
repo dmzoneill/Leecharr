@@ -5,11 +5,13 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -38,7 +40,7 @@ public interface IWatchFolderService : IDisposable
     void OnFileSystemWatcherRenamed(object sender, RenamedEventArgs e);
 }
 
-public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>, IHandle<ConfigFileSavedEvent>
+public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>, IHandle<ConfigFileSavedEvent>, IExecute<WatchFolderScanCommand>, IExecuteAsync<WatchFolderScanCommand>
 {
     private readonly IConfigService configService;
     private readonly ITorrentService torrentService;
@@ -229,6 +231,16 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     public void Dispose()
     {
         this.StopWatcher();
+    }
+
+    public Task ExecuteAsync(WatchFolderScanCommand message, CancellationToken cancellationToken = default)
+    {
+        return this.ScanWatchFolderAsync();
+    }
+
+    public void Execute(WatchFolderScanCommand message)
+    {
+        this.ScanWatchFolderAsync().GetAwaiter().GetResult();
     }
 
     public void Handle(ConfigSavedEvent message)
