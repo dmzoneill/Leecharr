@@ -403,33 +403,83 @@ public class NotificationEventHandler :
         var meta = this.mediaEnrichmentService?.GetMetadata(torrent.Id);
         var files = this.torrentFileRepository?.GetByTorrentId(torrent.Id)?.Select(f => new
         {
-            Path = f.Path,
-            Size = f.Size,
-            Progress = f.Progress,
+            path = f.Path,
+            size = f.Size,
+            progress = f.Progress,
         }).ToList();
+
+        var (seasonNum, epNum, epTitle) = ExtractEpisodicInfo(torrent.Name);
+        var (container, resolution, videoCodec, hdrFormat, audioCodec, audioChannels, audioLanguage, subtitleLanguages) = ExtractStreamSpecs(meta?.MediaInfoJson);
+
+        var downloadTimeSeconds = torrent.CumulativeSeedingTimeSeconds > 0
+            ? torrent.CumulativeSeedingTimeSeconds
+            : (torrent.DateCompleted.HasValue && torrent.DateAdded != default && torrent.DateCompleted.Value >= torrent.DateAdded
+                ? (long)(torrent.DateCompleted.Value - torrent.DateAdded).TotalSeconds
+                : 0L);
 
         var payload = new
         {
-            EventType = eventType,
-            TorrentId = torrent.Id,
-            TorrentName = torrent.Name,
-            InfoHash = torrent.InfoHash,
-            Category = torrent.Category,
-            SavePath = torrent.SavePath,
-            TotalSize = torrent.TotalSize,
-            Downloaded = torrent.Downloaded,
-            Uploaded = torrent.Uploaded,
-            DownloadSpeed = torrent.DownloadSpeed,
-            UploadSpeed = torrent.UploadSpeed,
-            Progress = torrent.Progress,
-            Ratio = torrent.Ratio,
-            Status = torrent.Status.ToString(),
-            MediaTitle = meta?.Title,
-            MediaYear = meta?.Year,
-            MediaOverview = meta?.Overview,
-            MediaGenres = meta?.Genres,
-            Files = files,
-            Timestamp = DateTime.UtcNow,
+            eventType,
+            instanceName = "Leecharr",
+            applicationVersion = "1.0.0",
+            timestamp = DateTime.UtcNow.ToString("o"),
+            torrent = new
+            {
+                id = torrent.Id,
+                name = torrent.Name,
+                infoHash = torrent.InfoHash,
+                category = torrent.Category,
+                state = torrent.Status.ToString(),
+                status = torrent.Status.ToString(),
+                progress = torrent.Progress,
+                totalSize = torrent.TotalSize,
+                downloaded = torrent.Downloaded,
+                uploaded = torrent.Uploaded,
+                downloadPath = torrent.SavePath,
+                savePath = torrent.SavePath,
+                downloadSpeed = torrent.DownloadSpeed,
+                uploadSpeed = torrent.UploadSpeed,
+                eta = torrent.Eta,
+                etaString = FormatEta(torrent.Eta),
+                seeders = torrent.Seeders,
+                leechers = torrent.Leechers,
+                ratio = torrent.Ratio,
+                dateAdded = torrent.DateAdded != default ? torrent.DateAdded.ToString("o") : null,
+                dateCompleted = torrent.DateCompleted?.ToString("o"),
+                downloadTimeSeconds,
+                tags = torrent.TagIds ?? new List<int>(),
+            },
+            media = new
+            {
+                arrType = meta?.ArrType,
+                arrMediaId = meta?.ArrMediaId ?? 0,
+                title = meta?.Title ?? torrent.Name,
+                year = meta?.Year ?? 0,
+                seasonNumber = seasonNum,
+                episodeNumber = epNum,
+                episodeTitle = epTitle,
+                overview = meta?.Overview,
+                posterUrl = meta?.PosterUrl,
+                fanartUrl = meta?.BackdropUrl,
+                backdropUrl = meta?.BackdropUrl,
+                rating = meta?.Rating ?? 0.0,
+                imdbId = meta?.ImdbId,
+                tmdbId = meta?.TmdbId,
+                tvdbId = meta?.TvdbId,
+            },
+            streamSpecs = new
+            {
+                container,
+                containerFormat = container,
+                resolution,
+                videoCodec,
+                hdrFormat,
+                audioCodec,
+                audioChannels,
+                audioLanguage,
+                subtitleLanguages,
+            },
+            files,
         };
 
         foreach (var notif in activeNotifications)
@@ -980,6 +1030,85 @@ public class NotificationEventHandler :
         catch (Exception ex)
         {
             LogManager.GetCurrentClassLogger().Warn(ex, "Failed to send email notification for event {0}", eventType);
+        }
+    }
+
+    private static string FormatEta(long seconds)
+    {
+        if (seconds <= 0 || seconds >= 8640000)
+        {
+            return "00:00:00";
+        }
+
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 24
+            ? $"{(int)ts.TotalDays}d {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+    }
+
+    private static (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle) ExtractEpisodicInfo(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return (null, null, null);
+        }
+
+        var match = Regex.Match(name, @"(?i)\bS(\d{1,2})E(\d{1,3})\b");
+        if (match.Success &&
+            int.TryParse(match.Groups[1].Value, out var s) &&
+            int.TryParse(match.Groups[2].Value, out var e))
+        {
+            return (s, e, null);
+        }
+
+        var matchAlt = Regex.Match(name, @"(?i)\b(\d{1,2})x(\d{1,3})\b");
+        if (matchAlt.Success &&
+            int.TryParse(matchAlt.Groups[1].Value, out var sAlt) &&
+            int.TryParse(matchAlt.Groups[2].Value, out var eAlt))
+        {
+            return (sAlt, eAlt, null);
+        }
+
+        return (null, null, null);
+    }
+
+    private static (string ContainerFormat, string Resolution, string VideoCodec, string HdrFormat, string AudioCodec, string AudioChannels, string AudioLanguage, List<string> SubtitleLanguages) ExtractStreamSpecs(string mediaInfoJson)
+    {
+        if (string.IsNullOrWhiteSpace(mediaInfoJson))
+        {
+            return (null, null, null, null, null, null, null, new List<string>());
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(mediaInfoJson);
+            var root = doc.RootElement;
+            var container = root.TryGetProperty("ContainerFormat", out var c) ? c.GetString() : null;
+            var resolution = root.TryGetProperty("Resolution", out var r) ? r.GetString() : null;
+            var videoCodec = root.TryGetProperty("VideoCodec", out var v) ? v.GetString() : null;
+            var hdr = root.TryGetProperty("HdrFormat", out var h) ? h.GetString() : null;
+            var audioCodec = root.TryGetProperty("AudioCodec", out var a) ? a.GetString() : null;
+            var audioChannels = root.TryGetProperty("AudioChannels", out var ac) ? ac.GetString() : null;
+            var audioLanguage = root.TryGetProperty("AudioLanguage", out var al) ? al.GetString() : null;
+            var subtitleLanguages = new List<string>();
+
+            if (root.TryGetProperty("SubtitleTracks", out var st) && st.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in st.EnumerateArray())
+                {
+                    var s = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        subtitleLanguages.Add(s);
+                    }
+                }
+            }
+
+            return (container, resolution, videoCodec, hdr, audioCodec, audioChannels, audioLanguage, subtitleLanguages);
+        }
+        catch
+        {
+            return (null, null, null, null, null, null, null, new List<string>());
         }
     }
 }
