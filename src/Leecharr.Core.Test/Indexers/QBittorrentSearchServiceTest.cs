@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -33,13 +34,13 @@ public class QBittorrentSearchServiceTest
         var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
         this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
 
-        this.torznabClient.SearchAsync(indexer1, "ubuntu", limit: 100)
+        this.torznabClient.SearchAsync(indexer1, "ubuntu", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>
             {
                 new() { Title = "Ubuntu 24.04 Desktop", Size = 4000000000, Seeders = 100, Leechers = 10, DownloadUrl = "http://dl1", InfoHash = "hash1" },
             });
 
-        this.torznabClient.SearchAsync(indexer2, "ubuntu", limit: 100)
+        this.torznabClient.SearchAsync(indexer2, "ubuntu", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>
             {
                 new() { Title = "Ubuntu 24.04 Server", Size = 2000000000, Seeders = 50, Leechers = 5, MagnetUrl = "magnet:?xt=urn:btih:hash2", InfoHash = "hash2" },
@@ -187,7 +188,7 @@ public class QBittorrentSearchServiceTest
         var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
         this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
 
-        this.torznabClient.SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100)
+        this.torznabClient.SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>
             {
                 new() { Title = "The Matrix 1999 4K", Size = 15000000000, Seeders = 80, Leechers = 2, DownloadUrl = "http://dl-matrix" },
@@ -198,8 +199,8 @@ public class QBittorrentSearchServiceTest
 
         await Task.Delay(200);
 
-        await this.torznabClient.Received(1).SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100);
-        await this.torznabClient.DidNotReceive().SearchAsync(indexer2, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>());
+        await this.torznabClient.Received(1).SearchAsync(indexer1, "matrix", categoryId: 2000, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+        await this.torznabClient.DidNotReceive().SearchAsync(indexer2, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>(), cancellationToken: Arg.Any<CancellationToken>());
 
         var results = this.searchService.GetResults(id);
         results.Results.Should().HaveCount(1);
@@ -212,16 +213,16 @@ public class QBittorrentSearchServiceTest
         var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
         this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
 
-        this.torznabClient.SearchAsync(indexer, "test", categoryId: 2040, limit: 100)
+        this.torznabClient.SearchAsync(indexer, "test", categoryId: 2040, limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>());
 
         var id1 = this.searchService.StartSearch("test", category: "movies_hd");
         await Task.Delay(200);
-        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 2040, limit: 100);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 2040, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
 
         var id2 = this.searchService.StartSearch("test", category: "5070");
         await Task.Delay(200);
-        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 5070, limit: 100);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 5070, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [TestCase("2000", 2000)]
@@ -272,13 +273,13 @@ public class QBittorrentSearchServiceTest
         var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
         this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
 
-        this.torznabClient.SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100)
+        this.torznabClient.SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>());
 
         this.searchService.StartSearch("query", category: category);
         await Task.Delay(200);
 
-        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [TestCase(null)]
@@ -291,12 +292,43 @@ public class QBittorrentSearchServiceTest
         var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
         this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
 
-        this.torznabClient.SearchAsync(indexer, "query", categoryId: null, limit: 100)
+        this.torznabClient.SearchAsync(indexer, "query", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(new List<TorznabSearchResult>());
 
         this.searchService.StartSearch("query", category: category);
         await Task.Delay(200);
 
-        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: null, limit: 100);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task StopSearch_CancelsInFlightSearch_WithoutThrowingObjectDisposedException()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        var tcs = new TaskCompletionSource<List<TorznabSearchResult>>();
+
+        this.torznabClient.SearchAsync(indexer, "hang", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                using (token.Register(() => tcs.TrySetCanceled(token)))
+                {
+                    return await tcs.Task;
+                }
+            });
+
+        var id = this.searchService.StartSearch("hang");
+        await Task.Delay(50);
+
+        var stopped = this.searchService.StopSearch(id);
+        stopped.Should().BeTrue();
+
+        await Task.Delay(100);
+
+        var status = this.searchService.GetStatus(id);
+        status.Should().NotBeNull();
+        status.Status.Should().Be("Stopped");
     }
 }
