@@ -2549,6 +2549,44 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task BoundSocketConnector_WhenNetworkInterfaceBindingConfigured_PrioritizesOverBindInterface()
+    {
+        var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        try
+        {
+            var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+            var mockProvider = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingProvider>();
+            mockBindingService.ActiveProvider.Returns(mockProvider);
+
+            var mockConfigService = Substitute.For<IConfigService>();
+            mockConfigService.NetworkInterfaceBinding.Returns("tun0");
+            mockConfigService.BindInterface.Returns("eth0");
+
+            var connector = new BoundSocketConnector(
+                () => IPAddress.Loopback,
+                () => IPAddress.IPv6Loopback,
+                mockBindingService,
+                () => !string.IsNullOrWhiteSpace(mockConfigService.NetworkInterfaceBinding)
+                    ? mockConfigService.NetworkInterfaceBinding
+                    : mockConfigService.BindInterface,
+                configService: mockConfigService);
+
+            using var socket = await connector.ConnectAsync(new Uri($"http://127.0.0.1:{port}"), CancellationToken.None);
+
+            socket.Should().NotBeNull();
+            socket.Connected.Should().BeTrue();
+            mockBindingService.Received(1).BindSocket(Arg.Any<System.Net.Sockets.Socket>(), "tun0");
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Test]
     public void BoundSocketConnector_CreateDatagramSocket_CreatesAndBindsUdpSocket()
     {
         var connector = new BoundSocketConnector(
