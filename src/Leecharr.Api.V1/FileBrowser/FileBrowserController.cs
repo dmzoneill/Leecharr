@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,27 +12,38 @@ namespace Leecharr.Api.V1.FileBrowser;
 
 public class FileBrowserPathRequest
 {
+    [Required]
+    [StringLength(2048, MinimumLength = 1)]
     public string Path { get; set; }
 }
 
 public class FileBrowserRenameRequest
 {
+    [Required]
+    [StringLength(2048, MinimumLength = 1)]
     public string Path { get; set; }
 
+    [Required]
+    [StringLength(500, MinimumLength = 1)]
     public string NewName { get; set; }
 }
 
 public class FileBrowserBatchDeleteRequest
 {
+    [Required]
     public List<string> Paths { get; set; } = new();
 }
 
 public class FileBrowserTransferRequest
 {
+    [Required]
     public List<string> Sources { get; set; } = new();
 
+    [Required]
+    [StringLength(2048, MinimumLength = 1)]
     public string Destination { get; set; }
 
+    [StringLength(50)]
     public string Operation { get; set; } = "copy";
 }
 
@@ -166,6 +178,8 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = "A path is required." });
         }
 
+        var clampedMaxBytes = Math.Clamp(maxBytes <= 0 ? 262144 : maxBytes, 1, 10 * 1024 * 1024);
+
         var fullPath = this.fileBrowserService.ResolvePath(path);
         if (!global::System.IO.File.Exists(fullPath))
         {
@@ -181,11 +195,11 @@ public class FileBrowserController : Controller
         if (isText)
         {
             using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var readLength = (int)Math.Min(stream.Length, maxBytes);
+            var readLength = (int)Math.Min(stream.Length, clampedMaxBytes);
             var buffer = new byte[readLength];
             var bytesRead = stream.Read(buffer, 0, readLength);
             var content = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            var truncated = stream.Length > maxBytes;
+            var truncated = stream.Length > clampedMaxBytes;
 
             return this.Ok(new
             {

@@ -60,36 +60,39 @@ public static class GeneralConfigResourceMapper
 {
     public static GeneralConfigResource ToResource(IConfigService config, IConfigFileProvider fileProvider)
     {
+        var apiKey = fileProvider?.ApiKey;
+        var maskedApiKey = !string.IsNullOrEmpty(apiKey)
+            ? (apiKey.Length > 4
+                ? new string('*', apiKey.Length - 4) + apiKey[^4..]
+                : new string('*', apiKey.Length))
+            : string.Empty;
+
         return new GeneralConfigResource
         {
-            InstanceUuid = config.InstanceUuid,
-            AutoStart = config.AutoStart,
-            ThemeStyle = config.ThemeStyle,
-            ColorScheme = config.ColorScheme,
-            WatchFolderEnabled = config.WatchFolderEnabled,
-            WatchFolderPath = config.WatchFolderPath,
-            WatchFolderScanIntervalSeconds = config.WatchFolderScanIntervalSeconds,
-            WatchFolderAutoStartTorrents = config.WatchFolderAutoStartTorrents,
-            WatchFolderDeleteAddedTorrents = config.WatchFolderDeleteAddedTorrents,
-            Port = fileProvider.Port,
-            BindAddress = fileProvider.BindAddress,
-            UrlBase = fileProvider.UrlBase,
-            AuthenticationEnabled = fileProvider.AuthenticationEnabled,
-            TerminalAccessEnabled = fileProvider.TerminalAccessEnabled,
-            ApiKey = !string.IsNullOrEmpty(fileProvider.ApiKey)
-                ? (fileProvider.ApiKey.Length > 4
-                    ? new string('*', fileProvider.ApiKey.Length - 4) + fileProvider.ApiKey[^4..]
-                    : new string('*', fileProvider.ApiKey.Length))
-                : string.Empty,
-            EnableSsl = fileProvider.EnableSsl,
-            SslPort = fileProvider.SslPort,
-            SslCertPath = fileProvider.SslCertPath,
-            SslKeyPath = fileProvider.SslKeyPath,
-            SslCertPassword = string.IsNullOrEmpty(fileProvider.SslCertPassword) ? string.Empty : "********",
-            RedirectHttpToHttps = fileProvider.RedirectHttpToHttps,
-            CsrfProtectionEnabled = config.CsrfProtectionEnabled,
-            HostHeaderValidationEnabled = config.HostHeaderValidationEnabled,
-            AllowedHosts = config.AllowedHosts,
+            InstanceUuid = config?.InstanceUuid,
+            AutoStart = config?.AutoStart ?? false,
+            ThemeStyle = config?.ThemeStyle,
+            ColorScheme = config?.ColorScheme,
+            WatchFolderEnabled = config?.WatchFolderEnabled ?? false,
+            WatchFolderPath = config?.WatchFolderPath,
+            WatchFolderScanIntervalSeconds = config?.WatchFolderScanIntervalSeconds ?? 0,
+            WatchFolderAutoStartTorrents = config?.WatchFolderAutoStartTorrents ?? false,
+            WatchFolderDeleteAddedTorrents = config?.WatchFolderDeleteAddedTorrents ?? false,
+            Port = fileProvider?.Port ?? 0,
+            BindAddress = fileProvider?.BindAddress,
+            UrlBase = fileProvider?.UrlBase,
+            AuthenticationEnabled = fileProvider?.AuthenticationEnabled ?? false,
+            TerminalAccessEnabled = fileProvider?.TerminalAccessEnabled ?? true,
+            ApiKey = maskedApiKey,
+            EnableSsl = fileProvider?.EnableSsl ?? false,
+            SslPort = fileProvider?.SslPort ?? 0,
+            SslCertPath = fileProvider?.SslCertPath,
+            SslKeyPath = fileProvider?.SslKeyPath,
+            SslCertPassword = string.IsNullOrEmpty(fileProvider?.SslCertPassword) ? string.Empty : "********",
+            RedirectHttpToHttps = fileProvider?.RedirectHttpToHttps ?? false,
+            CsrfProtectionEnabled = config?.CsrfProtectionEnabled ?? true,
+            HostHeaderValidationEnabled = config?.HostHeaderValidationEnabled ?? false,
+            AllowedHosts = config?.AllowedHosts ?? string.Empty,
         };
     }
 }

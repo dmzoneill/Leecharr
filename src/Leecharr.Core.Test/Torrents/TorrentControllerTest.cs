@@ -793,4 +793,40 @@ public class TorrentControllerTest
         await this.torrentService.Received(1).ForceAnnounceAsync(99);
         this.torrentLogService.Received(1).Log(99, "Info", "Tracker", Arg.Is<string>(s => s.Contains("Manual tracker update requested")));
     }
+
+    [Test]
+    public async Task Update_WhenPayloadIsNull_ReturnsBadRequest()
+    {
+        var response = await this.controller.Update(1, null!);
+
+        var badRequestResult = response.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
+
+    [Test]
+    public async Task MoveQueue_WhenPayloadIsNull_ReturnsBadRequest()
+    {
+        var response = await this.controller.MoveQueue(1, null!);
+
+        var badRequestResult = response.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
+
+    [Test]
+    public async Task AddTorrentJson_WhenPayloadIsNull_ReturnsBadRequest()
+    {
+        var response = await this.controller.AddTorrentJson(null!);
+
+        var badRequestResult = response.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
+
+    [Test]
+    public async Task AddTracker_WhenPayloadIsNull_ReturnsBadRequest()
+    {
+        var response = await this.controller.AddTracker(1, null!);
+
+        var badRequestResult = response.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
 }

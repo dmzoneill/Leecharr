@@ -47,6 +47,11 @@ public class TrustedNetworkServiceTest
     [TestCase("192.168.1.50", null, false)]
     [TestCase("10.0.0.5", "", false)]
     [TestCase("172.16.0.1", null, false)]
+    [TestCase("192.168.1.50", "invalid_cidr", false)]
+    [TestCase("192.168.1.50", "192.168.1.0/abc", false)]
+    [TestCase("192.168.1.50", "192.168.1.0/-1", false)]
+    [TestCase("192.168.1.50", "192.168.1.0/999", false)]
+    [TestCase("192.168.1.50", "not.an.ip/24", false)]
     public void IsTrustedProxy_WithCidrs_ShouldMatchCorrectly(string ipStr, string cidrs, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);

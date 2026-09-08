@@ -278,7 +278,7 @@ public class IndexerController : Controller
         CancellationToken cancellationToken = default)
     {
         var effectiveOffset = offset > 0 ? offset : 0;
-        var effectiveLimit = limit > 0 ? limit : 50;
+        var effectiveLimit = Math.Clamp(limit <= 0 ? 50 : limit, 1, 250);
 
         var searchEnabled = this.indexerRepository.GetSearchEnabled().ToList();
         var indexers = indexerId.HasValue

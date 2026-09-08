@@ -1,7 +1,6 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Leecharr.Http.REST;
@@ -10,8 +9,11 @@ namespace Leecharr.Api.V1.Indexers;
 
 public class IndexerResource : RestResource
 {
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Name { get; set; }
 
+    [StringLength(100)]
     public string Implementation { get; set; } = "Torznab";
 
     [JsonPropertyName("indexerType")]
@@ -27,16 +29,21 @@ public class IndexerResource : RestResource
         }
     }
 
+    [StringLength(100)]
     public string ConfigContract { get; set; }
 
     public string Settings { get; set; }
 
     public bool Enable { get; set; } = true;
 
+    [Range(1, int.MaxValue)]
     public int Priority { get; set; } = 1;
 
+    [Required]
+    [StringLength(2048)]
     public string Url { get; set; }
 
+    [StringLength(1024)]
     public string ApiKey { get; set; } = string.Empty;
 
     private List<int> categories = new();
@@ -54,6 +61,7 @@ public class IndexerResource : RestResource
 
     public bool FreeleechOnly { get; set; }
 
+    [Range(0, int.MaxValue)]
     public int MinSeeders { get; set; } = 1;
 
     public int DownloadClientId { get; set; }
