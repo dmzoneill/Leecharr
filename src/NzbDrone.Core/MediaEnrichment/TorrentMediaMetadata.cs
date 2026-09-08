@@ -37,4 +37,14 @@ public class TorrentMediaMetadata : ModelBase
     public string TmdbId { get; set; }
 
     public string TvdbId { get; set; }
+
+    public string BannerUrl { get; set; }
+
+    public string MusicBrainzId { get; set; }
+
+    public string ArtistName { get; set; }
+
+    public string AlbumTitle { get; set; }
+
+    public string Cast { get; set; }
 }

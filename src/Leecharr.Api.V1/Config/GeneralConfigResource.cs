@@ -76,9 +76,11 @@ public static class GeneralConfigResourceMapper
             UrlBase = fileProvider.UrlBase,
             AuthenticationEnabled = fileProvider.AuthenticationEnabled,
             TerminalAccessEnabled = fileProvider.TerminalAccessEnabled,
-            ApiKey = fileProvider.ApiKey.Length > 4
-                ? new string('*', fileProvider.ApiKey.Length - 4) + fileProvider.ApiKey[^4..]
-                : new string('*', fileProvider.ApiKey.Length),
+            ApiKey = !string.IsNullOrEmpty(fileProvider.ApiKey)
+                ? (fileProvider.ApiKey.Length > 4
+                    ? new string('*', fileProvider.ApiKey.Length - 4) + fileProvider.ApiKey[^4..]
+                    : new string('*', fileProvider.ApiKey.Length))
+                : string.Empty,
             EnableSsl = fileProvider.EnableSsl,
             SslPort = fileProvider.SslPort,
             SslCertPath = fileProvider.SslCertPath,
