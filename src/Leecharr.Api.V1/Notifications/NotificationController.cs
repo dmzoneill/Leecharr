@@ -236,7 +236,7 @@ public class NotificationController : Controller
         else
         {
             var targetUrl = NotificationEventHandler.ResolveTargetUrl(notif.Implementation, notif.Settings);
-            var customHeaders = NotificationEventHandler.ResolveCustomHeaders(notif.Settings);
+            var customHeaders = NotificationEventHandler.ResolveCustomHeaders(notif.Implementation, notif.Settings);
             var success = await this.webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders);
             return this.Ok(new NotificationTestResult
             {
