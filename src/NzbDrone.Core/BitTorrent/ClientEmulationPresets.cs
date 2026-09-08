@@ -40,6 +40,46 @@ public static class ClientEmulationPresets
         return cleaned.Length > 6 ? cleaned.Substring(0, 6) : cleaned;
     }
 
+    public static string GetUserAgentForPrefix(string peerIdPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(peerIdPrefix))
+        {
+            return DefaultUserAgent;
+        }
+
+        if (peerIdPrefix.StartsWith("-qB", StringComparison.OrdinalIgnoreCase))
+        {
+            return DefaultUserAgent;
+        }
+
+        if (peerIdPrefix.StartsWith("-DE", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Deluge/2.1.1";
+        }
+
+        if (peerIdPrefix.StartsWith("-TR", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Transmission/4.0.5";
+        }
+
+        if (peerIdPrefix.StartsWith("-UT", StringComparison.OrdinalIgnoreCase))
+        {
+            return "uTorrent/3550";
+        }
+
+        if (peerIdPrefix.StartsWith("-AZ", StringComparison.OrdinalIgnoreCase))
+        {
+            return "BiglyBT/3.4.0.0";
+        }
+
+        if (peerIdPrefix.StartsWith("-LC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Leecharr/1.0.0";
+        }
+
+        return DefaultUserAgent;
+    }
+
     public static string CleanClientIdentifier(string peerIdPrefix)
     {
         var cleaned = CleanClientVersion(peerIdPrefix);

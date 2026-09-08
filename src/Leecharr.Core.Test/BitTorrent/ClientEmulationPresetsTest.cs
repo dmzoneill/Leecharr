@@ -70,10 +70,23 @@ public class ClientEmulationPresetsTest
         }
     }
 
+    [TestCase("-qB4650-", "qBittorrent/4.6.5")]
+    [TestCase("-DE2110-", "Deluge/2.1.1")]
+    [TestCase("-TR4050-", "Transmission/4.0.5")]
+    [TestCase("-UT3550-", "uTorrent/3550")]
+    [TestCase("-AZ3400-", "BiglyBT/3.4.0.0")]
+    [TestCase("-LC1000-", "Leecharr/1.0.0")]
+    [TestCase("", "qBittorrent/4.6.5")]
+    [TestCase(null, "qBittorrent/4.6.5")]
+    public void GetUserAgentForPrefix_ReturnsExpectedUserAgent(string peerIdPrefix, string expectedUserAgent)
+    {
+        ClientEmulationPresets.GetUserAgentForPrefix(peerIdPrefix).Should().Be(expectedUserAgent);
+    }
+
     [Test]
     public void ConfigureGlobalMonoTorrentDefaults_PatchesAllMonoTorrentAssembliesAndDhtMessage()
     {
-        MonoTorrentDownloadEngine.ConfigureGlobalMonoTorrentDefaults("-qB4420-");
+        MonoTorrentDownloadEngine.ConfigureGlobalMonoTorrentDefaults("-qB4420-", "qBittorrent/4.4.2");
 
         var monoTorrentAssemblies = AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetName().Name?.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase) == true)
@@ -89,7 +102,7 @@ public class ClientEmulationPresetsTest
                 var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
                 var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
 
-                clientVer.Should().Be("qB4420");
+                clientVer.Should().Be("qBittorrent/4.4.2");
                 dhtVer.Should().Be("qB4420");
             }
 
@@ -101,6 +114,29 @@ public class ClientEmulationPresetsTest
                 var dhtVersionVal = dhtVersionField?.GetValue(null)?.ToString();
 
                 dhtVersionVal.Should().Be("qB4420");
+            }
+        }
+    }
+
+    [Test]
+    public void ConfigureGlobalMonoTorrentDefaults_WithoutUserAgent_DerivesFromPrefix()
+    {
+        MonoTorrentDownloadEngine.ConfigureGlobalMonoTorrentDefaults("-DE2110-");
+
+        var monoTorrentAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => a.GetName().Name?.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase) == true)
+            .ToList();
+
+        foreach (var asm in monoTorrentAssemblies)
+        {
+            var gitInfoType = asm.GetType("MonoTorrent.GitInfoHelper");
+            if (gitInfoType != null)
+            {
+                var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+                var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+
+                clientVer.Should().Be("Deluge/2.1.1");
+                dhtVer.Should().Be("DE2110");
             }
         }
     }
