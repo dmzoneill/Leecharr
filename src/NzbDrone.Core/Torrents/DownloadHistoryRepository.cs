@@ -81,8 +81,8 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            sql.Append(" AND (\"Title\" LIKE @Query OR \"InfoHash\" LIKE @Query OR \"PrimaryTracker\" LIKE @Query OR \"IndexerName\" LIKE @Query)");
-            parameters.Add("Query", $"%{query.Trim()}%");
+            sql.Append(" AND (LOWER(\"Title\") LIKE @Query OR LOWER(\"InfoHash\") LIKE @Query OR LOWER(\"PrimaryTracker\") LIKE @Query OR LOWER(\"IndexerName\") LIKE @Query)");
+            parameters.Add("Query", $"%{query.Trim().ToLowerInvariant()}%");
         }
 
         if (!string.IsNullOrWhiteSpace(status) && !string.Equals(status, "all", System.StringComparison.OrdinalIgnoreCase))
