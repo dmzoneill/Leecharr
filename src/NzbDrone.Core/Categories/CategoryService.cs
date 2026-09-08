@@ -19,6 +19,8 @@ public class CategoryDeletedEvent : IEvent
     public int CategoryId { get; set; }
 
     public string CategoryName { get; set; }
+
+    public List<int> AffectedTorrentIds { get; set; } = new();
 }
 
 public interface ICategoryService
@@ -150,6 +152,7 @@ public class CategoryService : ICategoryService
 
         this.logger.Info("Deleting category id: {0} ({1})", id, cat.Name);
 
+        var affectedTorrentIds = new List<int>();
         if (this.torrentRepository != null && !string.IsNullOrWhiteSpace(cat.Name))
         {
             var torrents = this.torrentRepository.GetByCategory(cat.Name);
@@ -157,6 +160,7 @@ public class CategoryService : ICategoryService
             {
                 foreach (var torrent in torrents)
                 {
+                    affectedTorrentIds.Add(torrent.Id);
                     torrent.Category = string.Empty;
                     this.torrentRepository.Update(torrent);
                 }
@@ -168,6 +172,7 @@ public class CategoryService : ICategoryService
         {
             CategoryId = id,
             CategoryName = cat.Name,
+            AffectedTorrentIds = affectedTorrentIds,
         });
     }
 

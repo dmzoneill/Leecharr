@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -30,6 +31,7 @@ public class TorrentServiceTest
     private IEventAggregator eventAggregator = null!;
     private ITrackerEntryRepository trackerEntryRepository = null!;
     private IStoragePathService storagePathService = null!;
+    private ISpeedSchedulerService speedSchedulerService = null!;
     private TorrentService service = null!;
 
     [SetUp]
@@ -44,6 +46,22 @@ public class TorrentServiceTest
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.storagePathService = Substitute.For<IStoragePathService>();
+        this.speedSchedulerService = Substitute.For<ISpeedSchedulerService>();
+
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(Arg.Any<int>(), Arg.Any<int>())
+            .Returns(callInfo =>
+            {
+                var t = callInfo.ArgAt<int>(0);
+                var c = callInfo.ArgAt<int>(1);
+                return t > 0 ? t : c;
+            });
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(Arg.Any<int>(), Arg.Any<int>())
+            .Returns(callInfo =>
+            {
+                var t = callInfo.ArgAt<int>(0);
+                var c = callInfo.ArgAt<int>(1);
+                return t > 0 ? t : c;
+            });
 
         this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns("/downloads");
         this.configService.DefaultCategory.Returns("default");
@@ -69,7 +87,8 @@ public class TorrentServiceTest
             this.eventAggregator,
             this.trackerEntryRepository,
             queueManagerService: null,
-            storagePathService: this.storagePathService);
+            storagePathService: this.storagePathService,
+            speedSchedulerService: this.speedSchedulerService);
     }
 
     [Test]
@@ -796,5 +815,202 @@ public class TorrentServiceTest
         this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
         await this.downloadEngine.DidNotReceive().ForceRecheckAsync(Arg.Any<int>());
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStatusChangedEvent>());
+    }
+
+    [Test]
+    public async Task Handle_CategoryUpdatedEvent_PropagatesToAllTorrentsInCategory_RespectingExplicitOverrides()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "movies",
+            DefaultDownloadLimit = 20000,
+            DefaultUploadLimit = 5000,
+        };
+
+        var torrentInherited = new Torrent
+        {
+            Id = 1,
+            Name = "Inherited Torrent",
+            Category = "movies",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        var torrentOverride = new Torrent
+        {
+            Id = 2,
+            Name = "Override Torrent",
+            Category = "movies",
+            DownloadLimit = 8000,
+            UploadLimit = 3000,
+        };
+
+        this.torrentRepository.GetByCategory("movies").Returns(new List<Torrent> { torrentInherited, torrentOverride });
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 20000).Returns(20000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 5000).Returns(5000);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(8000, 20000).Returns(8000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(3000, 5000).Returns(3000);
+
+        this.service.Handle(new CategoryUpdatedEvent { Category = category });
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 20000, 5000);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(2, 8000, 3000);
+    }
+
+    [Test]
+    public async Task Handle_CategoryDeletedEvent_PropagatesFallbackLimitsToAffectedTorrents()
+    {
+        var torrentInherited = new Torrent
+        {
+            Id = 1,
+            Name = "Inherited Torrent",
+            Category = string.Empty,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        var torrentOverride = new Torrent
+        {
+            Id = 2,
+            Name = "Override Torrent",
+            Category = string.Empty,
+            DownloadLimit = 8000,
+            UploadLimit = 3000,
+        };
+
+        this.torrentRepository.Get(1).Returns(torrentInherited);
+        this.torrentRepository.Get(2).Returns(torrentOverride);
+
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 0).Returns(50000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 0).Returns(20000);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(8000, 0).Returns(8000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(3000, 0).Returns(3000);
+
+        this.service.Handle(new CategoryDeletedEvent
+        {
+            CategoryId = 1,
+            CategoryName = "movies",
+            AffectedTorrentIds = new List<int> { 1, 2 },
+        });
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 50000, 20000);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(2, 8000, 3000);
+    }
+
+    [Test]
+    public async Task SetCategoryAsync_ResolvesEffectiveLimitsAndAppliesToDownloadEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Test Torrent",
+            Category = string.Empty,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        var category = new Category
+        {
+            Id = 5,
+            Name = "tv",
+            DefaultDownloadLimit = 15000,
+            DefaultUploadLimit = 4000,
+            TargetRatio = 2.0,
+            TargetSeedTimeMinutes = 120,
+        };
+
+        this.torrentRepository.Get(10).Returns(torrent);
+        this.categoryService.GetByName("tv").Returns(category);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 15000).Returns(15000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 4000).Returns(4000);
+
+        await this.service.SetCategoryAsync(10, "tv");
+
+        torrent.Category.Should().Be("tv");
+        torrent.DownloadLimit.Should().Be(0); // Preserved as 0 (no override)
+        torrent.UploadLimit.Should().Be(0);
+        torrent.TargetRatio.Should().Be(2.0);
+        torrent.TargetSeedTimeMinutes.Should().Be(120);
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 15000, 4000);
+        this.torrentRepository.Received(1).Update(torrent);
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenCategoryHasDefaultLimit_AppliesEffectiveLimitToEngineWithoutHardcodingEntityOverride()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "movies",
+            DefaultDownloadLimit = 12000,
+            DefaultUploadLimit = 6000,
+            TargetRatio = 1.5,
+            TargetSeedTimeMinutes = 60,
+        };
+
+        this.categoryService.GetByName("movies").Returns(category);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 12000).Returns(12000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 6000).Returns(6000);
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "1122334455667788990011223344556677889900",
+            Name = "NewMovie",
+            PieceLength = 1000,
+            TotalSize = 1000,
+            Files = new List<ParsedTorrentFile> { new() { Path = "movie.mkv", Size = 1000 } },
+        };
+
+        var result = await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false);
+
+        result.Category.Should().Be("movies");
+        result.DownloadLimit.Should().Be(0); // Remains 0 for dynamic inheritance
+        result.UploadLimit.Should().Be(0);
+        result.TargetRatio.Should().Be(1.5);
+        result.TargetSeedTimeMinutes.Should().Be(60);
+
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(result.Id, 12000, 6000);
+    }
+
+    [Test]
+    public void GetEffectiveDownloadLimit_And_GetEffectiveUploadLimit_FollowsHierarchy()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "tv",
+            DefaultDownloadLimit = 25000,
+            DefaultUploadLimit = 10000,
+        };
+        this.categoryService.GetByName("tv").Returns(category);
+
+        var torrentInherited = new Torrent
+        {
+            Id = 1,
+            Category = "tv",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        var torrentOverride = new Torrent
+        {
+            Id = 2,
+            Category = "tv",
+            DownloadLimit = 7500,
+            UploadLimit = 2500,
+        };
+
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 25000).Returns(25000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 10000).Returns(10000);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(7500, 25000).Returns(7500);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(2500, 10000).Returns(2500);
+
+        this.service.GetEffectiveDownloadLimit(torrentInherited).Should().Be(25000);
+        this.service.GetEffectiveUploadLimit(torrentInherited).Should().Be(10000);
+
+        this.service.GetEffectiveDownloadLimit(torrentOverride).Should().Be(7500);
+        this.service.GetEffectiveUploadLimit(torrentOverride).Should().Be(2500);
     }
 }
