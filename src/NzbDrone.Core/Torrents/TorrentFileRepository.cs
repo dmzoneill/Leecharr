@@ -20,7 +20,7 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
     {
         using var connection = this.database.OpenConnection();
         return connection.Query<TorrentFile>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" ASC",
             new { TorrentId = torrentId });
     }
 
