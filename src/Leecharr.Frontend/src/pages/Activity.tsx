@@ -2,7 +2,7 @@ import { useTranslation } from "../i18n";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats, useSpeedHistory } from "../api/hooks";
-import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import { formatSpeed, formatRatio } from "../utils/formatters";
 import LineChart from "../components/LineChart";
 
@@ -28,7 +28,6 @@ function Activity() {
   const { data: torrents } = useTorrents();
   const { data: stats } = useSeedingStats();
   const { data: serverHistory } = useSpeedHistory();
-  const telemetry = useTorrentStore((state) => state.telemetry);
 
   const [history, setHistory] = useState<HistoryState>({
     uploadSpeed: [],
@@ -42,61 +41,7 @@ function Activity() {
   const seededRef = useRef(false);
 
   // Compute instantaneous real-time metrics combining server stats and live SignalR telemetry
-  const liveStats = useMemo(() => {
-    let dl = 0;
-    let ul = 0;
-    let active = 0;
-    let peers = 0;
-    let ratioSum = 0;
-    const list = torrents ?? [];
-
-    for (const t of list) {
-      const tel = telemetry[t.id];
-      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
-      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
-      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
-      const effectiveSeeders = tel?.seeders ?? t.seeders ?? 0;
-      const effectiveLeechers = tel?.leechers ?? t.leechers ?? 0;
-
-      dl += effectiveDl;
-      ul += effectiveUl;
-      ratioSum += effectiveRatio;
-      peers += effectiveSeeders + effectiveLeechers;
-
-      if (
-        effectiveStatus === "downloading" ||
-        effectiveStatus === "seeding" ||
-        effectiveStatus === "checking" ||
-        effectiveStatus === "allocating" ||
-        effectiveStatus === "metadata" ||
-        effectiveStatus === "active"
-      ) {
-        active++;
-      }
-    }
-
-    const calculatedAvgRatio =
-      list.length > 0
-        ? ratioSum / list.length
-        : sanitizeNumber(stats?.averageRatio ?? stats?.globalRatio ?? 0);
-
-    const resolvedUl = ul > 0 || !stats?.uploadSpeed ? ul : stats.uploadSpeed;
-    const resolvedDl = dl > 0 || !stats?.downloadSpeed ? dl : stats.downloadSpeed;
-    const resolvedActive =
-      active > 0 || stats?.activeTorrents === undefined
-        ? active
-        : stats.activeTorrents;
-
-    return {
-      uploadSpeed: resolvedUl,
-      downloadSpeed: resolvedDl,
-      activeTorrents: resolvedActive,
-      peerConnections: peers,
-      ratio: calculatedAvgRatio,
-      networkActivity: resolvedUl + resolvedDl,
-    };
-  }, [torrents, telemetry, stats]);
+  const liveStats = useAggregatedTorrentMetrics(torrents, stats);
 
   const liveStatsRef = useRef(liveStats);
   liveStatsRef.current = liveStats;

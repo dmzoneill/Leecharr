@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useId } from "react";
 import { useSpeedHistory, useSeedingStats, useTorrents } from "../api/hooks";
-import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 
@@ -101,24 +101,14 @@ export function SpeedGraph({
   const { data: serverHistory } = useSpeedHistory();
   const { data: stats } = useSeedingStats();
   const { data: torrents } = useTorrents();
-  const telemetry = useTorrentStore((state) => state.telemetry);
-
-  const liveSpeeds = useMemo(() => {
-    let dl = 0;
-    let ul = 0;
-    const torrentList = torrents ?? [];
-    for (const t of torrentList) {
-      const tel = telemetry[t.id];
-      dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
-      ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-    }
-    return {
-      downloadSpeed:
-        dl > 0 || !stats?.downloadSpeed ? dl : Number(stats.downloadSpeed) || 0,
-      uploadSpeed:
-        ul > 0 || !stats?.uploadSpeed ? ul : Number(stats.uploadSpeed) || 0,
-    };
-  }, [torrents, telemetry, stats]);
+  const metrics = useAggregatedTorrentMetrics(torrents, stats);
+  const liveSpeeds = useMemo(
+    () => ({
+      downloadSpeed: metrics.downloadSpeed,
+      uploadSpeed: metrics.uploadSpeed,
+    }),
+    [metrics.downloadSpeed, metrics.uploadSpeed],
+  );
 
   const liveSpeedsRef = useRef(liveSpeeds);
   liveSpeedsRef.current = liveSpeeds;

@@ -13,7 +13,7 @@ import {
   formatUptime,
 } from "../utils/formatters";
 import { useTranslation } from "../i18n";
-import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import {
   SeedingIcon,
   UploadIcon,
@@ -39,8 +39,6 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
   const { data: systemStatus } = useSystemStatus();
   const { data: healthChecks } = useHealthChecks();
 
-  const telemetry = useTorrentStore((state) => state.telemetry);
-
   const {
     totalDlSpeed,
     totalUlSpeed,
@@ -50,60 +48,7 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
     totalUploaded,
     totalDownloaded,
     averageRatio,
-  } = useMemo(() => {
-    let dl = 0;
-    let ul = 0;
-    let active = 0;
-    let seeders = 0;
-    let leechers = 0;
-    let uploadedSum = 0;
-    let downloadedSum = 0;
-    let ratioSum = 0;
-
-    const torrentList = torrents ?? [];
-
-    for (const t of torrentList) {
-      const tel = telemetry[t.id];
-      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
-      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
-      const effectiveSeeders = tel?.seeders ?? t.seeders ?? 0;
-      const effectiveLeechers = tel?.leechers ?? t.leechers ?? 0;
-      const effectiveUploaded = tel?.uploaded ?? t.uploaded ?? 0;
-      const effectiveDownloaded = tel?.downloaded ?? t.downloaded ?? 0;
-      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
-
-      dl += effectiveDl;
-      ul += effectiveUl;
-      seeders += effectiveSeeders;
-      leechers += effectiveLeechers;
-      uploadedSum += effectiveUploaded;
-      downloadedSum += effectiveDownloaded;
-      ratioSum += effectiveRatio;
-
-      if (
-        effectiveStatus === "downloading" ||
-        effectiveStatus === "seeding"
-      ) {
-        active++;
-      }
-    }
-
-    const calculatedAvgRatio =
-      torrentList.length > 0 ? ratioSum / torrentList.length : 0;
-
-    return {
-      totalDlSpeed: dl,
-      totalUlSpeed: ul,
-      activeCount:
-        torrentList.length > 0 ? active : (stats?.activeTorrents ?? 0),
-      totalSeeders: seeders,
-      totalLeechers: leechers,
-      totalUploaded: Math.max(stats?.totalUploaded ?? 0, uploadedSum),
-      totalDownloaded: Math.max(stats?.totalDownloaded ?? 0, downloadedSum),
-      averageRatio: stats?.averageRatio ?? calculatedAvgRatio,
-    };
-  }, [torrents, telemetry, stats]);
+  } = useAggregatedTorrentMetrics(torrents, stats);
 
   const totalPeers = totalSeeders + totalLeechers;
 
