@@ -879,4 +879,176 @@ public class IndexerControllerTest
             isbn: null,
             cancellationToken: Arg.Any<System.Threading.CancellationToken>());
     }
+
+    [Test]
+    public async Task SearchGet_MultiIndexerSearchWithLargeLimit_CapsFetchLimitPerIndexerTo100()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            "popular release",
+            Arg.Any<int?>(),
+            limit: 100,
+            offset: 0,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Popular Release A", Seeders = 50, DownloadUrl = "http://dl-a" },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            "popular release",
+            Arg.Any<int?>(),
+            limit: 100,
+            offset: 0,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Popular Release B", Seeders = 100, DownloadUrl = "http://dl-b" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "popular release", limit: 250);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+
+        results.Should().HaveCount(2);
+        results[0].Title.Should().Be("Popular Release B");
+        results[1].Title.Should().Be("Popular Release A");
+
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer1,
+            "popular release",
+            Arg.Any<int?>(),
+            limit: 100,
+            offset: 0,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>());
+
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer2,
+            "popular release",
+            Arg.Any<int?>(),
+            limit: 100,
+            offset: 0,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task SearchGet_MultiIndexerDeepPaginationAtOffset500_QueriesIndexersAtOffset500AndPreservesResults()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            "deep search",
+            Arg.Any<int?>(),
+            limit: 50,
+            offset: 500,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Deep Release Alpha", Seeders = 10, DownloadUrl = "http://dl-alpha" },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            "deep search",
+            Arg.Any<int?>(),
+            limit: 50,
+            offset: 500,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Deep Release Beta", Seeders = 20, DownloadUrl = "http://dl-beta" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "deep search", offset: 500, limit: 50);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+
+        results.Should().HaveCount(2);
+        results[0].Title.Should().Be("Deep Release Beta");
+        results[1].Title.Should().Be("Deep Release Alpha");
+    }
 }
