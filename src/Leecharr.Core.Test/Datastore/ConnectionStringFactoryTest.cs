@@ -54,10 +54,10 @@ public class ConnectionStringFactoryTest
         factory.MainDbConnectionString.Should().Contain("Database=leecharr_db");
         factory.MainDbConnectionString.Should().Contain("Username=user1");
         factory.MainDbConnectionString.Should().Contain("Password=pass1");
-        factory.MainDbConnectionString.Should().Contain("MinPoolSize=1");
-        factory.MainDbConnectionString.Should().Contain("MaxPoolSize=50");
-        factory.MainDbConnectionString.Should().Contain("ConnectionIdleLifetime=30");
-        factory.MainDbConnectionString.Should().Contain("Timeout=15");
-        factory.MainDbConnectionString.Should().Contain("CommandTimeout=30");
+        factory.MainDbConnectionString.Should().Contain("Pooling=true");
+        factory.MainDbConnectionString.Should().Contain("Minimum Pool Size=1");
+        factory.MainDbConnectionString.Should().Contain("Maximum Pool Size=50");
+        factory.MainDbConnectionString.Should().Contain("Connection Timeout=15");
+        factory.MainDbConnectionString.Should().Contain("Command Timeout=30");
     }
 }

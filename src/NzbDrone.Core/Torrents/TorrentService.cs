@@ -101,8 +101,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             this.SyncWithEngine(torrent);
             if (torrent.QueuePosition <= 0)
             {
-                var maxPos = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max();
-                torrent.QueuePosition = maxPos + 1;
+                torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
                 this.torrentRepository.Update(torrent);
             }
         }
@@ -167,7 +166,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
-            QueuePosition = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1,
+            QueuePosition = this.torrentRepository.GetNextQueuePosition(),
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };
@@ -371,7 +370,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
-            QueuePosition = this.torrentRepository.All().Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1,
+            QueuePosition = this.torrentRepository.GetNextQueuePosition(),
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };

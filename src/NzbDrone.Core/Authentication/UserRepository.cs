@@ -16,20 +16,65 @@ public class UserRepository : BasicRepository<User>, IUserRepository
         this.database = database;
     }
 
+    public override User Insert(User model)
+    {
+        NormalizeUser(model);
+        return base.Insert(model);
+    }
+
+    public override User Update(User model)
+    {
+        NormalizeUser(model);
+        return base.Update(model);
+    }
+
+    public override void UpsertMany(System.Collections.Generic.IEnumerable<User> toInsert, System.Collections.Generic.IEnumerable<User> toUpdate)
+    {
+        if (toInsert != null)
+        {
+            foreach (var item in toInsert)
+            {
+                NormalizeUser(item);
+            }
+        }
+
+        if (toUpdate != null)
+        {
+            foreach (var item in toUpdate)
+            {
+                NormalizeUser(item);
+            }
+        }
+
+        base.UpsertMany(toInsert, toUpdate);
+    }
+
     public User FindByUsername(string username)
     {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return null;
+        }
+
+        var normalized = username.Trim().ToLowerInvariant();
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Username\") = LOWER(@Username)",
-            new { Username = username });
+            $"SELECT * FROM \"{this.table}\" WHERE \"Username\" = @Username",
+            new { Username = normalized });
     }
 
     public User FindByEmail(string email)
     {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var normalized = email.Trim().ToLowerInvariant();
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<User>(
-            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Email\") = LOWER(@Email)",
-            new { Email = email });
+            $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email",
+            new { Email = normalized });
     }
 
     public User FindByIdentifier(Guid identifier)
@@ -52,5 +97,18 @@ public class UserRepository : BasicRepository<User>, IUserRepository
     {
         using var connection = this.database.OpenConnection();
         return connection.ExecuteScalar<int>($"SELECT COUNT(*) FROM \"{this.table}\"");
+    }
+
+    private static void NormalizeUser(User model)
+    {
+        if (model?.Username != null)
+        {
+            model.Username = model.Username.Trim().ToLowerInvariant();
+        }
+
+        if (model?.Email != null)
+        {
+            model.Email = model.Email.Trim().ToLowerInvariant();
+        }
     }
 }
