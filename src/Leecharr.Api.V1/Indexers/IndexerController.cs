@@ -296,10 +296,9 @@ public class IndexerController : Controller
             return this.Ok(new List<ReleaseInfoResource>());
         }
 
-        var catId = int.TryParse(category, out var parsedCat) && parsedCat > 0 ? (int?)parsedCat : null;
-        var isMulti = indexers.Count > 1;
-        var fetchLimit = isMulti ? effectiveOffset + effectiveLimit : effectiveLimit;
-        var fetchOffset = isMulti ? 0 : effectiveOffset;
+        var catId = ParseCategoryId(category);
+        var fetchLimit = effectiveLimit;
+        var fetchOffset = effectiveOffset;
 
         using var semaphore = new SemaphoreSlim(6);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -379,9 +378,7 @@ public class IndexerController : Controller
         }
 
         var sortedResults = filteredResults.OrderByDescending(r => r.Seeders).ToList();
-        var paginatedResults = isMulti
-            ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
-            : sortedResults.Take(effectiveLimit).ToList();
+        var paginatedResults = sortedResults.Take(effectiveLimit).ToList();
 
         return this.Ok(paginatedResults);
     }
@@ -715,6 +712,33 @@ public class IndexerController : Controller
             Tags = resource.Tags ?? new List<int>(),
             ProwlarrIndexerId = resource.ProwlarrIndexerId,
             IsProwlarrManaged = resource.IsProwlarrManaged,
+        };
+    }
+
+    private static int? ParseCategoryId(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return null;
+        }
+
+        var trimmed = category.Trim();
+        if (int.TryParse(trimmed, out var parsedCat) && parsedCat > 0)
+        {
+            return parsedCat;
+        }
+
+        return trimmed.ToLowerInvariant() switch
+        {
+            "movies" or "movie" => 2000,
+            "tv" or "television" => 5000,
+            "music" or "audio" => 3000,
+            "anime" => 5070,
+            "books" or "book" or "ebook" or "ebooks" => 7000,
+            "apps" or "software" or "pc" => 4000,
+            "games" or "game" or "console" => 1000,
+            "other" or "misc" => 8000,
+            _ => null,
         };
     }
 }

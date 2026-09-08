@@ -75,6 +75,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
     private readonly IArrConnectionRepository arrRepository;
     private readonly HttpClient httpClient;
     private readonly ITorznabClient torznabClient;
+    private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
 
     public ProwlarrSyncService(
@@ -220,140 +221,153 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             return 0;
         }
 
-        var baseUri = prowlarrUrl.TrimEnd('/');
-        var requestUrl = $"{baseUri}/api/v1/indexer";
-
-        var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-        request.Headers.Add("X-Api-Key", apiKey);
-
-        HttpResponseMessage response;
+        await this.syncLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            response = await this.httpClient.SendAsync(request);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", requestUrl);
-            throw;
-        }
+            var baseUri = prowlarrUrl.TrimEnd('/');
+            var requestUrl = $"{baseUri}/api/v1/indexer";
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
-            this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
-            throw new HttpRequestException(msg, null, response.StatusCode);
-        }
+            var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Add("X-Api-Key", apiKey);
 
-        var json = await response.Content.ReadAsStringAsync();
-        var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            HttpResponseMessage response;
+            try
+            {
+                response = await this.httpClient.SendAsync(request);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", requestUrl);
+                throw;
+            }
 
-        if (indexers == null || indexers.Count == 0)
-        {
-            return 0;
-        }
+            if (!response.IsSuccessStatusCode)
+            {
+                var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
+                this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
+                throw new HttpRequestException(msg, null, response.StatusCode);
+            }
 
-        var torrentIndexers = indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
-        if (torrentIndexers.Count == 0)
-        {
-            var allExisting = this.repository.All().ToList();
-            var prowlarrToDelete = allExisting
-                .Where(e => e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue)
+            var json = await response.Content.ReadAsStringAsync();
+            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (indexers == null || indexers.Count == 0)
+            {
+                return 0;
+            }
+
+            var torrentIndexers = indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (torrentIndexers.Count == 0)
+            {
+                var allExisting = this.repository.All().ToList();
+                var prowlarrToDelete = allExisting
+                    .Where(e => e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var indexerToPrune in prowlarrToDelete)
+                {
+                    this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+                    this.repository.Delete(indexerToPrune.Id);
+                }
+
+                return 0;
+            }
+
+            using var semaphore = new SemaphoreSlim(8);
+            var tasks = torrentIndexers.Select(async pIndexer =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var feedUrl = $"{baseUri}/{pIndexer.Id}/api";
+                    var categories = await this.ExtractOrFetchCategoriesAsync(pIndexer, feedUrl, apiKey);
+                    return (Indexer: pIndexer, FeedUrl: feedUrl, Categories: categories);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            var processed = await Task.WhenAll(tasks);
+
+            var existingIndexers = this.repository.All().ToList();
+            var syncedProwlarrIds = new HashSet<int>();
+            var syncedCount = 0;
+
+            foreach (var item in processed)
+            {
+                var pIndexer = item.Indexer;
+                var feedUrl = item.FeedUrl;
+                var categories = item.Categories;
+
+                syncedProwlarrIds.Add(pIndexer.Id);
+
+                var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
+                               ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing == null)
+                {
+                    this.repository.Insert(new IndexerDefinition
+                    {
+                        Name = pIndexer.Name,
+                        Implementation = "Torznab",
+                        ConfigContract = "ProwlarrSettings",
+                        Url = feedUrl,
+                        ApiKey = apiKey,
+                        Enable = pIndexer.Enable,
+                        Priority = pIndexer.Priority,
+                        EnableRss = pIndexer.EnableRss,
+                        EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch,
+                        Categories = categories,
+                        ProwlarrIndexerId = pIndexer.Id,
+                        IsProwlarrManaged = true,
+                    });
+                }
+                else
+                {
+                    existing.Name = pIndexer.Name;
+                    existing.Url = feedUrl;
+                    existing.ApiKey = apiKey;
+                    existing.Enable = pIndexer.Enable;
+                    existing.EnableRss = pIndexer.EnableRss;
+                    existing.EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch;
+                    existing.ProwlarrIndexerId = pIndexer.Id;
+                    existing.IsProwlarrManaged = true;
+                    if (string.IsNullOrWhiteSpace(existing.ConfigContract))
+                    {
+                        existing.ConfigContract = "ProwlarrSettings";
+                    }
+
+                    // Preserve local custom overrides: Priority, FreeleechOnly, MinSeeders, DownloadClientId, Tags
+                    // and category filters if already configured locally
+                    if (existing.Categories == null || existing.Categories.Count == 0)
+                    {
+                        existing.Categories = categories;
+                    }
+
+                    this.repository.Update(existing);
+                }
+
+                syncedCount++;
+            }
+
+            var toPrune = existingIndexers
+                .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
                 .ToList();
-            foreach (var indexerToPrune in prowlarrToDelete)
+
+            foreach (var indexerToPrune in toPrune)
             {
                 this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
                 this.repository.Delete(indexerToPrune.Id);
             }
 
-            return 0;
+            this.logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
+            return syncedCount;
         }
-
-        using var semaphore = new SemaphoreSlim(8);
-        var tasks = torrentIndexers.Select(async pIndexer =>
+        finally
         {
-            await semaphore.WaitAsync();
-            try
-            {
-                var feedUrl = $"{baseUri}/{pIndexer.Id}/api";
-                var categories = await this.ExtractOrFetchCategoriesAsync(pIndexer, feedUrl, apiKey);
-                return (Indexer: pIndexer, FeedUrl: feedUrl, Categories: categories);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-
-        var processed = await Task.WhenAll(tasks);
-
-        var existingIndexers = this.repository.All().ToList();
-        var syncedProwlarrIds = new HashSet<int>();
-        var syncedCount = 0;
-
-        foreach (var item in processed)
-        {
-            var pIndexer = item.Indexer;
-            var feedUrl = item.FeedUrl;
-            var categories = item.Categories;
-
-            syncedProwlarrIds.Add(pIndexer.Id);
-
-            var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
-                           ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == null && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (existing == null)
-            {
-                this.repository.Insert(new IndexerDefinition
-                {
-                    Name = pIndexer.Name,
-                    Implementation = "Torznab",
-                    Url = feedUrl,
-                    ApiKey = apiKey,
-                    Enable = pIndexer.Enable,
-                    Priority = pIndexer.Priority,
-                    EnableRss = pIndexer.EnableRss,
-                    EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch,
-                    Categories = categories,
-                    ProwlarrIndexerId = pIndexer.Id,
-                    IsProwlarrManaged = true,
-                });
-            }
-            else
-            {
-                existing.Name = pIndexer.Name;
-                existing.Url = feedUrl;
-                existing.ApiKey = apiKey;
-                existing.Enable = pIndexer.Enable;
-                existing.EnableRss = pIndexer.EnableRss;
-                existing.EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch;
-                existing.ProwlarrIndexerId = pIndexer.Id;
-                existing.IsProwlarrManaged = true;
-
-                // Preserve local custom overrides: Priority, FreeleechOnly, MinSeeders, DownloadClientId, Tags
-                // and category filters if already configured locally
-                if (existing.Categories == null || existing.Categories.Count == 0)
-                {
-                    existing.Categories = categories;
-                }
-
-                this.repository.Update(existing);
-            }
-
-            syncedCount++;
+            this.syncLock.Release();
         }
-
-        var toPrune = existingIndexers
-            .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue) && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
-            .ToList();
-
-        foreach (var indexerToPrune in toPrune)
-        {
-            this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
-            this.repository.Delete(indexerToPrune.Id);
-        }
-
-        this.logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
-        return syncedCount;
     }
 
     private async Task<List<int>> ExtractOrFetchCategoriesAsync(ProwlarrIndexerDto pIndexer, string feedUrl, string apiKey)

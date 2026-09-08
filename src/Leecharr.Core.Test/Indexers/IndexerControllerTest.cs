@@ -644,4 +644,131 @@ public class IndexerControllerTest
         results.Should().HaveCount(1);
         results[0].Title.Should().Be("Fast Result");
     }
+
+    [TestCase("movies", 2000)]
+    [TestCase("tv", 5000)]
+    [TestCase("music", 3000)]
+    [TestCase("audio", 3000)]
+    [TestCase("anime", 5070)]
+    [TestCase("books", 7000)]
+    [TestCase("other", 8000)]
+    [TestCase("5040", 5040)]
+    public async Task SearchGet_WithStringCategoriesAndNumericCategories_MapsCorrectCategoryId(string categoryInput, int expectedCategoryId)
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            "test query",
+            categoryId: expectedCategoryId,
+            limit: 50,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "test query", indexerId: 1, category: categoryInput);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer,
+            "test query",
+            categoryId: expectedCategoryId,
+            limit: 50,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task SearchGet_MultiIndexerPaginationAtOffset100_QueriesIndexersAtOffset100AndReturnsResults()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            "popular movie",
+            Arg.Any<int?>(),
+            limit: 50,
+            offset: 100,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Page 3 Movie Release A", Seeders = 120, DownloadUrl = "http://dl-a" },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            "popular movie",
+            Arg.Any<int?>(),
+            limit: 50,
+            offset: 100,
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Page 3 Movie Release B", Seeders = 80, DownloadUrl = "http://dl-b" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "popular movie", offset: 100, limit: 50);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+
+        results.Should().HaveCount(2);
+        results[0].Title.Should().Be("Page 3 Movie Release A");
+        results[1].Title.Should().Be("Page 3 Movie Release B");
+    }
 }

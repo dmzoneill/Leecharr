@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -34,7 +35,7 @@ public class RssSyncService : IRssSyncService
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ICategoryService categoryService;
-    private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedSet<string> grabbedReleaseIds = new(10000, StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
 
@@ -490,4 +491,42 @@ public class RssSyncService : IRssSyncService
 
         return true;
     }
+}
+
+public class BoundedSet<T>
+{
+    private readonly int capacity;
+    private readonly ConcurrentDictionary<T, byte> set;
+    private readonly ConcurrentQueue<T> queue = new();
+
+    public BoundedSet(int capacity, IEqualityComparer<T> comparer = null)
+    {
+        this.capacity = capacity;
+        this.set = new ConcurrentDictionary<T, byte>(comparer ?? EqualityComparer<T>.Default);
+    }
+
+    public bool ContainsKey(T item) => item != null && this.set.ContainsKey(item);
+
+    public bool TryAdd(T item, byte value = 0)
+    {
+        if (item == null)
+        {
+            return false;
+        }
+
+        if (this.set.TryAdd(item, value))
+        {
+            this.queue.Enqueue(item);
+            while (this.set.Count > this.capacity && this.queue.TryDequeue(out var oldest))
+            {
+                this.set.TryRemove(oldest, out _);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public int Count => this.set.Count;
 }
