@@ -439,13 +439,11 @@ public class RssSyncService : IRssSyncService
             }
             catch (ArgumentException ex)
             {
-                this.logger.Warn(ex, "Invalid MustNotContain regex pattern '{0}' for rule '{1}'.", rule.MustNotContain, rule.Name);
-                return false;
+                this.logger.Warn(ex, "Invalid regular expression in MustNotContain filter: {0}", rule.MustNotContain);
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Unexpected error evaluating MustNotContain regex pattern '{0}' for rule '{1}'.", rule.MustNotContain, rule.Name);
-                return false;
             }
         }
 

@@ -250,7 +250,7 @@ public class RssSyncServiceTest
     }
 
     [Test]
-    public void MatchesRule_WhenRegexSyntaxIsInvalid_ReturnsFalse()
+    public void MatchesRule_WhenMustContainRegexSyntaxIsInvalid_ReturnsFalse()
     {
         var release = new TorznabSearchResult
         {
@@ -265,15 +265,29 @@ public class RssSyncServiceTest
             MustContain = "[unclosed-bracket",
         };
 
+        this.service.MatchesRule(release, invalidMustContainRule).Should().BeFalse();
+    }
+
+    [TestCase("[invalid-regex")]
+    [TestCase("(")]
+    [TestCase("(?P<invalid_group_syntax>")]
+    public void MatchesRule_WhenMustNotContainRegexSyntaxIsInvalid_DoesNotRejectReleaseAndMatches(string invalidRegex)
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+        };
+
         var invalidMustNotContainRule = new RssRule
         {
             Name = "Invalid Regex MustNotContain",
             IsEnabled = true,
-            MustNotContain = "(?P<invalid_group_syntax>",
+            MustNotContain = invalidRegex,
+            MinSeeders = 5,
         };
 
-        this.service.MatchesRule(release, invalidMustContainRule).Should().BeFalse();
-        this.service.MatchesRule(release, invalidMustNotContainRule).Should().BeFalse();
+        this.service.MatchesRule(release, invalidMustNotContainRule).Should().BeTrue();
     }
 
     [Test]
