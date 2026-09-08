@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.IO;
+using System.Text;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
 using NUnit.Framework;
@@ -275,6 +277,20 @@ public class TorrentFileParserTest
             .WithMessage("*Piece length must be a positive integer.*");
     }
 
+    [TestCase(1000)]
+    [TestCase(17000)]
+    [TestCase(8192)] // < 16 KiB
+    [TestCase(134217728)] // > 64 MiB (128 MiB)
+    public void Parse_WhenPieceLengthOutsideBoundsOrNotPowerOfTwo_ThrowsInvalidTorrentFileException(long badPieceLength)
+    {
+        var bytes = CreateTorrentBytes(info => info["piece length"] = new BEncodedNumber(badPieceLength));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Piece length must be a power of 2 between 16 KiB and 64 MiB.*");
+    }
+
     [TestCase(0)]
     [TestCase(1)]
     [TestCase(19)]
@@ -315,13 +331,296 @@ public class TorrentFileParserTest
     [Test]
     public void Parse_WhenPieceCountDoesNotMatchTotalFileSize_ThrowsInvalidTorrentFileException()
     {
-        // 16384 bytes with pieceLength 16384 expects exactly 1 piece (20 bytes).
-        // Providing 40 bytes (2 pieces) causes a mismatch.
         var bytes = CreateTorrentBytes(info => info["pieces"] = new BEncodedString(new byte[40]));
 
         var act = () => this.parser.Parse(bytes);
 
         act.Should().Throw<InvalidTorrentFileException>()
             .WithMessage("*Piece count does not match total file size.*");
+    }
+
+    [Test]
+    public void Parse_WhenPureBitTorrentV2WithFileTree_ParsesSuccessfully()
+    {
+        var fileMeta1 = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(50000) },
+            { "pieces root", new BEncodedString(new byte[32]) },
+        };
+        var fileEntry1 = new BEncodedDictionary
+        {
+            { string.Empty, fileMeta1 },
+        };
+
+        var fileMeta2 = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(100000) },
+            { "pieces root", new BEncodedString(new byte[32]) },
+        };
+        var fileEntry2 = new BEncodedDictionary
+        {
+            { string.Empty, fileMeta2 },
+        };
+
+        var subDirDict = new BEncodedDictionary
+        {
+            { "video.mp4", fileEntry2 },
+        };
+
+        var fileTree = new BEncodedDictionary
+        {
+            { "readme.txt", fileEntry1 },
+            { "Season 1", subDirDict },
+        };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "meta version", new BEncodedNumber(2) },
+            { "name", new BEncodedString("V2Torrent") },
+            { "piece length", new BEncodedNumber(16384) },
+            { "file tree", fileTree },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Name.Should().Be("V2Torrent");
+        parsed.V1InfoHash.Should().BeNull();
+        parsed.V2InfoHash.Should().NotBeNullOrEmpty();
+        parsed.V2InfoHash.Length.Should().Be(64);
+        parsed.InfoHash.Should().Be(parsed.V2InfoHash);
+        parsed.Files.Should().HaveCount(2);
+        parsed.Files.Should().Contain(f => f.Path == "readme.txt" && f.Size == 50000);
+        parsed.Files.Should().Contain(f => f.Path == "Season 1/video.mp4" && f.Size == 100000);
+        parsed.TotalSize.Should().Be(150000);
+        parsed.PieceLength.Should().Be(16384);
+        parsed.PieceCount.Should().Be((int)Math.Ceiling(150000.0 / 16384));
+    }
+
+    [Test]
+    public void Parse_WhenHybridTorrent_SetsBothHashesAndParsesSuccessfully()
+    {
+        var fileMeta = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(16384) },
+            { "pieces root", new BEncodedString(new byte[32]) },
+        };
+        var fileEntry = new BEncodedDictionary
+        {
+            { string.Empty, fileMeta },
+        };
+        var fileTree = new BEncodedDictionary
+        {
+            { "sample.iso", fileEntry },
+        };
+
+        var pieces = new byte[20];
+        var infoDict = new BEncodedDictionary
+        {
+            { "meta version", new BEncodedNumber(2) },
+            { "name", new BEncodedString("HybridTorrent") },
+            { "piece length", new BEncodedNumber(16384) },
+            { "pieces", new BEncodedString(pieces) },
+            { "file tree", fileTree },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Name.Should().Be("HybridTorrent");
+        parsed.V1InfoHash.Should().NotBeNullOrEmpty();
+        parsed.V1InfoHash.Length.Should().Be(40);
+        parsed.V2InfoHash.Should().NotBeNullOrEmpty();
+        parsed.V2InfoHash.Length.Should().Be(64);
+        parsed.InfoHash.Should().Be(parsed.V1InfoHash);
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("sample.iso");
+        parsed.TotalSize.Should().Be(16384);
+    }
+
+    [Test]
+    public void Parse_WhenPaddingFilesPresentInV1_FiltersPaddingFiles()
+    {
+        var pieceLength = 16384;
+        var pieces = new byte[20]; // 1 piece (16384 bytes)
+
+        var regularFile = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(10000) },
+            { "path", new BEncodedList { new BEncodedString("movie.mkv") } },
+        };
+
+        var padFileWithAttr = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(3000) },
+            { "attr", new BEncodedString("p") },
+            { "path", new BEncodedList { new BEncodedString("padding1.dat") } },
+        };
+
+        var padFileWithPath = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(3384) },
+            { "path", new BEncodedList { new BEncodedString(".pad"), new BEncodedString("3384") } },
+        };
+
+        var filesList = new BEncodedList { regularFile, padFileWithAttr, padFileWithPath };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "name", new BEncodedString("PaddingTorrent") },
+            { "piece length", new BEncodedNumber(pieceLength) },
+            { "pieces", new BEncodedString(pieces) },
+            { "files", filesList },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("movie.mkv");
+        parsed.Files[0].Size.Should().Be(10000);
+        parsed.TotalSize.Should().Be(10000);
+    }
+
+    [Test]
+    public void Parse_WhenPaddingFilesPresentInV2_FiltersPaddingFiles()
+    {
+        var regularMeta = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(5000) },
+            { "pieces root", new BEncodedString(new byte[32]) },
+        };
+        var regularEntry = new BEncodedDictionary
+        {
+            { string.Empty, regularMeta },
+        };
+
+        var padMetaAttr = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(2000) },
+            { "attr", new BEncodedString("p") },
+        };
+        var padEntryAttr = new BEncodedDictionary
+        {
+            { string.Empty, padMetaAttr },
+        };
+
+        var padMetaPath = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(3000) },
+        };
+        var padEntryPath = new BEncodedDictionary
+        {
+            { string.Empty, padMetaPath },
+        };
+        var padFolder = new BEncodedDictionary
+        {
+            { "3000", padEntryPath },
+        };
+
+        var fileTree = new BEncodedDictionary
+        {
+            { "file.txt", regularEntry },
+            { "padfile.dat", padEntryAttr },
+            { ".pad", padFolder },
+        };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "meta version", new BEncodedNumber(2) },
+            { "name", new BEncodedString("V2PaddingTorrent") },
+            { "piece length", new BEncodedNumber(16384) },
+            { "file tree", fileTree },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("file.txt");
+        parsed.Files[0].Size.Should().Be(5000);
+        parsed.TotalSize.Should().Be(5000);
+    }
+
+    [Test]
+    public void Parse_WhenUtf8MetadataKeysPresent_PrioritizesUtf8Values()
+    {
+        var pieceLength = 16384;
+        var pieces = new byte[20];
+
+        var fileDict = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(16384) },
+            { "path", new BEncodedList { new BEncodedString("fallback_path.mkv") } },
+            { "path.utf-8", new BEncodedList { new BEncodedString("utf8_path_🎬.mkv") } },
+        };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "name", new BEncodedString("fallback_name") },
+            { "name.utf-8", new BEncodedString("utf8_name_🚀") },
+            { "piece length", new BEncodedNumber(pieceLength) },
+            { "pieces", new BEncodedString(pieces) },
+            { "files", new BEncodedList { fileDict } },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "comment", new BEncodedString("fallback_comment") },
+            { "comment.utf-8", new BEncodedString("utf8_comment_💬") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Name.Should().Be("utf8_name_🚀");
+        parsed.Comment.Should().Be("utf8_comment_💬");
+        parsed.Files.Should().HaveCount(1);
+        parsed.Files[0].Path.Should().Be("utf8_path_🎬.mkv");
+    }
+
+    [Test]
+    public void Parse_WhenBencodeExceedsMaxRecursionDepth_ThrowsInvalidTorrentFileException()
+    {
+        var sb = new StringBuilder();
+        // 70 nested dictionaries
+        for (var i = 0; i < 70; i++)
+        {
+            sb.Append("d1:k");
+        }
+
+        sb.Append("1:v");
+        for (var i = 0; i < 70; i++)
+        {
+            sb.Append("e");
+        }
+
+        var deeplyNestedBytes = Encoding.UTF8.GetBytes(sb.ToString());
+
+        var act = () => this.parser.Parse(deeplyNestedBytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*exceeds maximum recursion depth*");
     }
 }

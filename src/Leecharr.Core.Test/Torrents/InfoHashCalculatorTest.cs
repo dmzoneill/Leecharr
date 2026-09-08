@@ -32,4 +32,41 @@ public class InfoHashCalculatorTest
         var act = () => InfoHashCalculator.Calculate(null!);
         act.Should().Throw<ArgumentNullException>();
     }
+
+    [Test]
+    public void CalculateV2_CalculatesCorrectSha256Hex()
+    {
+        var dict = new BDictionary
+        {
+            ["name"] = new BString("Ubuntu.iso"),
+            ["length"] = new BNumber(1000000),
+        };
+
+        var hash = InfoHashCalculator.CalculateV2(dict);
+
+        hash.Should().NotBeNullOrEmpty();
+        hash.Length.Should().Be(64);
+    }
+
+    [Test]
+    public void CalculateV2_WhenNull_ThrowsException()
+    {
+        var act = () => InfoHashCalculator.CalculateV2(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Test]
+    public void CalculateV2Bytes_CalculatesCorrectSha256Bytes()
+    {
+        var dict = new BDictionary
+        {
+            ["name"] = new BString("Ubuntu.iso"),
+            ["length"] = new BNumber(1000000),
+        };
+
+        var hashBytes = InfoHashCalculator.CalculateV2Bytes(dict);
+
+        hashBytes.Should().NotBeNull();
+        hashBytes.Length.Should().Be(32);
+    }
 }
