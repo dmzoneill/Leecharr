@@ -284,6 +284,8 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                         // Check HDR indicators
                         var colorTransfer = stream.TryGetProperty("color_transfer", out var ctProp) && ctProp.ValueKind == JsonValueKind.String ? ctProp.GetString() : string.Empty;
 
+                        bool hasDv = false;
+                        bool hasHdr10Plus = false;
                         if (stream.TryGetProperty("side_data_list", out var sideDataArray) && sideDataArray.ValueKind == JsonValueKind.Array)
                         {
                             foreach (var sideData in sideDataArray.EnumerateArray())
@@ -293,28 +295,58 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                                     var sdt = sdtProp.GetString() ?? string.Empty;
                                     if (sdt.Contains("DOVI", StringComparison.OrdinalIgnoreCase) || sdt.Contains("Dolby Vision", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        info.HdrFormat = "Dolby Vision";
-                                        break;
+                                        hasDv = true;
                                     }
 
                                     if (sdt.Contains("HDR10+", StringComparison.OrdinalIgnoreCase) || sdt.Contains("HDR Dynamic Metadata", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        info.HdrFormat = "HDR10+";
+                                        hasHdr10Plus = true;
                                     }
                                 }
                             }
                         }
 
-                        if ((string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR") && !string.IsNullOrEmpty(colorTransfer))
+                        bool hasHdr10 = false;
+                        bool hasHlg = false;
+                        if (!string.IsNullOrEmpty(colorTransfer))
                         {
                             if (colorTransfer.Contains("smpte2084", StringComparison.OrdinalIgnoreCase))
                             {
-                                info.HdrFormat = "HDR10";
+                                hasHdr10 = true;
                             }
                             else if (colorTransfer.Contains("arib-std-b67", StringComparison.OrdinalIgnoreCase))
                             {
-                                info.HdrFormat = "HLG";
+                                hasHlg = true;
                             }
+                        }
+
+                        if (hasDv && hasHdr10Plus)
+                        {
+                            info.HdrFormat = "Dolby Vision / HDR10+";
+                        }
+                        else if (hasDv && hasHdr10)
+                        {
+                            info.HdrFormat = "Dolby Vision / HDR10";
+                        }
+                        else if (hasDv && hasHlg)
+                        {
+                            info.HdrFormat = "Dolby Vision / HLG";
+                        }
+                        else if (hasDv)
+                        {
+                            info.HdrFormat = "Dolby Vision";
+                        }
+                        else if (hasHdr10Plus)
+                        {
+                            info.HdrFormat = "HDR10+";
+                        }
+                        else if (hasHdr10)
+                        {
+                            info.HdrFormat = "HDR10";
+                        }
+                        else if (hasHlg)
+                        {
+                            info.HdrFormat = "HLG";
                         }
                     }
                     else if (string.Equals(codecType, "audio", StringComparison.OrdinalIgnoreCase))
@@ -444,6 +476,10 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             else if (info.Width >= 1200 || info.Height >= 700)
             {
                 info.Resolution = "720p";
+            }
+            else if (info.Height >= 500 || (info.Width >= 700 && info.Height >= 500))
+            {
+                info.Resolution = "576p";
             }
             else if (info.Width >= 640 || info.Height >= 400)
             {

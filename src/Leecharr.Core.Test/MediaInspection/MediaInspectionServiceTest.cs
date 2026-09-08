@@ -58,14 +58,14 @@ public class MediaInspectionServiceTest
         info.VideoCodec.Should().Be(expectedCodec);
     }
 
-    [TestCase("A_TRUEHD", "Dolby TrueHD / Atmos", "7.1")]
-    [TestCase("A_EAC3", "E-AC3 / Dolby Digital Plus", "5.1")]
-    [TestCase("A_AC3", "AC3 / Dolby Digital", "5.1")]
-    [TestCase("A_DTS", "DTS", "5.1")]
-    [TestCase("A_FLAC", "FLAC", "2.0")]
-    [TestCase("A_OPUS", "Opus", "2.0")]
-    [TestCase("A_AAC", "AAC", "2.0")]
-    public void Inspect_MkvEbmlAudioCodecs_DetectsCorrectly(string codecId, string expectedCodec, string expectedChannels)
+    [TestCase("A_TRUEHD", "Dolby TrueHD / Atmos")]
+    [TestCase("A_EAC3", "E-AC3 / Dolby Digital Plus")]
+    [TestCase("A_AC3", "AC3 / Dolby Digital")]
+    [TestCase("A_DTS", "DTS")]
+    [TestCase("A_FLAC", "FLAC")]
+    [TestCase("A_OPUS", "Opus")]
+    [TestCase("A_AAC", "AAC")]
+    public void Inspect_MkvEbmlAudioCodecs_DetectsCorrectly(string codecId, string expectedCodec)
     {
         var header = CreateMkvEbmlHeader(codecId);
         using var ms = new MemoryStream(header);
@@ -75,7 +75,7 @@ public class MediaInspectionServiceTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("Matroska (MKV)");
         info.AudioCodec.Should().Be(expectedCodec);
-        info.AudioChannels.Should().Be(expectedChannels);
+        info.AudioChannels.Should().BeNull();
     }
 
     private static byte[] CreateMkvEbmlHeader(string payload)
@@ -111,11 +111,11 @@ public class MediaInspectionServiceTest
         info.VideoCodec.Should().Be(expectedCodec);
     }
 
-    [TestCase("ec-3", "E-AC3 / Dolby Digital Plus", "5.1")]
-    [TestCase("ac-3", "AC3 / Dolby Digital", "5.1")]
-    [TestCase("alac", "Apple Lossless (ALAC)", "2.0")]
-    [TestCase("mp4a", "AAC", "2.0")]
-    public void Inspect_Mp4BoxAudioCodecs_DetectsCorrectly(string fourCc, string expectedCodec, string expectedChannels)
+    [TestCase("ec-3", "E-AC3 / Dolby Digital Plus")]
+    [TestCase("ac-3", "AC3 / Dolby Digital")]
+    [TestCase("alac", "Apple Lossless (ALAC)")]
+    [TestCase("mp4a", "AAC")]
+    public void Inspect_Mp4BoxAudioCodecs_DetectsCorrectly(string fourCc, string expectedCodec)
     {
         var header = CreateMp4Header(fourCc);
         using var ms = new MemoryStream(header);
@@ -125,7 +125,7 @@ public class MediaInspectionServiceTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("MP4");
         info.AudioCodec.Should().Be(expectedCodec);
-        info.AudioChannels.Should().Be(expectedChannels);
+        info.AudioChannels.Should().BeNull();
     }
 
     private static byte[] CreateMp4Header(string payload)
@@ -341,6 +341,8 @@ public class MediaInspectionServiceTest
     [TestCase("Movie.2024.4K.HEVC.mkv", "4K UHD (2160p)", 3840, 2160)]
     [TestCase("Movie.2024.1080p.FHD.mkv", "1080p", 1920, 1080)]
     [TestCase("Movie.2024.720p.HD.mkv", "720p", 1280, 720)]
+    [TestCase("Movie.2024.576p.PAL.mkv", "576p", 720, 576)]
+    [TestCase("Movie.2024.PAL.DVDRip.mkv", "576p", 720, 576)]
     [TestCase("Movie.2024.480p.SD.mkv", "480p", 854, 480)]
     public void ApplyFilenameHints_ResolutionClassification_SetsCorrectDimensions(
         string filename, string expectedResolution, int expectedWidth, int expectedHeight)
@@ -356,6 +358,11 @@ public class MediaInspectionServiceTest
     [TestCase("Movie.2024.2160p.DV.mkv", "Dolby Vision")]
     [TestCase("Movie.2024.2160p.DOLBY.VISION.mkv", "Dolby Vision")]
     [TestCase("Movie.2024.2160p.DoVi.mkv", "Dolby Vision")]
+    [TestCase("Movie.2024.2160p.DV.HDR10+.mkv", "Dolby Vision / HDR10+")]
+    [TestCase("Movie.2024.2160p.DV.HDR10.mkv", "Dolby Vision / HDR10")]
+    [TestCase("Movie.2024.2160p.DV.HDR.mkv", "Dolby Vision / HDR10")]
+    [TestCase("Movie.2024.2160p.Dolby.Vision.HDR10+.mkv", "Dolby Vision / HDR10+")]
+    [TestCase("Movie.2024.2160p.Dolby.Vision.HDR10.mkv", "Dolby Vision / HDR10")]
     [TestCase("Movie.2024.2160p.HDR10+.mkv", "HDR10+")]
     [TestCase("Movie.2024.2160p.HDR10plus.mkv", "HDR10+")]
     [TestCase("Movie.2024.2160p.HDR.mkv", "HDR10")]
@@ -367,14 +374,18 @@ public class MediaInspectionServiceTest
         info.HdrFormat.Should().Be(expectedHdr);
     }
 
-    [TestCase("Movie.2024.Atmos.mkv", "Dolby Atmos", "7.1")]
-    [TestCase("Movie.2024.TrueHD.mkv", "Dolby TrueHD", "7.1")]
-    [TestCase("Movie.2024.DTS-HD.MA.mkv", "DTS-HD MA", "7.1")]
+    [TestCase("Movie.2024.Atmos.7.1.mkv", "Dolby Atmos", "7.1")]
+    [TestCase("Movie.2024.TrueHD.7.1.mkv", "Dolby TrueHD", "7.1")]
+    [TestCase("Movie.2024.TrueHD.5.1.mkv", "Dolby TrueHD", "5.1")]
+    [TestCase("Movie.2024.DTS-HD.MA.7.1.mkv", "DTS-HD MA", "7.1")]
+    [TestCase("Movie.2024.DTS-HD.MA.5.1.mkv", "DTS-HD MA", "5.1")]
     [TestCase("Movie.2024.DTS.5.1.mkv", "DTS", "5.1")]
-    [TestCase("Movie.2024.EAC3.mkv", "E-AC3 / DD+", "5.1")]
-    [TestCase("Movie.2024.DDP.mkv", "E-AC3 / DD+", "5.1")]
+    [TestCase("Movie.2024.EAC3.5.1.mkv", "E-AC3 / DD+", "5.1")]
+    [TestCase("Movie.2024.DDP.5.1.mkv", "E-AC3 / DD+", "5.1")]
     [TestCase("Movie.2024.DD5.1.mkv", "AC3 / Dolby Digital", "5.1")]
-    [TestCase("Movie.2024.AC3.mkv", "AC3 / Dolby Digital", "5.1")]
+    [TestCase("Movie.2024.AC3.5.1.mkv", "AC3 / Dolby Digital", "5.1")]
+    [TestCase("Movie.2024.TrueHD.mkv", "Dolby TrueHD", null)]
+    [TestCase("Movie.2024.Atmos.mkv", "Dolby Atmos", null)]
     public void ApplyFilenameHints_AudioLayout_ExtractsCorrectAudioAndChannels(
         string filename, string expectedAudioCodec, string expectedChannels)
     {

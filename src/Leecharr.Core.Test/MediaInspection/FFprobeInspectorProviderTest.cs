@@ -271,10 +271,34 @@ sleep 300
         info.Width.Should().Be(3840);
         info.Height.Should().Be(2160);
         info.Resolution.Should().Be("4K UHD (2160p)");
-        info.HdrFormat.Should().Be("Dolby Vision");
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
         info.AudioCodec.Should().Be("Dolby TrueHD");
         info.AudioChannels.Should().Be("7.1");
         info.DurationSeconds.Should().Be(7200.0);
+    }
+
+    [TestCase(720, 576)]
+    [TestCase(1024, 576)]
+    public void ParseFFprobeJson_WhenPalDimensions_Derives576pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+  ""format"": {{
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""3600.000000""
+  }},
+  ""streams"": [
+    {{
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": {width},
+      ""height"": {height}
+    }}
+  ]
+}}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("576p");
     }
 
     [TestCase(720, 400)]
