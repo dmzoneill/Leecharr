@@ -3107,7 +3107,8 @@
     "2e7fd0536dc61589": "凭据无效",
     "6f79d7fecaaca107": "浏览器深层链接的可选公共 URL（例如，远程访问 Leecharr 时）。",
     "a681d65c6b22ede0": "浏览器深层链接的可选公共 URL（例如，使用内部容器地址远程访问 Leecharr 时）。",
-    "e75bfee60537b1d5": "公共/外部 URL（可选）"
+    "e75bfee60537b1d5": "公共/外部 URL（可选）",
+    "a248002336551ff7": "所有健康"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -6217,7 +6218,8 @@
     "616c2313f5eac2c2": "प्रदाता के साथ साइन इन करें",
     "e75bfee60537b1d5": "सार्वजनिक/बाहरी यूआरएल (वैकल्पिक)",
     "a681d65c6b22ede0": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए आंतरिक कंटेनर पते का उपयोग करते समय लीचर को दूरस्थ रूप से एक्सेस करते समय)।",
-    "6f79d7fecaaca107": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए लीचर को दूरस्थ रूप से एक्सेस करते समय)।"
+    "6f79d7fecaaca107": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए लीचर को दूरस्थ रूप से एक्सेस करते समय)।",
+    "a248002336551ff7": "सर्व स्वास्थ्य"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -9327,7 +9329,8 @@
     "616c2313f5eac2c2": "Iniciar sesión con el proveedor",
     "6f79d7fecaaca107": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota).",
     "a681d65c6b22ede0": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota mientras se utilizan direcciones de contenedores internos).",
-    "e75bfee60537b1d5": "URL pública/externa (opcional)"
+    "e75bfee60537b1d5": "URL pública/externa (opcional)",
+    "a248002336551ff7": "Toda la salud"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -12437,7 +12440,8 @@
     "9e147ff95daedf06": "أدخل المستخدم وتمرير",
     "a681d65c6b22ede0": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بعد أثناء استخدام عناوين الحاويات الداخلية).",
     "6f79d7fecaaca107": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بُعد).",
-    "e75bfee60537b1d5": "عنوان URL العام/الخارجي (اختياري)"
+    "e75bfee60537b1d5": "عنوان URL العام/الخارجي (اختياري)",
+    "a248002336551ff7": "كل الصحة"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -15547,7 +15551,8 @@
     "616c2313f5eac2c2": "Connectez-vous avec le fournisseur",
     "e75bfee60537b1d5": "URL publique/externe (facultatif)",
     "a681d65c6b22ede0": "URL publique facultative pour les liens profonds du navigateur (par exemple, lors de l'accès à Leecharr à distance tout en utilisant des adresses de conteneur internes).",
-    "6f79d7fecaaca107": "URL publique facultative pour les liens profonds du navigateur (par exemple lors de l'accès à Leecharr à distance)."
+    "6f79d7fecaaca107": "URL publique facultative pour les liens profonds du navigateur (par exemple lors de l'accès à Leecharr à distance).",
+    "a248002336551ff7": "Toute la santé"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -18657,7 +18662,8 @@
     "616c2313f5eac2c2": "প্রদানকারীর সাথে সাইন ইন করুন",
     "a681d65c6b22ede0": "ব্রাউজার ডিপ লিঙ্কগুলির জন্য ঐচ্ছিক সর্বজনীন URL (যেমন, অভ্যন্তরীণ কন্টেইনার ঠিকানাগুলি ব্যবহার করার সময় দূরবর্তীভাবে Leecharr অ্যাক্সেস করার সময়)।",
     "6f79d7fecaaca107": "ব্রাউজার ডিপ লিঙ্কের জন্য ঐচ্ছিক পাবলিক URL (যেমন যখন Leecharr দূরবর্তীভাবে অ্যাক্সেস করা হয়)।",
-    "e75bfee60537b1d5": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)"
+    "e75bfee60537b1d5": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)",
+    "a248002336551ff7": "সমস্ত স্বাস্থ্য"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -21767,7 +21773,8 @@
     "616c2313f5eac2c2": "Faça login com o provedor",
     "e75bfee60537b1d5": "URL público/externo (opcional)",
     "6f79d7fecaaca107": "URL pública opcional para links diretos do navegador (por exemplo, ao acessar Leecharr remotamente).",
-    "a681d65c6b22ede0": "URL pública opcional para links diretos do navegador (por exemplo, ao acessar Leecharr remotamente enquanto usa endereços de contêiner internos)."
+    "a681d65c6b22ede0": "URL pública opcional para links diretos do navegador (por exemplo, ao acessar Leecharr remotamente enquanto usa endereços de contêiner internos).",
+    "a248002336551ff7": "Toda a saúde"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -24877,7 +24884,8 @@
     "616c2313f5eac2c2": "Войти через провайдера",
     "a681d65c6b22ede0": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr с использованием внутренних адресов контейнеров).",
     "6f79d7fecaaca107": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr).",
-    "e75bfee60537b1d5": "Публичный/внешний URL-адрес (необязательно)"
+    "e75bfee60537b1d5": "Публичный/внешний URL-адрес (необязательно)",
+    "a248002336551ff7": "Всем здоровья"
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -27987,7 +27995,8 @@
     "616c2313f5eac2c2": "فراہم کنندہ کے ساتھ سائن ان کریں۔",
     "a681d65c6b22ede0": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثال کے طور پر جب اندرونی کنٹینر کے پتے استعمال کرتے ہوئے لیچارر تک دور سے رسائی حاصل کرنا)۔",
     "e75bfee60537b1d5": "عوامی / بیرونی URL (اختیاری)",
-    "6f79d7fecaaca107": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثلاً جب Leecharr تک دور سے رسائی حاصل کرنا)۔"
+    "6f79d7fecaaca107": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثلاً جب Leecharr تک دور سے رسائی حاصل کرنا)۔",
+    "a248002336551ff7": "تمام صحت"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -31097,7 +31106,8 @@
     "2e7fd0536dc61589": "Kredensial Tidak Valid",
     "6f79d7fecaaca107": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh).",
     "a681d65c6b22ede0": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh saat menggunakan alamat penampung internal).",
-    "e75bfee60537b1d5": "URL Publik / Eksternal (Opsional)"
+    "e75bfee60537b1d5": "URL Publik / Eksternal (Opsional)",
+    "a248002336551ff7": "Semua Kesehatan"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -32055,7 +32065,7 @@
     "8d32021fd66f2a71": "Vor {{time}}",
     "db3b946b8d705e42": "1 Sekunde",
     "baaddf70fb5d432b": "Typ",
-    "45989de49fb7f66d": "Details",
+    "45989de49fb7f66d": "Einzelheiten",
     "7ddb44d8a533a753": "soeben",
     "c9b3c38247f744e1": "Gesamt",
     "ddceb7adfdb8816e": "Alles löschen",
@@ -34207,7 +34217,8 @@
     "616c2313f5eac2c2": "Melden Sie sich beim Anbieter an",
     "a681d65c6b22ede0": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr unter Verwendung interner Containeradressen).",
     "6f79d7fecaaca107": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr).",
-    "e75bfee60537b1d5": "Öffentliche/externe URL (optional)"
+    "e75bfee60537b1d5": "Öffentliche/externe URL (optional)",
+    "a248002336551ff7": "Alle Gesundheit"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -37317,7 +37328,8 @@
     "616c2313f5eac2c2": "プロバイダーでサインインする",
     "6f79d7fecaaca107": "ブラウザーのディープリンク用のオプションのパブリック URL (例: Leecharr にリモートでアクセスする場合)。",
     "a681d65c6b22ede0": "ブラウザーのディープリンク用のオプションのパブリック URL (例: 内部コンテナー アドレスを使用しながらリモートで Leecharr にアクセスする場合)。",
-    "e75bfee60537b1d5": "パブリック/外部 URL (オプション)"
+    "e75bfee60537b1d5": "パブリック/外部 URL (オプション)",
+    "a248002336551ff7": "すべての健康"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -40427,7 +40439,8 @@
     "616c2313f5eac2c2": "प्रदात्यासह साइन इन करा",
     "6f79d7fecaaca107": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. Leecharr मध्ये दूरस्थपणे प्रवेश करताना).",
     "a681d65c6b22ede0": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. अंतर्गत कंटेनर पत्ते वापरताना Leecharr मध्ये दूरस्थपणे प्रवेश करताना).",
-    "e75bfee60537b1d5": "सार्वजनिक / बाह्य URL (पर्यायी)"
+    "e75bfee60537b1d5": "सार्वजनिक / बाह्य URL (पर्यायी)",
+    "a248002336551ff7": "सर्व आरोग्य"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -43537,7 +43550,8 @@
     "616c2313f5eac2c2": "ప్రొవైడర్‌తో సైన్ ఇన్ చేయండి",
     "a681d65c6b22ede0": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. అంతర్గత కంటైనర్ చిరునామాలను ఉపయోగిస్తున్నప్పుడు Leecharrని రిమోట్‌గా యాక్సెస్ చేసినప్పుడు).",
     "e75bfee60537b1d5": "పబ్లిక్ / బాహ్య URL (ఐచ్ఛికం)",
-    "6f79d7fecaaca107": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. Leecharrని రిమోట్‌గా యాక్సెస్ చేస్తున్నప్పుడు)."
+    "6f79d7fecaaca107": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. Leecharrని రిమోట్‌గా యాక్సెస్ చేస్తున్నప్పుడు).",
+    "a248002336551ff7": "అన్ని ఆరోగ్యం"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -46647,7 +46661,8 @@
     "616c2313f5eac2c2": "Sağlayıcıyla Oturum Açın",
     "a681d65c6b22ede0": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin, dahili kapsayıcı adreslerini kullanırken Leecharr'a uzaktan erişirken).",
     "6f79d7fecaaca107": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin Leecharr'a uzaktan erişirken).",
-    "e75bfee60537b1d5": "Genel / Harici URL (İsteğe Bağlı)"
+    "e75bfee60537b1d5": "Genel / Harici URL (İsteğe Bağlı)",
+    "a248002336551ff7": "Tüm Sağlık"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -49757,7 +49772,8 @@
     "616c2313f5eac2c2": "வழங்குனருடன் உள்நுழைக",
     "e75bfee60537b1d5": "பொது / வெளிப்புற URL (விரும்பினால்)",
     "6f79d7fecaaca107": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. தொலைவிலிருந்து Leecharr ஐ அணுகும் போது).",
-    "a681d65c6b22ede0": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. உள் கொள்கலன் முகவரிகளைப் பயன்படுத்தும் போது தொலைவிலிருந்து Leecharr ஐ அணுகும் போது)."
+    "a681d65c6b22ede0": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. உள் கொள்கலன் முகவரிகளைப் பயன்படுத்தும் போது தொலைவிலிருந்து Leecharr ஐ அணுகும் போது).",
+    "a248002336551ff7": "அனைத்து ஆரோக்கியம்"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -52867,7 +52883,8 @@
     "616c2313f5eac2c2": "Đăng nhập với nhà cung cấp",
     "6f79d7fecaaca107": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa).",
     "e75bfee60537b1d5": "URL công khai / bên ngoài (Tùy chọn)",
-    "a681d65c6b22ede0": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa trong khi sử dụng địa chỉ vùng chứa nội bộ)."
+    "a681d65c6b22ede0": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa trong khi sử dụng địa chỉ vùng chứa nội bộ).",
+    "a248002336551ff7": "Tất cả sức khỏe"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -55977,7 +55994,8 @@
     "2e7fd0536dc61589": "잘못된 자격 증명",
     "e75bfee60537b1d5": "공개/외부 URL(선택사항)",
     "6f79d7fecaaca107": "브라우저 딥 링크를 위한 선택적 공개 URL입니다(예: Leecharr에 원격으로 액세스하는 경우).",
-    "a681d65c6b22ede0": "브라우저 딥 링크를 위한 선택적 공개 URL(예: 내부 컨테이너 주소를 사용하는 동안 원격으로 Leecharr에 액세스하는 경우)"
+    "a681d65c6b22ede0": "브라우저 딥 링크를 위한 선택적 공개 URL(예: 내부 컨테이너 주소를 사용하는 동안 원격으로 Leecharr에 액세스하는 경우)",
+    "a248002336551ff7": "모든 건강"
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -59087,6 +59105,7 @@
     "616c2313f5eac2c2": "Accedi con il fornitore",
     "e75bfee60537b1d5": "URL pubblico/esterno (facoltativo)",
     "6f79d7fecaaca107": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto).",
-    "a681d65c6b22ede0": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto utilizzando gli indirizzi del contenitore interno)."
+    "a681d65c6b22ede0": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto utilizzando gli indirizzi del contenitore interno).",
+    "a248002336551ff7": "Tutta la salute"
   }
 }

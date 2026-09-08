@@ -1129,6 +1129,10 @@ const ja: I18nTranslations = {
     "allSources": "すべてのソース",
     "activeSwarmHarvest": "アクティブな群れの収穫",
     "publicFeeds": "公開フィード",
+    "healthAlive": "生きている",
+    "healthSlow": "遅い",
+    "healthOffline": "オフライン",
+    "healthUntested": "未テスト",
     "copyAllUrls": "すべてのトラッカー URL をクリップボードにコピーします",
     "downloadTxt": "検証済みのアクティブなトラッカーを .txt ファイルとしてダウンロードします",
     "pasteMultiple": "複数のトラッカー URL を一度に貼り付ける",
@@ -1286,7 +1290,8 @@ const ja: I18nTranslations = {
       "trackerRadar": "トラッカーレーダー",
       "activityLogs": "アクティビティログ",
       "sourcesAutomation": "ソースの自動化"
-    }
+    },
+    "allHealth": "すべての健康"
   },
   "terminal": {
     "title": "組み込みターミナルCLI",
@@ -1792,13 +1797,13 @@ const ja: I18nTranslations = {
     "syncEnabled": "同期が有効です",
     "autoAdd": "自動追加",
     "webhookHost": "Webhook ホスト",
+    "externalUrl": "パブリック/外部 URL (オプション)",
+    "externalUrlHint": "ブラウザーのディープリンク用のオプションのパブリック URL (例: 内部コンテナー アドレスを使用しながらリモートで Leecharr にアクセスする場合)。",
     "loadingConnections": "接続を読み込み中...",
     "apiKey": "APIキー",
     "apiKeyCopied": "APIキーがコピーされました",
     "failedToCopyApiKey": "APIキーのコピーに失敗しました",
-    "webhook": "Webhook",
-    "externalUrl": "パブリック/外部 URL (オプション)",
-    "externalUrlHint": "ブラウザーのディープリンク用のオプションのパブリック URL (例: 内部コンテナー アドレスを使用しながらリモートで Leecharr にアクセスする場合)。"
+    "webhook": "Webhook"
   },
   "modals": {
     "confirmTitle": "確認が必要です",
@@ -3308,6 +3313,8 @@ const ja: I18nTranslations = {
     "syncEnabled": "同期が有効です",
     "autoAdd": "自動追加",
     "webhookHost": "Webhook ホスト",
+    "externalUrl": "パブリック/外部 URL (オプション)",
+    "externalUrlHint": "ブラウザーのディープリンク用のオプションのパブリック URL (例: Leecharr にリモートでアクセスする場合)。",
     "connectionSuccess": "接続成功",
     "connectionFailed": "接続に失敗しました",
     "radarrDescription": "レーダーの説明",
@@ -3329,9 +3336,7 @@ const ja: I18nTranslations = {
     "webhookHostHintSonarr": "Webhook ホスト ヒント ソナー",
     "webhookHostHintRadarr": "Webhook ホスト ヒント レーダー",
     "webhookHostHintLidarr": "Webhook ホスト ヒント Lidarr",
-    "webhook": "Webhook",
-    "externalUrl": "パブリック/外部 URL (オプション)",
-    "externalUrlHint": "ブラウザーのディープリンク用のオプションのパブリック URL (例: Leecharr にリモートでアクセスする場合)。"
+    "webhook": "Webhook"
   },
   "promptModal": {
     "defaultTitle": "デフォルトのタイトル",

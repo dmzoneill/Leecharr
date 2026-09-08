@@ -1129,6 +1129,10 @@ const tr: I18nTranslations = {
     "allSources": "Tüm Kaynaklar",
     "activeSwarmHarvest": "Aktif Sürü Hasadı",
     "publicFeeds": "Herkese Açık Yayınlar",
+    "healthAlive": "Canlı",
+    "healthSlow": "Yavaş",
+    "healthOffline": "Çevrimdışı",
+    "healthUntested": "Denenmemiş",
     "copyAllUrls": "Tüm izleyici URL'lerini panoya kopyala",
     "downloadTxt": "Doğrulanmış ve etkin izleyicileri .txt dosyası olarak indirin",
     "pasteMultiple": "Birden fazla izleyici URL'sini aynı anda yapıştırın",
@@ -1286,7 +1290,8 @@ const tr: I18nTranslations = {
       "trackerRadar": "İzleyici Radarı",
       "activityLogs": "Etkinlik Günlükleri",
       "sourcesAutomation": "Kaynak Otomasyonu"
-    }
+    },
+    "allHealth": "Tüm Sağlık"
   },
   "terminal": {
     "title": "Gömülü Uçbirim CLI",
@@ -1793,12 +1798,12 @@ const tr: I18nTranslations = {
     "autoAdd": "Otomatik Ekle",
     "webhook": "Web kancası",
     "webhookHost": "Web Kancası Sunucusu",
+    "externalUrl": "Genel / Harici URL (İsteğe Bağlı)",
+    "externalUrlHint": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin, dahili kapsayıcı adreslerini kullanırken Leecharr'a uzaktan erişirken).",
     "loadingConnections": "Bağlantılar yükleniyor...",
     "apiKey": "API Anahtarı",
     "apiKeyCopied": "API Anahtarı Kopyalandı",
-    "failedToCopyApiKey": "API Anahtarı Kopyalanamadı",
-    "externalUrl": "Genel / Harici URL (İsteğe Bağlı)",
-    "externalUrlHint": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin, dahili kapsayıcı adreslerini kullanırken Leecharr'a uzaktan erişirken)."
+    "failedToCopyApiKey": "API Anahtarı Kopyalanamadı"
   },
   "modals": {
     "confirmTitle": "Onay Gerekli",
@@ -3309,6 +3314,8 @@ const tr: I18nTranslations = {
     "autoAdd": "Otomatik Ekle",
     "webhook": "Web kancası",
     "webhookHost": "Web Kancası Sunucusu",
+    "externalUrl": "Genel / Harici URL (İsteğe Bağlı)",
+    "externalUrlHint": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin Leecharr'a uzaktan erişirken).",
     "connectionSuccess": "Bağlantı Başarılı",
     "connectionFailed": "Bağlantı Başarısız",
     "radarrDescription": "Radar Açıklaması",
@@ -3329,9 +3336,7 @@ const tr: I18nTranslations = {
     "finishAndClose": "Bitir ve Kapat",
     "webhookHostHintSonarr": "Web Kancası Ana Bilgisayarı İpucu Sonarr",
     "webhookHostHintRadarr": "Web Kancası Ana Bilgisayarı İpucu Radarr",
-    "webhookHostHintLidarr": "Web Kancası Sunucusu İpucu Lidarr",
-    "externalUrl": "Genel / Harici URL (İsteğe Bağlı)",
-    "externalUrlHint": "Tarayıcı derin bağlantıları için isteğe bağlı genel URL (örneğin Leecharr'a uzaktan erişirken)."
+    "webhookHostHintLidarr": "Web Kancası Sunucusu İpucu Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Varsayılan Başlık",
