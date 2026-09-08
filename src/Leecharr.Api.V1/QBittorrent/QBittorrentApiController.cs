@@ -261,7 +261,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("app/setPreferences")]
-    public ActionResult SetPreferences([FromForm] string json = null)
+    public async Task<ActionResult> SetPreferencesAsync([FromForm] string json = null)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -270,12 +270,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 if (this.Request?.Body != null && this.Request.Body.CanRead)
                 {
                     using var reader = new StreamReader(this.Request.Body);
-                    json = reader.ReadToEndAsync().GetAwaiter().GetResult();
+                    json = await reader.ReadToEndAsync();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                this.logger.Warn(ex, "Failed to read body stream in SetPreferences");
             }
         }
 
@@ -526,50 +526,31 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/add")]
-    public async Task<ActionResult> AddTorrents(
-        [FromForm] string urls = null,
-        [FromForm] List<IFormFile> torrents = null,
-        [FromForm] string category = null,
-        [FromForm] string savepath = null,
-        [FromForm] string downloadPath = null,
-        [FromForm] string download_path = null,
-        [FromForm] string cookie = null,
-        [FromForm] string cookies = null,
-        [FromForm] string paused = null,
-        [FromForm] string stopped = null,
-        [FromForm] string tags = null,
-        [FromForm] string sequentialDownload = null,
-        [FromForm] string firstLastPiecePrio = null,
-        [FromForm] double? ratioLimit = null,
-        [FromForm] int? seedingTimeLimit = null,
-        [FromForm] string contentLayout = null)
+    public async Task<ActionResult> AddTorrents([FromForm] QBitAddTorrentsRequest request = null)
     {
-        var effectiveSavePath = !string.IsNullOrWhiteSpace(savepath)
-            ? savepath
-            : (!string.IsNullOrWhiteSpace(downloadPath) ? downloadPath : download_path);
-        var effectiveCookie = !string.IsNullOrWhiteSpace(cookie) ? cookie : cookies;
-
-        var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
-        var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
-        var isFirstLastPiecePrio = string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
+        request ??= new QBitAddTorrentsRequest();
+        var effectiveSavePath = request.EffectiveSavePath;
+        var effectiveCookie = request.EffectiveCookie;
+        var isPaused = request.IsPaused;
+        var isSequential = request.IsSequential;
+        var isFirstLastPiecePrio = request.IsFirstLastPiecePrio;
 
         // 1. URLs (magnets or http/https torrent links)
-        if (!string.IsNullOrWhiteSpace(urls))
+        if (!string.IsNullOrWhiteSpace(request.Urls))
         {
-            var lines = urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = request.Urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var url in lines)
             {
                 var trimmed = url.Trim();
                 if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, category, effectiveSavePath, isPaused);
+                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, effectiveSavePath, isPaused);
                     if (added != null)
                     {
                         var needsUpdate = false;
-                        if (!string.IsNullOrWhiteSpace(tags))
+                        if (!string.IsNullOrWhiteSpace(request.Tags))
                         {
-                            added.Label = tags;
+                            added.Label = request.Tags;
                             needsUpdate = true;
                         }
 
@@ -585,15 +566,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                             needsUpdate = true;
                         }
 
-                        if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
                         {
-                            added.TargetRatio = ratioLimit.Value;
+                            added.TargetRatio = request.RatioLimit.Value;
                             needsUpdate = true;
                         }
 
-                        if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
                         {
-                            added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
+                            added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
                             needsUpdate = true;
                         }
 
@@ -623,13 +604,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         }
 
                         var parsed = this.torrentFileParser.Parse(bytes);
-                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, effectiveSavePath, isPaused, bytes);
+                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, effectiveSavePath, isPaused, bytes);
                         if (added != null)
                         {
                             var needsUpdate = false;
-                            if (!string.IsNullOrWhiteSpace(tags))
+                            if (!string.IsNullOrWhiteSpace(request.Tags))
                             {
-                                added.Label = tags;
+                                added.Label = request.Tags;
                                 needsUpdate = true;
                             }
 
@@ -645,15 +626,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                                 needsUpdate = true;
                             }
 
-                            if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                            if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
                             {
-                                added.TargetRatio = ratioLimit.Value;
+                                added.TargetRatio = request.RatioLimit.Value;
                                 needsUpdate = true;
                             }
 
-                            if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                            if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
                             {
-                                added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
+                                added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
                                 needsUpdate = true;
                             }
 
@@ -672,9 +653,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         // 2. Uploaded files
-        if (torrents != null && torrents.Count > 0)
+        if (request.Torrents != null && request.Torrents.Count > 0)
         {
-            foreach (var file in torrents)
+            foreach (var file in request.Torrents)
             {
                 if (file.Length > 0)
                 {
@@ -682,13 +663,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, effectiveSavePath, isPaused, bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, effectiveSavePath, isPaused, bytes);
                     if (added != null)
                     {
                         var needsUpdate = false;
-                        if (!string.IsNullOrWhiteSpace(tags))
+                        if (!string.IsNullOrWhiteSpace(request.Tags))
                         {
-                            added.Label = tags;
+                            added.Label = request.Tags;
                             needsUpdate = true;
                         }
 
@@ -704,15 +685,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                             needsUpdate = true;
                         }
 
-                        if (ratioLimit.HasValue && ratioLimit.Value > 0)
+                        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
                         {
-                            added.TargetRatio = ratioLimit.Value;
+                            added.TargetRatio = request.RatioLimit.Value;
                             needsUpdate = true;
                         }
 
-                        if (seedingTimeLimit.HasValue && seedingTimeLimit.Value > 0)
+                        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
                         {
-                            added.TargetSeedTimeMinutes = (int)(seedingTimeLimit.Value / 60);
+                            added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
                             needsUpdate = true;
                         }
 
