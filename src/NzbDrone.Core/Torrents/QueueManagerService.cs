@@ -42,6 +42,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             return;
         }
 
+        var eventsToPublish = new List<TorrentStatusChangedEvent>();
+
         try
         {
             var maxDownloads = this.configService.DownloadQueueSize > 0
@@ -133,11 +135,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Downloading", torrent.Name, torrent.Id);
 
-                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
                                     Torrent = torrent,
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Downloading,
+                                    IsQueueManagerInternal = true,
                                 });
                             }
                             catch (Exception ex)
@@ -174,11 +177,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active downloads: {2}/{3})", torrent.Name, torrent.Id, activeDownloads, maxDownloads);
 
-                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
                                     Torrent = torrent,
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Queued,
+                                    IsQueueManagerInternal = true,
                                 });
                             }
                             catch (Exception ex)
@@ -227,11 +231,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Seeding", torrent.Name, torrent.Id);
 
-                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
                                     Torrent = torrent,
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Seeding,
+                                    IsQueueManagerInternal = true,
                                 });
                             }
                             catch (Exception ex)
@@ -268,11 +273,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active uploads: {2}/{3})", torrent.Name, torrent.Id, activeUploads, maxUploads);
 
-                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
                                     Torrent = torrent,
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Queued,
+                                    IsQueueManagerInternal = true,
                                 });
                             }
                             catch (Exception ex)
@@ -288,11 +294,16 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
         {
             this.queueLock.Release();
         }
+
+        foreach (var evt in eventsToPublish)
+        {
+            this.eventAggregator.PublishEvent(evt);
+        }
     }
 
     public void Handle(TorrentStatusChangedEvent message)
     {
-        if (message == null)
+        if (message == null || message.IsQueueManagerInternal)
         {
             return;
         }
