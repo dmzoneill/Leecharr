@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 export interface ConfirmOptions {
   title?: string;
@@ -70,16 +71,18 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
-      <ConfirmModal
-        isOpen={modalState.isOpen}
-        title={modalState.options.title}
-        message={modalState.options.message}
-        confirmText={modalState.options.confirmText}
-        cancelText={modalState.options.cancelText}
-        danger={modalState.options.danger}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-      />
+      <ErrorBoundary title="Confirmation Dialog">
+        <ConfirmModal
+          isOpen={modalState.isOpen}
+          title={modalState.options.title}
+          message={modalState.options.message}
+          confirmText={modalState.options.confirmText}
+          cancelText={modalState.options.cancelText}
+          danger={modalState.options.danger}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
+      </ErrorBoundary>
     </ConfirmContext.Provider>
   );
 };
