@@ -211,7 +211,8 @@ public class CertificateManager : ICertificateManager
     private X509Certificate2 GetOrCreateSelfSignedCertificate(IConfigFileProvider config)
     {
         var cachePath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr-selfsigned.pfx");
-        const string pfxPassword = "leecharr-selfsigned";
+        var passwordPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr-selfsigned.pwd");
+        var pfxPassword = this.GetOrGenerateSelfSignedPassword(config, passwordPath);
 
         if (File.Exists(cachePath))
         {
@@ -237,6 +238,50 @@ public class CertificateManager : ICertificateManager
         }
 
         return this.GenerateAndSaveSelfSignedCertificate(config, cachePath, pfxPassword);
+    }
+
+    private string GetOrGenerateSelfSignedPassword(IConfigFileProvider config, string passwordPath)
+    {
+        if (!string.IsNullOrWhiteSpace(config.SslCertPassword))
+        {
+            return config.SslCertPassword;
+        }
+
+        if (File.Exists(passwordPath))
+        {
+            try
+            {
+                var storedPassword = File.ReadAllText(passwordPath).Trim();
+                if (!string.IsNullOrEmpty(storedPassword))
+                {
+                    return storedPassword;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not read self-signed password file at '{0}'. Generating a new one.", passwordPath);
+            }
+        }
+
+        var randomBytes = RandomNumberGenerator.GetBytes(32);
+        var generatedPassword = Convert.ToBase64String(randomBytes);
+
+        try
+        {
+            var dir = Path.GetDirectoryName(passwordPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            File.WriteAllText(passwordPath, generatedPassword);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn(ex, "Could not persist self-signed SSL password to disk at '{0}'", passwordPath);
+        }
+
+        return generatedPassword;
     }
 
     private X509Certificate2 GenerateAndSaveSelfSignedCertificate(IConfigFileProvider config, string cachePath, string pfxPassword)

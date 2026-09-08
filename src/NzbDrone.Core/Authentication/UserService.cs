@@ -11,18 +11,27 @@ namespace NzbDrone.Core.Authentication;
 
 public class UserService : IUserService
 {
+    public const int DefaultPbkdf2Iterations = 600000;
     private const int SaltByteSize = 16;
     private const int HashByteSize = 32;
-    private const int DefaultIterations = 600000;
 
     private readonly IUserRepository userRepository;
     private readonly Logger logger;
+    private readonly int defaultIterations;
 
     public UserService(IUserRepository userRepository, Logger logger)
+        : this(userRepository, logger, DefaultPbkdf2Iterations)
+    {
+    }
+
+    public UserService(IUserRepository userRepository, Logger logger, int defaultIterations)
     {
         this.userRepository = userRepository;
         this.logger = logger;
+        this.defaultIterations = defaultIterations > 0 ? defaultIterations : DefaultPbkdf2Iterations;
     }
+
+    public int Iterations => this.defaultIterations;
 
     public User Authenticate(string username, string password)
     {
@@ -43,13 +52,13 @@ public class UserService : IUserService
             return null;
         }
 
-        if (user.Iterations < DefaultIterations)
+        if (user.Iterations < this.defaultIterations)
         {
-            user.PasswordHash = this.HashPassword(password, out var salt);
+            user.PasswordHash = this.HashPassword(password, out var salt, this.defaultIterations);
             user.Salt = salt;
-            user.Iterations = DefaultIterations;
+            user.Iterations = this.defaultIterations;
             user.UpdatedAt = DateTime.UtcNow;
-            this.logger.Info("Upgraded password hash iterations to {0} for user: {1}", DefaultIterations, username);
+            this.logger.Info("Upgraded password hash iterations to {0} for user: {1}", this.defaultIterations, username);
         }
 
         user.LastLogin = DateTime.UtcNow;
@@ -65,7 +74,7 @@ public class UserService : IUserService
             throw new InvalidOperationException($"User with username '{username}' already exists.");
         }
 
-        var passwordHash = this.HashPassword(password, out var salt);
+        var passwordHash = this.HashPassword(password, out var salt, this.defaultIterations);
         var effectiveRoles = roles ?? (this.HasAnyUsers() ? new List<string> { "User" } : new List<string> { "Admin" });
 
         var user = new User
@@ -74,7 +83,7 @@ public class UserService : IUserService
             Username = username.Trim(),
             PasswordHash = passwordHash,
             Salt = salt,
-            Iterations = DefaultIterations,
+            Iterations = this.defaultIterations,
             Email = email?.Trim(),
             DisplayName = displayName?.Trim() ?? username.Trim(),
             Roles = JsonSerializer.Serialize(effectiveRoles),
@@ -120,9 +129,9 @@ public class UserService : IUserService
             throw new KeyNotFoundException($"User with ID {userId} not found.");
         }
 
-        user.PasswordHash = this.HashPassword(newPassword, out var salt);
+        user.PasswordHash = this.HashPassword(newPassword, out var salt, this.defaultIterations);
         user.Salt = salt;
-        user.Iterations = DefaultIterations;
+        user.Iterations = this.defaultIterations;
         user.UpdatedAt = DateTime.UtcNow;
 
         this.userRepository.Update(user);
@@ -135,10 +144,16 @@ public class UserService : IUserService
 
     public string HashPassword(string password, out string salt)
     {
+        return this.HashPassword(password, out salt, this.defaultIterations);
+    }
+
+    public string HashPassword(string password, out string salt, int iterations)
+    {
         var saltBytes = RandomNumberGenerator.GetBytes(SaltByteSize);
         salt = Convert.ToBase64String(saltBytes);
 
-        var hashBytes = Rfc2898DeriveBytes.Pbkdf2(password, saltBytes, DefaultIterations, HashAlgorithmName.SHA256, HashByteSize);
+        var effectiveIterations = iterations > 0 ? iterations : this.defaultIterations;
+        var hashBytes = Rfc2898DeriveBytes.Pbkdf2(password, saltBytes, effectiveIterations, HashAlgorithmName.SHA256, HashByteSize);
         return Convert.ToBase64String(hashBytes);
     }
 
