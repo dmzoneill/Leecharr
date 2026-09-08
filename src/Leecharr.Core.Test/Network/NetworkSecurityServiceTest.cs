@@ -63,6 +63,48 @@ public class NetworkSecurityServiceTest
     }
 
     [Test]
+    public void CheckVpnKillSwitch_WhenInterfaceRecovers_PublishesVpnInterfaceRestoredEvent()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "nonexistent_tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        // 1. Drop
+        this.service.CheckVpnKillSwitch().Should().BeTrue();
+
+        // 2. Recover (empty interface name in IsInterfaceActive returns true)
+        settings.BindInterface = string.Empty;
+        var triggered = this.service.CheckVpnKillSwitch();
+
+        triggered.Should().BeFalse();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NzbDrone.Core.Network.Vpn.VpnInterfaceRestoredEvent>(e => e.InterfaceName == string.Empty));
+    }
+
+    [Test]
+    public void CheckVpnKillSwitch_WhenKillSwitchDisabledAfterTrigger_PublishesVpnInterfaceRestoredEvent()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "nonexistent_tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        // 1. Trigger
+        this.service.CheckVpnKillSwitch().Should().BeTrue();
+
+        // 2. Disable kill switch
+        settings.EnableVpnKillSwitch = false;
+        var triggered = this.service.CheckVpnKillSwitch();
+
+        triggered.Should().BeFalse();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NzbDrone.Core.Network.Vpn.VpnInterfaceRestoredEvent>(e => e.InterfaceName == "nonexistent_tun0"));
+    }
+
+    [Test]
     public void SaveSettings_WhenNew_CallsInsert()
     {
         var settings = new NetworkSettings { Id = 0, BindInterface = "tun0" };

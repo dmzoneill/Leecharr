@@ -2,15 +2,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Network.Binding;
 
 namespace NzbDrone.Core.Network;
 
@@ -37,14 +42,10 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         "https://checkip.amazonaws.com",
     };
 
-    private static readonly HttpClient SharedClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-    })
-    { Timeout = TimeSpan.FromSeconds(5) };
-
     private readonly HttpClient client;
     private readonly IConfigService configService;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IHttpTransportEngine transportEngine;
     private readonly Logger logger;
     private readonly SemaphoreSlim fetchLock = new(1, 1);
     private string cachedIp = string.Empty;
@@ -53,20 +54,31 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
     public string CachedIp => this.cachedIp;
 
-    public ExternalIpService(IConfigService configService, HttpClient httpClient = null)
+    public ExternalIpService(
+        IConfigService configService,
+        INetworkBindingService networkBindingService = null,
+        IHttpTransportEngine transportEngine = null,
+        HttpClient httpClient = null)
     {
         this.configService = configService;
-        this.client = httpClient ?? SharedClient;
+        this.networkBindingService = networkBindingService;
+        this.transportEngine = transportEngine;
+        this.client = httpClient;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
+    public ExternalIpService(IConfigService configService, HttpClient httpClient)
+        : this(configService, null, null, httpClient)
+    {
+    }
+
     public ExternalIpService(HttpClient httpClient)
-        : this(null, httpClient)
+        : this(null, null, null, httpClient)
     {
     }
 
     public ExternalIpService()
-        : this(null, null)
+        : this(null, null, null, null)
     {
     }
 
@@ -139,10 +151,13 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
     private async Task<string> FetchExternalIpAsync(CancellationToken cancellationToken)
     {
-        if (!await this.fetchLock.WaitAsync(0, cancellationToken))
+        if (!await this.fetchLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
             return this.cachedIp;
         }
+
+        var httpClient = this.client ?? this.CreateHttpClient();
+        var ownsClient = this.client == null;
 
         try
         {
@@ -163,7 +178,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
             {
                 try
                 {
-                    var response = await this.client.GetStringAsync(source, cancellationToken);
+                    var response = await httpClient.GetStringAsync(source, cancellationToken).ConfigureAwait(false);
 
                     if (TryExtractIpFromResponse(response, out var ip))
                     {
@@ -183,8 +198,112 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         }
         finally
         {
+            if (ownsClient)
+            {
+                httpClient.Dispose();
+            }
+
             this.fetchLock.Release();
         }
+    }
+
+    private HttpClient CreateHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
+            AutomaticDecompression = DecompressionMethods.All,
+        };
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
+        var proxyHost = this.configService?.ProxyHost;
+        var proxyPort = this.configService?.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
+
+        if ((proxyType == "socks5" || proxyType == "http") && !string.IsNullOrWhiteSpace(proxyHost))
+        {
+            var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
+            ICredentials credentials = null;
+            if (!string.IsNullOrWhiteSpace(this.configService?.ProxyUsername))
+            {
+                credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService?.ProxyPassword ?? string.Empty);
+            }
+
+            handler.Proxy = new WebProxy(proxyUri)
+            {
+                Credentials = credentials,
+            };
+            handler.UseProxy = true;
+        }
+
+        var bindInterface = this.configService?.BindInterface;
+        if (string.IsNullOrWhiteSpace(bindInterface) ||
+            string.Equals(bindInterface, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(bindInterface, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            bindInterface = this.configService?.NetworkInterfaceBinding;
+        }
+
+        if (!string.IsNullOrWhiteSpace(bindInterface) &&
+            !string.Equals(bindInterface, "any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(bindInterface, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            handler.ConnectCallback = async (context, cancellationToken) =>
+            {
+                var host = context.DnsEndPoint.Host;
+                var port = context.DnsEndPoint.Port;
+
+                IPAddress[] addresses;
+                if (IPAddress.TryParse(host, out var parsedIp))
+                {
+                    addresses = new[] { parsedIp };
+                }
+                else
+                {
+                    addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (addresses == null || addresses.Length == 0)
+                {
+                    throw new SocketException((int)SocketError.HostNotFound);
+                }
+
+                var targetIp = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
+                var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                {
+                    NoDelay = true,
+                };
+
+                try
+                {
+                    if (this.networkBindingService != null)
+                    {
+                        this.networkBindingService.BindSocket(socket, bindInterface);
+                    }
+                    else
+                    {
+                        var localIp = Binding.ManagedSocketBindingProvider.GetInterfaceIp(bindInterface, targetIp.AddressFamily);
+                        if (localIp != null)
+                        {
+                            socket.Bind(new IPEndPoint(localIp, 0));
+                        }
+                    }
+
+                    await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            };
+        }
+
+        return new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = TimeSpan.FromSeconds(5),
+        };
     }
 
     public static bool TryExtractIpFromResponse(string responseText, out string ip)

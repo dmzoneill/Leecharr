@@ -249,6 +249,31 @@ public class DynamicNetworkBindingProxyTest
     }
 
     [Test]
+    public void CheckVpnKillSwitch_WhenInterfaceRecovers_PublishesVpnInterfaceRestoredEvent()
+    {
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
+        this.proxy.CheckVpnKillSwitch("tun0").Should().BeTrue();
+
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(true);
+        var triggered = this.proxy.CheckVpnKillSwitch("tun0");
+
+        triggered.Should().BeFalse();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NzbDrone.Core.Network.Vpn.VpnInterfaceRestoredEvent>(e => e.InterfaceName == "tun0"));
+    }
+
+    [Test]
+    public void CheckVpnKillSwitch_WhenKillSwitchDisengaged_PublishesVpnInterfaceRestoredEvent()
+    {
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
+        this.proxy.CheckVpnKillSwitch("tun0").Should().BeTrue();
+
+        var triggered = this.proxy.CheckVpnKillSwitch(string.Empty);
+
+        triggered.Should().BeFalse();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NzbDrone.Core.Network.Vpn.VpnInterfaceRestoredEvent>(e => e.InterfaceName == string.Empty));
+    }
+
+    [Test]
     public void CheckVpnKillSwitch_WhenInterfaceEmpty_ReturnsFalse()
     {
         var killSwitchTriggered = this.proxy.CheckVpnKillSwitch(string.Empty);
@@ -284,6 +309,12 @@ public class DynamicNetworkBindingProxyTest
         health.Should().NotBeNull();
 
         provider.IsInterfaceUp(string.Empty).Should().BeTrue();
+        provider.IsInterfaceUp("interface_name_that_is_far_too_long_for_linux").Should().BeFalse();
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var actLong = () => provider.BindSocket(socket, "interface_name_that_is_far_too_long_for_linux");
+        actLong.Should().Throw<ArgumentException>()
+            .WithMessage("*IFNAMSIZ*");
     }
 
     [Test]
