@@ -94,8 +94,7 @@ public class PowerManagementService : IPowerManagementService
         }
         else
         {
-            this.logger.Info("Stopping application via Environment.Exit(0)");
-            Environment.Exit(0);
+            this.logger.Warn("IHostApplicationLifetime is not available to gracefully stop application");
         }
     }
 
