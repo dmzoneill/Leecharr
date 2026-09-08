@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.HealthCheck;
@@ -18,8 +20,9 @@ public class HealthController : Controller
     }
 
     [HttpGet]
-    public ActionResult<List<HealthCheckResult>> GetHealth()
+    public async Task<ActionResult<List<HealthCheckResult>>> GetHealth(CancellationToken cancellationToken = default)
     {
-        return this.healthCheckService.PerformChecks();
+        var results = await this.healthCheckService.PerformChecksAsync(cancellationToken);
+        return this.Ok(results);
     }
 }
