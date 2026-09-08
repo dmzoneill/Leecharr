@@ -16,6 +16,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -649,30 +650,51 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public void SpeedLimitsMode_GetAndToggle_UpdatesStateAndEngine()
+    public async Task SpeedLimitsMode_GetAndToggle_UpdatesStateAndCallsSpeedSchedulerService()
     {
         this.configService.AlternativeSpeedEnabled.Returns(false);
         this.configService.AltDownloadSpeedKbps.Returns(500);
         this.configService.AltUploadSpeedKbps.Returns(100);
 
-        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
-        var controllerWithEngine = new QBittorrentApiController(
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
             this.torrentService,
             this.torrentFileService,
             this.torrentFileParser,
             this.categoryService,
             this.configService,
             this.trackerEntryRepository,
-            downloadEngine: downloadEngine);
+            speedSchedulerService: scheduler);
 
-        var getResult = controllerWithEngine.GetSpeedLimitsMode();
+        var getResult = controllerWithScheduler.GetSpeedLimitsMode();
         var okGet = getResult.Result.Should().BeOfType<OkObjectResult>().Subject;
         okGet.Value.Should().Be(0);
 
-        var toggleResult = controllerWithEngine.ToggleSpeedLimitsMode();
+        var toggleResult = await controllerWithScheduler.ToggleSpeedLimitsMode();
         toggleResult.Should().BeOfType<ContentResult>();
 
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (bool)d["AlternativeSpeedEnabled"] == true));
+        await scheduler.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task SpeedLimitsMode_SetMode_UpdatesStateAndCallsSpeedSchedulerService()
+    {
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            speedSchedulerService: scheduler);
+
+        var setResult = await controllerWithScheduler.SetSpeedLimitsMode(1);
+        setResult.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (bool)d["AlternativeSpeedEnabled"] == true));
+        await scheduler.Received(1).ApplyCurrentLimitsAsync();
     }
 
     [Test]
