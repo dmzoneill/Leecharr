@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -36,11 +37,11 @@ public class NotificationEventHandlerTest
 
         this.notificationRepository = Substitute.For<INotificationRepository>();
         this.webhookDispatcher = Substitute.For<IWebhookDispatcher>();
-        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
             {
                 this.webhookTcs.TrySetResult(true);
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             });
 
         this.customScriptService = Substitute.For<ICustomScriptService>();
