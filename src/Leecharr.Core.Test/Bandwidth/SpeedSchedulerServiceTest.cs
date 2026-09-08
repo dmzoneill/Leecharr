@@ -124,7 +124,7 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
-    public void GetCurrentLimits_WhenScheduleThrottlesOnlyDownload_UploadFallsBackToGlobalLimit()
+    public void GetCurrentLimits_WhenScheduleThrottlesOnlyDownload_UploadSetsUnlimitedOverride()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -135,7 +135,7 @@ public class SpeedSchedulerServiceTest
                 StartTime = "09:00:00",
                 EndTime = "17:00:00",
                 MaxDownloadSpeed = 2000,
-                MaxUploadSpeed = 0, // Unconstrained by schedule
+                MaxUploadSpeed = 0, // Explicitly unlimited by schedule
                 IsEnabled = true,
                 Priority = 10,
             },
@@ -146,17 +146,18 @@ public class SpeedSchedulerServiceTest
         var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
 
         limits.MaxDownloadSpeedKbps.Should().Be(2000);
-        limits.MaxUploadSpeedKbps.Should().Be(20000); // Falls back to configService.MaxUploadSpeedKbps
+        limits.MaxUploadSpeedKbps.Should().Be(0);
         limits.IsThrottled.Should().BeTrue();
+        limits.HasActiveSchedule.Should().BeTrue();
 
         this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
             .Should().Be(2000);
         this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
-            .Should().Be(20000);
+            .Should().Be(0);
     }
 
     [Test]
-    public void GetCurrentLimits_WhenScheduleThrottlesOnlyUpload_DownloadFallsBackToGlobalLimit()
+    public void GetCurrentLimits_WhenScheduleThrottlesOnlyUpload_DownloadSetsUnlimitedOverride()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -166,7 +167,7 @@ public class SpeedSchedulerServiceTest
                 Days = 127,
                 StartTime = "09:00:00",
                 EndTime = "17:00:00",
-                MaxDownloadSpeed = 0, // Unconstrained by schedule
+                MaxDownloadSpeed = 0, // Explicitly unlimited by schedule
                 MaxUploadSpeed = 300,
                 IsEnabled = true,
                 Priority = 10,
@@ -177,14 +178,54 @@ public class SpeedSchedulerServiceTest
 
         var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
 
-        limits.MaxDownloadSpeedKbps.Should().Be(50000); // Falls back to configService.MaxDownloadSpeedKbps
+        limits.MaxDownloadSpeedKbps.Should().Be(0);
         limits.MaxUploadSpeedKbps.Should().Be(300);
         limits.IsThrottled.Should().BeTrue();
+        limits.HasActiveSchedule.Should().BeTrue();
 
         this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
-            .Should().Be(50000);
+            .Should().Be(0);
         this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
             .Should().Be(300);
+    }
+
+    [Test]
+    public void ResolveEffectiveDownloadLimit_WhenGlobalLimitSetAndActiveScheduleIsZero_ReturnsZeroUnlimited()
+    {
+        // Global limit set to restrictive daytime speed (e.g. 1000 KB/s DL, 500 KB/s UL)
+        this.configService.MaxDownloadSpeedKbps.Returns(1000);
+        this.configService.MaxUploadSpeedKbps.Returns(500);
+
+        // Active off-peak schedule configured for unlimited speeds (0 KB/s)
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Overnight Unlimited",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "08:00:00",
+                MaxDownloadSpeed = 0,
+                MaxUploadSpeed = 0,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var checkTime = new DateTime(2026, 8, 31, 4, 0, 0); // 04:00 (inside overnight schedule)
+        var limits = this.service.GetCurrentLimits(checkTime);
+
+        limits.MaxDownloadSpeedKbps.Should().Be(0);
+        limits.MaxUploadSpeedKbps.Should().Be(0);
+        limits.HasActiveSchedule.Should().BeTrue();
+
+        var effectiveDownload = this.service.ResolveEffectiveDownloadLimit(0, 0, checkTime);
+        var effectiveUpload = this.service.ResolveEffectiveUploadLimit(0, 0, checkTime);
+
+        effectiveDownload.Should().Be(0, "active schedule with 0 KB/s must override global throttled limit to unlimited");
+        effectiveUpload.Should().Be(0, "active schedule with 0 KB/s must override global throttled limit to unlimited");
     }
 
     [Test]
