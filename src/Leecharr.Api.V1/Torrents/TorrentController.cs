@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -27,26 +28,35 @@ public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploa
 
 public class MoveQueueRequest
 {
+    [Required]
+    [StringLength(50)]
     public string Position { get; set; }
 }
 
 public class SetFilePriorityRequest
 {
+    [Range(0, 7)]
     public int Priority { get; set; }
 }
 
 public class AddTorrentJsonRequest
 {
+    [StringLength(4096)]
     public string MagnetLink { get; set; }
 
+    [StringLength(4096)]
     public string MagnetUrl { get; set; }
 
+    [StringLength(4096)]
     public string DownloadUrl { get; set; }
 
+    [StringLength(500)]
     public string Title { get; set; }
 
+    [StringLength(255)]
     public string Category { get; set; }
 
+    [StringLength(1024)]
     public string SavePath { get; set; }
 
     public bool Paused { get; set; }
@@ -336,7 +346,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPost("{id:int}/trackers")]
     public async Task<ActionResult<TrackerResource>> AddTracker(int id, [FromBody] AddTrackerRequest request)
     {
-        var url = request?.Url?.Trim();
+        if (request == null)
+        {
+            return this.BadRequest("Request body cannot be null");
+        }
+
+        var url = request.Url?.Trim();
         if (string.IsNullOrWhiteSpace(url))
         {
             return this.BadRequest("Tracker URL is required");
@@ -541,7 +556,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     {
         if (request == null)
         {
-            return this.BadRequest("Request body is empty.");
+            return this.BadRequest("Request body cannot be null");
         }
 
         var magnet = !string.IsNullOrWhiteSpace(request.MagnetLink) ? request.MagnetLink : request.MagnetUrl;
@@ -744,6 +759,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPut("{id:int}")]
     public async Task<ActionResult<TorrentResource>> Update(int id, [FromBody] TorrentResource resource)
     {
+        if (resource == null)
+        {
+            return this.BadRequest("Request body cannot be null");
+        }
+
         var existing = this.torrentService.Get(id);
         if (existing == null)
         {
@@ -901,7 +921,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPut("{id:int}/queue")]
     public async Task<ActionResult> MoveQueue(int id, [FromBody] MoveQueueRequest request)
     {
-        await this.torrentService.MoveQueueAsync(id, request?.Position);
+        if (request == null)
+        {
+            return this.BadRequest("Request body cannot be null");
+        }
+
+        await this.torrentService.MoveQueueAsync(id, request.Position);
         return this.Ok();
     }
 
