@@ -20,6 +20,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.SignalR;
 
 namespace NzbDrone.Host;
@@ -231,6 +232,7 @@ public class Startup
         });
 
         services.AddHostedService<AppLifetime>();
+        services.AddHostedService<CommandWorker>();
     }
 
     public void Configure(WebApplication app)
