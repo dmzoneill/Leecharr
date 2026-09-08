@@ -173,7 +173,7 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         var active = Volatile.Read(ref this.activeProvider);
         try
         {
-            var result = active.InspectFile(filePath);
+            var result = active?.InspectFile(filePath);
             if (result != null)
             {
                 return result;
@@ -181,25 +181,75 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Active inspector '{0}' failed for '{1}'", active.ProviderId, filePath);
+            this.logger.Warn(ex, "Active inspector '{0}' failed for '{1}'", active?.ProviderId, filePath);
         }
 
-        if (!active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
+        if (active != null && !active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
         {
             var fallback = this.GetProvider("TagLib");
             if (fallback != null)
             {
-                return fallback.InspectFile(filePath);
+                try
+                {
+                    var result = fallback.InspectFile(filePath);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    this.logger.Warn(fallbackEx, "Fallback inspector TagLib failed for '{0}'", filePath);
+                }
             }
         }
 
-        return null;
+        return new MediaContainerInfo
+        {
+            ContainerFormat = string.IsNullOrWhiteSpace(filePath) ? "Unknown" : Path.GetExtension(filePath).TrimStart('.').ToUpperInvariant(),
+        };
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
     {
         var active = Volatile.Read(ref this.activeProvider);
-        return active.Inspect(stream, fileName);
+        try
+        {
+            var result = active?.Inspect(stream, fileName);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Active inspector '{0}' failed for stream '{1}'", active?.ProviderId, fileName);
+        }
+
+        if (active != null && !active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
+        {
+            var fallback = this.GetProvider("TagLib");
+            if (fallback != null)
+            {
+                try
+                {
+                    var result = fallback.Inspect(stream, fileName);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    this.logger.Warn(fallbackEx, "Fallback inspector TagLib failed for stream '{0}'", fileName);
+                }
+            }
+        }
+
+        return new MediaContainerInfo
+        {
+            ContainerFormat = string.IsNullOrWhiteSpace(fileName) ? "Unknown" : Path.GetExtension(fileName).TrimStart('.').ToUpperInvariant(),
+        };
     }
 
     public async Task<MediaContainerInfo> InspectMediaAsync(string mediaPath, CancellationToken cancellationToken = default)
@@ -215,19 +265,33 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Active inspector '{0}' failed for '{1}'", active.ProviderId, mediaPath);
+            this.logger.Warn(ex, "Active inspector '{0}' failed for '{1}'", active?.ProviderId, mediaPath);
         }
 
-        if (!active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
+        if (active != null && !active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
         {
             var fallback = this.GetProvider("TagLib");
             if (fallback != null)
             {
-                return await fallback.InspectMediaAsync(mediaPath, cancellationToken);
+                try
+                {
+                    var result = await fallback.InspectMediaAsync(mediaPath, cancellationToken);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    this.logger.Warn(fallbackEx, "Fallback inspector TagLib failed for '{0}'", mediaPath);
+                }
             }
         }
 
-        return null;
+        return new MediaContainerInfo
+        {
+            ContainerFormat = string.IsNullOrWhiteSpace(mediaPath) ? "Unknown" : Path.GetExtension(mediaPath).TrimStart('.').ToUpperInvariant(),
+        };
     }
 
     public void Dispose()

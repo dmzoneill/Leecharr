@@ -19,12 +19,13 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>
+public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>
 {
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
@@ -438,6 +439,24 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
             this.torrentsHaltedByKillSwitch.Clear();
         }
+    }
+
+    public void Handle(NetworkBindingProviderSwitchedEvent message)
+    {
+        this.logger.Info("Transmission: Network binding provider switched ({0} -> {1}). Recycling peer sessions.", message.PreviousProvider, message.NewProvider);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("session-set", new Dictionary<string, object>
+                {
+                    ["bind-address-ipv4"] = "0.0.0.0",
+                });
+            }
+            catch
+            {
+            }
+        });
     }
 
     public async Task ForceRecheckAsync(int torrentId)

@@ -28,15 +28,17 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private ITorrentEngine activeEngine;
+    private ITorrentEngine migratingTargetEngine;
+    private TaskCompletionSource migrationTcs;
     private bool disposed;
 
-    public string ProtocolName => Volatile.Read(ref this.activeEngine)?.ProtocolName ?? "BitTorrent";
+    public string ProtocolName => this.GetActiveOrMigratingEngine()?.ProtocolName ?? "BitTorrent";
 
     public ITorrentEngine ActiveEngine => Volatile.Read(ref this.activeEngine);
 
     public string ActiveEngineId => Volatile.Read(ref this.activeEngine)?.EngineId ?? "MonoTorrent";
 
-    public int DhtNodeCount => Volatile.Read(ref this.activeEngine)?.DhtNodeCount ?? 0;
+    public int DhtNodeCount => this.GetActiveOrMigratingEngine()?.DhtNodeCount ?? 0;
 
     public DynamicDownloadEngineProxy(
         IEnumerable<ITorrentEngine> availableEngines,
@@ -149,7 +151,23 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         var previousEngine = Volatile.Read(ref this.activeEngine);
         try
         {
-            var health = await targetEngine.ProbeHealthAsync();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            EngineHealthCheckResult health;
+            try
+            {
+                health = await targetEngine.ProbeHealthAsync().WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return new EngineSwitchResult
+                {
+                    Success = false,
+                    PreviousEngine = previousEngine.EngineId,
+                    ActiveEngine = previousEngine.EngineId,
+                    Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check timed out after 5 seconds.",
+                };
+            }
+
             if (!health.IsHealthy)
             {
                 return new EngineSwitchResult
@@ -163,6 +181,10 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
             this.logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", previousEngine.EngineId, targetEngine.EngineId, preserveTransfers);
             var rehydrated = 0;
+
+            // Set up migration gating
+            this.migrationTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref this.migratingTargetEngine, targetEngine);
 
             // 1. Drain and stop previous engine
             this.logger.Info("Stopping active engine: {0}...", previousEngine.EngineId);
@@ -178,6 +200,10 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             // 2. Start target engine
             this.logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
             await targetEngine.StartAsync();
+
+            // Hot-swap active pointer to target engine and release migration queue
+            Volatile.Write(ref this.activeEngine, targetEngine);
+            this.migrationTcs.TrySetResult();
 
             // 3. Migrate active torrents if requested
             if (preserveTransfers)
@@ -285,10 +311,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 }
             }
 
-            // 4. Swap active pointer atomically
-            Volatile.Write(ref this.activeEngine, targetEngine);
-
-            // 5. Persist setting to configuration
+            // 4. Persist setting to configuration
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveTorrentEngine", targetEngine.EngineId },
@@ -296,7 +319,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
             this.logger.Info("Engine hot-swap completed: {0} -> {1} ({2} torrents migrated)", previousEngine.EngineId, targetEngine.EngineId, rehydrated);
 
-            // 6. Broadcast event
+            // 5. Broadcast event
             this.eventAggregator.PublishEvent(new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated));
 
             return new EngineSwitchResult
@@ -334,6 +357,8 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 {
                     this.logger.Error(rollbackEx, "Failed to rollback and restart previous engine {0}", previousEngine.EngineId);
                 }
+
+                Volatile.Write(ref this.activeEngine, previousEngine);
             }
 
             return new EngineSwitchResult
@@ -346,99 +371,199 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
         finally
         {
+            Volatile.Write(ref this.migratingTargetEngine, null);
+            this.migrationTcs?.TrySetResult();
             this.switchLock.Release();
         }
     }
 
-    public bool IsHaltedByKillSwitch => Volatile.Read(ref this.activeEngine)?.IsHaltedByKillSwitch ?? false;
+    public bool IsHaltedByKillSwitch => this.GetActiveOrMigratingEngine()?.IsHaltedByKillSwitch ?? false;
 
-    public Task StartAsync() => Volatile.Read(ref this.activeEngine).StartAsync();
+    public async Task StartAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.StartAsync();
+        }
+    }
 
-    public Task StopAsync() => Volatile.Read(ref this.activeEngine).StopAsync();
+    public async Task StopAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.StopAsync();
+        }
+    }
 
-    public Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
-        => Volatile.Read(ref this.activeEngine).AddTorrentAsync(torrent, torrentFileBytes, magnetUri);
+    public async Task<IDownloadTask> AddTorrentAsync(Torrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        return await engine.AddTorrentAsync(torrent, torrentFileBytes, magnetUri);
+    }
 
-    public Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
-        => Volatile.Read(ref this.activeEngine).RemoveTorrentAsync(torrentId, deleteFiles);
+    public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.RemoveTorrentAsync(torrentId, deleteFiles);
+    }
 
-    public Task PauseTorrentAsync(int torrentId)
-        => Volatile.Read(ref this.activeEngine).PauseTorrentAsync(torrentId);
+    public async Task PauseTorrentAsync(int torrentId)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.PauseTorrentAsync(torrentId);
+    }
 
-    public Task PauseAllTorrentsAsync()
-        => Volatile.Read(ref this.activeEngine)?.PauseAllTorrentsAsync() ?? Task.CompletedTask;
+    public async Task PauseAllTorrentsAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.PauseAllTorrentsAsync();
+        }
+    }
 
-    public Task PauseAllAsync()
-        => Volatile.Read(ref this.activeEngine)?.PauseAllAsync() ?? Task.CompletedTask;
+    public async Task PauseAllAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.PauseAllAsync();
+        }
+    }
 
-    public Task ResumeTorrentAsync(int torrentId)
-        => Volatile.Read(ref this.activeEngine).ResumeTorrentAsync(torrentId);
+    public async Task ResumeTorrentAsync(int torrentId)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.ResumeTorrentAsync(torrentId);
+    }
 
-    public Task ResumeAllTorrentsAsync()
-        => Volatile.Read(ref this.activeEngine)?.ResumeAllTorrentsAsync() ?? Task.CompletedTask;
+    public async Task ResumeAllTorrentsAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.ResumeAllTorrentsAsync();
+        }
+    }
 
-    public Task ResumeAllAsync()
-        => Volatile.Read(ref this.activeEngine)?.ResumeAllAsync() ?? Task.CompletedTask;
+    public async Task ResumeAllAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.ResumeAllAsync();
+        }
+    }
 
-    public Task ForceRecheckAsync(int torrentId)
-        => Volatile.Read(ref this.activeEngine).ForceRecheckAsync(torrentId);
+    public async Task ForceRecheckAsync(int torrentId)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.ForceRecheckAsync(torrentId);
+    }
 
-    public Task ForceAnnounceAsync(int torrentId)
-        => Volatile.Read(ref this.activeEngine).ForceAnnounceAsync(torrentId);
+    public async Task ForceAnnounceAsync(int torrentId)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.ForceAnnounceAsync(torrentId);
+    }
 
-    public Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
-        => Volatile.Read(ref this.activeEngine).AddTrackersAsync(torrentId, trackers);
+    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.AddTrackersAsync(torrentId, trackers);
+    }
 
-    public Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
-        => Volatile.Read(ref this.activeEngine).RemoveTrackersAsync(torrentId, trackers);
+    public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.RemoveTrackersAsync(torrentId, trackers);
+    }
 
-    public Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
-        => Volatile.Read(ref this.activeEngine).SetFilePriorityAsync(torrentId, filePath, priority);
+    public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.SetFilePriorityAsync(torrentId, filePath, priority);
+    }
 
-    public Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
-        => Volatile.Read(ref this.activeEngine).SetRateLimitsAsync(maxDownloadKbps, maxUploadKbps);
+    public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.SetRateLimitsAsync(maxDownloadKbps, maxUploadKbps);
+    }
 
-    public Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
-        => Volatile.Read(ref this.activeEngine).SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
+    public async Task SetTorrentRateLimitsAsync(int torrentId, int maxDownloadKbps, int maxUploadKbps)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        await engine.SetTorrentRateLimitsAsync(torrentId, maxDownloadKbps, maxUploadKbps);
+    }
 
-    public Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
-        => Volatile.Read(ref this.activeEngine)?.SetTorrentPrivateStatusAsync(torrentId, isPrivate) ?? Task.CompletedTask;
+    public async Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.SetTorrentPrivateStatusAsync(torrentId, isPrivate);
+        }
+    }
 
-    public Task SetSuperSeedingAsync(int torrentId, bool enabled)
-        => Volatile.Read(ref this.activeEngine)?.SetSuperSeedingAsync(torrentId, enabled) ?? Task.CompletedTask;
+    public async Task SetSuperSeedingAsync(int torrentId, bool enabled)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.SetSuperSeedingAsync(torrentId, enabled);
+        }
+    }
 
-    public Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath)
-        => Volatile.Read(ref this.activeEngine)?.RenameFileAsync(torrentId, oldRelativePath, newRelativePath) ?? Task.FromResult(false);
+    public async Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        return engine != null && await engine.RenameFileAsync(torrentId, oldRelativePath, newRelativePath);
+    }
 
-    public Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder)
-        => Volatile.Read(ref this.activeEngine)?.RenameFolderAsync(torrentId, oldRelativeFolder, newRelativeFolder) ?? Task.FromResult(false);
+    public async Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        return engine != null && await engine.RenameFolderAsync(torrentId, oldRelativeFolder, newRelativeFolder);
+    }
 
-    public Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
-        => Volatile.Read(ref this.activeEngine)?.MoveTorrentFilesAsync(torrentId, newSavePath, moveFiles) ?? Task.CompletedTask;
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.MoveTorrentFilesAsync(torrentId, newSavePath, moveFiles);
+        }
+    }
 
-    public Task<EngineHealthCheckResult> ProbeHealthAsync()
-        => Volatile.Read(ref this.activeEngine)?.ProbeHealthAsync() ?? Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
+    public async Task<EngineHealthCheckResult> ProbeHealthAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        return engine != null ? await engine.ProbeHealthAsync() : new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" };
+    }
 
     public IDownloadTask GetTask(int torrentId)
-        => Volatile.Read(ref this.activeEngine).GetTask(torrentId);
+        => this.GetActiveOrMigratingEngine()?.GetTask(torrentId);
 
     public IEnumerable<IDownloadTask> GetAllTasks()
-        => Volatile.Read(ref this.activeEngine).GetAllTasks();
+        => this.GetActiveOrMigratingEngine()?.GetAllTasks() ?? Enumerable.Empty<IDownloadTask>();
 
     public TorrentEngineMetrics GetEngineMetrics()
-        => Volatile.Read(ref this.activeEngine)?.GetEngineMetrics() ?? new TorrentEngineMetrics();
+        => this.GetActiveOrMigratingEngine()?.GetEngineMetrics() ?? new TorrentEngineMetrics();
 
     public TorrentResourceMetrics GetTorrentResourceMetrics(int torrentId)
-        => Volatile.Read(ref this.activeEngine)?.GetTorrentResourceMetrics(torrentId);
+        => this.GetActiveOrMigratingEngine()?.GetTorrentResourceMetrics(torrentId);
 
     public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics()
-        => Volatile.Read(ref this.activeEngine)?.GetAllTorrentResourceMetrics() ?? Array.Empty<TorrentResourceMetrics>();
+        => this.GetActiveOrMigratingEngine()?.GetAllTorrentResourceMetrics() ?? Array.Empty<TorrentResourceMetrics>();
 
     public void CheckTrackerHealth()
-        => Volatile.Read(ref this.activeEngine)?.CheckTrackerHealth();
+        => this.GetActiveOrMigratingEngine()?.CheckTrackerHealth();
 
     public void CheckDiskSpaceHealth()
-        => Volatile.Read(ref this.activeEngine)?.CheckDiskSpaceHealth();
+        => this.GetActiveOrMigratingEngine()?.CheckDiskSpaceHealth();
 
     public void Dispose()
     {
@@ -447,5 +572,21 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             this.disposed = true;
             this.switchLock.Dispose();
         }
+    }
+
+    private ITorrentEngine GetActiveOrMigratingEngine()
+    {
+        return Volatile.Read(ref this.migratingTargetEngine) ?? Volatile.Read(ref this.activeEngine);
+    }
+
+    private async Task<ITorrentEngine> GetReadyEngineAsync()
+    {
+        var tcs = Volatile.Read(ref this.migrationTcs);
+        if (tcs != null && !tcs.Task.IsCompleted)
+        {
+            await tcs.Task;
+        }
+
+        return Volatile.Read(ref this.activeEngine);
     }
 }

@@ -85,7 +85,7 @@ public class SubsystemsController : Controller
     [HttpGet("{subsystemId}/metrics")]
     public ActionResult<SubsystemTelemetryReport> GetSubsystemMetrics(string subsystemId)
     {
-        var normalized = subsystemId?.ToLowerInvariant();
+        var normalized = NormalizeSubsystemId(subsystemId);
         var telemetry = this.resourceService.GetSubsystemTelemetry()
             .FirstOrDefault(t => string.Equals(t.SubsystemId, normalized, StringComparison.OrdinalIgnoreCase));
 
@@ -119,18 +119,18 @@ public class SubsystemsController : Controller
     [HttpGet("{subsystemId}")]
     public ActionResult<SubsystemOverviewResource> GetSubsystem(string subsystemId)
     {
-        var normalized = subsystemId?.ToLowerInvariant();
+        var normalized = NormalizeSubsystemId(subsystemId);
         var subsystem = normalized switch
         {
-            "bittorrent" or "torrentengine" => this.BuildTorrentEngineSubsystem(),
-            "extractor" or "archiveextractor" => this.BuildExtractorSubsystem(),
-            "mediainspector" or "inspector" => this.BuildMediaInspectorSubsystem(),
+            "bittorrent" => this.BuildTorrentEngineSubsystem(),
+            "extractor" => this.BuildExtractorSubsystem(),
+            "mediainspector" => this.BuildMediaInspectorSubsystem(),
             "geoip" => this.BuildGeoIpSubsystem(),
             "blocklist" => this.BuildBlocklistSubsystem(),
-            "networkbinding" or "binding" => this.BuildNetworkBindingSubsystem(),
-            "mediametadata" or "metadata" => this.BuildMediaMetadataSubsystem(),
-            "httptransport" or "transport" => this.BuildHttpTransportSubsystem(),
-            "ai" or "intelligence" => this.BuildAiSubsystem(),
+            "networkbinding" => this.BuildNetworkBindingSubsystem(),
+            "mediametadata" => this.BuildMediaMetadataSubsystem(),
+            "httptransport" => this.BuildHttpTransportSubsystem(),
+            "ai" => this.BuildAiSubsystem(),
             _ => null,
         };
 
@@ -140,6 +140,24 @@ public class SubsystemsController : Controller
         }
 
         return this.Ok(subsystem);
+    }
+
+    private static string NormalizeSubsystemId(string subsystemId)
+    {
+        var normalized = subsystemId?.ToLowerInvariant();
+        return normalized switch
+        {
+            "bittorrent" or "torrentengine" => "bittorrent",
+            "extractor" or "archiveextractor" => "extractor",
+            "mediainspector" or "inspector" => "mediainspector",
+            "geoip" => "geoip",
+            "blocklist" => "blocklist",
+            "networkbinding" or "binding" => "networkbinding",
+            "mediametadata" or "metadata" => "mediametadata",
+            "httptransport" or "transport" => "httptransport",
+            "ai" or "intelligence" => "ai",
+            _ => normalized,
+        };
     }
 
     [HttpPost("{subsystemId}/switch")]

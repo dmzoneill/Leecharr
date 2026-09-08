@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,6 +19,7 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, GeoLocationInfo> syncLookupCache = new(StringComparer.OrdinalIgnoreCase);
 
     private IGeoIpProvider activeProvider;
     private bool disposed;
@@ -113,6 +115,7 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
 
             var previousProvider = Volatile.Read(ref this.activeProvider);
             Volatile.Write(ref this.activeProvider, targetProvider);
+            this.syncLookupCache.Clear();
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
@@ -141,12 +144,18 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
             return null;
         }
 
+        if (this.syncLookupCache.TryGetValue(ipAddress, out var cached))
+        {
+            return cached;
+        }
+
         var provider = Volatile.Read(ref this.activeProvider);
         try
         {
             var result = await provider.LookupAsync(ipAddress);
             if (result != null)
             {
+                this.syncLookupCache[ipAddress] = result;
                 return result;
             }
         }
@@ -155,12 +164,53 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
             this.logger.Debug(ex, "Active GeoIP provider '{0}' failed lookup for {1}", provider.ProviderId, ipAddress);
         }
 
-        return new GeoLocationInfo { IpAddress = ipAddress };
+        var fallback = new GeoLocationInfo { IpAddress = ipAddress };
+        this.syncLookupCache[ipAddress] = fallback;
+        return fallback;
     }
 
     public GeoLocationInfo Lookup(string ipAddress)
     {
-        return this.LookupAsync(ipAddress).GetAwaiter().GetResult();
+        if (string.IsNullOrWhiteSpace(ipAddress))
+        {
+            return null;
+        }
+
+        if (this.syncLookupCache.TryGetValue(ipAddress, out var cached))
+        {
+            return cached;
+        }
+
+        var provider = Volatile.Read(ref this.activeProvider);
+        try
+        {
+            var task = provider?.LookupAsync(ipAddress);
+            if (task != null && task.IsCompletedSuccessfully)
+            {
+                var result = task.Result ?? new GeoLocationInfo { IpAddress = ipAddress };
+                this.syncLookupCache[ipAddress] = result;
+                return result;
+            }
+
+            if (task != null)
+            {
+                _ = task.ContinueWith(
+                    t =>
+                    {
+                        if (t.IsCompletedSuccessfully && t.Result != null)
+                        {
+                            this.syncLookupCache[ipAddress] = t.Result;
+                        }
+                    },
+                    TaskScheduler.Default);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Active GeoIP provider '{0}' failed synchronous lookup for {1}", provider?.ProviderId, ipAddress);
+        }
+
+        return new GeoLocationInfo { IpAddress = ipAddress };
     }
 
     public void Dispose()

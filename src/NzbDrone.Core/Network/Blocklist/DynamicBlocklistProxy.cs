@@ -18,6 +18,7 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
+    private readonly object rulesLock = new();
     private readonly List<string> loadedRawRules = new();
 
     private IBlocklistProvider activeProvider;
@@ -118,10 +119,16 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
 
             // Re-hydrate existing loaded rules into new provider
             var migratedCount = 0;
-            if (this.loadedRawRules.Count > 0)
+            List<string> rulesToMigrate;
+            lock (this.rulesLock)
+            {
+                rulesToMigrate = this.loadedRawRules.ToList();
+            }
+
+            if (rulesToMigrate.Count > 0)
             {
                 targetProvider.ClearRules();
-                migratedCount = await targetProvider.LoadRulesAsync(this.loadedRawRules);
+                migratedCount = await targetProvider.LoadRulesAsync(rulesToMigrate);
             }
 
             Volatile.Write(ref this.activeProvider, targetProvider);
@@ -167,8 +174,11 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
         try
         {
             var ruleList = rules.ToList();
-            this.loadedRawRules.Clear();
-            this.loadedRawRules.AddRange(ruleList);
+            lock (this.rulesLock)
+            {
+                this.loadedRawRules.Clear();
+                this.loadedRawRules.AddRange(ruleList);
+            }
 
             return await Volatile.Read(ref this.activeProvider).LoadRulesAsync(ruleList);
         }
@@ -180,16 +190,12 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
 
     public void ClearRules()
     {
-        this.switchLock.Wait();
-        try
+        lock (this.rulesLock)
         {
             this.loadedRawRules.Clear();
-            Volatile.Read(ref this.activeProvider).ClearRules();
         }
-        finally
-        {
-            this.switchLock.Release();
-        }
+
+        Volatile.Read(ref this.activeProvider)?.ClearRules();
     }
 
     public void Dispose()

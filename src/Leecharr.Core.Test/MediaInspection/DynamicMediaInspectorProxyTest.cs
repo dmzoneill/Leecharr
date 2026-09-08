@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -251,5 +252,17 @@ public class DynamicMediaInspectorProxyTest
         info.ContainerFormat.Should().Be("Matroska (MKV)");
 
         await this.tagLibProvider.Received(1).InspectMediaAsync("/path/to/movie.mkv", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void Inspect_WhenActiveAndFallbackThrowException_ReturnsGracefulFallback()
+    {
+        this.tagLibProvider.Inspect(Arg.Any<Stream>(), Arg.Any<string>()).Returns(_ => throw new InvalidOperationException("Corrupt stream"));
+
+        using var stream = new MemoryStream(new byte[16]);
+        var info = this.proxy.Inspect(stream, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info.ContainerFormat.Should().Be("MKV");
     }
 }

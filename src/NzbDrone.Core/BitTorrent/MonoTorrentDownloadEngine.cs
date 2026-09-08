@@ -38,6 +38,7 @@ namespace NzbDrone.Core.BitTorrent;
 public class MonoTorrentDownloadEngine : ITorrentEngine,
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<VpnInterfaceRestoredEvent>,
+    IHandle<NetworkBindingProviderSwitchedEvent>,
     IHandle<ConfigSavedEvent>,
     IHandle<ConfigFileSavedEvent>,
     IDisposable
@@ -1968,6 +1969,52 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public void Handle(VpnInterfaceRestoredEvent message)
     {
         this.OnVpnRestored(message.InterfaceName);
+    }
+
+    public void Handle(NetworkBindingProviderSwitchedEvent message)
+    {
+        this.logger.Info("Network binding provider switched ({0} -> {1}). Cycling active peer sockets to enforce new interface binding.", message.PreviousProvider, message.NewProvider);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ResetPeerSocketsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error occurred while resetting peer sockets after network binding provider switch");
+            }
+        });
+    }
+
+    public async Task ResetPeerSocketsAsync()
+    {
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager != null)
+            {
+                try
+                {
+                    var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
+                    foreach (var peer in peers)
+                    {
+                        try
+                        {
+                            (peer as IDisposable)?.Dispose();
+                            var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                            (connProp?.GetValue(peer) as IDisposable)?.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Error cycling peer connections for {0}", task.InfoHash);
+                }
+            }
+        }
     }
 
     public void OnVpnDropped(string interfaceName)
