@@ -1,5 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Common.Disk;
 
@@ -7,7 +9,12 @@ namespace NzbDrone.Core.Extraction;
 
 public interface IArchiveExtractorService
 {
-    Task<bool> ExtractArchiveAsync(string archiveFilePath, string destinationDirectory = null);
+    Task<bool> ExtractArchiveAsync(
+        string archiveFilePath,
+        string destinationDirectory = null,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default);
 
     bool IsArchiveFile(string filePath);
 }
@@ -31,8 +38,13 @@ public class ArchiveExtractorService : IArchiveExtractorService
         return this.provider.CanExtract(filePath);
     }
 
-    public Task<bool> ExtractArchiveAsync(string archiveFilePath, string destinationDirectory = null)
+    public Task<bool> ExtractArchiveAsync(
+        string archiveFilePath,
+        string destinationDirectory = null,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default)
     {
-        return this.provider.ExtractAsync(archiveFilePath, destinationDirectory);
+        return this.provider.ExtractAsync(archiveFilePath, destinationDirectory, password, passwordCandidates, cancellationToken);
     }
 }

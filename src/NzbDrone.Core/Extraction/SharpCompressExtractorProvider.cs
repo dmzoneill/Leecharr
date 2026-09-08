@@ -81,7 +81,12 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             || fileName.EndsWith(".tar.001", StringComparison.OrdinalIgnoreCase);
     }
 
-    public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
+    public async Task<bool> ExtractAsync(
+        string archivePath,
+        string destinationPath,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(archivePath) || !this.diskProvider.FileExists(archivePath))
         {
@@ -97,42 +102,97 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
+
         bool ExtractAction()
         {
-            try
+            Exception lastException = null;
+
+            foreach (var candidatePassword in passwordsToTry)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                this.logger.Info("SharpCompress extracting '{0}' to '{1}'...", archivePath, targetDir);
-
-                using var archive = ArchiveFactory.OpenArchive(archivePath);
-
-                var options = new ExtractionOptions
-                {
-                    ExtractFullPath = true,
-                    Overwrite = true,
-                };
-
-                foreach (var entry in archive.Entries.Where(entry => !entry.IsDirectory))
+                try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    entry.WriteToDirectory(targetDir, options);
-                }
 
-                this.logger.Info("SharpCompress successfully extracted archive '{0}'.", archivePath);
-                return true;
+                    var readerOptions = new SharpCompress.Readers.ReaderOptions();
+                    if (!string.IsNullOrEmpty(candidatePassword))
+                    {
+                        readerOptions.Password = candidatePassword;
+                        this.logger.Info("SharpCompress extracting '{0}' to '{1}' with password candidate...", archivePath, targetDir);
+                    }
+                    else
+                    {
+                        this.logger.Info("SharpCompress extracting '{0}' to '{1}'...", archivePath, targetDir);
+                    }
+
+                    using var archive = ArchiveFactory.OpenArchive(archivePath, readerOptions);
+
+                    var options = new ExtractionOptions
+                    {
+                        ExtractFullPath = true,
+                        Overwrite = true,
+                    };
+
+                    foreach (var entry in archive.Entries.Where(entry => !entry.IsDirectory))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        entry.WriteToDirectory(targetDir, options);
+                    }
+
+                    this.logger.Info("SharpCompress successfully extracted archive '{0}'.", archivePath);
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    if (passwordsToTry.Count > 1)
+                    {
+                        this.logger.Debug("SharpCompress password candidate failed for archive '{0}': {1}", archivePath, ex.Message);
+                    }
+                }
             }
-            catch (OperationCanceledException)
+
+            if (lastException != null)
             {
-                this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
-                throw;
+                this.logger.Error(lastException, "SharpCompress failed to extract archive: {0}", archivePath);
             }
-            catch (Exception ex)
-            {
-                this.logger.Error(ex, "SharpCompress failed to extract archive: {0}", archivePath);
-                return false;
-            }
+
+            return false;
         }
 
         return await Task.Run(ExtractAction, cancellationToken);
+    }
+
+    private static List<string> BuildPasswordCandidateList(string password, IReadOnlyList<string> passwordCandidates)
+    {
+        var candidates = new List<string>();
+
+        if (!string.IsNullOrEmpty(password))
+        {
+            candidates.Add(password);
+        }
+
+        if (passwordCandidates != null)
+        {
+            foreach (var candidate in passwordCandidates)
+            {
+                if (!string.IsNullOrEmpty(candidate) && !candidates.Contains(candidate))
+                {
+                    candidates.Add(candidate);
+                }
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            candidates.Add(null);
+        }
+
+        return candidates;
     }
 }
