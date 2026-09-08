@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using Dapper;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Bandwidth;
 
@@ -10,8 +11,8 @@ public class SpeedScheduleRepository : BasicRepository<SpeedSchedule>, ISpeedSch
 {
     private readonly IDatabase database;
 
-    public SpeedScheduleRepository(IDatabase database)
-        : base(database)
+    public SpeedScheduleRepository(IDatabase database, IEventAggregator eventAggregator = null)
+        : base(database, eventAggregator)
     {
         this.database = database;
     }
