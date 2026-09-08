@@ -180,6 +180,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
 
                 process = new Process { StartInfo = startInfo };
                 process.Start();
+                process.StandardInput.Close();
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(timeout);
@@ -268,6 +269,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         {
             FileName = binary,
             UseShellExecute = false,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
