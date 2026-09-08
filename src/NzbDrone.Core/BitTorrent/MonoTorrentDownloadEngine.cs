@@ -3746,6 +3746,16 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
                 if (p.AmInterested)
                 {
+                    flags += p.IsChoking ? "d" : "D";
+                }
+
+                if (p.IsInterested)
+                {
+                    flags += p.AmChoking ? "u" : "U";
+                }
+
+                if (p.AmInterested)
+                {
                     flags += "I";
                 }
 
@@ -3770,6 +3780,13 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     flags += "E";
                 }
 
+                var isUtp = (p.Uri?.Scheme?.Equals("utp", StringComparison.OrdinalIgnoreCase) == true) ||
+                            p.ClientApp.Client.ToString().Contains("uTP", StringComparison.OrdinalIgnoreCase);
+                if (isUtp)
+                {
+                    flags += "P";
+                }
+
                 list.Add(new PeerInfo
                 {
                     Ip = p.Uri?.Host ?? "unknown",
@@ -3787,7 +3804,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     ClientIsChoked = p.AmChoking,
                     ClientIsInterested = p.AmInterested,
                     IsIncoming = flags.Contains("?"),
-                    IsUtp = p.Uri?.Scheme?.Equals("utp", StringComparison.OrdinalIgnoreCase) == true,
+                    IsUtp = isUtp,
                 });
             }
 

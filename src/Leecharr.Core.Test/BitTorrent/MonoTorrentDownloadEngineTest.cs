@@ -2847,5 +2847,111 @@ public class MonoTorrentDownloadEngineTest
             .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
     }
 
+    [Test]
+    public async Task GetPeers_ComputesStandardTransferAndUtpFlags()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("peer_flags.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 509,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "peer_flags.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var peerIdType = typeof(MonoTorrent.Client.PeerId);
+        var peerField = peerIdType.GetField("<Peer>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+        var peerType = peerField!.FieldType;
+
+        var peer1 = (MonoTorrent.Client.PeerId)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerIdType);
+        var peerInfo1 = new MonoTorrent.PeerInfo(new Uri("ipv4://192.168.1.100:6881"));
+        var peer1Peer = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerType);
+        SetPeerField(peer1Peer, "Info", peerInfo1);
+        SetPeerField(peer1, "Peer", peer1Peer);
+        SetPeerField(peer1, "AmInterested", true);
+        SetPeerField(peer1, "IsChoking", false);
+        SetPeerField(peer1, "IsInterested", true);
+        SetPeerField(peer1, "AmChoking", false);
+
+        var encryptorType = peerIdType.Assembly.GetTypes().FirstOrDefault(t => t.Name.Equals("RC4", StringComparison.OrdinalIgnoreCase) || t.Name.Equals("RC4Header", StringComparison.OrdinalIgnoreCase));
+        if (encryptorType != null)
+        {
+            var encObj = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(encryptorType);
+            SetPeerField(peer1, "Encryptor", encObj);
+        }
+
+        var peer2 = (MonoTorrent.Client.PeerId)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerIdType);
+        var peerInfo2 = new MonoTorrent.PeerInfo(new Uri("utp://192.168.1.101:6881"));
+        var peer2Peer = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerType);
+        SetPeerField(peer2Peer, "Info", peerInfo2);
+        SetPeerField(peer2, "Peer", peer2Peer);
+        SetPeerField(peer2, "AmInterested", true);
+        SetPeerField(peer2, "IsChoking", true);
+        SetPeerField(peer2, "IsInterested", true);
+        SetPeerField(peer2, "AmChoking", true);
+
+        var peer3 = (MonoTorrent.Client.PeerId)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerIdType);
+        var peerInfo3 = new MonoTorrent.PeerInfo(new Uri("ipv4://192.168.1.102:6881"));
+        var peer3Peer = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerType);
+        SetPeerField(peer3Peer, "Info", peerInfo3);
+        SetPeerField(peer3, "Peer", peer3Peer);
+        SetPeerField(peer3, "AmInterested", false);
+        SetPeerField(peer3, "IsChoking", false);
+        SetPeerField(peer3, "IsInterested", false);
+        SetPeerField(peer3, "AmChoking", false);
+
+        var cachedPeersField = typeof(MonoTorrentDownloadTask).GetField("cachedMonoPeers", BindingFlags.NonPublic | BindingFlags.Instance);
+        cachedPeersField!.SetValue(task, new List<MonoTorrent.Client.PeerId> { peer1, peer2, peer3 });
+        var lastPeersUpdateField = typeof(MonoTorrentDownloadTask).GetField("lastPeersUpdate", BindingFlags.NonPublic | BindingFlags.Instance);
+        lastPeersUpdateField!.SetValue(task, DateTime.UtcNow.AddHours(1));
+
+        var peers = task.GetPeers();
+        peers.Should().HaveCount(3);
+
+        // peer1: AmInterested & !IsChoking => 'D', 'I'
+        //        IsInterested & !AmChoking => 'U', 'i'
+        //        Encryptor => 'E'
+        //        Total => "DUIiE"
+        peers[0].Flags.Should().Be("DUIiE");
+        peers[0].IsUtp.Should().BeFalse();
+        peers[0].IsEncrypted.Should().BeTrue();
+
+        // peer2: AmInterested & IsChoking => 'd', 'I', 'c'
+        //        IsInterested & AmChoking => 'u', 'C', 'i'
+        //        utp scheme => 'P'
+        //        Total => "duICicP"
+        peers[1].Flags.Should().Be("duICicP");
+        peers[1].IsUtp.Should().BeTrue();
+        peers[1].IsEncrypted.Should().BeFalse();
+
+        // peer3: !AmInterested && !IsInterested => no D/d, no U/u, no I, no C, no i, no c
+        peers[2].Flags.Should().BeEmpty();
+        peers[2].IsUtp.Should().BeFalse();
+        peers[2].IsEncrypted.Should().BeFalse();
+    }
+
+    private static void SetPeerField(object obj, string name, object value)
+    {
+        var type = obj.GetType();
+        var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                    ?? type.GetField($"<{name}>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        if (field != null)
+        {
+            field.SetValue(obj, value);
+            return;
+        }
+
+        var prop = type.GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        if (prop != null && prop.CanWrite)
+        {
+            prop.SetValue(obj, value);
+        }
+    }
+
     #endregion
 }

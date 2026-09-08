@@ -1390,7 +1390,7 @@ public class TransmissionRpcController : ControllerBase
                 isEncrypted = p.IsEncrypted,
                 isIncoming = p.IsIncoming,
                 isUploadingTo = p.UploadSpeed > 0,
-                isUTP = p.IsUtp || p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true,
+                isUTP = p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true,
                 peerIsChoked = p.IsChoked,
                 peerIsInterested = p.IsInterested,
                 port = p.Port,

@@ -121,7 +121,7 @@ export function PeerClientBadge({
   const isEncrypted =
     flags &&
     (flags.includes("E") || flags.includes("e") || flags.includes("x"));
-  const isUtp = flags && (flags.includes("U") || flags.includes("u"));
+  const isUtp = flags && (flags.includes("P") || flags.includes("p"));
 
   return (
     <div
