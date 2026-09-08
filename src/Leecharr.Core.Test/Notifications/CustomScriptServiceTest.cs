@@ -233,4 +233,78 @@ public class CustomScriptServiceTest
         var customService = new CustomScriptService(configService: configService);
         customService.ScriptTimeout.Should().Be(TimeSpan.FromSeconds(120));
     }
+
+    [Test]
+    public void ParseSettings_WithJsonSettings_ExtractsPathAndArguments()
+    {
+        var json = "{\"path\": \"/opt/scripts/notify.sh\", \"arguments\": \"--verbose --debug\"}";
+        var (path, args) = CustomScriptService.ParseSettings(json);
+
+        path.Should().Be("/opt/scripts/notify.sh");
+        args.Should().Be("--verbose --debug");
+    }
+
+    [Test]
+    public void ParseSettings_WithDifferentJsonKeys_ExtractsCorrectly()
+    {
+        var json1 = "{\"Path\": \"/usr/local/bin/notify.py\", \"Arguments\": \"-a -b\"}";
+        var (path1, args1) = CustomScriptService.ParseSettings(json1);
+        path1.Should().Be("/usr/local/bin/notify.py");
+        args1.Should().Be("-a -b");
+
+        var json2 = "{\"scriptPath\": \"/scripts/alert.sh\", \"args\": \"--all\"}";
+        var (path2, args2) = CustomScriptService.ParseSettings(json2);
+        path2.Should().Be("/scripts/alert.sh");
+        args2.Should().Be("--all");
+
+        var json3 = "{\"filename\": \"/scripts/run.cmd\"}";
+        var (path3, args3) = CustomScriptService.ParseSettings(json3);
+        path3.Should().Be("/scripts/run.cmd");
+        args3.Should().BeNull();
+    }
+
+    [Test]
+    public void ParseSettings_WithPlainString_ReturnsPathAndNullArguments()
+    {
+        var plain = "/opt/scripts/notify.sh";
+        var (path, args) = CustomScriptService.ParseSettings(plain);
+
+        path.Should().Be("/opt/scripts/notify.sh");
+        args.Should().BeNull();
+    }
+
+    [Test]
+    public void ParseSettings_WithQueryString_ExtractsPathAndArguments()
+    {
+        var qs = "path=%2Fopt%2Fscripts%2Fnotify.sh&arguments=--foo%20--bar";
+        var (path, args) = CustomScriptService.ParseSettings(qs);
+
+        path.Should().Be("/opt/scripts/notify.sh");
+        args.Should().Be("--foo --bar");
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void ParseSettings_WithNullOrEmpty_ReturnsEmptyAndNull(string input)
+    {
+        var (path, args) = CustomScriptService.ParseSettings(input);
+
+        path.Should().BeEmpty();
+        args.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WithJsonSettingsDirectly_ParsesAndExecutes()
+    {
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\necho JSON Success\r\nexit /b 0"
+            : "#!/bin/sh\necho \"JSON Success\"\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var jsonSettings = $"{{\"path\": \"{scriptPath.Replace("\\", "\\\\")}\", \"arguments\": \"--test\"}}";
+
+        var result = await this.service.ExecuteScriptAsync(jsonSettings, new Torrent { Id = 1 }, "OnGrab");
+        result.Should().BeTrue();
+    }
 }
