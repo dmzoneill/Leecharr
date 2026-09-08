@@ -143,13 +143,27 @@ function PeerMap() {
     const numTorrents = nodes.filter((n) => n.type === "torrent").length;
     const numPeers = nodes.filter((n) => n.type === "peer").length;
 
+    const totalNodes = Math.max(1, nodes.length);
+    const swarmScale = Math.min(1, Math.max(0.15, 36 / Math.sqrt(totalNodes * 20)));
+
     // Dynamic radius based on torrent count to avoid cluster overlap
     const baseTorrentRadius = Math.max(
-      220,
+      180,
       Math.min(width, height) * 0.35,
-      numTorrents * 12,
+      numTorrents * (14 * swarmScale),
     );
-    const peerDistance = Math.max(90, Math.min(130, 800 / (numPeers || 1)));
+    const peerDistance = Math.max(
+      45,
+      Math.min(130, (800 / (numPeers || 1)) * Math.sqrt(swarmScale)),
+    );
+
+    const chargeCenter = -1200 * swarmScale;
+    const chargeTorrent = -500 * swarmScale;
+    const chargePeer = -180 * swarmScale;
+
+    const collisionRadiusCenter = Math.max(16, 48 * swarmScale);
+    const collisionRadiusTorrent = Math.max(12, 42 * swarmScale);
+    const collisionRadiusPeer = Math.max(6, 24 * swarmScale);
 
     // Preserve existing node coordinates for warm-start force simulation
     const nodeMap = nodeMapRef.current;
@@ -281,7 +295,11 @@ function PeerMap() {
           d3
             .forceManyBody<SimNode>()
             .strength((d) =>
-              d.type === "center" ? -1200 : d.type === "torrent" ? -500 : -200,
+              d.type === "center"
+                ? chargeCenter
+                : d.type === "torrent"
+                  ? chargeTorrent
+                  : chargePeer,
             )
             .distanceMax(Math.max(width, height) * 1.5),
         )
@@ -291,9 +309,13 @@ function PeerMap() {
           d3
             .forceCollide<SimNode>()
             .radius((d) =>
-              d.type === "center" ? 48 : d.type === "torrent" ? 42 : 24,
+              d.type === "center"
+                ? collisionRadiusCenter
+                : d.type === "torrent"
+                  ? collisionRadiusTorrent
+                  : collisionRadiusPeer,
             )
-            .iterations(2),
+            .iterations(1),
         );
       simRef.current = simulation;
     } else {
@@ -319,7 +341,26 @@ function PeerMap() {
         "charge",
       ) as d3.ForceManyBody<SimNode>;
       if (chargeForce) {
+        chargeForce.strength((d) =>
+          d.type === "center"
+            ? chargeCenter
+            : d.type === "torrent"
+              ? chargeTorrent
+              : chargePeer,
+        );
         chargeForce.distanceMax(Math.max(width, height) * 1.5);
+      }
+      const collisionForce = simulation.force(
+        "collision",
+      ) as d3.ForceCollide<SimNode>;
+      if (collisionForce) {
+        collisionForce.radius((d) =>
+          d.type === "center"
+            ? collisionRadiusCenter
+            : d.type === "torrent"
+              ? collisionRadiusTorrent
+              : collisionRadiusPeer,
+        );
       }
       simulation.alpha(0.15).restart();
     }

@@ -1,56 +1,7 @@
 import { useTranslation } from "../i18n";
 import { useState, useRef, useMemo, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "../api/client";
-
-type LogLevel = "Trace" | "Debug" | "Info" | "Warn" | "Error";
-
-interface ApiLogEntry {
-  id: number;
-  time: string;
-  level: string;
-  logger: string;
-  message: string;
-  exception: string | null;
-}
-
-interface EventEntry {
-  id: number;
-  timestamp: string;
-  level: LogLevel;
-  component: string;
-  message: string;
-}
-
-const ALL_LEVELS: LogLevel[] = ["Trace", "Debug", "Info", "Warn", "Error"];
-
-function toLogLevel(level: string): LogLevel {
-  const normalized =
-    level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
-  if (ALL_LEVELS.includes(normalized as LogLevel)) {
-    return normalized as LogLevel;
-  }
-  return "Info";
-}
-
-function useEventEntries() {
-  return useQuery<EventEntry[]>({
-    queryKey: ["system", "events"],
-    queryFn: async () => {
-      const data = await apiClient.get<ApiLogEntry[]>("/log");
-      return data.map((entry) => ({
-        id: entry.id,
-        timestamp: entry.time,
-        level: toLogLevel(entry.level),
-        component: entry.logger,
-        message: entry.exception
-          ? `${entry.message}\n${entry.exception}`
-          : entry.message,
-      }));
-    },
-    refetchInterval: 10000,
-  });
-}
+import { useQueryClient } from "@tanstack/react-query";
+import { useEventLogs, type LogLevel } from "../api/hooks";
 
 function formatEventTime(iso: string): string {
   const d = new Date(iso);
@@ -173,7 +124,7 @@ function EventLevelIcon({ level }: { level: LogLevel }) {
 
 function SystemEvents() {
   const { t } = useTranslation();
-  const { data: entries, isLoading, isError } = useEventEntries();
+  const { data: entries, isLoading, isError } = useEventLogs();
   const queryClient = useQueryClient();
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [cleared, setCleared] = useState(false);
