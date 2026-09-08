@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -130,5 +131,155 @@ public class BlocklistUpdateServiceTest
 
         result.Should().Be(2);
         await this.blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r != null));
+    }
+
+    [Test]
+    public async Task UpdateRulesAsync_WithLocalFilePath_StreamsFileAndLoadsRules()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "1.1.1.1\n8.8.8.8\n\n# comment\n");
+
+            this.configService.BlocklistEnabled.Returns(true);
+            this.configService.BlocklistPath.Returns(tempFile);
+            this.configService.BlocklistUrl.Returns(string.Empty);
+
+            this.blocklistService.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+                .Returns(callInfo =>
+                {
+                    var rules = callInfo.Arg<IEnumerable<string>>().ToList();
+                    return Task.FromResult(rules.Count);
+                });
+
+            var result = await this.updateService.UpdateRulesAsync();
+
+            result.Should().Be(2);
+            await this.blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r != null));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task UpdateRulesAsync_WithLocalGzipFile_DecompressesAndLoadsRules()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{System.Guid.NewGuid():N}.gz");
+        try
+        {
+            using (var fs = File.Create(tempFile))
+            using (var gz = new GZipStream(fs, CompressionMode.Compress))
+            {
+                var bytes = Encoding.UTF8.GetBytes("10.0.0.1/32\n10.0.0.2/32\n10.0.0.3/32\n");
+                gz.Write(bytes, 0, bytes.Length);
+            }
+
+            this.configService.BlocklistEnabled.Returns(true);
+            this.configService.BlocklistPath.Returns(tempFile);
+            this.configService.BlocklistUrl.Returns(string.Empty);
+
+            this.blocklistService.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+                .Returns(callInfo =>
+                {
+                    var rules = callInfo.Arg<IEnumerable<string>>().ToList();
+                    return Task.FromResult(rules.Count);
+                });
+
+            var result = await this.updateService.UpdateRulesAsync();
+
+            result.Should().Be(3);
+            await this.blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r != null));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task UpdateRulesAsync_WithBothLocalFileAndUrl_StreamsCombinedRules()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "1.1.1.1\n");
+
+            this.configService.BlocklistEnabled.Returns(true);
+            this.configService.BlocklistPath.Returns(tempFile);
+            this.configService.BlocklistUrl.Returns("https://example.com/blocklist.txt");
+
+            var urlBytes = Encoding.UTF8.GetBytes("2.2.2.2\n3.3.3.3\n");
+            this.safeHttpClientService.DownloadBytesAsync("https://example.com/blocklist.txt", Arg.Any<long>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(urlBytes));
+
+            this.blocklistService.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+                .Returns(callInfo =>
+                {
+                    var rules = callInfo.Arg<IEnumerable<string>>().ToList();
+                    return Task.FromResult(rules.Count);
+                });
+
+            var result = await this.updateService.UpdateRulesAsync();
+
+            result.Should().Be(3);
+            await this.blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r != null));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public void ParseLines_LargeStream_StreamsLazilyWithoutMaterializingList()
+    {
+        var lineCount = 100_000;
+        var sb = new StringBuilder();
+        for (var i = 0; i < lineCount; i++)
+        {
+            sb.AppendLine($"10.0.{i / 256}.{i % 256}/32");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        using var stream = new MemoryStream(bytes);
+
+        var count = 0;
+        foreach (var line in BlocklistUpdateService.ParseLines(stream))
+        {
+            count++;
+            line.Should().StartWith("10.0.");
+        }
+
+        count.Should().Be(lineCount);
+    }
+
+    [Test]
+    public void ParseLines_WithNullOrEmpty_YieldsBreak()
+    {
+        BlocklistUpdateService.ParseLines((byte[])null!).Should().BeEmpty();
+        BlocklistUpdateService.ParseLines(System.Array.Empty<byte>()).Should().BeEmpty();
+        BlocklistUpdateService.ParseLines((Stream)null!).Should().BeEmpty();
+    }
+
+    [Test]
+    public void ParseLines_WithWhitespaceAndEmptyLines_FiltersOutWhitespace()
+    {
+        var content = "  \n  1.2.3.4  \n\n\r\n   5.6.7.8   \n  \t  \n";
+        var bytes = Encoding.UTF8.GetBytes(content);
+
+        var lines = BlocklistUpdateService.ParseLines(bytes).ToList();
+
+        lines.Should().Equal("1.2.3.4", "5.6.7.8");
     }
 }
