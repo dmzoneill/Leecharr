@@ -119,6 +119,41 @@ public class OllamaAiProviderTest
         response.Should().Contain("Ratio");
     }
 
+    [Test]
+    public async Task ParseReleaseAsync_WhenOllamaReturnsJson_ParsesAllFields()
+    {
+        var responseJson = @"{
+            ""model"": ""llama3.2"",
+            ""response"": ""{\""cleanTitle\"":\""Interstellar\"",\""year\"":2014,\""resolution\"":\""2160p\"",\""quality\"":\""2160p UHD BluRay\"",\""source\"":\""BluRay\"",\""videoCodec\"":\""x265\"",\""audioCodec\"":\""DTS-HD MA\"",\""audioChannels\"":\""5.1\"",\""dynamicRange\"":\""HDR10\"",\""edition\"":\""IMAX\"",\""releaseGroup\"":\""SPARKS\"",\""isProper\"":false,\""isRepack\"":false,\""isRemux\"":false,\""languages\"":[\""English\"",\""German\""],\""confidenceScore\"":0.96}"",
+            ""done"": true
+        }";
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Interstellar.2014.2160p.UHD.BluRay.x265.HDR.DTS-HD.MA.5.1-SPARKS");
+        parsed.CleanTitle.Should().Be("Interstellar");
+        parsed.Year.Should().Be(2014);
+        parsed.Resolution.Should().Be("2160p");
+        parsed.Quality.Should().Be("2160p UHD BluRay");
+        parsed.VideoCodec.Should().Be("x265");
+        parsed.AudioCodec.Should().Be("DTS-HD MA");
+        parsed.AudioChannels.Should().Be("5.1");
+        parsed.DynamicRange.Should().Be("HDR10");
+        parsed.Edition.Should().Be("IMAX");
+        parsed.IsRemux.Should().BeFalse();
+        parsed.Languages.Should().Contain(new[] { "English", "German" });
+        parsed.ConfidenceScore.Should().Be(0.96);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;

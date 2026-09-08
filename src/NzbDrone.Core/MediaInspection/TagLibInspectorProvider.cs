@@ -2422,6 +2422,22 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 info.VideoCodec = "AV1";
             }
+            else if (Regex.IsMatch(normalized, @"\bVP9\b"))
+            {
+                info.VideoCodec = "VP9";
+            }
+            else if (Regex.IsMatch(normalized, @"\bVP8\b"))
+            {
+                info.VideoCodec = "VP8";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(MPEG\s*2|MPEG2)\b"))
+            {
+                info.VideoCodec = "MPEG-2";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(VC\s*1|VC1|WVC1)\b"))
+            {
+                info.VideoCodec = "VC-1";
+            }
         }
 
         // Audio Codec & Channels (only if missing)

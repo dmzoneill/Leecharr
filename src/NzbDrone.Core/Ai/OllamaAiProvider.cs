@@ -172,7 +172,7 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
 
         try
         {
-            var systemPrompt = "You are a scene release title parsing engine. Output ONLY a raw JSON object with keys: cleanTitle (string), year (integer or null), resolution (string e.g. 1080p, 2160p, 720p), source (string e.g. WEB-DL, BluRay, HDTV), videoCodec (string e.g. x265, x264, HEVC, H.264), audioCodec (string e.g. AAC, DTS-HD, AC3), releaseGroup (string), season (integer or null), episode (integer or null), isProper (bool), isRepack (bool), confidenceScore (float 0.0-1.0). No markdown formatting or extra text.";
+            var systemPrompt = "You are a scene release title parsing engine. Output ONLY a raw JSON object with keys: cleanTitle (string), year (integer or null), resolution (string e.g. 1080p, 2160p, 720p), quality (string e.g. 2160p Remux, 1080p BluRay, WEB-DL), source (string e.g. WEB-DL, BluRay, HDTV), videoCodec (string e.g. x265, x264, HEVC, H.264, VP9, VP8, MPEG-2, VC-1), audioCodec (string e.g. AAC, DTS-HD, AC3, TrueHD, Atmos), audioChannels (string e.g. 7.1, 5.1, 2.0), dynamicRange (string e.g. HDR, HDR10+, Dolby Vision, HLG, SDR), edition (string or null e.g. Extended, Remastered), releaseGroup (string), season (integer or null), episode (integer or null), isProper (bool), isRepack (bool), isRemux (bool), languages (array of strings e.g. [\"English\", \"French\"]), confidenceScore (float 0.0-1.0). No markdown formatting or extra text.";
             var userPrompt = $"Parse this release name: \"{releaseName}\"";
 
             var responseText = await this.GenerateChatResponseAsync(userPrompt, systemPrompt);
@@ -186,20 +186,50 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
                     var cleanTitle = root.TryGetProperty("cleanTitle", out var ct) ? ct.GetString() : null;
                     if (!string.IsNullOrWhiteSpace(cleanTitle))
                     {
+                        var languages = new List<string>();
+                        if (root.TryGetProperty("languages", out var langArr) && langArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var langElem in langArr.EnumerateArray())
+                            {
+                                var l = langElem.GetString();
+                                if (!string.IsNullOrWhiteSpace(l))
+                                {
+                                    languages.Add(l.Trim());
+                                }
+                            }
+                        }
+
+                        var language = root.TryGetProperty("language", out var langProp) ? langProp.GetString() ?? string.Empty : string.Empty;
+                        if (string.IsNullOrWhiteSpace(language) && languages.Count > 0)
+                        {
+                            language = languages[0];
+                        }
+                        else if (!string.IsNullOrWhiteSpace(language) && !languages.Contains(language, StringComparer.OrdinalIgnoreCase))
+                        {
+                            languages.Insert(0, language);
+                        }
+
                         var parsed = new AiParsedRelease
                         {
                             RawTitle = releaseName,
                             CleanTitle = cleanTitle,
                             Year = root.TryGetProperty("year", out var yr) && yr.TryGetInt32(out var yVal) ? yVal : null,
                             Resolution = root.TryGetProperty("resolution", out var res) ? res.GetString() ?? string.Empty : string.Empty,
+                            Quality = root.TryGetProperty("quality", out var q) ? q.GetString() ?? string.Empty : string.Empty,
                             Source = root.TryGetProperty("source", out var src) ? src.GetString() ?? string.Empty : string.Empty,
                             VideoCodec = root.TryGetProperty("videoCodec", out var vc) ? vc.GetString() ?? string.Empty : string.Empty,
                             AudioCodec = root.TryGetProperty("audioCodec", out var ac) ? ac.GetString() ?? string.Empty : string.Empty,
+                            AudioChannels = root.TryGetProperty("audioChannels", out var ach) ? ach.GetString() ?? string.Empty : string.Empty,
+                            DynamicRange = root.TryGetProperty("dynamicRange", out var dr) ? dr.GetString() ?? string.Empty : string.Empty,
+                            Edition = root.TryGetProperty("edition", out var ed) ? ed.GetString() ?? string.Empty : string.Empty,
                             ReleaseGroup = root.TryGetProperty("releaseGroup", out var rg) ? rg.GetString() ?? string.Empty : string.Empty,
+                            Language = language,
+                            Languages = languages,
                             Season = root.TryGetProperty("season", out var sn) && sn.TryGetInt32(out var snVal) ? snVal : (root.TryGetProperty("seasonNumber", out var snOld) && snOld.TryGetInt32(out var snOldVal) ? snOldVal : null),
                             Episode = root.TryGetProperty("episode", out var en) && en.TryGetInt32(out var enVal) ? enVal : (root.TryGetProperty("episodeNumber", out var enOld) && enOld.TryGetInt32(out var enOldVal) ? enOldVal : null),
                             IsProper = root.TryGetProperty("isProper", out var ip) && ip.GetBoolean(),
                             IsRepack = root.TryGetProperty("isRepack", out var ir) && ir.GetBoolean(),
+                            IsRemux = root.TryGetProperty("isRemux", out var irx) && irx.GetBoolean(),
                             ConfidenceScore = root.TryGetProperty("confidenceScore", out var cs) && cs.TryGetDouble(out var csVal) ? csVal : 0.95,
                         };
                         parsed.AdditionalTags["Engine"] = this.ProviderId;

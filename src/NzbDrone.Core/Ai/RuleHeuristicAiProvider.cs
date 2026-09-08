@@ -33,13 +33,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex EpisodeOnlyRegex = new(@"(?i)\b(?:Episode|Ep)\s*(?<episode>\d{1,3})\b", RegexOptions.Compiled);
     private static readonly Regex YearRegex = new(@"\b(?<year>19\d{2}|20\d{2})\b", RegexOptions.Compiled);
     private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled);
-    private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>UHD\s*BluRay|BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled);
-    private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|XviD|DivX|VC-?1)\b", RegexOptions.Compiled);
+    private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled);
+    private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.Compiled);
     private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS-HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled);
     private static readonly Regex AudioChannelsRegex = new(@"(?i)\b(?<channels>7\.1|5\.1|2\.0|1\.0)\b", RegexOptions.Compiled);
-    private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|SDR)\b", RegexOptions.Compiled);
+    private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|HLG|SDR)\b", RegexOptions.Compiled);
     private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled);
-    private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>MULTi|DUAL|ENG|English|FRENCH|GERMAN|SPANISH|ITA|JAP|RUS)\b", RegexOptions.Compiled);
+    private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled);
     private static readonly Regex ReleaseGroupRegex = new(@"(?:-(?<group>[A-Za-z0-9]+)|\[(?<group>[A-Za-z0-9]+)\])$", RegexOptions.Compiled);
 
     public string ProviderId => "RuleHeuristic";
@@ -172,7 +172,16 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var qualityMatch = QualityRegex.Match(working);
         if (qualityMatch.Success)
         {
-            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value);
+            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, result.IsRemux);
+        }
+        else if (result.IsRemux)
+        {
+            result.Quality = NormalizeQuality("REMUX", result.Resolution, true);
+        }
+
+        if (result.Quality != null && result.Quality.Contains("Remux", StringComparison.OrdinalIgnoreCase))
+        {
+            result.IsRemux = true;
         }
 
         // 6. Video Codec
@@ -211,11 +220,23 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             result.Edition = editionMatch.Groups["edition"].Value;
         }
 
-        // 10. Language
-        var langMatch = LanguageRegex.Match(working);
-        if (langMatch.Success)
+        // 10. Language(s)
+        var langMatches = LanguageRegex.Matches(working);
+        foreach (Match lm in langMatches)
         {
-            result.Language = langMatch.Groups["lang"].Value.ToUpperInvariant();
+            if (lm.Success)
+            {
+                var normalizedLang = NormalizeLanguageToken(lm.Groups["lang"].Value);
+                if (!result.Languages.Contains(normalizedLang, StringComparer.OrdinalIgnoreCase))
+                {
+                    result.Languages.Add(normalizedLang);
+                }
+            }
+        }
+
+        if (result.Languages.Count > 0)
+        {
+            result.Language = result.Languages[0];
         }
 
         // 11. Release Group
@@ -509,7 +530,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var qualityMatch = QualityRegex.Match(working);
         if (qualityMatch.Success)
         {
-            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value);
+            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, qualityMatch.Groups["quality"].Value.Contains("remux", StringComparison.OrdinalIgnoreCase));
             working = working.Remove(qualityMatch.Index, qualityMatch.Length);
         }
 
@@ -758,6 +779,9 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckMatch(ResolutionRegex);
         CheckMatch(QualityRegex);
         CheckMatch(VideoCodecRegex);
+        CheckMatch(LanguageRegex);
+        CheckMatch(DynamicRangeRegex);
+        CheckMatch(EditionRegex);
 
         if (parsed.Year.HasValue)
         {
@@ -784,16 +808,74 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         return string.IsNullOrWhiteSpace(clean) ? raw : clean;
     }
 
-    private static string NormalizeQuality(string quality)
+    private static string NormalizeQuality(string quality, string resolution = null, bool isRemux = false)
     {
         if (string.IsNullOrWhiteSpace(quality))
         {
+            if (isRemux)
+            {
+                if (resolution == "2160p")
+                {
+                    return "2160p Remux";
+                }
+
+                if (resolution == "1080p")
+                {
+                    return "1080p Remux";
+                }
+
+                if (resolution == "720p")
+                {
+                    return "720p Remux";
+                }
+
+                return "REMUX";
+            }
+
             return quality;
         }
 
         var q = quality.ToUpperInvariant();
+
+        // 1. Remux distinction (2160p Remux, 1080p Remux, 720p Remux, REMUX)
+        if (isRemux || q.Contains("REMUX"))
+        {
+            if (q.Contains("2160") || q.Contains("UHD") || resolution == "2160p")
+            {
+                return "2160p Remux";
+            }
+
+            if (q.Contains("1080") || resolution == "1080p")
+            {
+                return "1080p Remux";
+            }
+
+            if (q.Contains("720") || resolution == "720p")
+            {
+                return "720p Remux";
+            }
+
+            return "REMUX";
+        }
+
+        // 2. BluRay distinction (2160p UHD BluRay vs 1080p BluRay vs 720p BluRay vs generic BluRay)
         if (q.Contains("BLURAY") || q.Contains("BRRIP") || q.Contains("BDRIP"))
         {
+            if (q.Contains("2160") || q.Contains("UHD") || resolution == "2160p")
+            {
+                return "2160p UHD BluRay";
+            }
+
+            if (q.Contains("1080") || resolution == "1080p")
+            {
+                return "1080p BluRay";
+            }
+
+            if (q.Contains("720") || resolution == "720p")
+            {
+                return "720p BluRay";
+            }
+
             return "BluRay";
         }
 
@@ -812,14 +894,14 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             return "HDTV";
         }
 
-        if (q.Contains("DVDRIP") || q.Contains("DVD-R"))
+        if (q.Contains("DVDRIP"))
         {
             return "DVDRip";
         }
 
-        if (q.Contains("REMUX"))
+        if (q.Contains("DVD"))
         {
-            return "REMUX";
+            return "DVD";
         }
 
         if (q.Contains("CAM"))
@@ -856,6 +938,26 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         if (c.Contains("AV1"))
         {
             return "AV1";
+        }
+
+        if (c.Contains("VP9"))
+        {
+            return "VP9";
+        }
+
+        if (c.Contains("VP8"))
+        {
+            return "VP8";
+        }
+
+        if (c.Contains("MPEG-2") || c.Contains("MPEG2"))
+        {
+            return "MPEG-2";
+        }
+
+        if (c.Contains("VC-1") || c.Contains("VC1"))
+        {
+            return "VC-1";
         }
 
         if (c.Contains("XVID"))
@@ -945,11 +1047,60 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             return "HDR10";
         }
 
+        if (h.Contains("HLG"))
+        {
+            return "HLG";
+        }
+
         if (h.Contains("HDR"))
         {
             return "HDR";
         }
 
+        if (h.Contains("SDR"))
+        {
+            return "SDR";
+        }
+
         return hdr;
+    }
+
+    private static string NormalizeLanguageToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return token;
+        }
+
+        var t = token.ToUpperInvariant().Replace("-", string.Empty);
+        return t switch
+        {
+            "MULTIAUDIO" or "MULTI" => "Multi-Audio",
+            "DUALAUDIO" or "DUAL" => "Dual-Audio",
+            "VOSTFR" => "VOSTFR",
+            "TRUEFRENCH" => "TRUEFRENCH",
+            "VFF" => "VFF",
+            "FRENCH" or "FRA" or "FRE" => "French",
+            "CASTELLANO" => "Castellano",
+            "LATINO" => "Latino",
+            "SPANISH" or "SPA" or "ESP" => "Spanish",
+            "ENG" or "ENGLISH" => "English",
+            "GER" or "GERMAN" or "DEU" => "German",
+            "ITA" or "ITALIAN" => "Italian",
+            "JPN" or "JAP" or "JAPANESE" => "Japanese",
+            "KOR" or "KOREAN" => "Korean",
+            "CHI" or "ZHO" or "CHINESE" => "Chinese",
+            "HIN" or "HINDI" => "Hindi",
+            "POR" or "PORTUGUESE" => "Portuguese",
+            "DUT" or "DUTCH" or "NLD" => "Dutch",
+            "POL" or "POLISH" => "Polish",
+            "SWE" or "SWEDISH" => "Swedish",
+            "NOR" or "NORWEGIAN" => "Norwegian",
+            "UKR" or "UKRAINIAN" => "Ukrainian",
+            "TUR" or "TURKISH" => "Turkish",
+            "ARA" or "ARABIC" => "Arabic",
+            "RUS" or "RUSSIAN" => "Russian",
+            _ => token,
+        };
     }
 }
