@@ -389,7 +389,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
                 eta = t.Eta > 0 ? t.Eta : (t.Progress >= 1.0 ? 0 : (t.DownloadSpeed > 0 ? (Math.Max(0, t.TotalSize - t.Downloaded) / t.DownloadSpeed) : 8640000)),
-                status = new[] { MapToFloodStatus(t.Status) },
+                status = new[] { MapToFloodStatus(t) },
                 tags = string.IsNullOrWhiteSpace(t.Category)
                     ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
                     : new[] { t.Category },
@@ -407,7 +407,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         return dict;
     }
 
-    public static string MapToFloodStatus(TorrentStatus status)
+    public static string MapToFloodStatus(TorrentStatus status, double progress = 0.0)
     {
         return status switch
         {
@@ -415,11 +415,21 @@ public class FloodApiController : ControllerBase, IActionFilter
             TorrentStatus.Seeding => "seeding",
             TorrentStatus.Completed => "complete",
             TorrentStatus.Checking => "checking",
-            TorrentStatus.Paused => "stopped",
-            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Paused => progress >= 1.0 ? "complete" : "stopped",
+            TorrentStatus.Stopped => progress >= 1.0 ? "complete" : "stopped",
             TorrentStatus.Error => "error",
             _ => "inactive",
         };
+    }
+
+    public static string MapToFloodStatus(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return "inactive";
+        }
+
+        return MapToFloodStatus(torrent.Status, torrent.Progress);
     }
 
     [HttpPost]
