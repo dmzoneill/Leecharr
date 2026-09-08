@@ -817,4 +817,291 @@ public class DelugeJsonRpcControllerTest
 
         await this.torrentService.Received(1).DeleteAsync(42, expectedDelete);
     }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_IncludesAllNewStatusKeysAndNumPeersAsLeechers()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Deluge Status Test Torrent",
+            InfoHash = "1122334455667788990011223344556677889900",
+            TotalSize = 1048576,
+            Downloaded = 524288,
+            Uploaded = 262144,
+            Progress = 0.5,
+            DownloadSpeed = 1024,
+            UploadSpeed = 512,
+            Eta = 512,
+            Ratio = 0.5,
+            Seeders = 10,
+            Leechers = 5,
+            PieceCount = 256,
+            PieceLength = 4096,
+            QueuePosition = 2,
+            SequentialDownload = true,
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://tracker.example.com:80/announce",
+            Category = "tv",
+            DateAdded = new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+            DateCompleted = new System.DateTime(2025, 1, 2, 0, 0, 0, System.DateTimeKind.Utc),
+            LastActive = System.DateTime.UtcNow.AddSeconds(-30),
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, []],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        var resObj = resultDoc.RootElement.GetProperty("result");
+        var status = resObj.GetProperty("1122334455667788990011223344556677889900");
+
+        // num_peers must strictly be leechers (5), total_peers must be (15)
+        status.GetProperty("num_peers").GetInt32().Should().Be(5);
+        status.GetProperty("total_peers").GetInt32().Should().Be(15);
+        status.GetProperty("num_seeds").GetInt32().Should().Be(10);
+        status.GetProperty("total_seeds").GetInt32().Should().Be(10);
+
+        // missing status keys
+        status.GetProperty("total_uploaded").GetInt64().Should().Be(262144);
+        status.GetProperty("seeds_peers_ratio").GetDouble().Should().BeApproximately(2.0, 0.001);
+        status.GetProperty("tracker").GetString().Should().Be("http://tracker.example.com:80/announce");
+        status.GetProperty("tracker_host").GetString().Should().Be("tracker.example.com");
+        status.GetProperty("trackers").ValueKind.Should().Be(JsonValueKind.Array);
+        status.GetProperty("tracker_status").GetString().Should().Contain("OK");
+        status.GetProperty("next_announce").GetInt32().Should().Be(1800);
+        status.GetProperty("finished_time").GetInt64().Should().BeGreaterThan(0);
+        status.GetProperty("time_since_transfer").GetInt64().Should().BeGreaterThanOrEqualTo(0);
+        status.GetProperty("num_pieces").GetInt32().Should().Be(256);
+        status.GetProperty("piece_length").GetInt32().Should().Be(4096);
+        status.GetProperty("distributed_copies").GetDouble().Should().Be(0.5);
+        status.GetProperty("queue_position").GetInt32().Should().Be(2);
+        status.GetProperty("storage_mode").GetString().Should().Be("sparse");
+        status.GetProperty("move_completed").GetBoolean().Should().BeFalse();
+        status.GetProperty("move_completed_path").GetString().Should().NotBeNull();
+        status.GetProperty("prioritize_first_last_pieces").GetBoolean().Should().BeFalse();
+        status.GetProperty("sequential_download").GetBoolean().Should().BeTrue();
+        status.GetProperty("max_connections").GetInt32().Should().Be(-1);
+        status.GetProperty("max_upload_slots").GetInt32().Should().Be(-1);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetConfig_ReturnsExpandedDelugePreferences()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/custom/downloads");
+        this.configService.MaxGlobalConnections.Returns(250);
+        this.configService.MaxPerTorrentConnections.Returns(60);
+        this.configService.MaxUploadSlots.Returns(8);
+        this.configService.MaxDownloadSpeedKbps.Returns(5000);
+        this.configService.MaxUploadSpeedKbps.Returns(2000);
+        this.configService.MaxActiveTorrents.Returns(10);
+        this.configService.MaxActiveDownloads.Returns(6);
+        this.configService.MaxActiveUploads.Returns(4);
+        this.configService.EnableDht.Returns(true);
+        this.configService.UpnpEnabled.Returns(true);
+        this.configService.EnableLpd.Returns(true);
+        this.configService.BindInterface.Returns("eth0");
+        this.configService.PeerPortRandomOnStart.Returns(false);
+        this.configService.ListeningPort.Returns(58846);
+        this.configService.EncryptionMode.Returns("Forced");
+        this.configService.GlobalSeedRatioLimit.Returns(1.5);
+        this.configService.IdleSeedingLimitMinutes.Returns(120);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        var config = resultDoc.RootElement.GetProperty("result");
+
+        config.GetProperty("download_location").GetString().Should().Be("/custom/downloads");
+        config.GetProperty("dht").GetBoolean().Should().BeTrue();
+        config.GetProperty("upnp").GetBoolean().Should().BeTrue();
+        config.GetProperty("natpmp").GetBoolean().Should().BeTrue();
+        config.GetProperty("lsd").GetBoolean().Should().BeTrue();
+        config.GetProperty("listen_interface").GetString().Should().Be("eth0");
+        config.GetProperty("random_port").GetBoolean().Should().BeFalse();
+        config.GetProperty("enc_in_policy").GetInt32().Should().Be(0);
+        config.GetProperty("enc_out_policy").GetInt32().Should().Be(0);
+        config.GetProperty("enc_prefer_rc4").GetBoolean().Should().BeTrue();
+        config.GetProperty("stop_seed_at_ratio").GetBoolean().Should().BeTrue();
+        config.GetProperty("stop_seed_ratio").GetDouble().Should().Be(1.5);
+        config.GetProperty("seed_time_limit").GetInt32().Should().Be(7200);
+        config.GetProperty("max_connections_per_torrent").GetInt32().Should().Be(60);
+        config.GetProperty("max_upload_slots_global").GetInt32().Should().Be(8);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_UpdatesExtendedPreferences()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var setConfigJson = "{\"method\":\"core.set_config\",\"params\":[{" +
+            "\"dht\":true," +
+            "\"upnp\":false," +
+            "\"lsd\":true," +
+            "\"listen_interface\":\"tun0\"," +
+            "\"random_port\":true," +
+            "\"stop_seed_ratio\":3.0," +
+            "\"seed_time_limit\":3600," +
+            "\"enc_in_policy\":2," +
+            "\"max_connections_per_torrent\":40," +
+            "\"max_upload_slots_global\":12" +
+            "}],\"id\":1}";
+
+        using var doc = JsonDocument.Parse(setConfigJson);
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (bool)d["EnableDht"] == true &&
+            (bool)d["UpnpEnabled"] == false &&
+            (bool)d["EnableLpd"] == true &&
+            (string)d["BindInterface"] == "tun0" &&
+            (bool)d["PeerPortRandomOnStart"] == true &&
+            (double)d["GlobalSeedRatioLimit"] == 3.0 &&
+            (int)d["IdleSeedingLimitMinutes"] == 60 &&
+            (string)d["EncryptionMode"] == "Disabled" &&
+            (int)d["MaxPerTorrentConnections"] == 40 &&
+            (int)d["MaxUploadSlots"] == 12));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreForceReannounce_InvokesForceAnnounceAsync()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var infoHash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent { Id = 77, InfoHash = infoHash };
+        this.torrentService.GetByInfoHash(infoHash).Returns(torrent);
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.force_reannounce\",\"params\":[[\"{infoHash}\"]],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        await this.torrentService.Received(1).ForceAnnounceAsync(77);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentFileAsync_AliasesToAddTorrentFile()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "9988776655443322110099887766554433221100",
+            Name = "Async Added Torrent",
+            TotalSize = 1024,
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>())
+            .Returns(Task.FromResult(new Torrent { Id = 88, InfoHash = parsed.InfoHash }));
+
+        var dummyB64 = System.Convert.ToBase64String(new byte[] { 1, 2, 3 });
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_file_async\",\"params\":[\"test.torrent\", \"{dummyB64}\", {{\"download_location\":\"/downloads\"}}],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain(parsed.InfoHash);
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, null, "/downloads", false, Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreRenameFiles_WithArrayPairs_InvokesRenameFileAsync()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var infoHash = "1111222233334444555566667777888899990000";
+        var torrent = new Torrent { Id = 99, InfoHash = infoHash };
+        this.torrentService.GetByInfoHash(infoHash).Returns(torrent);
+
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 99, Path = "folder/old_video.mkv", Size = 1000 },
+            new TorrentFile { Id = 2, TorrentId = 99, Path = "folder/old_sub.srt", Size = 100 },
+        };
+        this.torrentFileService.GetFiles(99).Returns(files);
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.rename_files\",\"params\":[\"{infoHash}\", [[0, \"folder/new_video.mkv\"], [1, \"folder/new_sub.srt\"]]],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        await this.torrentService.Received(1).RenameFileAsync(99, "folder/old_video.mkv", "folder/new_video.mkv");
+        await this.torrentService.Received(1).RenameFileAsync(99, "folder/old_sub.srt", "folder/new_sub.srt");
+    }
+
+    [Test]
+    public async Task HandleRpc_LabelGetTorrents_FiltersTorrentsByLabel()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent1 = new Torrent { Id = 1, InfoHash = "aaaa000000000000000000000000000000000001", Category = "movies" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "bbbb000000000000000000000000000000000002", Category = "tv" };
+        var torrent3 = new Torrent { Id = 3, InfoHash = "cccc000000000000000000000000000000000003", Category = null, Label = string.Empty };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2, torrent3 });
+
+        // Query by "movies"
+        using var docMovies = JsonDocument.Parse("{\"method\":\"label.get_torrents\",\"params\":[\"movies\"],\"id\":1}");
+        var resultMovies = await this.controller.HandleRpc(docMovies.RootElement);
+        var jsonMovies = JsonSerializer.Serialize(((JsonResult)resultMovies).Value);
+        jsonMovies.Should().Contain(torrent1.InfoHash.ToLowerInvariant());
+        jsonMovies.Should().NotContain(torrent2.InfoHash.ToLowerInvariant());
+
+        // Query by "All"
+        using var docAll = JsonDocument.Parse("{\"method\":\"label.get_torrents\",\"params\":[\"All\"],\"id\":2}");
+        var resultAll = await this.controller.HandleRpc(docAll.RootElement);
+        var jsonAll = JsonSerializer.Serialize(((JsonResult)resultAll).Value);
+        jsonAll.Should().Contain(torrent1.InfoHash.ToLowerInvariant());
+        jsonAll.Should().Contain(torrent2.InfoHash.ToLowerInvariant());
+        jsonAll.Should().Contain(torrent3.InfoHash.ToLowerInvariant());
+
+        // Query by "no_label"
+        using var docNoLabel = JsonDocument.Parse("{\"method\":\"label.get_torrents\",\"params\":[\"no_label\"],\"id\":3}");
+        var resultNoLabel = await this.controller.HandleRpc(docNoLabel.RootElement);
+        var jsonNoLabel = JsonSerializer.Serialize(((JsonResult)resultNoLabel).Value);
+        jsonNoLabel.Should().NotContain(torrent1.InfoHash.ToLowerInvariant());
+        jsonNoLabel.Should().NotContain(torrent2.InfoHash.ToLowerInvariant());
+        jsonNoLabel.Should().Contain(torrent3.InfoHash.ToLowerInvariant());
+    }
 }
