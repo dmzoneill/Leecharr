@@ -8,6 +8,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Ai;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.MediaEnrichment.Providers;
@@ -16,6 +17,7 @@ using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Telemetry;
+using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Subsystems;
 
@@ -33,6 +35,7 @@ public class SubsystemsController : Controller
     private readonly IAiManager aiManager;
     private readonly ISystemResourceService resourceService;
     private readonly IBlocklistUpdateService blocklistUpdateService;
+    private readonly IBroadcastSignalRMessage signalRBroadcaster;
 
     public SubsystemsController(
         ITorrentEngineManager torrentEngineManager,
@@ -45,7 +48,8 @@ public class SubsystemsController : Controller
         IHttpTransportManager httpTransportManager,
         IAiManager aiManager,
         ISystemResourceService resourceService,
-        IBlocklistUpdateService blocklistUpdateService = null)
+        IBlocklistUpdateService blocklistUpdateService = null,
+        IBroadcastSignalRMessage signalRBroadcaster = null)
     {
         this.torrentEngineManager = torrentEngineManager;
         this.extractorManager = extractorManager;
@@ -58,6 +62,7 @@ public class SubsystemsController : Controller
         this.aiManager = aiManager;
         this.resourceService = resourceService;
         this.blocklistUpdateService = blocklistUpdateService;
+        this.signalRBroadcaster = signalRBroadcaster;
     }
 
     [HttpPost("blocklist/update")]
@@ -174,11 +179,12 @@ public class SubsystemsController : Controller
         }
 
         var normalized = subsystemId?.ToLowerInvariant();
+        SwitchSubsystemProviderResult result;
         switch (normalized)
         {
             case "bittorrent" or "torrentengine":
                 var torrentRes = await this.torrentEngineManager.SwitchEngineAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = torrentRes.Success,
                     SubsystemId = "bittorrent",
@@ -186,11 +192,12 @@ public class SubsystemsController : Controller
                     ActiveProvider = torrentRes.ActiveEngine,
                     Message = torrentRes.Message,
                     Error = torrentRes.Error,
-                });
+                };
+                break;
 
             case "extractor" or "archiveextractor":
                 var extractRes = await this.extractorManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = extractRes.Success,
                     SubsystemId = "extractor",
@@ -198,11 +205,12 @@ public class SubsystemsController : Controller
                     ActiveProvider = extractRes.ActiveProvider,
                     Message = extractRes.Message,
                     Error = extractRes.Error,
-                });
+                };
+                break;
 
             case "mediainspector" or "inspector":
                 var mediaRes = await this.mediaInspectorManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = mediaRes.Success,
                     SubsystemId = "mediainspector",
@@ -210,35 +218,38 @@ public class SubsystemsController : Controller
                     ActiveProvider = mediaRes.ActiveProvider,
                     Message = mediaRes.Message,
                     Error = mediaRes.Error,
-                });
+                };
+                break;
 
             case "geoip":
                 var previousGeo = this.geoIpManager.ActiveProviderId;
                 var geoSuccess = await this.geoIpManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = geoSuccess,
                     SubsystemId = "geoip",
                     PreviousProvider = previousGeo,
                     ActiveProvider = this.geoIpManager.ActiveProviderId,
                     Message = geoSuccess ? $"Switched GeoIP provider to {request.ProviderId}." : $"Failed to switch GeoIP provider to {request.ProviderId}.",
-                });
+                };
+                break;
 
             case "blocklist":
                 var previousBlock = this.blocklistManager.ActiveProviderId;
                 var blockSuccess = await this.blocklistManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = blockSuccess,
                     SubsystemId = "blocklist",
                     PreviousProvider = previousBlock,
                     ActiveProvider = this.blocklistManager.ActiveProviderId,
                     Message = blockSuccess ? $"Switched Blocklist provider to {request.ProviderId}." : $"Failed to switch Blocklist provider to {request.ProviderId}.",
-                });
+                };
+                break;
 
             case "networkbinding" or "binding":
                 var netRes = await this.networkBindingManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = netRes.Success,
                     SubsystemId = "networkbinding",
@@ -246,11 +257,12 @@ public class SubsystemsController : Controller
                     ActiveProvider = netRes.ActiveProvider,
                     Message = netRes.Message,
                     Error = netRes.Error,
-                });
+                };
+                break;
 
             case "mediametadata" or "metadata":
                 var metaRes = await this.mediaMetadataManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = metaRes.Success,
                     SubsystemId = "mediametadata",
@@ -258,11 +270,12 @@ public class SubsystemsController : Controller
                     ActiveProvider = metaRes.ActiveProvider,
                     Message = metaRes.Message,
                     Error = metaRes.Error,
-                });
+                };
+                break;
 
             case "httptransport" or "transport":
                 var httpRes = await this.httpTransportManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = httpRes.Success,
                     SubsystemId = "httptransport",
@@ -270,19 +283,21 @@ public class SubsystemsController : Controller
                     ActiveProvider = httpRes.ActiveProvider,
                     Message = httpRes.Message,
                     Error = httpRes.Error,
-                });
+                };
+                break;
 
             case "ai" or "intelligence":
                 var previousAi = this.aiManager.ActiveProviderId;
                 var aiSuccess = await this.aiManager.SwitchProviderAsync(request.ProviderId);
-                return this.Ok(new SwitchSubsystemProviderResult
+                result = new SwitchSubsystemProviderResult
                 {
                     Success = aiSuccess,
                     SubsystemId = "ai",
                     PreviousProvider = previousAi,
                     ActiveProvider = this.aiManager.ActiveProviderId,
                     Message = aiSuccess ? $"Switched AI provider to {request.ProviderId}." : $"Failed to switch AI provider to {request.ProviderId}.",
-                });
+                };
+                break;
 
             default:
                 return this.NotFound(new SwitchSubsystemProviderResult
@@ -292,6 +307,28 @@ public class SubsystemsController : Controller
                     Error = $"Subsystem '{subsystemId}' is unknown.",
                 });
         }
+
+        if (result.Success)
+        {
+            this.BroadcastSubsystemSwitched(result);
+        }
+
+        return this.Ok(result);
+    }
+
+    private void BroadcastSubsystemSwitched(SwitchSubsystemProviderResult result)
+    {
+        if (this.signalRBroadcaster == null)
+        {
+            return;
+        }
+
+        this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
+        {
+            Name = "subsystemSwitched",
+            Body = result,
+            Action = ModelAction.Updated,
+        });
     }
 
     [HttpPost("{subsystemId}/probe/{providerId}")]

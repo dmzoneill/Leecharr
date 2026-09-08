@@ -36,6 +36,8 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
+        services.AddProblemDetails();
+
         var apiAssembly = Assembly.Load("Leecharr.Api.V1");
         var httpAssembly = Assembly.Load("Leecharr.Http");
 
@@ -237,6 +239,8 @@ public class Startup
 
     public void Configure(WebApplication app)
     {
+        app.UseExceptionHandler();
+
         var configFileProvider = app.Services.GetRequiredService<IConfigFileProvider>();
         var urlBase = configFileProvider.UrlBase?.Trim() ?? string.Empty;
         if (!string.IsNullOrEmpty(urlBase))
