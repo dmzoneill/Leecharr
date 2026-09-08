@@ -24,7 +24,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 {
     private static readonly SemaphoreSlim QueueLock = new(1, 1);
     private readonly ConcurrentDictionary<int, long> lastSeenSessionUploaded = new();
-    private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
+    private readonly Dictionary<int, RefCountedSemaphore> deletionLocks = new();
+    private readonly object deletionLocksSync = new();
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository fileRepository;
     private readonly ICategoryService categoryService;
@@ -534,8 +535,22 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task DeleteAsync(int id, bool deleteFiles = false)
     {
-        var semaphore = this.deletionLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
-        await semaphore.WaitAsync();
+        RefCountedSemaphore lockItem;
+        lock (this.deletionLocksSync)
+        {
+            if (this.deletionLocks.TryGetValue(id, out var existing))
+            {
+                existing.RefCount++;
+                lockItem = existing;
+            }
+            else
+            {
+                lockItem = new RefCountedSemaphore();
+                this.deletionLocks[id] = lockItem;
+            }
+        }
+
+        await lockItem.Semaphore.WaitAsync();
         try
         {
             var torrent = this.torrentRepository.Get(id);
@@ -605,10 +620,15 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
         finally
         {
-            semaphore.Release();
-            if (semaphore.CurrentCount > 0)
+            lockItem.Semaphore.Release();
+            lock (this.deletionLocksSync)
             {
-                this.deletionLocks.TryRemove(id, out _);
+                lockItem.RefCount--;
+                if (lockItem.RefCount <= 0)
+                {
+                    this.deletionLocks.Remove(id);
+                    lockItem.Semaphore.Dispose();
+                }
             }
         }
     }
@@ -1666,5 +1686,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 NewStatus = TorrentStatus.Seeding,
             });
         }
+    }
+
+    private sealed class RefCountedSemaphore
+    {
+        public SemaphoreSlim Semaphore { get; } = new(1, 1);
+
+        public int RefCount { get; set; } = 1;
     }
 }
