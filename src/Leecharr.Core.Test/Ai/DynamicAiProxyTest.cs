@@ -203,13 +203,6 @@ public class DynamicAiProxyTest
     }
 
     [Test]
-    public void ParseRelease_Synchronous_DelegatesToActiveProvider()
-    {
-        var parsed = this.proxy.ParseRelease("Breaking.Bad.S01E01.1080p.mkv");
-        parsed.CleanTitle.Should().Be("Parsed Heuristic");
-    }
-
-    [Test]
     public async Task DiagnoseTorrentHealthAsync_DelegatesToActiveProvider()
     {
         var torrent = new Torrent { Id = 42, Name = "Test Torrent" };
@@ -218,14 +211,6 @@ public class DynamicAiProxyTest
         report.TorrentId.Should().Be(42);
         report.OverallHealth.Should().Be("Healthy");
         report.HealthScore.Should().Be(95.0);
-    }
-
-    [Test]
-    public void DiagnoseTorrentHealth_Synchronous_DelegatesToActiveProvider()
-    {
-        var torrent = new Torrent { Id = 42, Name = "Test Torrent" };
-        var report = this.proxy.DiagnoseTorrentHealth(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
-        report.TorrentId.Should().Be(42);
     }
 
     [Test]
@@ -238,13 +223,6 @@ public class DynamicAiProxyTest
     }
 
     [Test]
-    public void ProcessNaturalLanguageSearch_Synchronous_DelegatesToActiveProvider()
-    {
-        var searchParams = this.proxy.ProcessNaturalLanguageSearch("download breaking bad");
-        searchParams.CleanTitle.Should().Be("Breaking Bad");
-    }
-
-    [Test]
     public async Task AnalyzeMalwareRiskAsync_DelegatesToActiveProvider()
     {
         var assessment = await this.proxy.AnalyzeMalwareRiskAsync("CleanRelease.1080p", new List<TorrentFile>());
@@ -253,23 +231,9 @@ public class DynamicAiProxyTest
     }
 
     [Test]
-    public void AnalyzeMalwareRisk_Synchronous_DelegatesToActiveProvider()
-    {
-        var assessment = this.proxy.AnalyzeMalwareRisk("CleanRelease.1080p", new List<TorrentFile>());
-        assessment.RiskLevel.Should().Be("Safe");
-    }
-
-    [Test]
     public async Task GenerateChatResponseAsync_DelegatesToActiveProvider()
     {
         var response = await this.proxy.GenerateChatResponseAsync("How do I improve seed ratio?");
-        response.Should().Be("Rule heuristic assistant response");
-    }
-
-    [Test]
-    public void GenerateChatResponse_Synchronous_DelegatesToActiveProvider()
-    {
-        var response = this.proxy.GenerateChatResponse("How do I improve seed ratio?");
         response.Should().Be("Rule heuristic assistant response");
     }
 

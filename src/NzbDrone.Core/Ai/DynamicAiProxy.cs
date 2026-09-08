@@ -175,11 +175,6 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         return await this.defaultFallback.ParseReleaseAsync(releaseName);
     }
 
-    public AiParsedRelease ParseRelease(string releaseName)
-    {
-        return this.ParseReleaseAsync(releaseName).GetAwaiter().GetResult();
-    }
-
     public async Task<AiDiagnosticReport> DiagnoseTorrentHealthAsync(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
     {
         var provider = Volatile.Read(ref this.activeProvider);
@@ -197,11 +192,6 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         }
 
         return await this.defaultFallback.DiagnoseTorrentHealthAsync(torrent, peers, trackers);
-    }
-
-    public AiDiagnosticReport DiagnoseTorrentHealth(Torrent torrent, IReadOnlyList<PeerInfo> peers, IReadOnlyList<TrackerEntry> trackers)
-    {
-        return this.DiagnoseTorrentHealthAsync(torrent, peers, trackers).GetAwaiter().GetResult();
     }
 
     public async Task<AiSearchParameters> ProcessNaturalLanguageSearchAsync(string naturalQuery)
@@ -223,11 +213,6 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         return await this.defaultFallback.ProcessNaturalLanguageSearchAsync(naturalQuery);
     }
 
-    public AiSearchParameters ProcessNaturalLanguageSearch(string naturalQuery)
-    {
-        return this.ProcessNaturalLanguageSearchAsync(naturalQuery).GetAwaiter().GetResult();
-    }
-
     public async Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
     {
         var provider = Volatile.Read(ref this.activeProvider);
@@ -247,11 +232,6 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         return await this.defaultFallback.AnalyzeMalwareRiskAsync(torrentName, files);
     }
 
-    public AiMalwareRiskAssessment AnalyzeMalwareRisk(string torrentName, IReadOnlyList<TorrentFile> files)
-    {
-        return this.AnalyzeMalwareRiskAsync(torrentName, files).GetAwaiter().GetResult();
-    }
-
     public async Task<string> GenerateChatResponseAsync(string userMessage, string systemContext = null)
     {
         var provider = Volatile.Read(ref this.activeProvider);
@@ -269,11 +249,6 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         }
 
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
-    }
-
-    public string GenerateChatResponse(string userMessage, string systemContext = null)
-    {
-        return this.GenerateChatResponseAsync(userMessage, systemContext).GetAwaiter().GetResult();
     }
 
     public void Dispose()
