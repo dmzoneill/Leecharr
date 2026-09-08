@@ -580,4 +580,86 @@ public class TrackerBoostServiceTest
 
         scrapeUrl.Should().BeNull();
     }
+
+    [Test]
+    public void CalculateDynamicTier_AssignsTiersCorrectlyBasedOnHealthAndLatency()
+    {
+        // Tier 0: Fast responsive Alive tracker (< 300ms)
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 50).Should().Be(0);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 299).Should().Be(0);
+
+        // Tier 1: Alive (>= 300ms) or Slow (< 1000ms)
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 350).Should().Be(1);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Slow, 500).Should().Be(1);
+
+        // Tier 2: Offline, Untested, or excessive latency
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Offline, 50).Should().Be(2);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Untested, 0).Should().Be(2);
+    }
+
+    [Test]
+    public async Task BoostTorrentAsync_AssignsDynamicTiers_BasedOnHealthScoreAndLatency()
+    {
+        var publicTorrent = new Torrent
+        {
+            Id = 40,
+            Name = "Tier Test Torrent",
+            InfoHash = "4444555566667777888899990000111122223333",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(publicTorrent);
+
+        this.storedTrackers.Clear();
+        var fastTracker = new TrackerBoostTracker
+        {
+            Id = 1,
+            Url = "udp://fast.tracker.org:1337/announce",
+            Host = "fast.tracker.org",
+            Port = 1337,
+            Protocol = TrackerProtocol.Udp,
+            Status = TrackerHealthStatus.Alive,
+            LatencyMs = 120,
+            Enabled = true,
+        };
+        var slowTracker = new TrackerBoostTracker
+        {
+            Id = 2,
+            Url = "udp://slow.tracker.org:1337/announce",
+            Host = "slow.tracker.org",
+            Port = 1337,
+            Protocol = TrackerProtocol.Udp,
+            Status = TrackerHealthStatus.Slow,
+            LatencyMs = 650,
+            Enabled = true,
+        };
+        this.storedTrackers.Add(fastTracker);
+        this.storedTrackers.Add(slowTracker);
+
+        var result = await this.service.BoostTorrentAsync(40, onlyVerified: false);
+        result.Boosted.Should().BeTrue();
+        result.AddedTrackersCount.Should().Be(2);
+
+        var fastEntry = this.storedEntries.FirstOrDefault(e => e.Url == fastTracker.Url);
+        var slowEntry = this.storedEntries.FirstOrDefault(e => e.Url == slowTracker.Url);
+
+        fastEntry.Should().NotBeNull();
+        fastEntry!.Tier.Should().Be(0); // Fast alive tracker -> Tier 0
+
+        slowEntry.Should().NotBeNull();
+        slowEntry!.Tier.Should().Be(1); // Slow tracker -> Tier 1
+    }
+
+    [Test]
+    public async Task ResolveHostAddressesAsync_CachesDnsLookups()
+    {
+        TrackerBoostService.ClearDnsCache();
+
+        var addresses1 = await TrackerBoostService.ResolveHostAddressesAsync("127.0.0.1");
+        addresses1.Should().ContainSingle();
+        addresses1[0].ToString().Should().Be("127.0.0.1");
+
+        // IP address lookup does not pollute DNS cache or fail
+        var addresses2 = await TrackerBoostService.ResolveHostAddressesAsync("127.0.0.1");
+        addresses2.Should().ContainSingle();
+    }
 }

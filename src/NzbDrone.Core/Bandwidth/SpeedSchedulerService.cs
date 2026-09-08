@@ -115,8 +115,20 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
                 if (s.EndTime != null && s.EndTime.Count(c => c == ':') == 1)
                 {
-                    // minute-precision end time includes the entire minute (e.g. 23:59:59.999)
-                    endTime = new TimeOnly(endTime.Hour, endTime.Minute, 59, 999);
+                    // minute-precision end time includes the entire minute (e.g. 23:59:59.9999999)
+                    endTime = (endTime.Hour == 23 && endTime.Minute == 59)
+                        ? TimeOnly.MaxValue
+                        : new TimeOnly(endTime.Hour, endTime.Minute, 59, 999, 999);
+                }
+                else if (endTime.Hour == 23 && endTime.Minute == 59 && endTime.Second == 59)
+                {
+                    // "23:59:59" end time includes the final milliseconds of the day
+                    endTime = TimeOnly.MaxValue;
+                }
+                else if (s.EndTime != null && s.EndTime.Count(c => c == ':') == 2)
+                {
+                    // second-precision end time includes the entire second (e.g. 23:59:01.9999999)
+                    endTime = new TimeOnly(endTime.Hour, endTime.Minute, endTime.Second, 999, 999);
                 }
 
                 if (startTime <= endTime)
@@ -256,7 +268,9 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         var endMinute = Math.Clamp(this.configService.SchedulerEndMinute, 0, 59);
 
         var startTime = new TimeOnly(startHour, startMinute);
-        var endTime = new TimeOnly(endHour, endMinute, 59, 999);
+        var endTime = (endHour == 23 && endMinute == 59)
+            ? TimeOnly.MaxValue
+            : new TimeOnly(endHour, endMinute, 59, 999, 999);
         var currentTimeOnly = TimeOnly.FromDateTime(now);
         var today = now.DayOfWeek;
         var prevDay = (DayOfWeek)(((int)now.DayOfWeek + 6) % 7);
@@ -289,9 +303,14 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         if (currentTime.HasValue)
         {
             var dt = currentTime.Value;
-            if (dt.Kind == DateTimeKind.Utc && this.TryGetConfiguredTimeZone(out var tzFromUtc))
+            if (dt.Kind == DateTimeKind.Utc)
             {
-                return TimeZoneInfo.ConvertTimeFromUtc(dt, tzFromUtc);
+                if (this.TryGetConfiguredTimeZone(out var tzFromUtc))
+                {
+                    return TimeZoneInfo.ConvertTimeFromUtc(dt, tzFromUtc);
+                }
+
+                return TimeZoneInfo.ConvertTimeFromUtc(dt, TimeZoneInfo.Local);
             }
 
             return dt;

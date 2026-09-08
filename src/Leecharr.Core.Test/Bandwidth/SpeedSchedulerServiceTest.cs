@@ -584,4 +584,83 @@ public class SpeedSchedulerServiceTest
         limits.IsThrottled.Should().BeTrue();
         limits.MaxDownloadSpeedKbps.Should().Be(2500);
     }
+
+    [Test]
+    public void GetCurrentLimits_WithSecondPrecisionEndTimeAt235959_RemainsActiveDuringFinalSubSecond()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "End of Day Throttling",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 1500,
+                MaxUploadSpeed = 750,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        // Sub-second timestamps in final second before midnight
+        var limitsAt500Ms = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 59, 500));
+        limitsAt500Ms.IsThrottled.Should().BeTrue();
+        limitsAt500Ms.MaxDownloadSpeedKbps.Should().Be(1500);
+
+        var limitsAt999Ms = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 59, 999));
+        limitsAt999Ms.IsThrottled.Should().BeTrue();
+        limitsAt999Ms.MaxDownloadSpeedKbps.Should().Be(1500);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WithConfigSchedulerAt2359_RemainsActiveDuringFinalSubSecond()
+    {
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        this.configService.SchedulerEnabled.Returns(true);
+        this.configService.SchedulerStartHour.Returns(0);
+        this.configService.SchedulerStartMinute.Returns(0);
+        this.configService.SchedulerEndHour.Returns(23);
+        this.configService.SchedulerEndMinute.Returns(59);
+        this.configService.SchedulerMonday.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(2200);
+        this.configService.AltUploadSpeedKbps.Returns(1100);
+
+        var limitsAt999Ms = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 23, 59, 59, 999));
+        limitsAt999Ms.IsThrottled.Should().BeTrue();
+        limitsAt999Ms.MaxDownloadSpeedKbps.Should().Be(2200);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WhenUtcTimePassedWithoutConfiguredTimeZone_NormalizesToLocalTime()
+    {
+        this.configService.TimeZone.Returns((string)null!);
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Local Day Throttling",
+                Days = 127,
+                StartTime = "09:00:00",
+                EndTime = "17:00:00",
+                MaxDownloadSpeed = 3300,
+                MaxUploadSpeed = 1200,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        // Construct a local time that is inside the schedule, then convert to UTC
+        var localInside = new DateTime(2026, 8, 31, 12, 0, 0, DateTimeKind.Local);
+        var utcInside = localInside.ToUniversalTime();
+
+        var limits = this.service.GetCurrentLimits(utcInside);
+        limits.IsThrottled.Should().BeTrue();
+        limits.MaxDownloadSpeedKbps.Should().Be(3300);
+    }
 }

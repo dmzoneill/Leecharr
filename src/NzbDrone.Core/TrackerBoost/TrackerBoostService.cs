@@ -35,8 +35,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private static readonly HttpClient HttpClient = new(new HttpClientHandler { CheckCertificateRevocationList = true }) { Timeout = TimeSpan.FromSeconds(6) };
     private static readonly BencodeParser BParser = new();
     private static readonly ConcurrentDictionary<string, (DateTime BoostedAt, HashSet<string> InjectedTrackers)> BoostHistory = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, (IPAddress[] Addresses, DateTime ExpiresUtc)> DnsCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentQueue<TrackerBoostLogEntry> LogBuffer = new();
     private static readonly TimeSpan ScrapeCacheTtl = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan DnsCacheTtl = TimeSpan.FromMinutes(10);
 
     private static readonly string[] DefaultBootstrapTrackers = new[]
     {
@@ -601,6 +603,59 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return count;
     }
 
+    public static int CalculateDynamicTier(TrackerHealthStatus status, int latencyMs)
+    {
+        if (status == TrackerHealthStatus.Alive && latencyMs > 0 && latencyMs < 300)
+        {
+            return 0;
+        }
+
+        if ((status == TrackerHealthStatus.Alive || status == TrackerHealthStatus.Slow) && latencyMs < 1000)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
+    internal static async Task<IPAddress[]> ResolveHostAddressesAsync(string host, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return Array.Empty<IPAddress>();
+        }
+
+        if (IPAddress.TryParse(host, out var parsedIp))
+        {
+            return new[] { parsedIp };
+        }
+
+        if (DnsCache.TryGetValue(host, out var entry) && DateTime.UtcNow < entry.ExpiresUtc)
+        {
+            return entry.Addresses;
+        }
+
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+            if (addresses.Length > 0)
+            {
+                DnsCache[host] = (addresses, DateTime.UtcNow.Add(DnsCacheTtl));
+            }
+
+            return addresses;
+        }
+        catch
+        {
+            return Array.Empty<IPAddress>();
+        }
+    }
+
+    internal static void ClearDnsCache()
+    {
+        DnsCache.Clear();
+    }
+
     public async Task<int> ProbeTrackerHealthAsync()
     {
         var trackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
@@ -612,20 +667,39 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             await semaphore.WaitAsync();
             try
             {
-                var sw = Stopwatch.StartNew();
                 var isAlive = false;
 
                 if (tracker.Protocol == TrackerProtocol.Udp)
                 {
-                    isAlive = await this.ProbeUdpTrackerAsync(tracker.Host, tracker.Port);
+                    var addresses = await ResolveHostAddressesAsync(tracker.Host).ConfigureAwait(false);
+                    if (addresses.Length == 0)
+                    {
+                        tracker.Status = TrackerHealthStatus.Offline;
+                        tracker.FailedScrapes++;
+                        this.trackerRepository.Update(tracker);
+                        this.LogActivity("Error", "Health", $"DNS resolution failed for {tracker.Host} ({tracker.Url}) - marked Offline", tracker.Url);
+                        Interlocked.Increment(ref testedCount);
+                        return;
+                    }
+
+                    var sw = Stopwatch.StartNew();
+                    isAlive = await this.ProbeUdpTrackerAsync(addresses, tracker.Port).ConfigureAwait(false);
+                    sw.Stop();
+                    tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
                 }
                 else
                 {
-                    isAlive = await this.ProbeHttpTrackerAsync(tracker.Url);
+                    if (Uri.TryCreate(tracker.Url, UriKind.Absolute, out var uri))
+                    {
+                        await ResolveHostAddressesAsync(uri.Host).ConfigureAwait(false);
+                    }
+
+                    var sw = Stopwatch.StartNew();
+                    isAlive = await this.ProbeHttpTrackerAsync(tracker.Url).ConfigureAwait(false);
+                    sw.Stop();
+                    tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
                 }
 
-                sw.Stop();
-                tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
                 tracker.LastScraped = DateTime.UtcNow;
 
                 if (isAlive)
@@ -728,11 +802,16 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         foreach (var candidate in candidateDetections)
         {
+            var tr = this.trackerRepository.Get(candidate.TrackerId);
+            var tier = tr != null
+                ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
+                : CalculateDynamicTier(candidate.HealthStatus, candidate.LatencyMs);
+
             var entry = new TrackerEntry
             {
                 TorrentId = torrentId,
                 Url = candidate.TrackerUrl,
-                Tier = 1,
+                Tier = tier,
                 Status = 0,
                 Enabled = true,
                 Seeders = candidate.Seeders,
@@ -744,7 +823,6 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             totalSeeders += candidate.Seeders;
             totalLeechers += candidate.Leechers;
 
-            var tr = this.trackerRepository.Get(candidate.TrackerId);
             if (tr != null)
             {
                 tr.TotalSwarmsFound++;
@@ -927,11 +1005,14 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         if (!existingTrackers.Contains(trackerUrl.Trim().ToLowerInvariant()))
         {
+            var tr = this.trackerRepository.FindByUrl(trackerUrl.Trim());
+            var tier = tr != null ? CalculateDynamicTier(tr.Status, tr.LatencyMs) : 1;
+
             var entry = new TrackerEntry
             {
                 TorrentId = torrentId,
                 Url = trackerUrl.Trim(),
-                Tier = 1,
+                Tier = tier,
                 Status = 0,
                 Enabled = true,
                 AnnounceInterval = 1800,
@@ -1491,16 +1572,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return this.trackerRepository.Insert(tracker);
     }
 
-    private async Task<bool> ProbeUdpTrackerAsync(string host, int port)
+    private async Task<bool> ProbeUdpTrackerAsync(IPAddress[] addresses, int port)
     {
+        if (addresses == null || addresses.Length == 0)
+        {
+            return false;
+        }
+
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(host);
-            if (addresses.Length == 0)
-            {
-                return false;
-            }
-
             var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
             using var client = new UdpClient(targetAddress.AddressFamily);
             client.Client.ReceiveTimeout = 2000;
@@ -1538,6 +1618,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             return false;
         }
+    }
+
+    private async Task<bool> ProbeUdpTrackerAsync(string host, int port)
+    {
+        var addresses = await ResolveHostAddressesAsync(host).ConfigureAwait(false);
+        return await this.ProbeUdpTrackerAsync(addresses, port).ConfigureAwait(false);
     }
 
     private async Task<bool> ProbeHttpTrackerAsync(string url)
@@ -1780,7 +1866,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+            var addresses = await ResolveHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
             if (addresses.Length == 0)
             {
                 return (false, 0, 0, 0);
