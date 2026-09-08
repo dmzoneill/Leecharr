@@ -56,7 +56,7 @@ public class DbFactory : IDbFactory
 
     public IDatabase Create(DatabaseType dbType, string connectionString)
     {
-        TableRegistration.RegisterTypeHandlers();
+        TableRegistration.RegisterTables();
 
         this.logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
 

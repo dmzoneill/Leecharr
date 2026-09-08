@@ -20,19 +20,24 @@ namespace NzbDrone.Core.Datastore;
 
 public static class TableRegistration
 {
-    private static readonly object TypeHandlerLock = new();
-    private static bool typeHandlersRegistered;
+    private static readonly object RegistrationLock = new();
+    private static bool registered;
 
     public static void RegisterTypeHandlers()
     {
-        if (typeHandlersRegistered)
+        RegisterTables();
+    }
+
+    public static void RegisterTables()
+    {
+        if (registered)
         {
             return;
         }
 
-        lock (TypeHandlerLock)
+        lock (RegistrationLock)
         {
-            if (typeHandlersRegistered)
+            if (registered)
             {
                 return;
             }
@@ -43,35 +48,30 @@ public static class TableRegistration
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<string>>());
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<Dictionary<string, string>>());
 
-            typeHandlersRegistered = true;
+            TableMapping.Register<CommandModel>("Commands");
+            TableMapping.Register<ConfigModel>("Config");
+            TableMapping.Register<ScheduledTask>("ScheduledTasks");
+            TableMapping.Register<Tag>("Tags");
+            TableMapping.Register<Torrent>("Torrents");
+            TableMapping.Register<TorrentFile>("TorrentFiles");
+            TableMapping.Register<Category>("Categories");
+            TableMapping.Register<TorrentMediaMetadata>("TorrentMediaMetadata");
+            TableMapping.Register<TrackerEntry>("TrackerEntries");
+            TableMapping.Register<ArrConnectionDefinition>("ArrConnectionDefinitions");
+            TableMapping.Register<SpeedSchedule>("SpeedSchedules");
+            TableMapping.Register<DownloadHistory>("DownloadHistory");
+            TableMapping.Register<NetworkSettings>("NetworkSettings");
+            TableMapping.Register<NotificationDefinition>("NotificationDefinitions");
+            TableMapping.Register<IndexerDefinition>("IndexerDefinitions");
+            TableMapping.Register<RssRule>("RssRules");
+            TableMapping.Register<DownloadClients.DownloadClientDefinition>("DownloadClientDefinitions");
+            TableMapping.Register<Authentication.User>("Users");
+            TableMapping.Register<Authentication.IdentityProviderDefinition>("IdentityProviders");
+            TableMapping.Register<Authentication.UserSession>("UserSessions");
+            TableMapping.Register<Authentication.UserExternalLogin>("UserExternalLogins");
+            TableMapping.Register<TrackerBoost.TrackerBoostTracker>("TrackerBoostTrackers");
+
+            registered = true;
         }
-    }
-
-    public static void RegisterTables()
-    {
-        RegisterTypeHandlers();
-
-        TableMapping.Register<CommandModel>("Commands");
-        TableMapping.Register<ConfigModel>("Config");
-        TableMapping.Register<ScheduledTask>("ScheduledTasks");
-        TableMapping.Register<Tag>("Tags");
-        TableMapping.Register<Torrent>("Torrents");
-        TableMapping.Register<TorrentFile>("TorrentFiles");
-        TableMapping.Register<Category>("Categories");
-        TableMapping.Register<TorrentMediaMetadata>("TorrentMediaMetadata");
-        TableMapping.Register<TrackerEntry>("TrackerEntries");
-        TableMapping.Register<ArrConnectionDefinition>("ArrConnectionDefinitions");
-        TableMapping.Register<SpeedSchedule>("SpeedSchedules");
-        TableMapping.Register<DownloadHistory>("DownloadHistory");
-        TableMapping.Register<NetworkSettings>("NetworkSettings");
-        TableMapping.Register<NotificationDefinition>("NotificationDefinitions");
-        TableMapping.Register<IndexerDefinition>("IndexerDefinitions");
-        TableMapping.Register<RssRule>("RssRules");
-        TableMapping.Register<DownloadClients.DownloadClientDefinition>("DownloadClientDefinitions");
-        TableMapping.Register<Authentication.User>("Users");
-        TableMapping.Register<Authentication.IdentityProviderDefinition>("IdentityProviders");
-        TableMapping.Register<Authentication.UserSession>("UserSessions");
-        TableMapping.Register<Authentication.UserExternalLogin>("UserExternalLogins");
-        TableMapping.Register<TrackerBoost.TrackerBoostTracker>("TrackerBoostTrackers");
     }
 }
