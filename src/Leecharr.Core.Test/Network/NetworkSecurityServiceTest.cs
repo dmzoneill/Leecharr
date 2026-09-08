@@ -166,4 +166,46 @@ public class NetworkSecurityServiceTest
         configService.Received(1).SaveConfigDictionary(Arg.Is<System.Collections.Generic.Dictionary<string, object>>(d => (bool)d["EnableVpnKillSwitch"] == false));
         vpnService.Received(1).CheckVpnState();
     }
+
+    [Test]
+    public void GetCurrentSettings_WhenConfigServiceHasNetworkInterfaceBinding_ReturnsBoundInterface()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.BindInterface.Returns(string.Empty);
+        configService.NetworkInterfaceBinding.Returns("wg0");
+
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            BindInterface = null,
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var current = serviceWithConfig.GetCurrentSettings();
+
+        current.BindInterface.Should().Be("wg0");
+    }
+
+    [Test]
+    public void CheckVpnKillSwitch_WhenOnlyNetworkInterfaceBindingConfiguredAndInterfaceDropped_TriggersKillSwitch()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.EnableVpnKillSwitch.Returns(true);
+        configService.BindInterface.Returns(string.Empty);
+        configService.NetworkInterfaceBinding.Returns("nonexistent_vpn0");
+
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = false,
+            BindInterface = null,
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var triggered = serviceWithConfig.CheckVpnKillSwitch();
+
+        triggered.Should().BeTrue();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnKillSwitchTriggeredEvent>(e => e.InterfaceName == "nonexistent_vpn0"));
+    }
 }
