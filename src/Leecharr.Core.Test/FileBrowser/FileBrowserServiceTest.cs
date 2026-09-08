@@ -241,4 +241,105 @@ public class FileBrowserServiceTest
 
         this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
     }
+
+    [TestCase("/downloads/album/", "/downloads")]
+    [TestCase("/downloads/album", "/downloads")]
+    [TestCase("/downloads/", "/")]
+    [TestCase("/downloads", "/")]
+    [TestCase("/", "/")]
+    public void GetParentPath_WithVariousPaths_ReturnsExpectedParent(string inputPath, string expectedParent)
+    {
+        var result = this.service.GetParentPath(inputPath);
+
+        result.Should().Be(expectedParent);
+    }
+
+    [Test]
+    public void ResolvePath_WhenPathHasTrailingSeparator_TrimsSeparatorUnlessRoot()
+    {
+        this.service.ResolvePath("/downloads/album/").Should().Be("/downloads/album");
+        this.service.ResolvePath("/").Should().Be("/");
+    }
+
+    [Test]
+    public void Rename_WhenPathHasTrailingSeparator_RenamesInParentDirectory()
+    {
+        var source = "/downloads/album/";
+        var expectedSource = "/downloads/album";
+        var expectedDest = "/downloads/newalbum";
+
+        this.diskProvider.FolderExists(expectedSource).Returns(true);
+        this.diskProvider.FileExists(expectedDest).Returns(false);
+        this.diskProvider.FolderExists(expectedDest).Returns(false);
+
+        this.service.Rename(source, "newalbum");
+
+        this.diskProvider.Received(1).MoveFolder(expectedSource, expectedDest);
+    }
+
+    [Test]
+    public void Copy_WhenSourceDirectoryHasTrailingSeparator_CopiesDirectoryIntoDestination()
+    {
+        var source = "/downloads/album/";
+        var destDir = "/storage/music/";
+        var expectedSource = "/downloads/album";
+        var expectedDestDir = "/storage/music";
+        var expectedTargetDir = "/storage/music/album";
+        var fileInSource = "/downloads/album/track1.flac";
+        var fileInTarget = "/storage/music/album/track1.flac";
+
+        this.diskProvider.FolderExists(expectedDestDir).Returns(true);
+        this.diskProvider.FolderExists(expectedSource).Returns(true);
+        this.diskProvider.FolderExists(expectedTargetDir).Returns(false);
+        this.diskProvider.GetFiles(expectedSource, false).Returns(new[] { fileInSource });
+        this.diskProvider.GetDirectories(expectedSource).Returns(Array.Empty<string>());
+
+        this.service.Copy(source, destDir);
+
+        this.diskProvider.Received(1).CreateFolder(expectedTargetDir);
+        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, true);
+    }
+
+    [Test]
+    public void Move_WhenSourceDirectoryHasTrailingSeparator_MovesDirectoryToDestination()
+    {
+        var source = "/downloads/album/";
+        var destDir = "/storage/music/";
+        var expectedSource = "/downloads/album";
+        var expectedDestDir = "/storage/music";
+        var expectedTargetDir = "/storage/music/album";
+
+        this.diskProvider.FolderExists(expectedDestDir).Returns(true);
+        this.diskProvider.FolderExists(expectedSource).Returns(true);
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.Received(1).MoveFolder(expectedSource, expectedTargetDir);
+    }
+
+    [Test]
+    public void Move_WhenSourceDirectoryHasTrailingSeparatorAndThrowsIOException_FallsBackToCopyAndDelete()
+    {
+        var source = "/downloads/album/";
+        var destDir = "/storage/music/";
+        var expectedSource = "/downloads/album";
+        var expectedDestDir = "/storage/music";
+        var expectedTargetDir = "/storage/music/album";
+        var fileInSource = "/downloads/album/track1.flac";
+        var fileInTarget = "/storage/music/album/track1.flac";
+
+        this.diskProvider.FolderExists(expectedDestDir).Returns(true);
+        this.diskProvider.FolderExists(expectedSource).Returns(true);
+        this.diskProvider.GetFiles(expectedSource, false).Returns(new[] { fileInSource });
+        this.diskProvider.GetDirectories(expectedSource).Returns(Array.Empty<string>());
+
+        this.diskProvider.When(x => x.MoveFolder(expectedSource, expectedTargetDir))
+            .Do(x => throw new System.IO.IOException("Cross-device link"));
+
+        this.service.Move(source, destDir);
+
+        this.diskProvider.Received(1).CreateFolder(expectedTargetDir);
+        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, true);
+        this.diskProvider.Received(1).DeleteFolder(expectedSource, true);
+    }
 }

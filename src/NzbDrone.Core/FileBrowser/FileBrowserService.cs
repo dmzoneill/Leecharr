@@ -53,6 +53,8 @@ public interface IFileBrowserService
     void Delete(string path);
 
     string ResolvePath(string path);
+
+    string GetParentPath(string path);
 }
 
 public class FileBrowserService : IFileBrowserService
@@ -307,7 +309,7 @@ public class FileBrowserService : IFileBrowserService
 
         foreach (var subDir in this.diskProvider.GetDirectories(sourceDir))
         {
-            var dirName = Path.GetFileName(subDir);
+            var dirName = Path.GetFileName(Path.TrimEndingDirectorySeparator(subDir));
             this.CopyDirectoryRecursive(subDir, Path.Combine(targetDir, dirName));
         }
     }
@@ -335,12 +337,31 @@ public class FileBrowserService : IFileBrowserService
 
         try
         {
-            return Path.GetFullPath(path);
+            var full = Path.GetFullPath(path);
+            return this.IsRootPath(full) ? full : Path.TrimEndingDirectorySeparator(full);
         }
         catch
         {
+            return Path.TrimEndingDirectorySeparator(path);
+        }
+    }
+
+    public string GetParentPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
             return path;
         }
+
+        var normalized = this.IsRootPath(path) ? path : Path.TrimEndingDirectorySeparator(path);
+        var root = Path.GetPathRoot(normalized);
+        if (!string.IsNullOrEmpty(root) && normalized.Equals(root, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized;
+        }
+
+        var parent = Path.GetDirectoryName(normalized);
+        return string.IsNullOrEmpty(parent) ? normalized : parent;
     }
 
     private string GetDefaultPath()
@@ -348,27 +369,28 @@ public class FileBrowserService : IFileBrowserService
         if (!string.IsNullOrWhiteSpace(this.configService?.DownloadDir) &&
             this.diskProvider.FolderExists(this.configService.DownloadDir))
         {
-            return Path.GetFullPath(this.configService.DownloadDir);
+            var full = Path.GetFullPath(this.configService.DownloadDir);
+            return this.IsRootPath(full) ? full : Path.TrimEndingDirectorySeparator(full);
         }
 
         var fallback = Directory.Exists("/downloads") ? "/downloads" : Path.GetFullPath(".");
-        return fallback;
-    }
-
-    private string GetParentPath(string path)
-    {
-        var root = Path.GetPathRoot(path);
-        if (!string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase))
-        {
-            return path;
-        }
-
-        return Path.GetDirectoryName(path) ?? path;
+        return this.IsRootPath(fallback) ? fallback : Path.TrimEndingDirectorySeparator(fallback);
     }
 
     private bool IsRootPath(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
         var root = Path.GetPathRoot(path);
-        return !string.IsNullOrEmpty(root) && path.Equals(root, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(root))
+        {
+            return false;
+        }
+
+        return path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
+               path.Equals(Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase);
     }
 }
