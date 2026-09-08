@@ -223,4 +223,80 @@ public class QBittorrentSearchServiceTest
         await Task.Delay(200);
         await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 5070, limit: 100);
     }
+
+    [TestCase("2000", 2000)]
+    [TestCase(" 5040 ", 5040)]
+    [TestCase("movies", 2000)]
+    [TestCase("movies/hd", 2040)]
+    [TestCase("movies_hd", 2040)]
+    [TestCase("movies-hd", 2040)]
+    [TestCase("movies/sd", 2030)]
+    [TestCase("movies/uhd", 2045)]
+    [TestCase("movies_4k", 2045)]
+    [TestCase("movies/4k", 2045)]
+    [TestCase("movies/bluray", 2050)]
+    [TestCase("movies/3d", 2060)]
+    [TestCase("tv", 5000)]
+    [TestCase("tv/hd", 5040)]
+    [TestCase("tv_hd", 5040)]
+    [TestCase("tv/sd", 5030)]
+    [TestCase("tv/uhd", 5045)]
+    [TestCase("tv_4k", 5045)]
+    [TestCase("tv/4k", 5045)]
+    [TestCase("anime", 5070)]
+    [TestCase("tv/anime", 5070)]
+    [TestCase("tv/doc", 5080)]
+    [TestCase("audio", 3000)]
+    [TestCase("music", 3000)]
+    [TestCase("music/mp3", 3010)]
+    [TestCase("music/flac", 3040)]
+    [TestCase("audio/lossless", 3040)]
+    [TestCase("audiobooks", 3030)]
+    [TestCase("audiobook", 3030)]
+    [TestCase("games", 1000)]
+    [TestCase("games/pc", 1010)]
+    [TestCase("games/console", 1020)]
+    [TestCase("pc", 4000)]
+    [TestCase("software", 4000)]
+    [TestCase("software/pc", 4010)]
+    [TestCase("software/mac", 4020)]
+    [TestCase("books", 7000)]
+    [TestCase("ebooks", 7000)]
+    [TestCase("ebook", 7000)]
+    [TestCase("books/ebook", 7020)]
+    [TestCase("books/comics", 7030)]
+    [TestCase("comics", 7030)]
+    [TestCase("magazines", 7010)]
+    public async Task StartSearch_WithCategory_ResolvesExpectedCategoryId(string category, int expectedCategoryId)
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        this.torznabClient.SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100)
+            .Returns(new List<TorznabSearchResult>());
+
+        this.searchService.StartSearch("query", category: category);
+        await Task.Delay(200);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: expectedCategoryId, limit: 100);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase("unknown_category")]
+    [TestCase("invalid/sub/cat")]
+    public async Task StartSearch_WithUnknownOrNullCategory_PassesNullCategoryId(string category)
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        this.torznabClient.SearchAsync(indexer, "query", categoryId: null, limit: 100)
+            .Returns(new List<TorznabSearchResult>());
+
+        this.searchService.StartSearch("query", category: category);
+        await Task.Delay(200);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer, "query", categoryId: null, limit: 100);
+    }
 }
