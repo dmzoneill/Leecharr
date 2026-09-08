@@ -2818,5 +2818,34 @@ public class MonoTorrentDownloadEngineTest
             .Which.SocketErrorCode.Should().Be(System.Net.Sockets.SocketError.AccessDenied);
     }
 
+    [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_WhenLocalIpv6IsNull_ThrowsNetworkUnreachable()
+    {
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => (IPAddress)null);
+
+        var act = () => connector.CreateDatagramSocket(System.Net.Sockets.AddressFamily.InterNetworkV6);
+
+        act.Should().Throw<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public void BoundSocketConnector_CreateBoundSocket_WhenLocalIpv6IsNull_ThrowsNetworkUnreachable()
+    {
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => (IPAddress)null);
+
+        var act = () => connector.CreateBoundSocket(
+            System.Net.Sockets.AddressFamily.InterNetworkV6,
+            System.Net.Sockets.SocketType.Stream,
+            System.Net.Sockets.ProtocolType.Tcp);
+
+        act.Should().Throw<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
     #endregion
 }

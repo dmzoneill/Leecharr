@@ -228,7 +228,17 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
             return null;
         }
 
-        return this.InterfaceIpResolver(iface, family);
+        var ip = this.InterfaceIpResolver(iface, family);
+        if (ip != null && family == AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast ||
+                IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.IPv6None))
+            {
+                return null;
+            }
+        }
+
+        return ip;
     }
 
     public void Dispose()
@@ -324,7 +334,12 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
             return unicast != null && unicast.Any(a =>
                 !IPAddress.IsLoopback(a.Address) &&
                 !a.Address.Equals(IPAddress.Any) &&
-                !a.Address.Equals(IPAddress.None));
+                !a.Address.Equals(IPAddress.None) &&
+                !a.Address.Equals(IPAddress.IPv6Any) &&
+                !a.Address.Equals(IPAddress.IPv6None) &&
+                !a.Address.IsIPv6LinkLocal &&
+                !a.Address.IsIPv6SiteLocal &&
+                !a.Address.IsIPv6Multicast);
         }
         catch (Exception ex)
         {
@@ -352,7 +367,17 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
                 return null;
             }
 
-            return ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
+            var ip = ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
+            if (ip != null && family == AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast ||
+                    IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.IPv6None))
+                {
+                    return null;
+                }
+            }
+
+            return ip;
         }
         catch (Exception ex)
         {

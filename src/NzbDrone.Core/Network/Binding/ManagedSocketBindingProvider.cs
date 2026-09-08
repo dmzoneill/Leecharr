@@ -160,30 +160,13 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
 
         if (addressFamily == AddressFamily.InterNetworkV6)
         {
-            var globalIp = addrList.FirstOrDefault(a =>
+            return addrList.FirstOrDefault(a =>
                 !a.IsIPv6LinkLocal &&
                 !a.IsIPv6SiteLocal &&
+                !a.IsIPv6Multicast &&
                 !IPAddress.IsLoopback(a) &&
                 !a.Equals(IPAddress.IPv6Any) &&
                 !a.Equals(IPAddress.IPv6None));
-
-            if (globalIp != null)
-            {
-                return globalIp;
-            }
-
-            var linkLocal = addrList.FirstOrDefault(a => a.IsIPv6LinkLocal);
-            if (linkLocal != null)
-            {
-                if (ipv6ScopeIndex.HasValue && linkLocal.ScopeId == 0)
-                {
-                    linkLocal.ScopeId = ipv6ScopeIndex.Value;
-                }
-
-                return linkLocal;
-            }
-
-            return null;
         }
 
         return addrList.FirstOrDefault(a =>

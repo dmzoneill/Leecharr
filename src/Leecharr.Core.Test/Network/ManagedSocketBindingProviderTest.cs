@@ -84,30 +84,30 @@ public class ManagedSocketBindingProviderTest
     }
 
     [Test]
-    public void SelectIpAddress_WhenOnlyLinkLocalIPv6AndNoScopeId_AssignsScopeIdFromInterfaceIndex()
+    public void SelectIpAddress_WhenOnlyLinkLocalIPv6_ReturnsNull()
     {
         var addresses = new[]
         {
             IPAddress.Parse("fe80::cafe:babe"),
+            IPAddress.Parse("fe80::1"),
         };
 
         var selected = ManagedSocketBindingProvider.SelectIpAddress(addresses, 7, AddressFamily.InterNetworkV6);
 
-        selected.Should().NotBeNull();
-        selected.Should().Be(IPAddress.Parse("fe80::cafe:babe%7"));
-        selected!.ScopeId.Should().Be(7);
+        selected.Should().BeNull();
     }
 
     [Test]
-    public void SelectIpAddress_WhenOnlyLinkLocalIPv6AndExistingScopeId_PreservesExistingScopeId()
+    public void SelectIpAddress_WhenOnlyMulticastIPv6_ReturnsNull()
     {
-        var existingScopedIp = IPAddress.Parse("fe80::cafe:babe%3");
-        var addresses = new[] { existingScopedIp };
+        var addresses = new[]
+        {
+            IPAddress.Parse("ff02::1"),
+        };
 
         var selected = ManagedSocketBindingProvider.SelectIpAddress(addresses, 7, AddressFamily.InterNetworkV6);
 
-        selected.Should().NotBeNull();
-        selected!.ScopeId.Should().Be(3);
+        selected.Should().BeNull();
     }
 
     [Test]
