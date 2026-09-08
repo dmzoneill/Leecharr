@@ -99,6 +99,14 @@ public class TorrentResource : RestResource
 
     public long SeedingTime { get; set; }
 
+    public bool IsImported { get; set; }
+
+    public DateTime? ImportedAt { get; set; }
+
+    public string ImportedByArr { get; set; }
+
+    public string ImportPath { get; set; }
+
     public string Bitfield { get; set; }
 
     // Enriched Media Fields
