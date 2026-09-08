@@ -18,6 +18,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
     private readonly CancellationTokenSource cancellationTokenSource;
     private readonly Task telemetryProcessingTask;
     private readonly Task guaranteedProcessingTask;
+    private bool disposed;
 
     public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext)
         : this(hubContext, 1000)
@@ -61,7 +62,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
 
     public void BroadcastMessage(SignalRMessage message)
     {
-        if (message == null)
+        if (message == null || this.disposed)
         {
             return;
         }
@@ -79,10 +80,28 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
 
     public void Dispose()
     {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        this.disposed = true;
+
         this.telemetryChannel.Writer.TryComplete();
         this.guaranteedChannel.Writer.TryComplete();
-        this.cancellationTokenSource.Cancel();
-        this.cancellationTokenSource.Dispose();
+
+        try
+        {
+            this.cancellationTokenSource.Cancel();
+            Task.WaitAll(new[] { this.telemetryProcessingTask, this.guaranteedProcessingTask }, TimeSpan.FromSeconds(3));
+        }
+        catch
+        {
+        }
+        finally
+        {
+            this.cancellationTokenSource.Dispose();
+        }
     }
 
     private static bool IsTelemetryMessage(SignalRMessage message)
@@ -114,7 +133,11 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                             await this.hubContext.Clients.All.SendAsync("receiveMessage", message, token).ConfigureAwait(false);
                         }
                     }
-                    catch (OperationCanceledException) when (token.IsCancellationRequested)
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                    catch (ObjectDisposedException)
                     {
                         return;
                     }
@@ -125,7 +148,10 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                 }
             }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
         {
         }
         catch (Exception ex)
