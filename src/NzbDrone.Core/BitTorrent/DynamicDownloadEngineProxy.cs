@@ -15,7 +15,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager, IDisposable
+public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<ITorrentEngine> availableEngines;
     private readonly IConfigService configService;
@@ -571,6 +571,26 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         {
             this.disposed = true;
             this.switchLock.Dispose();
+        }
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredEngineId = this.configService?.ActiveTorrentEngine;
+        if (!string.IsNullOrWhiteSpace(desiredEngineId) &&
+            !string.Equals(this.ActiveEngineId, desiredEngineId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchEngineAsync(desiredEngineId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active torrent engine on ConfigSavedEvent to {0}", desiredEngineId);
+                }
+            });
         }
     }
 

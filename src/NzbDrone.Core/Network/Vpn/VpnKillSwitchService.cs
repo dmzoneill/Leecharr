@@ -13,7 +13,7 @@ using NzbDrone.Core.Network.Binding;
 
 namespace NzbDrone.Core.Network.Vpn;
 
-public class VpnKillSwitchService : IVpnKillSwitchService
+public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEvent>
 {
     private readonly INetworkSettingsRepository repository;
     private readonly IConfigService configService;
@@ -147,6 +147,17 @@ public class VpnKillSwitchService : IVpnKillSwitchService
                 {
                     this.isFailClosedActive = false;
                     this.logger.Info("VPN Kill switch disabled or binding unconfigured. Disengaging fail-closed state.");
+
+                    try
+                    {
+                        this.VpnRestored?.Invoke(iface);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error in VpnRestored subscriber callback");
+                    }
+
+                    this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(iface ?? string.Empty));
                 }
 
                 this.lastKnownInterfaceUp = true;
@@ -249,6 +260,11 @@ public class VpnKillSwitchService : IVpnKillSwitchService
     private void OnNetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
     {
         this.logger.Debug("OS NetworkAvailabilityChanged event detected (IsAvailable={0}). Validating VPN kill switch state immediately.", e.IsAvailable);
+        this.CheckVpnState();
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
         this.CheckVpnState();
     }
 

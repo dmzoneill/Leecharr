@@ -160,4 +160,45 @@ public class ConfigFileProviderTest
         Action act = () => provider.SaveConfigDictionary(null!);
         act.Should().NotThrow();
     }
+
+    [Test]
+    public void GetValue_SupportsSnakeCaseEnvironmentVariables()
+    {
+        try
+        {
+            Environment.SetEnvironmentVariable("LEECHARR__POSTGRES_HOST", "pg-snake.internal");
+            Environment.SetEnvironmentVariable("LEECHARR__POSTGRES_PORT", "5439");
+            Environment.SetEnvironmentVariable("LEECHARR__API_KEY", "api-key-snake-test");
+            Environment.SetEnvironmentVariable("LEECHARR__BIND_ADDRESS", "0.0.0.0");
+            Environment.SetEnvironmentVariable("LEECHARR__ENABLE_SSL", "true");
+            Environment.SetEnvironmentVariable("LEECHARR__SSL_PORT", "8443");
+            Environment.SetEnvironmentVariable("LEECHARR__SSL_CERT_PATH", "/etc/ssl/snake_cert.pfx");
+            Environment.SetEnvironmentVariable("LEECHARR__LOG_LEVEL", "warn");
+            Environment.SetEnvironmentVariable("LEECHARR__URL_BASE", "/snake-base");
+
+            var provider = new ConfigFileProvider(this.appFolderInfo);
+
+            provider.PostgresHost.Should().Be("pg-snake.internal");
+            provider.PostgresPort.Should().Be(5439);
+            provider.ApiKey.Should().Be("api-key-snake-test");
+            provider.BindAddress.Should().Be("0.0.0.0");
+            provider.EnableSsl.Should().BeTrue();
+            provider.SslPort.Should().Be(8443);
+            provider.SslCertPath.Should().Be("/etc/ssl/snake_cert.pfx");
+            provider.LogLevel.Should().Be("warn");
+            provider.UrlBase.Should().Be("/snake-base");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR__POSTGRES_HOST", null);
+            Environment.SetEnvironmentVariable("LEECHARR__POSTGRES_PORT", null);
+            Environment.SetEnvironmentVariable("LEECHARR__API_KEY", null);
+            Environment.SetEnvironmentVariable("LEECHARR__BIND_ADDRESS", null);
+            Environment.SetEnvironmentVariable("LEECHARR__ENABLE_SSL", null);
+            Environment.SetEnvironmentVariable("LEECHARR__SSL_PORT", null);
+            Environment.SetEnvironmentVariable("LEECHARR__SSL_CERT_PATH", null);
+            Environment.SetEnvironmentVariable("LEECHARR__LOG_LEVEL", null);
+            Environment.SetEnvironmentVariable("LEECHARR__URL_BASE", null);
+        }
+    }
 }

@@ -81,4 +81,47 @@ public class NetworkSecurityServiceTest
 
         this.repository.Received(1).Update(settings);
     }
+
+    [Test]
+    public void GetCurrentSettings_WhenConfigServiceEnablesKillSwitch_ReturnsTrue()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.EnableVpnKillSwitch.Returns(true);
+        configService.BindInterface.Returns("tun0");
+
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            EnableVpnKillSwitch = false,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var current = serviceWithConfig.GetCurrentSettings();
+
+        current.EnableVpnKillSwitch.Should().BeTrue();
+        current.BindInterface.Should().Be("tun0");
+    }
+
+    [Test]
+    public void SaveSettings_WhenCalledWithKillSwitchDisabled_UpdatesConfigAndChecksVpnState()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        var vpnService = Substitute.For<NzbDrone.Core.Network.Vpn.IVpnKillSwitchService>();
+
+        var serviceWithAll = new NetworkSecurityService(this.repository, this.eventAggregator, configService, vpnService);
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            EnableVpnKillSwitch = false,
+            BindInterface = "tun0",
+        };
+
+        serviceWithAll.SaveSettings(settings);
+
+        this.repository.Received(1).Update(settings);
+        configService.Received(1).SaveConfigDictionary(Arg.Is<System.Collections.Generic.Dictionary<string, object>>(d => (bool)d["EnableVpnKillSwitch"] == false));
+        vpnService.Received(1).CheckVpnState();
+    }
 }

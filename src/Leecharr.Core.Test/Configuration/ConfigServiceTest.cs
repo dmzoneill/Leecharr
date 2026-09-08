@@ -200,6 +200,56 @@ public class ConfigServiceTest
     }
 
     [Test]
+    public void DiskCacheBytes_WhenDiskWriteCacheSizeMbIsLarge_DoesNotOverflowInteger()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "DiskWriteCacheSizeMb", 4096 },
+        });
+
+        this.service.DiskWriteCacheSizeMb.Should().Be(4096);
+        this.service.DiskCacheBytes.Should().Be(4096L * 1024L * 1024L);
+        this.service.DiskCacheBytes.Should().Be(4294967296L);
+        this.service.DiskCacheBytes.Should().BePositive();
+    }
+
+    [Test]
+    public void BitTorrentUserAgent_WhenCustomStringConfigured_ReturnsCustomStringWithoutPresetOverride()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "BitTorrentUserAgent", "Leecharr/1.0" },
+        });
+
+        this.service.BitTorrentUserAgent.Should().Be("Leecharr/1.0");
+
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "BitTorrentUserAgent", "MonoTorrent/3.0.0" },
+        });
+
+        this.service.BitTorrentUserAgent.Should().Be("MonoTorrent/3.0.0");
+    }
+
+    [Test]
+    public void PeerIdPrefix_WhenCustomStringConfigured_ReturnsCustomStringWithoutPresetOverride()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "PeerIdPrefix", "-LC1000-" },
+        });
+
+        this.service.PeerIdPrefix.Should().Be("-LC1000-");
+
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "PeerIdPrefix", "-MO3002-" },
+        });
+
+        this.service.PeerIdPrefix.Should().Be("-MO3002-");
+    }
+
+    [Test]
     public void InstanceUuid_GeneratesAndPersists_WhenMissing()
     {
         var uuid = this.service.InstanceUuid;

@@ -313,4 +313,61 @@ public class VpnKillSwitchServiceTest
         engine.Handle(new VpnInterfaceRestoredEvent("wg0"));
         engine.IsHaltedByKillSwitch.Should().BeFalse();
     }
+
+    [Test]
+    public void CheckVpnState_WhenKillSwitchDisabledWhileFailClosedActive_DisengagesFailClosedAndPublishesRestoredEvent()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var restoredCalled = false;
+        string restoredInterface = null;
+        this.service.VpnRestored += iface =>
+        {
+            restoredCalled = true;
+            restoredInterface = iface;
+        };
+
+        // 1. First trigger drop to engage fail-closed
+        this.service.InterfaceStatusCheck = _ => false;
+        this.service.CheckVpnState();
+        this.service.IsFailClosedActive.Should().BeTrue();
+
+        // 2. Now user disables kill switch in settings
+        settings.EnableVpnKillSwitch = false;
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        var triggered = this.service.CheckVpnState();
+
+        triggered.Should().BeFalse();
+        this.service.IsFailClosedActive.Should().BeFalse();
+        restoredCalled.Should().BeTrue();
+        restoredInterface.Should().Be("tun0");
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnInterfaceRestoredEvent>(e => e.InterfaceName == "tun0"));
+    }
+
+    [Test]
+    public void Handle_ConfigSavedEvent_TriggersCheckVpnState()
+    {
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.configService.BindInterface.Returns("tun0");
+
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        // Simulate interface drop
+        this.service.InterfaceStatusCheck = _ => false;
+        this.service.Handle(new ConfigSavedEvent());
+
+        this.service.IsFailClosedActive.Should().BeTrue();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnKillSwitchTriggeredEvent>(e => e.InterfaceName == "tun0"));
+    }
 }
