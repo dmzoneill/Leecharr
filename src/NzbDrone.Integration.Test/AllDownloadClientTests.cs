@@ -156,6 +156,30 @@ public class AllDownloadClientTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task Sabnzbd_Queue_And_History_WithPagination_ReturnsSuccess()
+    {
+        var queueResponse = await this.Client.GetAsync("/api?mode=queue&start=0&limit=10");
+        queueResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var qJson = await queueResponse.Content.ReadAsStringAsync();
+        using var qDoc = JsonDocument.Parse(qJson);
+        var queue = qDoc.RootElement.GetProperty("queue");
+        queue.TryGetProperty("slots", out var queueSlots).Should().BeTrue();
+        queueSlots.ValueKind.Should().Be(JsonValueKind.Array);
+        queue.TryGetProperty("noofslots_total", out _).Should().BeTrue();
+
+        var historyResponse = await this.Client.GetAsync("/api?mode=history&start=0&limit=10");
+        historyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var hJson = await historyResponse.Content.ReadAsStringAsync();
+        using var hDoc = JsonDocument.Parse(hJson);
+        var history = hDoc.RootElement.GetProperty("history");
+        history.TryGetProperty("slots", out var historySlots).Should().BeTrue();
+        historySlots.ValueKind.Should().Be(JsonValueKind.Array);
+        history.TryGetProperty("noofslots", out _).Should().BeTrue();
+    }
+
+    [Test]
     public async Task Nzbget_Version_And_Status_ReturnsSuccess()
     {
         var versionBody = new { method = "version", id = 1 };
