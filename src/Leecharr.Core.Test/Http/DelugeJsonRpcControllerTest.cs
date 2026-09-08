@@ -1317,4 +1317,139 @@ public class DelugeJsonRpcControllerTest
         using var resDoc = JsonDocument.Parse(json);
         resDoc.RootElement.GetProperty("result").GetInt64().Should().Be(500_000_000_000L);
     }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_ReturnsStandardDelugeMetrics()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string hash = "1122334455667788990011223344556677889900";
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "DelugeStandardMetricsTorrent",
+            InfoHash = hash,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.45,
+            TotalSize = 104857600L,
+            PieceCount = 400,
+            PieceLength = 262144,
+            QueuePosition = 2,
+            SavePath = "/downloads/tv",
+            TrackerUrl = "http://tracker.deluge-test.org:8080/announce",
+            Comment = "Deluge release comment",
+            CreatedBy = "DelugeTester/1.0",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var requestedKeys = new[]
+        {
+            "download_location",
+            "queue",
+            "queue_position",
+            "num_pieces",
+            "piece_length",
+            "tracker_host",
+            "trackers",
+            "total_wanted",
+            "comment",
+            "creator",
+            "owner",
+            "auto_managed",
+        };
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            method = "core.get_torrents_status",
+            @params = new object[] { new { }, requestedKeys },
+            id = 456,
+        }));
+
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var resultElem = resDoc.RootElement.GetProperty("result");
+        var torrentObj = resultElem.GetProperty(hash.ToLowerInvariant());
+
+        torrentObj.GetProperty("download_location").GetString().Should().Be("/downloads/tv");
+        torrentObj.GetProperty("queue").GetInt32().Should().Be(2);
+        torrentObj.GetProperty("queue_position").GetInt32().Should().Be(2);
+        torrentObj.GetProperty("num_pieces").GetInt32().Should().Be(400);
+        torrentObj.GetProperty("piece_length").GetInt32().Should().Be(262144);
+        torrentObj.GetProperty("tracker_host").GetString().Should().Be("tracker.deluge-test.org");
+        torrentObj.GetProperty("trackers").GetArrayLength().Should().Be(1);
+        torrentObj.GetProperty("trackers")[0].GetProperty("url").GetString().Should().Be("http://tracker.deluge-test.org:8080/announce");
+        torrentObj.GetProperty("trackers")[0].GetProperty("tier").GetInt32().Should().Be(0);
+        torrentObj.GetProperty("total_wanted").GetInt64().Should().Be(104857600L);
+        torrentObj.GetProperty("comment").GetString().Should().Be("Deluge release comment");
+        torrentObj.GetProperty("creator").GetString().Should().Be("DelugeTester/1.0");
+        torrentObj.GetProperty("owner").GetString().Should().Be("admin");
+        torrentObj.GetProperty("auto_managed").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentStatus_ReturnsStandardDelugeMetrics()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string hash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "SingleTorrentTest",
+            InfoHash = hash,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            TotalSize = 52428800L,
+            PieceCount = 200,
+            PieceLength = 262144,
+            QueuePosition = 1,
+            SavePath = "/downloads/movies",
+            TrackerUrl = "http://tracker.example.com/announce",
+            Comment = "Movie torrent comment",
+            CreatedBy = "Leecharr/1.0",
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var requestedKeys = new[]
+        {
+            "download_location",
+            "queue",
+            "num_pieces",
+            "piece_length",
+            "tracker_host",
+            "trackers",
+            "total_wanted",
+            "comment",
+        };
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            method = "core.get_torrent_status",
+            @params = new object[] { hash, requestedKeys },
+            id = 457,
+        }));
+
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var torrentObj = resDoc.RootElement.GetProperty("result");
+
+        torrentObj.GetProperty("download_location").GetString().Should().Be("/downloads/movies");
+        torrentObj.GetProperty("queue").GetInt32().Should().Be(1);
+        torrentObj.GetProperty("num_pieces").GetInt32().Should().Be(200);
+        torrentObj.GetProperty("piece_length").GetInt32().Should().Be(262144);
+        torrentObj.GetProperty("tracker_host").GetString().Should().Be("tracker.example.com");
+        torrentObj.GetProperty("trackers").GetArrayLength().Should().Be(1);
+        torrentObj.GetProperty("total_wanted").GetInt64().Should().Be(52428800L);
+        torrentObj.GetProperty("comment").GetString().Should().Be("Movie torrent comment");
+    }
 }
