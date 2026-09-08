@@ -88,26 +88,32 @@ public class Startup
                 }
 
                 // 1. API Key present in header, query parameter, or Bearer token
-                if (req.Headers.ContainsKey("X-Api-Key") ||
-                    req.Headers.ContainsKey("ApiKey") ||
-                    req.Query.ContainsKey("apikey") ||
-                    req.Query.ContainsKey("access_token") ||
-                    req.Query.ContainsKey("api_key") ||
-                    (req.Headers.ContainsKey("Authorization") && req.Headers["Authorization"].ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)))
+                var hasApiKeyHeader = (req.Headers.TryGetValue("X-Api-Key", out var headerKey) && !string.IsNullOrWhiteSpace(headerKey)) ||
+                                      (req.Headers.TryGetValue("ApiKey", out var headerKey2) && !string.IsNullOrWhiteSpace(headerKey2));
+                var hasApiKeyQuery = (req.Query.TryGetValue("apikey", out var qKey) && !string.IsNullOrWhiteSpace(qKey)) ||
+                                     (req.Query.TryGetValue("access_token", out var qToken) && !string.IsNullOrWhiteSpace(qToken)) ||
+                                     (req.Query.TryGetValue("api_key", out var qApiKey) && !string.IsNullOrWhiteSpace(qApiKey));
+                var hasBearerToken = req.Headers.TryGetValue("Authorization", out var authHeader) &&
+                                     authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+                                     !string.IsNullOrWhiteSpace(authHeader.ToString()["Bearer ".Length..].Trim());
+
+                if (hasApiKeyHeader || hasApiKeyQuery || hasBearerToken)
                 {
                     return ApiKeyAuthenticationOptions.DefaultScheme;
                 }
 
                 // 2. HTTP Basic Auth header
-                if (req.Headers.ContainsKey("Authorization") && req.Headers["Authorization"].ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+                if (req.Headers.TryGetValue("Authorization", out var basicHeader) &&
+                    basicHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(basicHeader.ToString()["Basic ".Length..].Trim()))
                 {
                     return BasicAuthenticationOptions.DefaultScheme;
                 }
 
                 // 3. Forward-Auth reverse proxy headers
-                if (req.Headers.ContainsKey("Remote-User") ||
-                    req.Headers.ContainsKey("X-authentik-username") ||
-                    req.Headers.ContainsKey("X-Forwarded-User"))
+                if ((req.Headers.TryGetValue("Remote-User", out var rUser) && !string.IsNullOrWhiteSpace(rUser)) ||
+                    (req.Headers.TryGetValue("X-authentik-username", out var aUser) && !string.IsNullOrWhiteSpace(aUser)) ||
+                    (req.Headers.TryGetValue("X-Forwarded-User", out var fUser) && !string.IsNullOrWhiteSpace(fUser)))
                 {
                     return ForwardAuthOptions.DefaultScheme;
                 }

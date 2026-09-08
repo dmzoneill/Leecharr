@@ -914,6 +914,8 @@ export interface MediaActor {
 export interface MediaMetadata {
   mediaType?: string | null;
   mediaId?: number | null;
+  arrType?: string | null;
+  arrMediaId?: number | null;
   title?: string | null;
   year?: number | null;
   overview?: string | null;
@@ -1150,6 +1152,8 @@ export interface MediaActor {
 export interface MediaMetadata {
   mediaType?: string | null;
   mediaId?: number | null;
+  arrType?: string | null;
+  arrMediaId?: number | null;
   title?: string | null;
   year?: number | null;
   overview?: string | null;

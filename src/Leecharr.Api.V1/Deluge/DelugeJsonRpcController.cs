@@ -251,6 +251,7 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.get_session_status",
                             "core.get_free_space",
                             "core.get_path_free_space",
+                            "core.get_free_space_bytes",
                             "core.get_torrents_status",
                             "core.get_torrent_status",
                             "core.add_torrent_file",
@@ -269,6 +270,8 @@ public class DelugeJsonRpcController : ControllerBase
                             "web.get_filter_tree",
                             "core.get_enabled_plugins",
                             "core.get_available_plugins",
+                            "core.enable_plugin",
+                            "core.disable_plugin",
                             "label.get_labels",
                             "label.set_torrent",
                         },
@@ -392,6 +395,10 @@ public class DelugeJsonRpcController : ControllerBase
                 case "web.get_installed_plugins":
                 case "core.get_available_plugins":
                     return this.DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+
+                case "core.enable_plugin":
+                case "core.disable_plugin":
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "web.get_hosts":
                     return this.DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
@@ -629,6 +636,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_free_space":
                 case "core.get_path_free_space":
+                case "core.get_free_space_bytes":
                     var rawPath = GetFirstStringParam(paramsElem);
                     var targetPath = !string.IsNullOrWhiteSpace(rawPath) ? rawPath : (this.configService.DownloadDir ?? "/downloads");
                     return this.DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
@@ -1135,10 +1143,6 @@ public class DelugeJsonRpcController : ControllerBase
                                 if (opts.TryGetProperty("download_location", out var dl))
                                 {
                                     newPath = dl.GetString();
-                                }
-                                else if (opts.TryGetProperty("move_completed_path", out var mcp))
-                                {
-                                    newPath = mcp.GetString();
                                 }
 
                                 if (!string.IsNullOrWhiteSpace(newPath))

@@ -76,8 +76,8 @@ export function getMediaDeepLink(
   if (!instanceUrl) return null;
 
   const meta = item.metadata;
-  const mediaId = meta?.mediaId;
-  const mediaType = (meta?.mediaType || item.source || "").toLowerCase();
+  const mediaId = meta?.arrMediaId ?? meta?.mediaId;
+  const mediaType = (meta?.arrType ?? meta?.mediaType ?? item.source ?? "").toLowerCase();
 
   if (mediaType.includes("sonarr") || mediaType === "series") {
     return {
