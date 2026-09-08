@@ -630,4 +630,130 @@ public class RTorrentControllerTest
         contentResult.Content.Should().Contain("<i4>0</i4>");
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxUploadSpeedKbps"] == 5120));
     }
+
+    [Test]
+    public async Task HandleXmlRpc_SetCustom1_UpdatesTorrentCategory()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            InfoHash = "hash10",
+            Category = "initial",
+        };
+        this.torrentService.GetByInfoHash("hash10").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_custom1</methodName>
+              <params>
+                <param><value><string>hash10</string></value></param>
+                <param><value><string>tv-sonarr</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>tv-sonarr</string>");
+        torrent.Category.Should().Be("tv-sonarr");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetDirectory_UpdatesTorrentLocation()
+    {
+        var torrent = new Torrent
+        {
+            Id = 20,
+            InfoHash = "hash20",
+            SavePath = "/downloads/initial",
+        };
+        this.torrentService.GetByInfoHash("hash20").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_directory</methodName>
+              <params>
+                <param><value><string>hash20</string></value></param>
+                <param><value><string>/downloads/tv</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).SetLocationAsync(20, "/downloads/tv", moveFiles: true);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetDirectoryBase_UpdatesTorrentLocation()
+    {
+        var torrent = new Torrent
+        {
+            Id = 21,
+            InfoHash = "hash21",
+            SavePath = "/downloads/initial",
+        };
+        this.torrentService.GetByInfoHash("hash21").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_directory_base</methodName>
+              <params>
+                <param><value><string>hash21</string></value></param>
+                <param><value><string>/downloads/movies</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).SetLocationAsync(21, "/downloads/movies", moveFiles: true);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetPriority_UpdatesTorrentPriority()
+    {
+        var torrent = new Torrent
+        {
+            Id = 30,
+            InfoHash = "hash30",
+            Priority = 0,
+        };
+        this.torrentService.GetByInfoHash("hash30").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_priority</methodName>
+              <params>
+                <param><value><string>hash30</string></value></param>
+                <param><value><i4>2</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        torrent.Priority.Should().Be(2);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
 }
