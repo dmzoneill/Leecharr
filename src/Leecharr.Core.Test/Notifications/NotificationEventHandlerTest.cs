@@ -1399,4 +1399,114 @@ public class NotificationEventHandlerTest
             Arg.Is<object>(p => p != null),
             "{\"X-Gotify-Key\":\"secret-app-token\"}");
     }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenDownloadCompletedAndSeeding_CalculatesDownloadTimeAndSeedingTimeIndependently()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 90,
+            Name = "Webhook Seed Goal",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/webhook-seeding",
+            OnSeedGoalReached = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var dateAdded = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var dateCompleted = new DateTime(2026, 1, 1, 12, 10, 0, DateTimeKind.Utc); // 600s download duration
+
+        var torrent = new Torrent
+        {
+            Id = 91,
+            Name = "Seeding Torrent",
+            Category = "Movies",
+            Status = TorrentStatus.Seeding,
+            DateAdded = dateAdded,
+            DateCompleted = dateCompleted,
+            CumulativeSeedingTimeSeconds = 3600, // 3600s seeding duration
+        };
+
+        this.handler.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = torrent,
+            OldStatus = TorrentStatus.Downloading,
+            NewStatus = TorrentStatus.Seeding,
+        });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-seeding",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                AssertTorrentPayloadTimes(payload, 600L, 3600L)));
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenTorrentHasNotCompleted_SetsDownloadTimeAndSeedingTimeToZero()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 92,
+            Name = "Webhook Added",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/webhook-added",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 93,
+            Name = "Added Torrent",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            DateAdded = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+            DateCompleted = null,
+            CumulativeSeedingTimeSeconds = 0,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-added",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                AssertTorrentPayloadTimes(payload, 0L, 0L)));
+    }
+
+    private static bool AssertTorrentPayloadTimes(object payload, long expectedDownloadTimeSeconds, long expectedSeedingTimeSeconds)
+    {
+        var torrentProp = payload.GetType().GetProperty("torrent");
+        if (torrentProp == null)
+        {
+            return false;
+        }
+
+        var torrentObj = torrentProp.GetValue(payload);
+        if (torrentObj == null)
+        {
+            return false;
+        }
+
+        var downloadTimeProp = torrentObj.GetType().GetProperty("downloadTimeSeconds");
+        var seedingTimeProp = torrentObj.GetType().GetProperty("seedingTimeSeconds");
+
+        if (downloadTimeProp == null || seedingTimeProp == null)
+        {
+            return false;
+        }
+
+        var downloadTime = (long)downloadTimeProp.GetValue(torrentObj)!;
+        var seedingTime = (long)seedingTimeProp.GetValue(torrentObj)!;
+
+        return downloadTime == expectedDownloadTimeSeconds && seedingTime == expectedSeedingTimeSeconds;
+    }
 }
