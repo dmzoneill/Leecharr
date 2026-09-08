@@ -223,7 +223,7 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Active inspector '{0}' failed for stream '{1}'", active?.ProviderId, fileName);
+            this.logger.Warn(ex, "Active inspector '{0}' failed on stream for '{1}'", active?.ProviderId, fileName);
         }
 
         if (active != null && !active.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
