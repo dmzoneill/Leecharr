@@ -170,7 +170,7 @@ public class FileBrowserService : IFileBrowserService
         if (string.IsNullOrWhiteSpace(newName) ||
             string.Equals(newName, ".", StringComparison.Ordinal) ||
             string.Equals(newName, "..", StringComparison.Ordinal) ||
-            newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            !NzbDrone.Core.Organizer.FileNameSanitizer.IsValidFileNameStatic(newName))
         {
             throw new ArgumentException($"The name '{newName}' is invalid.");
         }
