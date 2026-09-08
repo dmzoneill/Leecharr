@@ -4,12 +4,14 @@
   <RunConfiguration>
     <!-- Limit simultaneous test executions to 4 threads / 2 CPU cores -->
     <MaxCpuCount>4</MaxCpuCount>
+    <TestSessionTimeout>300000</TestSessionTimeout>
   </RunConfiguration>
 
   <!-- NUnit adapter specific configurations -->
   <NUnit>
     <NumberOfTestWorkers>4</NumberOfTestWorkers>
     <DefaultTestNamePattern>{m}{a}</DefaultTestNamePattern>
+    <DefaultTimeout>15000</DefaultTimeout>
     <StopOnError>false</StopOnError>
   </NUnit>
 </RunSettings>
