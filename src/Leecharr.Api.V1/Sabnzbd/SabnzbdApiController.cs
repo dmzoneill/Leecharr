@@ -311,6 +311,10 @@ public class SabnzbdApiController : ControllerBase
                 var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
                 var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
 
+                var queueStart = this.GetStartParam();
+                var queueLimit = this.GetLimitParam();
+                var pagedQueueSlots = queueSlots.Skip(queueStart).Take(queueLimit).ToList();
+
                 return this.Ok(new
                 {
                     queue = new
@@ -320,11 +324,12 @@ public class SabnzbdApiController : ControllerBase
                         speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(),
                         paused = false,
                         noofslots_total = queueSlots.Count,
+                        noofslots = queueSlots.Count,
                         diskspace1 = freeSpaceGb,
                         diskspace2 = incFreeSpaceGb,
                         diskspacetotal1 = totalSpaceGb,
                         diskspacetotal2 = incTotalSpaceGb,
-                        slots = queueSlots
+                        slots = pagedQueueSlots,
                     },
                 });
 
@@ -382,6 +387,10 @@ public class SabnzbdApiController : ControllerBase
                 var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
                 var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
 
+                var historyStart = this.GetStartParam();
+                var historyLimit = this.GetLimitParam();
+                var pagedFinishedTorrents = finishedTorrents.Skip(historyStart).Take(historyLimit).ToList();
+
                 return this.Ok(new
                 {
                     history = new
@@ -390,7 +399,7 @@ public class SabnzbdApiController : ControllerBase
                         month_size = (monthBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
                         week_size = (weekBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
                         noofslots = finishedTorrents.Count,
-                        slots = finishedTorrents
+                        slots = pagedFinishedTorrents,
                     },
                 });
 
@@ -605,6 +614,28 @@ public class SabnzbdApiController : ControllerBase
             default:
                 return this.Ok(new { status = true, version = "4.3.2" });
         }
+    }
+
+    private int GetStartParam()
+    {
+        var startStr = this.Request.Query["start"].ToString();
+        if (string.IsNullOrEmpty(startStr) && this.Request.HasFormContentType)
+        {
+            startStr = this.Request.Form["start"].ToString();
+        }
+
+        return int.TryParse(startStr, out var s) ? Math.Max(0, s) : 0;
+    }
+
+    private int GetLimitParam()
+    {
+        var limitStr = this.Request.Query["limit"].ToString();
+        if (string.IsNullOrEmpty(limitStr) && this.Request.HasFormContentType)
+        {
+            limitStr = this.Request.Form["limit"].ToString();
+        }
+
+        return int.TryParse(limitStr, out var l) && l > 0 ? l : int.MaxValue;
     }
 
     private long GetDriveFreeSpace(string path)
