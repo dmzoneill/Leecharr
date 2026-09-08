@@ -961,5 +961,123 @@ public class RssSyncServiceTest
         boundedSet.ContainsKey("item4").Should().BeTrue();
     }
 
+    [Test]
+    public void BoundedSet_WhenAddingDuplicateItem_ReturnsFalseAndDoesNotEvict()
+    {
+        var boundedSet = new BoundedSet<string>(2, System.StringComparer.OrdinalIgnoreCase);
+
+        boundedSet.TryAdd("item1").Should().BeTrue();
+        boundedSet.TryAdd("item2").Should().BeTrue();
+        boundedSet.TryAdd("item1").Should().BeFalse();
+
+        boundedSet.Count.Should().Be(2);
+        boundedSet.ContainsKey("item1").Should().BeTrue();
+        boundedSet.ContainsKey("item2").Should().BeTrue();
+    }
+
+    [Test]
+    public void BoundedSet_WhenItemNull_ReturnsFalse()
+    {
+        var boundedSet = new BoundedSet<string>(5);
+        boundedSet.TryAdd(null!).Should().BeFalse();
+        boundedSet.ContainsKey(null!).Should().BeFalse();
+        boundedSet.TryRemove(null!).Should().BeFalse();
+        boundedSet.Count.Should().Be(0);
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    [TestCase(-100)]
+    public void BoundedSet_WhenInvalidCapacity_ThrowsArgumentOutOfRangeException(int invalidCapacity)
+    {
+        var act = () => new BoundedSet<string>(invalidCapacity);
+        act.Should().Throw<System.ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public void BoundedSet_WhenClearCalled_RemovesAllItems()
+    {
+        var boundedSet = new BoundedSet<string>(5);
+        boundedSet.TryAdd("a").Should().BeTrue();
+        boundedSet.TryAdd("b").Should().BeTrue();
+        boundedSet.Count.Should().Be(2);
+
+        boundedSet.Clear();
+
+        boundedSet.Count.Should().Be(0);
+        boundedSet.ContainsKey("a").Should().BeFalse();
+        boundedSet.ContainsKey("b").Should().BeFalse();
+    }
+
+    [Test]
+    public void BoundedSet_WhenTryRemoveCalled_RemovesItem()
+    {
+        var boundedSet = new BoundedSet<string>(5);
+        boundedSet.TryAdd("a").Should().BeTrue();
+        boundedSet.TryAdd("b").Should().BeTrue();
+
+        boundedSet.TryRemove("a").Should().BeTrue();
+        boundedSet.Count.Should().Be(1);
+        boundedSet.ContainsKey("a").Should().BeFalse();
+        boundedSet.ContainsKey("b").Should().BeTrue();
+
+        boundedSet.TryRemove("nonexistent").Should().BeFalse();
+    }
+
+    [Test]
+    public void BoundedSet_WhenConcurrentAdds_MaintainsCapacityBound()
+    {
+        var capacity = 50;
+        var boundedSet = new BoundedSet<string>(capacity);
+
+        Parallel.For(0, 500, i =>
+        {
+            boundedSet.TryAdd($"item_{i}");
+        });
+
+        boundedSet.Count.Should().BeLessThanOrEqualTo(capacity);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenTrackedGrabbedReleasesReachCapacity_EvictsOldestAndAllowsReGrab()
+    {
+        // Custom small capacity service to test eviction and re-grabbing
+        var customService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            maxGrabbedReleasesCapacity: 2);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "TestIndexer", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Rule", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release1 = new TorznabSearchResult { Guid = "guid-1", Title = "Release 1", MagnetUrl = "magnet:?xt=urn:btih:1111111111111111111111111111111111111111&dn=R1", Seeders = 5 };
+        var release2 = new TorznabSearchResult { Guid = "guid-2", Title = "Release 2", MagnetUrl = "magnet:?xt=urn:btih:2222222222222222222222222222222222222222&dn=R2", Seeders = 5 };
+        var release3 = new TorznabSearchResult { Guid = "guid-3", Title = "Release 3", MagnetUrl = "magnet:?xt=urn:btih:3333333333333333333333333333333333333333&dn=R3", Seeders = 5 };
+
+        // 1st sync grabs release 1
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release1 }));
+        var count1 = await customService.SyncRssFeedsAsync();
+        count1.Should().Be(1);
+
+        // 2nd sync grabs release 2 and 3, pushing release 1 out of the bounded cache of size 2
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release2, release3 }));
+        var count2 = await customService.SyncRssFeedsAsync();
+        count2.Should().Be(2);
+
+        // Release 1 is no longer in memory cache. When torrent/history is deleted (returns null), release 1 can be re-grabbed
+        this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns((Torrent)null!);
+        this.downloadHistoryService.GetByInfoHash(Arg.Any<string>()).Returns((DownloadHistory)null!);
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release1 }));
+        var count3 = await customService.SyncRssFeedsAsync();
+        count3.Should().Be(1);
+    }
+
     #endregion
 }
