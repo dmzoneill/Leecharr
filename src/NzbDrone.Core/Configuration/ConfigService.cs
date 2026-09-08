@@ -104,6 +104,8 @@ public interface IConfigService
 
     int WatchFolderScanIntervalSeconds { get; }
 
+    int WatchFolderDebounceMilliseconds { get; }
+
     bool WatchFolderAutoStartTorrents { get; }
 
     bool WatchFolderDeleteAddedTorrents { get; }
@@ -507,6 +509,11 @@ public interface IConfigService
 
     string TmdbApiKey { get; }
 
+    // Backup & Restore
+    int DatabaseBackupTimeoutSeconds { get; }
+
+    int DatabaseRestoreTimeoutSeconds { get; }
+
     // Advanced & Logging
     bool LogToFile { get; }
 
@@ -767,6 +774,8 @@ public class ConfigService : IConfigService
     public string WatchFolderPath => this.GetValue("WatchFolderPath", string.Empty);
 
     public int WatchFolderScanIntervalSeconds => this.GetValueInt("WatchFolderScanIntervalSeconds", 10);
+
+    public int WatchFolderDebounceMilliseconds => this.GetValueInt("WatchFolderDebounceMilliseconds", 500);
 
     public bool WatchFolderAutoStartTorrents => this.GetValueBoolean("WatchFolderAutoStartTorrents", true);
 
@@ -1194,6 +1203,11 @@ public class ConfigService : IConfigService
     public bool AutoPruneRemovedArtwork => this.GetValueBoolean("AutoPruneRemovedArtwork", true);
 
     public string TmdbApiKey => this.GetValue("TmdbApiKey", Environment.GetEnvironmentVariable("TMDB_API_KEY") ?? string.Empty);
+
+    // Backup & Restore
+    public int DatabaseBackupTimeoutSeconds => this.GetValueInt("DatabaseBackupTimeoutSeconds", 600);
+
+    public int DatabaseRestoreTimeoutSeconds => this.GetValueInt("DatabaseRestoreTimeoutSeconds", 600);
 
     // Advanced & Logging
     public bool LogToFile => this.GetValueBoolean("LogToFile", true);
