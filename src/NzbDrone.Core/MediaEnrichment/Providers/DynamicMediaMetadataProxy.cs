@@ -167,10 +167,18 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         var provider = Volatile.Read(ref this.activeProvider);
         if (provider != null)
         {
-            var result = await provider.FetchMetadataAsync(title, category, year, infoHash);
-            if (result != null && !string.IsNullOrEmpty(result.PosterUrl))
+            MediaMetadata result = null;
+            try
             {
-                return result;
+                result = await provider.FetchMetadataAsync(title, category, year, infoHash);
+                if (result != null && !string.IsNullOrEmpty(result.PosterUrl))
+                {
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Active metadata provider {0} failed for {1}", provider.ProviderId, title);
             }
 
             foreach (var fallback in this.availableProviders.Where(p => p != provider))

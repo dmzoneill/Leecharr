@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -241,6 +242,51 @@ public class DynamicMediaMetadataProxyTest
         meta.Should().NotBeNull();
         meta.Title.Should().Be("Breaking Bad");
         await this.servarrProvider.Received(1).FetchMetadataAsync("Breaking Bad", "tv", 2008);
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenActiveProviderThrowsException_FallsBackToSecondaryProviders()
+    {
+        this.servarrProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromException<MediaMetadata>(new HttpRequestException("Arr service unavailable")));
+
+        this.tmdbProvider.FetchMetadataAsync("Inception", "movies", 2010, Arg.Any<string>())
+            .Returns(Task.FromResult(new MediaMetadata
+            {
+                Title = "Inception",
+                Year = 2010,
+                MediaType = "Movie",
+                PosterUrl = "https://image.tmdb.org/t/p/w500/inception.jpg",
+            }));
+
+        var result = await this.proxy.FetchMetadataAsync("Inception", "movies", 2010);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Inception");
+        result.PosterUrl.Should().Be("https://image.tmdb.org/t/p/w500/inception.jpg");
+        await this.servarrProvider.Received(1).FetchMetadataAsync("Inception", "movies", 2010, null);
+        await this.tmdbProvider.Received(1).FetchMetadataAsync("Inception", "movies", 2010, null);
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenActiveProviderThrowsExceptionAndAllFallbacksFail_ReturnsNull()
+    {
+        this.servarrProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromException<MediaMetadata>(new InvalidOperationException("Active provider crashed")));
+
+        this.tmdbProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromResult<MediaMetadata>(null!));
+
+        this.tvdbProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromResult<MediaMetadata>(null!));
+
+        this.localNfoProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromResult<MediaMetadata>(null!));
+
+        var result = await this.proxy.FetchMetadataAsync("Unknown Title", "movies", 2024);
+
+        result.Should().BeNull();
+        await this.servarrProvider.Received(1).FetchMetadataAsync("Unknown Title", "movies", 2024, null);
     }
 
     [Test]
