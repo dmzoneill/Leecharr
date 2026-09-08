@@ -36,6 +36,8 @@ public class AiParsedRelease
 
     public string Language { get; set; }
 
+    public List<string> Languages { get; set; } = new();
+
     public string Edition { get; set; }
 
     public bool IsProper { get; set; }

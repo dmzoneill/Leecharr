@@ -116,6 +116,49 @@ public class CloudGeminiAiProviderTest
         response.Should().Contain("Ratio");
     }
 
+    [Test]
+    public async Task ParseReleaseAsync_WhenGeminiReturnsJson_ParsesAllFields()
+    {
+        var responseJson = @"{
+            ""candidates"": [
+                {
+                    ""content"": {
+                        ""parts"": [
+                            {
+                                ""text"": ""{\""cleanTitle\"":\""Dune Part Two\"",\""year\"":2024,\""resolution\"":\""2160p\"",\""quality\"":\""2160p Remux\"",\""source\"":\""BluRay\"",\""videoCodec\"":\""HEVC\"",\""audioCodec\"":\""TrueHD Atmos\"",\""audioChannels\"":\""7.1\"",\""dynamicRange\"":\""Dolby Vision\"",\""edition\"":\""Extended\"",\""releaseGroup\"":\""FLUX\"",\""isProper\"":true,\""isRepack\"":false,\""isRemux\"":true,\""languages\"":[\""English\"",\""French\""],\""confidenceScore\"":0.98}""
+                            }
+                        ]
+                    }
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Dune.Part.Two.2024.2160p.UHD.Remux.DV.TrueHD.Atmos.7.1-FLUX");
+        parsed.CleanTitle.Should().Be("Dune Part Two");
+        parsed.Year.Should().Be(2024);
+        parsed.Resolution.Should().Be("2160p");
+        parsed.Quality.Should().Be("2160p Remux");
+        parsed.VideoCodec.Should().Be("HEVC");
+        parsed.AudioCodec.Should().Be("TrueHD Atmos");
+        parsed.AudioChannels.Should().Be("7.1");
+        parsed.DynamicRange.Should().Be("Dolby Vision");
+        parsed.Edition.Should().Be("Extended");
+        parsed.IsRemux.Should().BeTrue();
+        parsed.Languages.Should().Contain(new[] { "English", "French" });
+        parsed.ConfidenceScore.Should().Be(0.98);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
