@@ -18,6 +18,7 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Bandwidth;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -38,6 +39,7 @@ public class QBittorrentApiControllerTest
     private IConfigFileProvider configFileProvider = null!;
     private IDiskProvider diskProvider = null!;
     private ISafeHttpClientService safeHttpClientService = null!;
+    private IDownloadEngine downloadEngine = null!;
     private QBittorrentApiController controller = null!;
 
     [SetUp]
@@ -54,6 +56,7 @@ public class QBittorrentApiControllerTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
+        this.downloadEngine = Substitute.For<IDownloadEngine>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
         this.categoryService.GetAll().Returns(new List<Category>());
@@ -67,6 +70,7 @@ public class QBittorrentApiControllerTest
             this.trackerEntryRepository,
             configFileProvider: this.configFileProvider,
             safeHttpClientService: this.safeHttpClientService,
+            downloadEngine: this.downloadEngine,
             diskProvider: this.diskProvider);
     }
 
@@ -1628,6 +1632,115 @@ public class QBittorrentApiControllerTest
         root.TryGetProperty("books", out var booksCat).Should().BeTrue();
         booksCat.GetProperty("name").GetString().Should().Be("books");
         booksCat.GetProperty("savePath").GetString().Should().Be(string.Empty);
+    }
+
+    [Test]
+    public async Task ReannounceTorrents_WithHashesAll_ReannouncesAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var result = await this.controller.ReannounceTorrents("all");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).ForceAnnounceAsync(1);
+        await this.torrentService.Received(1).ForceAnnounceAsync(2);
+    }
+
+    [Test]
+    public async Task ReannounceTorrents_WithSpecificHashes_ReannouncesSelectedTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.ReannounceTorrents("hash1");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).ForceAnnounceAsync(1);
+    }
+
+    [Test]
+    public async Task ReannounceTorrents_WithEmptyHashes_ReturnsBadRequest()
+    {
+        var result = await this.controller.ReannounceTorrents(string.Empty);
+
+        result.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Test]
+    public async Task ToggleSequentialDownload_TogglesSequentialDownloadAndCallsEngine()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.ToggleSequentialDownload("hash1");
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.SequentialDownload.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, true);
+    }
+
+    [Test]
+    public async Task ToggleSequentialDownload_WithEmptyHashes_ReturnsBadRequest()
+    {
+        var result = await this.controller.ToggleSequentialDownload(string.Empty);
+
+        result.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Test]
+    public async Task ToggleFirstLastPiecePrio_WithHashesAll_CallsEngineAndReturnsOk()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1 });
+
+        var result = await this.controller.ToggleFirstLastPiecePrio("all");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, false);
+    }
+
+    [Test]
+    public async Task ToggleFirstLastPiecePrio_WithEmptyHashes_ReturnsBadRequest()
+    {
+        var result = await this.controller.ToggleFirstLastPiecePrio(string.Empty);
+
+        result.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Test]
+    public async Task RenameTorrent_ValidParameters_RenamesTorrentAndUpdates()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "Old Name" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.RenameTorrent("hash1", "New Name");
+
+        result.Should().BeOfType<ContentResult>();
+        torrent.Name.Should().Be("New Name");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task RenameTorrent_TorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.GetByInfoHash("nonexistent").Returns((Torrent)null);
+
+        var result = await this.controller.RenameTorrent("nonexistent", "New Name");
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task RenameTorrent_EmptyParameters_ReturnsBadRequest()
+    {
+        var result1 = await this.controller.RenameTorrent(string.Empty, "New Name");
+        var result2 = await this.controller.RenameTorrent("hash1", string.Empty);
+
+        result1.Should().BeOfType<BadRequestResult>();
+        result2.Should().BeOfType<BadRequestResult>();
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
