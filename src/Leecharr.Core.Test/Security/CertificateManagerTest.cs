@@ -345,6 +345,53 @@ public class CertificateManagerTest
         eku!.EnhancedKeyUsages["1.3.6.1.5.5.7.3.1"].Should().NotBeNull();
     }
 
+    [Test]
+    public void GetOrCreateCertificate_WhenBindAddressIsHostname_IncludesDnsSan()
+    {
+        this.config.BindAddress.Returns("leecharr.local");
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        var sanExt = cert.Extensions.OfType<X509SubjectAlternativeNameExtension>().SingleOrDefault();
+        sanExt.Should().NotBeNull();
+
+        var dnsNames = sanExt!.EnumerateDnsNames().ToList();
+        dnsNames.Should().Contain("leecharr.local");
+        dnsNames.Should().Contain("localhost");
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenBindAddressIsWildcard_DoesNotIncludeWildcardSan()
+    {
+        this.config.BindAddress.Returns("*");
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        var sanExt = cert.Extensions.OfType<X509SubjectAlternativeNameExtension>().SingleOrDefault();
+        sanExt.Should().NotBeNull();
+
+        var dnsNames = sanExt!.EnumerateDnsNames().ToList();
+        dnsNames.Should().NotContain("*");
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenBindAddressIsHostname_IncludesHostnameInSubjectAlternativeNames()
+    {
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: string.Empty,
+            keyPath: string.Empty,
+            password: string.Empty,
+            bindAddress: "media.home.arpa",
+            sslPort: 7890,
+            testTlsHandshake: false);
+
+        result.Should().NotBeNull();
+        result.IsValid.Should().BeTrue(result.Message);
+        result.SubjectAlternativeNames.Should().Contain("media.home.arpa");
+    }
+
     private static (string FullChainPem, string KeyPem, string LeafPem, string CaPem) GenerateTestChain(
         string subjectName = "CN=leechar-server.local",
         string caSubject = "CN=Test Intermediate CA")
