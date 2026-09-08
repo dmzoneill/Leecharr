@@ -1129,6 +1129,10 @@ const mr: I18nTranslations = {
     "allSources": "सर्व स्रोत",
     "activeSwarmHarvest": "सक्रिय झुंड कापणी",
     "publicFeeds": "सार्वजनिक फीड",
+    "healthAlive": "जिवंत",
+    "healthSlow": "मंद",
+    "healthOffline": "ऑफलाइन",
+    "healthUntested": "न तपासलेले",
     "copyAllUrls": "सर्व ट्रॅकर URL क्लिपबोर्डवर कॉपी करा",
     "downloadTxt": ".txt फाइल म्हणून सत्यापित आणि सक्रिय ट्रॅकर्स डाउनलोड करा",
     "pasteMultiple": "एकाच वेळी एकाधिक ट्रॅकर URL पेस्ट करा",
@@ -1286,7 +1290,8 @@ const mr: I18nTranslations = {
       "trackerRadar": "ट्रॅकर रडार",
       "activityLogs": "क्रियाकलाप नोंदी",
       "sourcesAutomation": "स्रोत ऑटोमेशन"
-    }
+    },
+    "allHealth": "सर्व आरोग्य"
   },
   "terminal": {
     "title": "एम्बेडेड टर्मिनल CLI",
@@ -1793,12 +1798,12 @@ const mr: I18nTranslations = {
     "autoAdd": "स्वयं जोडा",
     "webhook": "वेबहुक",
     "webhookHost": "वेबहुक होस्ट",
+    "externalUrl": "सार्वजनिक / बाह्य URL (पर्यायी)",
+    "externalUrlHint": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. अंतर्गत कंटेनर पत्ते वापरताना Leecharr मध्ये दूरस्थपणे प्रवेश करताना).",
     "loadingConnections": "कनेक्शन लोड करत आहे...",
     "apiKey": "Api की",
     "apiKeyCopied": "Api की कॉपी केली",
-    "failedToCopyApiKey": "Api की कॉपी करण्यात अयशस्वी",
-    "externalUrl": "सार्वजनिक / बाह्य URL (पर्यायी)",
-    "externalUrlHint": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. अंतर्गत कंटेनर पत्ते वापरताना Leecharr मध्ये दूरस्थपणे प्रवेश करताना)."
+    "failedToCopyApiKey": "Api की कॉपी करण्यात अयशस्वी"
   },
   "modals": {
     "confirmTitle": "पुष्टी आवश्यक आहे",
@@ -3306,6 +3311,8 @@ const mr: I18nTranslations = {
     "autoAdd": "स्वयं जोडा",
     "webhook": "वेबहुक",
     "webhookHost": "वेबहुक होस्ट",
+    "externalUrl": "सार्वजनिक / बाह्य URL (पर्यायी)",
+    "externalUrlHint": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. Leecharr मध्ये दूरस्थपणे प्रवेश करताना).",
     "connectionSuccess": "कनेक्शन यशस्वी",
     "connectionFailed": "कनेक्शन अयशस्वी",
     "radarrDescription": "रडार वर्णन",
@@ -3329,9 +3336,7 @@ const mr: I18nTranslations = {
     "webhookHostHintLidarr": "Webhook होस्ट Lidarr इशारा",
     "port7889Desc": "Port7889 Desc",
     "prowlarrSyncDesc": "Prowlarr Sync Desc",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "सार्वजनिक / बाह्य URL (पर्यायी)",
-    "externalUrlHint": "ब्राउझर डीप लिंक्ससाठी पर्यायी सार्वजनिक URL (उदा. Leecharr मध्ये दूरस्थपणे प्रवेश करताना)."
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "डीफॉल्ट शीर्षक",

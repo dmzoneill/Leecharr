@@ -1129,6 +1129,10 @@ const ta: I18nTranslations = {
     "allSources": "அனைத்து ஆதாரங்கள்",
     "activeSwarmHarvest": "செயலில் திரள் அறுவடை",
     "publicFeeds": "பொது ஊட்டங்கள்",
+    "healthAlive": "உயிருடன்",
+    "healthSlow": "மெதுவாக",
+    "healthOffline": "ஆஃப்லைன்",
+    "healthUntested": "சோதிக்கப்படாதது",
     "copyAllUrls": "அனைத்து டிராக்கர் URLகளையும் கிளிப்போர்டுக்கு நகலெடுக்கவும்",
     "downloadTxt": "சரிபார்க்கப்பட்ட மற்றும் செயலில் உள்ள டிராக்கர்களை .txt கோப்பாகப் பதிவிறக்கவும்",
     "pasteMultiple": "ஒரே நேரத்தில் பல டிராக்கர் URLகளை ஒட்டவும்",
@@ -1286,7 +1290,8 @@ const ta: I18nTranslations = {
       "trackerRadar": "ட்ராக்கர் ரேடார்",
       "activityLogs": "செயல்பாட்டு பதிவுகள்",
       "sourcesAutomation": "ஆதாரங்கள் ஆட்டோமேஷன்"
-    }
+    },
+    "allHealth": "அனைத்து ஆரோக்கியம்"
   },
   "terminal": {
     "title": "உள்ளமைக்கப்பட்ட டெர்மினல் CLI",
@@ -1791,14 +1796,14 @@ const ta: I18nTranslations = {
     "autoAdd": "தானாக சேர்",
     "webhook": "வெப்ஹூக்",
     "webhookHost": "வெப்ஹூக் ஹோஸ்ட்",
+    "externalUrl": "பொது / வெளிப்புற URL (விரும்பினால்)",
+    "externalUrlHint": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. உள் கொள்கலன் முகவரிகளைப் பயன்படுத்தும் போது தொலைவிலிருந்து Leecharr ஐ அணுகும் போது).",
     "loadingConnections": "இணைப்புகளை ஏற்றுகிறது...",
     "apiKey": "அபி கீ",
     "apiKeyCopied": "Api விசை நகலெடுக்கப்பட்டது",
     "failedToCopyApiKey": "Api விசையை நகலெடுக்க முடியவில்லை",
     "utMetadataBEP9": "ut_metadata (BEP 9 - Magnet Fast Metadata Exchange)",
-    "utPexBEP11": "ut_pex (BEP 11 - Peer Exchange Extension)",
-    "externalUrl": "பொது / வெளிப்புற URL (விரும்பினால்)",
-    "externalUrlHint": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. உள் கொள்கலன் முகவரிகளைப் பயன்படுத்தும் போது தொலைவிலிருந்து Leecharr ஐ அணுகும் போது)."
+    "utPexBEP11": "ut_pex (BEP 11 - Peer Exchange Extension)"
   },
   "modals": {
     "confirmTitle": "உறுதிப்படுத்தல் தேவை",
@@ -3306,6 +3311,8 @@ const ta: I18nTranslations = {
     "autoAdd": "தானாக சேர்",
     "webhook": "வெப்ஹூக்",
     "webhookHost": "வெப்ஹூக் ஹோஸ்ட்",
+    "externalUrl": "பொது / வெளிப்புற URL (விரும்பினால்)",
+    "externalUrlHint": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. தொலைவிலிருந்து Leecharr ஐ அணுகும் போது).",
     "connectionSuccess": "இணைப்பு வெற்றி",
     "connectionFailed": "இணைப்பு தோல்வியடைந்தது",
     "radarrDescription": "ரேடார் விளக்கம்",
@@ -3329,9 +3336,7 @@ const ta: I18nTranslations = {
     "webhookHostHintLidarr": "Webhook ஹோஸ்ட் குறிப்பு Lidarr",
     "port7889Desc": "Port7889 Desc",
     "prowlarrSyncDesc": "Prowlarr Sync Desc",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "பொது / வெளிப்புற URL (விரும்பினால்)",
-    "externalUrlHint": "உலாவி ஆழமான இணைப்புகளுக்கான விருப்பமான பொது URL (எ.கா. தொலைவிலிருந்து Leecharr ஐ அணுகும் போது)."
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "இயல்புநிலை தலைப்பு",

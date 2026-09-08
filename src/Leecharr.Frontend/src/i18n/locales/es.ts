@@ -1128,6 +1128,10 @@ const es: I18nTranslations = {
     "allSources": "Todas las fuentes",
     "activeSwarmHarvest": "Cosecha activa de enjambres",
     "publicFeeds": "Feeds públicos",
+    "healthAlive": "Vivo",
+    "healthSlow": "Lento",
+    "healthOffline": "Desconectado",
+    "healthUntested": "No probado",
     "copyAllUrls": "Copie todas las URL del rastreador al portapapeles",
     "downloadTxt": "Descargue rastreadores verificados y activos como un archivo .txt",
     "pasteMultiple": "Pegue varias URL de seguimiento a la vez",
@@ -1286,7 +1290,8 @@ const es: I18nTranslations = {
       "activityLogs": "Registros de actividad",
       "sourcesAutomation": "Automatización de fuentes"
     },
-    "general": "General"
+    "general": "General",
+    "allHealth": "Toda la salud"
   },
   "terminal": {
     "title": "Consola CLI integrada",
@@ -1792,13 +1797,13 @@ const es: I18nTranslations = {
     "autoAdd": "Agregar automáticamente",
     "webhook": "gancho web",
     "webhookHost": "Anfitrión del webhook",
+    "externalUrl": "URL pública/externa (opcional)",
+    "externalUrlHint": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota mientras se utilizan direcciones de contenedores internos).",
     "loadingConnections": "Cargando conexiones...",
     "apiKey": "Clave de API",
     "apiKeyCopied": "Clave API copiada",
     "failedToCopyApiKey": "No se pudo copiar la clave API",
-    "general": "General",
-    "externalUrl": "URL pública/externa (opcional)",
-    "externalUrlHint": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota mientras se utilizan direcciones de contenedores internos)."
+    "general": "General"
   },
   "modals": {
     "confirmTitle": "Confirmación requerida",
@@ -3308,6 +3313,8 @@ const es: I18nTranslations = {
     "autoAdd": "Agregar automáticamente",
     "webhook": "gancho web",
     "webhookHost": "Anfitrión del webhook",
+    "externalUrl": "URL pública/externa (opcional)",
+    "externalUrlHint": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota).",
     "connectionSuccess": "Conexión exitosa",
     "connectionFailed": "Conexión fallida",
     "radarrDescription": "Descripción de Radarr",
@@ -3329,9 +3336,7 @@ const es: I18nTranslations = {
     "webhookHostHintSonarr": "Webhook Host Sugerencia Sonarr",
     "webhookHostHintRadarr": "Sugerencia de host de webhook Radarr",
     "webhookHostHintLidarr": "Sugerencia de host de webhook Lidarr",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "URL pública/externa (opcional)",
-    "externalUrlHint": "URL pública opcional para enlaces profundos del navegador (por ejemplo, al acceder a Leecharr de forma remota)."
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "Título predeterminado",

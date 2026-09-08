@@ -1129,6 +1129,10 @@ const vi: I18nTranslations = {
     "allSources": "Tất cả các nguồn",
     "activeSwarmHarvest": "Thu hoạch bầy đàn đang hoạt động",
     "publicFeeds": "Nguồn cấp dữ liệu công khai",
+    "healthAlive": "Còn sống",
+    "healthSlow": "Chậm",
+    "healthOffline": "Ngoại tuyến",
+    "healthUntested": "Chưa được kiểm tra",
     "copyAllUrls": "Sao chép tất cả URL theo dõi vào clipboard",
     "downloadTxt": "Tải xuống trình theo dõi đã được xác minh và đang hoạt động dưới dạng tệp .txt",
     "pasteMultiple": "Dán nhiều URL theo dõi cùng một lúc",
@@ -1286,7 +1290,8 @@ const vi: I18nTranslations = {
       "trackerRadar": "Radar Tracker",
       "activityLogs": "Nhật ký hoạt động",
       "sourcesAutomation": "Tự động hóa nguồn"
-    }
+    },
+    "allHealth": "Tất cả sức khỏe"
   },
   "terminal": {
     "title": "Dòng lệnh CLI tích hợp",
@@ -1792,13 +1797,13 @@ const vi: I18nTranslations = {
     "syncEnabled": "Đã bật đồng bộ",
     "autoAdd": "Tự động thêm",
     "webhookHost": "Máy chủ Webhook",
+    "externalUrl": "URL công khai / bên ngoài (Tùy chọn)",
+    "externalUrlHint": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa trong khi sử dụng địa chỉ vùng chứa nội bộ).",
     "loadingConnections": "Đang tải kết nối...",
     "apiKey": "Khóa API",
     "apiKeyCopied": "Đã sao chép khóa Api",
     "failedToCopyApiKey": "Không thể sao chép khóa Api",
-    "webhook": "Webhook",
-    "externalUrl": "URL công khai / bên ngoài (Tùy chọn)",
-    "externalUrlHint": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa trong khi sử dụng địa chỉ vùng chứa nội bộ)."
+    "webhook": "Webhook"
   },
   "modals": {
     "confirmTitle": "Yêu cầu xác nhận",
@@ -3308,6 +3313,8 @@ const vi: I18nTranslations = {
     "syncEnabled": "Đã bật đồng bộ",
     "autoAdd": "Tự động thêm",
     "webhookHost": "Máy chủ Webhook",
+    "externalUrl": "URL công khai / bên ngoài (Tùy chọn)",
+    "externalUrlHint": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa).",
     "connectionSuccess": "Kết nối Sonarr thành công!",
     "connectionFailed": "Kết nối Sonarr thất bại",
     "radarrDescription": "Kết nối Radarr để tự động gửi các lượt tải phim lẻ tới Leecharr.",
@@ -3329,9 +3336,7 @@ const vi: I18nTranslations = {
     "webhookHostHintSonarr": "Sonarr gợi ý máy chủ Webhook",
     "webhookHostHintRadarr": "Radar gợi ý máy chủ Webhook",
     "webhookHostHintLidarr": "Gợi ý máy chủ Webhook Lidarr",
-    "webhook": "Webhook",
-    "externalUrl": "URL công khai / bên ngoài (Tùy chọn)",
-    "externalUrlHint": "URL công khai tùy chọn cho các liên kết sâu của trình duyệt (ví dụ: khi truy cập Leecharr từ xa)."
+    "webhook": "Webhook"
   },
   "promptModal": {
     "defaultTitle": "Nhập giá trị",

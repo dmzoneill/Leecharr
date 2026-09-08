@@ -1129,6 +1129,10 @@ const ru: I18nTranslations = {
     "allSources": "Все источники",
     "activeSwarmHarvest": "Активный роевой сбор",
     "publicFeeds": "Публичные каналы",
+    "healthAlive": "Живой",
+    "healthSlow": "Медленный",
+    "healthOffline": "Оффлайн",
+    "healthUntested": "Непроверенный",
     "copyAllUrls": "Скопируйте все URL-адреса трекеров в буфер обмена.",
     "downloadTxt": "Загрузите проверенные и активные трекеры в виде файла .txt.",
     "pasteMultiple": "Вставьте несколько URL-адресов трекеров одновременно",
@@ -1286,7 +1290,8 @@ const ru: I18nTranslations = {
       "trackerRadar": "Радар трекеров",
       "activityLogs": "Журналы активности",
       "sourcesAutomation": "Автоматизация источников"
-    }
+    },
+    "allHealth": "Всем здоровья"
   },
   "terminal": {
     "title": "Встроенный терминал CLI",
@@ -1793,12 +1798,12 @@ const ru: I18nTranslations = {
     "autoAdd": "Автоматическое добавление",
     "webhook": "Вебхук",
     "webhookHost": "Хост вебхука",
+    "externalUrl": "Публичный/внешний URL-адрес (необязательно)",
+    "externalUrlHint": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr с использованием внутренних адресов контейнеров).",
     "loadingConnections": "Загрузка подключений...",
     "apiKey": "API-ключ",
     "apiKeyCopied": "Ключ API скопирован",
-    "failedToCopyApiKey": "Не удалось скопировать ключ API",
-    "externalUrl": "Публичный/внешний URL-адрес (необязательно)",
-    "externalUrlHint": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr с использованием внутренних адресов контейнеров)."
+    "failedToCopyApiKey": "Не удалось скопировать ключ API"
   },
   "modals": {
     "confirmTitle": "Требуется подтверждение",
@@ -3309,6 +3314,8 @@ const ru: I18nTranslations = {
     "autoAdd": "Автоматическое добавление",
     "webhook": "Вебхук",
     "webhookHost": "Хост вебхука",
+    "externalUrl": "Публичный/внешний URL-адрес (необязательно)",
+    "externalUrlHint": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr).",
     "connectionSuccess": "Соединение успешное",
     "connectionFailed": "Соединение не удалось",
     "radarrDescription": "Описание радара",
@@ -3329,9 +3336,7 @@ const ru: I18nTranslations = {
     "finishAndClose": "Завершить и закрыть",
     "webhookHostHintSonarr": "Подсказка хоста Webhook Sonarr",
     "webhookHostHintRadarr": "Подсказка хоста Webhook Radarr",
-    "webhookHostHintLidarr": "Подсказка хоста Webhook Lidarr",
-    "externalUrl": "Публичный/внешний URL-адрес (необязательно)",
-    "externalUrlHint": "Необязательный общедоступный URL-адрес для глубоких ссылок браузера (например, при удаленном доступе к Leecharr)."
+    "webhookHostHintLidarr": "Подсказка хоста Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Название по умолчанию",

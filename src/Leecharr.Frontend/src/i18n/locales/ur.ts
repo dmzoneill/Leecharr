@@ -1129,6 +1129,10 @@ const ur: I18nTranslations = {
     "allSources": "تمام ذرائع",
     "activeSwarmHarvest": "فعال بھیڑ کی فصل",
     "publicFeeds": "عوامی فیڈز",
+    "healthAlive": "زندہ",
+    "healthSlow": "سست",
+    "healthOffline": "آف لائن",
+    "healthUntested": "غیر ٹیسٹ شدہ",
     "copyAllUrls": "تمام ٹریکر یو آر ایل کو کلپ بورڈ میں کاپی کریں۔",
     "downloadTxt": "تصدیق شدہ اور فعال ٹریکرز کو .txt فائل کے طور پر ڈاؤن لوڈ کریں۔",
     "pasteMultiple": "ایک ساتھ متعدد ٹریکر یو آر ایل پیسٹ کریں۔",
@@ -1286,7 +1290,8 @@ const ur: I18nTranslations = {
       "trackerRadar": "ٹریکر رڈار",
       "activityLogs": "سرگرمی کے نوشتہ جات",
       "sourcesAutomation": "ذرائع آٹومیشن"
-    }
+    },
+    "allHealth": "تمام صحت"
   },
   "terminal": {
     "title": "مربوط ٹرمینل CLI",
@@ -1792,13 +1797,13 @@ const ur: I18nTranslations = {
     "autoAdd": "آٹو شامل کریں۔",
     "webhook": "ویب ہُک",
     "webhookHost": "ویب ہُک ہوسٹ",
+    "externalUrl": "عوامی / بیرونی URL (اختیاری)",
+    "externalUrlHint": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثال کے طور پر جب اندرونی کنٹینر کے پتے استعمال کرتے ہوئے لیچارر تک دور سے رسائی حاصل کرنا)۔",
     "loadingConnections": "کنکشنز لوڈ ہو رہے ہیں...",
     "apiKey": "اے پی آئی کی",
     "apiKeyCopied": "Api کلید کاپی ہو گئی۔",
     "failedToCopyApiKey": "Api کلید کو کاپی کرنے میں ناکام",
-    "utMetadataBEP9": "ut_metadata (BEP 9 - Magnet Fast Metadata Exchange)",
-    "externalUrl": "عوامی / بیرونی URL (اختیاری)",
-    "externalUrlHint": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثال کے طور پر جب اندرونی کنٹینر کے پتے استعمال کرتے ہوئے لیچارر تک دور سے رسائی حاصل کرنا)۔"
+    "utMetadataBEP9": "ut_metadata (BEP 9 - Magnet Fast Metadata Exchange)"
   },
   "modals": {
     "confirmTitle": "تصدیق درکار ہے",
@@ -3307,6 +3312,8 @@ const ur: I18nTranslations = {
     "autoAdd": "آٹو شامل کریں۔",
     "webhook": "ویب ہُک",
     "webhookHost": "ویب ہُک ہوسٹ",
+    "externalUrl": "عوامی / بیرونی URL (اختیاری)",
+    "externalUrlHint": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثلاً جب Leecharr تک دور سے رسائی حاصل کرنا)۔",
     "connectionSuccess": "کنکشن کامیاب",
     "connectionFailed": "کنکشن ناکام ہو گیا۔",
     "radarrDescription": "ریڈار کی تفصیل",
@@ -3329,9 +3336,7 @@ const ur: I18nTranslations = {
     "webhookHostHintRadarr": "ویب ہک ہوسٹ اشارہ ریڈار",
     "webhookHostHintLidarr": "ویب ہُک ہوسٹ اشارہ لِڈر",
     "prowlarrSyncDesc": "Prowlarr Sync Desc",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "عوامی / بیرونی URL (اختیاری)",
-    "externalUrlHint": "براؤزر کے گہرے لنکس کے لیے اختیاری عوامی یو آر ایل (مثلاً جب Leecharr تک دور سے رسائی حاصل کرنا)۔"
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "پہلے سے طے شدہ عنوان",

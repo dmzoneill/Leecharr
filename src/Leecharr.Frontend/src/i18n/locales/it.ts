@@ -1129,6 +1129,10 @@ const it: I18nTranslations = {
     "allSources": "Tutte le fonti",
     "activeSwarmHarvest": "Raccolta attiva dello sciame",
     "publicFeeds": "Feed pubblici",
+    "healthAlive": "Vivo",
+    "healthSlow": "Lento",
+    "healthOffline": "Non in linea",
+    "healthUntested": "Non testato",
     "copyAllUrls": "Copia tutti gli URL del tracker negli appunti",
     "downloadTxt": "Scarica tracker verificati e attivi come file .txt",
     "pasteMultiple": "Incolla più URL di monitoraggio contemporaneamente",
@@ -1286,7 +1290,8 @@ const it: I18nTranslations = {
       "trackerRadar": "Radar tracker",
       "activityLogs": "Registri delle attività",
       "sourcesAutomation": "Automazione delle fonti"
-    }
+    },
+    "allHealth": "Tutta la salute"
   },
   "terminal": {
     "title": "Terminale CLI integrato",
@@ -1792,13 +1797,13 @@ const it: I18nTranslations = {
     "syncEnabled": "Sincronizzazione abilitata",
     "autoAdd": "Aggiunta automatica",
     "webhookHost": "Host webhook",
+    "externalUrl": "URL pubblico/esterno (facoltativo)",
+    "externalUrlHint": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto utilizzando gli indirizzi del contenitore interno).",
     "loadingConnections": "Caricamento connessioni...",
     "apiKey": "Chiave API",
     "apiKeyCopied": "Chiave API copiata",
     "failedToCopyApiKey": "Impossibile copiare la chiave API",
-    "webhook": "Webhook",
-    "externalUrl": "URL pubblico/esterno (facoltativo)",
-    "externalUrlHint": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto utilizzando gli indirizzi del contenitore interno)."
+    "webhook": "Webhook"
   },
   "modals": {
     "confirmTitle": "Conferma richiesta",
@@ -3308,6 +3313,8 @@ const it: I18nTranslations = {
     "syncEnabled": "Sincronizzazione abilitata",
     "autoAdd": "Aggiunta automatica",
     "webhookHost": "Host webhook",
+    "externalUrl": "URL pubblico/esterno (facoltativo)",
+    "externalUrlHint": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto).",
     "connectionSuccess": "Connessione a Sonarr stabilita con successo!",
     "connectionFailed": "Impossibile connettersi a Sonarr",
     "radarrDescription": "Connetti Radarr per inviare automaticamente i download di film a Leecharr.",
@@ -3329,9 +3336,7 @@ const it: I18nTranslations = {
     "webhookHostHintSonarr": "Suggerimento host webhook Sonarr",
     "webhookHostHintRadarr": "Suggerimento host webhook Radarr",
     "webhookHostHintLidarr": "Suggerimento host webhook Lidarr",
-    "webhook": "Webhook",
-    "externalUrl": "URL pubblico/esterno (facoltativo)",
-    "externalUrlHint": "URL pubblico facoltativo per i collegamenti diretti del browser (ad esempio quando si accede a Leecharr da remoto)."
+    "webhook": "Webhook"
   },
   "promptModal": {
     "defaultTitle": "Inserisci valore",

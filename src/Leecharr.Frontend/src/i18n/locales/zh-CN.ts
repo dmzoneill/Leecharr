@@ -1129,6 +1129,10 @@ const zhCN: I18nTranslations = {
     "allSources": "所有来源",
     "activeSwarmHarvest": "主动群体收获",
     "publicFeeds": "公共信息流",
+    "healthAlive": "在线",
+    "healthSlow": "响应慢",
+    "healthOffline": "离线",
+    "healthUntested": "未测试",
     "copyAllUrls": "将所有跟踪器 URL 复制到剪贴板",
     "downloadTxt": "将经过验证且活跃的跟踪器下载为 .txt 文件",
     "pasteMultiple": "一次粘贴多个跟踪器 URL",
@@ -1286,7 +1290,8 @@ const zhCN: I18nTranslations = {
       "trackerRadar": "Tracker 雷达",
       "activityLogs": "活动日志",
       "sourcesAutomation": "源自动化"
-    }
+    },
+    "allHealth": "所有健康"
   },
   "terminal": {
     "title": "终端命令行 CLI",
@@ -1793,12 +1798,12 @@ const zhCN: I18nTranslations = {
     "autoAdd": "自动添加",
     "webhook": "网络钩子",
     "webhookHost": "Webhook 主机",
+    "externalUrl": "公共/外部 URL（可选）",
+    "externalUrlHint": "浏览器深层链接的可选公共 URL（例如，使用内部容器地址远程访问 Leecharr 时）。",
     "loadingConnections": "正在加载连接...",
     "apiKey": "API密钥",
     "apiKeyCopied": "已复制 API 密钥 %{id}",
-    "failedToCopyApiKey": "复制API密钥失败",
-    "externalUrl": "公共/外部 URL（可选）",
-    "externalUrlHint": "浏览器深层链接的可选公共 URL（例如，使用内部容器地址远程访问 Leecharr 时）。"
+    "failedToCopyApiKey": "复制API密钥失败"
   },
   "modals": {
     "confirmTitle": "需要确认",
@@ -3309,6 +3314,8 @@ const zhCN: I18nTranslations = {
     "autoAdd": "自动添加",
     "webhook": "网络钩子",
     "webhookHost": "Webhook 主机",
+    "externalUrl": "公共/外部 URL（可选）",
+    "externalUrlHint": "浏览器深层链接的可选公共 URL（例如，远程访问 Leecharr 时）。",
     "connectionSuccess": "连接成功",
     "connectionFailed": "连接失败",
     "radarrDescription": "Radarr描述",
@@ -3329,9 +3336,7 @@ const zhCN: I18nTranslations = {
     "finishAndClose": "完成并关闭",
     "webhookHostHintSonarr": "Webhook主机提示Sonarr",
     "webhookHostHintRadarr": "Webhook主机提示Radarr",
-    "webhookHostHintLidarr": "Webhook主机提示Lidarr",
-    "externalUrl": "公共/外部 URL（可选）",
-    "externalUrlHint": "浏览器深层链接的可选公共 URL（例如，远程访问 Leecharr 时）。"
+    "webhookHostHintLidarr": "Webhook主机提示Lidarr"
   },
   "promptModal": {
     "defaultTitle": "默认标题",

@@ -1129,6 +1129,10 @@ const bn: I18nTranslations = {
     "allSources": "সমস্ত সূত্র",
     "activeSwarmHarvest": "সক্রিয় ঝাঁক ফসল",
     "publicFeeds": "পাবলিক ফিড",
+    "healthAlive": "জীবিত",
+    "healthSlow": "ধীর",
+    "healthOffline": "অফলাইন",
+    "healthUntested": "পরীক্ষিত নয়",
     "copyAllUrls": "ক্লিপবোর্ডে সমস্ত ট্র্যাকার URL কপি করুন",
     "downloadTxt": "একটি .txt ফাইল হিসাবে যাচাইকৃত এবং সক্রিয় ট্র্যাকার ডাউনলোড করুন",
     "pasteMultiple": "একসাথে একাধিক ট্র্যাকার URL পেস্ট করুন",
@@ -1286,7 +1290,8 @@ const bn: I18nTranslations = {
       "trackerRadar": "ট্র্যাকার রাডার",
       "activityLogs": "কার্যকলাপ লগ",
       "sourcesAutomation": "উত্স অটোমেশন"
-    }
+    },
+    "allHealth": "সমস্ত স্বাস্থ্য"
   },
   "terminal": {
     "title": "এমবেডেড টার্মিনাল CLI",
@@ -1793,12 +1798,12 @@ const bn: I18nTranslations = {
     "autoAdd": "স্বয়ংক্রিয় যোগ করুন",
     "webhook": "ওয়েবহুক",
     "webhookHost": "ওয়েবহুক হোস্ট",
+    "externalUrl": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)",
+    "externalUrlHint": "ব্রাউজার ডিপ লিঙ্কগুলির জন্য ঐচ্ছিক সর্বজনীন URL (যেমন, অভ্যন্তরীণ কন্টেইনার ঠিকানাগুলি ব্যবহার করার সময় দূরবর্তীভাবে Leecharr অ্যাক্সেস করার সময়)।",
     "loadingConnections": "সংযোগ লোড হচ্ছে...",
     "apiKey": "Api কী",
     "apiKeyCopied": "এপিআই কী কপি করা হয়েছে",
-    "failedToCopyApiKey": "Api কী অনুলিপি করতে ব্যর্থ হয়েছে৷",
-    "externalUrl": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)",
-    "externalUrlHint": "ব্রাউজার ডিপ লিঙ্কগুলির জন্য ঐচ্ছিক সর্বজনীন URL (যেমন, অভ্যন্তরীণ কন্টেইনার ঠিকানাগুলি ব্যবহার করার সময় দূরবর্তীভাবে Leecharr অ্যাক্সেস করার সময়)।"
+    "failedToCopyApiKey": "Api কী অনুলিপি করতে ব্যর্থ হয়েছে৷"
   },
   "modals": {
     "confirmTitle": "নিশ্চিতকরণ প্রয়োজন",
@@ -3307,6 +3312,8 @@ const bn: I18nTranslations = {
     "autoAdd": "স্বয়ংক্রিয় যোগ করুন",
     "webhook": "ওয়েবহুক",
     "webhookHost": "ওয়েবহুক হোস্ট",
+    "externalUrl": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)",
+    "externalUrlHint": "ব্রাউজার ডিপ লিঙ্কের জন্য ঐচ্ছিক পাবলিক URL (যেমন যখন Leecharr দূরবর্তীভাবে অ্যাক্সেস করা হয়)।",
     "connectionSuccess": "সংযোগ সফল",
     "connectionFailed": "সংযোগ ব্যর্থ হয়েছে৷",
     "radarrDescription": "রাডার বর্ণনা",
@@ -3329,9 +3336,7 @@ const bn: I18nTranslations = {
     "webhookHostHintRadarr": "ওয়েবহুক হোস্ট ইঙ্গিত রাডার",
     "webhookHostHintLidarr": "Webhook হোস্ট ইঙ্গিত Lidarr",
     "prowlarrSyncDesc": "Prowlarr Sync Desc",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "সর্বজনীন / বহিরাগত URL (ঐচ্ছিক)",
-    "externalUrlHint": "ব্রাউজার ডিপ লিঙ্কের জন্য ঐচ্ছিক পাবলিক URL (যেমন যখন Leecharr দূরবর্তীভাবে অ্যাক্সেস করা হয়)।"
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "ডিফল্ট শিরোনাম",

@@ -231,6 +231,32 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               {t("trackerBoost.manualEntry", "Manual Entry")}
             </option>
           </select>
+          <select
+            className="form-control"
+            style={{
+              width: "160px",
+              padding: "0.4rem 0.75rem",
+              fontSize: "0.85rem",
+            }}
+            value={healthFilter}
+            onChange={(e) => setHealthFilter(e.target.value)}
+          >
+            <option value="all">
+              {t("trackerBoost.allHealth", "All Health")}
+            </option>
+            <option value="alive">
+              {t("trackerBoost.healthAlive", "Alive")}
+            </option>
+            <option value="slow">
+              {t("trackerBoost.healthSlow", "Slow")}
+            </option>
+            <option value="offline">
+              {t("trackerBoost.healthOffline", "Offline")}
+            </option>
+            <option value="untested">
+              {t("trackerBoost.healthUntested", "Untested")}
+            </option>
+          </select>
         </div>
         <div
           style={{

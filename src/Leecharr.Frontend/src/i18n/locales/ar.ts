@@ -1129,6 +1129,10 @@ const ar: I18nTranslations = {
     "allSources": "جميع المصادر",
     "activeSwarmHarvest": "حصاد السرب النشط",
     "publicFeeds": "الخلاصات العامة",
+    "healthAlive": "على قيد الحياة",
+    "healthSlow": "بطيء",
+    "healthOffline": "غير متصل",
+    "healthUntested": "لم يتم اختباره",
     "copyAllUrls": "انسخ جميع عناوين URL الخاصة بالتعقب إلى الحافظة",
     "downloadTxt": "قم بتنزيل أدوات التتبع التي تم التحقق منها والنشطة كملف .txt",
     "pasteMultiple": "قم بلصق عناوين URL متعددة للتتبع مرة واحدة",
@@ -1286,7 +1290,8 @@ const ar: I18nTranslations = {
       "trackerRadar": "رادار المتتبعات",
       "activityLogs": "سجلات النشاط",
       "sourcesAutomation": "أتمتة المصادر"
-    }
+    },
+    "allHealth": "كل الصحة"
   },
   "terminal": {
     "title": "سطر الأوامر المدمج CLI",
@@ -1793,12 +1798,12 @@ const ar: I18nTranslations = {
     "autoAdd": "إضافة تلقائية",
     "webhook": "خطاف ويب",
     "webhookHost": "مضيف الويب هوك",
+    "externalUrl": "عنوان URL العام/الخارجي (اختياري)",
+    "externalUrlHint": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بعد أثناء استخدام عناوين الحاويات الداخلية).",
     "loadingConnections": "جارٍ تحميل الاتصالات...",
     "apiKey": "مفتاح واجهة برمجة التطبيقات",
     "apiKeyCopied": "تم نسخ مفتاح API",
-    "failedToCopyApiKey": "فشل في نسخ مفتاح API",
-    "externalUrl": "عنوان URL العام/الخارجي (اختياري)",
-    "externalUrlHint": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بعد أثناء استخدام عناوين الحاويات الداخلية)."
+    "failedToCopyApiKey": "فشل في نسخ مفتاح API"
   },
   "modals": {
     "confirmTitle": "مطلوب تأكيد",
@@ -3309,6 +3314,8 @@ const ar: I18nTranslations = {
     "autoAdd": "إضافة تلقائية",
     "webhook": "خطاف ويب",
     "webhookHost": "مضيف الويب هوك",
+    "externalUrl": "عنوان URL العام/الخارجي (اختياري)",
+    "externalUrlHint": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بُعد).",
     "connectionSuccess": "نجاح الاتصال",
     "connectionFailed": "فشل الاتصال",
     "radarrDescription": "وصف الرادار",
@@ -3329,9 +3336,7 @@ const ar: I18nTranslations = {
     "finishAndClose": "إنهاء وإغلاق",
     "webhookHostHintSonarr": "تلميح مضيف Webhook Sonarr",
     "webhookHostHintRadarr": "Webhook المضيف تلميح Radarr",
-    "webhookHostHintLidarr": "تلميح مضيف Webhook Lidarr",
-    "externalUrl": "عنوان URL العام/الخارجي (اختياري)",
-    "externalUrlHint": "عنوان URL عام اختياري للروابط العميقة للمتصفح (على سبيل المثال عند الوصول إلى Leecharr عن بُعد)."
+    "webhookHostHintLidarr": "تلميح مضيف Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "العنوان الافتراضي",

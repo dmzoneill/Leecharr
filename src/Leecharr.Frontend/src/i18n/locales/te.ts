@@ -1129,6 +1129,10 @@ const te: I18nTranslations = {
     "allSources": "అన్ని మూలాధారాలు",
     "activeSwarmHarvest": "యాక్టివ్ స్వార్మ్ హార్వెస్ట్",
     "publicFeeds": "పబ్లిక్ ఫీడ్‌లు",
+    "healthAlive": "సజీవంగా",
+    "healthSlow": "నెమ్మదిగా",
+    "healthOffline": "ఆఫ్‌లైన్",
+    "healthUntested": "పరీక్షించబడలేదు",
     "copyAllUrls": "అన్ని ట్రాకర్ URLలను క్లిప్‌బోర్డ్‌కు కాపీ చేయండి",
     "downloadTxt": "ధృవీకరించబడిన మరియు సక్రియ ట్రాకర్‌లను .txt ఫైల్‌గా డౌన్‌లోడ్ చేయండి",
     "pasteMultiple": "బహుళ ట్రాకర్ URLలను ఒకేసారి అతికించండి",
@@ -1286,7 +1290,8 @@ const te: I18nTranslations = {
       "trackerRadar": "ట్రాకర్ రాడార్",
       "activityLogs": "కార్యాచరణ లాగ్‌లు",
       "sourcesAutomation": "మూలాల ఆటోమేషన్"
-    }
+    },
+    "allHealth": "అన్ని ఆరోగ్యం"
   },
   "terminal": {
     "title": "ఎంబెడెడ్ టెర్మినల్ CLI",
@@ -1793,12 +1798,12 @@ const te: I18nTranslations = {
     "autoAdd": "ఆటో యాడ్",
     "webhook": "వెబ్‌హుక్",
     "webhookHost": "Webhook హోస్ట్",
+    "externalUrl": "పబ్లిక్ / బాహ్య URL (ఐచ్ఛికం)",
+    "externalUrlHint": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. అంతర్గత కంటైనర్ చిరునామాలను ఉపయోగిస్తున్నప్పుడు Leecharrని రిమోట్‌గా యాక్సెస్ చేసినప్పుడు).",
     "loadingConnections": "కనెక్షన్‌లను లోడ్ చేస్తోంది...",
     "apiKey": "అపి కీ",
     "apiKeyCopied": "Api కీ కాపీ చేయబడింది",
-    "failedToCopyApiKey": "Api కీని కాపీ చేయడంలో విఫలమైంది",
-    "externalUrl": "పబ్లిక్ / బాహ్య URL (ఐచ్ఛికం)",
-    "externalUrlHint": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. అంతర్గత కంటైనర్ చిరునామాలను ఉపయోగిస్తున్నప్పుడు Leecharrని రిమోట్‌గా యాక్సెస్ చేసినప్పుడు)."
+    "failedToCopyApiKey": "Api కీని కాపీ చేయడంలో విఫలమైంది"
   },
   "modals": {
     "confirmTitle": "ధృవీకరణ అవసరం",
@@ -3307,6 +3312,8 @@ const te: I18nTranslations = {
     "autoAdd": "ఆటో యాడ్",
     "webhook": "వెబ్‌హుక్",
     "webhookHost": "Webhook హోస్ట్",
+    "externalUrl": "పబ్లిక్ / బాహ్య URL (ఐచ్ఛికం)",
+    "externalUrlHint": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. Leecharrని రిమోట్‌గా యాక్సెస్ చేస్తున్నప్పుడు).",
     "connectionSuccess": "కనెక్షన్ విజయం",
     "connectionFailed": "కనెక్షన్ విఫలమైంది",
     "radarrDescription": "రాడార్ వివరణ",
@@ -3329,9 +3336,7 @@ const te: I18nTranslations = {
     "webhookHostHintRadarr": "వెబ్‌హూక్ హోస్ట్ సూచన రాడార్",
     "webhookHostHintLidarr": "వెబ్‌హూక్ హోస్ట్ హింట్ లిడార్",
     "port7889Desc": "Port7889 Desc",
-    "prowlarrDesc": "Prowlarr Desc",
-    "externalUrl": "పబ్లిక్ / బాహ్య URL (ఐచ్ఛికం)",
-    "externalUrlHint": "బ్రౌజర్ డీప్ లింక్‌ల కోసం ఐచ్ఛిక పబ్లిక్ URL (ఉదా. Leecharrని రిమోట్‌గా యాక్సెస్ చేస్తున్నప్పుడు)."
+    "prowlarrDesc": "Prowlarr Desc"
   },
   "promptModal": {
     "defaultTitle": "డిఫాల్ట్ శీర్షిక",

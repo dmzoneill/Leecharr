@@ -1129,6 +1129,10 @@ const id: I18nTranslations = {
     "allSources": "Semua Sumber",
     "activeSwarmHarvest": "Panen Kawanan Aktif",
     "publicFeeds": "Umpan Publik",
+    "healthAlive": "Hidup",
+    "healthSlow": "Lambat",
+    "healthOffline": "Luring",
+    "healthUntested": "Belum dicoba",
     "copyAllUrls": "Salin semua URL pelacak ke papan klip",
     "downloadTxt": "Unduh pelacak terverifikasi dan aktif sebagai file .txt",
     "pasteMultiple": "Tempelkan beberapa URL pelacak sekaligus",
@@ -1286,7 +1290,8 @@ const id: I18nTranslations = {
       "trackerRadar": "Radar Tracker",
       "activityLogs": "Log Aktivitas",
       "sourcesAutomation": "Otomatisasi Sumber"
-    }
+    },
+    "allHealth": "Semua Kesehatan"
   },
   "terminal": {
     "title": "Terminal CLI Terintegrasi",
@@ -1793,12 +1798,12 @@ const id: I18nTranslations = {
     "autoAdd": "Tambah Otomatis",
     "webhook": "kait web",
     "webhookHost": "Host Webhook",
+    "externalUrl": "URL Publik / Eksternal (Opsional)",
+    "externalUrlHint": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh saat menggunakan alamat penampung internal).",
     "loadingConnections": "Memuat koneksi...",
     "apiKey": "Kunci Api",
     "apiKeyCopied": "Kunci Api Disalin",
-    "failedToCopyApiKey": "Gagal Menyalin Kunci Api",
-    "externalUrl": "URL Publik / Eksternal (Opsional)",
-    "externalUrlHint": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh saat menggunakan alamat penampung internal)."
+    "failedToCopyApiKey": "Gagal Menyalin Kunci Api"
   },
   "modals": {
     "confirmTitle": "Konfirmasi Diperlukan",
@@ -3309,6 +3314,8 @@ const id: I18nTranslations = {
     "autoAdd": "Tambah Otomatis",
     "webhook": "kait web",
     "webhookHost": "Host Webhook",
+    "externalUrl": "URL Publik / Eksternal (Opsional)",
+    "externalUrlHint": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh).",
     "connectionSuccess": "Koneksi Berhasil",
     "connectionFailed": "Koneksi Gagal",
     "radarrDescription": "Deskripsi Radar",
@@ -3329,9 +3336,7 @@ const id: I18nTranslations = {
     "finishAndClose": "Selesai Dan Tutup",
     "webhookHostHintSonarr": "Petunjuk Host Webhook Sonarr",
     "webhookHostHintRadarr": "Petunjuk Host Webhook Radarr",
-    "webhookHostHintLidarr": "Petunjuk Host Webhook Lidarr",
-    "externalUrl": "URL Publik / Eksternal (Opsional)",
-    "externalUrlHint": "URL publik opsional untuk tautan dalam browser (misalnya saat mengakses Leecharr dari jarak jauh)."
+    "webhookHostHintLidarr": "Petunjuk Host Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Judul Bawaan",
