@@ -35,4 +35,14 @@ public class TorznabSearchResult
     public string IndexerName { get; set; }
 
     public int IndexerId { get; set; }
+
+    public double? MinimumRatio { get; set; }
+
+    public long? MinimumSeedTime { get; set; }
+
+    public string Description { get; set; }
+
+    public string DetailsUrl { get; set; }
+
+    public string Comments { get; set; }
 }
