@@ -351,6 +351,19 @@ public class NzbgetRpcController : ControllerBase
                                     await this.torrentService.UpdateAsync(t);
                                 }
                             }
+                            else if (command == "groupsetpriority")
+                            {
+                                var t = this.torrentService.Get(targetId);
+                                if (t != null)
+                                {
+                                    t.Priority = offset;
+                                    await this.torrentService.UpdateAsync(t);
+                                }
+                            }
+                            else if (command == "historyreturn" || command == "historyredownload")
+                            {
+                                await this.torrentService.ResumeAsync(targetId);
+                            }
                         }
                     }
 
@@ -682,6 +695,19 @@ public class NzbgetRpcController : ControllerBase
                     t.Category = editText;
                     await this.torrentService.UpdateAsync(t);
                 }
+            }
+            else if (command == "groupsetpriority")
+            {
+                var t = this.torrentService.Get(targetId);
+                if (t != null)
+                {
+                    t.Priority = offset;
+                    await this.torrentService.UpdateAsync(t);
+                }
+            }
+            else if (command == "historyreturn" || command == "historyredownload")
+            {
+                await this.torrentService.ResumeAsync(targetId);
             }
         }
     }

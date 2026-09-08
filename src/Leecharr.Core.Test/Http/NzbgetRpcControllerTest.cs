@@ -331,6 +331,85 @@ public class NzbgetRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_EditQueue_GroupSetPriority_UpdatesTorrentPriority()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 101, Priority = 0 };
+        this.torrentService.Get(101).Returns(torrent);
+
+        using var doc = JsonDocument.Parse("[\"groupsetpriority\", 50, \"\", [101]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 20,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        torrent.Priority.Should().Be(50);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_HistoryReturn_CallsResumeAsync()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"historyreturn\", 0, \"\", [102]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 21,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        await this.torrentService.Received(1).ResumeAsync(102);
+    }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_HistoryRedownload_CallsResumeAsync()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"historyredownload\", 0, \"\", [103]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 22,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        await this.torrentService.Received(1).ResumeAsync(103);
+    }
+
+    [Test]
     public async Task HandleXmlRpc_EditQueue_Pause_CallsPauseAsync()
     {
         var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>grouppause</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>101</int></value></data></array></value></param></params></methodCall>";
@@ -424,5 +503,60 @@ public class NzbgetRpcControllerTest
         result.Should().BeOfType<ContentResult>();
         var contentResult = (ContentResult)result;
         contentResult.Content.Should().Contain("<value><array><data></data></array></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_GroupSetPriority_UpdatesTorrentPriority()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>groupsetpriority</string></value></param><param><value><int>75</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>201</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 201, Priority = 0 };
+        this.torrentService.Get(201).Returns(torrent);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
+
+        torrent.Priority.Should().Be(75);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_HistoryReturn_CallsResumeAsync()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>historyreturn</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>202</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
+
+        await this.torrentService.Received(1).ResumeAsync(202);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_HistoryRedownload_CallsResumeAsync()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>historyredownload</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>203</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
+
+        await this.torrentService.Received(1).ResumeAsync(203);
     }
 }
