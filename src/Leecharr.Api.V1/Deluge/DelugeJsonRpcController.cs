@@ -396,7 +396,7 @@ public class DelugeJsonRpcController : ControllerBase
                     {
                         if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                         {
-                            var lName = paramsElem[0].GetString();
+                            var lName = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
                             var lOptions = paramsElem[1];
                             if (!string.IsNullOrWhiteSpace(lName) && lOptions.ValueKind == JsonValueKind.Object)
                             {
@@ -428,8 +428,8 @@ public class DelugeJsonRpcController : ControllerBase
                 case "label.set_torrent":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                     {
-                        var torrentHash = paramsElem[0].GetString();
-                        var labelName = paramsElem[1].GetString();
+                        var torrentHash = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
+                        var labelName = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
                         if (!string.IsNullOrEmpty(torrentHash))
                         {
                             var torrent = this.torrentService.GetByInfoHash(torrentHash);
@@ -507,10 +507,13 @@ public class DelugeJsonRpcController : ControllerBase
                     {
                         foreach (var keyElem in paramsElem[0].EnumerateArray())
                         {
-                            var k = keyElem.GetString();
-                            if (!string.IsNullOrEmpty(k))
+                            if (keyElem.ValueKind == JsonValueKind.String)
                             {
-                                requestedConfig[k] = fullConfig.TryGetValue(k, out var val) ? val : null;
+                                var k = keyElem.GetString();
+                                if (!string.IsNullOrEmpty(k))
+                                {
+                                    requestedConfig[k] = fullConfig.TryGetValue(k, out var val) ? val : null;
+                                }
                             }
                         }
                     }
@@ -739,7 +742,7 @@ public class DelugeJsonRpcController : ControllerBase
                     string addedHash = null;
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                     {
-                        var b64 = paramsElem[1].GetString();
+                        var b64 = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
                         if (!string.IsNullOrWhiteSpace(b64))
                         {
                             var bytes = Convert.FromBase64String(b64);
@@ -757,16 +760,16 @@ public class DelugeJsonRpcController : ControllerBase
                                     isPaused = SafeGetBoolean(ap);
                                 }
 
-                                if (opts.TryGetProperty("download_location", out var dl))
+                                if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
                                 {
                                     savePath = dl.GetString();
                                 }
-                                else if (opts.TryGetProperty("move_completed_path", out var mcp))
+                                else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
                                 {
                                     savePath = mcp.GetString();
                                 }
 
-                                if (opts.TryGetProperty("label", out var lbl))
+                                if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
                                 {
                                     category = lbl.GetString();
                                 }
@@ -794,7 +797,7 @@ public class DelugeJsonRpcController : ControllerBase
                     string magnetHash = null;
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
                     {
-                        var magnetUri = paramsElem[0].GetString();
+                        var magnetUri = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
                         var isPaused = false;
                         string savePath = null;
                         string category = null;
@@ -808,16 +811,16 @@ public class DelugeJsonRpcController : ControllerBase
                                 isPaused = SafeGetBoolean(ap);
                             }
 
-                            if (opts.TryGetProperty("download_location", out var dl))
+                            if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
                             {
                                 savePath = dl.GetString();
                             }
-                            else if (opts.TryGetProperty("move_completed_path", out var mcp))
+                            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
                             {
                                 savePath = mcp.GetString();
                             }
 
-                            if (opts.TryGetProperty("label", out var lbl))
+                            if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
                             {
                                 category = lbl.GetString();
                             }
@@ -844,7 +847,7 @@ public class DelugeJsonRpcController : ControllerBase
                     string urlHash = null;
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
                     {
-                        var url = paramsElem[0].GetString();
+                        var url = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
                         var isPaused = false;
                         string savePath = null;
                         string category = null;
@@ -857,12 +860,16 @@ public class DelugeJsonRpcController : ControllerBase
                                 isPaused = SafeGetBoolean(ap);
                             }
 
-                            if (opts.TryGetProperty("download_location", out var dl))
+                            if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
                             {
                                 savePath = dl.GetString();
                             }
+                            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
+                            {
+                                savePath = mcp.GetString();
+                            }
 
-                            if (opts.TryGetProperty("label", out var lbl))
+                            if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
                             {
                                 category = lbl.GetString();
                             }
@@ -916,7 +923,7 @@ public class DelugeJsonRpcController : ControllerBase
                     object torrentInfoResult = null;
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
                     {
-                        var filePath = paramsElem[0].GetString();
+                        var filePath = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
                         if (!string.IsNullOrWhiteSpace(filePath) && global::System.IO.File.Exists(filePath))
                         {
                             var bytes = await global::System.IO.File.ReadAllBytesAsync(filePath);
@@ -975,7 +982,7 @@ public class DelugeJsonRpcController : ControllerBase
                         foreach (var item in torrentItems)
                         {
                             string torrentPath = null;
-                            if (item.TryGetProperty("path", out var pProp))
+                            if (item.TryGetProperty("path", out var pProp) && pProp.ValueKind == JsonValueKind.String)
                             {
                                 torrentPath = pProp.GetString();
                             }
@@ -1165,7 +1172,7 @@ public class DelugeJsonRpcController : ControllerBase
                             if (t != null)
                             {
                                 string newPath = null;
-                                if (opts.TryGetProperty("download_location", out var dl))
+                                if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
                                 {
                                     newPath = dl.GetString();
                                 }
@@ -1240,7 +1247,7 @@ public class DelugeJsonRpcController : ControllerBase
                 case "core.set_torrent_file_priorities":
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                     {
-                        var hash = paramsElem[0].GetString();
+                        var hash = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
                         var priosElem = paramsElem[1];
                         if (!string.IsNullOrWhiteSpace(hash) && priosElem.ValueKind == JsonValueKind.Array)
                         {

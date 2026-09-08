@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -1451,5 +1452,124 @@ public class DelugeJsonRpcControllerTest
         torrentObj.GetProperty("trackers").GetArrayLength().Should().Be(1);
         torrentObj.GetProperty("total_wanted").GetInt64().Should().Be(52428800L);
         torrentObj.GetProperty("comment").GetString().Should().Be("Movie torrent comment");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithNullAndNonStringValues_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string hash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Torrent",
+            InfoHash = hash,
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_torrent_options\",\"params\":[[\"aabbccddeeff00112233445566778899aabbccdd\"], {\"download_location\": null, \"move_completed_path\": null, \"max_download_speed\": null, \"max_upload_speed\": null, \"stop_ratio\": null, \"file_priorities\": null}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentMagnet_WithNullAndNonStringOptions_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string magnet = "magnet:?xt=urn:btih:aabbccddeeff00112233445566778899aabbccdd&dn=Test";
+        this.torrentService.AddFromMagnetAsync(magnet, null, null, false)
+            .Returns(Task.FromResult<Torrent>(new Torrent { Id = 1, InfoHash = "aabbccddeeff00112233445566778899aabbccdd" }));
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.add_torrent_magnet\",\"params\":[\"magnet:?xt=urn:btih:aabbccddeeff00112233445566778899aabbccdd&dn=Test\", {\"download_location\": null, \"move_completed_path\": null, \"label\": null, \"stop_ratio\": null, \"add_paused\": null}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":\"aabbccddeeff00112233445566778899aabbccdd\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentFile_WithNullAndNonStringOptions_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsedTorrent = new ParsedTorrent { InfoHash = "aabbccddeeff00112233445566778899aabbccdd", Name = "Test" };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+        this.torrentService.AddFromParsedTorrentAsync(parsedTorrent, null, null, false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult<Torrent>(new Torrent { Id = 1, InfoHash = "aabbccddeeff00112233445566778899aabbccdd" }));
+
+        var dummyB64 = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_file\",\"params\":[\"test.torrent\", \"{dummyB64}\", {{\"download_location\": null, \"move_completed_path\": null, \"label\": null, \"stop_ratio\": null, \"add_paused\": null}}],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":\"aabbccddeeff00112233445566778899aabbccdd\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_LabelSetOptions_WithNullOptions_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.categoryService.GetByName("tv").Returns(new Category { Id = 1, Name = "tv" });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"label.set_options\",\"params\":[\"tv\", {\"move_completed_path\": null, \"stop_ratio\": null}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+    }
+
+    [Test]
+    public async Task HandleRpc_LabelSetTorrent_WithNullValues_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"label.set_torrent\",\"params\":[null, null],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetConfigValues_WithNullElements_DoesNotThrow()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config_values\",\"params\":[[null, \"download_location\", 123]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"error\":null");
     }
 }
