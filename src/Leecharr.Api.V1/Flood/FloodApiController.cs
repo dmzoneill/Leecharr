@@ -75,6 +75,7 @@ public class FloodApiController : ControllerBase, IActionFilter
     private readonly IConfigFileProvider configFileProvider;
     private readonly IUserService userService;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly NzbDrone.Core.Network.GeoIp.IGeoIpService geoIpService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public FloodApiController(
@@ -85,7 +86,8 @@ public class FloodApiController : ControllerBase, IActionFilter
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
         IUserService userService = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        NzbDrone.Core.Network.GeoIp.IGeoIpService geoIpService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -95,6 +97,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         this.configFileProvider = configFileProvider;
         this.userService = userService;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.geoIpService = geoIpService;
     }
 
     [NonAction]
@@ -764,7 +767,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         {
             address = p.Ip ?? string.Empty,
             client = p.Client ?? string.Empty,
-            country = string.Empty,
+            country = (!string.IsNullOrWhiteSpace(p.Ip) && this.geoIpService != null ? this.geoIpService.Lookup(p.Ip)?.CountryCode : null) ?? string.Empty,
             downloadRate = p.DownloadSpeed,
             uploadRate = p.UploadSpeed,
             progress = p.Progress * 100.0,
