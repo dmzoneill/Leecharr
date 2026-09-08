@@ -46,7 +46,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
     private string BuildSqliteConnectionString(string dataFolder)
     {
         var dbPath = Path.Combine(dataFolder, "leecharr.db");
-        return $"Data Source={dbPath};Foreign Keys=True;";
+        return $"Data Source={dbPath};Foreign Keys=True;Default Timeout=30;";
     }
 
     private string BuildPostgresConnectionString()
@@ -55,6 +55,11 @@ public class ConnectionStringFactory : IConnectionStringFactory
             $"Port={this.configFileProvider.PostgresPort};" +
             $"Database={this.configFileProvider.PostgresMainDb};" +
             $"Username={this.configFileProvider.PostgresUser};" +
-            $"Password={this.configFileProvider.PostgresPassword}";
+            $"Password={this.configFileProvider.PostgresPassword};" +
+            $"MinPoolSize=1;" +
+            $"MaxPoolSize=50;" +
+            $"ConnectionIdleLifetime=30;" +
+            $"Timeout=15;" +
+            $"CommandTimeout=30;";
     }
 }
