@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Network;
 
@@ -102,5 +103,22 @@ public class ExternalIpServiceTest
 
         Assert.That(success, Is.False);
         Assert.That(ip, Is.Empty);
+    }
+
+    [Test]
+    public void Constructor_AcceptsConfigAndBindingServices()
+    {
+        var configService = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.ProxyType.Returns("socks5");
+        configService.ProxyHost.Returns("127.0.0.1");
+        configService.ProxyPort.Returns(1080);
+        configService.BindInterface.Returns("tun0");
+
+        var bindingService = NSubstitute.Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        var transportEngine = NSubstitute.Substitute.For<NzbDrone.Core.Http.Transport.IHttpTransportEngine>();
+
+        var subject = new ExternalIpService(configService, bindingService, transportEngine);
+
+        Assert.That(subject.CachedIp, Is.EqualTo(string.Empty));
     }
 }

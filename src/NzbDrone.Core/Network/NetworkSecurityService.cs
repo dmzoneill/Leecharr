@@ -40,6 +40,7 @@ public class NetworkSecurityService : INetworkSecurityService
     private readonly IEventAggregator eventAggregator;
     private readonly Vpn.IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
+    private bool isKillSwitchActive;
 
     public NetworkSecurityService(
         INetworkSettingsRepository repository,
@@ -98,20 +99,44 @@ public class NetworkSecurityService : INetworkSecurityService
         }
 
         var settings = this.GetCurrentSettings();
-        if (!settings.EnableVpnKillSwitch || string.IsNullOrWhiteSpace(settings.BindInterface))
+        var iface = settings.BindInterface?.Trim();
+        if (!settings.EnableVpnKillSwitch || string.IsNullOrWhiteSpace(iface) ||
+            string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase))
         {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN Kill switch disabled or unconfigured. Restoring interface state.");
+                this.eventAggregator?.PublishEvent(new Vpn.VpnInterfaceRestoredEvent(iface ?? string.Empty));
+            }
+
             return false; // Kill switch not engaged
         }
 
-        var isUp = this.IsInterfaceActive(settings.BindInterface);
+        var isUp = this.IsInterfaceActive(iface);
         if (!isUp)
         {
-            this.logger.Error("VPN Kill Switch Triggered! Interface '{0}' dropped. BitTorrent traffic suspended.", settings.BindInterface);
-            this.eventAggregator.PublishEvent(new VpnKillSwitchTriggeredEvent(settings.BindInterface));
+            if (!this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = true;
+                this.logger.Error("VPN Kill Switch Triggered! Interface '{0}' dropped. BitTorrent traffic suspended.", iface);
+                this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(iface));
+            }
+
             return true;
         }
+        else
+        {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN interface '{0}' restored and operational. Resuming BitTorrent traffic.", iface);
+                this.eventAggregator?.PublishEvent(new Vpn.VpnInterfaceRestoredEvent(iface));
+            }
 
-        return false;
+            return false;
+        }
     }
 
     public NetworkSettings GetCurrentSettings()
