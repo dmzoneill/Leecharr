@@ -256,6 +256,13 @@ public static class TerminalWebSocketHandler
 
         await Task.WhenAny(readPtyTask, receiveWsTask);
         cts.Cancel();
+        try
+        {
+            await Task.WhenAll(readPtyTask, receiveWsTask);
+        }
+        catch
+        {
+        }
 
         try
         {
