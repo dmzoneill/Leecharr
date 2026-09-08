@@ -53,6 +53,7 @@ test:
 	dotnet test $(UNIT_TEST) --configuration Release --no-build \
 		--settings .runsettings \
 		--logger "trx;LogFileName=test-results.trx" \
+		--logger "console;verbosity=normal" \
 		--collect:"XPlat Code Coverage"
 
 test-unit: test
@@ -62,6 +63,7 @@ integration:
 		dotnet test $(INTEGRATION_TEST) --configuration Release --no-build \
 			--settings .runsettings \
 			--logger "trx;LogFileName=integration-test-results.trx" \
+			--logger "console;verbosity=normal" \
 			--collect:"XPlat Code Coverage"; \
 	fi
 
