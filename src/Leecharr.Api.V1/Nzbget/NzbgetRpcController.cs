@@ -373,6 +373,46 @@ public class NzbgetRpcController : ControllerBase
                 case "loadlog":
                     return this.Ok(new { version = "1.1", result = Array.Empty<object>(), id });
 
+                case "listfiles":
+                    var listFilesNzbId = 0;
+                    if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() > 0)
+                    {
+                        var firstElem = request.Params[0];
+                        if (firstElem.ValueKind == JsonValueKind.Number && firstElem.TryGetInt32(out var parsedId))
+                        {
+                            listFilesNzbId = parsedId;
+                        }
+                        else if (firstElem.ValueKind == JsonValueKind.String && int.TryParse(firstElem.GetString(), out var stringId))
+                        {
+                            listFilesNzbId = stringId;
+                        }
+                    }
+                    else if (request.Params.ValueKind == JsonValueKind.Object)
+                    {
+                        if (request.Params.TryGetProperty("nzbId", out var prop) ||
+                            request.Params.TryGetProperty("nzbid", out prop) ||
+                            request.Params.TryGetProperty("NZBID", out prop) ||
+                            request.Params.TryGetProperty("id", out prop) ||
+                            request.Params.TryGetProperty("ID", out prop))
+                        {
+                            if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var parsedId))
+                            {
+                                listFilesNzbId = parsedId;
+                            }
+                            else if (prop.ValueKind == JsonValueKind.String && int.TryParse(prop.GetString(), out var stringId))
+                            {
+                                listFilesNzbId = stringId;
+                            }
+                        }
+                    }
+
+                    return this.Ok(new
+                    {
+                        version = "1.1",
+                        result = this.GetListFiles(listFilesNzbId),
+                        id,
+                    });
+
                 default:
                     this.logger.Debug("Unhandled NZBGet method: {0}", request.Method);
                     return this.Ok(new { version = "1.1", result = true, id });
@@ -513,29 +553,8 @@ public class NzbgetRpcController : ControllerBase
 
             case "listfiles":
                 var nzbId = paramValues.Count > 0 ? (paramValues[0] is int id ? id : (int.TryParse(paramValues[0]?.ToString(), out var pid) ? pid : 0)) : 0;
-                if (this.torrentFileService != null && nzbId > 0)
-                {
-                    var files = this.torrentFileService.GetFiles(nzbId)?.ToList();
-                    if (files != null && files.Count > 0)
-                    {
-                        var mappedFiles = files.Select(f => (object)new
-                        {
-                            ID = f.Id,
-                            NZBID = nzbId,
-                            FileName = f.Path ?? string.Empty,
-                            FileSizeLo = (int)(f.Size & 0xFFFFFFFF),
-                            FileSizeHi = (int)(f.Size >> 32),
-                            RemainingSizeLo = (int)((f.Size - f.BytesCompleted) & 0xFFFFFFFF),
-                            RemainingSizeHi = (int)((f.Size - f.BytesCompleted) >> 32),
-                            Progress = (int)(f.Progress * 1000),
-                            Status = "FINISHED",
-                        }).ToList();
-
-                        return ToXmlRpcValue(mappedFiles);
-                    }
-                }
-
-                return ToXmlRpcValue(Array.Empty<object>());
+                var mappedFiles = this.GetListFiles(nzbId);
+                return ToXmlRpcValue(mappedFiles);
 
             case "shutdown":
             case "reload":
@@ -874,6 +893,31 @@ public class NzbgetRpcController : ControllerBase
                     Parameters = Array.Empty<object>(),
                 };
             }).ToList();
+    }
+
+    private List<object> GetListFiles(int nzbId)
+    {
+        if (this.torrentFileService != null && nzbId > 0)
+        {
+            var files = this.torrentFileService.GetFiles(nzbId)?.ToList();
+            if (files != null && files.Count > 0)
+            {
+                return files.Select(f => (object)new
+                {
+                    ID = f.Id,
+                    NZBID = nzbId,
+                    FileName = f.Path ?? string.Empty,
+                    FileSizeLo = (int)(f.Size & 0xFFFFFFFF),
+                    FileSizeHi = (int)(f.Size >> 32),
+                    RemainingSizeLo = (int)((f.Size - f.BytesCompleted) & 0xFFFFFFFF),
+                    RemainingSizeHi = (int)((f.Size - f.BytesCompleted) >> 32),
+                    Progress = (int)(f.Progress * 1000),
+                    Status = "FINISHED",
+                }).ToList();
+            }
+        }
+
+        return new List<object>();
     }
 
     private static List<object> ExtractParamValues(XElement paramsElement)

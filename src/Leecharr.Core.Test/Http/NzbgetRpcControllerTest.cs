@@ -31,6 +31,7 @@ public class NzbgetRpcControllerTest
     private IConfigFileProvider configFileProvider = null!;
     private IDiskProvider diskProvider = null!;
     private ISafeHttpClientService safeHttpClientService = null!;
+    private ITorrentFileService torrentFileService = null!;
     private NzbgetRpcController controller = null!;
 
     [SetUp]
@@ -43,6 +44,7 @@ public class NzbgetRpcControllerTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
+        this.torrentFileService = Substitute.For<ITorrentFileService>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
 
@@ -53,7 +55,8 @@ public class NzbgetRpcControllerTest
             this.configService,
             this.configFileProvider,
             this.diskProvider,
-            this.safeHttpClientService);
+            this.safeHttpClientService,
+            this.torrentFileService);
     }
 
     [Test]
@@ -558,5 +561,162 @@ public class NzbgetRpcControllerTest
         contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
 
         await this.torrentService.Received(1).ResumeAsync(203);
+    }
+
+    [Test]
+    public async Task HandleRpc_ListFiles_WithArrayParam_ReturnsMappedFileList()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile
+            {
+                Id = 1,
+                Path = "movie.mkv",
+                Size = 1073741824L,
+                BytesCompleted = 1073741824L,
+                Progress = 1.0,
+            },
+            new TorrentFile
+            {
+                Id = 2,
+                Path = "sample.mkv",
+                Size = 52428800L,
+                BytesCompleted = 26214400L,
+                Progress = 0.5,
+            },
+        };
+
+        this.torrentFileService.GetFiles(101).Returns(files);
+
+        using var doc = JsonDocument.Parse("[101]");
+        var request = new NzbgetRequest
+        {
+            Method = "listfiles",
+            Params = doc.RootElement,
+            Id = 50,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("id").GetInt32().Should().Be(50);
+        var resultArr = resDoc.RootElement.GetProperty("result");
+        resultArr.ValueKind.Should().Be(JsonValueKind.Array);
+        resultArr.GetArrayLength().Should().Be(2);
+
+        var firstFile = resultArr[0];
+        firstFile.GetProperty("ID").GetInt32().Should().Be(1);
+        firstFile.GetProperty("NZBID").GetInt32().Should().Be(101);
+        firstFile.GetProperty("FileName").GetString().Should().Be("movie.mkv");
+        firstFile.GetProperty("Progress").GetInt32().Should().Be(1000);
+        firstFile.GetProperty("Status").GetString().Should().Be("FINISHED");
+
+        var secondFile = resultArr[1];
+        secondFile.GetProperty("ID").GetInt32().Should().Be(2);
+        secondFile.GetProperty("NZBID").GetInt32().Should().Be(101);
+        secondFile.GetProperty("FileName").GetString().Should().Be("sample.mkv");
+        secondFile.GetProperty("Progress").GetInt32().Should().Be(500);
+    }
+
+    [Test]
+    public async Task HandleRpc_ListFiles_WithObjectParam_ReturnsMappedFileList()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile
+            {
+                Id = 10,
+                Path = "episode.mkv",
+                Size = 500000000L,
+                BytesCompleted = 500000000L,
+                Progress = 1.0,
+            },
+        };
+
+        this.torrentFileService.GetFiles(102).Returns(files);
+
+        using var doc = JsonDocument.Parse("{\"NZBID\": 102}");
+        var request = new NzbgetRequest
+        {
+            Method = "listfiles",
+            Params = doc.RootElement,
+            Id = 51,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var resultArr = resDoc.RootElement.GetProperty("result");
+        resultArr.GetArrayLength().Should().Be(1);
+        resultArr[0].GetProperty("FileName").GetString().Should().Be("episode.mkv");
+    }
+
+    [Test]
+    public async Task HandleRpc_ListFiles_WhenNoFilesFound_ReturnsEmptyArray()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentFileService.GetFiles(999).Returns(new List<TorrentFile>());
+
+        using var doc = JsonDocument.Parse("[999]");
+        var request = new NzbgetRequest
+        {
+            Method = "listfiles",
+            Params = doc.RootElement,
+            Id = 52,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var resultArr = resDoc.RootElement.GetProperty("result");
+        resultArr.ValueKind.Should().Be(JsonValueKind.Array);
+        resultArr.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ListFiles_ReturnsMappedFileListXml()
+    {
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile
+            {
+                Id = 5,
+                Path = "track.flac",
+                Size = 30000000L,
+                BytesCompleted = 30000000L,
+                Progress = 1.0,
+            },
+        };
+
+        this.torrentFileService.GetFiles(301).Returns(files);
+
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>listfiles</methodName><params><param><value><int>301</int></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<name>FileName</name><value><string>track.flac</string></value>");
+        contentResult.Content.Should().Contain("<name>NZBID</name><value><int>301</int></value>");
     }
 }
