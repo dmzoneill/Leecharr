@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -84,15 +85,18 @@ public class SabnzbdApiController : ControllerBase
 
             case "fullstatus":
             case "status":
+                var allTorrentsStatus = this.torrentService.GetAll().ToList();
+                var isAllPausedStatus = allTorrentsStatus.Count > 0 &&
+                                        allTorrentsStatus.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
                 return this.Ok(new
                 {
                     status = new
                     {
                         version = "4.3.2",
-                        paused = false,
+                        paused = isAllPausedStatus,
                         restart_req = false,
                         power_options = true,
-                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(),
+                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
                         color_scheme = "gold",
                     },
                     version = "4.3.2",
@@ -286,30 +290,45 @@ public class SabnzbdApiController : ControllerBase
                                 (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
                     .Select(t =>
                     {
-                        var secondsLeft = t.DownloadSpeed > 0 ? (t.TotalSize - t.Downloaded) / t.DownloadSpeed : 0;
+                        var remainingBytes = Math.Max(0, t.TotalSize - t.Downloaded);
+                        var secondsLeft = t.DownloadSpeed > 0 ? remainingBytes / t.DownloadSpeed : 0;
                         var ts = TimeSpan.FromSeconds(secondsLeft);
-                        var timeleftStr = $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+                        var timeleftStr = $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
 
                         return new
                         {
                             nzo_id = t.InfoHash,
                             filename = t.Name ?? string.Empty,
-                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                            sizeleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                            mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2"),
-                            mbleft = ((t.TotalSize - t.Downloaded) / (1024.0 * 1024.0)).ToString("F2"),
+                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
+                            sizeleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
+                            mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
+                            mbleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
                             status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "Paused" : "Downloading",
                             cat = t.Category ?? "default",
                             priority = GetPriorityString(t.Priority),
                             timeleft = timeleftStr,
-                            percentage = ((int)(t.Progress * 100)).ToString(),
+                            percentage = ((int)(t.Progress * 100)).ToString(CultureInfo.InvariantCulture),
                         };
                     }).ToList();
 
-                var freeSpaceGb = (this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incFreeSpaceGb = (this.GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
-                var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2");
+                var totalDlSpeed = allTorrents.Sum(t => t.DownloadSpeed);
+                var totalRemainingBytes = allTorrents.Sum(t => Math.Max(0, t.TotalSize - t.Downloaded));
+
+                var isAllPaused = allTorrents.Count > 0 &&
+                                  allTorrents.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
+                var isAnyDownloading = allTorrents.Any(t => t.Status == TorrentStatus.Downloading && t.DownloadSpeed > 0);
+                var queueStatus = isAllPaused ? "Paused" : (isAnyDownloading ? "Downloading" : "Idle");
+
+                var kbpersec = totalDlSpeed / 1024.0;
+                var timeleftSeconds = totalDlSpeed > 0 ? totalRemainingBytes / totalDlSpeed : 0;
+                var mbleft = totalRemainingBytes / (1024.0 * 1024.0);
+                var queueTimeleftTs = TimeSpan.FromSeconds(timeleftSeconds);
+                var queueTimeleftStr = $"{(int)queueTimeleftTs.TotalHours:D2}:{queueTimeleftTs.Minutes:D2}:{queueTimeleftTs.Seconds:D2}";
+
+                var freeSpaceGb = (this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+                var incFreeSpaceGb = (this.GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+                var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+                var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
 
                 var queueStart = this.GetStartParam();
                 var queueLimit = this.GetLimitParam();
@@ -319,10 +338,14 @@ public class SabnzbdApiController : ControllerBase
                 {
                     queue = new
                     {
-                        status = "Downloading",
-                        speed = (allTorrents.Sum(t => t.DownloadSpeed) / 1024.0).ToString("F1") + " KB/s",
-                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(),
-                        paused = false,
+                        status = queueStatus,
+                        speed = kbpersec.ToString("F1", CultureInfo.InvariantCulture) + " KB/s",
+                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
+                        paused = isAllPaused,
+                        kbpersec = kbpersec.ToString("F2", CultureInfo.InvariantCulture),
+                        bytespersec = totalDlSpeed.ToString(CultureInfo.InvariantCulture),
+                        timeleft = queueTimeleftStr,
+                        mbleft = mbleft.ToString("F2", CultureInfo.InvariantCulture),
                         noofslots_total = queueSlots.Count,
                         noofslots = queueSlots.Count,
                         diskspace1 = freeSpaceGb,

@@ -587,4 +587,153 @@ public class SabnzbdApiControllerTest
         slots[0].GetProperty("nzo_id").GetString().Should().Be("h2");
         slots[1].GetProperty("nzo_id").GetString().Should().Be("h3");
     }
+
+    [Test]
+    public async Task HandleApi_Queue_WhenTorrentsDownloading_ReturnsDownloadingStatusAndCorrectTelemetry()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+        this.configService.MaxDownloadSpeedKbps.Returns(5000);
+
+        // 100 MB total, 50 MB downloaded, speed 1 MB/s (1048576 B/s) -> 50s remaining
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                InfoHash = "h1",
+                Name = "T1",
+                Status = TorrentStatus.Downloading,
+                TotalSize = 104857600L,
+                Downloaded = 52428800L,
+                DownloadSpeed = 1048576L,
+                Progress = 0.5,
+            },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var queue = doc.RootElement.GetProperty("queue");
+        queue.GetProperty("status").GetString().Should().Be("Downloading");
+        queue.GetProperty("paused").GetBoolean().Should().BeFalse();
+        queue.GetProperty("kbpersec").GetString().Should().Be("1024.00");
+        queue.GetProperty("bytespersec").GetString().Should().Be("1048576");
+        queue.GetProperty("speed").GetString().Should().Be("1024.0 KB/s");
+        queue.GetProperty("timeleft").GetString().Should().Be("00:00:50");
+        queue.GetProperty("mbleft").GetString().Should().Be("50.00");
+        queue.GetProperty("speedlimit").GetString().Should().Be("5000");
+    }
+
+    [Test]
+    public async Task HandleApi_Queue_WhenAllTorrentsPausedOrStopped_ReturnsPausedStatusAndPausedTrue()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Status = TorrentStatus.Paused, TotalSize = 1000000, Downloaded = 500000, DownloadSpeed = 0 },
+            new Torrent { Id = 2, InfoHash = "h2", Name = "T2", Status = TorrentStatus.Stopped, TotalSize = 2000000, Downloaded = 1000000, DownloadSpeed = 0 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var queue = doc.RootElement.GetProperty("queue");
+        queue.GetProperty("status").GetString().Should().Be("Paused");
+        queue.GetProperty("paused").GetBoolean().Should().BeTrue();
+        queue.GetProperty("kbpersec").GetString().Should().Be("0.00");
+        queue.GetProperty("bytespersec").GetString().Should().Be("0");
+        queue.GetProperty("timeleft").GetString().Should().Be("00:00:00");
+    }
+
+    [Test]
+    public async Task HandleApi_Queue_WhenEmptyQueue_ReturnsIdleStatusAndPausedFalse()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var queue = doc.RootElement.GetProperty("queue");
+        queue.GetProperty("status").GetString().Should().Be("Idle");
+        queue.GetProperty("paused").GetBoolean().Should().BeFalse();
+        queue.GetProperty("kbpersec").GetString().Should().Be("0.00");
+        queue.GetProperty("bytespersec").GetString().Should().Be("0");
+        queue.GetProperty("timeleft").GetString().Should().Be("00:00:00");
+        queue.GetProperty("mbleft").GetString().Should().Be("0.00");
+    }
+
+    [Test]
+    public async Task HandleApi_Status_WhenAllTorrentsPaused_ReturnsPausedTrue()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Paused },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "status",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var status = doc.RootElement.GetProperty("status");
+        status.GetProperty("paused").GetBoolean().Should().BeTrue();
+    }
 }
