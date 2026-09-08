@@ -71,6 +71,11 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
 
     public void Handle(TorrentDownloadCompletedEvent message)
     {
+        _ = this.HandleAsync(message);
+    }
+
+    public async Task HandleAsync(TorrentDownloadCompletedEvent message)
+    {
         if (message?.Torrent == null)
         {
             return;
@@ -82,149 +87,146 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             return;
         }
 
-        Task.Run(async () =>
+        try
         {
-            try
+            var files = this.torrentFileService.GetFiles(message.Torrent.Id);
+            var savePath = message.Torrent.SavePath;
+            if (string.IsNullOrEmpty(savePath))
             {
-                var files = this.torrentFileService.GetFiles(message.Torrent.Id);
-                var savePath = message.Torrent.SavePath;
-                if (string.IsNullOrEmpty(savePath))
-                {
-                    return;
-                }
+                return;
+            }
 
-                var isSingleFile = this.diskProvider.FileExists(savePath);
-                var rootDir = isSingleFile
-                    ? Path.GetDirectoryName(Path.GetFullPath(savePath)) ?? savePath
-                    : savePath;
+            var isSingleFile = this.diskProvider.FileExists(savePath);
+            var rootDir = isSingleFile
+                ? Path.GetDirectoryName(Path.GetFullPath(savePath)) ?? savePath
+                : savePath;
 
-                var password = this.configService?.GetValue("ArchivePassword", (string)null);
-                var passwordsStr = this.configService?.GetValue("ArchivePasswords", (string)null);
-                IReadOnlyList<string> candidatePasswords = null;
-                if (!string.IsNullOrWhiteSpace(passwordsStr))
-                {
-                    candidatePasswords = passwordsStr.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                }
+            var password = this.configService?.GetValue("ArchivePassword", (string)null);
+            var passwordsStr = this.configService?.GetValue("ArchivePasswords", (string)null);
+            IReadOnlyList<string> candidatePasswords = null;
+            if (!string.IsNullOrWhiteSpace(passwordsStr))
+            {
+                candidatePasswords = passwordsStr.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
 
-                foreach (var file in files)
+            foreach (var file in files)
+            {
+                if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
                 {
-                    if (this.extractorService.IsArchiveFile(file.Path) && !IsSecondaryVolume(file.Path))
+                    var fullPath = isSingleFile && string.Equals(Path.GetFileName(savePath), file.Path, StringComparison.OrdinalIgnoreCase)
+                        ? savePath
+                        : Path.Combine(savePath, file.Path);
+
+                    if (!TorrentPathValidator.IsStrictSubPath(rootDir, fullPath))
                     {
-                        var fullPath = isSingleFile && string.Equals(Path.GetFileName(savePath), file.Path, StringComparison.OrdinalIgnoreCase)
-                            ? savePath
-                            : Path.Combine(savePath, file.Path);
+                        this.logger.Warn("Refusing to auto-extract archive with path traversal outside rootDir for torrent {0}: {1}", message.Torrent.Name, file.Path);
+                        continue;
+                    }
 
-                        if (!TorrentPathValidator.IsStrictSubPath(rootDir, fullPath))
+                    if (this.diskProvider.FileExists(fullPath))
+                    {
+                        var destDir = Path.GetDirectoryName(fullPath) ?? rootDir;
+                        if (this.IsArchiveAlreadyExtracted(destDir, fullPath))
                         {
-                            this.logger.Warn("Refusing to auto-extract archive with path traversal outside rootDir for torrent {0}: {1}", message.Torrent.Name, file.Path);
+                            this.logger.Debug("Archive {0} has already been extracted (receipt found). Skipping auto-extraction for torrent {1}.", fullPath, message.Torrent.Name);
                             continue;
                         }
 
-                        if (this.diskProvider.FileExists(fullPath))
+                        var estimatedSize = file.Size > 0 ? file.Size : this.diskProvider.GetFileSize(fullPath);
+                        var basePrefix = GetArchiveBasePrefix(file.Path);
+                        var relatedFiles = files.Where(f =>
                         {
-                            var destDir = Path.GetDirectoryName(fullPath) ?? rootDir;
-                            if (this.IsArchiveAlreadyExtracted(destDir, fullPath))
+                            var fn = Path.GetFileName(f.Path);
+                            return !string.IsNullOrEmpty(basePrefix) && fn.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase);
+                        }).ToList();
+
+                        if (relatedFiles.Count > 1)
+                        {
+                            var sum = relatedFiles.Sum(f => f.Size > 0 ? f.Size : 0);
+                            if (sum > 0)
                             {
-                                this.logger.Debug("Archive {0} has already been extracted (receipt found). Skipping auto-extraction for torrent {1}.", fullPath, message.Torrent.Name);
-                                continue;
+                                estimatedSize = sum;
                             }
+                        }
 
-                            var estimatedSize = file.Size > 0 ? file.Size : this.diskProvider.GetFileSize(fullPath);
-                            var basePrefix = GetArchiveBasePrefix(file.Path);
-                            var relatedFiles = files.Where(f =>
+                        if (estimatedSize <= 0)
+                        {
+                            estimatedSize = ArchiveTimeoutCalculator.EstimateTotalArchiveSize(fullPath, this.diskProvider);
+                        }
+
+                        var requiredSpace = (long)(estimatedSize * 1.5);
+                        var availableSpace = this.diskProvider.GetAvailableSpace(destDir);
+
+                        if (availableSpace.HasValue && availableSpace.Value < requiredSpace)
+                        {
+                            this.logger.Warn(
+                                "Insufficient free disk space on '{0}' for extracting '{1}'. Required: {2} bytes (1.5x estimated size), Available: {3} bytes.",
+                                destDir,
+                                fullPath,
+                                requiredSpace,
+                                availableSpace.Value);
+
+                            this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
                             {
-                                var fn = Path.GetFileName(f.Path);
-                                return !string.IsNullOrEmpty(basePrefix) && fn.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase);
-                            }).ToList();
+                                Torrent = message.Torrent,
+                                ArchivePath = fullPath,
+                                DestinationDirectory = destDir,
+                                ErrorMessage = $"Insufficient free disk space on '{destDir}'. Required: {requiredSpace:N0} bytes, Available: {availableSpace.Value:N0} bytes.",
+                            });
 
-                            if (relatedFiles.Count > 1)
+                            continue;
+                        }
+
+                        this.logger.Info("Queuing auto-extraction for archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                        await this.extractionSemaphore.WaitAsync();
+                        bool success;
+                        try
+                        {
+                            this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                            success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
+                        }
+                        finally
+                        {
+                            this.extractionSemaphore.Release();
+                        }
+
+                        if (success)
+                        {
+                            this.RecordExtractionReceipt(destDir, fullPath);
+
+                            this.eventAggregator.PublishEvent(new ArchiveExtractionCompletedEvent
                             {
-                                var sum = relatedFiles.Sum(f => f.Size > 0 ? f.Size : 0);
-                                if (sum > 0)
-                                {
-                                    estimatedSize = sum;
-                                }
-                            }
-
-                            if (estimatedSize <= 0)
+                                Torrent = message.Torrent,
+                                ArchivePath = fullPath,
+                                DestinationDirectory = destDir,
+                            });
+                        }
+                        else
+                        {
+                            this.logger.Warn("Auto-extraction failed for archive {0} in torrent {1}", fullPath, message.Torrent.Name);
+                            this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
                             {
-                                estimatedSize = ArchiveTimeoutCalculator.EstimateTotalArchiveSize(fullPath, this.diskProvider);
-                            }
-
-                            var requiredSpace = (long)(estimatedSize * 1.5);
-                            var availableSpace = this.diskProvider.GetAvailableSpace(destDir);
-
-                            if (availableSpace.HasValue && availableSpace.Value < requiredSpace)
-                            {
-                                this.logger.Warn(
-                                    "Insufficient free disk space on '{0}' for extracting '{1}'. Required: {2} bytes (1.5x estimated size), Available: {3} bytes.",
-                                    destDir,
-                                    fullPath,
-                                    requiredSpace,
-                                    availableSpace.Value);
-
-                                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
-                                {
-                                    Torrent = message.Torrent,
-                                    ArchivePath = fullPath,
-                                    DestinationDirectory = destDir,
-                                    ErrorMessage = $"Insufficient free disk space on '{destDir}'. Required: {requiredSpace:N0} bytes, Available: {availableSpace.Value:N0} bytes.",
-                                });
-
-                                continue;
-                            }
-
-                            this.logger.Info("Queuing auto-extraction for archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                            await this.extractionSemaphore.WaitAsync();
-                            bool success;
-                            try
-                            {
-                                this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                                success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
-                            }
-                            finally
-                            {
-                                this.extractionSemaphore.Release();
-                            }
-
-                            if (success)
-                            {
-                                this.RecordExtractionReceipt(destDir, fullPath);
-
-                                this.eventAggregator.PublishEvent(new ArchiveExtractionCompletedEvent
-                                {
-                                    Torrent = message.Torrent,
-                                    ArchivePath = fullPath,
-                                    DestinationDirectory = destDir,
-                                });
-                            }
-                            else
-                            {
-                                this.logger.Warn("Auto-extraction failed for archive {0} in torrent {1}", fullPath, message.Torrent.Name);
-                                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
-                                {
-                                    Torrent = message.Torrent,
-                                    ArchivePath = fullPath,
-                                    DestinationDirectory = destDir,
-                                    ErrorMessage = $"Extraction failed for archive '{fullPath}' to destination '{destDir}'.",
-                                });
-                            }
+                                Torrent = message.Torrent,
+                                ArchivePath = fullPath,
+                                DestinationDirectory = destDir,
+                                ErrorMessage = $"Extraction failed for archive '{fullPath}' to destination '{destDir}'.",
+                            });
                         }
                     }
                 }
             }
-            catch (Exception ex)
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
+            this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
             {
-                this.logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
-                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
-                {
-                    Torrent = message.Torrent,
-                    ArchivePath = message.Torrent.SavePath,
-                    DestinationDirectory = message.Torrent.SavePath,
-                    ErrorMessage = $"Failed to auto-extract archives for torrent {message.Torrent.Name}: {ex.Message}",
-                });
-            }
-        });
+                Torrent = message.Torrent,
+                ArchivePath = message.Torrent.SavePath,
+                DestinationDirectory = message.Torrent.SavePath,
+                ErrorMessage = $"Failed to auto-extract archives for torrent {message.Torrent.Name}: {ex.Message}",
+            });
+        }
     }
 
     public static bool IsSecondaryVolume(string path)
