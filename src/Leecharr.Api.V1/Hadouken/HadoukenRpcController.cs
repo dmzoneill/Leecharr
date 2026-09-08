@@ -323,7 +323,8 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(data, maxSizeBytes: 10 * 1024 * 1024);
+                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(data, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
@@ -454,7 +455,8 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
+                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 return this.Ok(new { result = added?.InfoHash, error = (object)null, id });

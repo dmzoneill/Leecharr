@@ -87,6 +87,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public string ExtractorTempDir => this.GetValue("ExtractorTempDir", string.Empty);
 
+    public long MaxTorrentFileSizeBytes => this.GetValueLong("MaxTorrentFileSizeBytes", 250L * 1024 * 1024);
+
     private void LoadFromFile()
     {
         lock (Mutex)
@@ -191,6 +193,12 @@ public class ConfigFileProvider : IConfigFileProvider
     {
         var value = this.GetValue(key, null);
         return value != null && int.TryParse(value, out var result) ? result : defaultValue;
+    }
+
+    private long GetValueLong(string key, long defaultValue)
+    {
+        var value = this.GetValue(key, null);
+        return value != null && long.TryParse(value, out var result) ? result : defaultValue;
     }
 
     private bool GetValueBool(string key, bool defaultValue)

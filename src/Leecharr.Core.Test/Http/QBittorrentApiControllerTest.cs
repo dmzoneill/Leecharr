@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.QBittorrent;
@@ -13,9 +14,11 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -31,6 +34,8 @@ public class QBittorrentApiControllerTest
     private IConfigService configService = null!;
     private ITrackerEntryRepository trackerEntryRepository = null!;
     private IConfigFileProvider configFileProvider = null!;
+    private IDiskProvider diskProvider = null!;
+    private ISafeHttpClientService safeHttpClientService = null!;
     private QBittorrentApiController controller = null!;
 
     [SetUp]
@@ -45,6 +50,8 @@ public class QBittorrentApiControllerTest
         this.configService = Substitute.For<IConfigService>();
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
+        this.diskProvider = Substitute.For<IDiskProvider>();
+        this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
         this.categoryService.GetAll().Returns(new List<Category>());
@@ -56,7 +63,9 @@ public class QBittorrentApiControllerTest
             this.categoryService,
             this.configService,
             this.trackerEntryRepository,
-            configFileProvider: this.configFileProvider);
+            configFileProvider: this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
+            diskProvider: this.diskProvider);
     }
 
     [Test]
@@ -1073,6 +1082,48 @@ public class QBittorrentApiControllerTest
         this.controller.OnActionExecuting(execContext);
 
         execContext.Result.Should().BeNull();
+    }
+
+    [Test]
+    public void GetMainData_ReturnsDynamicFreeSpaceOnDisk_FromDiskProvider()
+    {
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(42949672960L);
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        var actionResult = this.controller.GetMainData(0);
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        var serverStateJson = JsonSerializer.Serialize(data["server_state"]);
+        using var doc = JsonDocument.Parse(serverStateJson);
+        doc.RootElement.GetProperty("free_space_on_disk").GetInt64().Should().Be(42949672960L);
+    }
+
+    [Test]
+    public void GetTorrentsInfo_CalculatesDynamicEta_WhenDownloadingWithZeroEta()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Active Download",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            TotalSize = 100_000_000,
+            Downloaded = 20_000_000,
+            DownloadSpeed = 10_000_000, // 80 MB remaining / 10 MB/s = 8 seconds
+            Eta = 0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var actionResult = this.controller.GetTorrentsInfo();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<object>>().Subject.ToList();
+
+        list.Count.Should().Be(1);
+        var json = JsonSerializer.Serialize(list[0]);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("eta").GetInt64().Should().Be(8);
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)

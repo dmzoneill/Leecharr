@@ -1299,4 +1299,22 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"tv\",1");
         json.Should().Contain("\"Active\",1");
     }
+
+    [Test]
+    public async Task HandleRpc_GetFreeSpace_ReturnsAvailableSpaceFromDiskProvider()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(500_000_000_000L);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space\",\"params\":[\"/downloads\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetInt64().Should().Be(500_000_000_000L);
+    }
 }

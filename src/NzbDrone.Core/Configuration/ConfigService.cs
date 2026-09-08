@@ -97,6 +97,8 @@ public interface IConfigService
 
     int LowDiskSpaceThresholdMb { get; }
 
+    long MaxTorrentFileSizeBytes { get; }
+
     // Watch Folder
     bool WatchFolderEnabled { get; }
 
@@ -786,6 +788,8 @@ public class ConfigService : IConfigService
     public int FastResumeIntervalMinutes => this.GetValueInt("FastResumeIntervalMinutes", 5);
 
     public int LowDiskSpaceThresholdMb => this.GetValueInt("LowDiskSpaceThresholdMb", 500);
+
+    public long MaxTorrentFileSizeBytes => this.GetValueLong("MaxTorrentFileSizeBytes", 250L * 1024 * 1024);
 
     // Watch Folder
     public bool WatchFolderEnabled => this.GetValueBoolean("WatchFolderEnabled", false);

@@ -814,6 +814,92 @@ public class Aria2RpcControllerTest
         GetStructMember(structElem!, "max-upload-limit").Should().Be((512 * 1024).ToString());
     }
 
+    [Test]
+    public async Task TellWaiting_JsonRpc_SlicesCorrectly_WithPositiveAndNegativeOffset()
+    {
+        var torrents = Enumerable.Range(1, 10).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Waiting_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Queued,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        // Positive offset = 2, num = 3 -> items 3, 4, 5
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "aria2.tellWaiting",
+              "params": [2, 3]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(3);
+        array[0].GetProperty("gid").GetString().Should().Be(torrents[2].InfoHash.Substring(0, 16));
+        array[1].GetProperty("gid").GetString().Should().Be(torrents[3].InfoHash.Substring(0, 16));
+        array[2].GetProperty("gid").GetString().Should().Be(torrents[4].InfoHash.Substring(0, 16));
+
+        // Negative offset = -3, num = 2 -> last 3 items: 8, 9, 10; take 2 -> items 8, 9
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "aria2.tellWaiting",
+              "params": [-3, 2]
+            }
+            """);
+
+        var resultNeg = await this.controller.HandleRpc();
+        var okResultNeg = resultNeg.Should().BeOfType<OkObjectResult>().Subject;
+        var jsonNeg = JsonSerializer.Serialize(okResultNeg.Value);
+        using var docNeg = JsonDocument.Parse(jsonNeg);
+        var arrayNeg = docNeg.RootElement.GetProperty("result").EnumerateArray().ToList();
+        arrayNeg.Count.Should().Be(2);
+        arrayNeg[0].GetProperty("gid").GetString().Should().Be(torrents[7].InfoHash.Substring(0, 16));
+        arrayNeg[1].GetProperty("gid").GetString().Should().Be(torrents[8].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task TellStopped_JsonRpc_SlicesCorrectly_WithPositiveAndNegativeOffset()
+    {
+        var torrents = Enumerable.Range(1, 5).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Stopped_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Stopped,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        // Offset 1, num 2 -> items 2, 3
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "aria2.tellStopped",
+              "params": [1, 2]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(2);
+        array[0].GetProperty("gid").GetString().Should().Be(torrents[1].InfoHash.Substring(0, 16));
+        array[1].GetProperty("gid").GetString().Should().Be(torrents[2].InfoHash.Substring(0, 16));
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);

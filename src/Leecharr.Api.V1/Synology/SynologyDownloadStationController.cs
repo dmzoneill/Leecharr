@@ -309,7 +309,8 @@ public class SynologyDownloadStationController : ControllerBase
                     }
                     else
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(effectiveUri, maxSizeBytes: 10 * 1024 * 1024);
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(effectiveUri, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                     }

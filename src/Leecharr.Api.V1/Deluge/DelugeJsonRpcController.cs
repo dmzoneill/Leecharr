@@ -877,7 +877,8 @@ public class DelugeJsonRpcController : ControllerBase
                             }
                             else
                             {
-                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: 10 * 1024 * 1024);
+                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                                 urlHash = added?.InfoHash;
@@ -1619,13 +1620,15 @@ public class DelugeJsonRpcController : ControllerBase
     {
         try
         {
-            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var target = string.IsNullOrWhiteSpace(path) ? (this.configService?.DownloadDir ?? "/downloads") : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
+            return this.diskProvider?.GetAvailableSpace(fullPath)
+                ?? this.diskProvider?.GetAvailableSpace(target)
+                ?? 0L;
         }
         catch
         {
-            return 1099511627776L;
+            return 0L;
         }
     }
 

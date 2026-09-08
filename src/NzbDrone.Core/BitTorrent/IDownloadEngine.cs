@@ -151,4 +151,16 @@ public class PeerInfo
     public long Uploaded { get; set; }
 
     public bool IsEncrypted { get; set; }
+
+    public bool IsChoked { get; set; }
+
+    public bool IsInterested { get; set; }
+
+    public bool ClientIsChoked { get; set; }
+
+    public bool ClientIsInterested { get; set; }
+
+    public bool IsIncoming { get; set; }
+
+    public bool IsUtp { get; set; }
 }

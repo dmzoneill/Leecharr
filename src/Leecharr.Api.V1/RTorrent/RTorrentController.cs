@@ -424,7 +424,8 @@ public class RTorrentController : ControllerBase
                         }
                         else
                         {
-                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(uriStr, maxSizeBytes: 10 * 1024 * 1024);
+                            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                            var bytes = await this.safeHttpClientService.DownloadBytesAsync(uriStr, maxSizeBytes: maxTorrentBytes);
                             var parsed = this.torrentFileParser.Parse(bytes);
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)

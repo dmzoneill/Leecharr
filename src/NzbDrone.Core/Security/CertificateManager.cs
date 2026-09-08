@@ -414,6 +414,8 @@ public class CertificateManager : ICertificateManager
 
         public string ExtractorTempDir => string.Empty;
 
+        public long MaxTorrentFileSizeBytes => 250L * 1024 * 1024;
+
         public void SaveConfigDictionary(Dictionary<string, object> values)
         {
         }

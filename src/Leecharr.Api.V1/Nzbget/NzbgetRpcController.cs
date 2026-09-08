@@ -187,7 +187,8 @@ public class NzbgetRpcController : ControllerBase
                             {
                                 try
                                 {
-                                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: 10 * 1024 * 1024);
+                                    var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+                                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: maxTorrentBytes);
                                     var parsed = this.torrentFileParser.Parse(bytes);
                                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
                                     return this.Ok(new { version = "1.1", result = added?.Id, id });
@@ -584,7 +585,8 @@ public class NzbgetRpcController : ControllerBase
                 if (nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     nzbName.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
-                    var urlBytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: 10 * 1024 * 1024);
+                    var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+                    var urlBytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: maxTorrentBytes);
                     var parsed = this.torrentFileParser.Parse(urlBytes);
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, urlBytes);
                     return added?.Id ?? 1;
@@ -1081,13 +1083,15 @@ public class NzbgetRpcController : ControllerBase
     {
         try
         {
-            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var target = string.IsNullOrWhiteSpace(path) ? (this.configService?.DownloadDir ?? "/downloads") : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
+            return this.diskProvider?.GetAvailableSpace(fullPath)
+                ?? this.diskProvider?.GetAvailableSpace(target)
+                ?? 0L;
         }
         catch
         {
-            return 1099511627776L;
+            return 0L;
         }
     }
 }

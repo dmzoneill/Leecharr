@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -331,6 +332,10 @@ public class FloodApiController : ControllerBase, IActionFilter
         foreach (var t in torrents)
         {
             var hash = t.InfoHash.ToLowerInvariant();
+            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+            var peers = downloadTask?.GetPeers() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
+            var seedsConnected = peers.Count(p => p.Progress >= 1.0 || (p.Flags != null && p.Flags.Contains("S", StringComparison.OrdinalIgnoreCase)));
+            var leechersConnected = peers.Count - seedsConnected;
             dict[hash] = new
             {
                 hash = t.InfoHash,
@@ -341,18 +346,18 @@ public class FloodApiController : ControllerBase, IActionFilter
                 downRate = t.DownloadSpeed,
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
-                eta = t.Eta,
+                eta = t.Eta > 0 ? t.Eta : (t.Progress >= 1.0 ? 0 : (t.DownloadSpeed > 0 ? (Math.Max(0, t.TotalSize - t.Downloaded) / t.DownloadSpeed) : 8640000)),
                 status = new[] { this.MapToFloodStatus(t.Status) },
                 tags = string.IsNullOrWhiteSpace(t.Category)
                     ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
                     : new[] { t.Category },
                 directory = t.SavePath ?? string.Empty,
-                isPrivate = false,
-                isInitialSeeding = false,
+                isPrivate = t.IsPrivate,
+                isInitialSeeding = t.InitialSeeding,
                 isSequential = t.SequentialDownload,
-                seedsConnected = t.Seeders,
+                seedsConnected = peers.Count > 0 ? seedsConnected : t.Seeders,
                 seedsTotal = t.Seeders,
-                peersConnected = t.Leechers,
+                peersConnected = peers.Count > 0 ? leechersConnected : t.Leechers,
                 peersTotal = t.Leechers,
             };
         }
@@ -382,6 +387,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         if (request?.Urls != null)
         {
             var category = request.Tags?.FirstOrDefault();
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
             foreach (var url in request.Urls)
             {
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
@@ -390,7 +396,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 }
                 else
                 {
-                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: 10 * 1024 * 1024);
+                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
                     var parsed = this.torrentFileParser.Parse(bytes);
                     await this.torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
                 }
@@ -626,6 +632,45 @@ public class FloodApiController : ControllerBase, IActionFilter
         }
 
         return this.Ok(new { success = true });
+    }
+
+    [HttpGet]
+    [Route("api/torrents/{hash}/peers")]
+    public IActionResult GetTorrentPeers([FromRoute] string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return this.BadRequest();
+        }
+
+        var t = this.torrentService.GetByInfoHash(hash);
+        if (t == null)
+        {
+            return this.NotFound();
+        }
+
+        var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+        var swarmPeers = downloadTask?.GetPeers() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
+
+        var result = swarmPeers.Select(p => new
+        {
+            address = p.Ip ?? string.Empty,
+            client = p.Client ?? string.Empty,
+            country = string.Empty,
+            downloadRate = p.DownloadSpeed,
+            uploadRate = p.UploadSpeed,
+            progress = p.Progress * 100.0,
+            flags = p.Flags ?? string.Empty,
+            isEncrypted = p.IsEncrypted,
+            isIncoming = p.IsIncoming,
+            isUtp = p.IsUtp,
+            peerIsChoked = p.IsChoked,
+            peerIsInterested = p.IsInterested,
+            clientIsChoked = p.ClientIsChoked,
+            clientIsInterested = p.ClientIsInterested,
+        });
+
+        return this.Ok(result);
     }
 }
 

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network.GeoIp;
@@ -78,6 +79,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ITorrentCreationService torrentCreationService;
     private readonly ITorrentLogService torrentLogService;
+    private readonly IConfigService configService;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -90,7 +92,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         IDownloadEngine downloadEngine = null,
         ISafeHttpClientService safeHttpClientService = null,
         ITorrentCreationService torrentCreationService = null,
-        ITorrentLogService torrentLogService = null)
+        ITorrentLogService torrentLogService = null,
+        IConfigService configService = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -103,6 +106,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.torrentCreationService = torrentCreationService;
         this.torrentLogService = torrentLogService;
+        this.configService = configService;
     }
 
     [HttpGet]
@@ -576,7 +580,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
         {
-            var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+            var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, maxSizeBytes: maxTorrentBytes);
             var parsed = this.torrentFileParser.Parse(bytes);
             var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
             if (torrent == null)

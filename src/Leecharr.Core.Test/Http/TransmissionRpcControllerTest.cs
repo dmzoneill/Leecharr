@@ -1805,4 +1805,104 @@ public class TransmissionRpcControllerTest
         await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://oldtracker.org/announce")));
         await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://newtracker.org/announce")));
     }
+
+    [Test]
+    public async Task HandleRpc_FreeSpace_ReturnsAvailableSpaceFromDiskProvider()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(107374182400L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(536870912000L);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var pathDoc = JsonDocument.Parse("\"/downloads\"");
+        args["path"] = pathDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "free-space",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resArgs = doc.RootElement.GetProperty("arguments");
+        resArgs.GetProperty("path").GetString().Should().Be("/downloads");
+        resArgs.GetProperty("size-bytes").GetInt64().Should().Be(107374182400L);
+        resArgs.GetProperty("total_size").GetInt64().Should().Be(536870912000L);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_MapsPeerPropertiesCorrectly()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 5,
+            Name = "Peers Torrent",
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { testTorrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.GetPeers().Returns(new List<PeerInfo>
+        {
+            new PeerInfo
+            {
+                Ip = "192.168.1.50",
+                Port = 6881,
+                Client = "qBittorrent/4.5.0",
+                DownloadSpeed = 102400,
+                UploadSpeed = 51200,
+                Progress = 0.75,
+                Flags = "uE",
+                IsEncrypted = true,
+                IsUtp = true,
+                IsIncoming = false,
+                IsChoked = false,
+                IsInterested = true,
+                ClientIsChoked = true,
+                ClientIsInterested = false,
+            },
+        });
+        this.downloadEngine.GetTask(5).Returns(mockTask);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fieldsDoc = JsonDocument.Parse("[\"id\", \"peers\"]");
+        args["fields"] = fieldsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var torrents = doc.RootElement.GetProperty("arguments").GetProperty("torrents");
+        torrents.GetArrayLength().Should().Be(1);
+        var peerElem = torrents[0].GetProperty("peers")[0];
+
+        peerElem.GetProperty("address").GetString().Should().Be("192.168.1.50");
+        peerElem.GetProperty("isEncrypted").GetBoolean().Should().BeTrue();
+        peerElem.GetProperty("isUTP").GetBoolean().Should().BeTrue();
+        peerElem.GetProperty("isIncoming").GetBoolean().Should().BeFalse();
+        peerElem.GetProperty("peerIsChoked").GetBoolean().Should().BeFalse();
+        peerElem.GetProperty("peerIsInterested").GetBoolean().Should().BeTrue();
+        peerElem.GetProperty("clientIsChoked").GetBoolean().Should().BeTrue();
+        peerElem.GetProperty("clientIsInterested").GetBoolean().Should().BeFalse();
+    }
 }
