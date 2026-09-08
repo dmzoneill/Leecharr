@@ -18,16 +18,17 @@ public class UserService : IUserService
     private readonly IUserRepository userRepository;
     private readonly IUserSessionRepository userSessionRepository;
     private readonly IUserSessionCache userSessionCache;
+    private readonly IUserExternalLoginRepository userExternalLoginRepository;
     private readonly Logger logger;
     private readonly int defaultIterations;
 
     public UserService(IUserRepository userRepository, Logger logger)
-        : this(userRepository, logger, DefaultPbkdf2Iterations, null, null)
+        : this(userRepository, logger, DefaultPbkdf2Iterations, null, null, null)
     {
     }
 
     public UserService(IUserRepository userRepository, Logger logger, int defaultIterations)
-        : this(userRepository, logger, defaultIterations, null, null)
+        : this(userRepository, logger, defaultIterations, null, null, null)
     {
     }
 
@@ -35,8 +36,9 @@ public class UserService : IUserService
         IUserRepository userRepository,
         Logger logger,
         IUserSessionRepository userSessionRepository,
-        IUserSessionCache userSessionCache = null)
-        : this(userRepository, logger, DefaultPbkdf2Iterations, userSessionRepository, userSessionCache)
+        IUserSessionCache userSessionCache = null,
+        IUserExternalLoginRepository userExternalLoginRepository = null)
+        : this(userRepository, logger, DefaultPbkdf2Iterations, userSessionRepository, userSessionCache, userExternalLoginRepository)
     {
     }
 
@@ -45,13 +47,15 @@ public class UserService : IUserService
         Logger logger,
         int defaultIterations,
         IUserSessionRepository userSessionRepository,
-        IUserSessionCache userSessionCache = null)
+        IUserSessionCache userSessionCache = null,
+        IUserExternalLoginRepository userExternalLoginRepository = null)
     {
         this.userRepository = userRepository;
         this.logger = logger;
         this.defaultIterations = defaultIterations > 0 ? defaultIterations : DefaultPbkdf2Iterations;
         this.userSessionRepository = userSessionRepository;
         this.userSessionCache = userSessionCache;
+        this.userExternalLoginRepository = userExternalLoginRepository;
     }
 
     public int Iterations => this.defaultIterations;
@@ -167,6 +171,7 @@ public class UserService : IUserService
     public void Delete(int id)
     {
         this.userSessionRepository?.DeleteByUserId(id);
+        this.userExternalLoginRepository?.DeleteByUserId(id);
         this.userSessionCache?.ClearCache();
         this.userRepository.Delete(id);
     }

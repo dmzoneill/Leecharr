@@ -160,13 +160,15 @@ public class UserServiceTest
     {
         var sessionRepo = Substitute.For<IUserSessionRepository>();
         var sessionCache = Substitute.For<IUserSessionCache>();
-        var service = new UserService(this.userRepository, this.logger, sessionRepo, sessionCache);
+        var externalLoginRepo = Substitute.For<IUserExternalLoginRepository>();
+        var service = new UserService(this.userRepository, this.logger, sessionRepo, sessionCache, externalLoginRepo);
 
         var user = service.CreateUser("bob", "Password123!", "bob@example.com");
 
         service.Delete(user.Id);
 
         sessionRepo.Received(1).DeleteByUserId(user.Id);
+        externalLoginRepo.Received(1).DeleteByUserId(user.Id);
         sessionCache.Received(1).ClearCache();
         Assert.That(this.userRepository.Get(user.Id), Is.Null);
     }

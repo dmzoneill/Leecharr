@@ -473,6 +473,42 @@ public class CookieSessionManagerTest
         this.testCache.Should().BeEmpty();
     }
 
+    [Test]
+    public async Task ValidatePrincipal_WhenUserRepositoryInServiceProvider_RejectsDeletedUser()
+    {
+        const string token = "service-provider-deleted-user-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 18,
+            UserId = 555,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(555).Returns((User)null);
+
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IUserRepository)).Returns(userRepo);
+        serviceProvider.GetService(typeof(IUserSessionRepository)).Returns(this.sessionRepository);
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var httpContext = new DefaultHttpContext { RequestServices = serviceProvider };
+        var authScheme = new AuthenticationScheme("Cookies", "Cookies", typeof(CookieAuthenticationHandler));
+        var options = new CookieAuthenticationOptions();
+        var ticket = new AuthenticationTicket(principal, new AuthenticationProperties(), "Cookies");
+        var context = new CookieValidatePrincipalContext(httpContext, authScheme, options, ticket);
+
+        await manager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+    }
+
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)
     {
         var claims = new List<Claim>
