@@ -4,16 +4,45 @@ using System.Collections.Generic;
 using Dapper;
 using NzbDrone.Core.Datastore;
 
+using NzbDrone.Core.Datastore.Events;
+using NzbDrone.Core.Messaging.Events;
+
 namespace NzbDrone.Core.Torrents;
 
 public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
 {
     private readonly IDatabase database;
+    private readonly IEventAggregator eventAggregator;
 
-    public TorrentRepository(IDatabase database)
-        : base(database)
+    public TorrentRepository(IDatabase database, IEventAggregator eventAggregator = null)
+        : base(database, eventAggregator)
     {
         this.database = database;
+        this.eventAggregator = eventAggregator;
+    }
+
+    public override void Delete(int id)
+    {
+        var existing = this.Get(id);
+        using var connection = this.database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            connection.Execute("DELETE FROM \"TorrentFiles\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
+            connection.Execute("DELETE FROM \"TrackerEntries\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
+            connection.Execute("DELETE FROM \"TorrentMediaMetadata\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
+            connection.Execute($"DELETE FROM \"{this.table}\" WHERE \"Id\" = @Id", new { Id = id }, transaction);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+
+        this.eventAggregator?.PublishEvent(new ModelEvent<Torrent>(existing ?? new Torrent { Id = id }, ModelAction.Deleted));
     }
 
     public Torrent GetByInfoHash(string infoHash)
