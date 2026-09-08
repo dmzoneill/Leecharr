@@ -279,11 +279,12 @@ public class NotificationEventHandler :
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
+                var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnHealthIssue").ConfigureAwait(false);
+                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, "OnHealthIssue", scriptArgs).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -346,11 +347,12 @@ public class NotificationEventHandler :
         {
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
+                var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "OnApplicationUpdate").ConfigureAwait(false);
+                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, "OnApplicationUpdate", scriptArgs).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -495,11 +497,12 @@ public class NotificationEventHandler :
 
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
+                var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.customScriptService.ExecuteScriptAsync(notif.Settings, torrent, eventType).ConfigureAwait(false);
+                        await this.customScriptService.ExecuteScriptAsync(scriptPath, torrent, eventType, scriptArgs).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

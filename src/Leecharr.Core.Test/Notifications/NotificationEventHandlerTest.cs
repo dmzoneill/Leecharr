@@ -45,11 +45,11 @@ public class NotificationEventHandlerTest
             });
 
         this.customScriptService = Substitute.For<ICustomScriptService>();
-        this.customScriptService.ExecuteScriptAsync(Arg.Any<string>(), Arg.Any<Torrent>(), Arg.Any<string>())
+        this.customScriptService.ExecuteScriptAsync(Arg.Any<string>(), Arg.Any<Torrent>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(ci =>
             {
                 this.scriptTcs.TrySetResult(true);
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             });
 
         this.configService = Substitute.For<IConfigService>();
@@ -1120,5 +1120,123 @@ public class NotificationEventHandlerTest
                 payload.GetType().GetProperty("torrent") != null &&
                 (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("ratio")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == expectedRatio &&
                 (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("progress")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == 0.0));
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenCustomScriptNotificationWithJsonSettings_ParsesPathAndArguments()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 60,
+            Name = "Custom Script JSON",
+            Implementation = "CustomScript",
+            ConfigContract = "CustomScriptSettings",
+            Settings = "{\"path\": \"/opt/scripts/notify.sh\", \"arguments\": \"--arg1 --arg2\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 60,
+            Name = "ScriptTest.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.scriptTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/notify.sh",
+            torrent,
+            "OnGrab",
+            "--arg1 --arg2");
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenCustomScriptNotificationWithPlainPath_ParsesPathAndNullArguments()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 61,
+            Name = "Custom Script Plain",
+            Implementation = "CustomScript",
+            ConfigContract = "CustomScriptSettings",
+            Settings = "/opt/scripts/notify.sh",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 61,
+            Name = "ScriptTestPlain.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.scriptTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/notify.sh",
+            torrent,
+            "OnGrab",
+            null);
+    }
+
+    [Test]
+    public async Task Handle_VpnKillSwitchTriggeredEvent_WhenCustomScriptNotificationWithJsonSettings_ParsesPathAndArguments()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 62,
+            Name = "VPN Kill Script",
+            Implementation = "CustomScript",
+            ConfigContract = "CustomScriptSettings",
+            Settings = "{\"path\": \"/opt/scripts/vpn-down.sh\", \"arguments\": \"--kill\"}",
+            OnHealthIssue = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new VpnKillSwitchTriggeredEvent("tun0"));
+
+        await this.scriptTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/vpn-down.sh",
+            null,
+            "OnHealthIssue",
+            "--kill");
+    }
+
+    [Test]
+    public async Task Handle_ApplicationUpdatedEvent_WhenCustomScriptNotificationWithJsonSettings_ParsesPathAndArguments()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 63,
+            Name = "App Update Script",
+            Implementation = "CustomScript",
+            ConfigContract = "CustomScriptSettings",
+            Settings = "{\"path\": \"/opt/scripts/app-update.sh\", \"arguments\": \"--update\"}",
+            OnApplicationUpdate = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        this.handler.Handle(new ApplicationUpdatedEvent { PreviousVersion = "1.0.0", NewVersion = "1.1.0" });
+
+        await this.scriptTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/app-update.sh",
+            null,
+            "OnApplicationUpdate",
+            "--update");
     }
 }
