@@ -93,7 +93,8 @@ public class ArchiveExtractorServiceTest
     [TestCase("movie.7z.001", false)]
     [TestCase("movie.rar.001", false)]
     [TestCase("movie.zip.001", false)]
-    [TestCase("movie.z01", false)]
+    [TestCase("movie.z01", true)]
+    [TestCase("movie.z99", true)]
     [TestCase("movie.part01.7z", false)]
     [TestCase("movie.part01.zip", false)]
     [TestCase("movie.part02.rar", true)]
@@ -177,6 +178,59 @@ public class ArchiveExtractorServiceTest
         var extractedFile = Path.Combine(outputDir, "inner_folder", "content.txt");
         File.Exists(extractedFile).Should().BeTrue();
         (await File.ReadAllTextAsync(extractedFile)).Should().Be("Extracted content successfully");
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ExtractsArchive_WithPasswordParameter()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "valid_with_pass.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "pass_output");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("inner/secret.txt");
+            using var entryStream = entry.Open();
+            using var writer = new StreamWriter(entryStream);
+            await writer.WriteAsync("Encrypted content successfully decrypted");
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider);
+
+        var success = await provider.ExtractAsync(zipPath, outputDir, "SecretPassword123");
+        success.Should().BeTrue();
+
+        var extractedFile = Path.Combine(outputDir, "inner", "secret.txt");
+        File.Exists(extractedFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(extractedFile)).Should().Be("Encrypted content successfully decrypted");
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ExtractsArchive_WithCandidatePasswordList()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "valid_candidates.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "candidates_output");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("data.txt");
+            using var entryStream = entry.Open();
+            using var writer = new StreamWriter(entryStream);
+            await writer.WriteAsync("Decrypted via candidate list");
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider);
+        var candidateList = new[] { "wrong_password_1", "TargetPassword456", "wrong_password_2" };
+
+        var success = await provider.ExtractAsync(zipPath, outputDir, null, candidateList);
+        success.Should().BeTrue();
+
+        var extractedFile = Path.Combine(outputDir, "data.txt");
+        File.Exists(extractedFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(extractedFile)).Should().Be("Decrypted via candidate list");
     }
 
     [Test]
