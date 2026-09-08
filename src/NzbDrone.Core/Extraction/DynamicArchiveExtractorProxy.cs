@@ -23,6 +23,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
     private readonly Logger logger;
 
     private readonly SemaphoreSlim switchLock = new(1, 1);
+    private readonly SemaphoreSlim extractionSemaphore;
     private IArchiveExtractorProvider activeProvider;
     private bool disposed;
 
@@ -42,7 +43,12 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
-        var desiredProviderId = this.configService.ActiveArchiveExtractor;
+        var maxConcurrency = this.configService != null && this.configService.MaxConcurrentExtractions > 0
+            ? this.configService.MaxConcurrentExtractions
+            : 2;
+        this.extractionSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
+
+        var desiredProviderId = this.configService?.ActiveArchiveExtractor;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
                           ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
                           ?? this.availableProviders.FirstOrDefault();
@@ -225,97 +231,53 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
             return false;
         }
 
-        var active = Volatile.Read(ref this.activeProvider);
-        var success = false;
-
+        await this.extractionSemaphore.WaitAsync(cancellationToken);
         try
         {
-            success = await active.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Active extractor '{0}' failed for '{1}' with exception.", active.ProviderId, archiveFilePath);
-        }
+            var active = Volatile.Read(ref this.activeProvider);
+            var success = false;
 
-        if (!success && !active.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
-        {
-            var fallback = this.GetProvider("SharpCompress");
-            if (fallback != null)
+            try
             {
-                this.logger.Warn("Active extractor '{0}' failed for '{1}'. Attempting fallback to SharpCompress...", active.ProviderId, archiveFilePath);
-                try
+                success = await active.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Active extractor '{0}' failed for '{1}' with exception.", active.ProviderId, archiveFilePath);
+            }
+
+            if (!success && !active.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
+            {
+                var fallback = this.GetProvider("SharpCompress");
+                if (fallback != null)
                 {
-                    success = await fallback.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
-                    if (success)
+                    this.logger.Warn("Active extractor '{0}' failed for '{1}'. Attempting fallback to SharpCompress...", active.ProviderId, archiveFilePath);
+                    try
                     {
-                        this.logger.Info("SharpCompress fallback extraction succeeded for '{0}'.", archiveFilePath);
+                        success = await fallback.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
+                        if (success)
+                        {
+                            this.logger.Info("SharpCompress fallback extraction succeeded for '{0}'.", archiveFilePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "SharpCompress fallback extraction failed for '{0}'.", archiveFilePath);
                     }
                 }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "SharpCompress fallback extraction failed for '{0}'.", archiveFilePath);
-                }
             }
-        }
 
-        return success;
+            return success;
+        }
+        finally
+        {
+            this.extractionSemaphore.Release();
+        }
     }
 
     private long EstimateArchiveUncompressedSize(string archiveFilePath)
     {
-        try
-        {
-            var baseSize = this.diskProvider.GetFileSize(archiveFilePath);
-            var dir = Path.GetDirectoryName(archiveFilePath);
-            if (string.IsNullOrEmpty(dir) || !this.diskProvider.FolderExists(dir))
-            {
-                return Math.Max(0L, baseSize);
-            }
-
-            var fileName = Path.GetFileName(archiveFilePath);
-            var partMatch = Regex.Match(fileName, @"^(.*?)\.part\d+\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
-            if (partMatch.Success)
-            {
-                var prefix = partMatch.Groups[1].Value;
-                var ext = partMatch.Groups[2].Value;
-                var companionFiles = this.diskProvider.GetFiles(dir, false);
-                long totalVolumeSize = 0;
-                foreach (var file in companionFiles)
-                {
-                    var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.part\d+\.{Regex.Escape(ext)}$", RegexOptions.IgnoreCase))
-                    {
-                        totalVolumeSize += this.diskProvider.GetFileSize(file);
-                    }
-                }
-
-                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
-            }
-
-            var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001)$", RegexOptions.IgnoreCase);
-            if (numMatch.Success)
-            {
-                var prefix = numMatch.Groups[1].Value;
-                var companionFiles = this.diskProvider.GetFiles(dir, false);
-                long totalVolumeSize = 0;
-                foreach (var file in companionFiles)
-                {
-                    var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.(r\d{{2}}|\d{{3}}|z\d{{2}}|rar)$", RegexOptions.IgnoreCase))
-                    {
-                        totalVolumeSize += this.diskProvider.GetFileSize(file);
-                    }
-                }
-
-                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
-            }
-
-            return Math.Max(0L, baseSize);
-        }
-        catch
-        {
-            return 0L;
-        }
+        return ArchiveTimeoutCalculator.EstimateTotalArchiveSize(archiveFilePath, this.diskProvider);
     }
 
     public void Handle(ConfigSavedEvent message)
@@ -344,6 +306,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         {
             this.disposed = true;
             this.switchLock.Dispose();
+            this.extractionSemaphore.Dispose();
         }
     }
 }

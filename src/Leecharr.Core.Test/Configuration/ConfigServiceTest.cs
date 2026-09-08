@@ -102,6 +102,7 @@ public class ConfigServiceTest
         this.service.AutoEnrichEnabled.Should().BeTrue();
         this.service.SchedulerMonday.Should().BeTrue();
         this.service.GlobalSeedRatioLimit.Should().Be(0.0);
+        this.service.MaxConcurrentExtractions.Should().Be(2);
     }
 
     [Test]
