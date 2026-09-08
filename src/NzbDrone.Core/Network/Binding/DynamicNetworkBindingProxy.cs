@@ -165,9 +165,9 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         }
     }
 
-    public void BindSocket(Socket socket, string interfaceName)
+    public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
-        Volatile.Read(ref this.activeProvider).BindSocket(socket, interfaceName);
+        Volatile.Read(ref this.activeProvider).BindSocket(socket, interfaceName, localPort);
     }
 
     public bool IsInterfaceUp(string interfaceName)
