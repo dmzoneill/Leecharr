@@ -227,7 +227,7 @@ public interface IConfigService
     int PeerPortRandomHigh { get; }
 
     // MonoTorrent Specific
-    int DiskCacheBytes { get; }
+    long DiskCacheBytes { get; }
 
     string DiskCachePolicy { get; }
 
@@ -842,10 +842,7 @@ public class ConfigService : IConfigService
         get
         {
             var val = this.GetValue("BitTorrentUserAgent", string.Empty);
-            if (!string.IsNullOrWhiteSpace(val) &&
-                val != "Leecharr/1.0" &&
-                !val.Contains("MO3002", StringComparison.OrdinalIgnoreCase) &&
-                !val.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(val))
             {
                 return val;
             }
@@ -859,10 +856,7 @@ public class ConfigService : IConfigService
         get
         {
             var val = this.GetValue("PeerIdPrefix", string.Empty);
-            if (!string.IsNullOrWhiteSpace(val) &&
-                val != "-LC1000-" &&
-                !val.Contains("MO3002", StringComparison.OrdinalIgnoreCase) &&
-                !val.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(val))
             {
                 return val;
             }
@@ -919,7 +913,7 @@ public class ConfigService : IConfigService
     public int PeerPortRandomHigh => this.GetValueInt("PeerPortRandomHigh", 65535);
 
     // MonoTorrent Specific
-    public int DiskCacheBytes => this.GetValueInt("DiskCacheBytes", this.DiskWriteCacheSizeMb * 1024 * 1024);
+    public long DiskCacheBytes => Math.Max(0L, this.GetValueLong("DiskCacheBytes", (long)this.DiskWriteCacheSizeMb * 1024L * 1024L));
 
     public string DiskCachePolicy => this.GetValue("DiskCachePolicy", "ReadsAndWrites");
 
