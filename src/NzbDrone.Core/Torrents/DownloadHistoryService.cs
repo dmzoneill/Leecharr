@@ -26,7 +26,6 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly ITorrentRepository torrentRepository;
     private readonly IDownloadEngine downloadEngine;
     private readonly IEventAggregator eventAggregator;
-    private readonly IDownloadHistoryContext context;
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ICategoryService categoryService;
@@ -37,30 +36,6 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly Logger logger;
-
-    public DownloadHistoryService(
-        IDownloadHistoryRepository historyRepository,
-        ITorrentRepository torrentRepository,
-        IDownloadEngine downloadEngine,
-        IEventAggregator eventAggregator,
-        IDownloadHistoryContext context = null)
-    {
-        this.historyRepository = historyRepository;
-        this.torrentRepository = torrentRepository;
-        this.downloadEngine = downloadEngine;
-        this.eventAggregator = eventAggregator;
-        this.context = context ?? new DownloadHistoryContext();
-        this.trackerEntryRepository = this.context.TrackerEntryRepository;
-        this.safeHttpClientService = this.context.SafeHttpClientService;
-        this.categoryService = this.context.CategoryService;
-        this.storagePathService = this.context.StoragePathService;
-        this.torrentFileParser = this.context.TorrentFileParser;
-        this.fileRepository = this.context.FileRepository;
-        this.configService = this.context.ConfigService;
-        this.appFolderInfo = this.context.AppFolderInfo;
-        this.mediaMetadataRepository = this.context.MediaMetadataRepository;
-        this.logger = LogManager.GetCurrentClassLogger();
-    }
 
     public DownloadHistoryService(
         IDownloadHistoryRepository historyRepository,
@@ -76,21 +51,43 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         IConfigService configService = null,
         IAppFolderInfo appFolderInfo = null,
         ITorrentMediaMetadataRepository mediaMetadataRepository = null)
+    {
+        this.historyRepository = historyRepository;
+        this.torrentRepository = torrentRepository;
+        this.trackerEntryRepository = trackerEntryRepository;
+        this.downloadEngine = downloadEngine;
+        this.eventAggregator = eventAggregator;
+        this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.categoryService = categoryService;
+        this.storagePathService = storagePathService;
+        this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
+        this.fileRepository = fileRepository;
+        this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
+        this.mediaMetadataRepository = mediaMetadataRepository;
+        this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public DownloadHistoryService(
+        IDownloadHistoryRepository historyRepository,
+        ITorrentRepository torrentRepository,
+        IDownloadEngine downloadEngine,
+        IEventAggregator eventAggregator,
+        IDownloadHistoryContext context)
         : this(
             historyRepository,
             torrentRepository,
+            context?.TrackerEntryRepository,
             downloadEngine,
             eventAggregator,
-            new DownloadHistoryContext(
-                trackerEntryRepository,
-                safeHttpClientService,
-                categoryService,
-                storagePathService,
-                torrentFileParser,
-                fileRepository,
-                configService,
-                appFolderInfo,
-                mediaMetadataRepository))
+            context?.SafeHttpClientService,
+            context?.CategoryService,
+            context?.StoragePathService,
+            context?.TorrentFileParser,
+            context?.FileRepository,
+            context?.ConfigService,
+            context?.AppFolderInfo,
+            context?.MediaMetadataRepository)
     {
     }
 

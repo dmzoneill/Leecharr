@@ -254,7 +254,7 @@ public class BackupController : Controller
                         zip.CreateEntryFromFile(dbPath, "leecharr.db");
                     }
 
-                    if (global::System.IO.File.Exists(walPath))
+                    if (global::System.IO.File.Exists(walPath) && new FileInfo(walPath).Length > 0)
                     {
                         zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
                     }

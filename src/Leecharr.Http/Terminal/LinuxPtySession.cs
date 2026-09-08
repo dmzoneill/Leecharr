@@ -193,6 +193,11 @@ public sealed class LinuxPtySession : ITerminalSession
             // Ignored on teardown
         }
 
+        if (this.pid <= 0)
+        {
+            return;
+        }
+
         _ = Task.Run(async () =>
         {
             try
@@ -285,6 +290,11 @@ public sealed class LinuxPtySession : ITerminalSession
 
     private void StartWatcher()
     {
+        if (this.pid <= 0)
+        {
+            return;
+        }
+
         _ = Task.Run(async () =>
         {
             while (this.disposed == 0)

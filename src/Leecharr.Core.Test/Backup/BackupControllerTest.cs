@@ -451,7 +451,6 @@ public class BackupControllerTest
         using (var zip = ZipFile.OpenRead(backup.Path))
         {
             zip.Entries.Should().Contain(e => e.FullName == "leecharr.db");
-            zip.Entries.Should().Contain(e => e.FullName == "leecharr.db-wal");
 
             // Extract leecharr.db in isolation to verify WAL checkpoint flushed data into the main database file
             var extractDir = Path.Combine(this.testTempDir, "isolated-check");
@@ -1125,13 +1124,13 @@ public class BackupControllerTest
     }
 
     [Test]
-    public void Create_WhenExistingBackupsExceedRetention_AutomaticallyPrunesOlderBackups()
+    public async Task Create_WhenExistingBackupsExceedRetention_AutomaticallyPrunesOlderBackups()
     {
+        var configProvider = Substitute.For<IConfigFileProvider>();
         var configService = Substitute.For<IConfigService>();
         configService.BackupRetentionMaxCount.Returns(3);
-        configService.BackupRetentionDays.Returns(365);
+        configService.BackupRetentionDays.Returns(7);
 
-        var configProvider = Substitute.For<IConfigFileProvider>();
         var testController = new BackupController(
             this.appFolderInfo,
             configService: configService,
@@ -1154,7 +1153,7 @@ public class BackupControllerTest
         var configPath = Path.Combine(this.testTempDir, "config.xml");
         File.WriteAllText(configPath, "<config/>");
 
-        var createResult = testController.Create();
+        var createResult = await testController.Create();
         createResult.Result.Should().BeOfType<OkObjectResult>();
 
         var remaining = Directory.GetFiles(manualDir, "*.zip");
