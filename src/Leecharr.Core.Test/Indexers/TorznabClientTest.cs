@@ -39,7 +39,7 @@ public class TorznabClientTest
       <category>Movies &gt; UHD</category>
       <enclosure url=""https://indexer.local/download/12345.torrent"" length=""45000000000"" type=""application/x-bittorrent"" />
       <torznab:attr name=""seeders"" value=""150""/>
-      <torznab:attr name=""peers"" value=""25""/>
+      <torznab:attr name=""peers"" value=""175""/>
       <torznab:attr name=""downloadvolumefactor"" value=""0""/>
       <torznab:attr name=""uploadvolumefactor"" value=""2.0""/>
       <torznab:attr name=""infohash"" value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
@@ -228,7 +228,7 @@ public class TorznabClientTest
       <torznab:attr name=""seeders"" value=""
         42
       ""/>
-      <torznab:attr name=""peers"" value=""  15  ""/>
+      <torznab:attr name=""leechers"" value=""  15  ""/>
     </item>
   </channel>
 </rss>";
@@ -338,6 +338,144 @@ public class TorznabClientTest
         results[0].DownloadUrl.Should().Be("https://indexer.example.com/download/101.torrent");
         results[1].DownloadUrl.Should().Be("https://indexer.example.com/download/102.torrent");
         results[2].DownloadUrl.Should().Be("https://indexer.example.com/download/103.torrent");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_HtmlEntitiesInTitlesAndFields_DecodesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Spider-Man:&amp;nbsp;No&amp;nbsp;Way&amp;nbsp;Home&amp;quot;2021&amp;quot;&amp;amp;Friends</title>
+      <guid>https://indexer.local/details?id=123&amp;amp;passkey=xyz</guid>
+      <link>https://indexer.local/download?id=123&amp;amp;auth=token</link>
+      <description>4K&amp;nbsp;UHD&amp;nbsp;&amp;amp;&amp;nbsp;HDR10&amp;nbsp;Release</description>
+      <comments>https://indexer.local/comments?id=123&amp;amp;view=all</comments>
+      <category>&amp;lt;Movies&amp;gt;&amp;nbsp;&amp;amp;&amp;nbsp;TV</category>
+      <torznab:attr name=""category"" value=""Movies&amp;nbsp;&amp;amp;&amp;nbsp;TV""/>
+      <torznab:attr name=""seeders"" value=""50""/>
+      <torznab:attr name=""leechers"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+
+        results.Should().HaveCount(1);
+        var release = results[0];
+        release.Title.Should().Be("Spider-Man:\u00A0No\u00A0Way\u00A0Home\"2021\"&Friends");
+        release.Guid.Should().Be("https://indexer.local/details?id=123&passkey=xyz");
+        release.DownloadUrl.Should().Be("https://indexer.local/download?id=123&auth=token");
+        release.Description.Should().Be("4K\u00A0UHD\u00A0&\u00A0HDR10\u00A0Release");
+        release.Comments.Should().Be("https://indexer.local/comments?id=123&view=all");
+        release.Category.Should().Contain("<Movies>\u00A0&\u00A0TV");
+        release.Category.Should().Contain("Movies\u00A0&\u00A0TV");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_PeersVsLeechersCollision_CalculatesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Explicit.Leechers.Release</title>
+      <torznab:attr name=""seeders"" value=""40""/>
+      <torznab:attr name=""peers"" value=""100""/>
+      <torznab:attr name=""leechers"" value=""12""/>
+    </item>
+    <item>
+      <title>Computed.Leechers.From.Peers.Release</title>
+      <torznab:attr name=""seeders"" value=""40""/>
+      <torznab:attr name=""peers"" value=""60""/>
+    </item>
+    <item>
+      <title>Peers.LessThan.Seeders.Release</title>
+      <torznab:attr name=""seeders"" value=""40""/>
+      <torznab:attr name=""peers"" value=""10""/>
+    </item>
+    <item>
+      <title>Only.Seeders.Release</title>
+      <torznab:attr name=""seeders"" value=""40""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+
+        results.Should().HaveCount(4);
+        // Item 1: Explicit leechers takes precedence over rawPeers
+        results[0].Seeders.Should().Be(40);
+        results[0].Leechers.Should().Be(12);
+
+        // Item 2: rawPeers - seeders = 60 - 40 = 20
+        results[1].Seeders.Should().Be(40);
+        results[1].Leechers.Should().Be(20);
+
+        // Item 3: rawPeers (10) < seeders (40) => Math.Max(0, 10 - 40) = 0
+        results[2].Seeders.Should().Be(40);
+        results[2].Leechers.Should().Be(0);
+
+        // Item 4: No peers or leechers => 0
+        results[3].Seeders.Should().Be(40);
+        results[3].Leechers.Should().Be(0);
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_ExtractsMinimumRatioAndMinimumSeedTime()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Ratio.And.SeedTime.Release</title>
+      <torznab:attr name=""seeders"" value=""20""/>
+      <torznab:attr name=""minimumratio"" value=""1.5""/>
+      <torznab:attr name=""minimumseedtime"" value=""172800""/>
+    </item>
+    <item>
+      <title>Default.Release</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+
+        results.Should().HaveCount(2);
+        results[0].MinimumRatio.Should().Be(1.5);
+        results[0].MinimumSeedTime.Should().Be(172800L);
+
+        results[1].MinimumRatio.Should().BeNull();
+        results[1].MinimumSeedTime.Should().BeNull();
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_CategoryWithIdAttribute_ExtractsBothIdAndName()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>TV.HD.Release</title>
+      <category id=""5040"">TV/HD</category>
+      <category domain=""2000"">Movies/HD</category>
+      <category id=""3000"" name=""Audio/Lossless"" />
+      <torznab:attr name=""seeders"" value=""15""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
+
+        results.Should().HaveCount(1);
+        results[0].Category.Should().Contain("5040");
+        results[0].Category.Should().Contain("TV/HD");
+        results[0].Category.Should().Contain("2000");
+        results[0].Category.Should().Contain("Movies/HD");
+        results[0].Category.Should().Contain("3000");
+        results[0].Category.Should().Contain("Audio/Lossless");
     }
 
     #endregion
