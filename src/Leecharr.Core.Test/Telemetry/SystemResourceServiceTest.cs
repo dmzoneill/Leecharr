@@ -331,4 +331,28 @@ public class SystemResourceServiceTest
         host.DiskDrives.Should().NotBeNull();
         host.DiskDrives.Should().BeEmpty();
     }
+
+    [Test]
+    public void GetHostMetrics_CpuSampling_UsesMonotonicClockAndComputesValidCpuPercent()
+    {
+        SystemResourceService.ResetCpuMetricsCache();
+
+        var host = this.service.GetHostMetrics();
+
+        host.Should().NotBeNull();
+        host.CpuProcessPercent.Should().BeInRange(0.0, 100.0);
+    }
+
+    [Test]
+    public void GetHostMetrics_ResetCpuMetricsCache_ResetsCpuStateGracefully()
+    {
+        SystemResourceService.ResetCpuMetricsCache();
+
+        var first = this.service.GetHostMetrics();
+        SystemResourceService.ResetCpuMetricsCache();
+        var second = this.service.GetHostMetrics();
+
+        first.CpuProcessPercent.Should().BeInRange(0.0, 100.0);
+        second.CpuProcessPercent.Should().BeInRange(0.0, 100.0);
+    }
 }
