@@ -1,10 +1,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace NzbDrone.Core.HealthCheck;
 
 public interface IHealthCheck
 {
-    HealthCheckResult Check();
+    Task<HealthCheckResult> CheckAsync(CancellationToken ct = default);
 }
 
 public enum HealthCheckResultType

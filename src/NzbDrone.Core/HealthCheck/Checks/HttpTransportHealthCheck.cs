@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
@@ -14,7 +16,7 @@ public class HttpTransportHealthCheck : IHealthCheck
         this.httpTransportManager = httpTransportManager;
     }
 
-    public HealthCheckResult Check()
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.httpTransportManager == null)
         {
@@ -24,7 +26,7 @@ public class HttpTransportHealthCheck : IHealthCheck
         try
         {
             var activeProviderId = this.httpTransportManager.ActiveProviderId;
-            var result = this.httpTransportManager.ProbeProviderAsync(activeProviderId).GetAwaiter().GetResult();
+            var result = await this.httpTransportManager.ProbeProviderAsync(activeProviderId).ConfigureAwait(false);
             if (result == null || !result.IsHealthy)
             {
                 return HealthCheckResult.Error("HttpTransportHealth", result?.StatusMessage ?? $"HTTP transport provider '{activeProviderId}' is unhealthy.");

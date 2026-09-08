@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NzbDrone.Core.Extraction;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
@@ -14,7 +16,7 @@ public class ExtractorHealthCheck : IHealthCheck
         this.extractorManager = extractorManager;
     }
 
-    public HealthCheckResult Check()
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.extractorManager == null)
         {
@@ -24,7 +26,7 @@ public class ExtractorHealthCheck : IHealthCheck
         try
         {
             var activeProviderId = this.extractorManager.ActiveProviderId;
-            var result = this.extractorManager.ProbeProviderAsync(activeProviderId).GetAwaiter().GetResult();
+            var result = await this.extractorManager.ProbeProviderAsync(activeProviderId, ct).ConfigureAwait(false);
             if (result == null || !result.IsHealthy)
             {
                 return HealthCheckResult.Error("ExtractorHealth", result?.StatusMessage ?? $"Archive extractor provider '{activeProviderId}' is unhealthy.");

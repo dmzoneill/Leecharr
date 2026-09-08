@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NzbDrone.Core.MediaInspection;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
@@ -14,7 +16,7 @@ public class MediaInspectorHealthCheck : IHealthCheck
         this.inspectorManager = inspectorManager;
     }
 
-    public HealthCheckResult Check()
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.inspectorManager == null)
         {
@@ -24,7 +26,7 @@ public class MediaInspectorHealthCheck : IHealthCheck
         try
         {
             var activeProviderId = this.inspectorManager.ActiveProviderId;
-            var result = this.inspectorManager.ProbeProviderAsync(activeProviderId).GetAwaiter().GetResult();
+            var result = await this.inspectorManager.ProbeProviderAsync(activeProviderId, ct).ConfigureAwait(false);
             if (result == null || !result.IsHealthy)
             {
                 return HealthCheckResult.Error("MediaInspectorHealth", result?.StatusMessage ?? $"Media inspector provider '{activeProviderId}' is unhealthy.");
