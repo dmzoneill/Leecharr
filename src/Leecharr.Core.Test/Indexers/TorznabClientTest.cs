@@ -1521,6 +1521,57 @@ public class TorznabClientTest
         results[0].Category.Should().Contain("TV & Series");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_ParsesTorznabAttrCat_AndSplitsDelimitedCategories()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"" xmlns:newznab=""http://www.newznab.com/DTD/2010/feeds/attributes/"">
+  <channel>
+    <item>
+      <title>Movie.Release.2024.1080p</title>
+      <guid>https://indexer.local/details/101</guid>
+      <link>https://indexer.local/download/101.torrent</link>
+      <torznab:attr name=""seeders"" value=""25""/>
+      <torznab:attr name=""cat"" value=""2000,2040""/>
+      <newznab:attr name=""cat"" value=""5000; 5040 | 7000""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        var release = results[0];
+        release.Category.Should().Contain("2000");
+        release.Category.Should().Contain("2040");
+        release.Category.Should().Contain("5000");
+        release.Category.Should().Contain("5040");
+        release.Category.Should().Contain("7000");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenCategoriesContainDuplicates_Deduplicates()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>TV.Episode.S01E01</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""cat"" value=""5000, 5040""/>
+      <torznab:attr name=""category"" value=""5040, 5000""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        var cats = results[0].Category.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        cats.Should().HaveCount(2);
+        cats.Should().Contain(new[] { "5000", "5040" });
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
