@@ -149,19 +149,40 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
             return cached;
         }
 
-        var provider = Volatile.Read(ref this.activeProvider);
-        try
+        var primary = Volatile.Read(ref this.activeProvider);
+        if (primary != null)
         {
-            var result = await provider.LookupAsync(ipAddress);
-            if (result != null)
+            try
             {
-                this.syncLookupCache[ipAddress] = result;
-                return result;
+                var result = await primary.LookupAsync(ipAddress);
+                if (result != null && !string.IsNullOrEmpty(result.CountryCode))
+                {
+                    this.syncLookupCache[ipAddress] = result;
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Active GeoIP provider '{0}' failed lookup for {1}", primary.ProviderId, ipAddress);
             }
         }
-        catch (Exception ex)
+
+        // Fallback: cascade to other available providers (such as OnlineApiGeoIpProvider)
+        foreach (var fallbackProvider in this.availableProviders.Where(p => p != primary && p.IsAvailable))
         {
-            this.logger.Debug(ex, "Active GeoIP provider '{0}' failed lookup for {1}", provider.ProviderId, ipAddress);
+            try
+            {
+                var result = await fallbackProvider.LookupAsync(ipAddress);
+                if (result != null && !string.IsNullOrEmpty(result.CountryCode))
+                {
+                    this.syncLookupCache[ipAddress] = result;
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Fallback GeoIP provider '{0}' failed lookup for {1}", fallbackProvider.ProviderId, ipAddress);
+            }
         }
 
         var fallback = new GeoLocationInfo { IpAddress = ipAddress };
@@ -187,23 +208,24 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
             var task = provider?.LookupAsync(ipAddress);
             if (task != null && task.IsCompletedSuccessfully)
             {
-                var result = task.Result ?? new GeoLocationInfo { IpAddress = ipAddress };
-                this.syncLookupCache[ipAddress] = result;
-                return result;
+                var result = task.Result;
+                if (result != null && !string.IsNullOrEmpty(result.CountryCode))
+                {
+                    this.syncLookupCache[ipAddress] = result;
+                    return result;
+                }
             }
 
-            if (task != null)
+            _ = Task.Run(async () =>
             {
-                _ = task.ContinueWith(
-                    t =>
-                    {
-                        if (t.IsCompletedSuccessfully && t.Result != null)
-                        {
-                            this.syncLookupCache[ipAddress] = t.Result;
-                        }
-                    },
-                    TaskScheduler.Default);
-            }
+                try
+                {
+                    await this.LookupAsync(ipAddress);
+                }
+                catch
+                {
+                }
+            });
         }
         catch (Exception ex)
         {

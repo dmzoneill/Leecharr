@@ -205,6 +205,62 @@ public class DynamicGeoIpProxyTest
     }
 
     [Test]
+    public async Task LookupAsync_WhenActiveProviderReturnsEmptyCountryCode_CascadesToAvailableOnlineApiProvider()
+    {
+        this.maxMindProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo { IpAddress = "8.8.8.8" }));
+        this.onlineApiProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
+        {
+            IpAddress = "8.8.8.8",
+            CountryCode = "IE",
+            CountryName = "Ireland",
+            City = "Dublin",
+        }));
+
+        var result = await this.proxy.LookupAsync("8.8.8.8");
+
+        result.Should().NotBeNull();
+        result.CountryCode.Should().Be("IE");
+        result.City.Should().Be("Dublin");
+
+        await this.maxMindProvider.Received(1).LookupAsync("8.8.8.8");
+        await this.onlineApiProvider.Received(1).LookupAsync("8.8.8.8");
+    }
+
+    [Test]
+    public async Task LookupAsync_WhenActiveProviderThrows_CascadesToAvailableOnlineApiProvider()
+    {
+        this.maxMindProvider.LookupAsync("8.8.8.8").Returns<Task<GeoLocationInfo>>(_ => throw new System.IO.IOException("Disk read error"));
+        this.onlineApiProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
+        {
+            IpAddress = "8.8.8.8",
+            CountryCode = "IE",
+            CountryName = "Ireland",
+        }));
+
+        var result = await this.proxy.LookupAsync("8.8.8.8");
+
+        result.Should().NotBeNull();
+        result.CountryCode.Should().Be("IE");
+
+        await this.onlineApiProvider.Received(1).LookupAsync("8.8.8.8");
+    }
+
+    [Test]
+    public void MaxMindGeoIpProvider_DiscoversCountryAndGeoIP2DatabaseFiles()
+    {
+        var diskProvider = Substitute.For<IDiskProvider>();
+        diskProvider.FileExists("/config/GeoIP/GeoLite2-Country.mmdb").Returns(true);
+
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/tmp/leecharr-appdata");
+        appFolderInfo.StartUpFolder.Returns("/tmp/leecharr-startup");
+
+        using var provider = new MaxMindGeoIpProvider(diskProvider, appFolderInfo);
+        provider.GetDatabasePath().Should().Be("/config/GeoIP/GeoLite2-Country.mmdb");
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Test]
     public async Task MaxMindGeoIpProvider_FileMissing_ReportsUnhealthy()
     {
         var diskProvider = Substitute.For<IDiskProvider>();
