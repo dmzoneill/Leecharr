@@ -11,7 +11,7 @@ import { HarvesterPanel } from "./HarvesterPanel";
 import { MatrixView } from "./MatrixView";
 import { RadarView } from "./RadarView";
 import { LogViewer } from "./LogViewer";
-import { ImportTools } from "./ImportTools";
+import { ImportTools, BulkImportModal } from "./ImportTools";
 import type { UnifiedDownloadItem } from "./types";
 
 export * from "./types";
@@ -330,12 +330,12 @@ export function TrackerBoost() {
 
       {activeTab === "logs" && <LogViewer />}
 
-      {activeTab === "settings" && (
-        <ImportTools
-          showModal={showBulkImportModal}
-          onCloseModal={() => setShowBulkImportModal(false)}
-        />
-      )}
+      {activeTab === "settings" && <ImportTools />}
+
+      <BulkImportModal
+        isOpen={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+      />
     </div>
   );
 }

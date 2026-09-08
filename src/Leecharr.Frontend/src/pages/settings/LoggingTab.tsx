@@ -139,7 +139,7 @@ export function LoggingTab() {
                 label: t("settingsTabs.logging.logLevels.warn"),
               },
               {
-                value: t("settingsTabs.notifications.error"),
+                value: "Error",
                 label: t("settingsTabs.logging.logLevels.error"),
               },
             ]}
