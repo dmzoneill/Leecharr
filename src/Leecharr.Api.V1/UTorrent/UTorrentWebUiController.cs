@@ -379,8 +379,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "queueup":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(effHash);
-                        if (t != null)
+                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var torrents = hashes
+                            .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
+                            .Where(t => t != null)
+                            .OrderBy(t => t.QueuePosition)
+                            .ToList();
+                        foreach (var t in torrents)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "up");
                         }
@@ -391,8 +396,13 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuedown":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(effHash);
-                        if (t != null)
+                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var torrents = hashes
+                            .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
+                            .Where(t => t != null)
+                            .OrderByDescending(t => t.QueuePosition)
+                            .ToList();
+                        foreach (var t in torrents)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "down");
                         }
@@ -403,10 +413,14 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuetop":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(effHash);
-                        if (t != null)
+                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var torrents = hashes
+                            .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
+                            .Where(t => t != null)
+                            .ToList();
+                        for (var i = torrents.Count - 1; i >= 0; i--)
                         {
-                            await this.torrentService.MoveQueueAsync(t.Id, "top");
+                            await this.torrentService.MoveQueueAsync(torrents[i].Id, "top");
                         }
                     }
 
@@ -415,8 +429,12 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuebottom":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var t = this.torrentService.GetByInfoHash(effHash);
-                        if (t != null)
+                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var torrents = hashes
+                            .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
+                            .Where(t => t != null)
+                            .ToList();
+                        foreach (var t in torrents)
                         {
                             await this.torrentService.MoveQueueAsync(t.Id, "bottom");
                         }
