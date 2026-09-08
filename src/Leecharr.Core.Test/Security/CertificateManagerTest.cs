@@ -78,6 +78,28 @@ public class CertificateManagerTest
 
         var cachedPfx = Path.Combine(this.tempDir, "leecharr-selfsigned.pfx");
         File.Exists(cachedPfx).Should().BeTrue();
+
+        var cachedPwd = Path.Combine(this.tempDir, "leecharr-selfsigned.pwd");
+        File.Exists(cachedPwd).Should().BeTrue();
+        File.ReadAllText(cachedPwd).Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenCustomPasswordConfigured_GeneratesWithConfiguredPassword()
+    {
+        this.config.SslCertPassword.Returns("custom-secret-password-123");
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        cert.HasPrivateKey.Should().BeTrue();
+
+        var cachedPfx = Path.Combine(this.tempDir, "leecharr-selfsigned.pfx");
+        File.Exists(cachedPfx).Should().BeTrue();
+
+        // Verify PFX can be loaded with the configured password
+        var loaded = X509CertificateLoader.LoadPkcs12FromFile(cachedPfx, "custom-secret-password-123", X509KeyStorageFlags.Exportable);
+        loaded.Thumbprint.Should().Be(cert.Thumbprint);
     }
 
     [Test]

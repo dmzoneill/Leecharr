@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace NzbDrone.Common.Disk;
 
@@ -47,7 +48,17 @@ public class DiskProvider : IDiskProvider
 
     private static DriveInfo GetBestMatchingDrive(string path)
     {
-        var fullPath = Path.GetFullPath(path);
+        var rawPath = path;
+        if (rawPath.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            rawPath = @"\\" + rawPath.Substring(8);
+        }
+        else if (rawPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
+        {
+            rawPath = rawPath.Substring(4);
+        }
+
+        var fullPath = Path.GetFullPath(rawPath);
 
         if (OperatingSystem.IsWindows())
         {
@@ -282,5 +293,111 @@ public class DiskProvider : IDiskProvider
         }
 
         return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+    }
+
+    public string SanitizeNtfsFileName(string fileName, string replacement = "_")
+    {
+        if (string.IsNullOrEmpty(fileName))
+        {
+            return fileName;
+        }
+
+        var invalidNtfsChars = new[] { '<', '>', ':', '"', '|', '?', '*' };
+        var sb = new StringBuilder(fileName.Length);
+        foreach (var c in fileName)
+        {
+            if (c <= 0x1F || invalidNtfsChars.Contains(c) || c == '/' || c == '\\')
+            {
+                sb.Append(replacement);
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public string SanitizeNtfsPath(string path, string replacement = "_")
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        var isForwardSlash = path.Contains('/') && !path.Contains('\\');
+        var sep = isForwardSlash ? '/' : '\\';
+        var normalized = path.Replace('/', '\\');
+
+        var prefix = string.Empty;
+        var remaining = normalized;
+
+        if (remaining.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = @"\\?\UNC\";
+            remaining = remaining.Substring(8);
+        }
+        else if (remaining.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = remaining.Substring(0, 4);
+            remaining = remaining.Substring(4);
+
+            if (remaining.Length >= 2 && char.IsLetter(remaining[0]) && remaining[1] == ':')
+            {
+                prefix += remaining.Substring(0, 2) + @"\";
+                remaining = remaining.Length > 3 ? remaining.Substring(3) : (remaining.Length > 2 ? remaining.Substring(2) : string.Empty);
+            }
+        }
+        else if (remaining.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = @"\\";
+            remaining = remaining.Substring(2);
+        }
+        else if (remaining.Length >= 2 && char.IsLetter(remaining[0]) && remaining[1] == ':')
+        {
+            prefix = remaining.Substring(0, 2) + @"\";
+            remaining = remaining.Length > 3 ? remaining.Substring(3) : (remaining.Length > 2 ? remaining.Substring(2) : string.Empty);
+        }
+        else if (remaining.StartsWith('\\'))
+        {
+            prefix = isForwardSlash ? "/" : @"\";
+            remaining = remaining.Substring(1);
+        }
+
+        var segments = remaining.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        var sanitizedSegments = new List<string>();
+        foreach (var segment in segments)
+        {
+            sanitizedSegments.Add(this.SanitizeNtfsFileName(segment, replacement));
+        }
+
+        var result = prefix + string.Join(sep, sanitizedSegments);
+        return result;
+    }
+
+    public string EnsureLongPathPrefix(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Length <= 260)
+        {
+            return path;
+        }
+
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            return path;
+        }
+
+        if (path.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return @"\\?\UNC\" + path.Substring(2);
+        }
+
+        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
+        {
+            return @"\\?\" + path;
+        }
+
+        return path;
     }
 }

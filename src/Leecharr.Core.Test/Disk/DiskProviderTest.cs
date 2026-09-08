@@ -454,4 +454,64 @@ public class DiskProviderTest
         (folderModified <= DateTime.Now.AddMinutes(1)).Should().BeTrue();
         (fileModified <= DateTime.Now.AddMinutes(1)).Should().BeTrue();
     }
+
+    [TestCase("hello:world?*<foo>bar\"test|file.mkv", "hello_world___foo_bar_test_file.mkv")]
+    [TestCase("clean_file_name.mp4", "clean_file_name.mp4")]
+    [TestCase("path/with/slashes\\name.avi", "path_with_slashes_name.avi")]
+    public void SanitizeNtfsFileName_SanitizesInvalidChars(string input, string expected)
+    {
+        var sanitized = this.diskProvider.SanitizeNtfsFileName(input);
+        sanitized.Should().Be(expected);
+    }
+
+    [Test]
+    public void SanitizeNtfsPath_PreservesDriveRootAndSanitizesSegments()
+    {
+        var rawPath = @"C:\Movies\Alien<1979>?\Alien*Director's:Cut.mkv";
+        var sanitized = this.diskProvider.SanitizeNtfsPath(rawPath);
+
+        sanitized.Should().Be(@"C:\Movies\Alien_1979__\Alien_Director's_Cut.mkv");
+    }
+
+    [Test]
+    public void SanitizeNtfsPath_PreservesUncPrefix()
+    {
+        var rawPath = @"\\Server\Share\Show<Season 1>?\Ep*01.mkv";
+        var sanitized = this.diskProvider.SanitizeNtfsPath(rawPath);
+
+        sanitized.Should().Be(@"\\Server\Share\Show_Season 1__\Ep_01.mkv");
+    }
+
+    [Test]
+    public void EnsureLongPathPrefix_WhenPathExceeds260Chars_AddsExtendedLengthPrefix()
+    {
+        var longSegment = new string('a', 270);
+        var longPath = @"C:\Media\" + longSegment;
+
+        var result = this.diskProvider.EnsureLongPathPrefix(longPath);
+
+        result.Should().StartWith(@"\\?\C:\Media\");
+        result.Length.Should().BeGreaterThan(270);
+    }
+
+    [Test]
+    public void EnsureLongPathPrefix_WhenUncPathExceeds260Chars_AddsExtendedUncPrefix()
+    {
+        var longSegment = new string('b', 270);
+        var longUncPath = @"\\Server\Share\" + longSegment;
+
+        var result = this.diskProvider.EnsureLongPathPrefix(longUncPath);
+
+        result.Should().StartWith(@"\\?\UNC\Server\Share\");
+    }
+
+    [Test]
+    public void EnsureLongPathPrefix_WhenPathUnder260Chars_LeavesPathUnchanged()
+    {
+        var shortPath = @"C:\Media\ShortPath\file.txt";
+
+        var result = this.diskProvider.EnsureLongPathPrefix(shortPath);
+
+        result.Should().Be(shortPath);
+    }
 }

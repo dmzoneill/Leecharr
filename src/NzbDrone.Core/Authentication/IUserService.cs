@@ -25,7 +25,11 @@ public interface IUserService
 
     void Delete(int id);
 
+    int Iterations { get; }
+
     string HashPassword(string password, out string salt);
+
+    string HashPassword(string password, out string salt, int iterations);
 
     bool VerifyPassword(string password, string hash, string salt, int iterations);
 

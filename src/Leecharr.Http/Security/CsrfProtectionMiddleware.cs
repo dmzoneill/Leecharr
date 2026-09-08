@@ -40,8 +40,7 @@ public class CsrfProtectionMiddleware
         foreach (var bypassPath in DefaultAuthBypassPaths)
         {
             if (path.Equals(bypassPath, StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith(bypassPath + "/", StringComparison.OrdinalIgnoreCase) ||
-                path.Contains(bypassPath, StringComparison.OrdinalIgnoreCase))
+                path.StartsWith(bypassPath + "/", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
