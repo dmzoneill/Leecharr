@@ -325,4 +325,151 @@ public class FloodApiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).ForceAnnounceAsync(70);
     }
+
+    [Test]
+    public void GetTorrents_ReturnsTorrentsWithIsPrivateAndIsInitialSeeding()
+    {
+        var torrent = new Torrent
+        {
+            Id = 80,
+            Name = "Private Seeding Torrent",
+            InfoHash = "eeee112233445566778899eeee11223344556677",
+            IsPrivate = true,
+            InitialSeeding = true,
+            Status = TorrentStatus.Seeding,
+            TotalSize = 10000,
+            Downloaded = 10000,
+            Progress = 1.0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = this.controller.GetTorrents();
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var torrentsObj = doc.RootElement.GetProperty("torrents");
+        var item = torrentsObj.GetProperty("eeee112233445566778899eeee11223344556677");
+
+        item.GetProperty("isPrivate").GetBoolean().Should().BeTrue();
+        item.GetProperty("isInitialSeeding").GetBoolean().Should().BeTrue();
+        item.GetProperty("name").GetString().Should().Be("Private Seeding Torrent");
+    }
+
+    [Test]
+    public void GetTorrentPeers_ReturnsPeerSwarmData()
+    {
+        var torrent = new Torrent
+        {
+            Id = 90,
+            Name = "Peers Torrent",
+            InfoHash = "ffff112233445566778899ffff11223344556677",
+        };
+        this.torrentService.GetByInfoHash("ffff112233445566778899ffff11223344556677").Returns(torrent);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.GetPeers().Returns(new List<PeerInfo>
+        {
+            new()
+            {
+                Ip = "192.168.1.100",
+                Client = "qBittorrent/4.6.0",
+                DownloadSpeed = 102400,
+                UploadSpeed = 51200,
+                Progress = 0.75,
+                Flags = "D U",
+                IsEncrypted = true,
+                IsIncoming = false,
+                IsUtp = true,
+                IsChoked = false,
+                IsInterested = true,
+                ClientIsChoked = false,
+                ClientIsInterested = true,
+            }
+        });
+        this.torrentService.GetDownloadTask(90).Returns(mockTask);
+
+        var result = this.controller.GetTorrentPeers("ffff112233445566778899ffff11223344556677");
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.EnumerateArray().ToList();
+        array.Count.Should().Be(1);
+
+        var peer = array[0];
+        peer.GetProperty("address").GetString().Should().Be("192.168.1.100");
+        peer.GetProperty("client").GetString().Should().Be("qBittorrent/4.6.0");
+        peer.GetProperty("downloadRate").GetInt64().Should().Be(102400);
+        peer.GetProperty("uploadRate").GetInt64().Should().Be(51200);
+        peer.GetProperty("progress").GetDouble().Should().Be(75.0);
+        peer.GetProperty("flags").GetString().Should().Be("D U");
+        peer.GetProperty("isEncrypted").GetBoolean().Should().BeTrue();
+        peer.GetProperty("isUtp").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public void GetTorrentPeers_WithInvalidOrMissingHash_ReturnsExpectedStatusCode()
+    {
+        var badResult = this.controller.GetTorrentPeers(string.Empty);
+        badResult.Should().BeOfType<BadRequestResult>();
+
+        this.torrentService.GetByInfoHash("nonexistent").Returns((Torrent)null);
+        var notFoundResult = this.controller.GetTorrentPeers("nonexistent");
+        notFoundResult.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task ActivityStream_WritesSSEHeadersAndInitialDiff()
+    {
+        var torrent = new Torrent
+        {
+            Id = 91,
+            Name = "Stream Torrent",
+            InfoHash = "1234123412341234123412341234123412341234",
+            TotalSize = 5000,
+            Downloaded = 2500,
+            Progress = 0.5,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var httpContext = new DefaultHttpContext();
+        var responseBodyStream = new MemoryStream();
+        httpContext.Response.Body = responseBodyStream;
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel(); // Pre-cancel to allow writing initial event and exiting loop
+
+        await this.controller.ActivityStream(cts.Token);
+
+        httpContext.Response.ContentType.Should().Be("text/event-stream");
+        httpContext.Response.Headers.CacheControl.ToString().Should().Be("no-cache");
+        httpContext.Response.Headers.Connection.ToString().Should().Be("keep-alive");
+
+        responseBodyStream.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(responseBodyStream, Encoding.UTF8);
+        var output = await reader.ReadToEndAsync();
+
+        output.Should().StartWith("event: TORRENT_LIST_DIFF\ndata: ");
+        output.Should().Contain("1234123412341234123412341234123412341234");
+        output.Should().Contain("Stream Torrent");
+    }
+
+    [TestCase(TorrentStatus.Downloading, "downloading")]
+    [TestCase(TorrentStatus.Seeding, "seeding")]
+    [TestCase(TorrentStatus.Completed, "complete")]
+    [TestCase(TorrentStatus.Checking, "checking")]
+    [TestCase(TorrentStatus.Paused, "stopped")]
+    [TestCase(TorrentStatus.Stopped, "complete")]
+    [TestCase(TorrentStatus.Error, "error")]
+    [TestCase(TorrentStatus.Queued, "inactive")]
+    public void MapToFloodStatus_MapsStatusCorrectly(TorrentStatus status, string expected)
+    {
+        FloodApiController.MapToFloodStatus(status).Should().Be(expected);
+    }
 }
