@@ -704,4 +704,168 @@ public class NatPmpPortMapperServiceTest
         NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("10.0.1.50"), IPAddress.Parse("10.0.2.1"), IPAddress.Parse("255.255.0.0")).Should().BeTrue();
         NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("10.0.1.50"), IPAddress.Parse("10.0.2.1"), IPAddress.Parse("0.0.0.0")).Should().BeFalse();
     }
+
+    [Test]
+    public void TrackEpoch_TracksEpochPerGatewayIPIndependently()
+    {
+        using var service = new NatPmpPortMapperService();
+        var gw1 = IPAddress.Parse("192.168.1.1");
+        var gw2 = IPAddress.Parse("10.0.0.1");
+
+        // Set initial epochs on two separate gateways
+        service.TrackEpoch(gw1, 1000);
+        service.TrackEpoch(gw2, 500);
+
+        service.GatewayEpochs.Should().ContainKey(gw1).WhoseValue.Should().Be(1000);
+        service.GatewayEpochs.Should().ContainKey(gw2).WhoseValue.Should().Be(500);
+
+        // Update gw1 with higher epoch, gw2 with higher epoch
+        service.TrackEpoch(gw1, 1050);
+        service.TrackEpoch(gw2, 600);
+
+        service.GatewayEpochs[gw1].Should().Be(1050);
+        service.GatewayEpochs[gw2].Should().Be(600);
+
+        // Update gw1 to lower epoch (reboot on gw1), gw2 should remain unaffected
+        service.TrackEpoch(gw1, 10);
+        service.GatewayEpochs[gw1].Should().Be(10);
+        service.GatewayEpochs[gw2].Should().Be(600);
+    }
+
+    [Test]
+    public async Task TrackEpoch_OnGatewayReboot_DeduplicatesConcurrentRenewalTriggers()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var totalRequestsReceived = 0;
+
+        var serverTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    var received = await mockGateway.ReceiveAsync(cts.Token);
+                    Interlocked.Increment(ref totalRequestsReceived);
+
+                    var req = received.Buffer;
+                    var opcode = req[1];
+                    var internalPort = BinaryPrimitives.ReadUInt16BigEndian(req.AsSpan(4, 2));
+
+                    var resp = new byte[16];
+                    resp[0] = 0x00;
+                    resp[1] = (byte)(0x80 + opcode);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
+                    // Return new low epoch (rebooted state)
+                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 10);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);
+                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(12, 4), 3600);
+
+                    await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+
+        // Set initial high epoch (e.g. before reboot)
+        service.TrackEpoch(IPAddress.Loopback, 100000);
+
+        // 1. Initial mapping for TCP and UDP (2 requests)
+        var res1 = await service.MapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+        var res2 = await service.MapPortAsync(51413, NatPmpProtocol.Udp, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+        res1.Success.Should().BeTrue();
+        res2.Success.Should().BeTrue();
+
+        service.ActiveMappings.Should().HaveCount(2);
+
+        // Reset high epoch to simulate router rebooting afterwards
+        service.TrackEpoch(IPAddress.Loopback, 100000);
+
+        // Simulate 5 concurrent responses observing the decreased epoch (e.g. epoch 5 < 100000)
+        var tasks = Enumerable.Range(0, 5)
+            .Select(_ => Task.Run(() => service.TrackEpoch(IPAddress.Loopback, 5)))
+            .ToArray();
+        await Task.WhenAll(tasks);
+
+        // Wait a short delay for background coordinated renewal to complete
+        await Task.Delay(300, CancellationToken.None);
+
+        // Cancel mock gateway listener
+        cts.Cancel();
+        await serverTask;
+
+        // Total requests: 2 initial maps + 2 coordinated reboot renewals = 4 total requests.
+        // If deduplication failed, multiple background tasks would have queued up resulting in >4 requests.
+        totalRequestsReceived.Should().Be(4);
+    }
+
+    [Test]
+    public async Task TrackEpoch_DuringForceRenewal_DoesNotTriggerCascadingRenewalTasks()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var totalRequestsReceived = 0;
+
+        var serverTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    var received = await mockGateway.ReceiveAsync(cts.Token);
+                    Interlocked.Increment(ref totalRequestsReceived);
+
+                    var req = received.Buffer;
+                    var opcode = req[1];
+                    var internalPort = BinaryPrimitives.ReadUInt16BigEndian(req.AsSpan(4, 2));
+
+                    var resp = new byte[16];
+                    resp[0] = 0x00;
+                    resp[1] = (byte)(0x80 + opcode);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
+                    // Return low epoch indicating reboot
+                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 20);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
+                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);
+                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(12, 4), 3600);
+
+                    await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+
+        // Initial mappings
+        await service.MapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+        await service.MapPortAsync(51413, NatPmpProtocol.Udp, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+
+        // Set high epoch before force renewal
+        service.TrackEpoch(IPAddress.Loopback, 50000);
+
+        // Execute force renewal directly - responses will have lower epoch 20
+        await service.RenewAllMappingsAsync(force: true, cancellationToken: cts.Token);
+
+        // Allow any background tasks to attempt execution if scheduled erroneously
+        await Task.Delay(300, CancellationToken.None);
+
+        cts.Cancel();
+        await serverTask;
+
+        // 2 initial map requests + 2 force renewal requests = 4 total requests.
+        // No redundant cascading renewal runs after the force renewal.
+        totalRequestsReceived.Should().Be(4);
+    }
 }
