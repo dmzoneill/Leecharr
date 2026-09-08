@@ -83,7 +83,7 @@ public static class TorrentPathValidator
         foreach (var segment in segments)
         {
             var trimmed = segment.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed) || trimmed == "." || trimmed == "..")
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed == "." || trimmed == ".." || !NzbDrone.Core.Organizer.FileNameSanitizer.IsValidFileNameStatic(trimmed))
             {
                 return false;
             }
