@@ -356,6 +356,10 @@ public class NzbgetRpcController : ControllerBase
 
                     return this.Ok(new { version = "1.1", result = true, id });
 
+                case "log":
+                case "loadlog":
+                    return this.Ok(new { version = "1.1", result = Array.Empty<object>(), id });
+
                 default:
                     this.logger.Debug("Unhandled NZBGet method: {0}", request.Method);
                     return this.Ok(new { version = "1.1", result = true, id });
@@ -527,6 +531,7 @@ public class NzbgetRpcController : ControllerBase
                 return ToXmlRpcValue(true);
 
             case "log":
+            case "loadlog":
                 return ToXmlRpcValue(Array.Empty<object>());
 
             default:

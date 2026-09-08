@@ -345,4 +345,84 @@ public class NzbgetRpcControllerTest
         contentResult.Content.Should().Contain("<value><boolean>1</boolean></value>");
         await this.torrentService.Received(1).PauseAsync(101);
     }
+
+    [Test]
+    public async Task HandleRpc_Log_ReturnsEmptyArrayResult()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var request = new NzbgetRequest
+        {
+            Method = "log",
+            Id = 42,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("version").GetString().Should().Be("1.1");
+        doc.RootElement.GetProperty("id").GetInt32().Should().Be(42);
+        var resElem = doc.RootElement.GetProperty("result");
+        resElem.ValueKind.Should().Be(JsonValueKind.Array);
+        resElem.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_LoadLog_ReturnsEmptyArrayResult()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var request = new NzbgetRequest
+        {
+            Method = "loadlog",
+            Id = 43,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("version").GetString().Should().Be("1.1");
+        doc.RootElement.GetProperty("id").GetInt32().Should().Be(43);
+        var resElem = doc.RootElement.GetProperty("result");
+        resElem.ValueKind.Should().Be(JsonValueKind.Array);
+        resElem.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Log_ReturnsEmptyArrayResult()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>log</methodName></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><array><data></data></array></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_LoadLog_ReturnsEmptyArrayResult()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>loadlog</methodName></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><array><data></data></array></value>");
+    }
 }
