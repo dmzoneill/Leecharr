@@ -900,6 +900,133 @@ public class Aria2RpcControllerTest
         array[1].GetProperty("gid").GetString().Should().Be(torrents[2].InfoHash.Substring(0, 16));
     }
 
+    [Test]
+    public async Task TellWaiting_JsonRpc_StringOffsetAndNum_SlicesCorrectly()
+    {
+        var torrents = Enumerable.Range(1, 10).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Waiting_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Queued,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 10,
+              "method": "aria2.tellWaiting",
+              "params": ["2", "3"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(3);
+        array[0].GetProperty("gid").GetString().Should().Be(torrents[2].InfoHash.Substring(0, 16));
+        array[1].GetProperty("gid").GetString().Should().Be(torrents[3].InfoHash.Substring(0, 16));
+        array[2].GetProperty("gid").GetString().Should().Be(torrents[4].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task TellStopped_JsonRpc_StringOffsetAndNum_SlicesCorrectly()
+    {
+        var torrents = Enumerable.Range(1, 5).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Stopped_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Stopped,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 11,
+              "method": "aria2.tellStopped",
+              "params": ["-2", "2"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(2);
+        array[0].GetProperty("gid").GetString().Should().Be(torrents[3].InfoHash.Substring(0, 16));
+        array[1].GetProperty("gid").GetString().Should().Be(torrents[4].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task TellWaiting_XmlRpc_SlicesCorrectly_WithPositiveAndNegativeOffset()
+    {
+        var torrents = Enumerable.Range(1, 10).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Waiting_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Queued,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetXmlRpcRequest("aria2.tellWaiting", "1", "2");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structs = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("struct"))
+            .ToList();
+
+        structs.Should().NotBeNull();
+        structs!.Count.Should().Be(2);
+        GetStructMember(structs[0]!, "gid").Should().Be(torrents[1].InfoHash.Substring(0, 16));
+        GetStructMember(structs[1]!, "gid").Should().Be(torrents[2].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task TellStopped_XmlRpc_SlicesCorrectly_WithPositiveAndNegativeOffset()
+    {
+        var torrents = Enumerable.Range(1, 5).Select(i => new Torrent
+        {
+            Id = i,
+            Name = $"Stopped_{i}",
+            InfoHash = $"{i:D40}",
+            Status = TorrentStatus.Paused,
+        }).ToList();
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetXmlRpcRequest("aria2.tellStopped", "2", "2");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structs = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("struct"))
+            .ToList();
+
+        structs.Should().NotBeNull();
+        structs!.Count.Should().Be(2);
+        GetStructMember(structs[0]!, "gid").Should().Be(torrents[2].InfoHash.Substring(0, 16));
+        GetStructMember(structs[1]!, "gid").Should().Be(torrents[3].InfoHash.Substring(0, 16));
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
