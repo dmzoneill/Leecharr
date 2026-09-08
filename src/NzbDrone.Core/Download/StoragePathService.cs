@@ -9,6 +9,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Download;
 
@@ -109,13 +110,35 @@ public class StoragePathService : IStoragePathService
         }
 
         var incompleteDir = this.GetIncompleteDirectory();
-        return string.IsNullOrWhiteSpace(torrentName) ? incompleteDir : Path.Combine(incompleteDir, torrentName);
+        if (string.IsNullOrWhiteSpace(torrentName))
+        {
+            return incompleteDir;
+        }
+
+        var sanitizedName = TorrentPathValidator.SanitizeRelativePath(torrentName);
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            sanitizedName = torrentName;
+        }
+
+        return Path.Combine(incompleteDir, sanitizedName);
     }
 
     public string GetFinalPath(string category, string torrentName)
     {
         var completedDir = this.GetCompletedDirectory(category);
-        return string.IsNullOrWhiteSpace(torrentName) ? completedDir : Path.Combine(completedDir, torrentName);
+        if (string.IsNullOrWhiteSpace(torrentName))
+        {
+            return completedDir;
+        }
+
+        var sanitizedName = TorrentPathValidator.SanitizeRelativePath(torrentName);
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            sanitizedName = torrentName;
+        }
+
+        return Path.Combine(completedDir, sanitizedName);
     }
 
     public bool MoveToCompleted(string sourcePath, string category, string torrentName, out string finalDestination)
@@ -194,11 +217,23 @@ public class StoragePathService : IStoragePathService
                 targetFileName = torrentName;
             }
 
-            finalDestination = Path.Combine(completedDir, targetFileName);
+            var sanitizedTarget = TorrentPathValidator.SanitizeRelativePath(targetFileName);
+            if (string.IsNullOrWhiteSpace(sanitizedTarget))
+            {
+                sanitizedTarget = targetFileName;
+            }
+
+            finalDestination = Path.Combine(completedDir, sanitizedTarget);
         }
         else
         {
-            finalDestination = Path.Combine(completedDir, torrentName);
+            var sanitizedTarget = TorrentPathValidator.SanitizeRelativePath(torrentName);
+            if (string.IsNullOrWhiteSpace(sanitizedTarget))
+            {
+                sanitizedTarget = torrentName;
+            }
+
+            finalDestination = Path.Combine(completedDir, sanitizedTarget);
         }
 
         if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase) ||

@@ -463,4 +463,58 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
     }
+
+    [Test]
+    public void GetFinalPath_WhenTorrentNameContainsIllegalCharacters_SanitizesDestinationPath()
+    {
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+
+        var path = this.storagePathService.GetFinalPath("movies", "Movie: The Reckoning (2024).mkv");
+
+        path.Should().Be(Path.Combine("/downloads/movies", "Movie - The Reckoning (2024).mkv"));
+    }
+
+    [Test]
+    public void GetFinalPath_WhenTorrentNameContainsMultiSegmentIllegalCharacters_SanitizesAllSegments()
+    {
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var path = this.storagePathService.GetFinalPath("tv", "Show: Name/Season 01/Ep*01: Pilot?.mkv");
+
+        path.Should().Be(Path.Combine("/downloads/tv", "Show - Name", "Season 01", "Ep01 - Pilot.mkv"));
+    }
+
+    [Test]
+    public void GetWorkingPath_WhenTorrentNameContainsIllegalCharacters_SanitizesWorkingPath()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+
+        var path = this.storagePathService.GetWorkingPath("hash123", "Movie: The Reckoning (2024).mkv");
+
+        path.Should().Be(Path.Combine("/downloads/incomplete", "Movie - The Reckoning (2024).mkv"));
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenTorrentNameContainsIllegalCharacters_SanitizesFinalDestination()
+    {
+        var source = "/downloads/incomplete/Movie: 2024.mkv";
+        var dest = "/downloads/movies/Movie - 2024.mkv";
+
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "movies", "Movie: 2024.mkv", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(dest);
+        this.diskProvider.Received(1).MoveFile(source, dest, true);
+    }
 }

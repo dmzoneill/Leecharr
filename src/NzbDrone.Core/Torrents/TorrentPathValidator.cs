@@ -3,17 +3,41 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace NzbDrone.Core.Torrents;
 
 public static class TorrentPathValidator
 {
+    public static readonly char[] UniversalInvalidPathChars = new[]
+    {
+        ':', '*', '?', '"', '<', '>', '|',
+    };
+
     private static readonly HashSet<string> ReservedDeviceNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "CON", "PRN", "AUX", "NUL",
         "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
         "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     };
+
+    public static bool HasUniversalInvalidChars(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        foreach (var c in text)
+        {
+            if (c <= 0x1F || c == 0x7F || UniversalInvalidPathChars.Contains(c))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public static bool IsReservedDeviceName(string segment)
     {
@@ -154,7 +178,7 @@ public static class TorrentPathValidator
             var segments = relativePart.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var segment in segments)
             {
-                if (IsReservedDeviceName(segment))
+                if (IsReservedDeviceName(segment) || HasUniversalInvalidChars(segment))
                 {
                     return false;
                 }
@@ -185,6 +209,19 @@ public static class TorrentPathValidator
             return false;
         }
 
+        if (path.IndexOfAny(UniversalInvalidPathChars) >= 0)
+        {
+            return false;
+        }
+
+        foreach (var c in path)
+        {
+            if (c <= 0x1F || c == 0x7F)
+            {
+                return false;
+            }
+        }
+
         if (Path.IsPathRooted(path) || path.StartsWith('/') || path.StartsWith('\\') ||
             (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':'))
         {
@@ -205,6 +242,7 @@ public static class TorrentPathValidator
                 trimmed == "." ||
                 trimmed == ".." ||
                 IsReservedDeviceName(trimmed) ||
+                HasUniversalInvalidChars(trimmed) ||
                 !Organizer.FileNameSanitizer.IsValidFileNameStatic(trimmed))
             {
                 return false;
@@ -212,5 +250,55 @@ public static class TorrentPathValidator
         }
 
         return true;
+    }
+
+    public static string SanitizeFileName(string fileName)
+    {
+        return Organizer.FileNameSanitizer.SanitizeFileNameStatic(fileName);
+    }
+
+    public static string SanitizePathSegment(string segment)
+    {
+        return Organizer.FileNameSanitizer.SanitizeFolderNameStatic(segment);
+    }
+
+    public static string SanitizeRelativePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var normalized = path.Replace('\\', '/').Trim('/');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        var segments = normalized.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+        var sanitizedSegments = new List<string>();
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var isLast = i == segments.Length - 1;
+            var segment = segments[i];
+
+            string sanitized;
+            if (isLast && segment.Contains('.'))
+            {
+                sanitized = Organizer.FileNameSanitizer.SanitizeFileNameStatic(segment);
+            }
+            else
+            {
+                sanitized = Organizer.FileNameSanitizer.SanitizeFolderNameStatic(segment);
+            }
+
+            if (!string.IsNullOrWhiteSpace(sanitized))
+            {
+                sanitizedSegments.Add(sanitized);
+            }
+        }
+
+        return string.Join('/', sanitizedSegments);
     }
 }

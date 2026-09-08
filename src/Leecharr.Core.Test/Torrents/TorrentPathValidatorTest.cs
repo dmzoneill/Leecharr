@@ -45,6 +45,93 @@ public class TorrentPathValidatorTest
         TorrentPathValidator.IsValidRelativePath(path).Should().Be(expected);
     }
 
+    [TestCase("folder/movie:title.mp4", false)]
+    [TestCase("folder/movie*star.mp4", false)]
+    [TestCase("folder/movie?question.mp4", false)]
+    [TestCase("folder/movie\"quote\".mp4", false)]
+    [TestCase("folder/movie<less.mp4", false)]
+    [TestCase("folder/movie>greater.mp4", false)]
+    [TestCase("folder/movie|pipe.mp4", false)]
+    [TestCase("folder/movie\x01ctrl.mp4", false)]
+    [TestCase("folder/movie\x1Fctrl.mp4", false)]
+    [TestCase("folder:name/movie.mp4", false)]
+    [TestCase("folder*/movie.mp4", false)]
+    [TestCase("folder?/movie.mp4", false)]
+    [TestCase("folder</movie.mp4", false)]
+    [TestCase("folder>/movie.mp4", false)]
+    [TestCase("folder|/movie.mp4", false)]
+    [TestCase("movie:title.mp4", false)]
+    [TestCase("movie*star.mp4", false)]
+    [TestCase("movie?question.mp4", false)]
+    [TestCase("movie\"quote\".mp4", false)]
+    [TestCase("movie<less.mp4", false)]
+    [TestCase("movie>greater.mp4", false)]
+    [TestCase("movie|pipe.mp4", false)]
+    [TestCase("valid_folder/valid_sub/valid_file.mkv", true)]
+    public void IsValidRelativePath_RejectsUniversalInvalidCharacters(string path, bool expected)
+    {
+        TorrentPathValidator.IsValidRelativePath(path).Should().Be(expected);
+    }
+
+    [TestCase("valid_file.mkv", false)]
+    [TestCase("path/to/valid_file.mkv", false)]
+    [TestCase("file:name.mkv", true)]
+    [TestCase("file*name.mkv", true)]
+    [TestCase("file?name.mkv", true)]
+    [TestCase("file\"name.mkv", true)]
+    [TestCase("file<name.mkv", true)]
+    [TestCase("file>name.mkv", true)]
+    [TestCase("file|name.mkv", true)]
+    [TestCase("file\x05name.mkv", true)]
+    [TestCase("file\x1Ename.mkv", true)]
+    public void HasUniversalInvalidChars_DetectsInvalidCharsCorrectly(string text, bool expected)
+    {
+        TorrentPathValidator.HasUniversalInvalidChars(text).Should().Be(expected);
+    }
+
+    [Test]
+    public void SanitizeFileName_ReplacesColonsAndRemovesIllegalCharacters()
+    {
+        var sanitized = TorrentPathValidator.SanitizeFileName("Movie: The Return of Star*Wars? <2024>|\".mkv");
+        sanitized.Should().Be("Movie - The Return of StarWars 2024.mkv");
+    }
+
+    [Test]
+    public void SanitizeFileName_PrefixesReservedDeviceName()
+    {
+        var sanitized = TorrentPathValidator.SanitizeFileName("CON.txt");
+        sanitized.Should().Be("_CON.txt");
+    }
+
+    [Test]
+    public void SanitizePathSegment_SanitizesFolderName()
+    {
+        var sanitized = TorrentPathValidator.SanitizePathSegment("Show: Season 1*?");
+        sanitized.Should().Be("Show - Season 1");
+    }
+
+    [TestCase("Show: Title/Season 01/Ep*01: Pilot?.mkv", "Show - Title/Season 01/Ep01 - Pilot.mkv")]
+    [TestCase("folder/CON/file:name.mkv", "folder/_CON/file - name.mkv")]
+    [TestCase("Movie: Title (2024)", "Movie - Title (2024)")]
+    [TestCase("Movie: Title (2024).mkv", "Movie - Title (2024).mkv")]
+    [TestCase("", "")]
+    [TestCase("   ", "")]
+    [TestCase(null, "")]
+    public void SanitizeRelativePath_SanitizesPathSegments(string input, string expected)
+    {
+        var result = TorrentPathValidator.SanitizeRelativePath(input);
+        result.Should().Be(expected);
+    }
+
+    [Test]
+    public void IsStrictSubPath_WhenTargetContainsUniversalInvalidCharacters_ReturnsFalse()
+    {
+        var tempBase = Path.Combine(Path.GetTempPath(), "leecharr_test_base_" + System.Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(tempBase, "movie:title.mkv");
+
+        TorrentPathValidator.IsStrictSubPath(tempBase, target).Should().BeFalse();
+    }
+
     [Test]
     public void IsStrictSubPath_WhenTargetIsInsideBase_ReturnsTrue()
     {
