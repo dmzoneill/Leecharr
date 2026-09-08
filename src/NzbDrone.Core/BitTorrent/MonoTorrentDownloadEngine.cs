@@ -406,16 +406,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var cachePolicy = this.GetConfiguredCachePolicy();
         var fastResumeMode = this.GetConfiguredFastResumeMode();
 
+        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
             AllowPortForwarding = this.configService.UpnpEnabled,
-            AllowLocalPeerDiscovery = this.configService.EnableLpd,
+            AllowLocalPeerDiscovery = !isProxyActive && this.configService.EnableLpd,
             AllowHaveSuppression = this.configService.ExtensionLtDontHave,
             AllowedEncryption = allowedEncryption,
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = true,
             UsePartialFiles = this.configService.AppendIncompleteExtension,
-            DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
+            DhtEndPoint = (!isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
             ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30),
             DiskCacheBytes = dynamicCacheBytes,
@@ -476,7 +480,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         factories = factories.WithHttpClientCreator(af =>
         {
-            var handler = new SocketsHttpHandler();
+            var handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            };
             if (webProxy != null)
             {
                 handler.Proxy = webProxy;
@@ -503,7 +511,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.networkBindingService,
             () => this.configService.BindInterface,
             this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount)));
+            () => Interlocked.Increment(ref this.blockedPeersCount),
+            this.configService));
 
         factories = factories.WithPeerConnectionListenerCreator(endPoint => new FilteringPeerConnectionListener(
             baseFactories.CreatePeerConnectionListener(endPoint),
@@ -670,6 +679,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+
         var torrentSettingsBuilder = new TorrentSettingsBuilder
         {
             MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
@@ -684,6 +697,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             torrentSettingsBuilder.AllowDht = false;
             torrentSettingsBuilder.AllowPeerExchange = false;
             this.logger.Info("BEP 27 strictly enforced for private torrent {0}: DHT and PEX disabled", torrent.Name);
+        }
+        else if (isProxyActive)
+        {
+            torrentSettingsBuilder.AllowDht = false;
+            torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+            this.logger.Info("Proxy leak prevention active for torrent {0}: DHT disabled", torrent.Name);
         }
         else
         {
@@ -741,6 +760,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (manager == null)
         {
             throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
+        }
+
+        if (isProxyActive && manager.TrackerManager?.Tiers != null)
+        {
+            var udpTrackers = manager.TrackerManager.Tiers
+                .SelectMany(t => t.Trackers)
+                .Where(t => t.Uri != null && string.Equals(t.Uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var udpTracker in udpTrackers)
+            {
+                try
+                {
+                    await manager.TrackerManager.RemoveTrackerAsync(udpTracker).ConfigureAwait(false);
+                    this.logger.Info("Removed UDP tracker '{0}' from torrent '{1}' to prevent SOCKS5 proxy IP leak", udpTracker.Uri, torrent.Name);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Could not remove UDP tracker {0}", udpTracker.Uri);
+                }
+            }
         }
 
         var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
@@ -1113,11 +1153,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             if (task.Manager.TrackerManager != null)
             {
+                var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+                    !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+                var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+
                 var addedAny = false;
                 foreach (var tr in trackers)
                 {
                     if (!string.IsNullOrWhiteSpace(tr) && Uri.TryCreate(tr.Trim(), UriKind.Absolute, out var uri))
                     {
+                        if (isProxyActive && string.Equals(uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase))
+                        {
+                            this.logger.Warn("Skipping UDP tracker '{0}' on torrent {1}: proxy is active and unproxied UDP announces are blocked to prevent IP leaks", tr, torrentId);
+                            continue;
+                        }
+
                         try
                         {
                             await task.Manager.TrackerManager.AddTrackerAsync(uri);
@@ -3927,6 +3977,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     private readonly Func<string> getInterfaceName;
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
+    private readonly IConfigService configService;
 
     public BoundSocketConnector(
         IPAddress localIpv4,
@@ -3934,8 +3985,9 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         INetworkBindingService networkBindingService = null,
         Func<string> getInterfaceName = null,
         IBlocklistService blocklistService = null,
-        Action onPeerBlocked = null)
-        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName, blocklistService, onPeerBlocked)
+        Action onPeerBlocked = null,
+        IConfigService configService = null)
+        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName, blocklistService, onPeerBlocked, configService)
     {
     }
 
@@ -3945,7 +3997,8 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         INetworkBindingService networkBindingService = null,
         Func<string> getInterfaceName = null,
         IBlocklistService blocklistService = null,
-        Action onPeerBlocked = null)
+        Action onPeerBlocked = null,
+        IConfigService configService = null)
     {
         this.getLocalIpv4 = getLocalIpv4 ?? (() => IPAddress.Any);
         this.getLocalIpv6 = getLocalIpv6 ?? (() => IPAddress.IPv6Any);
@@ -3953,10 +4006,20 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         this.getInterfaceName = getInterfaceName ?? (() => null);
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
+        this.configService = configService;
     }
 
     public Socket CreateDatagramSocket(AddressFamily addressFamily = AddressFamily.InterNetwork, int localPort = 0)
     {
+        var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
+        var isProxyActive = isProxyConfigured || (this.configService?.ForceProxy ?? false) || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+
+        if (isProxyActive)
+        {
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+
         return this.CreateBoundSocket(addressFamily, SocketType.Dgram, ProtocolType.Udp, localPort);
     }
 
@@ -4050,9 +4113,25 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
                          string.Equals(uri.Scheme, "dgram", StringComparison.OrdinalIgnoreCase);
 
         var activeProvider = this.networkBindingService?.ActiveProvider;
+        var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
+        var isProxyActive = isProxyConfigured || (this.configService?.ForceProxy ?? false) || (activeProvider is IProxyTunnelBindingProvider);
+
+        if (isProxyActive && isDatagram)
+        {
+            // Strict leak prevention: datagram / UDP connections cannot be proxied through SOCKS5 TCP tunnel
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+
         if (!isDatagram && activeProvider is IProxyTunnelBindingProvider proxyProvider)
         {
             return await proxyProvider.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
+        }
+
+        if (!isDatagram && isProxyConfigured)
+        {
+            var fallbackProxy = new ProxyTunnelBindingProvider(this.configService);
+            return await fallbackProxy.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
         }
 
         IPAddress[] addresses;
