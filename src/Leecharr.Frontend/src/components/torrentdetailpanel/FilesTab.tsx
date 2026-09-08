@@ -527,22 +527,6 @@ export function FilesTab({
     [handleBatchSetPriority],
   );
 
-  if (isLoading)
-    return <PanelLoading>{t("torrents.detail.loadingFiles")}</PanelLoading>;
-  if (isError)
-    return <PanelEmpty>{t("torrents.detail.failedToLoadFiles")}</PanelEmpty>;
-  if (!files || files.length === 0)
-    return <PanelEmpty>{t("torrents.detail.noFiles")}</PanelEmpty>;
-
-  const totalFilesCount = files.length;
-  const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
-  const totalCompletedBytes = files.reduce(
-    (acc, f) => acc + (f.bytesCompleted ?? f.size * (f.progress ?? 0)),
-    0,
-  );
-  const overallProgress =
-    totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
-
   // Flatten visible tree rows based on expanded state and filter query
   const flatRows = useMemo(() => {
     const rows: TreeNode[] = [];
@@ -589,6 +573,22 @@ export function FilesTab({
     virtualRows.length > 0
       ? totalHeight - virtualRows[virtualRows.length - 1].end
       : 0;
+
+  if (isLoading)
+    return <PanelLoading>{t("torrents.detail.loadingFiles")}</PanelLoading>;
+  if (isError)
+    return <PanelEmpty>{t("torrents.detail.failedToLoadFiles")}</PanelEmpty>;
+  if (!files || files.length === 0)
+    return <PanelEmpty>{t("torrents.detail.noFiles")}</PanelEmpty>;
+
+  const totalFilesCount = files.length;
+  const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+  const totalCompletedBytes = files.reduce(
+    (acc, f) => acc + (f.bytesCompleted ?? f.size * (f.progress ?? 0)),
+    0,
+  );
+  const overallProgress =
+    totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
 
   return (
     <div
