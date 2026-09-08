@@ -485,6 +485,71 @@ public class WatchFolderServiceTest
         this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), expectedDest, Arg.Any<bool>());
     }
 
+    [Test]
+    public async Task ProcessFileAsync_WhenDeleteFileThrowsExceptionAfterSuccessfulImport_ReturnsTrueAndDoesNotQuarantine()
+    {
+        var fullPath = Path.Combine(this.tempDirectory, "delete_failure.torrent");
+        await File.WriteAllBytesAsync(fullPath, new byte[] { 0x64, 0x31, 0x65 });
+
+        this.configService.WatchFolderDeleteAddedTorrents.Returns(true);
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Valid.Movie.2024.1080p",
+            InfoHash = "1234567890123456789012345678901234567890",
+            TotalSize = 1024,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.diskProvider.When(d => d.DeleteFile(fullPath)).Do(_ => throw new IOException("File lock in use"));
+
+        // Execute multiple scan attempts where DeleteFile throws
+        for (var i = 0; i < 3; i++)
+        {
+            var result = await this.service.ProcessFileAsync(fullPath, this.tempDirectory);
+            result.Should().BeTrue();
+        }
+
+        var expectedFailedDir = Path.Combine(this.tempDirectory, "failed");
+        var expectedDest = Path.Combine(expectedFailedDir, "delete_failure.torrent");
+
+        this.diskProvider.DidNotReceive().MoveFile(fullPath, expectedDest, Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task ProcessFileAsync_WhenMoveToLoadedThrowsExceptionAfterSuccessfulImport_ReturnsTrueAndDoesNotQuarantine()
+    {
+        var fullPath = Path.Combine(this.tempDirectory, "move_failure.torrent");
+        await File.WriteAllBytesAsync(fullPath, new byte[] { 0x64, 0x31, 0x65 });
+
+        this.configService.WatchFolderDeleteAddedTorrents.Returns(false);
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Valid.Movie.2024.1080p",
+            InfoHash = "0987654321098765432109876543210987654321",
+            TotalSize = 1024,
+        };
+
+        var loadedDir = Path.Combine(this.tempDirectory, "loaded");
+        var loadedDest = Path.Combine(loadedDir, "move_failure.torrent");
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.diskProvider.When(d => d.MoveFile(fullPath, loadedDest, true)).Do(_ => throw new UnauthorizedAccessException("Permission denied"));
+
+        // Execute multiple scan attempts where MoveFile to loaded/ throws
+        for (var i = 0; i < 3; i++)
+        {
+            var result = await this.service.ProcessFileAsync(fullPath, this.tempDirectory);
+            result.Should().BeTrue();
+        }
+
+        var expectedFailedDir = Path.Combine(this.tempDirectory, "failed");
+        var expectedDest = Path.Combine(expectedFailedDir, "move_failure.torrent");
+
+        this.diskProvider.DidNotReceive().MoveFile(fullPath, expectedDest, Arg.Any<bool>());
+    }
+
     #endregion
 
     #region Category Cross-Referencing
