@@ -78,6 +78,21 @@ public class TrackerScrapeResult
     public IReadOnlyList<TrackerScrapeItem> Files { get; set; } = Array.Empty<TrackerScrapeItem>();
 }
 
+public class TrackerSwarmInfo
+{
+    public string InfoHash { get; set; }
+
+    public int Seeders { get; set; }
+
+    public int Leechers { get; set; }
+
+    public long DownloadedCount { get; set; }
+
+    public DateTime LastActivityUtc { get; set; }
+
+    public bool IsRegistered { get; set; }
+}
+
 public interface IEmbeddedTrackerService
 {
     bool IsEnabled { get; }
@@ -87,6 +102,14 @@ public interface IEmbeddedTrackerService
     int ActivePeersCount { get; }
 
     int MaxSwarms { get; set; }
+
+    long TotalAnnounces { get; }
+
+    long TotalScrapes { get; }
+
+    TimeSpan Uptime { get; }
+
+    IReadOnlyList<TrackerSwarmInfo> GetAllSwarms();
 
     byte[] ProcessAnnounce(TrackerAnnounceRequest request);
 

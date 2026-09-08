@@ -79,9 +79,9 @@ public class EmbeddedTrackerController : ControllerBase
             totalTorrents = this.trackerService.ActiveSwarmsCount,
             activePeers = this.trackerService.ActivePeersCount,
             totalPeers = this.trackerService.ActivePeersCount,
-            totalAnnounces = 0,
-            totalScrapes = 0,
-            uptime = 0,
+            totalAnnounces = this.trackerService.TotalAnnounces,
+            totalScrapes = this.trackerService.TotalScrapes,
+            uptime = (long)this.trackerService.Uptime.TotalSeconds,
         });
     }
 
@@ -89,7 +89,7 @@ public class EmbeddedTrackerController : ControllerBase
     [HttpGet("/api/v1/tracker/torrents")]
     public ActionResult GetTorrents()
     {
-        return this.Ok(Array.Empty<object>());
+        return this.Ok(this.trackerService.GetAllSwarms());
     }
 
     private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
