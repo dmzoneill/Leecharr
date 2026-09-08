@@ -81,11 +81,12 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":true");
         context.Response.Headers.ContainsKey("Set-Cookie").Should().BeTrue();
+        context.Response.Headers["Set-Cookie"].ToString().Should().Contain("_session_id");
         context.Response.Headers["Set-Cookie"].ToString().Should().Contain("deluge-session");
     }
 
     [Test]
-    public async Task HandleRpc_ManagementMethod_WhenUnauthenticated_Returns401()
+    public async Task HandleRpc_ManagementMethod_WhenUnauthenticated_Returns200WithJsonRpcErrorEnvelope()
     {
         var context = new DefaultHttpContext();
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
@@ -93,9 +94,13 @@ public class DelugeJsonRpcControllerTest
         using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[],\"id\":1}");
         var result = await this.controller.HandleRpc(doc.RootElement);
 
-        result.Should().BeOfType<ObjectResult>();
-        var objResult = (ObjectResult)result;
-        objResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":null");
+        json.Should().Contain("\"message\":\"Not authenticated\"");
+        json.Should().Contain("\"code\":1");
+        json.Should().Contain("\"id\":1");
     }
 
     [Test]
@@ -1103,5 +1108,195 @@ public class DelugeJsonRpcControllerTest
         jsonNoLabel.Should().NotContain(torrent1.InfoHash.ToLowerInvariant());
         jsonNoLabel.Should().NotContain(torrent2.InfoHash.ToLowerInvariant());
         jsonNoLabel.Should().Contain(torrent3.InfoHash.ToLowerInvariant());
+    }
+
+    [Test]
+    public async Task HandleRpc_AuthWithSessionIdCookie_Succeeds()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        // 1. Log in to get session cookie
+        using var loginDoc = JsonDocument.Parse("{\"method\":\"auth.login\",\"params\":[\"deluge_secret_key\"],\"id\":1}");
+        var loginResult = await this.controller.HandleRpc(loginDoc.RootElement);
+        loginResult.Should().BeOfType<JsonResult>();
+
+        var cookiesHeader = context.Response.Headers["Set-Cookie"].ToString();
+        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)");
+        match.Success.Should().BeTrue();
+        var sid = match.Groups[1].Value;
+
+        // 2. Perform RPC with _session_id cookie in request
+        var authContext = new DefaultHttpContext();
+        authContext.Request.Headers["Cookie"] = $"_session_id={sid}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = authContext };
+
+        using var statusDoc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[],\"id\":2}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+
+        statusResult.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)statusResult;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"error\":null");
+        json.Should().Contain("\"result\":");
+    }
+
+    [Test]
+    public async Task HandleRpc_AuthDeleteSession_InvalidatesSessionAndDeletesCookies()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        // 1. Log in
+        using var loginDoc = JsonDocument.Parse("{\"method\":\"auth.login\",\"params\":[\"deluge_secret_key\"],\"id\":1}");
+        await this.controller.HandleRpc(loginDoc.RootElement);
+
+        var cookiesHeader = context.Response.Headers["Set-Cookie"].ToString();
+        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)");
+        var sid = match.Groups[1].Value;
+
+        // 2. Delete session
+        var logoutContext = new DefaultHttpContext();
+        logoutContext.Request.Headers["Cookie"] = $"_session_id={sid}; deluge-session={sid}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = logoutContext };
+
+        using var logoutDoc = JsonDocument.Parse("{\"method\":\"auth.delete_session\",\"params\":[],\"id\":2}");
+        var logoutResult = await this.controller.HandleRpc(logoutDoc.RootElement);
+
+        logoutResult.Should().BeOfType<JsonResult>();
+        logoutContext.Response.Headers["Set-Cookie"].ToString().Should().Contain("_session_id=");
+        logoutContext.Response.Headers["Set-Cookie"].ToString().Should().Contain("deluge-session=");
+
+        // 3. Try request with old session ID -> should fail auth
+        var reqContext = new DefaultHttpContext();
+        reqContext.Request.Headers["Cookie"] = $"_session_id={sid}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = reqContext };
+
+        using var testDoc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[],\"id\":3}");
+        var testResult = await this.controller.HandleRpc(testDoc.RootElement);
+
+        testResult.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)testResult).Value);
+        json.Should().Contain("\"message\":\"Not authenticated\"");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithStateFilters_ReturnsMatchingTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tActive = new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Status = TorrentStatus.Downloading, DownloadSpeed = 1000, UploadSpeed = 0 };
+        var tInactive = new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", Status = TorrentStatus.Paused, DownloadSpeed = 0, UploadSpeed = 0 };
+        var tSeeding = new Torrent { Id = 3, InfoHash = "3333333333333333333333333333333333333333", Status = TorrentStatus.Seeding, DownloadSpeed = 0, UploadSpeed = 500 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tActive, tInactive, tSeeding });
+
+        // Filter: Active
+        using var docActive = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":\"Active\"},[\"name\"]],\"id\":1}");
+        var resActive = await this.controller.HandleRpc(docActive.RootElement);
+        var jsonActive = JsonSerializer.Serialize(((JsonResult)resActive).Value);
+        jsonActive.Should().Contain(tActive.InfoHash);
+        jsonActive.Should().NotContain(tInactive.InfoHash);
+        jsonActive.Should().Contain(tSeeding.InfoHash); // UploadSpeed > 0 is Active
+
+        // Filter: Inactive
+        using var docInactive = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":\"Inactive\"},[\"name\"]],\"id\":2}");
+        var resInactive = await this.controller.HandleRpc(docInactive.RootElement);
+        var jsonInactive = JsonSerializer.Serialize(((JsonResult)resInactive).Value);
+        jsonInactive.Should().NotContain(tActive.InfoHash);
+        jsonInactive.Should().Contain(tInactive.InfoHash);
+        jsonInactive.Should().NotContain(tSeeding.InfoHash);
+
+        // Filter: Seeding
+        using var docSeeding = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":\"Seeding\"},[\"name\"]],\"id\":3}");
+        var resSeeding = await this.controller.HandleRpc(docSeeding.RootElement);
+        var jsonSeeding = JsonSerializer.Serialize(((JsonResult)resSeeding).Value);
+        jsonSeeding.Should().NotContain(tActive.InfoHash);
+        jsonSeeding.Should().NotContain(tInactive.InfoHash);
+        jsonSeeding.Should().Contain(tSeeding.InfoHash);
+
+        // Filter: Array state ["Downloading", "Seeding"]
+        using var docArray = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":[\"Downloading\",\"Seeding\"]},[\"name\"]],\"id\":4}");
+        var resArray = await this.controller.HandleRpc(docArray.RootElement);
+        var jsonArray = JsonSerializer.Serialize(((JsonResult)resArray).Value);
+        jsonArray.Should().Contain(tActive.InfoHash);
+        jsonArray.Should().NotContain(tInactive.InfoHash);
+        jsonArray.Should().Contain(tSeeding.InfoHash);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithLabelAndIdFilters_ReturnsMatchingTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var t1 = new Torrent { Id = 1, InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Category = "tv" };
+        var t2 = new Torrent { Id = 2, InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Category = "movies" };
+        var t3 = new Torrent { Id = 3, InfoHash = "cccccccccccccccccccccccccccccccccccccccc", Category = null, Label = string.Empty };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3 });
+
+        // Filter: label = All
+        using var docAll = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"label\":\"All\"},[\"name\"]],\"id\":1}");
+        var resAll = await this.controller.HandleRpc(docAll.RootElement);
+        var jsonAll = JsonSerializer.Serialize(((JsonResult)resAll).Value);
+        jsonAll.Should().Contain(t1.InfoHash);
+        jsonAll.Should().Contain(t2.InfoHash);
+        jsonAll.Should().Contain(t3.InfoHash);
+
+        // Filter: label = None
+        using var docNone = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"label\":\"None\"},[\"name\"]],\"id\":2}");
+        var resNone = await this.controller.HandleRpc(docNone.RootElement);
+        var jsonNone = JsonSerializer.Serialize(((JsonResult)resNone).Value);
+        jsonNone.Should().NotContain(t1.InfoHash);
+        jsonNone.Should().NotContain(t2.InfoHash);
+        jsonNone.Should().Contain(t3.InfoHash);
+
+        // Filter: label = ""
+        using var docEmptyLabel = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"label\":\"\"},[\"name\"]],\"id\":3}");
+        var resEmptyLabel = await this.controller.HandleRpc(docEmptyLabel.RootElement);
+        var jsonEmptyLabel = JsonSerializer.Serialize(((JsonResult)resEmptyLabel).Value);
+        jsonEmptyLabel.Should().NotContain(t1.InfoHash);
+        jsonEmptyLabel.Should().NotContain(t2.InfoHash);
+        jsonEmptyLabel.Should().Contain(t3.InfoHash);
+
+        // Filter: id array query
+        using var docIdList = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"id\":[\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"cccccccccccccccccccccccccccccccccccccccc\"]},[\"name\"]],\"id\":4}");
+        var resIdList = await this.controller.HandleRpc(docIdList.RootElement);
+        var jsonIdList = JsonSerializer.Serialize(((JsonResult)resIdList).Value);
+        jsonIdList.Should().Contain(t1.InfoHash);
+        jsonIdList.Should().NotContain(t2.InfoHash);
+        jsonIdList.Should().Contain(t3.InfoHash);
+    }
+
+    [Test]
+    public async Task HandleRpc_BuildFilterTree_IncludesOwnerAndAllNoneLabels()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Category = "tv", DownloadSpeed = 1000 },
+            new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", Category = null },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+        this.categoryService.GetAll().Returns(new List<Category> { new Category { Id = 1, Name = "tv" } });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_filter_tree\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+
+        json.Should().Contain("\"owner\"");
+        json.Should().Contain("\"All\",2");
+        json.Should().Contain("\"None\",1");
+        json.Should().Contain("\"tv\",1");
+        json.Should().Contain("\"Active\",1");
     }
 }
