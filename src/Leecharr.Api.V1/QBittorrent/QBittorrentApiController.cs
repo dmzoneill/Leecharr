@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
@@ -47,6 +48,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly IQBittorrentSearchService qbittorrentSearchService;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadEngine downloadEngine;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -62,7 +64,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         ITorrentCreationService torrentCreationService = null,
         IQBittorrentSearchService qbittorrentSearchService = null,
         ISafeHttpClientService safeHttpClientService = null,
-        IDownloadEngine downloadEngine = null)
+        IDownloadEngine downloadEngine = null,
+        IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -77,6 +80,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.downloadEngine = downloadEngine;
+        this.diskProvider = diskProvider;
     }
 
     [NonAction]
@@ -440,7 +444,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["num_complete"] = t.Seeders,
                 ["num_incomplete"] = t.Leechers,
                 ["ratio"] = t.Ratio,
-                ["eta"] = t.Eta > 0 ? t.Eta : 8640000,
+                ["eta"] = CalculateEta(t),
                 ["state"] = state,
                 ["seq_dl"] = t.SequentialDownload,
                 ["category"] = t.Category ?? string.Empty,
@@ -533,7 +537,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 {
                     try
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed);
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savepath, isPaused, bytes);
                         if (added != null)
@@ -1499,7 +1504,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 alt_up_limit = this.configService.AltUploadSpeedKbps * 1024,
                 connection_status = "connected",
                 dht_nodes = this.downloadEngine?.DhtNodeCount ?? 0,
-                free_space_on_disk = 100L * 1024 * 1024 * 1024,
+                free_space_on_disk = this.GetDriveFreeSpace(this.configService?.DownloadDir),
                 global_ratio = Math.Round(globalRatio, 2),
                 refresh_interval = 2000,
             };
@@ -1534,7 +1539,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         t.Label ?? string.Empty,
                         resolvedSavePath,
                         resolvedContentPath,
-                        t.Eta > 0 ? t.Eta : 8640000,
+                        CalculateEta(t),
                         t.Ratio,
                         t.Seeders,
                         t.Leechers,
@@ -1609,7 +1614,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     t.Label ?? string.Empty,
                     resolvedSavePath,
                     resolvedContentPath,
-                    t.Eta > 0 ? t.Eta : 8640000,
+                    CalculateEta(t),
                     t.Ratio,
                     t.Seeders,
                     t.Leechers,
@@ -2178,6 +2183,58 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             TorrentStatus.Stalled => progress >= 1.0 ? "stalledUP" : "stalledDL",
             _ => "unknown",
         };
+    }
+
+    private static long CalculateEta(Torrent t)
+    {
+        if (t == null)
+        {
+            return 8640000;
+        }
+
+        if (t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed)
+        {
+            return 0;
+        }
+
+        if (t.Eta > 0)
+        {
+            return t.Eta;
+        }
+
+        if (t.DownloadSpeed > 0)
+        {
+            var remaining = Math.Max(0, t.TotalSize - t.Downloaded);
+            if (remaining == 0 && t.TotalSize > 0 && t.Progress < 1.0)
+            {
+                remaining = (long)(t.TotalSize * (1.0 - t.Progress));
+            }
+
+            if (remaining > 0)
+            {
+                return (long)Math.Ceiling((double)remaining / t.DownloadSpeed);
+            }
+
+            return 0;
+        }
+
+        return 8640000;
+    }
+
+    private long GetDriveFreeSpace(string path)
+    {
+        try
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? (!string.IsNullOrWhiteSpace(this.configService?.DownloadDir) ? this.configService.DownloadDir : "/downloads") : path;
+            var fullPath = global::System.IO.Path.GetFullPath(target);
+            return this.diskProvider?.GetAvailableSpace(fullPath)
+                ?? this.diskProvider?.GetAvailableSpace(target)
+                ?? 0L;
+        }
+        catch
+        {
+            return 0L;
+        }
     }
 }
 

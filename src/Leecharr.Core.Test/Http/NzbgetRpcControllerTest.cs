@@ -142,7 +142,7 @@ public class NzbgetRpcControllerTest
         var parsedTorrent = new ParsedTorrent { InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "HttpTorrent" };
         var expectedTorrent = new Torrent { Id = 99, Name = "HttpTorrent" };
 
-        this.safeHttpClientService.DownloadBytesAsync(httpUrl, maxSizeBytes: 10 * 1024 * 1024).Returns(Task.FromResult(bytes));
+        this.safeHttpClientService.DownloadBytesAsync(httpUrl, maxSizeBytes: Arg.Any<long>()).Returns(Task.FromResult(bytes));
         this.torrentFileParser.Parse(bytes).Returns(parsedTorrent);
         this.torrentService.AddFromParsedTorrentAsync(parsedTorrent, "movies", null, false, bytes).Returns(Task.FromResult(expectedTorrent));
 
@@ -161,7 +161,7 @@ public class NzbgetRpcControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var resDoc = JsonDocument.Parse(json);
         resDoc.RootElement.GetProperty("result").GetInt32().Should().Be(99);
-        await this.safeHttpClientService.Received(1).DownloadBytesAsync(httpUrl, maxSizeBytes: 10 * 1024 * 1024);
+        await this.safeHttpClientService.Received(1).DownloadBytesAsync(httpUrl, maxSizeBytes: Arg.Any<long>());
         await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsedTorrent, "movies", null, false, bytes);
     }
 

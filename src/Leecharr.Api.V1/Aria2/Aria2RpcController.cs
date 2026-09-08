@@ -420,14 +420,70 @@ public class Aria2RpcController : ControllerBase
                     .ToList();
 
             case "aria2.tellwaiting":
-                return this.torrentService.GetAll()
+                var waitingOffset = 0;
+                var waitingNum = int.MaxValue;
+                if (cleanParams.Count > 0)
+                {
+                    if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var wo))
+                    {
+                        waitingOffset = wo;
+                    }
+                    else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var woStr))
+                    {
+                        waitingOffset = woStr;
+                    }
+                }
+
+                if (cleanParams.Count > 1)
+                {
+                    if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var wn))
+                    {
+                        waitingNum = wn;
+                    }
+                    else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var wnStr))
+                    {
+                        waitingNum = wnStr;
+                    }
+                }
+
+                var waitingList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Queued)
+                    .ToList();
+                return SliceList(waitingList, waitingOffset, waitingNum)
                     .Select(this.MapTorrentToAria2)
                     .ToList();
 
             case "aria2.tellstopped":
-                return this.torrentService.GetAll()
+                var stoppedOffset = 0;
+                var stoppedNum = int.MaxValue;
+                if (cleanParams.Count > 0)
+                {
+                    if (cleanParams[0].ValueKind == JsonValueKind.Number && cleanParams[0].TryGetInt32(out var so))
+                    {
+                        stoppedOffset = so;
+                    }
+                    else if (cleanParams[0].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[0].GetString(), out var soStr))
+                    {
+                        stoppedOffset = soStr;
+                    }
+                }
+
+                if (cleanParams.Count > 1)
+                {
+                    if (cleanParams[1].ValueKind == JsonValueKind.Number && cleanParams[1].TryGetInt32(out var sn))
+                    {
+                        stoppedNum = sn;
+                    }
+                    else if (cleanParams[1].ValueKind == JsonValueKind.String && int.TryParse(cleanParams[1].GetString(), out var snStr))
+                    {
+                        stoppedNum = snStr;
+                    }
+                }
+
+                var stoppedList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
+                    .ToList();
+                return SliceList(stoppedList, stoppedOffset, stoppedNum)
                     .Select(this.MapTorrentToAria2)
                     .ToList();
 
@@ -521,7 +577,8 @@ public class Aria2RpcController : ControllerBase
                             }
                             else
                             {
-                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
+                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, savePath, isPaused, bytes);
                                 return GetGidFromInfoHash(added?.InfoHash);
@@ -796,6 +853,39 @@ public class Aria2RpcController : ControllerBase
         }
     }
 
+    private static List<T> SliceList<T>(List<T> list, int offset, int num)
+    {
+        if (list == null || list.Count == 0 || num <= 0)
+        {
+            return new List<T>();
+        }
+
+        var total = list.Count;
+        int startIndex;
+
+        if (offset >= 0)
+        {
+            startIndex = offset;
+        }
+        else
+        {
+            startIndex = total + offset;
+        }
+
+        if (startIndex < 0)
+        {
+            startIndex = 0;
+        }
+
+        if (startIndex >= total)
+        {
+            return new List<T>();
+        }
+
+        var count = Math.Min(num, total - startIndex);
+        return list.GetRange(startIndex, count);
+    }
+
     private static List<JsonElement> GetCleanParams(JsonElement parameters)
     {
         var list = new List<JsonElement>();
@@ -1047,16 +1137,20 @@ public class Aria2RpcController : ControllerBase
                 return BuildXmlRpcTorrentArray(activeList, downloadDir, this.torrentFileService);
 
             case "aria2.tellwaiting":
+                var xmlWaitOffset = stringParams.Count > 0 && int.TryParse(stringParams[0], out var xwo) ? xwo : 0;
+                var xmlWaitNum = stringParams.Count > 1 && int.TryParse(stringParams[1], out var xwn) ? xwn : int.MaxValue;
                 var waitingList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Queued)
                     .ToList();
-                return BuildXmlRpcTorrentArray(waitingList, downloadDir, this.torrentFileService);
+                return BuildXmlRpcTorrentArray(SliceList(waitingList, xmlWaitOffset, xmlWaitNum), downloadDir, this.torrentFileService);
 
             case "aria2.tellstopped":
+                var xmlStopOffset = stringParams.Count > 0 && int.TryParse(stringParams[0], out var xso) ? xso : 0;
+                var xmlStopNum = stringParams.Count > 1 && int.TryParse(stringParams[1], out var xsn) ? xsn : int.MaxValue;
                 var stoppedList = this.torrentService.GetAll()
                     .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
                     .ToList();
-                return BuildXmlRpcTorrentArray(stoppedList, downloadDir, this.torrentFileService);
+                return BuildXmlRpcTorrentArray(SliceList(stoppedList, xmlStopOffset, xmlStopNum), downloadDir, this.torrentFileService);
 
             case "aria2.tellstatus":
                 var gid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
@@ -1102,7 +1196,8 @@ public class Aria2RpcController : ControllerBase
                     }
                     else
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: 10 * 1024 * 1024);
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, customDir, false, bytes);
                         return new XElement("string", GetGidFromInfoHash(added?.InfoHash));
