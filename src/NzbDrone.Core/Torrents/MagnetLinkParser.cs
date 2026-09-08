@@ -115,7 +115,7 @@ public static class MagnetLinkParser
                     result.DisplayName = value;
                     break;
 
-                case "tr":
+                case string k when k == "tr" || k.StartsWith("tr.", StringComparison.Ordinal):
                     if (!string.IsNullOrWhiteSpace(value) && !result.Trackers.Contains(value))
                     {
                         result.Trackers.Add(value);
@@ -127,8 +127,12 @@ public static class MagnetLinkParser
                     result.ExactPeers.Add(value);
                     break;
 
-                case "ws":
-                    result.WebSeeds.Add(value);
+                case "ws" or "as":
+                    if (!string.IsNullOrWhiteSpace(value) && !result.WebSeeds.Contains(value))
+                    {
+                        result.WebSeeds.Add(value);
+                    }
+
                     break;
             }
         }

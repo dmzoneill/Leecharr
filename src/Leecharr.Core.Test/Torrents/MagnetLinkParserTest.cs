@@ -169,4 +169,57 @@ public class MagnetLinkParserTest
         Action act = () => MagnetLinkParser.Parse(magnet);
         act.Should().Throw<FormatException>();
     }
+
+    [Test]
+    public void Parse_WhenBEP53MultiTierTrackers_ParsesTrackersSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=MultiTier.iso" +
+                     "&tr=http%3A%2F%2Ftracker0.local%2Fannounce" +
+                     "&tr.0=http%3A%2F%2Ftracker1.local%2Fannounce" +
+                     "&tr.1=udp%3A%2F%2Ftracker2.local%3A1337" +
+                     "&tr.2=http%3A%2F%2Ftracker3.local%2Fannounce";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.DisplayName.Should().Be("MultiTier.iso");
+        parsed.Trackers.Should().HaveCount(4);
+        parsed.Trackers.Should().ContainInOrder(
+            "http://tracker0.local/announce",
+            "http://tracker1.local/announce",
+            "udp://tracker2.local:1337",
+            "http://tracker3.local/announce");
+    }
+
+    [Test]
+    public void Parse_WhenBEP17AcceptableSource_ParsesWebSeedsSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=WebSeeds.iso" +
+                     "&ws=http%3A%2F%2Fseed1.local%2Ffile.iso" +
+                     "&as=http%3A%2F%2Fseed2.local%2Ffile.iso";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.DisplayName.Should().Be("WebSeeds.iso");
+        parsed.WebSeeds.Should().HaveCount(2);
+        parsed.WebSeeds.Should().ContainInOrder(
+            "http://seed1.local/file.iso",
+            "http://seed2.local/file.iso");
+    }
+
+    [Test]
+    public void Parse_WhenDuplicateTrackersAndWebSeeds_DeduplicatesEntries()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Deduplicate.iso" +
+                     "&tr=http%3A%2F%2Ftracker.local%2Fannounce" +
+                     "&tr.0=http%3A%2F%2Ftracker.local%2Fannounce" +
+                     "&ws=http%3A%2F%2Fseed.local%2Ffile.iso" +
+                     "&as=http%3A%2F%2Fseed.local%2Ffile.iso";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.Trackers.Should().HaveCount(1);
+        parsed.Trackers.Should().ContainSingle().Which.Should().Be("http://tracker.local/announce");
+        parsed.WebSeeds.Should().HaveCount(1);
+        parsed.WebSeeds.Should().ContainSingle().Which.Should().Be("http://seed.local/file.iso");
+    }
 }
