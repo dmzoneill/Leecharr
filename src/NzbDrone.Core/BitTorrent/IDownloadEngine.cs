@@ -66,6 +66,10 @@ public interface IDownloadEngine
     {
     }
 
+    void CheckDiskSpaceHealth()
+    {
+    }
+
     Task<EngineHealthCheckResult> ProbeHealthAsync() => Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
 }
 
@@ -112,6 +116,10 @@ public interface IDownloadTask
     string ErrorMessage => null;
 
     bool IsStalled => false;
+
+    bool IsStorageFull => false;
+
+    bool IsOutOfDiskSpace => false;
 
     int PieceLength => 0;
 }

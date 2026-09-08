@@ -2428,5 +2428,122 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.StopAsync();
     }
 
+    [Test]
+    public async Task CheckDiskSpace_WhenFreeSpaceBelowThreshold_SetsStorageFullAndPublishesHealthIssueEvent()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("lowdisk.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 501,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "lowdisk.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L); // 100 MB < 500 MB threshold
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.IsStorageFull.Should().BeTrue();
+        task.IsOutOfDiskSpace.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Paused);
+        task.ErrorMessage.Should().Contain("StorageFull");
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 501 &&
+            !e.IsResolved &&
+            e.Source == "DiskSpace" &&
+            e.Message.Contains("StorageFull")));
+    }
+
+    [Test]
+    public async Task CheckDiskSpace_WhenFreeSpaceRecovers_ClearsStorageFullAndPublishesResolvedHealthIssueEvent()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("lowdisk_recover.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 502,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "lowdisk_recover.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.IsStorageFull.Should().BeTrue();
+
+        // Disk space recovers above 500 MB threshold
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        var isLowDisk = task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        isLowDisk.Should().BeFalse();
+        task.IsStorageFull.Should().BeFalse();
+        task.ErrorMessage.Should().BeNull();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.TorrentId == 502 &&
+            e.IsResolved &&
+            e.Source == "DiskSpace" &&
+            e.Message.Contains("Disk space restored")));
+    }
+
+    [Test]
+    public async Task ResumeTorrentAsync_WhenFreeSpaceBelowThreshold_PreventsResumeAndSetsStorageFull()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("resume_lowdisk.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 503,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "resume_lowdisk.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        // Drop free space below threshold before resume
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(200_000_000L);
+        await this.engine.ResumeTorrentAsync(503);
+
+        task.IsStorageFull.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Paused);
+        task.ErrorMessage.Should().Contain("StorageFull");
+    }
+
+    [Test]
+    public async Task CheckDiskSpaceHealth_OnEngine_ChecksAllActiveTasks()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("health_check_disk.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 504,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "health_check_disk.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.IsStorageFull.Should().BeFalse();
+
+        // Drop space and run health check
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        this.engine.CheckDiskSpaceHealth();
+
+        task.IsStorageFull.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Paused);
+    }
+
     #endregion
 }
