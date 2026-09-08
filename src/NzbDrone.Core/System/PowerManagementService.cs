@@ -65,8 +65,39 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
             try
             {
-                return File.Exists("/.dockerenv") ||
-                       (File.Exists("/proc/1/cgroup") && File.ReadAllText("/proc/1/cgroup").Contains("docker"));
+                if (File.Exists("/.dockerenv") || File.Exists("/run/.containerenv"))
+                {
+                    return true;
+                }
+
+                var dotnetInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+                if (string.Equals(dotnetInContainer, "true", StringComparison.OrdinalIgnoreCase) || dotnetInContainer == "1")
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("container")))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST")))
+                {
+                    return true;
+                }
+
+                if (File.Exists("/proc/1/cgroup"))
+                {
+                    var cgroup = File.ReadAllText("/proc/1/cgroup");
+                    if (cgroup.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
+                        cgroup.Contains("containerd", StringComparison.OrdinalIgnoreCase) ||
+                        cgroup.Contains("kubepods", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
             catch
             {
