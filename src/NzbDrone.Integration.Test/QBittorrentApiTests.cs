@@ -49,6 +49,20 @@ public class QBittorrentApiTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task GetSyncMaindata_SubsequentPoll_ReturnsIncrementalUpdate()
+    {
+        var initialResponse = await this.GetAsync("/api/v2/sync/maindata?rid=0");
+        initialResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var initialJson = await initialResponse.Content.ReadAsStringAsync();
+        initialJson.Should().Contain("\"full_update\":true");
+
+        var subsequentResponse = await this.GetAsync("/api/v2/sync/maindata?rid=1");
+        subsequentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var subsequentJson = await subsequentResponse.Content.ReadAsStringAsync();
+        subsequentJson.Should().Contain("\"full_update\":false");
+    }
+
+    [Test]
     public async Task TorrentLifecycle_AddPauseResumeDelete_Succeeds()
     {
         const string hash = "0123456789abcdef0123456789abcdef01234568";

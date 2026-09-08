@@ -217,6 +217,110 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetMainData_WithSubsequentRid_WhenQueueIsEmpty_ReturnsIncrementalUpdateWithFullUpdateFalse()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        // Initial sync on empty queue
+        var initial = this.controller.GetMainData(0);
+        var initialData = ((OkObjectResult)initial.Result!).Value as Dictionary<string, object>;
+        initialData!["full_update"].Should().Be(true);
+        var initialRid = (int)initialData["rid"];
+        initialRid.Should().Be(1);
+
+        // Subsequent syncs on empty queue must return incremental delta (full_update: false)
+        var delta1 = this.controller.GetMainData(initialRid);
+        var deltaData1 = ((OkObjectResult)delta1.Result!).Value as Dictionary<string, object>;
+        deltaData1!["full_update"].Should().Be(false);
+        deltaData1["rid"].Should().Be(2);
+
+        var delta2 = this.controller.GetMainData(2);
+        var deltaData2 = ((OkObjectResult)delta2.Result!).Value as Dictionary<string, object>;
+        deltaData2!["full_update"].Should().Be(false);
+        deltaData2["rid"].Should().Be(3);
+    }
+
+    [Test]
+    public void GetMainData_WithOlderRid_ReturnsTorrentsChangedSinceRequestedRid()
+    {
+        var torrent1 = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.1,
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 2,
+            Name = "Torrent 2",
+            InfoHash = "hash2",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.1,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        // Initial full sync (RID = 1)
+        var initial = this.controller.GetMainData(0);
+        var initialData = ((OkObjectResult)initial.Result!).Value as Dictionary<string, object>;
+        initialData!["full_update"].Should().Be(true);
+        initialData["rid"].Should().Be(1);
+
+        // Update torrent 1 at RID = 2
+        var modified1 = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { modified1, torrent2 });
+        var poll1 = this.controller.GetMainData(1);
+        var poll1Data = ((OkObjectResult)poll1.Result!).Value as Dictionary<string, object>;
+        poll1Data!["full_update"].Should().Be(false);
+        poll1Data["rid"].Should().Be(2);
+
+        // Update torrent 2 at RID = 3 (torrent 1 unchanged)
+        var modified2 = new Torrent
+        {
+            Id = 2,
+            Name = "Torrent 2",
+            InfoHash = "hash2",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.8,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { modified1, modified2 });
+        var poll2 = this.controller.GetMainData(2);
+        var poll2Data = ((OkObjectResult)poll2.Result!).Value as Dictionary<string, object>;
+        poll2Data!["full_update"].Should().Be(false);
+        poll2Data["rid"].Should().Be(3);
+
+        // Now poll with older rid = 1 (server is at CurrentRid = 3)
+        // Should return both modified1 (changed at RID 2 > 1) and modified2 (changed at RID 3 > 1)
+        var olderPoll = this.controller.GetMainData(1);
+        var olderPollData = ((OkObjectResult)olderPoll.Result!).Value as Dictionary<string, object>;
+        olderPollData!["full_update"].Should().Be(false);
+        olderPollData["rid"].Should().Be(4);
+        var olderTorrents = olderPollData["torrents"].Should().BeAssignableTo<System.Collections.IDictionary>().Subject;
+        olderTorrents.Count.Should().Be(2);
+        olderTorrents.Contains("hash1").Should().BeTrue();
+        olderTorrents.Contains("hash2").Should().BeTrue();
+
+        // Now poll with rid = 2 (server is at CurrentRid = 4)
+        // modified1 was changed at RID 2 (not > 2), modified2 was changed at RID 3 (> 2)
+        var pollFromRid2 = this.controller.GetMainData(2);
+        var pollFromRid2Data = ((OkObjectResult)pollFromRid2.Result!).Value as Dictionary<string, object>;
+        pollFromRid2Data!["full_update"].Should().Be(false);
+        var torrentsFromRid2 = pollFromRid2Data["torrents"].Should().BeAssignableTo<System.Collections.IDictionary>().Subject;
+        torrentsFromRid2.Count.Should().Be(1);
+        torrentsFromRid2.Contains("hash2").Should().BeTrue();
+        torrentsFromRid2.Contains("hash1").Should().BeFalse();
+    }
+
+    [Test]
     public async Task SetLocation_WithValidHashesAndLocation_InvokesSetLocationAsyncWithMoveTrue()
     {
         var torrent = new Torrent
