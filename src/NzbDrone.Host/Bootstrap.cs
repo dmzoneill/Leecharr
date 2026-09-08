@@ -84,10 +84,13 @@ public static class Bootstrap
                     {
                         try
                         {
-                            var certificate = certManager.GetOrCreateCertificate(configProvider);
+                            _ = certManager.GetOrCreateCertificate(configProvider);
                             serverOptions.ListenAnyIP(configProvider.SslPort, listenOptions =>
                             {
-                                listenOptions.UseHttps(certificate);
+                                listenOptions.UseHttps(httpsOptions =>
+                                {
+                                    httpsOptions.ServerCertificateSelector = (connectionContext, name) => certManager.GetOrCreateCertificate(configProvider);
+                                });
                             });
                             Logger.Info("Configured SSL dual-stack listener on port {0}", configProvider.SslPort);
                         }
@@ -112,10 +115,13 @@ public static class Bootstrap
                     {
                         try
                         {
-                            var certificate = certManager.GetOrCreateCertificate(configProvider);
+                            _ = certManager.GetOrCreateCertificate(configProvider);
                             serverOptions.Listen(ip, configProvider.SslPort, listenOptions =>
                             {
-                                listenOptions.UseHttps(certificate);
+                                listenOptions.UseHttps(httpsOptions =>
+                                {
+                                    httpsOptions.ServerCertificateSelector = (connectionContext, name) => certManager.GetOrCreateCertificate(configProvider);
+                                });
                             });
                             Logger.Info("Configured SSL on {0}:{1}", ip, configProvider.SslPort);
                         }

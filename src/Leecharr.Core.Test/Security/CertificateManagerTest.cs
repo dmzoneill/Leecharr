@@ -169,4 +169,165 @@ public class CertificateManagerTest
         result.Subject.Should().Contain("CustomHost");
         result.HasPrivateKey.Should().BeTrue();
     }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenPemWithIntermediateChainAndSeparateKey_LoadsFullChainAndNormalizesToPkcs12()
+    {
+        var (fullChainPem, keyPem, _, _) = GenerateTestChain();
+        var certPemPath = Path.Combine(this.tempDir, "fullchain.pem");
+        var keyPemPath = Path.Combine(this.tempDir, "privkey.pem");
+
+        File.WriteAllText(certPemPath, fullChainPem);
+        File.WriteAllText(keyPemPath, keyPem);
+
+        this.config.SslCertPath.Returns(certPemPath);
+        this.config.SslKeyPath.Returns(keyPemPath);
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        cert.HasPrivateKey.Should().BeTrue();
+        cert.Subject.Should().Contain("leechar-server.local");
+        cert.Issuer.Should().Contain("Test Intermediate CA");
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenPemWithIntermediateChainAndKeyInSingleFile_LoadsFullChainAndNormalizesToPkcs12()
+    {
+        var (fullChainPem, keyPem, _, _) = GenerateTestChain();
+        var combinedPem = $"{fullChainPem}\n{keyPem}";
+        var bundlePemPath = Path.Combine(this.tempDir, "bundle.pem");
+
+        File.WriteAllText(bundlePemPath, combinedPem);
+
+        this.config.SslCertPath.Returns(bundlePemPath);
+        this.config.SslKeyPath.Returns(string.Empty);
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        cert.HasPrivateKey.Should().BeTrue();
+        cert.Subject.Should().Contain("leechar-server.local");
+        cert.Issuer.Should().Contain("Test Intermediate CA");
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenPemWithFullChain_ReturnsValidWithSansAndPrivateKey()
+    {
+        var (fullChainPem, keyPem, _, _) = GenerateTestChain();
+        var certPemPath = Path.Combine(this.tempDir, "fullchain.pem");
+        var keyPemPath = Path.Combine(this.tempDir, "privkey.pem");
+
+        File.WriteAllText(certPemPath, fullChainPem);
+        File.WriteAllText(keyPemPath, keyPem);
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: certPemPath,
+            keyPath: keyPemPath,
+            password: string.Empty,
+            bindAddress: "127.0.0.1",
+            sslPort: 7890,
+            testTlsHandshake: false);
+
+        result.Should().NotBeNull();
+        result.IsValid.Should().BeTrue(result.Message);
+        result.HasPrivateKey.Should().BeTrue();
+        result.Subject.Should().Contain("leechar-server.local");
+        result.SubjectAlternativeNames.Should().Contain("leechar-server.local");
+        result.SubjectAlternativeNames.Should().Contain("127.0.0.1");
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenPemMissingPrivateKey_ReturnsInvalidResult()
+    {
+        var (fullChainPem, _, _, _) = GenerateTestChain();
+        var certPemPath = Path.Combine(this.tempDir, "certonly.pem");
+
+        File.WriteAllText(certPemPath, fullChainPem);
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: certPemPath,
+            keyPath: string.Empty,
+            password: string.Empty,
+            bindAddress: "127.0.0.1",
+            sslPort: 7890,
+            testTlsHandshake: false);
+
+        result.Should().NotBeNull();
+        result.IsValid.Should().BeFalse();
+        result.Message.Should().Contain("does not contain a private key");
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenPemWithEncryptedPrivateKey_ValidatesSuccessfullyWithPassword()
+    {
+        using var caRsa = RSA.Create(2048);
+        var caReq = new CertificateRequest("CN=Test Intermediate CA", caRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        caReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        using var caCert = caReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-10), DateTimeOffset.UtcNow.AddYears(2));
+
+        using var leafRsa = RSA.Create(2048);
+        var leafReq = new CertificateRequest("CN=encrypted-leaf.local", leafRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        leafReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+
+        var serial = new byte[8];
+        RandomNumberGenerator.Fill(serial);
+        using var leafCert = leafReq.Create(caCert, DateTimeOffset.UtcNow.AddMinutes(-10), DateTimeOffset.UtcNow.AddYears(1), serial);
+
+        var pbeParams = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 1000);
+        var encryptedKeyPem = leafRsa.ExportEncryptedPkcs8PrivateKeyPem("secretpassword".AsSpan(), pbeParams);
+        var fullChainPem = $"{leafCert.ExportCertificatePem()}\n{caCert.ExportCertificatePem()}";
+
+        var certPemPath = Path.Combine(this.tempDir, "fullchain-enc.pem");
+        var keyPemPath = Path.Combine(this.tempDir, "privkey-enc.pem");
+
+        File.WriteAllText(certPemPath, fullChainPem);
+        File.WriteAllText(keyPemPath, encryptedKeyPem);
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: certPemPath,
+            keyPath: keyPemPath,
+            password: "secretpassword",
+            bindAddress: "127.0.0.1",
+            sslPort: 7890,
+            testTlsHandshake: false);
+
+        result.Should().NotBeNull();
+        result.IsValid.Should().BeTrue(result.Message);
+        result.HasPrivateKey.Should().BeTrue();
+        result.Subject.Should().Contain("encrypted-leaf.local");
+    }
+
+    private static (string FullChainPem, string KeyPem, string LeafPem, string CaPem) GenerateTestChain(
+        string subjectName = "CN=leechar-server.local",
+        string caSubject = "CN=Test Intermediate CA")
+    {
+        using var caRsa = RSA.Create(2048);
+        var caReq = new CertificateRequest(caSubject, caRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        caReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        caReq.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+        using var caCert = caReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-10), DateTimeOffset.UtcNow.AddYears(2));
+
+        using var leafRsa = RSA.Create(2048);
+        var leafReq = new CertificateRequest(subjectName, leafRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        leafReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        leafReq.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+        sanBuilder.AddDnsName("leechar-server.local");
+        sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddIpAddress(System.Net.IPAddress.Loopback);
+        leafReq.CertificateExtensions.Add(sanBuilder.Build());
+
+        var serial = new byte[8];
+        RandomNumberGenerator.Fill(serial);
+        using var leafCert = leafReq.Create(caCert, DateTimeOffset.UtcNow.AddMinutes(-10), DateTimeOffset.UtcNow.AddYears(1), serial);
+
+        var caPem = caCert.ExportCertificatePem();
+        var leafPem = leafCert.ExportCertificatePem();
+        var keyPem = leafRsa.ExportPkcs8PrivateKeyPem();
+        var fullChainPem = $"{leafPem}\n{caPem}";
+
+        return (fullChainPem, keyPem, leafPem, caPem);
+    }
 }
