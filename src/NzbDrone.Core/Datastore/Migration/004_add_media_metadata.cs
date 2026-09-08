@@ -11,7 +11,7 @@ public class AddMediaMetadata : NzbDroneMigrationBase
     {
         this.Create.Table("TorrentMediaMetadata")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
-            .WithColumn("TorrentId").AsInt32().NotNullable().Unique().ForeignKey("Torrents", "Id")
+            .WithColumn("TorrentId").AsInt32().NotNullable().Unique().ForeignKey("Torrents", "Id").OnDelete(System.Data.Rule.Cascade)
             .WithColumn("ArrType").AsString().NotNullable()
             .WithColumn("ArrMediaId").AsInt32().NotNullable().WithDefaultValue(0)
             .WithColumn("Title").AsString().NotNullable()

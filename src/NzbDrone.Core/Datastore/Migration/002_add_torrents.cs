@@ -45,7 +45,7 @@ public class AddTorrents : NzbDroneMigrationBase
 
         this.Create.Table("TorrentFiles")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
-            .WithColumn("TorrentId").AsInt32().NotNullable().ForeignKey("Torrents", "Id")
+            .WithColumn("TorrentId").AsInt32().NotNullable().ForeignKey("Torrents", "Id").OnDelete(System.Data.Rule.Cascade)
             .WithColumn("Path").AsString().NotNullable()
             .WithColumn("Size").AsInt64().NotNullable().WithDefaultValue(0)
             .WithColumn("PieceOffset").AsInt32().NotNullable().WithDefaultValue(0)
