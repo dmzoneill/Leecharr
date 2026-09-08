@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -235,6 +236,147 @@ public class TerminalControlMessageTest
         await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
 
         fakeWs.SentMessages.Should().Contain("{\"type\":\"pong\"}");
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenChineseMultiByteUtf8SplitAcrossReadChunks_DecodesWithoutReplacementCharacters()
+    {
+        var originalText = "你好世界，测试终端输出！";
+        var rawBytes = Encoding.UTF8.GetBytes(originalText);
+
+        // Split in the middle of a 3-byte character (e.g. byte offset 4: '你' is 3 bytes, '好' is 3 bytes, offset 4 is inside '好')
+        var chunk1 = rawBytes[..4];
+        var chunk2 = rawBytes[4..];
+
+        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
+        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var mem = callInfo.Arg<Memory<byte>>();
+                if (chunks.TryDequeue(out var chunk))
+                {
+                    chunk.CopyTo(mem);
+                    return ValueTask.FromResult(chunk.Length);
+                }
+
+                return ValueTask.FromResult(0);
+            });
+
+        var fakeWs = new FakeWebSocket();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        var outputData = new StringBuilder();
+        foreach (var msg in fakeWs.SentMessages)
+        {
+            using var doc = JsonDocument.Parse(msg);
+            if (doc.RootElement.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "output")
+            {
+                var data = doc.RootElement.GetProperty("data").GetString();
+                data.Should().NotContain("\uFFFD");
+                outputData.Append(data);
+            }
+        }
+
+        outputData.ToString().Should().Be(originalText);
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenEmojiMultiByteUtf8SplitAcrossReadChunks_DecodesWithoutReplacementCharacters()
+    {
+        var originalText = "Status: 🚀🔥🎉💻 Complete!";
+        var rawBytes = Encoding.UTF8.GetBytes(originalText);
+
+        // 'Status: ' is 8 bytes. '🚀' is 4 bytes (offset 8..12). Split at offset 10 (halfway through the 4-byte emoji)
+        var chunk1 = rawBytes[..10];
+        var chunk2 = rawBytes[10..];
+
+        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
+        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var mem = callInfo.Arg<Memory<byte>>();
+                if (chunks.TryDequeue(out var chunk))
+                {
+                    chunk.CopyTo(mem);
+                    return ValueTask.FromResult(chunk.Length);
+                }
+
+                return ValueTask.FromResult(0);
+            });
+
+        var fakeWs = new FakeWebSocket();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        var outputData = new StringBuilder();
+        foreach (var msg in fakeWs.SentMessages)
+        {
+            using var doc = JsonDocument.Parse(msg);
+            if (doc.RootElement.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "output")
+            {
+                var data = doc.RootElement.GetProperty("data").GetString();
+                data.Should().NotContain("\uFFFD");
+                outputData.Append(data);
+            }
+        }
+
+        outputData.ToString().Should().Be(originalText);
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenBoxDrawingMultiByteUtf8SplitAcrossReadChunks_DecodesWithoutReplacementCharacters()
+    {
+        var originalText = "┌─┬┐\n│ ││\n├─┼┤\n└─┴┘";
+        var rawBytes = Encoding.UTF8.GetBytes(originalText);
+
+        // '┌' is 3 bytes (0..3), '─' is 3 bytes (3..6). Split at offset 5 (inside '─')
+        var chunk1 = rawBytes[..5];
+        var chunk2 = rawBytes[5..];
+
+        var chunks = new Queue<byte[]>(new[] { chunk1, chunk2 });
+        this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var mem = callInfo.Arg<Memory<byte>>();
+                if (chunks.TryDequeue(out var chunk))
+                {
+                    chunk.CopyTo(mem);
+                    return ValueTask.FromResult(chunk.Length);
+                }
+
+                return ValueTask.FromResult(0);
+            });
+
+        var fakeWs = new FakeWebSocket();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        var outputData = new StringBuilder();
+        foreach (var msg in fakeWs.SentMessages)
+        {
+            using var doc = JsonDocument.Parse(msg);
+            if (doc.RootElement.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "output")
+            {
+                var data = doc.RootElement.GetProperty("data").GetString();
+                data.Should().NotContain("\uFFFD");
+                outputData.Append(data);
+            }
+        }
+
+        outputData.ToString().Should().Be(originalText);
     }
 
     private sealed class FakeWebSocket : WebSocket
