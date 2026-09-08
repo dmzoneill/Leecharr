@@ -8,27 +8,24 @@ namespace NzbDrone.Core.DownloadClients;
 
 public class DownloadClientRepository : BasicRepository<DownloadClientDefinition>, IDownloadClientRepository
 {
-    private readonly IDatabase database;
-
     public DownloadClientRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public IEnumerable<DownloadClientDefinition> GetEnabled()
     {
-        using var connection = this.database.OpenConnection();
-        return connection.Query<DownloadClientDefinition>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
-            new { Enable = true });
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<DownloadClientDefinition>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
+                new { Enable = true }));
     }
 
     public DownloadClientDefinition GetByType(string clientType)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<DownloadClientDefinition>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"ClientType\" = @ClientType",
-            new { ClientType = clientType });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<DownloadClientDefinition>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"ClientType\" = @ClientType",
+                new { ClientType = clientType }));
     }
 }
