@@ -712,6 +712,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.blocklistService,
             () => Interlocked.Increment(ref this.blockedPeersCount),
             this.configService,
+            torrent.IsPrivate,
             workingPath);
         downloadTask.SavePath = completedDir;
         this.tasks[torrent.Id] = downloadTask;
@@ -2482,6 +2483,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
     private readonly MtTorrent initialTorrent;
+    private readonly bool initialIsPrivate;
     private readonly IConfigService configService;
     private readonly object peerLock = new();
     private readonly Dictionary<string, PeerActivityState> peerActivity = new(StringComparer.OrdinalIgnoreCase);
@@ -2507,6 +2509,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
         IConfigService configService = null,
+        bool isPrivate = false,
         string workingPath = null)
     {
         this.TorrentId = torrentId;
@@ -2514,6 +2517,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.Manager = manager;
         this.Category = category;
         this.initialTorrent = initialTorrent;
+        this.initialIsPrivate = isPrivate;
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
         this.configService = configService;
@@ -2675,7 +2679,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public bool IsPrivate => this.Manager?.Torrent?.IsPrivate == true ||
                              this.Manager?.TrackerManager?.Private == true ||
-                             this.initialTorrent?.IsPrivate == true;
+                             this.initialTorrent?.IsPrivate == true ||
+                             this.initialIsPrivate;
 
     public TorrentStatus Status
     {
