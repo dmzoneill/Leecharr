@@ -164,4 +164,62 @@ public class CustomScriptServiceTest
             System.Globalization.CultureInfo.CurrentCulture = originalCulture;
         }
     }
+
+    [Test]
+    public void SanitizeEnvironment_RemovesSensitiveVariablesAndPreservesSafeVariables()
+    {
+        var env = new System.Collections.Specialized.StringDictionary
+        {
+            ["LEECHARR__POSTGRES_PASSWORD"] = "secret_pg_pass",
+            ["DATABASE_URL"] = "postgresql://usr:pass@localhost/db",
+            ["DB_PASSWORD"] = "db_pass_123",
+            ["LEECHARR_API_KEY"] = "api_key_abc",
+            ["PROXY_PASSWORD"] = "proxy_secret",
+            ["GITHUB_TOKEN"] = "ghp_123456",
+            ["MY_AUTH_TOKEN"] = "token_xyz",
+            ["MY_SECRET_KEY"] = "sec_123",
+            ["PATH"] = "/usr/bin:/bin",
+            ["HOME"] = "/home/user",
+            ["USER"] = "user",
+            ["LEECHARR_TORRENT_NAME"] = "Ubuntu.iso",
+            ["TR_TORRENT_NAME"] = "Ubuntu.iso",
+        };
+
+        CustomScriptService.SanitizeEnvironment(env);
+
+        env.ContainsKey("LEECHARR__POSTGRES_PASSWORD").Should().BeFalse();
+        env.ContainsKey("DATABASE_URL").Should().BeFalse();
+        env.ContainsKey("DB_PASSWORD").Should().BeFalse();
+        env.ContainsKey("LEECHARR_API_KEY").Should().BeFalse();
+        env.ContainsKey("PROXY_PASSWORD").Should().BeFalse();
+        env.ContainsKey("GITHUB_TOKEN").Should().BeFalse();
+        env.ContainsKey("MY_AUTH_TOKEN").Should().BeFalse();
+        env.ContainsKey("MY_SECRET_KEY").Should().BeFalse();
+
+        env.ContainsKey("PATH").Should().BeTrue();
+        env.ContainsKey("HOME").Should().BeTrue();
+        env.ContainsKey("USER").Should().BeTrue();
+        env.ContainsKey("LEECHARR_TORRENT_NAME").Should().BeTrue();
+        env.ContainsKey("TR_TORRENT_NAME").Should().BeTrue();
+    }
+
+    [Test]
+    public void ResolveInterpreter_ResolvesInterpreterAppropriately()
+    {
+        var (shFile, shArgs) = CustomScriptService.ResolveInterpreter("/path/to/script.sh", "-v");
+        var (pyFile, pyArgs) = CustomScriptService.ResolveInterpreter("/path/to/script.py", "--flag");
+
+        if (OperatingSystem.IsWindows())
+        {
+            pyFile.Should().Be("python");
+            pyArgs.Should().Contain("/path/to/script.py");
+        }
+        else
+        {
+            shFile.Should().Be("/bin/sh");
+            shArgs.Should().Contain("/path/to/script.sh");
+            pyFile.Should().Be("python3");
+            pyArgs.Should().Contain("/path/to/script.py");
+        }
+    }
 }

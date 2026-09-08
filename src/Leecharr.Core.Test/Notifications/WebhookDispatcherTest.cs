@@ -410,4 +410,47 @@ public class WebhookDispatcherTest
         redactedLines.Should().NotContain("secret");
         redactedLines.Should().NotContain("my-token");
     }
+
+    [TestCase("http://127.0.0.1/webhook")]
+    [TestCase("http://127.0.1.1:8080/test")]
+    [TestCase("http://localhost:5000/webhook")]
+    [TestCase("http://sub.localhost/api")]
+    [TestCase("http://[::1]/webhook")]
+    [TestCase("http://169.254.169.254/latest/meta-data/")]
+    [TestCase("http://169.254.1.2/webhook")]
+    [TestCase("http://0.0.0.0/test")]
+    [TestCase("http://255.255.255.255/test")]
+    [TestCase("http://224.0.0.1/test")]
+    [TestCase("http://instance-data/test")]
+    [TestCase("http://metadata.google.internal/test")]
+    public void IsValidTargetUrl_WhenProhibitedSsrfTarget_ReturnsFalse(string url)
+    {
+        WebhookDispatcher.IsValidTargetUrl(url, allowLoopback: false).Should().BeFalse();
+    }
+
+    [TestCase("http://127.0.0.1:8080/webhook")]
+    [TestCase("http://localhost:5000/webhook")]
+    [TestCase("http://[::1]:8080/webhook")]
+    public void IsValidTargetUrl_WhenAllowLoopbackIsTrue_AllowsLoopback(string url)
+    {
+        WebhookDispatcher.IsValidTargetUrl(url, allowLoopback: true).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenTargetIsBlockedBySsrfProtection_ReturnsFalseWithoutSendingHttp()
+    {
+        var result = await this.dispatcher.DispatchAsync("http://169.254.169.254/latest/meta-data/", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().BeEmpty();
+    }
+
+    [Test]
+    public void Constructor_SupportsConfigurableTimeout()
+    {
+        using var client = new HttpClient();
+        var customDispatcher = new WebhookDispatcher(client, timeout: TimeSpan.FromSeconds(45));
+
+        customDispatcher.Timeout.Should().Be(TimeSpan.FromSeconds(45));
+    }
 }

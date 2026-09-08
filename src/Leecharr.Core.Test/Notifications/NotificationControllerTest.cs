@@ -115,7 +115,7 @@ public class NotificationControllerTest
     }
 
     [Test]
-    public async Task Test_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    public async Task Test_WhenEmailNotificationWithMissingRecipient_ReturnsFailureDiagnostic()
     {
         var notif = new NotificationDefinition
         {
@@ -133,8 +133,8 @@ public class NotificationControllerTest
         okResult.Should().NotBeNull();
         var testResult = okResult!.Value as NotificationTestResult;
         testResult.Should().NotBeNull();
-        testResult!.Success.Should().BeTrue();
-        testResult!.Message.Should().Be("Email test notification sent successfully.");
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().Contain("Recipient email address ('to') is required");
 
         await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
             Arg.Any<string>(),
@@ -142,13 +142,13 @@ public class NotificationControllerTest
     }
 
     [Test]
-    public async Task TestDirect_WhenEmailNotification_DispatchesEmailAndReturnsSuccess()
+    public async Task TestDirect_WhenEmailNotificationWithInvalidHost_ReturnsFailureDiagnostic()
     {
         var resource = new NotificationResource
         {
             Name = "Email Alerts Direct",
             Implementation = "Email",
-            Settings = "{\"server\":\"smtp.example.com\",\"port\":587}",
+            Settings = "{\"server\":\"invalid-nonexistent-smtp.example\",\"port\":587,\"to\":\"user@example.com\"}",
         };
 
         var actionResult = await this.controller.TestDirect(resource);
@@ -157,8 +157,8 @@ public class NotificationControllerTest
         okResult.Should().NotBeNull();
         var testResult = okResult!.Value as NotificationTestResult;
         testResult.Should().NotBeNull();
-        testResult!.Success.Should().BeTrue();
-        testResult!.Message.Should().Be("Email test notification sent successfully.");
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().StartWith("Failed to send email test notification:");
 
         await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
             Arg.Any<string>(),
