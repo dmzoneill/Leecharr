@@ -172,6 +172,26 @@ public class AllDownloadClientTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task Nzbget_Log_And_LoadLog_ReturnsArray()
+    {
+        var logBody = new { method = "log", id = 10 };
+        var logResponse = await this.PostJsonAsync("/nzbget/jsonrpc", logBody);
+        logResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var logJson = await logResponse.Content.ReadAsStringAsync();
+        using var logDoc = JsonDocument.Parse(logJson);
+        logDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Array);
+
+        var loadlogBody = new { method = "loadlog", id = 11 };
+        var loadlogResponse = await this.PostJsonAsync("/nzbget/jsonrpc", loadlogBody);
+        loadlogResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var loadlogJson = await loadlogResponse.Content.ReadAsStringAsync();
+        using var loadlogDoc = JsonDocument.Parse(loadlogJson);
+        loadlogDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Test]
     public async Task NzbVortex_Nonce_And_Queue_ReturnsSuccess()
     {
         var nonceResponse = await this.Client.GetAsync("/nzbvortex/api/v1/auth/nonce");
