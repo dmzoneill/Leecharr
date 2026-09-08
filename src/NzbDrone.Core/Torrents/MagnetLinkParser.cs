@@ -91,6 +91,18 @@ public static class MagnetLinkParser
                         {
                             result.V2InfoHash = hash.ToLowerInvariant();
                         }
+                        else if (hash.Length == 52 || hash.Length == 56)
+                        {
+                            var hex = Base32ToHex(hash).ToLowerInvariant();
+                            if (hex.Length == 64)
+                            {
+                                result.V2InfoHash = hex;
+                            }
+                            else
+                            {
+                                throw new FormatException($"Invalid btmh info hash: {hash}");
+                            }
+                        }
                         else
                         {
                             throw new FormatException($"Invalid btmh info hash: {hash}");
@@ -139,11 +151,15 @@ public static class MagnetLinkParser
         }
 
         var clean = infoHash.Trim();
-        if (clean.Length == 32)
+        if (clean.Length == 32 || clean.Length == 52 || clean.Length == 56)
         {
             try
             {
-                return Base32ToHex(clean).ToLowerInvariant();
+                var hex = Base32ToHex(clean).ToLowerInvariant();
+                if (hex.Length == 40 || hex.Length == 64)
+                {
+                    return hex;
+                }
             }
             catch
             {

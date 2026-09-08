@@ -121,9 +121,47 @@ public class MagnetLinkParserTest
         parsed.DisplayName.Should().Be("DirectSha");
     }
 
+    [Test]
+    public void Parse_WhenBEP52Multihash52CharBase32_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=Base32V2Torrent";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+        parsed.V2InfoHash.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+        parsed.DisplayName.Should().Be("Base32V2Torrent");
+    }
+
+    [Test]
+    public void Parse_WhenBEP52Multihash56CharPaddedBase32_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA====&dn=PaddedBase32V2Torrent";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+        parsed.V2InfoHash.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+        parsed.DisplayName.Should().Be("PaddedBase32V2Torrent");
+    }
+
+    [Test]
+    public void NormalizeInfoHash_WhenBase32V2Hash_NormalizesTo64HexChars()
+    {
+        var normalized = MagnetLinkParser.NormalizeInfoHash("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        normalized.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+
+        var normalizedPadded = MagnetLinkParser.NormalizeInfoHash("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA====");
+        normalizedPadded.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
+    }
+
     [TestCase("0123456789abcdef0123456789abcdef01234567")] // 40-hex chars (SHA-1)
-    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 32-char Base32
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 32-char Base32 (SHA-1)
     [TestCase("1220invalid")]
+    [TestCase("1320d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c")] // 68-char invalid prefix
+    [TestCase("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278z")] // 64-char invalid hex
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9")] // 52-char invalid Base32 char
+    [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 56-char unpadded Base32 (35 bytes != 32 bytes)
     public void Parse_WhenBtmhContainsInvalidOrSha1Hash_ThrowsFormatException(string invalidBtmh)
     {
         var magnet = $"magnet:?xt=urn:btmh:{invalidBtmh}&dn=Invalid";
