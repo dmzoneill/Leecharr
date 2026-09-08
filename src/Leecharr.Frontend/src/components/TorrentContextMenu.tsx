@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useArrConnections, useDownloadHistory } from "../api/hooks";
 import { getMediaDeepLink } from "../utils/arrLinks";
-import { useConfirm } from "../context/ConfirmContext";
 import { PromptModal } from "./PromptModal";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useTranslation } from "../i18n";
@@ -83,7 +82,6 @@ export function TorrentContextMenu({
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null);
 
-  const confirm = useConfirm();
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
 
@@ -516,60 +514,17 @@ export function TorrentContextMenu({
 
             <div className="context-menu-separator" />
 
-            {/* Remove submenu */}
-            <div
-              className="context-menu-item context-menu-submenu-trigger"
-              onMouseEnter={() => setOpenSubmenu("remove")}
-              onMouseLeave={() => setOpenSubmenu(null)}
+            {/* Delete button */}
+            <button
+              type="button"
+              className="context-menu-item context-menu-item-danger"
+              onClick={() => {
+                onClose();
+                onDelete({ id: ct.id, deleteFiles: false });
+              }}
             >
-              {t("torrents.contextMenu.remove")} ▶
-              {openSubmenu === "remove" && (
-                <div
-                  className={`context-menu context-menu-submenu ${flipSubmenu ? "flip-left" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="context-menu-item context-menu-item-danger"
-                    onClick={async () => {
-                      onClose();
-                      const ok = await confirm({
-                        title: t("torrents.contextMenu.removeTorrent"),
-                        message: t(
-                          "torrents.contextMenu.removeTorrentConfirm",
-                          { name: ct.name },
-                        ),
-                        danger: true,
-                        confirmText: t("common.delete"),
-                      });
-                      if (ok) onDelete({ id: ct.id, deleteFiles: false });
-                    }}
-                  >
-                    {t("torrents.contextMenu.removeTorrent")}
-                  </button>
-                  <button
-                    type="button"
-                    className="context-menu-item context-menu-item-danger"
-                    onClick={async () => {
-                      onClose();
-                      const ok = await confirm({
-                        title: t(
-                          "torrents.contextMenu.removeTorrentAndDeleteFiles",
-                        ),
-                        message: t(
-                          "torrents.contextMenu.removeTorrentAndDeleteFilesConfirm",
-                          { name: ct.name },
-                        ),
-                        danger: true,
-                        confirmText: t("common.delete"),
-                      });
-                      if (ok) onDelete({ id: ct.id, deleteFiles: true });
-                    }}
-                  >
-                    {t("torrents.contextMenu.removeTorrentAndDeleteFiles")}
-                  </button>
-                </div>
-              )}
-            </div>
+              🗑 {t("torrents.contextMenu.removeTorrent")}
+            </button>
 
             <div className="context-menu-separator" />
           </>
