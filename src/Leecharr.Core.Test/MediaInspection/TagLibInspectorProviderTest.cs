@@ -519,6 +519,59 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_Mp4_WithDolbyVisionAndColrBox_DetectsHybridDolbyVisionAndHdr10()
+    {
+        var colrBox = CreateColrBox(9, 16, 9);
+        var dvcCBox = CreateMp4Box("dvcC", new byte[8]);
+        using var extraBoxes = new MemoryStream();
+        extraBoxes.Write(dvcCBox, 0, dvcCBox.Length);
+        extraBoxes.Write(colrBox, 0, colrBox.Length);
+
+        var videoEntry = CreateVisualSampleEntryWithExtraBox("hvc1", 3840, 2160, extraBoxes.ToArray());
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+        var moov = CreateMoovBox(videoTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "hybrid_hdr.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision / HDR10");
+    }
+
+    [TestCase(720, 576, "576p")]
+    [TestCase(1024, 576, "576p")]
+    [TestCase(1920, 800, "1080p")]
+    [TestCase(3840, 1600, "4K UHD (2160p)")]
+    public void Inspect_Matroska_Non16By9AndPal576p_RespectsTrackDimensionsAndResolution(int width, int height, string expectedResolution)
+    {
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", width, height, "A_EAC3", 6);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.Width.Should().Be(width);
+        result.Height.Should().Be(height);
+        result.Resolution.Should().Be(expectedResolution);
+    }
+
+    [Test]
+    public void Inspect_Matroska_WithTrueHd6Channels_DoesNotInflateTo7Point1()
+    {
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, "A_TRUEHD", 6);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
     public void ApplyFilenameHints_DoesNotOverwriteVerifiedDimensionsCodecsOrChannels()
     {
         var info = new MediaContainerInfo

@@ -240,7 +240,7 @@ sleep 300
         info.Width.Should().Be(3840);
         info.Height.Should().Be(2160);
         info.Resolution.Should().Be("4K UHD (2160p)");
-        info.HdrFormat.Should().Contain("Dolby Vision");
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
         info.AudioCodec.Should().Be("TrueHD");
         info.AudioChannels.Should().Be("7.1");
         info.AudioSampleRate.Should().Be(48000);
@@ -295,13 +295,40 @@ sleep 300
         info.Width.Should().Be(3840);
         info.Height.Should().Be(2160);
         info.Resolution.Should().Be("4K UHD (2160p)");
-        info.HdrFormat.Should().Contain("Dolby Vision");
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
         info.AudioCodec.Should().Be("TrueHD");
         info.AudioChannels.Should().Be("7.1");
         info.AudioSampleRate.Should().Be(48000);
         info.AudioBitDepth.Should().Be(24);
         info.DurationSeconds.Should().Be(7200.0);
         info.SubtitleTracks.Should().ContainSingle().Which.Should().Contain("Full English SDH");
+    }
+
+    [TestCase(720, 576)]
+    [TestCase(1024, 576)]
+    public void ParseMediaInfoJson_WhenPalDimensions_Derives576pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+  ""media"": {{
+    ""track"": [
+      {{
+        ""@type"": ""General"",
+        ""Format"": ""Matroska"",
+        ""Duration"": 3600.0
+      }},
+      {{
+        ""@type"": ""Video"",
+        ""Format"": ""AVC"",
+        ""Width"": {width},
+        ""Height"": {height}
+      }}
+    ]
+  }}
+}}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("576p");
     }
 
     [TestCase(720, 400)]
