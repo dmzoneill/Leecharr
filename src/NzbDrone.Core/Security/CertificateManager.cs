@@ -194,18 +194,57 @@ public class CertificateManager : ICertificateManager
                 X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
 
-        if (!string.IsNullOrWhiteSpace(keyPath) && File.Exists(keyPath))
+        var collection = new X509Certificate2Collection();
+        collection.ImportFromPemFile(certPath);
+
+        if (collection.Count == 0)
         {
-            return X509Certificate2.CreateFromPemFile(certPath, keyPath);
+            throw new InvalidOperationException($"Certificate file '{certPath}' does not contain any valid certificates.");
         }
 
-        var pemContent = File.ReadAllText(certPath);
-        if (pemContent.Contains("PRIVATE KEY", StringComparison.OrdinalIgnoreCase))
+        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(keyPath.Trim());
+        var effectiveKeyPath = hasExplicitKey ? keyPath.Trim() : certPath;
+
+        if (!hasExplicitKey)
         {
-            return X509Certificate2.CreateFromPem(pemContent, pemContent);
+            var pemContent = File.ReadAllText(certPath);
+            if (!pemContent.Contains("PRIVATE KEY", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Certificate file '{certPath}' does not contain a private key and no private key file was provided.");
+            }
         }
 
-        throw new InvalidOperationException($"Certificate file '{certPath}' does not contain a private key and no private key file was provided.");
+        X509Certificate2 leafWithKey;
+        if (!string.IsNullOrEmpty(password))
+        {
+            try
+            {
+                leafWithKey = X509Certificate2.CreateFromEncryptedPemFile(certPath, password, effectiveKeyPath);
+            }
+            catch
+            {
+                leafWithKey = X509Certificate2.CreateFromPemFile(certPath, effectiveKeyPath);
+            }
+        }
+        else
+        {
+            leafWithKey = X509Certificate2.CreateFromPemFile(certPath, effectiveKeyPath);
+        }
+
+        var fullCollection = new X509Certificate2Collection { leafWithKey };
+        foreach (var cert in collection)
+        {
+            if (!cert.Thumbprint.Equals(leafWithKey.Thumbprint, StringComparison.OrdinalIgnoreCase))
+            {
+                fullCollection.Add(cert);
+            }
+        }
+
+        var pfxBytes = fullCollection.Export(X509ContentType.Pkcs12, string.Empty);
+        return X509CertificateLoader.LoadPkcs12(
+            pfxBytes,
+            string.Empty,
+            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
     }
 
     private X509Certificate2 GetOrCreateSelfSignedCertificate(IConfigFileProvider config)
