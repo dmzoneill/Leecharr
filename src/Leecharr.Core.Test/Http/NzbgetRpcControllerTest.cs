@@ -719,4 +719,73 @@ public class NzbgetRpcControllerTest
         contentResult.Content.Should().Contain("<name>FileName</name><value><string>track.flac</string></value>");
         contentResult.Content.Should().Contain("<name>NZBID</name><value><int>301</int></value>");
     }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_GroupMoveTop_ProcessesInReverseOrderToPreserveQueueOrder()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"GroupMoveTop\", 0, \"\", [10, 20, 30]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 60,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "top");
+            await this.torrentService.MoveQueueAsync(20, "top");
+            await this.torrentService.MoveQueueAsync(10, "top");
+        });
+    }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_GroupMoveBottom_ProcessesInForwardOrder()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"GroupMoveBottom\", 0, \"\", [10, 20, 30]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 61,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(10, "bottom");
+            await this.torrentService.MoveQueueAsync(20, "bottom");
+            await this.torrentService.MoveQueueAsync(30, "bottom");
+        });
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_GroupMoveTop_ProcessesInReverseOrder()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>GroupMoveTop</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>10</int></value><value><int>20</int></value><value><int>30</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        Received.InOrder(async () =>
+        {
+            await this.torrentService.MoveQueueAsync(30, "top");
+            await this.torrentService.MoveQueueAsync(20, "top");
+            await this.torrentService.MoveQueueAsync(10, "top");
+        });
+    }
 }
