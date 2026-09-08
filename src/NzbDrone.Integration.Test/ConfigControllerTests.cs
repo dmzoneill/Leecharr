@@ -89,4 +89,21 @@ public class ConfigControllerTests : IntegrationTestBase
         var response = await this.PutJsonAsync("/api/v1/config/network/1", body);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [TestCase("general")]
+    [TestCase("seeding")]
+    [TestCase("network")]
+    [TestCase("bittorrent")]
+    [TestCase("peerprotocol")]
+    [TestCase("protocols")]
+    [TestCase("simulation")]
+    [TestCase("trackerserver")]
+    [TestCase("scheduler")]
+    [TestCase("advanced")]
+    [TestCase("ai")]
+    public async Task PutConfig_with_null_body_returns_400(string section)
+    {
+        var response = await this.PutJsonAsync($"/api/v1/config/{section}", null!);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
