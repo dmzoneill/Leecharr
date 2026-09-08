@@ -210,4 +210,77 @@ public class TransmissionRpcTests : IntegrationTestBase
         current.TryGetProperty("sessionCount", out _).Should().BeTrue();
         current.TryGetProperty("secondsActive", out _).Should().BeTrue();
     }
+
+    [Test]
+    public async Task BlocklistUpdate_WithSessionHeader_ReturnsBlocklistSize()
+    {
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+        {
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "blocklist-update", tag = 40 }), System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+        var response = await this.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.GetProperty("result").GetString().Should().Be("success");
+        root.GetProperty("tag").GetInt32().Should().Be(40);
+        root.GetProperty("arguments").TryGetProperty("blocklist-size", out _).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SessionClose_WithSessionHeader_ReturnsSuccess()
+    {
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+        {
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "session-close", tag = 41 }), System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+        var response = await this.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.GetProperty("result").GetString().Should().Be("success");
+        root.GetProperty("tag").GetInt32().Should().Be(41);
+    }
+
+    [Test]
+    public async Task SessionGet_WithoutTag_PreservesNullTag()
+    {
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+        {
+            Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(new { method = "session-get" }), System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+        var response = await this.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.GetProperty("result").GetString().Should().Be("success");
+        if (root.TryGetProperty("tag", out var tagProp))
+        {
+            tagProp.ValueKind.Should().Be(JsonValueKind.Null);
+        }
+    }
 }
