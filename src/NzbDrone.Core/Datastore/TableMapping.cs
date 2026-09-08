@@ -54,8 +54,14 @@ public static class TableMapping
         return $"UPDATE \"{table}\" SET {setClauses} WHERE \"Id\" = @Id";
     }
 
+    public static void ClearCache()
+    {
+        PropertyCache.Clear();
+    }
+
     private static PropertyInfo[] GetWritableProperties(Type type)
     {
+        TableRegistration.RegisterTypeHandlers();
         return PropertyCache.GetOrAdd(type, static t =>
             t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.Name != "Id" && p.CanRead && p.CanWrite && IsColumnType(p.PropertyType) && p.GetCustomAttribute<IgnoreAttribute>() == null)
@@ -72,6 +78,9 @@ public static class TableMapping
             || underlying == typeof(decimal)
             || underlying == typeof(Guid)
             || underlying == typeof(TimeSpan)
+            || underlying == typeof(TimeOnly)
+            || underlying == typeof(DateOnly)
+            || underlying == typeof(double)
             || underlying == typeof(List<int>)
             || underlying == typeof(List<string>)
             || underlying == typeof(Dictionary<string, string>)

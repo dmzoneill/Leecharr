@@ -20,11 +20,36 @@ namespace NzbDrone.Core.Datastore;
 
 public static class TableRegistration
 {
+    private static readonly object TypeHandlerLock = new();
+    private static bool typeHandlersRegistered;
+
+    public static void RegisterTypeHandlers()
+    {
+        if (typeHandlersRegistered)
+        {
+            return;
+        }
+
+        lock (TypeHandlerLock)
+        {
+            if (typeHandlersRegistered)
+            {
+                return;
+            }
+
+            SqlMapper.AddTypeHandler(new SqliteDoubleTypeHandler());
+            SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
+            SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
+            SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<string>>());
+            SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<Dictionary<string, string>>());
+
+            typeHandlersRegistered = true;
+        }
+    }
+
     public static void RegisterTables()
     {
-        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
-        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<string>>());
-        SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<Dictionary<string, string>>());
+        RegisterTypeHandlers();
 
         TableMapping.Register<CommandModel>("Commands");
         TableMapping.Register<ConfigModel>("Config");
