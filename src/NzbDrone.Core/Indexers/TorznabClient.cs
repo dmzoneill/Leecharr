@@ -571,11 +571,21 @@ public class TorznabClient : ITorznabClient
                         case "magneturl":
                             magnetUrl = value?.Trim() ?? string.Empty;
                             break;
+                        case "cat":
                         case "category":
                             var catAttrVal = value?.Trim();
                             if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
-                                categories.Add(WebUtility.HtmlDecode(catAttrVal));
+                                var decoded = WebUtility.HtmlDecode(catAttrVal);
+                                var splitCategories = decoded.Split(new[] { ',', '|', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                foreach (var cat in splitCategories)
+                                {
+                                    var trimmedCat = cat.Trim();
+                                    if (!string.IsNullOrEmpty(trimmedCat) && !categories.Contains(trimmedCat))
+                                    {
+                                        categories.Add(trimmedCat);
+                                    }
+                                }
                             }
 
                             break;
