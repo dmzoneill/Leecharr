@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Bandwidth;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.Bandwidth;
@@ -452,5 +454,134 @@ public class SpeedSchedulerServiceTest
         var limits = this.service.GetCurrentLimits(date);
         limits.IsThrottled.Should().BeTrue();
         limits.MaxDownloadSpeedKbps.Should().Be(4000);
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPaused_InvokesPauseAllAsyncOnEngine()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.Received(1).PauseAllAsync();
+        await downloadEngine.DidNotReceive().SetRateLimitsAsync(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_ResumesAllTorrentsAndAppliesNormalLimits()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+        await downloadEngine.Received(1).PauseAllAsync();
+
+        // Window elapses -> no active schedule
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.Received(1).ResumeAllTorrentsAsync();
+        await downloadEngine.Received(1).SetRateLimitsAsync(50000, 20000);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WithConfiguredTimeZone_ConvertsUtcTimeToLocalTimeZoneCorrectly()
+    {
+        // America/New_York is UTC-4 in August (EDT)
+        this.configService.TimeZone.Returns("America/New_York");
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Morning Throttling NY",
+                Days = 1 << (int)DayOfWeek.Monday, // Monday only
+                StartTime = "08:00:00",
+                EndTime = "12:00:00",
+                MaxDownloadSpeed = 3000,
+                MaxUploadSpeed = 1500,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        // Monday 13:00 UTC == Monday 09:00 EDT in New York (inside 08:00-12:00 window)
+        var utcInside = new DateTime(2026, 8, 31, 13, 0, 0, DateTimeKind.Utc);
+        var limitsInside = this.service.GetCurrentLimits(utcInside);
+        limitsInside.IsThrottled.Should().BeTrue();
+        limitsInside.MaxDownloadSpeedKbps.Should().Be(3000);
+
+        // Monday 17:00 UTC == Monday 13:00 EDT in New York (outside 08:00-12:00 window)
+        var utcOutside = new DateTime(2026, 8, 31, 17, 0, 0, DateTimeKind.Utc);
+        var limitsOutside = this.service.GetCurrentLimits(utcOutside);
+        limitsOutside.IsThrottled.Should().BeFalse();
+        limitsOutside.MaxDownloadSpeedKbps.Should().Be(50000);
+    }
+
+    [Test]
+    public void GetCurrentLimits_WithConfiguredTimeZone_OvernightAcrossDaysEvaluatedInLocalTime()
+    {
+        // Asia/Tokyo is UTC+9
+        this.configService.TimeZone.Returns("Asia/Tokyo");
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Tuesday Morning Tokyo",
+                Days = 1 << (int)DayOfWeek.Tuesday, // Tuesday only in Tokyo
+                StartTime = "01:00:00",
+                EndTime = "05:00:00",
+                MaxDownloadSpeed = 2500,
+                MaxUploadSpeed = 1000,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        // Monday 17:00 UTC == Tuesday 02:00 Tokyo time (inside Tuesday 01:00-05:00)
+        var utcDate = new DateTime(2026, 8, 31, 17, 0, 0, DateTimeKind.Utc);
+        var limits = this.service.GetCurrentLimits(utcDate);
+
+        limits.IsThrottled.Should().BeTrue();
+        limits.MaxDownloadSpeedKbps.Should().Be(2500);
     }
 }

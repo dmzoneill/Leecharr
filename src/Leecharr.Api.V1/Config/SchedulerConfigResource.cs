@@ -30,6 +30,8 @@ public class SchedulerConfigResource : RestResource
     public bool SchedulerSaturday { get; set; }
 
     public bool SchedulerSunday { get; set; }
+
+    public string TimeZone { get; set; }
 }
 
 public static class SchedulerConfigResourceMapper
@@ -50,6 +52,7 @@ public static class SchedulerConfigResourceMapper
             SchedulerFriday = model.SchedulerFriday,
             SchedulerSaturday = model.SchedulerSaturday,
             SchedulerSunday = model.SchedulerSunday,
+            TimeZone = model.TimeZone,
         };
     }
 }

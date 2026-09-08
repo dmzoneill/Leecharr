@@ -74,6 +74,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private long blockedPeersCount;
     private DateTime lastPieceHashSample = DateTime.UtcNow;
     private long lastPiecesHashedCount;
+    private DateTime lastProtocolSample = DateTime.UtcNow;
+    private long lastTotalProtoDown;
+    private long lastTotalProtoUp;
+    private long lastProtoDownSpeed;
+    private long lastProtoUpSpeed;
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -1001,6 +1006,29 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public async Task PauseAllTorrentsAsync()
+    {
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager != null && task.Manager.State is not (TorrentState.Stopped or TorrentState.Paused))
+            {
+                try
+                {
+                    await task.Manager.PauseAsync();
+                    this.logger.Info("Paused torrent id {0}", task.TorrentId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to pause torrent id {0}", task.TorrentId);
+                }
+            }
+        }
+    }
+
+    public Task PauseAllAsync() => this.PauseAllTorrentsAsync();
+
+    public Task ResumeAllAsync() => this.ResumeAllTorrentsAsync();
+
     public async Task ResumeAllTorrentsAsync()
     {
         if (this.isHaltedByKillSwitch)
@@ -1762,10 +1790,30 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        var totalDownAll = totalDataDown + totalProtoDown;
-        var protoOverheadPct = totalDownAll > 0 ? Math.Round(((double)totalProtoDown / totalDownAll) * 100.0, 2) : 0.0;
+        var totalBytesAll = totalDataDown + totalDataUp + totalProtoDown + totalProtoUp;
+        var totalProtoAll = totalProtoDown + totalProtoUp;
+        var protoOverheadPct = totalBytesAll > 0 ? Math.Round(((double)totalProtoAll / totalBytesAll) * 100.0, 2) : 0.0;
 
         var now = DateTime.UtcNow;
+        var protoElapsedSec = Math.Max(0.001, (now - this.lastProtocolSample).TotalSeconds);
+        var protoDownSpeed = this.lastProtoDownSpeed;
+        var protoUpSpeed = this.lastProtoUpSpeed;
+
+        if (protoElapsedSec >= 0.5)
+        {
+            var deltaProtoDown = totalProtoDown - this.lastTotalProtoDown;
+            var deltaProtoUp = totalProtoUp - this.lastTotalProtoUp;
+
+            protoDownSpeed = deltaProtoDown >= 0 ? (long)Math.Max(0, Math.Round(deltaProtoDown / protoElapsedSec)) : 0;
+            protoUpSpeed = deltaProtoUp >= 0 ? (long)Math.Max(0, Math.Round(deltaProtoUp / protoElapsedSec)) : 0;
+
+            this.lastTotalProtoDown = totalProtoDown;
+            this.lastTotalProtoUp = totalProtoUp;
+            this.lastProtocolSample = now;
+            this.lastProtoDownSpeed = protoDownSpeed;
+            this.lastProtoUpSpeed = protoUpSpeed;
+        }
+
         var elapsedSec = Math.Max(0.5, (now - this.lastPieceHashSample).TotalSeconds);
         var currentHashed = Interlocked.Read(ref this.totalPiecesHashed);
         var piecesDelta = currentHashed - this.lastPiecesHashedCount;
@@ -1817,8 +1865,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             PausedTorrents = pausedCount,
             TotalDownloadSpeed = totalDownSpeed,
             TotalUploadSpeed = totalUpSpeed,
-            TotalProtocolDownloadSpeed = 0,
-            TotalProtocolUploadSpeed = 0,
+            TotalProtocolDownloadSpeed = protoDownSpeed,
+            TotalProtocolUploadSpeed = protoUpSpeed,
             TotalDataDownloaded = totalDataDown,
             TotalDataUploaded = totalDataUp,
             TotalProtocolDownloaded = totalProtoDown,
