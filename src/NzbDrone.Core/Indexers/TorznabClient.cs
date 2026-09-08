@@ -62,6 +62,7 @@ public class TorznabClient : ITorznabClient
     private static readonly Dictionary<string, string> TimeZoneOffsets = new(StringComparer.OrdinalIgnoreCase)
     {
         { "UTC", "+00:00" },
+        { "UT", "+00:00" },
         { "GMT", "+00:00" },
         { "Z", "+00:00" },
         { "EST", "-05:00" },
@@ -755,7 +756,9 @@ public class TorznabClient : ITorznabClient
             }
         }
 
-        if (DateTimeOffset.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.None, out var directDto))
+        const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+
+        if (DateTimeOffset.TryParse(trimmed, CultureInfo.InvariantCulture, styles, out var directDto))
         {
             return directDto.UtcDateTime;
         }
@@ -765,17 +768,17 @@ public class TorznabClient : ITorznabClient
             @"\b([A-Za-z]{1,5})\b",
             m => TimeZoneOffsets.TryGetValue(m.Value, out var offset) ? offset : m.Value);
 
-        if (DateTimeOffset.TryParse(normalized, CultureInfo.InvariantCulture, DateTimeStyles.None, out var normalizedDto))
+        if (DateTimeOffset.TryParse(normalized, CultureInfo.InvariantCulture, styles, out var normalizedDto))
         {
             return normalizedDto.UtcDateTime;
         }
 
-        if (DateTime.TryParse(normalized, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedPubDate))
+        if (DateTime.TryParse(normalized, CultureInfo.InvariantCulture, styles, out var parsedPubDate))
         {
             return DateTime.SpecifyKind(parsedPubDate, DateTimeKind.Utc);
         }
 
-        if (DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedOriginal))
+        if (DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, styles, out var parsedOriginal))
         {
             return DateTime.SpecifyKind(parsedOriginal, DateTimeKind.Utc);
         }
