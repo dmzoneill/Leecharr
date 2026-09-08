@@ -194,4 +194,23 @@ public class CommandExecutorTest
 
         await commandExecutor.Received(1).ExecuteAsync(commandModel, Arg.Any<System.Threading.CancellationToken>());
     }
+
+    [Test]
+    public async Task CommandWorker_CallsFailStaleCommandsOnStartup()
+    {
+        var queue = Substitute.For<IManageCommandQueue>();
+        queue.GetQueued().Returns(System.Array.Empty<CommandModel>());
+
+        var commandExecutor = Substitute.For<ICommandExecutor>();
+        var worker = new CommandWorker(queue, commandExecutor);
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        var workerTask = worker.StartAsync(cts.Token);
+
+        await Task.Delay(50);
+        cts.Cancel();
+        await worker.StopAsync(System.Threading.CancellationToken.None);
+
+        queue.Received(1).FailStaleCommands();
+    }
 }
