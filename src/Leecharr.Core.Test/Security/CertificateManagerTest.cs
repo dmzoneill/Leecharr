@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -74,7 +75,17 @@ public class CertificateManagerTest
         cert.Should().NotBeNull();
         cert.HasPrivateKey.Should().BeTrue();
         cert.Subject.Should().Contain("Leecharr");
-        cert.NotAfter.Should().BeAfter(DateTime.UtcNow.AddYears(4));
+        cert.NotAfter.ToUniversalTime().Should().BeOnOrBefore(DateTime.UtcNow.AddDays(398));
+        cert.NotAfter.ToUniversalTime().Should().BeAfter(DateTime.UtcNow.AddDays(365));
+
+        var basicConstraints = cert.Extensions.OfType<X509BasicConstraintsExtension>().SingleOrDefault();
+        basicConstraints.Should().NotBeNull();
+        basicConstraints!.CertificateAuthority.Should().BeFalse();
+        basicConstraints.Critical.Should().BeTrue();
+
+        var ski = cert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().SingleOrDefault();
+        ski.Should().NotBeNull();
+        ski!.SubjectKeyIdentifier.Should().NotBeNullOrWhiteSpace();
 
         var cachedPfx = Path.Combine(this.tempDir, "leecharr-selfsigned.pfx");
         File.Exists(cachedPfx).Should().BeTrue();
@@ -296,6 +307,42 @@ public class CertificateManagerTest
         result.IsValid.Should().BeTrue(result.Message);
         result.HasPrivateKey.Should().BeTrue();
         result.Subject.Should().Contain("encrypted-leaf.local");
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_SelfSignedCert_HasBasicConstraintsAndSubjectKeyIdentifierAndValidLifetime()
+    {
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+
+        // 398-day browser limit compliance (capping to 397 days)
+        var totalDays = (cert.NotAfter.ToUniversalTime() - cert.NotBefore.ToUniversalTime()).TotalDays;
+        totalDays.Should().BeLessThanOrEqualTo(398);
+        cert.NotAfter.ToUniversalTime().Should().BeOnOrBefore(DateTime.UtcNow.AddDays(398));
+        cert.NotAfter.ToUniversalTime().Should().BeAfter(DateTime.UtcNow.AddDays(365));
+
+        // Basic Constraints: CA = false, Critical = true (RFC 5280)
+        var basicConstraints = cert.Extensions.OfType<X509BasicConstraintsExtension>().SingleOrDefault();
+        basicConstraints.Should().NotBeNull();
+        basicConstraints!.CertificateAuthority.Should().BeFalse();
+        basicConstraints.Critical.Should().BeTrue();
+
+        // Subject Key Identifier (RFC 5280)
+        var ski = cert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().SingleOrDefault();
+        ski.Should().NotBeNull();
+        ski!.SubjectKeyIdentifier.Should().NotBeNullOrWhiteSpace();
+
+        // Key Usage
+        var keyUsage = cert.Extensions.OfType<X509KeyUsageExtension>().SingleOrDefault();
+        keyUsage.Should().NotBeNull();
+        keyUsage!.KeyUsages.Should().HaveFlag(X509KeyUsageFlags.DigitalSignature);
+        keyUsage.KeyUsages.Should().HaveFlag(X509KeyUsageFlags.KeyEncipherment);
+
+        // Enhanced Key Usage (Server Authentication)
+        var eku = cert.Extensions.OfType<X509EnhancedKeyUsageExtension>().SingleOrDefault();
+        eku.Should().NotBeNull();
+        eku!.EnhancedKeyUsages["1.3.6.1.5.5.7.3.1"].Should().NotBeNull();
     }
 
     private static (string FullChainPem, string KeyPem, string LeafPem, string CaPem) GenerateTestChain(
