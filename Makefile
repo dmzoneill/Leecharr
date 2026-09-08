@@ -32,9 +32,9 @@ format:
 test-setup:
 	dotnet build $(SOLUTION) --configuration Release
 
-build: setup test-setup
+build: setup frontend test-setup
 
-publish:
+publish: frontend
 	dotnet publish $(CONSOLE) --configuration Release --output _output
 
 frontend:
