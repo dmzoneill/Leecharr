@@ -246,7 +246,7 @@ export function QueueSettingsTab() {
             options={[
               { value: "Pause", label: t("settingsTabs.queue.actionPause") },
               {
-                value: t("settingsTabs.batch2.remove"),
+                value: "Remove",
                 label: t("settingsTabs.queue.actionRemove"),
               },
               {
