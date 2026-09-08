@@ -1318,6 +1318,40 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task SearchAsync_WithTmdbId_DefaultsToMovieModeAndAppendsTmdbIdParam()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "MovieTracker",
+            Url = "https://movies.local/api",
+            ApiKey = "key",
+        };
+
+        // TMDB ID without query or searchType defaults to t=movie
+        await customClient.SearchAsync(indexer, query: null, tmdbId: "550");
+        capturedUri.Query.Should().Contain("t=movie");
+        capturedUri.Query.Should().Contain("tmdbid=550");
+
+        // TMDB ID with title query preserves t=movie
+        await customClient.SearchAsync(indexer, query: "Fight Club", tmdbId: " 550 ");
+        capturedUri.Query.Should().Contain("t=movie");
+        capturedUri.Query.Should().Contain("tmdbid=550");
+        capturedUri.Query.Should().MatchRegex(@"q=Fight(\+|%20)Club");
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_CaseInsensitiveAttributes_ParsesCorrectly()
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
