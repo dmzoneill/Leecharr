@@ -203,6 +203,37 @@ public class MediaEnrichmentServiceTest
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<MediaEnrichedEvent>());
     }
 
+    [Test]
+    public async Task EnrichTorrentAsync_WhenNoFilePathProvided_InspectsFilenameAndSerializesGuessedMediaInfoJson()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "House.of.the.Dragon.S02E01.2160p.MAX.WEB-DL.DDP5.1.Atmos.DV.H.265-FLUX",
+            Category = "tv",
+        };
+
+        var guessedContainer = new MediaContainerInfo
+        {
+            ContainerFormat = "Matroska (MKV)",
+            VideoCodec = "HEVC",
+            Resolution = "4K UHD (2160p)",
+            HdrFormat = "Dolby Vision",
+            AudioCodec = "E-AC-3 (Dolby Digital Plus)",
+        };
+
+        this.inspector.Inspect(Arg.Any<Stream>(), torrent.Name).Returns(guessedContainer);
+        this.repository.GetByTorrentId(55).Returns((TorrentMediaMetadata)null!);
+
+        var result = await this.service.EnrichTorrentAsync(torrent);
+
+        result.Should().NotBeNull();
+        result.MediaInfoJson.Should().NotBeNullOrEmpty();
+        result.MediaInfoJson.Should().Contain("Dolby Vision");
+        result.MediaInfoJson.Should().Contain("2160p");
+        this.inspector.Received(1).Inspect(Arg.Any<Stream>(), torrent.Name);
+    }
+
     #endregion
 
     #region Poster, Fanart, and Metadata Caching and Cleanup

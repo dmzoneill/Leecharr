@@ -214,10 +214,18 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         }
 
         // 3. Fallback title and heuristics from Torrent Name if empty
-        if (string.IsNullOrEmpty(metadata.Title))
+        if (string.IsNullOrEmpty(metadata.Title) || string.IsNullOrEmpty(metadata.MediaInfoJson))
         {
             var guessed = this.inspector.Inspect(new MemoryStream(new byte[8]), torrent.Name);
-            metadata.Title = torrent.Name;
+            if (string.IsNullOrEmpty(metadata.Title))
+            {
+                metadata.Title = torrent.Name;
+            }
+
+            if (string.IsNullOrEmpty(metadata.MediaInfoJson) && guessed != null)
+            {
+                metadata.MediaInfoJson = JsonSerializer.Serialize(guessed);
+            }
         }
 
         if (string.IsNullOrEmpty(metadata.ArrType))
