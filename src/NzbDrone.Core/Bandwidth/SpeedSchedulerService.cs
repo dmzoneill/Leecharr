@@ -19,7 +19,19 @@ public class EffectiveSpeedLimits
 
     public bool IsThrottled { get; set; }
 
-    public bool IsPaused { get; set; }
+    public bool IsDownloadPaused { get; set; }
+
+    public bool IsUploadPaused { get; set; }
+
+    public bool IsPaused
+    {
+        get => this.IsDownloadPaused || this.IsUploadPaused;
+        set
+        {
+            this.IsDownloadPaused = value;
+            this.IsUploadPaused = value;
+        }
+    }
 
     public bool HasActiveSchedule { get; set; }
 }
@@ -71,7 +83,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             try
             {
                 var limits = this.GetCurrentLimits();
-                if (limits.IsPaused)
+                if (limits.IsDownloadPaused && limits.IsUploadPaused)
                 {
                     this.wasPausedByScheduler = true;
                     await this.downloadEngine.PauseAllAsync();
@@ -84,7 +96,9 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                         await this.downloadEngine.ResumeAllTorrentsAsync();
                     }
 
-                    await this.downloadEngine.SetRateLimitsAsync(limits.MaxDownloadSpeedKbps, limits.MaxUploadSpeedKbps);
+                    var downloadLimit = limits.IsDownloadPaused ? 1 : limits.MaxDownloadSpeedKbps;
+                    var uploadLimit = limits.IsUploadPaused ? 1 : limits.MaxUploadSpeedKbps;
+                    await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
                 }
             }
             catch (Exception ex)
@@ -161,28 +175,32 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         if (activeSchedules.Count > 0)
         {
             var match = activeSchedules.First();
-            var isPaused = match.MaxDownloadSpeed < 0 || match.MaxUploadSpeed < 0;
+            var isDownloadPaused = match.MaxDownloadSpeed < 0;
+            var isUploadPaused = match.MaxUploadSpeed < 0;
             var isThrottled = match.MaxDownloadSpeed > 0 || match.MaxUploadSpeed > 0;
             return new EffectiveSpeedLimits
             {
                 MaxDownloadSpeedKbps = match.MaxDownloadSpeed < 0 ? 0 : match.MaxDownloadSpeed,
                 MaxUploadSpeedKbps = match.MaxUploadSpeed < 0 ? 0 : match.MaxUploadSpeed,
                 IsThrottled = isThrottled,
-                IsPaused = isPaused,
+                IsDownloadPaused = isDownloadPaused,
+                IsUploadPaused = isUploadPaused,
                 HasActiveSchedule = true,
             };
         }
 
         if (this.configService.AlternativeSpeedEnabled || this.IsConfigScheduleActive(now))
         {
-            var isPaused = this.configService.AltDownloadSpeedKbps < 0 || this.configService.AltUploadSpeedKbps < 0;
+            var isDownloadPaused = this.configService.AltDownloadSpeedKbps < 0;
+            var isUploadPaused = this.configService.AltUploadSpeedKbps < 0;
             var isThrottled = this.configService.AltDownloadSpeedKbps > 0 || this.configService.AltUploadSpeedKbps > 0;
             return new EffectiveSpeedLimits
             {
                 MaxDownloadSpeedKbps = this.configService.AltDownloadSpeedKbps < 0 ? 0 : this.configService.AltDownloadSpeedKbps,
                 MaxUploadSpeedKbps = this.configService.AltUploadSpeedKbps < 0 ? 0 : this.configService.AltUploadSpeedKbps,
                 IsThrottled = isThrottled,
-                IsPaused = isPaused,
+                IsDownloadPaused = isDownloadPaused,
+                IsUploadPaused = isUploadPaused,
                 HasActiveSchedule = true,
             };
         }
@@ -192,7 +210,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             MaxDownloadSpeedKbps = this.configService.MaxDownloadSpeedKbps,
             MaxUploadSpeedKbps = this.configService.MaxUploadSpeedKbps,
             IsThrottled = false,
-            IsPaused = false,
+            IsDownloadPaused = false,
+            IsUploadPaused = false,
             HasActiveSchedule = false,
         };
     }

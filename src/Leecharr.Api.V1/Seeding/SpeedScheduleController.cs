@@ -57,6 +57,8 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             MaxUploadSpeedKbps = limits.MaxUploadSpeedKbps,
             IsThrottled = limits.IsThrottled,
             IsPaused = limits.IsPaused,
+            IsDownloadPaused = limits.IsDownloadPaused,
+            IsUploadPaused = limits.IsUploadPaused,
         });
     }
 

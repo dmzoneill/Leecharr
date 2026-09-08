@@ -41,4 +41,8 @@ public class SpeedLimitsResource
     public bool IsThrottled { get; set; }
 
     public bool IsPaused { get; set; }
+
+    public bool IsDownloadPaused { get; set; }
+
+    public bool IsUploadPaused { get; set; }
 }
