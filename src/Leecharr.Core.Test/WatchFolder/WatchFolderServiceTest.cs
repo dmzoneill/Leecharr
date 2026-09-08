@@ -624,6 +624,130 @@ public class WatchFolderServiceTest
     }
 
     [Test]
+    public async Task OnFileSystemWatcherChanged_WhenFileThrowsUnexpectedException_CatchesAndDoesNotCrashProcess()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "throwing_changed.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x31, 0x30, 0x65 });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidOperationException("Fatal parser explosion"));
+
+        var action = () =>
+        {
+            this.service.OnFileSystemWatcherChanged(this, new FileSystemEventArgs(WatcherChangeTypes.Changed, this.tempDirectory, "throwing_changed.torrent"));
+        };
+
+        action.Should().NotThrow();
+
+        await Task.Delay(150);
+
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task OnFileSystemWatcherChanged_WhenValidTorrent_ProcessesSuccessfully()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "valid_changed.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x32, 0x30, 0x65 });
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Valid.Changed.Movie.2024.1080p",
+            InfoHash = "1234567890123456789012345678901234567890",
+            TotalSize = 1024,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        this.service.OnFileSystemWatcherChanged(this, new FileSystemEventArgs(WatcherChangeTypes.Changed, this.tempDirectory, "valid_changed.torrent"));
+
+        await Task.Delay(150);
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: "movies",
+            savePath: null,
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task OnFileSystemWatcher_WhenFileCreatedAs0BytesThenChangedWithContent_SuccessfullyImportsOnChangedEvent()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "zero_byte_download.torrent");
+        // Step 1: File is created at 0 bytes (e.g. browser opening file handle)
+        await File.WriteAllBytesAsync(testFile, Array.Empty<byte>());
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "ZeroByte.Show.S01E01.1080p",
+            InfoHash = "fedcba9876543210fedcba9876543210fedcba98",
+            TotalSize = 2048,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        // Created event fires for 0-byte file
+        this.service.OnFileSystemWatcherCreated(this, new FileSystemEventArgs(WatcherChangeTypes.Created, this.tempDirectory, "zero_byte_download.torrent"));
+
+        await Task.Delay(100);
+
+        // Torrent should NOT have been added yet because 0-byte file is not ready
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+
+        // Step 2: Browser finishes writing torrent bytes to disk
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x39, 0x39, 0x65 });
+
+        // Changed event fires after bytes are written
+        this.service.OnFileSystemWatcherChanged(this, new FileSystemEventArgs(WatcherChangeTypes.Changed, this.tempDirectory, "zero_byte_download.torrent"));
+
+        await Task.Delay(150);
+
+        // Torrent should now be successfully parsed and added
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: "tv",
+            savePath: null,
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleFileSystemWatcherChangedAsync_WhenNonTorrentFile_IgnoresFile()
+    {
+        var textFile = Path.Combine(this.tempDirectory, "readme.txt");
+        await File.WriteAllBytesAsync(textFile, new byte[] { 1, 2, 3 });
+
+        await this.service.HandleFileSystemWatcherChangedAsync(new FileSystemEventArgs(WatcherChangeTypes.Changed, this.tempDirectory, "readme.txt"));
+
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleFileSystemWatcherChangedAsync_WhenNullOrEmpty_IgnoresGracefully()
+    {
+        var actNull = async () => await this.service.HandleFileSystemWatcherChangedAsync(null!);
+        await actNull.Should().NotThrowAsync();
+
+        var actEmpty = async () => await this.service.HandleFileSystemWatcherChangedAsync(new FileSystemEventArgs(WatcherChangeTypes.Changed, this.tempDirectory, string.Empty));
+        await actEmpty.Should().NotThrowAsync();
+    }
+
+    [Test]
     public void StartWatcher_AndStopWatcher_DoNotThrowExceptions()
     {
         var startAction = () => this.service.StartWatcher();
