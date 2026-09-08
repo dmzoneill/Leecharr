@@ -51,7 +51,10 @@ export function PieceMap({
   const liveBitfield = livePieceData?.bitfield;
   const liveVersion = livePieceData?.version ?? 0;
 
-  const totalPieces = Math.max(1, pieceCount);
+  const totalPieces = Math.max(
+    1,
+    Number.isFinite(pieceCount) && pieceCount > 0 ? pieceCount : 1,
+  );
   const isComplete = progress >= 1.0 || isSeeding;
 
   const propBitfieldBytes = useMemo(() => {
@@ -115,8 +118,8 @@ export function PieceMap({
     const height = 22;
 
     const dpr = window.devicePixelRatio || 1;
-    const targetW = Math.floor(availWidth * dpr);
-    const targetH = Math.floor(height * dpr);
+    const targetW = Math.max(0, Math.floor(availWidth * dpr));
+    const targetH = Math.max(0, Math.floor(height * dpr));
 
     if (canvas.width !== targetW || canvas.height !== targetH) {
       canvas.width = targetW;
@@ -131,6 +134,11 @@ export function PieceMap({
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, availWidth, height);
+
+    if (availWidth === 0) {
+      ctx.restore();
+      return;
+    }
 
     if (isComplete) {
       ctx.fillStyle = "#27ae60";
@@ -190,15 +198,15 @@ export function PieceMap({
       1,
       Math.floor((availWidth + gap) / (blockSize + gap)),
     );
-    const totalRows = Math.ceil(currentBlocks.length / cols);
-    const width = cols * (blockSize + gap) - gap;
-    const height = totalRows * (blockSize + gap) - gap;
+    const totalRows = Math.max(0, Math.ceil(currentBlocks.length / cols));
+    const width = Math.max(0, cols * (blockSize + gap) - gap);
+    const height = Math.max(0, totalRows * (blockSize + gap) - gap);
 
     layoutRef.current = { cols, blockSize, gap };
 
     const dpr = window.devicePixelRatio || 1;
-    const targetCanvasW = Math.floor(width * dpr);
-    const targetCanvasH = Math.floor(height * dpr);
+    const targetCanvasW = Math.max(0, Math.floor(width * dpr));
+    const targetCanvasH = Math.max(0, Math.floor(height * dpr));
 
     if (canvas.width !== targetCanvasW || canvas.height !== targetCanvasH) {
       canvas.width = targetCanvasW;
@@ -214,23 +222,27 @@ export function PieceMap({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
+    if (
+      currentBlocks.length === 0 ||
+      totalRows === 0 ||
+      width === 0 ||
+      height === 0
+    ) {
+      ctx.restore();
+      return;
+    }
+
     // Viewport row virtualization
     const scrollTop = container.scrollTop;
     const clientHeight = container.clientHeight || 240;
-    const startRow = Math.max(
-      0,
-      Math.floor(scrollTop / (blockSize + gap)) - 2,
-    );
+    const startRow = Math.max(0, Math.floor(scrollTop / (blockSize + gap)) - 2);
     const endRow = Math.min(
       totalRows - 1,
       Math.ceil((scrollTop + clientHeight) / (blockSize + gap)) + 2,
     );
 
     const startIdx = startRow * cols;
-    const endIdx = Math.min(
-      currentBlocks.length - 1,
-      (endRow + 1) * cols - 1,
-    );
+    const endIdx = Math.min(currentBlocks.length - 1, (endRow + 1) * cols - 1);
 
     for (let i = startIdx; i <= endIdx; i++) {
       const b = currentBlocks[i];
@@ -334,7 +346,10 @@ export function PieceMap({
   const handleGridMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || displayBlocks.length === 0) {
+      setHoveredIndex(null);
+      return;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
