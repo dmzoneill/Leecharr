@@ -1149,7 +1149,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var categories = this.categoryService.GetAll();
         var result = categories.ToDictionary(
             c => c.Name,
-            c => (object)new { name = c.Name, savePath = c.SavePath });
+            c => (object)new { name = c.Name, savePath = c.SavePath ?? string.Empty });
 
         return this.Ok(result);
     }
@@ -1555,7 +1555,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var torrents = this.torrentService.GetAll().ToList();
             var categories = this.categoryService.GetAll().ToDictionary(
                 c => c.Name,
-                c => (object)new { name = c.Name, savePath = c.SavePath });
+                c => (object)new { name = c.Name, savePath = c.SavePath ?? string.Empty });
 
             var dlLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps) * 1024;
             var upLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps) * 1024;

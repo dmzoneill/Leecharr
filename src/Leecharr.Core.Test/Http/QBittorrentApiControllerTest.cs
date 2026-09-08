@@ -1549,6 +1549,87 @@ public class QBittorrentApiControllerTest
         listRunning.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2" });
     }
 
+    [Test]
+    public void GetMainData_FullUpdate_IncludesCategoriesWithSavePath()
+    {
+        var category1 = new Category { Id = 1, Name = "tv", SavePath = "/downloads/tv" };
+        var category2 = new Category { Id = 2, Name = "movies", SavePath = "/downloads/movies" };
+        var category3 = new Category { Id = 3, Name = "default_cat", SavePath = null! };
+
+        this.categoryService.GetAll().Returns(new List<Category> { category1, category2, category3 });
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        var actionResult = this.controller.GetMainData(0);
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        data["full_update"].Should().Be(true);
+        var json = JsonSerializer.Serialize(data["categories"]);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.TryGetProperty("tv", out var tvCat).Should().BeTrue();
+        tvCat.GetProperty("name").GetString().Should().Be("tv");
+        tvCat.GetProperty("savePath").GetString().Should().Be("/downloads/tv");
+
+        root.TryGetProperty("movies", out var movieCat).Should().BeTrue();
+        movieCat.GetProperty("name").GetString().Should().Be("movies");
+        movieCat.GetProperty("savePath").GetString().Should().Be("/downloads/movies");
+
+        root.TryGetProperty("default_cat", out var defCat).Should().BeTrue();
+        defCat.GetProperty("name").GetString().Should().Be("default_cat");
+        defCat.GetProperty("savePath").GetString().Should().Be(string.Empty);
+    }
+
+    [Test]
+    public void GetMainData_DeltaUpdate_IncludesCategoriesWithSavePath()
+    {
+        var category = new Category { Id = 1, Name = "music", SavePath = "/downloads/music" };
+        this.categoryService.GetAll().Returns(new List<Category> { category });
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        // Initial full sync
+        var initial = this.controller.GetMainData(0);
+        var initialData = ((OkObjectResult)initial.Result!).Value as Dictionary<string, object>;
+        var initialRid = (int)initialData!["rid"];
+
+        // Subsequent delta sync
+        var delta = this.controller.GetMainData(initialRid);
+        var deltaData = ((OkObjectResult)delta.Result!).Value as Dictionary<string, object>;
+        deltaData!["full_update"].Should().Be(false);
+
+        var json = JsonSerializer.Serialize(deltaData["categories"]);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.TryGetProperty("music", out var musicCat).Should().BeTrue();
+        musicCat.GetProperty("name").GetString().Should().Be("music");
+        musicCat.GetProperty("savePath").GetString().Should().Be("/downloads/music");
+    }
+
+    [Test]
+    public void GetCategories_ReturnsMappedCategoriesWithSavePath()
+    {
+        var category1 = new Category { Id = 1, Name = "anime", SavePath = "/downloads/anime" };
+        var category2 = new Category { Id = 2, Name = "books", SavePath = null! };
+
+        this.categoryService.GetAll().Returns(new List<Category> { category1, category2 });
+
+        var actionResult = this.controller.GetCategories();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        root.TryGetProperty("anime", out var animeCat).Should().BeTrue();
+        animeCat.GetProperty("name").GetString().Should().Be("anime");
+        animeCat.GetProperty("savePath").GetString().Should().Be("/downloads/anime");
+
+        root.TryGetProperty("books", out var booksCat).Should().BeTrue();
+        booksCat.GetProperty("name").GetString().Should().Be("books");
+        booksCat.GetProperty("savePath").GetString().Should().Be(string.Empty);
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor
