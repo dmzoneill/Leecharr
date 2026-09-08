@@ -53,10 +53,10 @@ export function setPieceRangeInPlace(
 
   const boundedEndByte = Math.min(endByte, target.length - 1);
   const startBit = start & 7;
-  const endBit = boundedEndByte === endByte ? (end & 7) : 7;
+  const endBit = boundedEndByte === endByte ? end & 7 : 7;
 
   if (startByte === boundedEndByte) {
-    const mask = ((0xff >> startBit) & ((0xff << (7 - endBit)) & 0xff)) & 0xff;
+    const mask = (0xff >> startBit) & ((0xff << (7 - endBit)) & 0xff) & 0xff;
     target[startByte] |= mask;
   } else {
     const startMask = (0xff >> startBit) & 0xff;
@@ -273,8 +273,17 @@ export function binBitfieldBlocks(
   numBlocks = 480,
   isComplete = false,
 ): VisualBlock[] {
-  const actualPieces = Math.max(1, totalPieces);
-  const actualBlocks = Math.min(actualPieces, numBlocks);
+  const actualPieces = Math.max(
+    1,
+    Number.isFinite(totalPieces) && totalPieces > 0 ? totalPieces : 1,
+  );
+  const actualBlocks = Math.max(
+    1,
+    Math.min(
+      actualPieces,
+      Number.isFinite(numBlocks) && numBlocks > 0 ? numBlocks : 1,
+    ),
+  );
   const blocks: VisualBlock[] = [];
   const piecesPerBlock = actualPieces / actualBlocks;
 
