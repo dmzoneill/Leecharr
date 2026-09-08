@@ -1247,6 +1247,65 @@ public class TorznabClientTest
         clientWithConfig.ResolveEffectiveLimit(indexer, 100).Should().Be(100);
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenTitleContainsHtmlEntitiesInCData_DecodesHtmlEntitiesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title><![CDATA[Bob&#039;s.Burgers.S12E01.1080p.WEB-DL.DDP5.1.H.264-FLUX]]></title>
+      <guid>https://indexer.local/details/101</guid>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+    <item>
+      <title><![CDATA[Tom &amp; Jerry 2021 1080p Bluray x264-SPARKS]]></title>
+      <guid>https://indexer.local/details/102</guid>
+      <torznab:attr name=""seeders"" value=""15""/>
+    </item>
+    <item>
+      <title><![CDATA[&quot;The.Great&#39;s.Show&quot; &lt;Special Edition&gt;]]></title>
+      <guid>https://indexer.local/details/103</guid>
+      <torznab:attr name=""seeders"" value=""5""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(3);
+        results[0].Title.Should().Be("Bob's.Burgers.S12E01.1080p.WEB-DL.DDP5.1.H.264-FLUX");
+        results[1].Title.Should().Be("Tom & Jerry 2021 1080p Bluray x264-SPARKS");
+        results[2].Title.Should().Be("\"The.Great's.Show\" <Special Edition>");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenDescriptionAndCategoriesContainHtmlEntities_DecodesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title><![CDATA[Marvel&#39;s Agents of S.H.I.E.L.D. S01E01]]></title>
+      <description><![CDATA[High-Definition 1080p &amp; 5.1 Audio &lt;HDTV&gt;]]></description>
+      <comments><![CDATA[https://indexer.local/details?id=123&amp;page=1]]></comments>
+      <category><![CDATA[TV &gt; HD &amp; UHD]]></category>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""category"" value=""TV &amp; Series""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Marvel's Agents of S.H.I.E.L.D. S01E01");
+        results[0].Description.Should().Be("High-Definition 1080p & 5.1 Audio <HDTV>");
+        results[0].Comments.Should().Be("https://indexer.local/details?id=123&page=1");
+        results[0].Category.Should().Contain("TV > HD & UHD");
+        results[0].Category.Should().Contain("TV & Series");
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
