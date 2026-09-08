@@ -525,6 +525,83 @@ public class ProwlarrSyncServiceTest
         this.repository.Received(1).All();
     }
 
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenManualCustomIndexerHasSameNameAsProwlarrIndexer_DoesNotOverwriteManualIndexer()
+    {
+        var json = @"[
+          {
+            ""id"": 10,
+            ""name"": ""CustomTracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var manualIndexer = new IndexerDefinition
+        {
+            Id = 42,
+            Name = "CustomTracker",
+            Url = "https://custom-manual.tracker/api",
+            ApiKey = "manual-key",
+            IsProwlarrManaged = false,
+            ProwlarrIndexerId = null,
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { manualIndexer });
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.DidNotReceive().Update(manualIndexer);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "CustomTracker" &&
+            i.ProwlarrIndexerId == 10 &&
+            i.IsProwlarrManaged == true &&
+            i.ApiKey == "prowlarr-key"));
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_ConcurrentCalls_AreSynchronizedSuccessfully()
+    {
+        var json = @"[
+          {
+            ""id"": 1,
+            ""name"": ""Prowlarr Tracker 1"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var task1 = service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "key1");
+        var task2 = service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "key2");
+
+        var results = await Task.WhenAll(task1, task2);
+        results[0].Should().Be(1);
+        results[1].Should().Be(1);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
