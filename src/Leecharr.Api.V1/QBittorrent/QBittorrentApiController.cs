@@ -1715,7 +1715,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 client = p.Client ?? string.Empty,
                 ip = p.Ip ?? string.Empty,
                 port = p.Port,
-                connection = p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true ? "uTP" : "TCP",
+                connection = (p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true) ? "uTP" : "TCP",
                 flags = p.Flags ?? string.Empty,
                 flags_desc = string.Empty,
                 progress = p.Progress,
