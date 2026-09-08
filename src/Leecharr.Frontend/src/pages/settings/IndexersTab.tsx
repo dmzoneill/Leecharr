@@ -129,6 +129,7 @@ export function IndexersTab() {
     minSeeders: 1,
     minSizeBytes: 0,
     maxSizeBytes: 0,
+    maxAgeDays: 0,
     freeleechOnly: false,
     categoryId: 0,
     indexerIds: [],
@@ -494,6 +495,11 @@ export function IndexersTab() {
                 {rule.freeleechOnly && (
                   <span className="provider-card-badge provider-card-badge-gold">
                     {t("settingsTabs.indexers.freeleech")}
+                  </span>
+                )}
+                {rule.maxAgeDays != null && rule.maxAgeDays > 0 && (
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    ≤ {rule.maxAgeDays}d
                   </span>
                 )}
                 {rule.categoryId > 0 && (
@@ -869,6 +875,15 @@ export function IndexersTab() {
               }
               min={0}
               hint={t("settingsTabs.indexers.maxSizeConstraintHint")}
+            />
+            <NumberInput
+              label="Max Age (Days)"
+              value={editingRule.maxAgeDays ?? 0}
+              onChange={(v) =>
+                setEditingRule({ ...editingRule, maxAgeDays: v })
+              }
+              min={0}
+              hint="Maximum age of releases in days to match (0 = no limit)"
             />
             <NumberInput
               label={t("settings.categoryID")}

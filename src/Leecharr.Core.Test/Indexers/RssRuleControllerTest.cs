@@ -180,6 +180,91 @@ public class RssRuleControllerTest
     }
 
     [Test]
+    public void Create_WhenInvalidMustContainRegex_ReturnsBadRequest()
+    {
+        var resource = new RssRuleResource
+        {
+            Name = "Invalid Rule",
+            MustContain = "[unclosed-bracket",
+        };
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Create_WhenInvalidMustNotContainRegex_ReturnsBadRequest()
+    {
+        var resource = new RssRuleResource
+        {
+            Name = "Invalid Rule",
+            MustNotContain = "(?P<invalid>",
+        };
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Update_WhenInvalidMustContainRegex_ReturnsBadRequest()
+    {
+        var resource = new RssRuleResource
+        {
+            Id = 1,
+            Name = "Invalid Rule",
+            MustContain = "[unclosed-bracket",
+        };
+
+        var result = this.controller.Update(1, resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Update_WhenInvalidMustNotContainRegex_ReturnsBadRequest()
+    {
+        var resource = new RssRuleResource
+        {
+            Id = 1,
+            Name = "Invalid Rule",
+            MustNotContain = "(?P<invalid>",
+        };
+
+        var result = this.controller.Update(1, resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Create_WhenMaxAgeDaysSet_MapsAndInsertsCorrectly()
+    {
+        var resource = new RssRuleResource
+        {
+            Name = "MaxAge Rule",
+            MaxAgeDays = 7,
+        };
+
+        var inserted = new RssRule
+        {
+            Id = 10,
+            Name = resource.Name,
+            MaxAgeDays = resource.MaxAgeDays,
+        };
+
+        this.rssRuleRepository.Insert(Arg.Any<RssRule>()).Returns(inserted);
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = result.Result as OkObjectResult;
+        var createdResource = okResult!.Value as RssRuleResource;
+        createdResource.Should().NotBeNull();
+        createdResource!.MaxAgeDays.Should().Be(7);
+    }
+
+    [Test]
     public async Task SyncRss_WhenCalled_ExecutesSyncService()
     {
         this.rssSyncService.SyncRssFeedsAsync().Returns(Task.FromResult(3));

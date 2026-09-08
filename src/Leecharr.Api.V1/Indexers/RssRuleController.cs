@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -54,6 +55,16 @@ public class RssRuleController : Controller
             return this.BadRequest();
         }
 
+        if (!IsValidRegex(resource.MustContain, out var mustContainError))
+        {
+            return this.BadRequest(new { message = $"Invalid MustContain regex pattern: {mustContainError}" });
+        }
+
+        if (!IsValidRegex(resource.MustNotContain, out var mustNotContainError))
+        {
+            return this.BadRequest(new { message = $"Invalid MustNotContain regex pattern: {mustNotContainError}" });
+        }
+
         var model = ToModel(resource);
         var created = this.rssRuleRepository.Insert(model);
         return this.Ok(ToResource(created));
@@ -65,6 +76,16 @@ public class RssRuleController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (!IsValidRegex(resource.MustContain, out var mustContainError))
+        {
+            return this.BadRequest(new { message = $"Invalid MustContain regex pattern: {mustContainError}" });
+        }
+
+        if (!IsValidRegex(resource.MustNotContain, out var mustNotContainError))
+        {
+            return this.BadRequest(new { message = $"Invalid MustNotContain regex pattern: {mustNotContainError}" });
         }
 
         var existing = this.rssRuleRepository.Get(id);
@@ -118,6 +139,27 @@ public class RssRuleController : Controller
         }
     }
 
+    private static bool IsValidRegex(string pattern, out string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            errorMessage = null;
+            return true;
+        }
+
+        try
+        {
+            _ = new Regex(pattern);
+            errorMessage = null;
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
     private static RssRuleResource ToResource(RssRule model)
     {
         return new RssRuleResource
@@ -130,6 +172,7 @@ public class RssRuleController : Controller
             MinSeeders = model.MinSeeders,
             MinSizeBytes = model.MinSizeBytes,
             MaxSizeBytes = model.MaxSizeBytes,
+            MaxAgeDays = model.MaxAgeDays,
             FreeleechOnly = model.FreeleechOnly,
             CategoryId = model.CategoryId,
             IndexerIds = model.IndexerIds ?? new List<int>(),
@@ -148,6 +191,7 @@ public class RssRuleController : Controller
             MinSeeders = resource.MinSeeders,
             MinSizeBytes = resource.MinSizeBytes,
             MaxSizeBytes = resource.MaxSizeBytes,
+            MaxAgeDays = resource.MaxAgeDays,
             FreeleechOnly = resource.FreeleechOnly,
             CategoryId = resource.CategoryId,
             IndexerIds = resource.IndexerIds ?? new List<int>(),

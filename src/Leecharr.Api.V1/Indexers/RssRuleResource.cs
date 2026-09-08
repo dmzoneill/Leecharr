@@ -22,6 +22,8 @@ public class RssRuleResource : RestResource
 
     public long MaxSizeBytes { get; set; }
 
+    public int MaxAgeDays { get; set; }
+
     public bool FreeleechOnly { get; set; }
 
     public int CategoryId { get; set; }

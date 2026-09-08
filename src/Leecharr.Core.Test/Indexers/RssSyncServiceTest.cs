@@ -295,6 +295,66 @@ public class RssSyncServiceTest
         this.service.MatchesRule(release, rule).Should().BeFalse();
     }
 
+    [Test]
+    public void MatchesRule_WhenReleaseAgeExceedsMaxAgeDays_ReturnsFalse()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+            PublishDate = System.DateTime.UtcNow.AddDays(-10),
+        };
+
+        var rule = new RssRule
+        {
+            Name = "MaxAge 5 Days",
+            IsEnabled = true,
+            MaxAgeDays = 5,
+        };
+
+        this.service.MatchesRule(release, rule).Should().BeFalse();
+    }
+
+    [Test]
+    public void MatchesRule_WhenReleaseAgeWithinMaxAgeDays_ReturnsTrue()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+            PublishDate = System.DateTime.UtcNow.AddDays(-2),
+        };
+
+        var rule = new RssRule
+        {
+            Name = "MaxAge 5 Days",
+            IsEnabled = true,
+            MaxAgeDays = 5,
+        };
+
+        this.service.MatchesRule(release, rule).Should().BeTrue();
+    }
+
+    [Test]
+    public void MatchesRule_WhenMaxAgeDaysIsZero_MatchesRegardlessOfAge()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+            PublishDate = System.DateTime.UtcNow.AddDays(-300),
+        };
+
+        var rule = new RssRule
+        {
+            Name = "No MaxAge Limit",
+            IsEnabled = true,
+            MaxAgeDays = 0,
+        };
+
+        this.service.MatchesRule(release, rule).Should().BeTrue();
+    }
+
     #endregion
 
     #region Duplicate Grab Prevention and Sync Tests
@@ -767,6 +827,40 @@ public class RssSyncServiceTest
         grabbedCount.Should().Be(0);
 
         this.downloadHistoryService.DidNotReceive().RecordTorrentAdded(Arg.Any<Torrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenConcurrentCallsMade_SecondCallReturnsZeroGracefully()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:concurrent-test",
+            Title = "Concurrent.Release.2024",
+            MagnetUrl = "magnet:?xt=urn:btih:3333333333333333333333333333333333333333",
+            Seeders = 10,
+        };
+
+        var tcs = new TaskCompletionSource<List<TorznabSearchResult>>();
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(tcs.Task);
+
+        // Start first sync call which will pause inside FetchRssAsync
+        var firstTask = this.service.SyncRssFeedsAsync();
+
+        // Second call while first is still running should return 0 immediately
+        var secondCount = await this.service.SyncRssFeedsAsync();
+        secondCount.Should().Be(0);
+
+        // Now complete the first call
+        tcs.SetResult(new List<TorznabSearchResult> { release });
+        var firstCount = await firstTask;
+        firstCount.Should().Be(1);
     }
 
     #endregion
