@@ -3,22 +3,25 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Http;
 
 namespace NzbDrone.Core.Authentication;
 
 public class IdentityProviderService : IIdentityProviderService
 {
     private readonly IIdentityProviderRepository repository;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger;
 
     public IdentityProviderService(
         IIdentityProviderRepository repository,
+        ISafeHttpClientService safeHttpClientService,
         Logger logger)
     {
         this.repository = repository;
+        this.safeHttpClientService = safeHttpClientService;
         this.logger = logger;
     }
 
@@ -65,9 +68,6 @@ public class IdentityProviderService : IIdentityProviderService
     {
         try
         {
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
-
             var targetUrl = provider.ProviderType switch
             {
                 IdentityProviderType.Oidc => !string.IsNullOrEmpty(provider.IssuerUrl)
@@ -82,8 +82,9 @@ public class IdentityProviderService : IIdentityProviderService
                 return true;
             }
 
-            var response = await client.GetAsync(targetUrl);
-            return response.IsSuccessStatusCode;
+            this.safeHttpClientService.ValidateUrl(targetUrl);
+            var content = await this.safeHttpClientService.DownloadStringAsync(targetUrl, timeout: TimeSpan.FromSeconds(10));
+            return !string.IsNullOrEmpty(content);
         }
         catch (Exception ex)
         {
