@@ -13,7 +13,7 @@ export function HostSettingsTab() {
 
   const [form, setForm] = useState({
     port: 7889,
-    bindAddress: t("settingsTabs.batch2.defaultIp"),
+    bindAddress: "0.0.0.0",
     urlBase: "",
     autoStart: true,
     enableSsl: false,
@@ -33,7 +33,7 @@ export function HostSettingsTab() {
     if (config) {
       setForm({
         port: config.port ?? 7889,
-        bindAddress: config.bindAddress ?? t("settingsTabs.batch2.defaultIp"),
+        bindAddress: config.bindAddress ?? "0.0.0.0",
         urlBase: config.urlBase ?? "",
         autoStart: config.autoStart ?? true,
         enableSsl: config.enableSsl ?? false,

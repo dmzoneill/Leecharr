@@ -48,7 +48,7 @@ export function DownloadClientsTab() {
   const defaultClient: Partial<DownloadClientDefinition> = {
     name: "",
     clientType: "QBitTorrent",
-    host: t("settingsTabs.downloadClients.hostPlaceholder"),
+    host: "",
     port: 8080,
     useSsl: false,
     username: "",
@@ -70,12 +70,34 @@ export function DownloadClientsTab() {
 
   const handleSave = () => {
     if (!editing) return;
+    if (!editing.name?.trim()) {
+      showToast("Name is required", "error");
+      return;
+    }
+    if (!editing.host?.trim()) {
+      showToast("Host is required", "error");
+      return;
+    }
     if (editing.id) {
       updateMutation.mutate(editing as DownloadClientDefinition, {
-        onSuccess: () => setEditing(null),
+        onSuccess: () => {
+          showToast(`Download client "${editing.name}" updated`, "success");
+          setEditing(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to update download client", "error");
+        },
       });
     } else {
-      createMutation.mutate(editing, { onSuccess: () => setEditing(null) });
+      createMutation.mutate(editing, {
+        onSuccess: () => {
+          showToast(`Download client "${editing.name}" created`, "success");
+          setEditing(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to create download client", "error");
+        },
+      });
     }
   };
 
@@ -328,11 +350,11 @@ export function DownloadClientsTab() {
                   label: t("settingsTabs.downloadClients.typeQBitTorrent"),
                 },
                 {
-                  value: t("settingsTabs.downloadClients.typeTransmission"),
+                  value: "Transmission",
                   label: t("settingsTabs.downloadClients.typeTransmission"),
                 },
                 {
-                  value: t("settingsTabs.downloadClients.typeDeluge"),
+                  value: "Deluge",
                   label: t("settingsTabs.downloadClients.typeDeluge"),
                 },
               ]}

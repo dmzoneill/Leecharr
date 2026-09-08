@@ -109,8 +109,8 @@ export function IndexersTab() {
     useState<IndexerTestResult | null>(null);
 
   const defaultIndexer: Partial<IndexerDefinition> = {
-    name: t("settingsTabs.indexers.prowlarr"),
-    indexerType: t("settingsTabs.indexers.prowlarr"),
+    name: "Prowlarr",
+    indexerType: "Prowlarr",
     url: "http://prowlarr:9696",
     apiKey: "",
     apiPath: "/api",
@@ -137,10 +137,15 @@ export function IndexersTab() {
 
   const handleSave = () => {
     if (!editing) return;
-    if (
-      editing.indexerType === t("settingsTabs.indexers.prowlarr") &&
-      !editing.id
-    ) {
+    if (!editing.name?.trim()) {
+      showToast("Name is required", "error");
+      return;
+    }
+    if (!editing.url?.trim()) {
+      showToast("URL is required", "error");
+      return;
+    }
+    if (editing.indexerType === "Prowlarr" && !editing.id) {
       syncMutation.mutate(
         {
           url: editing.url || "http://localhost:9696",
@@ -169,15 +174,23 @@ export function IndexersTab() {
     if (editing.id) {
       updateMutation.mutate(payload, {
         onSuccess: () => {
+          showToast(`Indexer "${payload.name}" updated`, "success");
           setEditing(null);
           setModalTestResult(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to update indexer", "error");
         },
       });
     } else {
       createMutation.mutate(payload, {
         onSuccess: () => {
+          showToast(`Indexer "${payload.name}" created`, "success");
           setEditing(null);
           setModalTestResult(null);
+        },
+        onError: (err: any) => {
+          showToast(err?.message || "Failed to create indexer", "error");
         },
       });
     }
@@ -185,7 +198,11 @@ export function IndexersTab() {
 
   const handleSaveRule = () => {
     if (!editingRule) return;
-    const name = editingRule.name?.trim() || "RSS Rule";
+    if (!editingRule.name?.trim()) {
+      showToast("Rule name is required", "error");
+      return;
+    }
+    const name = editingRule.name.trim();
     const payload: RssRule = {
       id: editingRule.id || 0,
       name,
@@ -579,7 +596,7 @@ export function IndexersTab() {
             />
             <SelectInput
               label={t("settingsTabs.indexers.typeLabel")}
-              value={editing.indexerType || t("settingsTabs.indexers.prowlarr")}
+              value={editing.indexerType || "Prowlarr"}
               onChange={(v) => {
                 const defaults: Record<string, string> = {
                   Prowlarr: "http://localhost:9696",
@@ -595,15 +612,15 @@ export function IndexersTab() {
               }}
               options={[
                 {
-                  value: t("settingsTabs.indexers.prowlarr"),
+                  value: "Prowlarr",
                   label: t("settingsTabs.indexers.prowlarr"),
                 },
                 {
-                  value: t("settingsTabs.indexers.torznab"),
+                  value: "Torznab",
                   label: t("settingsTabs.indexers.torznab"),
                 },
                 {
-                  value: t("settingsTabs.indexers.newznab"),
+                  value: "Newznab",
                   label: t("settingsTabs.indexers.newznab"),
                 },
               ]}

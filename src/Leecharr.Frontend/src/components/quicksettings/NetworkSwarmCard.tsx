@@ -33,7 +33,10 @@ export const NetworkSwarmCard: React.FC = () => {
       {
         onError: (err: any) => {
           showToast(
-            t("quickSettings.failedToUpdateNetwork", [err.message]),
+            t("quickSettings.failedToUpdateNetwork", {
+              error: err.message,
+              0: err.message,
+            }),
             "error",
           );
         },
@@ -53,7 +56,10 @@ export const NetworkSwarmCard: React.FC = () => {
       {
         onError: (err: any) => {
           showToast(
-            t("quickSettings.failedToUpdateProtocol", [err.message]),
+            t("quickSettings.failedToUpdateProtocol", {
+              error: err.message,
+              0: err.message,
+            }),
             "error",
           );
         },
@@ -100,7 +106,10 @@ export const NetworkSwarmCard: React.FC = () => {
           }
           title={
             vpnKillSwitch
-              ? t("quickSettings.killSwitchActiveTitle", [activeInterface])
+              ? t("quickSettings.killSwitchActiveTitle", {
+                  interface: activeInterface,
+                  0: activeInterface,
+                })
               : t("quickSettings.killSwitchDisabledTitle")
           }
         >
