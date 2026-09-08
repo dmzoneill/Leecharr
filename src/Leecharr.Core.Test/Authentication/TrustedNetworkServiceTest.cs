@@ -52,6 +52,18 @@ public class TrustedNetworkServiceTest
     [TestCase("192.168.1.50", "192.168.1.0/-1", false)]
     [TestCase("192.168.1.50", "192.168.1.0/999", false)]
     [TestCase("192.168.1.50", "not.an.ip/24", false)]
+    [TestCase("192.168.1.50", "::ffff:192.168.1.0/120", true)]
+    [TestCase("192.168.2.50", "::ffff:192.168.1.0/120", false)]
+    [TestCase("::ffff:192.168.1.50", "::ffff:192.168.1.0/120", true)]
+    [TestCase("2001:db8::1", "::ffff:192.168.1.0/120", false)]
+    [TestCase("10.0.5.1", "::ffff:10.0.0.0/104", true)]
+    [TestCase("11.0.5.1", "::ffff:10.0.0.0/104", false)]
+    [TestCase("::ffff:10.1.2.3", "::ffff:10.0.0.0/104", true)]
+    [TestCase("2001:db8::1", "::ffff:10.0.0.0/104", false)]
+    [TestCase("192.168.1.50", "::ffff:192.168.1.0/130", false)]
+    [TestCase("192.168.1.50", "::ffff:192.168.1.0/-1", false)]
+    [TestCase("2001:db8::1", "2001:db8::/32", true)]
+    [TestCase("2001:db9::1", "2001:db8::/32", false)]
     public void IsTrustedProxy_WithCidrs_ShouldMatchCorrectly(string ipStr, string cidrs, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);
