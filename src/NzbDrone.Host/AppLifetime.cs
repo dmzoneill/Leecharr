@@ -45,6 +45,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
+    private Task rssLoopTask;
     private bool downloadStartedThisSession;
 
     public AppLifetime(
@@ -179,6 +180,10 @@ public class AppLifetime : IHostedService, IDisposable
 
         this.cts = new CancellationTokenSource();
         this.backgroundLoopTask = Task.Run(() => this.RunBackgroundLoopAsync(this.cts.Token), this.cts.Token);
+        if (this.rssSyncService != null)
+        {
+            this.rssLoopTask = Task.Run(() => this.RunRssSyncLoopAsync(this.cts.Token), this.cts.Token);
+        }
 
         this.logger.Info("Leecharr application started");
         this.eventAggregator.PublishEvent(new ApplicationStartedEvent());
@@ -216,9 +221,20 @@ public class AppLifetime : IHostedService, IDisposable
                 await this.cts.CancelAsync();
             }
 
+            var tasksToWait = new List<Task>();
             if (this.backgroundLoopTask != null)
             {
-                await Task.WhenAny(this.backgroundLoopTask, Task.Delay(5000, cancellationToken));
+                tasksToWait.Add(this.backgroundLoopTask);
+            }
+
+            if (this.rssLoopTask != null)
+            {
+                tasksToWait.Add(this.rssLoopTask);
+            }
+
+            if (tasksToWait.Count > 0)
+            {
+                await Task.WhenAny(Task.WhenAll(tasksToWait), Task.Delay(5000, cancellationToken));
             }
         }
         catch
@@ -241,7 +257,6 @@ public class AppLifetime : IHostedService, IDisposable
     {
         var watchFolderTickCounter = 0;
         var maintenanceTickCounter = 0;
-        var rssTickCounter = 0;
         var seedingTickCounter = 0;
         var lastSeedingTickUtc = DateTime.UtcNow;
 
@@ -468,12 +483,29 @@ public class AppLifetime : IHostedService, IDisposable
                         }
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error in background maintenance loop");
+            }
+        }
+    }
 
-                // 3. RSS Sync every ~15 minutes (900 seconds)
-                rssTickCounter++;
-                if (rssTickCounter >= 900)
+    private async Task RunRssSyncLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                await timer.WaitForNextTickAsync(token);
+
+                if (this.rssSyncService != null)
                 {
-                    rssTickCounter = 0;
                     await this.rssSyncService.SyncRssFeedsAsync();
                 }
             }
@@ -483,7 +515,7 @@ public class AppLifetime : IHostedService, IDisposable
             }
             catch (Exception ex)
             {
-                this.logger.Error(ex, "Error in background maintenance loop");
+                this.logger.Error(ex, "Error in background RSS sync loop");
             }
         }
     }
