@@ -1069,4 +1069,44 @@ public class NotificationEventHandlerTest
                 (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("videoCodec")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "HEVC (H.265)" &&
                 (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("containerFormat")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "Matroska"));
     }
+
+    [TestCase(double.PositiveInfinity, 0.0)]
+    [TestCase(double.NegativeInfinity, 0.0)]
+    [TestCase(double.NaN, 0.0)]
+    [TestCase(1.75, 1.75)]
+    public async Task Handle_TorrentAddedEvent_WhenRatioIsNonFinite_NormalizesRatioToFiniteValue(double inputRatio, double expectedRatio)
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 50,
+            Name = "Webhook NonFinite",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/webhook-ratio",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 50,
+            Name = "NonFiniteRatio.mkv",
+            Status = TorrentStatus.Downloading,
+            Ratio = inputRatio,
+            Progress = double.PositiveInfinity, // Also test progress
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-ratio",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                payload.GetType().GetProperty("torrent") != null &&
+                (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("ratio")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == expectedRatio &&
+                (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("progress")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == 0.0));
+    }
 }
