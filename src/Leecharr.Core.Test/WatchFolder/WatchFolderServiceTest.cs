@@ -403,6 +403,88 @@ public class WatchFolderServiceTest
         this.diskProvider.Received(1).MoveFile(corruptFile, expectedDest, true);
     }
 
+    [Test]
+    public async Task ProcessFileAsync_WhenRelativeAndAbsolutePathsFail_SharesFailureCounterAndQuarantinesOnThirdAttempt()
+    {
+        var fullPath = Path.Combine(this.tempDirectory, "corrupt_shared.torrent");
+        await File.WriteAllBytesAsync(fullPath, new byte[] { 0x64, 0x30, 0x65 });
+
+        var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), fullPath);
+        var dotSegmentPath = Path.Combine(this.tempDirectory, ".", "corrupt_shared.torrent");
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidTorrentFileException("Corrupt Bencode"));
+
+        // Attempt 1: via relative path
+        var result1 = await this.service.ProcessFileAsync(relativePath, this.tempDirectory);
+        result1.Should().BeFalse();
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+
+        // Attempt 2: via dot segment path
+        var result2 = await this.service.ProcessFileAsync(dotSegmentPath, this.tempDirectory);
+        result2.Should().BeFalse();
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+
+        // Attempt 3: via absolute path
+        var result3 = await this.service.ProcessFileAsync(fullPath, this.tempDirectory);
+        result3.Should().BeFalse();
+
+        var expectedFailedDir = Path.Combine(this.tempDirectory, "failed");
+        var expectedDest = Path.Combine(expectedFailedDir, "corrupt_shared.torrent");
+
+        this.diskProvider.Received(1).EnsureFolder(expectedFailedDir);
+        this.diskProvider.Received(1).MoveFile(fullPath, expectedDest, true);
+    }
+
+    [Test]
+    public async Task ProcessFileAsync_WhenRelativePathFailsAndAbsolutePathSucceeds_ClearsFailureCounter()
+    {
+        var fullPath = Path.Combine(this.tempDirectory, "recoverable.torrent");
+        await File.WriteAllBytesAsync(fullPath, new byte[] { 0x64, 0x31, 0x65 });
+
+        var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), fullPath);
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Recovered.Movie.2024.1080p",
+            InfoHash = "1122334455667788990011223344556677889900",
+            TotalSize = 1024,
+        };
+
+        // Two failures via relative path, then success via absolute path, then one failure via relative path
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(
+            _ => throw new InvalidTorrentFileException("Attempt 1 failure"),
+            _ => throw new InvalidTorrentFileException("Attempt 2 failure"),
+            _ => parsed,
+            _ => throw new InvalidTorrentFileException("Fresh attempt 1 failure"));
+
+        // Attempt 1 (relative path): fails
+        var result1 = await this.service.ProcessFileAsync(relativePath, this.tempDirectory);
+        result1.Should().BeFalse();
+
+        // Attempt 2 (relative path): fails
+        var result2 = await this.service.ProcessFileAsync(relativePath, this.tempDirectory);
+        result2.Should().BeFalse();
+
+        // Attempt 3 (absolute path): succeeds and clears failedAttempts counter
+        var result3 = await this.service.ProcessFileAsync(fullPath, this.tempDirectory);
+        result3.Should().BeTrue();
+
+        // Ensure file exists for 4th invocation (since DeleteFile mock doesn't delete from disk)
+        if (!File.Exists(fullPath))
+        {
+            await File.WriteAllBytesAsync(fullPath, new byte[] { 0x64, 0x31, 0x65 });
+        }
+
+        // Attempt 4 (relative path): fails again. Because counter was cleared, this is attempt 1, not attempt 3 (should not quarantine)
+        var result4 = await this.service.ProcessFileAsync(relativePath, this.tempDirectory);
+        result4.Should().BeFalse();
+
+        var expectedFailedDir = Path.Combine(this.tempDirectory, "failed");
+        var expectedDest = Path.Combine(expectedFailedDir, "recoverable.torrent");
+
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), expectedDest, Arg.Any<bool>());
+    }
+
     #endregion
 
     #region Category Cross-Referencing

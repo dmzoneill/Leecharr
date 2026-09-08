@@ -45,7 +45,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger;
 
-    private readonly ConcurrentDictionary<string, int> failedAttempts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, int> failedAttempts = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> processingFiles = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
     private FileSystemWatcher watcher;
@@ -348,7 +348,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                     startPaused: !this.configService.WatchFolderAutoStartTorrents,
                     rawBytes: bytes).ConfigureAwait(false);
 
-                this.failedAttempts.TryRemove(file, out _);
+                this.failedAttempts.TryRemove(fullPath, out _);
 
                 if (this.configService.WatchFolderDeleteAddedTorrents)
                 {
@@ -366,11 +366,11 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             }
             catch (Exception ex)
             {
-                var attempts = this.failedAttempts.AddOrUpdate(file, 1, (_, count) => count + 1);
+                var attempts = this.failedAttempts.AddOrUpdate(fullPath, 1, (_, count) => count + 1);
                 if (attempts >= 3)
                 {
                     this.logger.Warn(ex, "Watch folder torrent '{0}' failed after {1} attempts. Quarantining file.", file, attempts);
-                    this.failedAttempts.TryRemove(file, out _);
+                    this.failedAttempts.TryRemove(fullPath, out _);
                     this.QuarantineFile(folder, file);
                 }
                 else
