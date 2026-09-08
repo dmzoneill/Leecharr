@@ -2,6 +2,7 @@ import { useTranslation } from "../i18n";
 import { useState, useMemo } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats } from "../api/hooks";
+import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
   formatBytes,
   formatSpeed,
@@ -33,29 +34,34 @@ function Statistics() {
     isError: torrentsError,
   } = useTorrents();
   const { data: stats } = useSeedingStats();
+  const telemetry = useTorrentStore((state) => state.telemetry);
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "achievements" | "buffers" | "simulator"
   >("overview");
 
+  const effectiveTorrents = useMemo(() => {
+    return (torrents ?? []).map((t) => applyTelemetry(t, telemetry[t.id]));
+  }, [torrents, telemetry]);
+
   const achievements = useMemo(
-    () => calculateAchievements(torrents, stats),
-    [torrents, stats],
+    () => calculateAchievements(effectiveTorrents, stats),
+    [effectiveTorrents, stats],
   );
 
   const trackerBuffers = useMemo(
-    () => calculateTrackerBuffers(torrents),
-    [torrents],
+    () => calculateTrackerBuffers(effectiveTorrents),
+    [effectiveTorrents],
   );
 
   const statusCounts: Record<string, number> = {};
-  (torrents ?? []).forEach((t) => {
+  effectiveTorrents.forEach((t) => {
     statusCounts[t.status] = (statusCounts[t.status] || 0) + 1;
   });
-  const total = torrents?.length ?? 0;
+  const total = effectiveTorrents.length;
   const entries = Object.entries(statusCounts).filter(([, v]) => v > 0);
 
-  const topTorrents = [...(torrents ?? [])]
+  const topTorrents = [...effectiveTorrents]
     .sort((a, b) => b.uploaded - a.uploaded)
     .slice(0, 10);
 
@@ -828,10 +834,13 @@ function Statistics() {
               totalSize={
                 stats?.totalDownloaded && stats.totalDownloaded > 0
                   ? stats.totalDownloaded
-                  : (torrents ?? []).reduce((acc, t) => acc + t.totalSize, 0)
+                  : effectiveTorrents.reduce((acc, t) => acc + t.totalSize, 0)
               }
               currentRatio={stats?.overallRatio ?? 0}
-              currentUploadSpeed={stats?.uploadSpeed ?? 0}
+              currentUploadSpeed={
+                effectiveTorrents.reduce((acc, t) => acc + (t.uploadSpeed || 0), 0) ||
+                (stats?.uploadSpeed ?? 0)
+              }
             />
           </div>
 
@@ -842,7 +851,7 @@ function Statistics() {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
             >
-              {(torrents ?? []).slice(0, 5).map((t) => (
+              {effectiveTorrents.slice(0, 5).map((t) => (
                 <div
                   key={t.id}
                   style={{
