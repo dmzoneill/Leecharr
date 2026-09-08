@@ -24,15 +24,23 @@ public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
 {
     private readonly IConfigFileProvider configFileProvider;
+    private readonly AuthRateLimiter rateLimiter;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<ApiKeyAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IConfigFileProvider configFileProvider)
+        IConfigFileProvider configFileProvider,
+        AuthRateLimiter rateLimiter = null)
         : base(options, logger, encoder)
     {
         this.configFileProvider = configFileProvider;
+        this.rateLimiter = rateLimiter ?? AuthRateLimiter.Shared;
+    }
+
+    public static void ResetThrottling()
+    {
+        AuthRateLimiter.Shared.ResetAll();
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -85,12 +93,20 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
+        var clientIp = this.GetClientIpAddress();
+        if (this.rateLimiter.IsThrottled(clientIp))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Too many failed authentication attempts. Please try again later."));
+        }
+
         var masterApiKey = this.configFileProvider.ApiKey;
         if (!string.IsNullOrEmpty(masterApiKey) &&
             CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(apiKey),
                 Encoding.UTF8.GetBytes(masterApiKey)))
         {
+            this.rateLimiter.Reset(clientIp);
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, "0"),
@@ -104,6 +120,12 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
 
+        this.rateLimiter.RecordFailure(clientIp);
         return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
+    }
+
+    private string GetClientIpAddress()
+    {
+        return this.Context.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
     }
 }
