@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Network;
 
@@ -60,18 +61,21 @@ public class NetworkStatusService : INetworkStatusService
     private readonly IConfigFileProvider configFileProvider;
     private readonly IConfigService configService;
     private readonly INatPmpPortMapperService natPmpPortMapperService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
 
     public NetworkStatusService(
         IExternalIpService externalIpService,
         IConfigFileProvider configFileProvider,
         IConfigService configService = null,
-        INatPmpPortMapperService natPmpPortMapperService = null)
+        INatPmpPortMapperService natPmpPortMapperService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.externalIpService = externalIpService;
         this.configFileProvider = configFileProvider;
         this.configService = configService;
         this.natPmpPortMapperService = natPmpPortMapperService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -144,6 +148,7 @@ public class NetworkStatusService : INetworkStatusService
             ActiveInterface = activeInterface,
             UpnpAvailable = this.configService?.UpnpEnabled ?? true,
             ProxyEnabled = this.configService?.ProxyType != null && this.configService.ProxyType != "none",
+            VpnKillSwitchActive = this.vpnKillSwitchService?.IsFailClosedActive ?? false,
             LocalAddresses = localAddresses,
             PortMappings = portMappings,
         };
