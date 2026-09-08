@@ -30,7 +30,7 @@ public interface IGeoIpUpdateTask
     void StartLoop();
 }
 
-public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent>, IExecute<GeoIpUpdateCommand>, IDisposable
+public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent>, IExecute<GeoIpUpdateCommand>, IExecuteAsync<GeoIpUpdateCommand>, IDisposable
 {
     private const string DefaultGeoLite2CityUrl = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb";
 
@@ -63,9 +63,14 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
         this.StartLoop();
     }
 
+    public Task ExecuteAsync(GeoIpUpdateCommand message, CancellationToken cancellationToken = default)
+    {
+        return this.ExecuteAsync(cancellationToken);
+    }
+
     public void Execute(GeoIpUpdateCommand message)
     {
-        this.ExecuteAsync().GetAwaiter().GetResult();
+        this.ExecuteAsync(message).GetAwaiter().GetResult();
     }
 
     public void StartLoop()
