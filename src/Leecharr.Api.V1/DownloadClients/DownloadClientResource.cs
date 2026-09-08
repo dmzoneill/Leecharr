@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
 using Leecharr.Http.REST;
@@ -9,20 +10,30 @@ namespace Leecharr.Api.V1.DownloadClients;
 
 public class DownloadClientResource : RestResource
 {
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Name { get; set; }
 
+    [Required]
+    [StringLength(100)]
     public string ClientType { get; set; }
 
+    [Required]
+    [StringLength(512)]
     public string Host { get; set; }
 
+    [Range(1, 65535)]
     public int Port { get; set; }
 
+    [StringLength(255)]
     public string Username { get; set; }
 
+    [StringLength(255)]
     public string Password { get; set; }
 
     public bool UseSsl { get; set; }
 
+    [StringLength(255)]
     public string Category { get; set; }
 
     public bool Enabled { get; set; } = true;
@@ -40,6 +51,7 @@ public class DownloadClientResource : RestResource
         }
     }
 
+    [Range(1, int.MaxValue)]
     public int Priority { get; set; } = 1;
 }
 

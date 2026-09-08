@@ -771,4 +771,112 @@ public class IndexerControllerTest
         results[0].Title.Should().Be("Page 3 Movie Release A");
         results[1].Title.Should().Be("Page 3 Movie Release B");
     }
+
+    [Test]
+    public async Task SearchGet_WhenLimitExceedsMax_ClampsTo250()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            "test",
+            categoryId: null,
+            limit: 250,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "test", indexerId: 1, limit: 1000);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer,
+            "test",
+            categoryId: null,
+            limit: 250,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task SearchGet_WhenLimitIsZeroOrNegative_DefaultsTo50()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            "test",
+            categoryId: null,
+            limit: 50,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(query: "test", indexerId: 1, limit: -5);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer,
+            "test",
+            categoryId: null,
+            limit: 50,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: null,
+            tvdbId: null,
+            rid: null,
+            year: null,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+    }
 }

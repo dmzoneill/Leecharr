@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using Leecharr.Http.REST;
 using NzbDrone.Core.Authentication;
 
@@ -24,12 +25,17 @@ public class AuthProviderResource : RestResource
 
 public class LoginRequestResource
 {
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Username { get; set; } = string.Empty;
 
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Password { get; set; } = string.Empty;
 
     public bool RememberMe { get; set; } = true;
 
+    [StringLength(2048)]
     public string ReturnUrl { get; set; } = "/";
 }
 
