@@ -305,4 +305,88 @@ public class NotificationControllerTest
             Arg.Is<object>(p => p.GetType().GetProperty("text") != null &&
                                 p.GetType().GetProperty("username") != null));
     }
+
+    [Test]
+    public async Task Test_WhenCustomScriptNotificationWithJsonSettings_ParsesPathAndArgumentsAndExecutes()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 13,
+            Name = "Custom Script Test",
+            Implementation = "CustomScript",
+            Settings = "{\"path\":\"/opt/scripts/notify.sh\",\"arguments\":\"--test --verbose\"}",
+        };
+
+        this.notificationRepository.Get(13).Returns(notif);
+        this.customScriptService.ExecuteScriptAsync("/opt/scripts/notify.sh", null, "Test", "--test --verbose")
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.Test(13);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+        testResult.Message.Should().Be("Script executed successfully.");
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/notify.sh",
+            null,
+            "Test",
+            "--test --verbose");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenCustomScriptNotificationWithPlainPath_ExecutesWithNullArguments()
+    {
+        var resource = new NotificationResource
+        {
+            Name = "Custom Script Direct",
+            Implementation = "CustomScript",
+            Settings = "/opt/scripts/notify.sh",
+        };
+
+        this.customScriptService.ExecuteScriptAsync("/opt/scripts/notify.sh", null, "Test", null)
+            .Returns(Task.FromResult(true));
+
+        var actionResult = await this.controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/notify.sh",
+            null,
+            "Test",
+            null);
+    }
+
+    [Test]
+    public async Task Test_WhenCustomScriptNotificationExecutionFails_ReturnsFailureTestResult()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 14,
+            Name = "Failing Script",
+            Implementation = "CustomScript",
+            Settings = "{\"path\":\"/opt/scripts/fail.sh\"}",
+        };
+
+        this.notificationRepository.Get(14).Returns(notif);
+        this.customScriptService.ExecuteScriptAsync("/opt/scripts/fail.sh", null, "Test", null)
+            .Returns(Task.FromResult(false));
+
+        var actionResult = await this.controller.Test(14);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Be("Script execution failed.");
+    }
 }

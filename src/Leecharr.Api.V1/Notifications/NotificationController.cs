@@ -205,7 +205,8 @@ public class NotificationController : Controller
 
         if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
         {
-            var success = await this.customScriptService.ExecuteScriptAsync(notif.Settings, null, "Test");
+            var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
+            var success = await this.customScriptService.ExecuteScriptAsync(scriptPath, null, "Test", scriptArgs);
             return this.Ok(new NotificationTestResult
             {
                 Success = success,
