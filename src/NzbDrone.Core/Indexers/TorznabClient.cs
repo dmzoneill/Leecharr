@@ -14,6 +14,7 @@ using System.Web;
 using System.Xml;
 using System.Xml.Linq;
 using NLog;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Torrents;
 
@@ -100,6 +101,7 @@ public class TorznabClient : ITorznabClient
 
     private static readonly ConcurrentDictionary<string, (TorznabCapabilities Caps, DateTime ExpiresAt)> CapabilitiesCache = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly IConfigService configService;
     private readonly HttpClient httpClient;
     private readonly Logger logger;
 
@@ -116,8 +118,13 @@ public class TorznabClient : ITorznabClient
         CapabilitiesCache.TryRemove(key, out _);
     }
 
-    public TorznabClient(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null)
+    public TorznabClient(
+        IHttpTransportEngine transportEngine = null,
+        HttpClient httpClient = null,
+        IConfigService configService = null)
     {
+        this.configService = configService;
+
         if (httpClient != null)
         {
             this.httpClient = httpClient;
@@ -143,8 +150,49 @@ public class TorznabClient : ITorznabClient
     }
 
     public TorznabClient(HttpClient httpClient)
-        : this(null, httpClient)
+        : this(null, httpClient, null)
     {
+    }
+
+    public TorznabClient(IConfigService configService)
+        : this(null, null, configService)
+    {
+    }
+
+    internal int ResolveEffectiveLimit(IndexerDefinition indexer, int requestedLimit, bool isRss = false)
+    {
+        var effectiveLimit = requestedLimit;
+
+        if (effectiveLimit <= 0)
+        {
+            if (this.configService != null && this.configService.TorznabDefaultPageSize > 0)
+            {
+                effectiveLimit = this.configService.TorznabDefaultPageSize;
+            }
+            else
+            {
+                effectiveLimit = 50;
+            }
+        }
+
+        if (indexer != null && !string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
+            if (CapabilitiesCache.TryGetValue(cacheKey, out var cached) && cached.Caps != null)
+            {
+                if (cached.Caps.MaxPageSize > 0 && effectiveLimit > cached.Caps.MaxPageSize)
+                {
+                    effectiveLimit = cached.Caps.MaxPageSize;
+                }
+            }
+        }
+
+        if (this.configService != null && this.configService.TorznabMaxPageSize > 0 && effectiveLimit > this.configService.TorznabMaxPageSize)
+        {
+            effectiveLimit = this.configService.TorznabMaxPageSize;
+        }
+
+        return Math.Max(1, effectiveLimit);
     }
 
     public async Task<List<TorznabSearchResult>> SearchAsync(
@@ -187,7 +235,8 @@ public class TorznabClient : ITorznabClient
                                 ? "book"
                                 : "search"))));
 
-            var queryParams = $"t={mode}&limit={limit}&offset={offset}";
+            var effectiveLimit = this.ResolveEffectiveLimit(indexer, limit);
+            var queryParams = $"t={mode}&limit={effectiveLimit}&offset={offset}";
 
             if (!string.IsNullOrWhiteSpace(query))
             {
@@ -296,7 +345,8 @@ public class TorznabClient : ITorznabClient
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
-            var queryParams = $"t=search&limit={limit}";
+            var effectiveLimit = this.ResolveEffectiveLimit(indexer, limit, isRss: true);
+            var queryParams = $"t=search&limit={effectiveLimit}";
 
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
             {

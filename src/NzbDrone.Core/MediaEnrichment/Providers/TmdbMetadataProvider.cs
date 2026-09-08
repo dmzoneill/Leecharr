@@ -101,7 +101,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             Title = cleanTitle,
             Year = parsedYear,
             MediaType = isMovie ? "Movie" : "TV",
-            Overview = $"Metadata extracted for {cleanTitle}.",
+            Overview = string.Empty,
             Rating = 0.0,
         };
     }

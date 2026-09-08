@@ -119,8 +119,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             Title = !string.IsNullOrWhiteSpace(cleanTitle) ? cleanTitle : title,
             Year = year ?? 0,
             MediaType = preferredType == "Radarr" ? "Movie" : preferredType == "Lidarr" ? "Music" : "TV",
-            Overview = $"Metadata synchronized from Servarr instance for {cleanTitle}.",
-            Rating = 8.0,
+            Overview = string.Empty,
+            Rating = 0.0,
         };
     }
 
@@ -419,6 +419,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             this.PopulateImages(conn, baseUrl, images, meta);
         }
 
+        meta.Cast = ExtractCast(series);
+
         return meta;
     }
 
@@ -466,6 +468,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         {
             this.PopulateImages(conn, baseUrl, images, meta);
         }
+
+        meta.Cast = ExtractCast(movie);
 
         return meta;
     }
@@ -707,7 +711,65 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             this.PopulateImages(conn, baseUrl, images, meta);
         }
 
+        meta.Cast = ExtractCast(first);
+
         return meta;
+    }
+
+    private static List<string> ExtractCast(JsonElement element)
+    {
+        var cast = new List<string>();
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return cast;
+        }
+
+        string[] candidateProps = { "actors", "credits", "cast" };
+        foreach (var prop in candidateProps)
+        {
+            if (element.TryGetProperty(prop, out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in arr.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Object)
+                    {
+                        var name = item.TryGetProperty("personName", out var pn) && pn.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(pn.GetString())
+                            ? pn.GetString()
+                            : (item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(n.GetString())
+                                ? n.GetString()
+                                : null);
+
+                        if (!string.IsNullOrWhiteSpace(name) && !cast.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            cast.Add(name.Trim());
+                            if (cast.Count >= 10)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                    {
+                        var name = item.GetString().Trim();
+                        if (!cast.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            cast.Add(name);
+                            if (cast.Count >= 10)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (cast.Count > 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        return cast;
     }
 
     private void PopulateImages(ArrConnectionDefinition conn, string baseUrl, JsonElement images, MediaMetadata meta)

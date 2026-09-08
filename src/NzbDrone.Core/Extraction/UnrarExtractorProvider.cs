@@ -9,12 +9,15 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Common;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Extraction;
 
 public class UnrarExtractorProvider : IArchiveExtractorProvider
 {
     private readonly IDiskProvider diskProvider;
+    private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly TimeSpan? baseTimeout;
     private readonly int minutesPerGb;
     private readonly Logger logger;
@@ -52,11 +55,22 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     public UnrarExtractorProvider(
         IDiskProvider diskProvider,
+        IConfigService configService = null,
+        IConfigFileProvider configFileProvider = null,
         TimeSpan? baseTimeout = null,
         int minutesPerGb = ArchiveTimeoutCalculator.DefaultMinutesPerGigabyte)
     {
         this.diskProvider = diskProvider;
-        this.baseTimeout = baseTimeout;
+        this.configService = configService;
+        this.configFileProvider = configFileProvider;
+
+        var configuredTimeoutMinutes = (configService != null && configService.ArchiveExtractionTimeoutMinutes > 0)
+            ? configService.ArchiveExtractionTimeoutMinutes
+            : (configFileProvider != null && configFileProvider.ArchiveExtractionTimeoutMinutes > 0
+                ? configFileProvider.ArchiveExtractionTimeoutMinutes
+                : 0);
+
+        this.baseTimeout = baseTimeout ?? (configuredTimeoutMinutes > 0 ? TimeSpan.FromMinutes(configuredTimeoutMinutes) : (TimeSpan?)null);
         this.minutesPerGb = minutesPerGb > 0 ? minutesPerGb : ArchiveTimeoutCalculator.DefaultMinutesPerGigabyte;
         this.logger = LogManager.GetCurrentClassLogger();
     }
@@ -130,7 +144,16 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         var targetDir = destinationPath;
         if (string.IsNullOrWhiteSpace(targetDir))
         {
-            targetDir = Path.GetDirectoryName(archivePath) ?? "/tmp";
+            var dir = Path.GetDirectoryName(archivePath);
+            targetDir = !string.IsNullOrWhiteSpace(dir)
+                ? dir
+                : (!string.IsNullOrWhiteSpace(this.configService?.ExtractorTempDir)
+                    ? this.configService.ExtractorTempDir
+                    : (!string.IsNullOrWhiteSpace(this.configFileProvider?.ExtractorTempDir)
+                        ? this.configFileProvider.ExtractorTempDir
+                        : (!string.IsNullOrWhiteSpace(this.configService?.IncompleteDownloadDir)
+                            ? this.configService.IncompleteDownloadDir
+                            : Path.GetTempPath())));
         }
 
         this.diskProvider.EnsureFolder(targetDir);

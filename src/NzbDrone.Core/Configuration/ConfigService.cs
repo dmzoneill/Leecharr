@@ -529,6 +529,18 @@ public interface IConfigService
     string AllowedSsrfHostnames { get; }
 
     string AllowedSsrfSubnets { get; }
+
+    // Process & Extraction Timeouts & Storage
+    int CustomScriptTimeoutSeconds { get; }
+
+    int ArchiveExtractionTimeoutMinutes { get; }
+
+    string ExtractorTempDir { get; }
+
+    // Torznab & Search Limits
+    int TorznabDefaultPageSize { get; }
+
+    int TorznabMaxPageSize { get; }
 }
 
 public class ConfigService : IConfigService
@@ -1231,6 +1243,18 @@ public class ConfigService : IConfigService
     public string AllowedSsrfHostnames => this.GetValue("AllowedSsrfHostnames", string.Empty);
 
     public string AllowedSsrfSubnets => this.GetValue("AllowedSsrfSubnets", string.Empty);
+
+    // Process & Extraction Timeouts & Storage
+    public int CustomScriptTimeoutSeconds => this.GetValueInt("CustomScriptTimeoutSeconds", 60);
+
+    public int ArchiveExtractionTimeoutMinutes => this.GetValueInt("ArchiveExtractionTimeoutMinutes", 30);
+
+    public string ExtractorTempDir => this.GetValue("ExtractorTempDir", string.Empty);
+
+    // Torznab & Search Limits
+    public int TorznabDefaultPageSize => this.GetValueInt("TorznabDefaultPageSize", 50);
+
+    public int TorznabMaxPageSize => this.GetValueInt("TorznabMaxPageSize", 100);
 }
 
 public class ConfigSavedEvent : IEvent

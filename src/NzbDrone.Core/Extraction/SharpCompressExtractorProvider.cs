@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.Configuration;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 
@@ -18,6 +19,8 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
     public const int DefaultBufferSize = 128 * 1024; // 128 KB high-throughput chunk buffer
 
     private readonly IDiskProvider diskProvider;
+    private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
     private readonly int bufferSize;
     private readonly Logger logger;
 
@@ -50,9 +53,15 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         SupportsRecoveryVolumes = false,
     };
 
-    public SharpCompressExtractorProvider(IDiskProvider diskProvider, int bufferSize = DefaultBufferSize)
+    public SharpCompressExtractorProvider(
+        IDiskProvider diskProvider,
+        IConfigService configService = null,
+        IConfigFileProvider configFileProvider = null,
+        int bufferSize = DefaultBufferSize)
     {
         this.diskProvider = diskProvider;
+        this.configService = configService;
+        this.configFileProvider = configFileProvider;
         this.bufferSize = bufferSize > 0 ? bufferSize : DefaultBufferSize;
         this.logger = LogManager.GetCurrentClassLogger();
     }
@@ -103,7 +112,16 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         var targetDir = destinationPath;
         if (string.IsNullOrWhiteSpace(targetDir))
         {
-            targetDir = Path.GetDirectoryName(archivePath) ?? "/tmp";
+            var dir = Path.GetDirectoryName(archivePath);
+            targetDir = !string.IsNullOrWhiteSpace(dir)
+                ? dir
+                : (!string.IsNullOrWhiteSpace(this.configService?.ExtractorTempDir)
+                    ? this.configService.ExtractorTempDir
+                    : (!string.IsNullOrWhiteSpace(this.configFileProvider?.ExtractorTempDir)
+                        ? this.configFileProvider.ExtractorTempDir
+                        : (!string.IsNullOrWhiteSpace(this.configService?.IncompleteDownloadDir)
+                            ? this.configService.IncompleteDownloadDir
+                            : Path.GetTempPath())));
         }
 
         this.diskProvider.EnsureFolder(targetDir);
