@@ -1038,6 +1038,148 @@ public class TorznabClientTest
     }
 
     [Test]
+    public void ParseCapabilitiesXml_TorznabDefaultXmlNamespace_ParsesCategoriesSearchModesAndLimits()
+    {
+        var torznabNamespaceXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps xmlns=""http://torznab.com/schemas/2015/feed"">
+  <server version=""1.0"" title=""TorznabTracker"" />
+  <limits default=""100"" max=""250"" />
+  <searching>
+    <search available=""yes"" supportedParams=""q"" />
+    <tv-search available=""yes"" supportedParams=""q,season,ep,imdbid,tvdbid"" />
+    <movie-search available=""yes"" supportedParams=""q,imdbid,tmdbid"" />
+    <music-search available=""no"" supportedParams=""q"" />
+    <book-search available=""yes"" supportedParams=""q,author"" />
+  </searching>
+  <categories>
+    <category id=""2000"" name=""Movies"">
+      <subcat id=""2010"" name=""Movies/Foreign"" />
+      <subcat id=""2040"" name=""Movies/HD"" />
+      <subcat id=""2045"" name=""Movies/UHD"" />
+    </category>
+    <category id=""5000"" name=""TV"">
+      <subcat id=""5030"" name=""TV/SD"" />
+      <subcat id=""5040"" name=""TV/HD"" />
+    </category>
+    <category id=""7000"" name=""Books"">
+      <subcat id=""7020"" name=""EBook"" />
+    </category>
+  </categories>
+</caps>";
+
+        var caps = this.client.ParseCapabilitiesXml(torznabNamespaceXml);
+
+        caps.Should().NotBeNull();
+        caps.DefaultPageSize.Should().Be(100);
+        caps.MaxPageSize.Should().Be(250);
+
+        caps.SupportsSearch.Should().BeTrue();
+        caps.SupportsTvSearch.Should().BeTrue();
+        caps.SupportedTvParams.Should().Contain(new[] { "q", "season", "ep", "imdbid", "tvdbid" });
+        caps.SupportsMovieSearch.Should().BeTrue();
+        caps.SupportedMovieParams.Should().Contain(new[] { "q", "imdbid", "tmdbid" });
+        caps.SupportsMusicSearch.Should().BeFalse();
+        caps.SupportsBookSearch.Should().BeTrue();
+        caps.SupportedBookParams.Should().Contain(new[] { "q", "author" });
+
+        caps.Categories.Should().HaveCount(3);
+        var movies = caps.Categories.FirstOrDefault(c => c.Id == 2000);
+        movies.Should().NotBeNull();
+        movies!.Name.Should().Be("Movies");
+        movies.SubCategories.Should().HaveCount(3);
+        movies.SubCategories.Select(s => s.Id).Should().Contain(new[] { 2010, 2040, 2045 });
+
+        var tv = caps.Categories.FirstOrDefault(c => c.Id == 5000);
+        tv.Should().NotBeNull();
+        tv!.Name.Should().Be("TV");
+        tv.SubCategories.Should().HaveCount(2);
+
+        var books = caps.Categories.FirstOrDefault(c => c.Id == 7000);
+        books.Should().NotBeNull();
+        books!.Name.Should().Be("Books");
+        books.SubCategories.Should().HaveCount(1);
+        books.SubCategories[0].Id.Should().Be(7020);
+        books.SubCategories[0].Name.Should().Be("EBook");
+    }
+
+    [Test]
+    public void ParseCapabilitiesXml_NewznabDefaultXmlNamespace_ParsesCategoriesSearchModesAndLimits()
+    {
+        var newznabNamespaceXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps xmlns=""http://www.newznab.com/DTD/2010/feeds/attributes/"">
+  <limits default=""40"" max=""120"" />
+  <searching>
+    <search available=""yes"" />
+    <tv-search available=""yes"" supportedParams=""q,season,ep"" />
+    <movie-search available=""no"" />
+  </searching>
+  <categories>
+    <category id=""1000"" name=""Console"">
+      <subcategory id=""1010"" name=""NDS"" />
+      <subcategory id=""1020"" name=""PSP"" />
+    </category>
+    <category id=""4000"" name=""PC"">
+      <subcategory id=""4010"" name=""0day"" />
+    </category>
+  </categories>
+</caps>";
+
+        var caps = this.client.ParseCapabilitiesXml(newznabNamespaceXml);
+
+        caps.Should().NotBeNull();
+        caps.DefaultPageSize.Should().Be(40);
+        caps.MaxPageSize.Should().Be(120);
+        caps.SupportsSearch.Should().BeTrue();
+        caps.SupportsTvSearch.Should().BeTrue();
+        caps.SupportsMovieSearch.Should().BeFalse();
+
+        caps.Categories.Should().HaveCount(2);
+        caps.Categories[0].Id.Should().Be(1000);
+        caps.Categories[0].Name.Should().Be("Console");
+        caps.Categories[0].SubCategories.Should().HaveCount(2);
+        caps.Categories[0].SubCategories[0].Id.Should().Be(1010);
+        caps.Categories[0].SubCategories[0].Name.Should().Be("NDS");
+
+        caps.Categories[1].Id.Should().Be(4000);
+        caps.Categories[1].Name.Should().Be("PC");
+        caps.Categories[1].SubCategories.Should().HaveCount(1);
+    }
+
+    [Test]
+    public void ParseCapabilitiesXml_EnvelopedInsideResponseWithDefaultNamespace_ParsesCorrectly()
+    {
+        var envelopedXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<response xmlns=""http://torznab.com/schemas/2015/feed"">
+  <caps>
+    <server version=""1.0"" title=""EnvelopedTracker"" />
+    <limits default=""25"" max=""75"" />
+    <searching>
+      <search available=""1"" />
+      <audio-search available=""1"" supportedParams=""q,artist"" />
+    </searching>
+    <categories>
+      <category id=""3000"" name=""Audio"">
+        <subcat id=""3010"" name=""MP3"" />
+        <subcat id=""3040"" name=""Lossless"" />
+      </category>
+    </categories>
+  </caps>
+</response>";
+
+        var caps = this.client.ParseCapabilitiesXml(envelopedXml);
+
+        caps.Should().NotBeNull();
+        caps.DefaultPageSize.Should().Be(25);
+        caps.MaxPageSize.Should().Be(75);
+        caps.SupportsSearch.Should().BeTrue();
+        caps.SupportsMusicSearch.Should().BeTrue();
+        caps.SupportedMusicParams.Should().Contain(new[] { "q", "artist" });
+        caps.Categories.Should().HaveCount(1);
+        caps.Categories[0].Id.Should().Be(3000);
+        caps.Categories[0].SubCategories.Should().HaveCount(2);
+    }
+
+    [Test]
     public async Task SearchAsync_WithNewznabUsenetParameters_BuildsCorrectQueryString()
     {
         Uri capturedUri = null!;

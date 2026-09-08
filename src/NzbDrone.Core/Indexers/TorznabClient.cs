@@ -990,19 +990,23 @@ public class TorznabClient : ITorznabClient
         {
             var doc = SafeParseXml(xml);
 
-            var capsElem = doc.Root;
-            if (capsElem == null)
+            var root = doc.Root;
+            if (root == null)
             {
                 return capabilities;
             }
+
+            var capsElem = root.Name.LocalName.Equals("caps", StringComparison.OrdinalIgnoreCase)
+                ? root
+                : (FindDescendant(root, "caps") ?? root);
 
             // Limits
             var limitsElem = FindElement(capsElem, "limits") ?? FindElement(capsElem, "server")
                 ?? FindDescendant(capsElem, "limits") ?? FindDescendant(capsElem, "server");
             if (limitsElem != null)
             {
-                var defaultAttr = GetAttributeValue(limitsElem, "default");
-                var maxAttr = GetAttributeValue(limitsElem, "max");
+                var defaultAttr = GetAttributeValue(limitsElem, "default") ?? FindElement(limitsElem, "default")?.Value;
+                var maxAttr = GetAttributeValue(limitsElem, "max") ?? FindElement(limitsElem, "max")?.Value;
                 if (!string.IsNullOrEmpty(defaultAttr))
                 {
                     capabilities.DefaultPageSize = ParseInt(defaultAttr, capabilities.DefaultPageSize);
@@ -1021,50 +1025,51 @@ public class TorznabClient : ITorznabClient
                 var searchMode = FindElement(searchingElem, "search");
                 if (searchMode != null)
                 {
-                    capabilities.SupportsSearch = string.Equals(GetAttributeValue(searchMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
+                    capabilities.SupportsSearch = IsAvailable(searchMode);
                 }
 
                 var tvMode = FindElement(searchingElem, "tv-search") ?? FindElement(searchingElem, "tvsearch");
                 if (tvMode != null)
                 {
-                    capabilities.SupportsTvSearch = string.Equals(GetAttributeValue(tvMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
-                    var tvParams = GetAttributeValue(tvMode, "supportedParams");
-                    if (!string.IsNullOrEmpty(tvParams))
+                    capabilities.SupportsTvSearch = IsAvailable(tvMode);
+                    var tvParams = ParseSupportedParams(tvMode);
+                    if (tvParams.Count > 0)
                     {
-                        capabilities.SupportedTvParams = tvParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                        capabilities.SupportedTvParams = tvParams;
                     }
                 }
 
                 var movieMode = FindElement(searchingElem, "movie-search") ?? FindElement(searchingElem, "moviesearch");
                 if (movieMode != null)
                 {
-                    capabilities.SupportsMovieSearch = string.Equals(GetAttributeValue(movieMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
-                    var movieParams = GetAttributeValue(movieMode, "supportedParams");
-                    if (!string.IsNullOrEmpty(movieParams))
+                    capabilities.SupportsMovieSearch = IsAvailable(movieMode);
+                    var movieParams = ParseSupportedParams(movieMode);
+                    if (movieParams.Count > 0)
                     {
-                        capabilities.SupportedMovieParams = movieParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                        capabilities.SupportedMovieParams = movieParams;
                     }
                 }
 
-                var musicMode = FindElement(searchingElem, "music-search") ?? FindElement(searchingElem, "musicsearch");
+                var musicMode = FindElement(searchingElem, "music-search") ?? FindElement(searchingElem, "musicsearch")
+                    ?? FindElement(searchingElem, "audio-search") ?? FindElement(searchingElem, "audiosearch");
                 if (musicMode != null)
                 {
-                    capabilities.SupportsMusicSearch = string.Equals(GetAttributeValue(musicMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
-                    var musicParams = GetAttributeValue(musicMode, "supportedParams");
-                    if (!string.IsNullOrEmpty(musicParams))
+                    capabilities.SupportsMusicSearch = IsAvailable(musicMode);
+                    var musicParams = ParseSupportedParams(musicMode);
+                    if (musicParams.Count > 0)
                     {
-                        capabilities.SupportedMusicParams = musicParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                        capabilities.SupportedMusicParams = musicParams;
                     }
                 }
 
                 var bookMode = FindElement(searchingElem, "book-search") ?? FindElement(searchingElem, "booksearch");
                 if (bookMode != null)
                 {
-                    capabilities.SupportsBookSearch = string.Equals(GetAttributeValue(bookMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
-                    var bookParams = GetAttributeValue(bookMode, "supportedParams");
-                    if (!string.IsNullOrEmpty(bookParams))
+                    capabilities.SupportsBookSearch = IsAvailable(bookMode);
+                    var bookParams = ParseSupportedParams(bookMode);
+                    if (bookParams.Count > 0)
                     {
-                        capabilities.SupportedBookParams = bookParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                        capabilities.SupportedBookParams = bookParams;
                     }
                 }
             }
@@ -1075,8 +1080,8 @@ public class TorznabClient : ITorznabClient
             {
                 foreach (var catElem in FindElements(categoriesElem, "category"))
                 {
-                    var idStr = GetAttributeValue(catElem, "id");
-                    var name = WebUtility.HtmlDecode(GetAttributeValue(catElem, "name") ?? string.Empty);
+                    var idStr = GetAttributeValue(catElem, "id") ?? FindElement(catElem, "id")?.Value;
+                    var name = WebUtility.HtmlDecode(GetAttributeValue(catElem, "name") ?? FindElement(catElem, "name")?.Value ?? string.Empty);
                     var id = ParseInt(idStr, -1);
                     if (id < 0)
                     {
@@ -1092,8 +1097,8 @@ public class TorznabClient : ITorznabClient
                     var subcats = FindElements(catElem, "subcat").Concat(FindElements(catElem, "subcategory"));
                     foreach (var subcatElem in subcats)
                     {
-                        var subIdStr = GetAttributeValue(subcatElem, "id");
-                        var subName = WebUtility.HtmlDecode(GetAttributeValue(subcatElem, "name") ?? string.Empty);
+                        var subIdStr = GetAttributeValue(subcatElem, "id") ?? FindElement(subcatElem, "id")?.Value;
+                        var subName = WebUtility.HtmlDecode(GetAttributeValue(subcatElem, "name") ?? FindElement(subcatElem, "name")?.Value ?? string.Empty);
                         var subId = ParseInt(subIdStr, -1);
                         if (subId >= 0)
                         {
@@ -1257,6 +1262,30 @@ public class TorznabClient : ITorznabClient
         }
 
         return container.Elements().Where(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsAvailable(XElement elem)
+    {
+        if (elem == null)
+        {
+            return false;
+        }
+
+        var val = GetAttributeValue(elem, "available");
+        return string.Equals(val, "yes", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(val, "1", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<string> ParseSupportedParams(XElement elem)
+    {
+        var val = GetAttributeValue(elem, "supportedParams") ?? FindElement(elem, "supportedParams")?.Value;
+        if (string.IsNullOrWhiteSpace(val))
+        {
+            return new List<string>();
+        }
+
+        return val.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     }
 
     private static void MergeQueryParams(UriBuilder uriBuilder, string queryParams)
