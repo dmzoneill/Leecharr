@@ -352,8 +352,8 @@ public class TorznabClient : ITorznabClient
                 this.logger.Warn(
                     "Torznab indexer '{0}' returned error code {1}: {2}",
                     indexer?.Name ?? "Unknown",
-                    errorElem.Attribute("code")?.Value ?? "unknown",
-                    WebUtility.HtmlDecode(errorElem.Attribute("description")?.Value ?? errorElem.Value));
+                    GetAttributeValue(errorElem, "code") ?? "unknown",
+                    WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? errorElem.Value));
                 return results;
             }
 
@@ -371,11 +371,11 @@ public class TorznabClient : ITorznabClient
                 var guid = WebUtility.HtmlDecode(rawGuid?.Trim() ?? string.Empty);
 
                 var linkElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase));
-                var rawLink = linkElem?.Value ?? linkElem?.Attribute("href")?.Value ?? string.Empty;
+                var rawLink = linkElem?.Value ?? GetAttributeValue(linkElem, "href") ?? string.Empty;
                 var link = WebUtility.HtmlDecode(rawLink?.Trim() ?? string.Empty);
 
                 var enclosure = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("enclosure", StringComparison.OrdinalIgnoreCase));
-                var enclosureUrl = enclosure?.Attribute("url")?.Value;
+                var enclosureUrl = GetAttributeValue(enclosure, "url");
                 var downloadUrl = !string.IsNullOrWhiteSpace(enclosureUrl) ? WebUtility.HtmlDecode(enclosureUrl.Trim()) : link;
 
                 var rawDescription = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -393,9 +393,10 @@ public class TorznabClient : ITorznabClient
                 var publishDate = ParsePublishDate(pubDateStr);
 
                 long size = 0;
-                if (enclosure != null && !string.IsNullOrWhiteSpace(enclosure.Attribute("length")?.Value))
+                var enclosureLength = GetAttributeValue(enclosure, "length");
+                if (enclosure != null && !string.IsNullOrWhiteSpace(enclosureLength))
                 {
-                    size = ParseLong(enclosure.Attribute("length")?.Value);
+                    size = ParseLong(enclosureLength);
                 }
                 else
                 {
@@ -411,7 +412,8 @@ public class TorznabClient : ITorznabClient
                 int? rawPeers = null;
                 var downloadVolumeFactor = 1.0;
                 var uploadVolumeFactor = 1.0;
-                var isFreeleechAttr = false;
+                var hasFreeleechFlag = false;
+                double? explicitDownloadVolumeFactor = null;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
                 double? minimumRatio = null;
@@ -420,13 +422,13 @@ public class TorznabClient : ITorznabClient
 
                 foreach (var catElem in item.Elements().Where(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase)))
                 {
-                    var catId = catElem.Attribute("id")?.Value?.Trim() ?? catElem.Attribute("domain")?.Value?.Trim();
+                    var catId = GetAttributeValue(catElem, "id")?.Trim() ?? GetAttributeValue(catElem, "domain")?.Trim();
                     if (!string.IsNullOrWhiteSpace(catId))
                     {
                         categories.Add(WebUtility.HtmlDecode(catId));
                     }
 
-                    var catName = catElem.Attribute("name")?.Value?.Trim();
+                    var catName = GetAttributeValue(catElem, "name")?.Trim();
                     if (!string.IsNullOrWhiteSpace(catName))
                     {
                         categories.Add(WebUtility.HtmlDecode(catName));
@@ -446,8 +448,7 @@ public class TorznabClient : ITorznabClient
                     if (string.Equals(flVal, "1", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(flVal, "true", StringComparison.OrdinalIgnoreCase))
                     {
-                        isFreeleechAttr = true;
-                        downloadVolumeFactor = 0.0;
+                        hasFreeleechFlag = true;
                     }
                 }
 
@@ -457,8 +458,8 @@ public class TorznabClient : ITorznabClient
 
                 foreach (var attr in attrElements.Distinct())
                 {
-                    var name = attr.Attribute("name")?.Value?.ToLowerInvariant();
-                    var value = attr.Attribute("value")?.Value ?? attr.Value;
+                    var name = GetAttributeValue(attr, "name")?.ToLowerInvariant();
+                    var value = GetAttributeValue(attr, "value") ?? attr.Value;
 
                     switch (name)
                     {
@@ -482,17 +483,12 @@ public class TorznabClient : ITorznabClient
                             if (string.Equals(trimmedVal, "1", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(trimmedVal, "true", StringComparison.OrdinalIgnoreCase))
                             {
-                                isFreeleechAttr = true;
-                                downloadVolumeFactor = 0.0;
+                                hasFreeleechFlag = true;
                             }
 
                             break;
                         case "downloadvolumefactor":
-                            if (!isFreeleechAttr)
-                            {
-                                downloadVolumeFactor = ParseDouble(value, downloadVolumeFactor);
-                            }
-
+                            explicitDownloadVolumeFactor = ParseDouble(value, 1.0);
                             break;
                         case "uploadvolumefactor":
                             uploadVolumeFactor = ParseDouble(value, uploadVolumeFactor);
@@ -519,6 +515,15 @@ public class TorznabClient : ITorznabClient
 
                             break;
                     }
+                }
+
+                if (explicitDownloadVolumeFactor.HasValue)
+                {
+                    downloadVolumeFactor = explicitDownloadVolumeFactor.Value;
+                }
+                else if (hasFreeleechFlag)
+                {
+                    downloadVolumeFactor = 0.0;
                 }
 
                 var leechers = rawLeechers.HasValue
@@ -768,7 +773,8 @@ public class TorznabClient : ITorznabClient
             return defaultValue;
         }
 
-        var match = Regex.Match(value, @"-?\d+(?:\.\d+)?");
+        var normalized = value.Trim().Replace(',', '.');
+        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?");
         if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -784,7 +790,8 @@ public class TorznabClient : ITorznabClient
             return null;
         }
 
-        var match = Regex.Match(value, @"-?\d+(?:\.\d+)?");
+        var normalized = value.Trim().Replace(',', '.');
+        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?");
         if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -1029,8 +1036,8 @@ public class TorznabClient : ITorznabClient
                 {
                     var doc = SafeParseXml(capsContent);
                     var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
-                    var code = errorElem?.Attribute("code")?.Value ?? "unknown";
-                    var desc = WebUtility.HtmlDecode(errorElem?.Attribute("description")?.Value ?? "Torznab error");
+                    var code = GetAttributeValue(errorElem, "code") ?? "unknown";
+                    var desc = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? "Torznab error");
                     return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
                 }
 
@@ -1076,8 +1083,8 @@ public class TorznabClient : ITorznabClient
             {
                 var doc = SafeParseXml(searchContent);
                 var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
-                var code = errorElem?.Attribute("code")?.Value ?? "unknown";
-                var desc = WebUtility.HtmlDecode(errorElem?.Attribute("description")?.Value ?? "Torznab error");
+                var code = GetAttributeValue(errorElem, "code") ?? "unknown";
+                var desc = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? "Torznab error");
                 return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
             }
 
@@ -1102,6 +1109,21 @@ public class TorznabClient : ITorznabClient
         return $"{cleanUrl}|{cleanKey}";
     }
 
+    internal static XAttribute FindAttribute(XElement elem, string localName)
+    {
+        if (elem == null)
+        {
+            return null;
+        }
+
+        return elem.Attributes().FirstOrDefault(a => string.Equals(a.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static string GetAttributeValue(XElement elem, string localName)
+    {
+        return FindAttribute(elem, localName)?.Value;
+    }
+
     private static XElement FindElement(XContainer container, string localName)
     {
         return container?.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
@@ -1120,16 +1142,6 @@ public class TorznabClient : ITorznabClient
         }
 
         return container.Elements().Where(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string GetAttributeValue(XElement elem, string localName)
-    {
-        if (elem == null)
-        {
-            return null;
-        }
-
-        return elem.Attributes().FirstOrDefault(a => string.Equals(a.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
     private static void MergeQueryParams(UriBuilder uriBuilder, string queryParams)

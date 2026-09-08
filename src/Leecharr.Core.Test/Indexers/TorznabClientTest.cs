@@ -1071,6 +1071,97 @@ public class TorznabClientTest
         capturedUri.Query.Should().Contain("imdbid=1375666");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_CaseInsensitiveAttributes_ParsesCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Case Insensitive Attr Test</title>
+      <guid>12345</guid>
+      <enclosure URL=""https://tracker.local/dl.torrent"" LENGTH=""5000000000"" TYPE=""application/x-bittorrent"" />
+      <category ID=""2000"" NAME=""Movies/HD"" />
+      <torznab:attr NAME=""Seeders"" VALUE=""88""/>
+      <torznab:attr NAME=""LEECHERS"" VALUE=""12""/>
+      <torznab:attr Name=""DOWNLOADVOLUMEFACTOR"" Value=""0.5""/>
+      <torznab:attr Name=""UploadVolumeFactor"" Value=""2.0""/>
+      <torznab:attr Name=""INFOHASH"" Value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        var r = results[0];
+        r.DownloadUrl.Should().Be("https://tracker.local/dl.torrent");
+        r.Size.Should().Be(5000000000L);
+        r.Seeders.Should().Be(88);
+        r.Leechers.Should().Be(12);
+        r.DownloadVolumeFactor.Should().Be(0.5);
+        r.UploadVolumeFactor.Should().Be(2.0);
+        r.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
+        r.Category.Should().Contain("2000");
+        r.Category.Should().Contain("Movies/HD");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_ExplicitDownloadVolumeFactor_TakesPrecedenceOverFreeleechFlag()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Precedence Test 1</title>
+      <freeleech>1</freeleech>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""freeleech"" value=""1""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
+    </item>
+    <item>
+      <title>Precedence Test 2</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""0.75""/>
+      <torznab:attr name=""freeleech"" value=""1""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(2);
+        results[0].DownloadVolumeFactor.Should().Be(0.5);
+        results[0].IsFreeleech.Should().BeFalse();
+
+        results[1].DownloadVolumeFactor.Should().Be(0.75);
+        results[1].IsFreeleech.Should().BeFalse();
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_CommaDecimalSeparators_ParsesDoubleCorrectly()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Comma Decimal Separator Test</title>
+      <torznab:attr name=""seeders"" value=""20""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""0,5""/>
+      <torznab:attr name=""uploadvolumefactor"" value=""1,5""/>
+      <torznab:attr name=""minimumratio"" value=""1,25""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+
+        results.Should().HaveCount(1);
+        results[0].DownloadVolumeFactor.Should().Be(0.5);
+        results[0].UploadVolumeFactor.Should().Be(1.5);
+        results[0].MinimumRatio.Should().Be(1.25);
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
