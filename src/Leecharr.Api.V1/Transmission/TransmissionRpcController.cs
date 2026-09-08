@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -65,6 +67,8 @@ public class TransmissionRpcController : ControllerBase
     private readonly IDiskProvider diskProvider;
     private readonly IDownloadEngine downloadEngine;
     private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IBlocklistUpdateService blocklistUpdateService;
+    private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public static void RecordRemovedId(int id)
@@ -124,7 +128,9 @@ public class TransmissionRpcController : ControllerBase
         IConfigFileProvider configFileProvider = null,
         IDiskProvider diskProvider = null,
         IDownloadEngine downloadEngine = null,
-        ITrackerEntryRepository trackerEntryRepository = null)
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IBlocklistUpdateService blocklistUpdateService = null,
+        IBlocklistService blocklistService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -136,6 +142,8 @@ public class TransmissionRpcController : ControllerBase
         this.diskProvider = diskProvider;
         this.downloadEngine = downloadEngine;
         this.trackerEntryRepository = trackerEntryRepository;
+        this.blocklistUpdateService = blocklistUpdateService;
+        this.blocklistService = blocklistService;
     }
 
     [HttpGet]
@@ -188,7 +196,22 @@ public class TransmissionRpcController : ControllerBase
             return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = null });
         }
 
-        var tag = request.Tag.ValueKind != JsonValueKind.Undefined ? (object)request.Tag : 1;
+        object tag = null;
+        if (request.Tag.ValueKind != JsonValueKind.Undefined && request.Tag.ValueKind != JsonValueKind.Null)
+        {
+            if (request.Tag.ValueKind == JsonValueKind.Number && request.Tag.TryGetInt64(out var tagNum))
+            {
+                tag = tagNum;
+            }
+            else if (request.Tag.ValueKind == JsonValueKind.String)
+            {
+                tag = request.Tag.GetString();
+            }
+            else
+            {
+                tag = request.Tag;
+            }
+        }
 
         try
         {
@@ -216,6 +239,9 @@ public class TransmissionRpcController : ControllerBase
                             { "alt-speed-down", this.configService.AltDownloadSpeedKbps },
                             { "alt-speed-up", this.configService.AltUploadSpeedKbps },
                             { "peer-port", this.configService.ListeningPort },
+                            { "blocklist-enabled", this.configService.BlocklistEnabled },
+                            { "blocklist-size", this.blocklistService?.TotalRulesLoaded ?? 0 },
+                            { "blocklist-url", this.configService.BlocklistUrl ?? string.Empty },
                             { "script-torrent-done-filename", this.configService.ScriptTorrentDoneFilename ?? string.Empty },
                             { "script-torrent-done-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename) },
                             { "script-torrent-added-filename", this.configService.ScriptTorrentAddedFilename ?? string.Empty },
@@ -298,6 +324,16 @@ public class TransmissionRpcController : ControllerBase
                         if (request.Arguments.TryGetValue("peer-port", out var peerPort) && peerPort.ValueKind == JsonValueKind.Number)
                         {
                             updates["ListeningPort"] = peerPort.GetInt32();
+                        }
+
+                        if (request.Arguments.TryGetValue("blocklist-enabled", out var blEn))
+                        {
+                            updates["BlocklistEnabled"] = SafeGetBoolean(blEn);
+                        }
+
+                        if (request.Arguments.TryGetValue("blocklist-url", out var blUrl) && blUrl.ValueKind == JsonValueKind.String)
+                        {
+                            updates["BlocklistUrl"] = blUrl.GetString();
                         }
 
                         if (request.Arguments.TryGetValue("script-torrent-done-filename", out var doneFile) && doneFile.ValueKind == JsonValueKind.String)
@@ -425,6 +461,11 @@ public class TransmissionRpcController : ControllerBase
                         var t = this.torrentService.Get(id);
                         if (t != null)
                         {
+                            if (request.Arguments.TryGetValue("bandwidthPriority", out var bpVal) && bpVal.ValueKind == JsonValueKind.Number)
+                            {
+                                t.Priority = bpVal.GetInt32();
+                            }
+
                             if (request.Arguments.TryGetValue("labels", out var lblVal) && lblVal.ValueKind == JsonValueKind.Array)
                             {
                                 var lbls = lblVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
@@ -557,6 +598,140 @@ public class TransmissionRpcController : ControllerBase
                                         {
                                             await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
                                         }
+                                    }
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("trackerAdd", out var trackerAddVal) && trackerAddVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var addedUrls = new List<string>();
+                                foreach (var item in trackerAddVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.String)
+                                    {
+                                        var url = item.GetString();
+                                        if (!string.IsNullOrWhiteSpace(url))
+                                        {
+                                            addedUrls.Add(url);
+                                            if (this.trackerEntryRepository != null)
+                                            {
+                                                var existing = this.trackerEntryRepository.GetByTorrentId(t.Id)?.FirstOrDefault(x => string.Equals(x.Url, url, StringComparison.OrdinalIgnoreCase));
+                                                if (existing == null)
+                                                {
+                                                    this.trackerEntryRepository.Insert(new TrackerEntry
+                                                    {
+                                                        TorrentId = t.Id,
+                                                        Url = url,
+                                                        Tier = 0,
+                                                        Enabled = true,
+                                                    });
+                                                }
+                                            }
+
+                                            if (string.IsNullOrWhiteSpace(t.TrackerUrl))
+                                            {
+                                                t.TrackerUrl = url;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (addedUrls.Count > 0 && this.downloadEngine != null)
+                                {
+                                    await this.downloadEngine.AddTrackersAsync(t.Id, addedUrls);
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("trackerRemove", out var trackerRemoveVal) && trackerRemoveVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var removedUrls = new List<string>();
+                                foreach (var item in trackerRemoveVal.EnumerateArray())
+                                {
+                                    if (item.ValueKind == JsonValueKind.Number)
+                                    {
+                                        var trkId = item.GetInt32();
+                                        var tracker = this.trackerEntryRepository?.Get(trkId);
+                                        if (tracker == null && this.trackerEntryRepository != null)
+                                        {
+                                            var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
+                                            tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                                        }
+
+                                        if (tracker != null)
+                                        {
+                                            if (!string.IsNullOrWhiteSpace(tracker.Url))
+                                            {
+                                                removedUrls.Add(tracker.Url);
+                                            }
+
+                                            this.trackerEntryRepository?.Delete(tracker.Id);
+                                        }
+                                        else if (trkId == 1 && !string.IsNullOrWhiteSpace(t.TrackerUrl))
+                                        {
+                                            removedUrls.Add(t.TrackerUrl);
+                                            t.TrackerUrl = string.Empty;
+                                        }
+                                    }
+                                }
+
+                                if (removedUrls.Count > 0 && this.downloadEngine != null)
+                                {
+                                    await this.downloadEngine.RemoveTrackersAsync(t.Id, removedUrls);
+                                }
+                            }
+
+                            if (request.Arguments.TryGetValue("trackerReplace", out var trackerReplaceVal) && trackerReplaceVal.ValueKind == JsonValueKind.Array)
+                            {
+                                var pairs = new List<(int Id, string NewUrl)>();
+                                if (trackerReplaceVal.GetArrayLength() == 2 && trackerReplaceVal[0].ValueKind == JsonValueKind.Number && trackerReplaceVal[1].ValueKind == JsonValueKind.String)
+                                {
+                                    pairs.Add((trackerReplaceVal[0].GetInt32(), trackerReplaceVal[1].GetString()));
+                                }
+                                else
+                                {
+                                    foreach (var pairElem in trackerReplaceVal.EnumerateArray())
+                                    {
+                                        if (pairElem.ValueKind == JsonValueKind.Array && pairElem.GetArrayLength() >= 2 &&
+                                            pairElem[0].ValueKind == JsonValueKind.Number && pairElem[1].ValueKind == JsonValueKind.String)
+                                        {
+                                            pairs.Add((pairElem[0].GetInt32(), pairElem[1].GetString()));
+                                        }
+                                    }
+                                }
+
+                                foreach (var (trkId, newUrl) in pairs)
+                                {
+                                    if (string.IsNullOrWhiteSpace(newUrl))
+                                    {
+                                        continue;
+                                    }
+
+                                    var tracker = this.trackerEntryRepository?.Get(trkId);
+                                    if (tracker == null && this.trackerEntryRepository != null)
+                                    {
+                                        var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
+                                        tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                                    }
+
+                                    if (tracker != null)
+                                    {
+                                        var oldUrl = tracker.Url;
+                                        tracker.Url = newUrl;
+                                        this.trackerEntryRepository?.Update(tracker);
+
+                                        if (this.downloadEngine != null)
+                                        {
+                                            if (!string.IsNullOrWhiteSpace(oldUrl))
+                                            {
+                                                await this.downloadEngine.RemoveTrackersAsync(t.Id, new[] { oldUrl });
+                                            }
+
+                                            await this.downloadEngine.AddTrackersAsync(t.Id, new[] { newUrl });
+                                        }
+                                    }
+                                    else
+                                    {
+                                        t.TrackerUrl = newUrl;
                                     }
                                 }
                             }
@@ -762,6 +937,34 @@ public class TransmissionRpcController : ControllerBase
                     {
                         Result = "success",
                         Arguments = new Dictionary<string, object> { { "port-is-open", true } },
+                        Tag = tag,
+                    });
+
+                case "blocklist-update":
+                    var blocklistSize = 0;
+                    if (this.blocklistUpdateService != null)
+                    {
+                        blocklistSize = await this.blocklistUpdateService.UpdateRulesAsync();
+                    }
+                    else if (this.blocklistService != null)
+                    {
+                        blocklistSize = this.blocklistService.TotalRulesLoaded;
+                    }
+
+                    return this.Ok(new TransmissionRpcResponse
+                    {
+                        Result = "success",
+                        Arguments = new Dictionary<string, object>
+                        {
+                            { "blocklist-size", blocklistSize },
+                        },
+                        Tag = tag,
+                    });
+
+                case "session-close":
+                    return this.Ok(new TransmissionRpcResponse
+                    {
+                        Result = "success",
                         Tag = tag,
                     });
 
@@ -996,18 +1199,19 @@ public class TransmissionRpcController : ControllerBase
         };
 
         var needsFiles = requestedFields == null || requestedFields.Count == 0 ||
-            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count") || requestedFields.Contains("sizeWhenDone") || requestedFields.Contains("leftUntilDone");
+            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count") || requestedFields.Contains("sizeWhenDone") || requestedFields.Contains("leftUntilDone") || requestedFields.Contains("wanted");
 
         List<Dictionary<string, object>> filesList;
         List<Dictionary<string, object>> fileStats;
         List<int> priorities;
+        List<int> wantedList;
         int fileCount;
         long sizeWhenDone;
 
         if (needsFiles)
         {
             var files = this.torrentFileService.GetFiles(t.Id).ToList();
-            var taskForFiles = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
+            var taskForFiles = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
             TorrentFileProgressEnricher.Enrich(t, files, taskForFiles);
 
             fileCount = files.Count;
@@ -1026,6 +1230,7 @@ public class TransmissionRpcController : ControllerBase
             }).ToList();
 
             priorities = files.Select(f => ToTransmissionPriority(f.Priority)).ToList();
+            wantedList = files.Select(f => f.Priority > 0 ? 1 : 0).ToList();
             sizeWhenDone = files.Count > 0 ? files.Where(f => f.Priority > 0).Sum(f => f.Size) : t.TotalSize;
         }
         else
@@ -1033,12 +1238,14 @@ public class TransmissionRpcController : ControllerBase
             filesList = new List<Dictionary<string, object>>();
             fileStats = new List<Dictionary<string, object>>();
             priorities = new List<int>();
+            wantedList = new List<int>();
             fileCount = 0;
             sizeWhenDone = t.TotalSize;
         }
 
         var haveValid = (long)(t.TotalSize * t.Progress);
         var leftUntilDone = Math.Max(0, sizeWhenDone - (long)(sizeWhenDone * t.Progress));
+        var desiredAvailable = t.Progress >= 1.0 ? 0L : Math.Max(0L, sizeWhenDone - haveValid);
 
         var labels = string.IsNullOrWhiteSpace(t.Category)
             ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
@@ -1048,6 +1255,7 @@ public class TransmissionRpcController : ControllerBase
         var secondsSeeding = t.SeedingTimeSeconds;
         var addedDate = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
         var doneDate = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+        var editDate = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedDate;
         var isError = t.Status == TorrentStatus.Error;
 
         var trackersList = new List<object>();
@@ -1130,8 +1338,43 @@ public class TransmissionRpcController : ControllerBase
             });
         }
 
+        var trackerListStr = string.Empty;
+        if (dbTrackers.Count > 0)
+        {
+            var tiers = dbTrackers.GroupBy(trk => trk.Tier).OrderBy(g => g.Key);
+            trackerListStr = string.Join("\n\n", tiers.Select(g => string.Join("\n", g.Select(trk => trk.Url).Where(u => !string.IsNullOrWhiteSpace(u)))));
+        }
+        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
+        {
+            trackerListStr = t.TrackerUrl;
+        }
+
+        var magnetBuilder = new StringBuilder();
+        magnetBuilder.Append("magnet:?xt=urn:btih:").Append(t.InfoHash ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(t.Name))
+        {
+            magnetBuilder.Append("&dn=").Append(Uri.EscapeDataString(t.Name));
+        }
+
+        if (dbTrackers.Count > 0)
+        {
+            foreach (var trk in dbTrackers)
+            {
+                if (!string.IsNullOrWhiteSpace(trk.Url))
+                {
+                    magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(trk.Url));
+                }
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
+        {
+            magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(t.TrackerUrl));
+        }
+
+        var magnetLink = magnetBuilder.ToString();
+
         var peersList = new List<object>();
-        var downloadTask = this.downloadEngine?.GetTask(t.Id);
+        var downloadTask = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
         var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
         foreach (var p in swarmPeers)
         {
@@ -1217,21 +1460,29 @@ public class TransmissionRpcController : ControllerBase
             { "hashString", t.InfoHash },
             { "status", statusNum },
             { "percentDone", t.Progress },
+            { "percentComplete", t.Progress },
             { "totalSize", t.TotalSize },
             { "sizeWhenDone", sizeWhenDone },
             { "leftUntilDone", leftUntilDone },
+            { "desiredAvailable", desiredAvailable },
             { "haveValid", haveValid },
             { "haveUnchecked", 0L },
+            { "corruptEver", 0L },
             { "downloadedEver", t.Downloaded },
             { "uploadedEver", t.Uploaded },
             { "rateDownload", t.DownloadSpeed },
             { "rateUpload", t.UploadSpeed },
             { "eta", t.Eta },
+            { "etaIdle", -1L },
             { "uploadRatio", t.Ratio },
             { "peersConnected", t.Seeders + t.Leechers },
             { "peersSendingToUs", t.Seeders },
             { "peersGettingFromUs", t.Leechers },
+            { "maxConnectedPeers", this.configService?.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50 },
             { "isFinished", t.Progress >= 1.0 },
+            { "isStalled", downloadTask?.IsStalled ?? false },
+            { "bandwidthPriority", t.Priority },
+            { "group", string.Empty },
             { "downloadDir", downloadDir },
             { "labels", labels },
             { "errorString", isError ? "Error" : string.Empty },
@@ -1240,6 +1491,8 @@ public class TransmissionRpcController : ControllerBase
             { "secondsSeeding", secondsSeeding },
             { "addedDate", addedDate },
             { "doneDate", doneDate },
+            { "editDate", editDate },
+            { "startDate", addedDate },
             { "activityDate", addedDate },
             { "queuePosition", t.QueuePosition },
             { "recheckProgress", t.Status == TorrentStatus.Checking ? t.Progress : 0.0 },
@@ -1258,8 +1511,15 @@ public class TransmissionRpcController : ControllerBase
             { "files", filesList },
             { "fileStats", fileStats },
             { "priorities", priorities },
+            { "wanted", wantedList },
+            { "webseeds", Array.Empty<string>() },
             { "trackers", trackersList },
             { "trackerStats", trackerStatsList },
+            { "trackerList", trackerListStr },
+            { "magnetLink", magnetLink },
+            { "manualAnnounceTime", 0L },
+            { "metadataPercentComplete", 1.0 },
+            { "torrentFile", string.Empty },
             { "peers", peersList },
             { "peersFrom", new { fromCache = 0, fromDht = 0, fromIncoming = 0, fromLpd = 0, fromPex = 0, fromTracker = t.Seeders + t.Leechers } },
             { "pieceCount", pieceCount },
