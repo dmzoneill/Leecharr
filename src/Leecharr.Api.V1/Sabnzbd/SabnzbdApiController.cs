@@ -179,7 +179,7 @@ public class SabnzbdApiController : ControllerBase
 
                 if (queueSubAction == "delete")
                 {
-                    var target = this.torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                     if (target != null)
                     {
                         await this.torrentService.DeleteAsync(target.Id, delFiles);
@@ -198,7 +198,7 @@ public class SabnzbdApiController : ControllerBase
                     }
                     else
                     {
-                        var target = this.torrentService.GetByInfoHash(queueVal);
+                        var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                         if (target != null)
                         {
                             await this.torrentService.PauseAsync(target.Id);
@@ -218,7 +218,7 @@ public class SabnzbdApiController : ControllerBase
                     }
                     else
                     {
-                        var target = this.torrentService.GetByInfoHash(queueVal);
+                        var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                         if (target != null)
                         {
                             await this.torrentService.ResumeAsync(target.Id);
@@ -229,7 +229,7 @@ public class SabnzbdApiController : ControllerBase
                 }
                 else if (queueSubAction == "change_cat")
                 {
-                    var target = this.torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                     if (target != null && !string.IsNullOrWhiteSpace(queueVal2))
                     {
                         target.Category = queueVal2;
@@ -240,7 +240,7 @@ public class SabnzbdApiController : ControllerBase
                 }
                 else if (queueSubAction == "priority")
                 {
-                    var target = this.torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                     if (target != null)
                     {
                         var prioStr = !string.IsNullOrWhiteSpace(queueVal2)
@@ -258,7 +258,7 @@ public class SabnzbdApiController : ControllerBase
                 }
                 else if (queueSubAction.StartsWith("move_") || queueSubAction.StartsWith("move") || queueSubAction == "switch")
                 {
-                    var target = this.torrentService.GetByInfoHash(queueVal);
+                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
                     if (target != null)
                     {
                         if (queueSubAction.Contains("top") || queueVal2 == "0")
@@ -288,6 +288,8 @@ public class SabnzbdApiController : ControllerBase
                                 t.Status == TorrentStatus.Queued ||
                                 t.Status == TorrentStatus.Paused ||
                                 (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
+                    .OrderBy(t => t.QueuePosition)
+                    .ThenBy(t => t.DateAdded)
                     .Select(t =>
                     {
                         var remainingBytes = Math.Max(0, t.TotalSize - t.Downloaded);
@@ -365,7 +367,7 @@ public class SabnzbdApiController : ControllerBase
 
                 if (historySubAction == "delete")
                 {
-                    var target = this.torrentService.GetByInfoHash(historyVal);
+                    var target = this.torrentService.GetByInfoHash(CleanNzoId(historyVal));
                     if (target != null)
                     {
                         await this.torrentService.DeleteAsync(target.Id, histDelFiles);
@@ -377,6 +379,7 @@ public class SabnzbdApiController : ControllerBase
                 var nowUtc = DateTime.UtcNow;
                 var finishedTorrents = this.torrentService.GetAll()
                     .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
+                    .OrderByDescending(t => t.DateCompleted ?? t.DateAdded)
                     .Select(t =>
                     {
                         var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
@@ -553,7 +556,7 @@ public class SabnzbdApiController : ControllerBase
             case "pause":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var t = this.torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
                     if (t != null)
                     {
                         await this.torrentService.PauseAsync(t.Id);
@@ -572,7 +575,7 @@ public class SabnzbdApiController : ControllerBase
             case "resume":
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var t = this.torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
                     if (t != null)
                     {
                         await this.torrentService.ResumeAsync(t.Id);
@@ -592,7 +595,7 @@ public class SabnzbdApiController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     var directDelFiles = this.Request.Query["del_files"] == "1" || (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1");
-                    var t = this.torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
                     if (t != null)
                     {
                         await this.torrentService.DeleteAsync(t.Id, directDelFiles);
@@ -605,7 +608,7 @@ public class SabnzbdApiController : ControllerBase
             case "set_category":
                 if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(cat))
                 {
-                    var t = this.torrentService.GetByInfoHash(value);
+                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
                     if (t != null)
                     {
                         t.Category = cat;
@@ -624,7 +627,7 @@ public class SabnzbdApiController : ControllerBase
 
                 if (!string.IsNullOrWhiteSpace(directPrioVal))
                 {
-                    var t = this.torrentService.GetByInfoHash(directPrioVal);
+                    var t = this.torrentService.GetByInfoHash(CleanNzoId(directPrioVal));
                     if (t != null && TryParsePriority(directPrioVal2, out var directPrio))
                     {
                         t.Priority = directPrio;
@@ -751,4 +754,24 @@ public class SabnzbdApiController : ControllerBase
         (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) ||
         t.Status == TorrentStatus.Completed ||
         t.Status == TorrentStatus.Seeding;
+
+    private static string CleanNzoId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return id;
+        }
+
+        if (id.StartsWith("SABnzbd_nzo_", StringComparison.OrdinalIgnoreCase))
+        {
+            return id.Substring("SABnzbd_nzo_".Length);
+        }
+
+        if (id.StartsWith("nzo_", StringComparison.OrdinalIgnoreCase))
+        {
+            return id.Substring("nzo_".Length);
+        }
+
+        return id;
+    }
 }
