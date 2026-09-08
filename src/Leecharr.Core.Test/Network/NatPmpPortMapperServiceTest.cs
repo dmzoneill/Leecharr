@@ -5,6 +5,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -414,5 +415,293 @@ public class NatPmpPortMapperServiceTest
         var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(async () => await service.DisposeAsync())).ToArray();
         var act = async () => await Task.WhenAll(tasks);
         await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenPhysicalEthernetPresent_PrioritizesPhysicalGatewayOverDockerAndVirtualBridges()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "docker0",
+                Description: "Docker Bridge",
+                Id: "docker0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("172.17.0.1"), IPAddress.Parse("255.255.0.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("172.17.0.1") }),
+            new(
+                Name: "vboxnet0",
+                Description: "VirtualBox Host-Only Ethernet Adapter",
+                Id: "vboxnet0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.56.1"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.56.1") }),
+            new(
+                Name: "eth0",
+                Description: "Intel Ethernet Connection",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.100"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("192.168.1.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenWireless80211Present_PrioritizesOverHyperVAndWsl()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "vEthernet (WSL)",
+                Description: "Hyper-V Virtual Ethernet Adapter",
+                Id: "wsl0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("172.28.0.1"), IPAddress.Parse("255.255.240.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("172.28.0.1") }),
+            new(
+                Name: "wlan0",
+                Description: "Intel Wi-Fi 6 AX200",
+                Id: "wlan0",
+                InterfaceType: NetworkInterfaceType.Wireless80211,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("10.0.0.50"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("10.0.0.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("10.0.0.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WithBoundInterface_PrioritizesBoundInterfaceGateway()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "eth0",
+                Description: "Intel Ethernet",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.100"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }),
+            new(
+                Name: "tun0",
+                Description: "WireGuard Tunnel",
+                Id: "tun0",
+                InterfaceType: NetworkInterfaceType.Tunnel,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("10.8.0.2"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("10.8.0.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: "tun0");
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("10.8.0.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenOnlyVirtualCandidatesExist_FallsBackToNonDockerVirtualGateway()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "docker0",
+                Description: "Docker Bridge",
+                Id: "docker0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("172.17.0.1"), IPAddress.Parse("255.255.0.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("172.17.0.1") }),
+            new(
+                Name: "vmnet1",
+                Description: "VMware Network Adapter VMnet1",
+                Id: "vmnet1",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.100.1"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.100.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("192.168.100.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenOnlyDockerBridgeExists_FallsBackToDockerBridge()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "docker0",
+                Description: "Docker Bridge",
+                Id: "docker0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("172.17.0.2"), IPAddress.Parse("255.255.0.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("172.17.0.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("172.17.0.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_FiltersOutApipaAddresses()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "eth0",
+                Description: "Unconfigured Ethernet",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("169.254.10.20"), IPAddress.Parse("255.255.0.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("169.254.10.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().BeNull();
+    }
+
+    [Test]
+    public void SelectBestGateway_FiltersOutDownAndLoopbackInterfaces()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "lo",
+                Description: "Loopback Interface",
+                Id: "lo",
+                InterfaceType: NetworkInterfaceType.Loopback,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Loopback, IPAddress.Parse("255.0.0.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Loopback }),
+            new(
+                Name: "eth0",
+                Description: "Disconnected Ethernet",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Down,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.50"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().BeNull();
+    }
+
+    [Test]
+    public void SelectBestGateway_WithMultiplePhysicalAdapters_PrioritizesSubnetMatchingGateway()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "eth0",
+                Description: "Intel Ethernet 0",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("10.0.0.50"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("172.16.0.1") }), // Gateway not on subnet
+            new(
+                Name: "eth1",
+                Description: "Intel Ethernet 1",
+                Id: "eth1",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.50"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }), // Gateway matches subnet
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("192.168.1.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenNullOrEmpty_ReturnsNull()
+    {
+        NatPmpPortMapperService.SelectBestGateway(null).Should().BeNull();
+        NatPmpPortMapperService.SelectBestGateway(Enumerable.Empty<NatPmpNetworkInterfaceCandidate>()).Should().BeNull();
+    }
+
+    [Test]
+    [TestCase("docker0", "", true)]
+    [TestCase("veth9876", "", true)]
+    [TestCase("vmnet8", "", true)]
+    [TestCase("vboxnet0", "", true)]
+    [TestCase("eth0", "VirtualBox Host-Only Ethernet Adapter", true)]
+    [TestCase("eth0", "Hyper-V Virtual Ethernet Adapter", true)]
+    [TestCase("vEthernet (WSL)", "", true)]
+    [TestCase("virbr0", "", true)]
+    [TestCase("tailscale0", "", true)]
+    [TestCase("cni0", "", true)]
+    [TestCase("eth0", "Intel(R) Ethernet Connection I219-V", false)]
+    [TestCase("wlan0", "Intel(R) Wi-Fi 6 AX200 160MHz", false)]
+    [TestCase("enp3s0", "", false)]
+    public void IsVirtualInterfaceName_IdentifiesVirtualPatternsCorrectly(string name, string description, bool expected)
+    {
+        NatPmpPortMapperService.IsVirtualInterfaceName(name, description).Should().Be(expected);
+    }
+
+    [Test]
+    public void IsPhysicalInterfaceType_IdentifiesPhysicalTypes()
+    {
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.Ethernet).Should().BeTrue();
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.Wireless80211).Should().BeTrue();
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.GigabitEthernet).Should().BeTrue();
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.Tunnel).Should().BeFalse();
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.Ppp).Should().BeFalse();
+        NatPmpPortMapperService.IsPhysicalInterfaceType(NetworkInterfaceType.Loopback).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidIpv4UnicastAddress_And_IsValidGatewayAddress_ValidatesCorrectly()
+    {
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.Parse("192.168.1.50")).Should().BeTrue();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.Parse("10.0.0.1")).Should().BeTrue();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.Loopback).Should().BeFalse();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.Any).Should().BeFalse();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.None).Should().BeFalse();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.Parse("169.254.1.1")).Should().BeFalse();
+        NatPmpPortMapperService.IsValidIpv4UnicastAddress(IPAddress.IPv6Loopback).Should().BeFalse();
+
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.Parse("192.168.1.1")).Should().BeTrue();
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.Loopback).Should().BeFalse();
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.Any).Should().BeFalse();
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.None).Should().BeFalse();
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.Parse("169.254.1.1")).Should().BeFalse();
+        NatPmpPortMapperService.IsValidGatewayAddress(IPAddress.IPv6Loopback).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsInSameSubnet_CalculatesSubnetReachabilityCorrectly()
+    {
+        var mask = IPAddress.Parse("255.255.255.0");
+        NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("192.168.1.50"), IPAddress.Parse("192.168.1.1"), mask).Should().BeTrue();
+        NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("192.168.1.50"), IPAddress.Parse("192.168.2.1"), mask).Should().BeFalse();
+        NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("10.0.1.50"), IPAddress.Parse("10.0.2.1"), IPAddress.Parse("255.255.0.0")).Should().BeTrue();
+        NatPmpPortMapperService.IsInSameSubnet(IPAddress.Parse("10.0.1.50"), IPAddress.Parse("10.0.2.1"), IPAddress.Parse("0.0.0.0")).Should().BeFalse();
     }
 }
