@@ -61,9 +61,16 @@ public class LocalNfoMetadataProviderTest
     [TestCase("1917.2019.1080p", "1917")]
     [TestCase("1984.1956.720p", "1984")]
     [TestCase("2012.2009.1080p", "2012")]
+    [TestCase("Complete.Unknown.2016.1080p.BluRay", "Complete Unknown")]
+    [TestCase("Complete.Unknown.1080p.WEB-DL", "Complete Unknown")]
+    [TestCase("Internal.Affairs.1990.1080p.BluRay", "Internal Affairs")]
+    [TestCase("Internal.Affairs.720p.HDTV", "Internal Affairs")]
+    [TestCase("Gladiator.2000.INTERNAL.REPACK.1080p.BluRay", "Gladiator")]
+    [TestCase("The.Matrix.1999.PROPER.1080p.BluRay", "The Matrix")]
     public void CleanTitle_StripsEpisodicTagsAndYears(string raw, string expected)
     {
         LocalNfoMetadataProvider.CleanTitle(raw).Should().Be(expected);
+        TmdbMetadataProvider.CleanTitle(raw).Should().Be(expected);
     }
 
     [Test]

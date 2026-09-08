@@ -285,8 +285,16 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         }
 
         var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
-        cleaned = Regex.Replace(cleaned, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
-        cleaned = Regex.Replace(cleaned, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
+
+        // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+
+        // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty);
+
+        // Strip unambiguous quality/source/codec tags
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty);
+
         var year = ExtractYear(rawTitle);
         if (year > 0)
         {
