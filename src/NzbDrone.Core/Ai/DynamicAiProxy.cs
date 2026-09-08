@@ -113,6 +113,9 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             return true;
         }
 
+        AiProviderSwitchedEvent switchedEvent = null;
+        var success = false;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -132,8 +135,8 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             });
 
             this.logger.Info("AI provider hot-swapped: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            this.eventAggregator.PublishEvent(new AiProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
-            return true;
+            switchedEvent = new AiProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
+            success = true;
         }
         catch (Exception ex)
         {
@@ -144,6 +147,13 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return success;
     }
 
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)

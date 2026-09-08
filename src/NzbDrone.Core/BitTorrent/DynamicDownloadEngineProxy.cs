@@ -147,6 +147,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             };
         }
 
+        TorrentEngineSwitchedEvent switchedEvent = null;
+        EngineSwitchResult result;
+
         await this.switchLock.WaitAsync();
         var previousEngine = Volatile.Read(ref this.activeEngine);
         try
@@ -220,9 +223,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             this.logger.Info("Engine hot-swap completed: {0} -> {1} ({2} torrents migrated)", previousEngine.EngineId, targetEngine.EngineId, rehydrated);
 
             // 5. Broadcast event
-            this.eventAggregator.PublishEvent(new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated));
+            switchedEvent = new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated);
 
-            return new EngineSwitchResult
+            result = new EngineSwitchResult
             {
                 Success = true,
                 PreviousEngine = previousEngine.EngineId,
@@ -262,7 +265,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 Volatile.Write(ref this.activeEngine, previousEngine);
             }
 
-            return new EngineSwitchResult
+            result = new EngineSwitchResult
             {
                 Success = false,
                 PreviousEngine = previousEngine?.EngineId,
@@ -276,6 +279,13 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             this.migrationTcs?.TrySetResult();
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public bool IsHaltedByKillSwitch => this.GetActiveOrMigratingEngine()?.IsHaltedByKillSwitch ?? false;
