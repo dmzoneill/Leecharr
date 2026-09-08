@@ -102,22 +102,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [torrents, telemetry]);
 
+  const [timeframe, setTimeframe] = useState<"60s" | "5m" | "15m" | "1h" | "24h">("60s");
+
   const speedsRef = useRef({ dl: totalDlSpeed, ul: totalUlSpeed });
   speedsRef.current = { dl: totalDlSpeed, ul: totalUlSpeed };
 
-  // Track live speed history for graph
+  // Track live speed history for graph (retaining up to 24h of history)
   useEffect(() => {
     const interval = setInterval(() => {
+      const now = Date.now();
       setSpeedHistory((prev) => {
         const next = [
           ...prev,
           {
             dl: speedsRef.current.dl,
             ul: speedsRef.current.ul,
-            time: Date.now(),
+            time: now,
           },
         ];
-        return next.slice(-40); // Keep last 40 samples (approx 60s)
+        const cutoff = now - 24 * 60 * 60 * 1000;
+        return next.filter((p) => p.time >= cutoff);
       });
     }, 1500);
     return () => clearInterval(interval);
@@ -139,19 +143,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
   };
 
-  // Generate SVG path for speed chart
-  const maxSpeed = Math.max(
-    1024 * 1024,
-    ...speedHistory.map((h) => Math.max(h.dl, h.ul)),
+  const timeframeDurationMs = useMemo(() => {
+    switch (timeframe) {
+      case "5m":
+        return 5 * 60 * 1000;
+      case "15m":
+        return 15 * 60 * 1000;
+      case "1h":
+        return 60 * 60 * 1000;
+      case "24h":
+        return 24 * 60 * 60 * 1000;
+      case "60s":
+      default:
+        return 60 * 1000;
+    }
+  }, [timeframe]);
+
+  const filteredHistory = useMemo(() => {
+    const now = Date.now();
+    const startTime = now - timeframeDurationMs;
+    const points = speedHistory.filter((h) => h.time >= startTime);
+    if (points.length >= 2) return points;
+    return speedHistory.slice(-40);
+  }, [speedHistory, timeframeDurationMs]);
+
+  // Generate SVG path for speed chart with dynamic scaling (no 1MB baseline clamp)
+  const maxRecordedSpeed = Math.max(
+    0,
+    ...filteredHistory.map((h) => Math.max(h.dl, h.ul)),
   );
+  const maxSpeed = maxRecordedSpeed > 0 ? maxRecordedSpeed * 1.15 : 1024;
   const chartWidth = 900;
   const chartHeight = 120;
 
   const getSvgPoints = (key: "dl" | "ul") => {
-    if (speedHistory.length < 2) return "";
-    return speedHistory
+    if (filteredHistory.length < 2) return "";
+    return filteredHistory
       .map((h, i) => {
-        const x = (i / (speedHistory.length - 1)) * chartWidth;
+        const x = (i / (filteredHistory.length - 1)) * chartWidth;
         const y = chartHeight - (h[key] / maxSpeed) * (chartHeight - 20) - 10;
         return `${i === 0 ? "M" : "L"} ${x} ${y}`;
       })
@@ -848,15 +877,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {t("dashboard.live1s")}
             </span>
           </div>
-          <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem" }}>
-            <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>
-              {t("dashboard.downloadSpeed", {
-                speed: formatSpeed(totalDlSpeed),
-              })}
-            </span>
-            <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
-              {t("dashboard.uploadSpeed", { speed: formatSpeed(totalUlSpeed) })}
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div className="view-toggle" style={{ margin: 0 }}>
+              {(["60s", "5m", "15m", "1h", "24h"] as const).map((tf) => (
+                <button
+                  key={tf}
+                  type="button"
+                  className={`view-toggle-btn ${timeframe === tf ? "active" : ""}`}
+                  onClick={() => setTimeframe(tf)}
+                  style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem" }}>
+              <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>
+                {t("dashboard.downloadSpeed", {
+                  speed: formatSpeed(totalDlSpeed),
+                })}
+              </span>
+              <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
+                {t("dashboard.uploadSpeed", { speed: formatSpeed(totalUlSpeed) })}
+              </span>
+            </div>
           </div>
         </div>
 
