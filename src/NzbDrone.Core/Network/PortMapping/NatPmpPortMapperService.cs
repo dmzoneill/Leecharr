@@ -470,14 +470,14 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         var request = new byte[] { 0x00, 0x00 };
         var buffer = await this.SendAndReceiveWithRetryAsync(targetGateway, request, expectedResponseOpcode: 0x80, maxAttempts: 3, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (buffer != null && buffer.Length >= 12 && buffer[0] == 0x00 && buffer[1] == 0x80)
+        if (buffer != null && buffer.Length >= 8 && buffer[0] == 0x00 && buffer[1] == 0x80)
         {
             var resultCode = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2, 2));
-            if (resultCode == 0)
-            {
-                var epoch = BinaryPrimitives.ReadUInt32BigEndian(buffer.AsSpan(4, 4));
-                this.TrackEpoch(targetGateway, epoch);
+            var epoch = BinaryPrimitives.ReadUInt32BigEndian(buffer.AsSpan(4, 4));
+            this.TrackEpoch(targetGateway, epoch);
 
+            if (resultCode == 0 && buffer.Length >= 12)
+            {
                 var ipBytes = buffer.AsSpan(8, 4).ToArray();
                 return new IPAddress(ipBytes);
             }
@@ -914,13 +914,23 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             maxAttempts: 3,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (buffer != null && buffer.Length >= 16 && buffer[0] == 0x00 && buffer[1] == expectedOpcode)
+        if (buffer != null && buffer.Length >= 8 && buffer[0] == 0x00 && buffer[1] == expectedOpcode)
         {
             var resultCode = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2, 2));
             var epoch = BinaryPrimitives.ReadUInt32BigEndian(buffer.AsSpan(4, 4));
             this.TrackEpoch(targetGateway, epoch);
 
-            if (resultCode == 0)
+            if (resultCode != 0)
+            {
+                return new NatPmpMappingResult
+                {
+                    Success = false,
+                    InternalPort = internalPort,
+                    ErrorMessage = $"NAT-PMP gateway returned error code: {resultCode}.",
+                };
+            }
+
+            if (buffer.Length >= 16)
             {
                 var mappedInternal = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(8, 2));
                 var mappedExternal = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(10, 2));
@@ -943,13 +953,6 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     GatewayAddress = targetGateway,
                 };
             }
-
-            return new NatPmpMappingResult
-            {
-                Success = false,
-                InternalPort = internalPort,
-                ErrorMessage = $"NAT-PMP gateway returned error code: {resultCode}",
-            };
         }
 
         return new NatPmpMappingResult
