@@ -217,6 +217,19 @@ public class PiecePicker
         }
     }
 
+    public int GetPiecePriority(int pieceIndex)
+    {
+        lock (this.syncLock)
+        {
+            if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
+            {
+                return this.pieces[pieceIndex].Priority;
+            }
+
+            return 0;
+        }
+    }
+
     public bool IsEndgameMode()
     {
         var isEnabled = this.configService?.EndGamePickerEnabled ?? this.EndGamePickerEnabled;
