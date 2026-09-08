@@ -91,7 +91,12 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             || fileName.EndsWith(".rar.001", StringComparison.OrdinalIgnoreCase);
     }
 
-    public async Task<bool> ExtractAsync(string archivePath, string destinationPath, CancellationToken cancellationToken = default)
+    public async Task<bool> ExtractAsync(
+        string archivePath,
+        string destinationPath,
+        string password = null,
+        IReadOnlyList<string> passwordCandidates = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(archivePath) || !this.diskProvider.FileExists(archivePath))
         {
@@ -114,98 +119,149 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
-        Process process = null;
+        var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
-        try
+        foreach (var candidatePassword in passwordsToTry)
         {
-            var normalizedDest = targetDir.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-                ? targetDir
-                : targetDir + Path.DirectorySeparatorChar;
-
-            this.logger.Info("UnRAR extracting '{0}' to '{1}' using '{2}'...", archivePath, normalizedDest, binary);
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = binary,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            };
-            startInfo.ArgumentList.Add("x");
-            startInfo.ArgumentList.Add("-o+");
-            startInfo.ArgumentList.Add("-y");
-            startInfo.ArgumentList.Add(archivePath);
-            startInfo.ArgumentList.Add(normalizedDest);
-
-            process = new Process { StartInfo = startInfo };
-            process.Start();
-
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMinutes(30));
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-            var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+            Process process = null;
 
             try
             {
-                await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+                cancellationToken.ThrowIfCancellationRequested();
+                var normalizedDest = targetDir.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                    ? targetDir
+                    : targetDir + Path.DirectorySeparatorChar;
+
+                this.logger.Info("UnRAR extracting '{0}' to '{1}' using '{2}'...", archivePath, normalizedDest, binary);
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = binary,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                startInfo.ArgumentList.Add("x");
+                startInfo.ArgumentList.Add("-o+");
+                startInfo.ArgumentList.Add("-y");
+                if (!string.IsNullOrEmpty(candidatePassword))
+                {
+                    startInfo.ArgumentList.Add($"-p{candidatePassword}");
+                }
+                else
+                {
+                    startInfo.ArgumentList.Add("-p-");
+                }
+
+                startInfo.ArgumentList.Add(archivePath);
+                startInfo.ArgumentList.Add(normalizedDest);
+
+                process = new Process { StartInfo = startInfo };
+                process.Start();
+
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromMinutes(30));
+
+                var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+                var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+
+                try
+                {
+                    await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
+                }
+                catch (OperationCanceledException)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Kill(true);
+                        }
+                    }
+                    catch
+                    {
+                    }
+
+                    this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
+                    throw;
+                }
+
+                // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
+                if (process.ExitCode == 0 || process.ExitCode == 1)
+                {
+                    this.logger.Info("UnRAR successfully extracted archive '{0}' (Exit code {1}).", archivePath, process.ExitCode);
+                    return true;
+                }
+
+                var stderr = await stderrTask;
+                if (passwordsToTry.Count > 1)
+                {
+                    this.logger.Debug("UnRAR extraction attempt failed with exit code {0}: {1}", process.ExitCode, stderr);
+                }
+                else
+                {
+                    this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
+                }
             }
             catch (OperationCanceledException)
             {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(true);
-                    }
-                }
-                catch
-                {
-                }
-
-                this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
                 throw;
             }
-
-            // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
-            if (process.ExitCode == 0 || process.ExitCode == 1)
+            catch (Exception ex)
             {
-                this.logger.Info("UnRAR successfully extracted archive '{0}' (Exit code {1}).", archivePath, process.ExitCode);
-                return true;
+                this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
+                return false;
             }
-
-            var stderr = await stderrTask;
-            this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
-            return false;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
-            return false;
-        }
-        finally
-        {
-            if (process != null)
+            finally
             {
-                try
+                if (process != null)
                 {
-                    if (!process.HasExited)
+                    try
                     {
-                        process.Kill(true);
+                        if (!process.HasExited)
+                        {
+                            process.Kill(true);
+                        }
                     }
-                }
-                catch
-                {
-                }
+                    catch
+                    {
+                    }
 
-                process.Dispose();
+                    process.Dispose();
+                }
             }
         }
+
+        return false;
+    }
+
+    private static List<string> BuildPasswordCandidateList(string password, IReadOnlyList<string> passwordCandidates)
+    {
+        var candidates = new List<string>();
+
+        if (!string.IsNullOrEmpty(password))
+        {
+            candidates.Add(password);
+        }
+
+        if (passwordCandidates != null)
+        {
+            foreach (var candidate in passwordCandidates)
+            {
+                if (!string.IsNullOrEmpty(candidate) && !candidates.Contains(candidate))
+                {
+                    candidates.Add(candidate);
+                }
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            candidates.Add(null);
+        }
+
+        return candidates;
     }
 
     private static string FindBinary()
