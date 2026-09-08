@@ -123,6 +123,17 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
         }
 
+        if (IsPrivateOrLoopback(parsedIp))
+        {
+            return Task.FromResult(new GeoLocationInfo
+            {
+                IpAddress = ipAddress,
+                CountryCode = "LAN",
+                CountryName = "Local Network",
+                City = "Localhost",
+            });
+        }
+
         var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
@@ -146,9 +157,14 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
                 if (parsedIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                 {
-                    var ipBytes = parsedIp.GetAddressBytes();
-                    Array.Reverse(ipBytes);
-                    var ipNum = BitConverter.ToUInt32(ipBytes, 0);
+                    Span<byte> ipBytes = stackalloc byte[4];
+                    if (!parsedIp.TryWriteBytes(ipBytes, out _))
+                    {
+                        return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+                    }
+
+                    ipBytes.Reverse();
+                    var ipNum = BitConverter.ToUInt32(ipBytes);
 
                     var low = 0L;
                     var high = (long)this.ipv4Count - 1L;
@@ -185,7 +201,13 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
                 }
                 else if (parsedIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && this.ipv6Count > 0 && this.baseAddressIPv6 > 0)
                 {
-                    var ipNum = new BigInteger(parsedIp.GetAddressBytes(), isUnsigned: true, isBigEndian: true);
+                    Span<byte> ipBytes = stackalloc byte[16];
+                    if (!parsedIp.TryWriteBytes(ipBytes, out _))
+                    {
+                        return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+                    }
+
+                    var ipNum = new BigInteger(ipBytes, isUnsigned: true, isBigEndian: true);
 
                     var low = 0L;
                     var high = (long)this.ipv6Count - 1L;
@@ -240,6 +262,102 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         }
 
         return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+    }
+
+    private static bool IsPrivateOrLoopback(IPAddress ip)
+    {
+        if (ip == null)
+        {
+            return false;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (IPAddress.IsLoopback(ip))
+        {
+            return true;
+        }
+
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            Span<byte> bytes = stackalloc byte[4];
+            if (!ip.TryWriteBytes(bytes, out _))
+            {
+                return false;
+            }
+
+            // 10.0.0.0/8
+            if (bytes[0] == 10)
+            {
+                return true;
+            }
+
+            // 172.16.0.0/12
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+            {
+                return true;
+            }
+
+            // 192.168.0.0/16
+            if (bytes[0] == 192 && bytes[1] == 168)
+            {
+                return true;
+            }
+
+            // 127.0.0.0/8
+            if (bytes[0] == 127)
+            {
+                return true;
+            }
+
+            // 169.254.0.0/16
+            if (bytes[0] == 169 && bytes[1] == 254)
+            {
+                return true;
+            }
+
+            // 0.0.0.0/8
+            if (bytes[0] == 0)
+            {
+                return true;
+            }
+        }
+        else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            if (ip.Equals(IPAddress.IPv6Loopback))
+            {
+                return true;
+            }
+
+            Span<byte> bytes = stackalloc byte[16];
+            if (!ip.TryWriteBytes(bytes, out _))
+            {
+                return false;
+            }
+
+            // Link-local fe80::/10
+            if (ip.IsIPv6LinkLocal || (bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80))
+            {
+                return true;
+            }
+
+            // Site-local fec0::/10
+            if (ip.IsIPv6SiteLocal)
+            {
+                return true;
+            }
+
+            // Unique Local Address fc00::/7
+            if (ip.IsIPv6UniqueLocal || ((bytes[0] & 0xFE) == 0xFC))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private GeoLocationInfo ReadRecordData(long rowOffset, int ipColumnSize = 4)

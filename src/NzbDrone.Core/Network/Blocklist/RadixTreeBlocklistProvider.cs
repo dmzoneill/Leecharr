@@ -199,7 +199,12 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
     private bool IsIpv4Blocked(IPAddress ip)
     {
-        var bytes = ip.GetAddressBytes();
+        Span<byte> bytes = stackalloc byte[4];
+        if (!ip.TryWriteBytes(bytes, out _))
+        {
+            return false;
+        }
+
         var ipNum = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
 
         var current = Volatile.Read(ref this.ipv4Root);
@@ -224,7 +229,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
     private bool IsIpv6Blocked(IPAddress ip)
     {
-        var bytes = ip.GetAddressBytes();
+        Span<byte> bytes = stackalloc byte[16];
+        if (!ip.TryWriteBytes(bytes, out _))
+        {
+            return false;
+        }
 
         var current = Volatile.Read(ref this.ipv6Root);
         for (var bitIndex = 0; bitIndex < 128; bitIndex++)
@@ -251,7 +260,12 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
     private static void InsertIpv4(RadixNode root, IPAddress ip, int prefixLength)
     {
-        var bytes = ip.GetAddressBytes();
+        Span<byte> bytes = stackalloc byte[4];
+        if (!ip.TryWriteBytes(bytes, out _))
+        {
+            return;
+        }
+
         var ipNum = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
 
         var current = root;
@@ -275,7 +289,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
     private static void InsertIpv6(RadixNode root, IPAddress ip, int prefixLength)
     {
-        var bytes = ip.GetAddressBytes();
+        Span<byte> bytes = stackalloc byte[16];
+        if (!ip.TryWriteBytes(bytes, out _))
+        {
+            return;
+        }
 
         var current = root;
         for (var bitIndex = 0; bitIndex < prefixLength; bitIndex++)
