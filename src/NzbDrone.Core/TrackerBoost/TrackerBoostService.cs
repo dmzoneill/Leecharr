@@ -807,6 +807,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
                 : CalculateDynamicTier(candidate.HealthStatus, candidate.LatencyMs);
 
+            var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
+                ? this.configService.AnnounceIntervalSeconds
+                : (this.configService?.TrackerAnnounceInterval > 0 ? this.configService.TrackerAnnounceInterval : 1800);
+
             var entry = new TrackerEntry
             {
                 TorrentId = torrentId,
@@ -816,7 +820,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 Enabled = true,
                 Seeders = candidate.Seeders,
                 Leechers = candidate.Leechers,
-                AnnounceInterval = 1800,
+                AnnounceInterval = defaultAnnounceInterval,
             };
             this.trackerEntryRepository.Insert(entry);
             addedList.Add(candidate.TrackerUrl);
@@ -1008,6 +1012,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             var tr = this.trackerRepository.FindByUrl(trackerUrl.Trim());
             var tier = tr != null ? CalculateDynamicTier(tr.Status, tr.LatencyMs) : 1;
 
+            var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
+                ? this.configService.AnnounceIntervalSeconds
+                : (this.configService?.TrackerAnnounceInterval > 0 ? this.configService.TrackerAnnounceInterval : 1800);
+
             var entry = new TrackerEntry
             {
                 TorrentId = torrentId,
@@ -1015,7 +1023,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 Tier = tier,
                 Status = 0,
                 Enabled = true,
-                AnnounceInterval = 1800,
+                AnnounceInterval = defaultAnnounceInterval,
             };
             this.trackerEntryRepository.Insert(entry);
             totalTrackersInjected++;

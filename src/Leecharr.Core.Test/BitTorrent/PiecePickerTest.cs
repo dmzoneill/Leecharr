@@ -968,4 +968,75 @@ public class PiecePickerTest
     }
 
     #endregion
+
+    #region Dynamic Thresholds & Config Binding Tests (Issue #575)
+
+    [Test]
+    public void RequestTimeout_BoundToConfigService_UsesConfiguredTimeout()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.StaleRequestTimeoutSeconds.Returns(45);
+
+        var picker = new PiecePicker(10, 16384, 163840, configService: configService);
+        picker.RequestTimeout.Should().Be(TimeSpan.FromSeconds(45));
+
+        configService.StaleRequestTimeoutSeconds.Returns(15);
+        picker.RequestTimeout.Should().Be(TimeSpan.FromSeconds(15));
+    }
+
+    [Test]
+    public void PickBlocks_SequentialMode_LargeMediaFile_DynamicallyPrioritizesMultiMegabyteHeadAndTail()
+    {
+        // 1000 pieces of 256KB = 256MB total (> 2MB)
+        // targetHeadBytes: 8MB -> 32 pieces (0..31)
+        // targetTailBytes: 4MB -> 16 pieces (984..999)
+        var picker = new PiecePicker(1000, 262144, 268435456L);
+        var fullBitfield = Enumerable.Repeat(true, 1000).ToArray();
+
+        // Initially, requests come from head pieces (0..31)
+        var headRequests = picker.PickBlocks(fullBitfield, 10, sequentialMode: true);
+        headRequests.Should().HaveCount(10);
+        headRequests.All(r => r.PieceIndex >= 0 && r.PieceIndex < 32).Should().BeTrue();
+
+        // Mark head pieces (0..31) complete and verified
+        for (var i = 0; i < 32; i++)
+        {
+            picker.MarkPieceVerified(i);
+        }
+
+        // Now, picking blocks should pick from tail pieces (984..999) before interior piece 32
+        var tailRequests = picker.PickBlocks(fullBitfield, 16, sequentialMode: true);
+        tailRequests.Should().HaveCount(16);
+        tailRequests.All(r => r.PieceIndex >= 984 && r.PieceIndex < 1000).Should().BeTrue();
+
+        // Mark tail pieces (984..999) complete and verified
+        for (var i = 984; i < 1000; i++)
+        {
+            picker.MarkPieceVerified(i);
+        }
+
+        // Now, picking blocks should sequentially resume with interior piece 32
+        var interiorRequests = picker.PickBlocks(fullBitfield, 1, sequentialMode: true);
+        interiorRequests.Should().HaveCount(1);
+        interiorRequests[0].PieceIndex.Should().Be(32);
+    }
+
+    [Test]
+    public void IsEndgameMode_DynamicBlockPercentageScaling_TriggersAtTwoPercentRemaining()
+    {
+        // 500 pieces of 16KB = 8MB (500 blocks total)
+        // 2% of 500 = 10 blocks
+        // When 491 pieces are verified -> 9 remaining (1.8% < 2%) -> endgame mode triggers!
+        var picker = new PiecePicker(500, 16384, 8192000);
+
+        for (var i = 0; i < 491; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
+
+        picker.IsEndgameMode().Should().BeTrue();
+    }
+
+    #endregion
 }

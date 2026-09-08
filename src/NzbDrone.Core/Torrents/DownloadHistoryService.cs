@@ -518,6 +518,10 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         // 6. Insert trackers
         if (this.trackerEntryRepository != null)
         {
+            var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
+                ? this.configService.AnnounceIntervalSeconds
+                : (this.configService?.TrackerAnnounceInterval > 0 ? this.configService.TrackerAnnounceInterval : 1800);
+
             if (parsed?.AnnounceList != null && parsed.AnnounceList.Count > 0)
             {
                 var trackerEntries = new List<TrackerEntry>();
@@ -534,9 +538,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                                 Tier = tier,
                                 Enabled = true,
                                 Status = 1,
-                                AnnounceInterval = 1800,
+                                AnnounceInterval = defaultAnnounceInterval,
                                 LastAnnounce = added.DateAdded,
-                                NextAnnounce = added.DateAdded.AddSeconds(1800),
+                                NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
                                 TotalAnnounces = 1,
                                 SuccessfulAnnounces = 1,
                             });
@@ -558,9 +562,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Tier = 0,
                     Enabled = true,
                     Status = 1,
-                    AnnounceInterval = 1800,
+                    AnnounceInterval = defaultAnnounceInterval,
                     LastAnnounce = added.DateAdded,
-                    NextAnnounce = added.DateAdded.AddSeconds(1800),
+                    NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
                     TotalAnnounces = 1,
                     SuccessfulAnnounces = 1,
                 });
@@ -574,9 +578,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Tier = 0,
                     Enabled = true,
                     Status = 1,
-                    AnnounceInterval = 1800,
+                    AnnounceInterval = defaultAnnounceInterval,
                     LastAnnounce = added.DateAdded,
-                    NextAnnounce = added.DateAdded.AddSeconds(1800),
+                    NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
                     TotalAnnounces = 1,
                     SuccessfulAnnounces = 1,
                 });
