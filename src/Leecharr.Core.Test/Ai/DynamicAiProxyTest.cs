@@ -283,4 +283,33 @@ public class DynamicAiProxyTest
         result.Year.Should().Be(2010);
         result.Resolution.Should().Be("1080p");
     }
+
+    [Test]
+    public void Constructor_WhenConfiguredProviderNotFound_SynchronizesConfigWithFallbackProvider()
+    {
+        var cfg = Substitute.For<IConfigService>();
+        cfg.GetValue("ActiveAiProvider", Arg.Any<string>()).Returns("NonExistentProvider");
+
+        using var testProxy = new DynamicAiProxy(
+            new List<IAiEngineProvider> { this.ruleProvider, this.onnxProvider },
+            cfg,
+            this.eventAggregator);
+
+        testProxy.ActiveProviderId.Should().Be("RuleHeuristic");
+        cfg.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveAiProvider"] == "RuleHeuristic"));
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_WhenSwitchFails_RevertsActiveAiProviderInConfig()
+    {
+        this.configService.ActiveAiProvider.Returns("Gemini");
+
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        // Wait a short duration for the async task inside Handle to execute
+        await Task.Delay(100);
+
+        this.proxy.ActiveProviderId.Should().Be("RuleHeuristic");
+        this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveAiProvider"] == "RuleHeuristic"));
+    }
 }

@@ -51,6 +51,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             throw new InvalidOperationException("No AI providers are registered in the application container.");
         }
 
+        if (!string.Equals(desiredId, this.activeProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            this.configService.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                { "ActiveAiProvider", this.activeProvider.ProviderId },
+            });
+        }
+
         this.logger.Info("DynamicAiProxy initialized with active provider: {0} ({1})", this.activeProvider.DisplayName, this.activeProvider.ProviderId);
     }
 
@@ -292,7 +300,15 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             {
                 try
                 {
-                    await this.SwitchProviderAsync(desiredId);
+                    var switched = await this.SwitchProviderAsync(desiredId);
+                    if (!switched)
+                    {
+                        this.logger.Warn("Failed to switch AI provider on ConfigSavedEvent to '{0}'. Reverting ActiveAiProvider config setting to '{1}'.", desiredId, this.ActiveProviderId);
+                        this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                        {
+                            { "ActiveAiProvider", this.ActiveProviderId },
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
