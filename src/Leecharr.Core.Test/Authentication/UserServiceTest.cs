@@ -40,7 +40,7 @@ public class UserServiceTest
         var password = "CorrectHorseBatteryStaple";
         var hash = this.userService.HashPassword(password, out var salt);
 
-        var result = this.userService.VerifyPassword(password, hash, salt, 100000);
+        var result = this.userService.VerifyPassword(password, hash, salt, 600000);
 
         Assert.That(result, Is.True);
     }
@@ -51,9 +51,40 @@ public class UserServiceTest
         var password = "CorrectPassword";
         var hash = this.userService.HashPassword(password, out var salt);
 
-        var result = this.userService.VerifyPassword("WrongPassword", hash, salt, 100000);
+        var result = this.userService.VerifyPassword("WrongPassword", hash, salt, 600000);
 
         Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void Authenticate_WithLegacyIterations_RehashesPasswordTo600kAndUpdatesUser()
+    {
+        var saltBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        var salt = Convert.ToBase64String(saltBytes);
+        var legacyHashBytes = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2("LegacyPassword123!", saltBytes, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
+        var legacyHash = Convert.ToBase64String(legacyHashBytes);
+
+        var legacyUser = new User
+        {
+            Username = "legacyuser",
+            PasswordHash = legacyHash,
+            Salt = salt,
+            Iterations = 100000,
+            Roles = "[\"User\"]",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        this.userRepository.Insert(legacyUser);
+
+        var authenticated = this.userService.Authenticate("legacyuser", "LegacyPassword123!");
+
+        Assert.That(authenticated, Is.Not.Null);
+        Assert.That(authenticated.Iterations, Is.EqualTo(600000));
+
+        var updated = this.userRepository.FindByUsername("legacyuser");
+        Assert.That(updated, Is.Not.Null);
+        Assert.That(updated.Iterations, Is.EqualTo(600000));
+        Assert.That(this.userService.VerifyPassword("LegacyPassword123!", updated.PasswordHash, updated.Salt, 600000), Is.True);
     }
 
     [Test]

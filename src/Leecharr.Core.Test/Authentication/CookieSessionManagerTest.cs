@@ -260,6 +260,89 @@ public class CookieSessionManagerTest
             Arg.Any<DateTime>());
     }
 
+    [Test]
+    public async Task ValidatePrincipal_WhenSlidingExtensionExceedsAbsoluteExpiry_CapsExpiryAtAbsoluteExpiry()
+    {
+        const string token = "absolute-capped-session-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 11,
+            UserId = 42,
+            SessionToken = token,
+            CreatedAt = now.AddDays(-80), // 80 days ago, absolute expiry is in 10 days
+            Expiry = now.AddDays(2),
+            LastActivity = now.AddDays(-1),
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+        context.Properties.IsPersistent = true;
+        context.ShouldRenew = false;
+
+        await this.sessionManager.ValidatePrincipal(context);
+
+        context.Principal.Should().NotBeNull();
+        context.ShouldRenew.Should().BeTrue();
+        context.Properties.ExpiresUtc.Should().NotBeNull();
+        // Should be capped at session.AbsoluteExpiry (now + 10 days) rather than now + 30 days
+        context.Properties.ExpiresUtc!.Value.UtcDateTime.Should().BeCloseTo(session.AbsoluteExpiry, TimeSpan.FromSeconds(10));
+
+        await this.sessionRepository.Received(1).UpdateExpiryAndActivityAsync(
+            token,
+            Arg.Is<DateTime>(d => Math.Abs((d - session.AbsoluteExpiry).TotalSeconds) < 10),
+            Arg.Any<DateTime>());
+    }
+
+    [Test]
+    public async Task ValidatePrincipal_WhenSessionPastAbsoluteExpiry_RejectsPrincipal()
+    {
+        const string token = "past-absolute-session-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 12,
+            UserId = 42,
+            SessionToken = token,
+            CreatedAt = now.AddDays(-95), // 95 days ago, past 90 days absolute limit
+            Expiry = now.AddDays(2),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+
+        await this.sessionManager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+    }
+
+    [Test]
+    public void ValidateSession_WhenSessionPastAbsoluteExpiry_ReturnsFalse()
+    {
+        const string token = "past-absolute-validate-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 13,
+            UserId = 42,
+            SessionToken = token,
+            CreatedAt = now.AddDays(-95),
+            Expiry = now.AddDays(2),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+
+        this.sessionManager.ValidateSession(principal).Should().BeFalse();
+    }
+
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)
     {
         var claims = new List<Claim>
