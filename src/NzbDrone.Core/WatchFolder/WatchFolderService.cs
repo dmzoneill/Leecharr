@@ -430,7 +430,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
         string detected = null;
 
-        if (AnimeGroupPattern.IsMatch(releaseName))
+        if (AnimeGroupPattern.IsMatch(releaseName) || AnimePattern.IsMatch(releaseName))
         {
             detected = "anime";
         }
@@ -441,10 +441,6 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         else if (MoviePattern.IsMatch(releaseName))
         {
             detected = "movies";
-        }
-        else if (AnimePattern.IsMatch(releaseName))
-        {
-            detected = "anime";
         }
         else if (MusicPattern.IsMatch(releaseName))
         {
