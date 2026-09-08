@@ -275,6 +275,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService
 
     public void DeleteMetadata(int torrentId)
     {
+        this.CleanupTorrentCache(torrentId);
+
         var metadata = this.repository.GetByTorrentId(torrentId);
         if (metadata != null)
         {
@@ -283,7 +285,6 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             {
                 DeleteLocalFile(metadata.PosterLocalPath);
                 DeleteLocalFile(metadata.BackdropLocalPath);
-                this.CleanupTorrentCache(torrentId);
             }
 
             this.repository.DeleteByTorrentId(torrentId);
