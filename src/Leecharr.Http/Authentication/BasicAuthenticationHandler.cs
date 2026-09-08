@@ -1,15 +1,19 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Authentication;
@@ -22,6 +26,7 @@ public class BasicAuthenticationOptions : AuthenticationSchemeOptions
 public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticationOptions>
 {
     private readonly IConfigFileProvider configFileProvider;
+    private readonly IUserService userService;
     private readonly AuthRateLimiter rateLimiter;
 
     public BasicAuthenticationHandler(
@@ -29,10 +34,12 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
         ILoggerFactory logger,
         UrlEncoder encoder,
         IConfigFileProvider configFileProvider,
+        IUserService userService = null,
         AuthRateLimiter rateLimiter = null)
         : base(options, logger, encoder)
     {
         this.configFileProvider = configFileProvider;
+        this.userService = userService;
         this.rateLimiter = rateLimiter ?? AuthRateLimiter.Shared;
     }
 
@@ -70,7 +77,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
             var configuredApiKey = this.configFileProvider.ApiKey;
 
-            // Allow auth if password or username matches API key or authentication is disabled
+            // Allow auth if authentication is disabled or password/username matches API key
             if (!this.configFileProvider.AuthenticationEnabled ||
                 (!string.IsNullOrWhiteSpace(configuredApiKey) && (RpcAuthenticationHelper.FixedTimeEquals(password, configuredApiKey) || RpcAuthenticationHelper.FixedTimeEquals(username, configuredApiKey))))
             {
@@ -87,6 +94,56 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
                 var identity = new ClaimsIdentity(claims, BasicAuthenticationOptions.DefaultScheme);
                 return Task.FromResult(AuthenticateResult.Success(
                     new AuthenticationTicket(new ClaimsPrincipal(identity), BasicAuthenticationOptions.DefaultScheme)));
+            }
+
+            // Authenticate against database user accounts when provided
+            var resolvedUserService = this.userService ?? this.Context.RequestServices?.GetService<IUserService>();
+            if (resolvedUserService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+            {
+                var user = resolvedUserService.Authenticate(username, password);
+                if (user != null)
+                {
+                    this.rateLimiter.Reset(clientIp);
+
+                    var rolesList = new List<string>();
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(user.Roles))
+                        {
+                            rolesList = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
+                        }
+                    }
+                    catch
+                    {
+                        rolesList = new List<string> { "User" };
+                    }
+
+                    if (rolesList.Count == 0)
+                    {
+                        rolesList.Add("User");
+                    }
+
+                    var claims = new List<Claim>
+                    {
+                        new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                        new(ClaimTypes.Name, user.Username),
+                        new("DisplayName", user.DisplayName ?? user.Username),
+                    };
+
+                    if (!string.IsNullOrEmpty(user.Email))
+                    {
+                        claims.Add(new Claim(ClaimTypes.Email, user.Email));
+                    }
+
+                    foreach (var role in rolesList)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, role));
+                    }
+
+                    var identity = new ClaimsIdentity(claims, BasicAuthenticationOptions.DefaultScheme);
+                    return Task.FromResult(AuthenticateResult.Success(
+                        new AuthenticationTicket(new ClaimsPrincipal(identity), BasicAuthenticationOptions.DefaultScheme)));
+                }
             }
 
             this.rateLimiter.RecordFailure(clientIp);

@@ -265,13 +265,112 @@ public class SamlSecurityTest
         redirect.Url.Should().Be("/torrents");
     }
 
+    [Test]
+    public async Task SamlCallback_WhenValidInResponseToProvided_AuthenticatesSuccessfully()
+    {
+        const string requestId = "_req_123456";
+        AuthController.RegisterPendingSamlRequest(requestId);
+
+        const string assertionId = "_assertion_in_resp_valid";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "bob@example.com",
+            "User",
+            injectDuplicateAssertion: false,
+            inResponseTo: requestId);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername("bob").Returns(new User
+        {
+            Id = 105,
+            Username = "bob",
+            Email = "bob@example.com",
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<RedirectResult>();
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenUnknownInResponseToProvided_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_in_resp_invalid";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "bob@example.com",
+            "User",
+            injectDuplicateAssertion: false,
+            inResponseTo: "_unknown_unsolicited_request_id");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)result;
+        unauthorizedResult.Value.ToString().Should().Contain("InResponseTo");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenAssertionReplayed_RejectsSecondAttemptWithUnauthorized()
+    {
+        const string assertionId = "_assertion_replay_test_999";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "carol@example.com",
+            "User",
+            injectDuplicateAssertion: false);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername("carol").Returns(new User
+        {
+            Id = 106,
+            Username = "carol",
+            Email = "carol@example.com",
+        });
+
+        var firstResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+        firstResult.Should().BeOfType<RedirectResult>();
+
+        // Second submission of the exact same assertion must fail as a replay
+        var secondResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+        secondResult.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)secondResult;
+        unauthorizedResult.Value.ToString().Should().Contain("replay detected");
+    }
+
     #endregion
 
     private static (string SamlResponseBase64, string CertBase64) CreateSignedSamlResponse(
         string assertionId,
         string nameId,
         string role,
-        bool injectDuplicateAssertion = false)
+        bool injectDuplicateAssertion = false,
+        string inResponseTo = null)
     {
         using var rsa = RSA.Create(2048);
         var certReq = new CertificateRequest("CN=SamlTestIdP", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -281,10 +380,11 @@ public class SamlSecurityTest
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notBefore = DateTime.UtcNow.AddMinutes(-5).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notOnOrAfter = DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var inResponseToAttr = string.IsNullOrWhiteSpace(inResponseTo) ? string.Empty : $@" InResponseTo=""{inResponseTo}""";
 
         var xml = $@"<samlp:Response xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol""
                                    xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion""
-                                   ID=""_resp_{Guid.NewGuid():N}"" Version=""2.0"" IssueInstant=""{now}"">
+                                   ID=""_resp_{Guid.NewGuid():N}"" Version=""2.0"" IssueInstant=""{now}""{inResponseToAttr}>
   <saml:Issuer>https://idp.example.com</saml:Issuer>
   <samlp:Status>
     <samlp:StatusCode Value=""urn:oasis:names:tc:SAML:2.0:status:Success""/>
