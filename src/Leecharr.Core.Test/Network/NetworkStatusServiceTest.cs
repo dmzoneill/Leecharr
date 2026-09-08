@@ -105,4 +105,58 @@ public class NetworkStatusServiceTest
         status.PortMappings[1].Description.Should().Be("BitTorrent Peer Swarm & DHT");
         status.PortMappings[1].IsActive.Should().BeTrue();
     }
+
+    [Test]
+    public void GetStatus_WhenVpnKillSwitchIsActive_ReturnsVpnKillSwitchActiveTrue()
+    {
+        var vpnKillSwitchService = Substitute.For<NzbDrone.Core.Network.Vpn.IVpnKillSwitchService>();
+        vpnKillSwitchService.IsFailClosedActive.Returns(true);
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            vpnKillSwitchService);
+
+        var status = service.GetStatus();
+
+        status.Should().NotBeNull();
+        status.VpnKillSwitchActive.Should().BeTrue();
+    }
+
+    [Test]
+    public void GetStatus_WhenVpnKillSwitchIsNotActive_ReturnsVpnKillSwitchActiveFalse()
+    {
+        var vpnKillSwitchService = Substitute.For<NzbDrone.Core.Network.Vpn.IVpnKillSwitchService>();
+        vpnKillSwitchService.IsFailClosedActive.Returns(false);
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            vpnKillSwitchService);
+
+        var status = service.GetStatus();
+
+        status.Should().NotBeNull();
+        status.VpnKillSwitchActive.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetStatus_WhenVpnKillSwitchServiceIsNull_ReturnsVpnKillSwitchActiveFalse()
+    {
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            vpnKillSwitchService: null);
+
+        var status = service.GetStatus();
+
+        status.Should().NotBeNull();
+        status.VpnKillSwitchActive.Should().BeFalse();
+    }
 }
