@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -77,12 +78,13 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            powerManagementService: this.powerManagementService);
+            powerManagementService: this.powerManagementService,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
 
-        // Wait past 5 maintenance ticks (1 sec each in loop)
-        await Task.Delay(6000);
+        // Wait past 10 maintenance ticks (5ms each = 50ms total)
+        await Task.Delay(60);
         await lifetime.StopAsync(CancellationToken.None);
 
         await this.powerManagementService.DidNotReceiveWithAnyArgs().ExecutePowerActionAsync(default);
@@ -109,6 +111,13 @@ public class AppLifetimeTest
         mockTask.Status.Returns(TorrentStatus.Downloading);
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
 
+        var tcs = new TaskCompletionSource<bool>();
+        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(ci =>
+        {
+            tcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -119,20 +128,20 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            powerManagementService: this.powerManagementService);
+            powerManagementService: this.powerManagementService,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
 
-        // Wait for download session state to latch in 1s loop
-        await Task.Delay(1500);
+        // Wait for download session state to latch in 5ms loop
+        await Task.Delay(25);
 
         // Transition download to completed
         mockTask.Status.Returns(TorrentStatus.Stopped);
         downloadingTorrent.Status = TorrentStatus.Stopped;
         downloadingTorrent.Progress = 1.0;
 
-        // Wait past 5s maintenance tick
-        await Task.Delay(6000);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
@@ -167,11 +176,12 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            powerManagementService: this.powerManagementService);
+            powerManagementService: this.powerManagementService,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
 
-        await Task.Delay(6000);
+        await Task.Delay(60);
         await lifetime.StopAsync(CancellationToken.None);
 
         await this.powerManagementService.DidNotReceiveWithAnyArgs().ExecutePowerActionAsync(default);
@@ -198,6 +208,13 @@ public class AppLifetimeTest
         mockTask.Status.Returns(TorrentStatus.Downloading);
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
 
+        var tcs = new TaskCompletionSource<bool>();
+        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(ci =>
+        {
+            tcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -208,19 +225,20 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            powerManagementService: this.powerManagementService);
+            powerManagementService: this.powerManagementService,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
 
         // Wait for session latch
-        await Task.Delay(1500);
+        await Task.Delay(25);
 
         // Transition torrent to stopped/finished
         mockTask.Status.Returns(TorrentStatus.Stopped);
         activeTorrent.Status = TorrentStatus.Stopped;
         activeTorrent.Progress = 1.0;
 
-        await Task.Delay(6000);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
@@ -301,6 +319,9 @@ public class AppLifetimeTest
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
         this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
 
+        var tcs = new TaskCompletionSource<bool>();
+        broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse"))).Do(_ => tcs.TrySetResult(true));
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -311,10 +332,11 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            signalRBroadcaster: broadcaster);
+            signalRBroadcaster: broadcaster,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
-        await Task.Delay(2500);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
@@ -341,6 +363,9 @@ public class AppLifetimeTest
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
         this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
 
+        var tcs = new TaskCompletionSource<bool>();
+        broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse" && CheckRatioInSpeedPulse(msg.Body, 42, 2.0)))).Do(_ => tcs.TrySetResult(true));
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -351,10 +376,11 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            signalRBroadcaster: broadcaster);
+            signalRBroadcaster: broadcaster,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
-        await Task.Delay(2500);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
@@ -381,6 +407,9 @@ public class AppLifetimeTest
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
         this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
 
+        var tcs = new TaskCompletionSource<bool>();
+        broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse" && CheckRatioInSpeedPulse(msg.Body, 99, 5.0)))).Do(_ => tcs.TrySetResult(true));
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -391,10 +420,11 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            signalRBroadcaster: broadcaster);
+            signalRBroadcaster: broadcaster,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
-        await Task.Delay(2500);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
@@ -425,6 +455,9 @@ public class AppLifetimeTest
             return 0;
         });
 
+        var tcs = new TaskCompletionSource<bool>();
+        broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse"))).Do(_ => tcs.TrySetResult(true));
+
         using var lifetime = new AppLifetime(
             this.configService,
             this.eventAggregator,
@@ -435,10 +468,11 @@ public class AppLifetimeTest
             this.rssSyncService,
             this.dynamicAuthManager,
             this.torrentService,
-            signalRBroadcaster: broadcaster);
+            signalRBroadcaster: broadcaster,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
-        await Task.Delay(2500);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await lifetime.StopAsync(CancellationToken.None);
 
         broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
