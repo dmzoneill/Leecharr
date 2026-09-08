@@ -13,7 +13,8 @@ import "./App.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (count, error: any) =>
+        error?.status !== 401 && error?.status !== 403 && count < 2,
       refetchOnWindowFocus: false,
     },
   },
