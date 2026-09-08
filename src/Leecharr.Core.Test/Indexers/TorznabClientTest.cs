@@ -578,6 +578,46 @@ public class TorznabClientTest
         doc.Root!.Value.Should().Be("Text & Content ©");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenCloudflareChallengeHtml_ReturnsEmptyList()
+    {
+        var challengeHtml = "<html><head><title>Just a moment...</title></head><body>Turnstile challenge</body></html>";
+        var indexer = new IndexerDefinition { Name = "ProtectedTracker" };
+        var results = this.client.ParseTorznabFeedXml(challengeHtml, indexer);
+
+        results.Should().NotBeNull();
+        results.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TestConnectionAsync_WhenCloudflareChallengeEncountered_ReturnsDescriptiveErrorMessage()
+    {
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("<html><title>Just a moment...</title><body>Checking your browser</body></html>"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "CfTracker",
+            Url = "https://cf.tracker.local/api",
+            ApiKey = "key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Cloudflare / AntiBot challenge detected");
+    }
+
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
