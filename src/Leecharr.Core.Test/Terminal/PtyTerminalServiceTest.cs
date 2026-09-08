@@ -4,23 +4,85 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Http.Terminal;
+using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.Terminal;
 
 [TestFixture]
 public class PtyTerminalServiceTest
 {
+    private static PtyTerminalService CreateEnabledService()
+    {
+        var config = Substitute.For<IConfigFileProvider>();
+        config.TerminalAccessEnabled.Returns(true);
+        return new PtyTerminalService(config);
+    }
+
+    [Test]
+    public void CreateSession_WhenConfigFileProviderIsNull_ThrowsSecurityException()
+    {
+        var service = new PtyTerminalService(null);
+
+        Action act = () => service.CreateSession("/tmp", 80, 24);
+
+        act.Should().Throw<SecurityException>()
+            .WithMessage("Terminal process execution is prohibited by security configuration.");
+    }
+
+    [Test]
+    public void CreateSession_WhenTerminalAccessDisabled_ThrowsSecurityException()
+    {
+        var config = Substitute.For<IConfigFileProvider>();
+        config.TerminalAccessEnabled.Returns(false);
+        var service = new PtyTerminalService(config);
+
+        Action act = () => service.CreateSession("/tmp", 80, 24);
+
+        act.Should().Throw<SecurityException>()
+            .WithMessage("Terminal process execution is prohibited by security configuration.");
+    }
+
+    [Test]
+    public void IsTerminalAccessPermitted_WhenConfigFileProviderIsNull_ReturnsFalse()
+    {
+        var service = new PtyTerminalService(null);
+
+        service.IsTerminalAccessPermitted().Should().BeFalse();
+    }
+
+    [Test]
+    public void IsTerminalAccessPermitted_WhenTerminalAccessDisabled_ReturnsFalse()
+    {
+        var config = Substitute.For<IConfigFileProvider>();
+        config.TerminalAccessEnabled.Returns(false);
+        var service = new PtyTerminalService(config);
+
+        service.IsTerminalAccessPermitted().Should().BeFalse();
+    }
+
+    [Test]
+    public void IsTerminalAccessPermitted_WhenTerminalAccessEnabled_ReturnsTrue()
+    {
+        var config = Substitute.For<IConfigFileProvider>();
+        config.TerminalAccessEnabled.Returns(true);
+        var service = new PtyTerminalService(config);
+
+        service.IsTerminalAccessPermitted().Should().BeTrue();
+    }
+
     [Test]
     public async Task CreateSession_ExecutesEchoCommand_ReturnsExpectedOutput()
     {
-        var service = new PtyTerminalService();
+        var service = CreateEnabledService();
         await using var session = service.CreateSession("/tmp", 80, 24);
 
         session.Should().NotBeNull();
@@ -62,7 +124,7 @@ public class PtyTerminalServiceTest
     [Test]
     public async Task Resize_UpdatesWindowDimensionsDynamically()
     {
-        var service = new PtyTerminalService();
+        var service = CreateEnabledService();
         await using var session = service.CreateSession("/tmp", 80, 24);
 
         session.Should().NotBeNull();
@@ -122,7 +184,7 @@ public class PtyTerminalServiceTest
     [Test]
     public async Task CreateSession_SpawnsInteractiveShell_EmitsStartupPromptWithoutInput()
     {
-        var service = new PtyTerminalService();
+        var service = CreateEnabledService();
         await using var session = service.CreateSession("/tmp", 80, 24);
 
         session.Should().NotBeNull();
@@ -187,7 +249,7 @@ public class PtyTerminalServiceTest
     [Test]
     public async Task Kill_TerminatesSessionAndMarksInactive()
     {
-        var service = new PtyTerminalService();
+        var service = CreateEnabledService();
         var session = service.CreateSession("/tmp", 80, 24);
 
         session.IsActive.Should().BeTrue();
@@ -208,7 +270,7 @@ public class PtyTerminalServiceTest
         Environment.SetEnvironmentVariable("LEECHARR_TEST_SECRET_TOKEN", "super_secret_leak_12345");
         try
         {
-            var service = new PtyTerminalService();
+            var service = CreateEnabledService();
             await using var session = service.CreateSession("/tmp", 80, 24);
 
             session.Should().NotBeNull();
@@ -257,7 +319,7 @@ public class PtyTerminalServiceTest
             Assert.Ignore("Linux PTY process reaping test only applicable on Linux.");
         }
 
-        var service = new PtyTerminalService();
+        var service = CreateEnabledService();
         var session = service.CreateSession("/tmp", 80, 24);
 
         session.Should().NotBeNull();
