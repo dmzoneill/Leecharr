@@ -22,6 +22,22 @@ public class CsrfProtectionMiddleware
         "/nzbvortex/api/v1/auth/login",
     };
 
+    private static readonly string[] DefaultRpcBypassPaths = new[]
+    {
+        "/json",
+        "/gui",
+        "/jsonrpc",
+        "/api/v2",
+        "/transmission/rpc",
+        "/webapi",
+        "/rpc",
+        "/RPC2",
+        "/RPC1",
+        "/nzbget",
+        "/hadouken",
+        "/aria2",
+    };
+
     private readonly RequestDelegate next;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -38,6 +54,25 @@ public class CsrfProtectionMiddleware
         }
 
         foreach (var bypassPath in DefaultAuthBypassPaths)
+        {
+            if (path.Equals(bypassPath, StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith(bypassPath + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsRpcPath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        foreach (var bypassPath in DefaultRpcBypassPaths)
         {
             if (path.Equals(bypassPath, StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith(bypassPath + "/", StringComparison.OrdinalIgnoreCase))
@@ -72,7 +107,7 @@ public class CsrfProtectionMiddleware
                       authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
                     context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
 
-                if (!hasExplicitAuthHeader && !IsAuthPath(path))
+                if (!hasExplicitAuthHeader && !IsAuthPath(path) && !IsRpcPath(path))
                 {
                     // 1. Check Sec-Fetch-Site (Modern browser defense)
                     if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&

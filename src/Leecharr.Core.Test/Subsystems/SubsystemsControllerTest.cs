@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Subsystems;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,7 @@ using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Telemetry;
+using NzbDrone.SignalR;
 
 namespace Leecharr.Core.Test.Subsystems;
 
@@ -32,6 +34,7 @@ public class SubsystemsControllerTest
     private IHttpTransportManager httpTransportManager = null!;
     private IAiManager aiManager = null!;
     private ISystemResourceService resourceService = null!;
+    private IBroadcastSignalRMessage signalRBroadcaster = null!;
     private SubsystemsController controller = null!;
 
     [SetUp]
@@ -47,6 +50,7 @@ public class SubsystemsControllerTest
         this.httpTransportManager = Substitute.For<IHttpTransportManager>();
         this.aiManager = Substitute.For<IAiManager>();
         this.resourceService = Substitute.For<ISystemResourceService>();
+        this.signalRBroadcaster = Substitute.For<IBroadcastSignalRMessage>();
 
         this.resourceService.GetSubsystemTelemetry().Returns(new List<SubsystemTelemetryReport>
         {
@@ -65,7 +69,9 @@ public class SubsystemsControllerTest
             this.mediaMetadataManager,
             this.httpTransportManager,
             this.aiManager,
-            this.resourceService);
+            this.resourceService,
+            null,
+            this.signalRBroadcaster);
     }
 
     [Test]
@@ -116,5 +122,84 @@ public class SubsystemsControllerTest
     {
         var actionResult = this.controller.GetSubsystemMetrics("unknown_subsystem");
         actionResult.Result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Test]
+    public async Task SwitchProvider_TorrentEngine_Success_BroadcastsSignalRMessage()
+    {
+        this.torrentEngineManager.SwitchEngineAsync("monotorrent").Returns(new EngineSwitchResult
+        {
+            Success = true,
+            PreviousEngine = "libtorrent",
+            ActiveEngine = "monotorrent",
+            Message = "Switched successfully",
+        });
+
+        var result = await this.controller.SwitchProvider("bittorrent", new SwitchSubsystemProviderRequest
+        {
+            ProviderId = "monotorrent",
+        });
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var switchResult = okResult!.Value as SwitchSubsystemProviderResult;
+        switchResult.Should().NotBeNull();
+        switchResult!.Success.Should().BeTrue();
+        switchResult.ActiveProvider.Should().Be("monotorrent");
+
+        this.signalRBroadcaster.Received(1).BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "subsystemSwitched" &&
+            msg.Action == NzbDrone.Core.Datastore.ModelAction.Updated &&
+            ((SwitchSubsystemProviderResult)msg.Body).SubsystemId == "bittorrent" &&
+            ((SwitchSubsystemProviderResult)msg.Body).ActiveProvider == "monotorrent"));
+    }
+
+    [Test]
+    public async Task SwitchProvider_MediaInspector_Success_BroadcastsSignalRMessage()
+    {
+        this.mediaInspectorManager.SwitchProviderAsync("mediainfo").Returns(new MediaInspectorSwitchResult
+        {
+            Success = true,
+            PreviousProvider = "ffprobe",
+            ActiveProvider = "mediainfo",
+            Message = "Switched successfully",
+        });
+
+        var result = await this.controller.SwitchProvider("mediainspector", new SwitchSubsystemProviderRequest
+        {
+            ProviderId = "mediainfo",
+        });
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.signalRBroadcaster.Received(1).BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "subsystemSwitched" &&
+            ((SwitchSubsystemProviderResult)msg.Body).SubsystemId == "mediainspector" &&
+            ((SwitchSubsystemProviderResult)msg.Body).ActiveProvider == "mediainfo"));
+    }
+
+    [Test]
+    public async Task SwitchProvider_Failure_DoesNotBroadcastSignalRMessage()
+    {
+        this.torrentEngineManager.SwitchEngineAsync("invalid").Returns(new EngineSwitchResult
+        {
+            Success = false,
+            PreviousEngine = "libtorrent",
+            ActiveEngine = "libtorrent",
+            Error = "Engine not found",
+        });
+
+        var result = await this.controller.SwitchProvider("bittorrent", new SwitchSubsystemProviderRequest
+        {
+            ProviderId = "invalid",
+        });
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var switchResult = okResult!.Value as SwitchSubsystemProviderResult;
+        switchResult!.Success.Should().BeFalse();
+
+        this.signalRBroadcaster.DidNotReceive().BroadcastMessage(Arg.Any<SignalRMessage>());
     }
 }
