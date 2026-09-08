@@ -2701,7 +2701,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     [DllImport("libc", EntryPoint = "posix_fallocate", SetLastError = true)]
     private static extern int PosixFallocate(int fd, long offset, long len);
 
-    private async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
+    internal async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
     {
         var mode = this.configService.PreallocationMode?.Trim();
         if (string.IsNullOrEmpty(mode))
@@ -2724,6 +2724,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
+            var usePartialFiles = this.configService?.AppendIncompleteExtension == true || this.engine?.Settings?.UsePartialFiles == true;
+            const string partialExtension = ".!mt";
+
             var filesToPreallocate = new List<(string FullPath, long Length)>();
             if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
             {
@@ -2733,6 +2736,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var fullPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
                         ? Path.Combine(workingPath, parsedTorrent.Name, file.Path)
                         : Path.Combine(workingPath, file.Path);
+
+                    if (usePartialFiles && !fullPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        fullPath += partialExtension;
+                    }
+
                     filesToPreallocate.Add((fullPath, file.Length));
                 }
             }
@@ -2747,6 +2756,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         : (isMultiFile && !string.IsNullOrEmpty(torrentName)
                             ? Path.Combine(workingPath, torrentName, file.Path)
                             : Path.Combine(workingPath, file.Path));
+
+                    if (usePartialFiles && !fullPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        fullPath += partialExtension;
+                    }
+
                     filesToPreallocate.Add((fullPath, file.Length));
                 }
             }

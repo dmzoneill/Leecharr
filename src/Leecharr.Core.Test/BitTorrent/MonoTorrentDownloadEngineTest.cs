@@ -3015,5 +3015,77 @@ public class MonoTorrentDownloadEngineTest
         }
     }
 
+    [Test]
+    public async Task PreallocateFilesAsync_WhenAppendIncompleteExtensionIsTrue_PreallocatesWithPartialFileExtension()
+    {
+        var tempWorkingDir = Path.Combine(this.testIncompleteDir, "work_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempWorkingDir);
+
+        var sourceFile = Path.Combine(this.testDownloadDir, "sample_video_partial.mp4");
+        var dummyData = new byte[32768];
+        new Random(42).NextBytes(dummyData);
+        await File.WriteAllBytesAsync(sourceFile, dummyData);
+
+        var creationService = new NzbDrone.Core.BitTorrent.Creation.TorrentCreationService(new[] { this.testDownloadDir });
+        var request = new NzbDrone.Core.BitTorrent.Creation.TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "sample_video_partial.mp4",
+            PieceLength = 16384,
+            OutputPath = Path.Combine(this.testDownloadDir, "sample_partial.torrent"),
+        };
+
+        var result = await creationService.CreateTorrentAsync(request);
+        var loadedTorrent = MonoTorrent.Torrent.Load(result.TorrentFileBytes);
+
+        this.configService.PreallocationMode.Returns("Sparse");
+        this.configService.AppendIncompleteExtension.Returns(true);
+
+        await this.engine.PreallocateFilesAsync(null, tempWorkingDir, loadedTorrent);
+
+        var expectedPartialPath = Path.Combine(tempWorkingDir, "sample_video_partial.mp4.!mt");
+        var nonPartialPath = Path.Combine(tempWorkingDir, "sample_video_partial.mp4");
+
+        File.Exists(expectedPartialPath).Should().BeTrue("File should be preallocated with the .!mt extension");
+        File.Exists(nonPartialPath).Should().BeFalse("File should not be preallocated with standard extension when partial files enabled");
+        new FileInfo(expectedPartialPath).Length.Should().Be(32768);
+    }
+
+    [Test]
+    public async Task PreallocateFilesAsync_WhenAppendIncompleteExtensionIsFalse_PreallocatesWithoutPartialFileExtension()
+    {
+        var tempWorkingDir = Path.Combine(this.testIncompleteDir, "work_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempWorkingDir);
+
+        var sourceFile = Path.Combine(this.testDownloadDir, "sample_video_normal.mp4");
+        var dummyData = new byte[32768];
+        new Random(42).NextBytes(dummyData);
+        await File.WriteAllBytesAsync(sourceFile, dummyData);
+
+        var creationService = new NzbDrone.Core.BitTorrent.Creation.TorrentCreationService(new[] { this.testDownloadDir });
+        var request = new NzbDrone.Core.BitTorrent.Creation.TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "sample_video_normal.mp4",
+            PieceLength = 16384,
+            OutputPath = Path.Combine(this.testDownloadDir, "sample_normal.torrent"),
+        };
+
+        var result = await creationService.CreateTorrentAsync(request);
+        var loadedTorrent = MonoTorrent.Torrent.Load(result.TorrentFileBytes);
+
+        this.configService.PreallocationMode.Returns("Sparse");
+        this.configService.AppendIncompleteExtension.Returns(false);
+
+        await this.engine.PreallocateFilesAsync(null, tempWorkingDir, loadedTorrent);
+
+        var expectedPartialPath = Path.Combine(tempWorkingDir, "sample_video_normal.mp4.!mt");
+        var standardPath = Path.Combine(tempWorkingDir, "sample_video_normal.mp4");
+
+        File.Exists(standardPath).Should().BeTrue("File should be preallocated with standard filename");
+        File.Exists(expectedPartialPath).Should().BeFalse("File should not have .!mt extension when partial files disabled");
+        new FileInfo(standardPath).Length.Should().Be(32768);
+    }
+
     #endregion
 }
