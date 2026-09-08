@@ -544,6 +544,16 @@ public class PiecePicker
         }
     }
 
+    public void RejectRequest(int pieceIndex, int blockOffset, string peerId = null)
+    {
+        this.CancelBlock(pieceIndex, blockOffset, peerId);
+    }
+
+    public void RejectRequest(int pieceIndex, int blockOffset, int length, string peerId = null)
+    {
+        this.CancelBlock(pieceIndex, blockOffset, peerId);
+    }
+
     public int PruneTimedOutRequests(TimeSpan? timeout = null)
     {
         lock (this.syncLock)
