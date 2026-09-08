@@ -424,7 +424,15 @@ public class TerminalControlMessageTest
                     return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
                 }
 
-                await Task.Delay(10, cancellationToken);
+                try
+                {
+                    await Task.Delay(10, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    this.state = WebSocketState.CloseReceived;
+                    return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
+                }
             }
 
             var msg = this.incomingMessages.Dequeue();
