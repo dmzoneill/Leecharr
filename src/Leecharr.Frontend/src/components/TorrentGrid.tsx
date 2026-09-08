@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import { MediaArtworkImage } from "./common/MediaArtworkImage";
@@ -60,6 +61,8 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             : "1px solid var(--border)",
           backgroundColor: "var(--bg-secondary)",
           transition: "all 0.15s ease-in-out",
+          height: "380px",
+          boxSizing: "border-box",
         }}
       >
         {/* Poster Header */}
@@ -383,6 +386,22 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   onDelete,
 }) => {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setContainerWidth(el.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const filteredTorrents = useMemo(() => {
     return torrents.filter((tTorrent) => {
       if (filter) {
@@ -419,6 +438,22 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
       return true;
     });
   }, [torrents, filter, stateFilter, trackerFilter, privacyFilter]);
+
+  const gap = 16;
+  const minCardWidth = 240;
+  const availableWidth = Math.max(0, containerWidth - 32);
+  const columnCount = Math.max(
+    1,
+    Math.floor((availableWidth + gap) / (minCardWidth + gap)),
+  );
+  const rowCount = Math.ceil(filteredTorrents.length / columnCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 396,
+    overscan: 3,
+  });
 
   if (filteredTorrents.length === 0) {
     return (
@@ -472,18 +507,63 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   }
 
   return (
-    <div className="torrent-grid">
-      {filteredTorrents.map((tTorrent) => (
-        <TorrentGridCard
-          key={tTorrent.id}
-          torrent={tTorrent}
-          isSelected={tTorrent.id === selectedId}
-          onSelect={onSelect}
-          onPause={onPause}
-          onResume={onResume}
-          onDelete={onDelete}
-        />
-      ))}
+    <div
+      ref={containerRef}
+      style={{
+        flex: "1 1 auto",
+        minHeight: 0,
+        height: "100%",
+        overflowY: "auto",
+        padding: "1rem",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const startIndex = virtualRow.index * columnCount;
+          const rowTorrents = filteredTorrents.slice(
+            startIndex,
+            startIndex + columnCount,
+          );
+          return (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+                display: "grid",
+                gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                gap: "1rem",
+                paddingBottom: "1rem",
+                boxSizing: "border-box",
+              }}
+            >
+              {rowTorrents.map((tTorrent) => (
+                <TorrentGridCard
+                  key={tTorrent.id}
+                  torrent={tTorrent}
+                  isSelected={tTorrent.id === selectedId}
+                  onSelect={onSelect}
+                  onPause={onPause}
+                  onResume={onResume}
+                  onDelete={onDelete}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
