@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "../../i18n";
 import {
   useTorrentFiles,
@@ -29,6 +30,7 @@ interface TreeNode {
   isFolder: boolean;
   file?: TorrentFileInfo;
   children: TreeNode[];
+  descendantFiles: TorrentFileInfo[];
   size: number;
   bytesCompleted: number;
   progress: number;
@@ -272,6 +274,7 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
 
   function convert(node: IntermediateNode, depth: number): TreeNode {
     const childrenArr: TreeNode[] = [];
+    const descendantFiles: TorrentFileInfo[] = node.file ? [node.file] : [];
     let totalSize = node.isFolder ? 0 : node.size;
     let totalCompleted = node.isFolder ? 0 : node.bytesCompleted;
 
@@ -281,6 +284,7 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
       if (node.isFolder) {
         totalSize += convertedChild.size;
         totalCompleted += convertedChild.bytesCompleted;
+        descendantFiles.push(...convertedChild.descendantFiles);
       }
     }
 
@@ -306,6 +310,7 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
       isFolder: node.isFolder,
       file: node.file,
       children: childrenArr,
+      descendantFiles,
       size: totalSize,
       bytesCompleted: totalCompleted,
       progress,
@@ -331,14 +336,7 @@ function buildTree(files: TorrentFileInfo[]): TreeNode[] {
 }
 
 function getDescendantFiles(node: TreeNode): TorrentFileInfo[] {
-  if (!node.isFolder && node.file) {
-    return [node.file];
-  }
-  const files: TorrentFileInfo[] = [];
-  for (const child of node.children) {
-    files.push(...getDescendantFiles(child));
-  }
-  return files;
+  return node.descendantFiles || (node.file ? [node.file] : []);
 }
 
 export function FilesTab({
@@ -546,31 +544,51 @@ export function FilesTab({
     totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
 
   // Flatten visible tree rows based on expanded state and filter query
-  const flatRows: TreeNode[] = [];
-  const q = filterQuery.trim().toLowerCase();
+  const flatRows = useMemo(() => {
+    const rows: TreeNode[] = [];
+    const q = filterQuery.trim().toLowerCase();
 
-  function flatten(nodes: TreeNode[]) {
-    for (const node of nodes) {
-      const matchesFilter =
-        !q ||
-        node.name.toLowerCase().includes(q) ||
-        node.fullPath.toLowerCase().includes(q) ||
-        (node.isFolder &&
-          getDescendantFiles(node).some((f) =>
-            f.path.toLowerCase().includes(q),
-          ));
+    function flatten(nodes: TreeNode[]) {
+      for (const node of nodes) {
+        const matchesFilter =
+          !q ||
+          node.name.toLowerCase().includes(q) ||
+          node.fullPath.toLowerCase().includes(q) ||
+          (node.isFolder &&
+            node.descendantFiles.some((f) =>
+              f.path.toLowerCase().includes(q),
+            ));
 
-      if (!matchesFilter) continue;
+        if (!matchesFilter) continue;
 
-      flatRows.push(node);
+        rows.push(node);
 
-      if (node.isFolder && (expandedPaths.has(node.fullPath) || q.length > 0)) {
-        flatten(node.children);
+        if (node.isFolder && (expandedPaths.has(node.fullPath) || q.length > 0)) {
+          flatten(node.children);
+        }
       }
     }
-  }
 
-  flatten(tree);
+    flatten(tree);
+    return rows;
+  }, [tree, expandedPaths, filterQuery]);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 36,
+    overscan: 20,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalHeight = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? totalHeight - virtualRows[virtualRows.length - 1].end
+      : 0;
 
   return (
     <div
@@ -830,6 +848,7 @@ export function FilesTab({
 
       {/* Hierarchical File Tree Table */}
       <div
+        ref={tableContainerRef}
         className="detail-panel-table-wrap"
         style={{ flex: 1, overflow: "auto", minHeight: 0 }}
       >
@@ -900,8 +919,17 @@ export function FilesTab({
             </tr>
           </thead>
           <tbody>
-            {flatRows.map((node) => {
-              const descendantFiles = getDescendantFiles(node);
+            {paddingTop > 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{ height: `${paddingTop}px`, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
+            {virtualRows.map((virtualRow) => {
+              const node = flatRows[virtualRow.index];
+              const descendantFiles = node.descendantFiles;
               const isFolder = node.isFolder;
               const isExpanded = expandedPaths.has(node.fullPath);
 
@@ -1207,6 +1235,14 @@ export function FilesTab({
                 </tr>
               );
             })}
+            {paddingBottom > 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
