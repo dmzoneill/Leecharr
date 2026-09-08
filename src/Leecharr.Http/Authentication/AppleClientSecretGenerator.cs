@@ -16,7 +16,7 @@ public static class AppleClientSecretGenerator
         string privateKeyPem,
         int expirationMinutes = 60)
     {
-        var ecdsa = ECDsa.Create();
+        using var ecdsa = ECDsa.Create();
         ecdsa.ImportFromPem(privateKeyPem);
 
         var now = DateTimeOffset.UtcNow;
