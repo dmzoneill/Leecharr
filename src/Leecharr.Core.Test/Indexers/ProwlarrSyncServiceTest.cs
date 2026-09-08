@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -610,6 +611,148 @@ public class ProwlarrSyncServiceTest
         var results = await Task.WhenAll(task1, task2);
         results[0].Should().Be(1);
         results[1].Should().Be(1);
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenResponseContainsDuplicateEntries_InsertsOnlyOnceAndUpdatesSecond()
+    {
+        var json = @"[
+          {
+            ""id"": 1,
+            ""name"": ""Prowlarr Tracker 1"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          },
+          {
+            ""id"": 1,
+            ""name"": ""Prowlarr Tracker 1 (Duplicate)"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(2);
+        this.repository.Received(1).Insert(Arg.Any<IndexerDefinition>());
+        this.repository.Received(1).Update(Arg.Any<IndexerDefinition>());
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenIndexerMatchedByFeedUrl_UpdatesExistingAndDoesNotCreateDuplicate()
+    {
+        var json = @"[
+          {
+            ""id"": 42,
+            ""name"": ""Tracker New Name"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 10,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var existingIndexer = new IndexerDefinition
+        {
+            Id = 99,
+            Name = "Tracker Old Name",
+            Url = "http://prowlarr.local:9696/42/api/",
+            ApiKey = "old-key",
+            IsProwlarrManaged = true,
+            ProwlarrIndexerId = null,
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { existingIndexer });
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.DidNotReceive().Insert(Arg.Any<IndexerDefinition>());
+        this.repository.Received(1).Update(Arg.Is<IndexerDefinition>(i =>
+            i.Id == 99 &&
+            i.Name == "Tracker New Name" &&
+            i.ProwlarrIndexerId == 42 &&
+            i.Url == "http://prowlarr.local:9696/42/api"));
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_RepeatedSyncsWithRenamedIndexer_UpdatesExistingAndDoesNotDuplicate()
+    {
+        var json1 = @"[
+          {
+            ""id"": 7,
+            ""name"": ""Initial Name"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var json2 = @"[
+          {
+            ""id"": 7,
+            ""name"": ""Updated Name"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var currentJson = json1;
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(currentJson),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var inMemoryStore = new List<IndexerDefinition>();
+        this.repository.All().Returns(_ => inMemoryStore.ToList());
+        this.repository.Insert(Arg.Any<IndexerDefinition>()).Returns(callInfo =>
+        {
+            var def = callInfo.Arg<IndexerDefinition>();
+            def.Id = 101;
+            inMemoryStore.Add(def);
+            return def;
+        });
+
+        var syncedFirst = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "key1");
+        syncedFirst.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Any<IndexerDefinition>());
+
+        currentJson = json2;
+        var syncedSecond = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "key2");
+        syncedSecond.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Any<IndexerDefinition>());
+        this.repository.Received(1).Update(Arg.Is<IndexerDefinition>(i =>
+            i.Id == 101 &&
+            i.Name == "Updated Name" &&
+            i.ProwlarrIndexerId == 7));
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler

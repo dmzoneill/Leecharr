@@ -315,11 +315,12 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                     : (isUsenet ? "Newznab" : "Torznab");
 
                 var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
+                                ?? existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
                                 ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
-                    this.repository.Insert(new IndexerDefinition
+                    var toInsert = new IndexerDefinition
                     {
                         Name = pIndexer.Name,
                         Implementation = implementation,
@@ -333,7 +334,10 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                         Categories = categories,
                         ProwlarrIndexerId = pIndexer.Id,
                         IsProwlarrManaged = true,
-                    });
+                    };
+
+                    var inserted = this.repository.Insert(toInsert);
+                    existingIndexers.Add(inserted ?? toInsert);
                 }
                 else
                 {
