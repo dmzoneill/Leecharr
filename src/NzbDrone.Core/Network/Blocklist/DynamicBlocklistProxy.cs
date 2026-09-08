@@ -105,6 +105,9 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
             return true;
         }
 
+        BlocklistProviderSwitchedEvent switchedEvent = null;
+        var success = false;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -139,8 +142,8 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
             });
 
             this.logger.Info("Blocklist provider hot-swapped: {0} -> {1} ({2} rules migrated)", previousProvider.ProviderId, targetProvider.ProviderId, migratedCount);
-            this.eventAggregator.PublishEvent(new BlocklistProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId, migratedCount));
-            return true;
+            switchedEvent = new BlocklistProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId, migratedCount);
+            success = true;
         }
         catch (Exception ex)
         {
@@ -151,6 +154,13 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return success;
     }
 
     public bool IsIpBlocked(string ipAddress)

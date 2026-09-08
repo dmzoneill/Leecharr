@@ -103,6 +103,9 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
             return true;
         }
 
+        GeoIpProviderSwitchedEvent switchedEvent = null;
+        var success = false;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -123,8 +126,8 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
             });
 
             this.logger.Info("GeoIP provider hot-swapped: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            this.eventAggregator.PublishEvent(new GeoIpProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
-            return true;
+            switchedEvent = new GeoIpProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
+            success = true;
         }
         catch (Exception ex)
         {
@@ -135,6 +138,13 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return success;
     }
 
     public async Task<GeoLocationInfo> LookupAsync(string ipAddress)

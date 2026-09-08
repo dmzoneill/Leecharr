@@ -112,6 +112,9 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
             };
         }
 
+        HttpTransportProviderSwitchedEvent switchedEvent = null;
+        HttpTransportSwitchResult result;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -136,9 +139,9 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
             });
 
             this.logger.Info("HTTP transport provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            this.eventAggregator?.PublishEvent(new HttpTransportProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            switchedEvent = new HttpTransportProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
-            return new HttpTransportSwitchResult
+            result = new HttpTransportSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
@@ -161,6 +164,13 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator?.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)

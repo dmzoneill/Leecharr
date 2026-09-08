@@ -111,6 +111,9 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             };
         }
 
+        MediaMetadataProviderSwitchedEvent switchedEvent = null;
+        MediaMetadataSwitchResult result;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -135,9 +138,9 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             });
 
             this.logger.Info("Media metadata provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            this.eventAggregator?.PublishEvent(new MediaMetadataProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            switchedEvent = new MediaMetadataProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
-            return new MediaMetadataSwitchResult
+            result = new MediaMetadataSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
@@ -160,6 +163,13 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator?.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
