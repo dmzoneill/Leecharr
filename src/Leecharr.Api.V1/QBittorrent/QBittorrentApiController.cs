@@ -754,6 +754,27 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
+    [HttpPost("torrents/rename")]
+    public async Task<ActionResult> RenameTorrent(
+        [FromForm] string hash,
+        [FromForm] string name)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(name))
+        {
+            return this.BadRequest();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        torrent.Name = name.Trim();
+        await this.torrentService.UpdateAsync(torrent);
+        return this.Content("Ok.", "text/plain");
+    }
+
     [HttpPost("torrents/renameFile")]
     public async Task<ActionResult> RenameFile(
         [FromForm] string hash,
@@ -1468,6 +1489,62 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             foreach (var torrent in this.ResolveTorrents(hashes))
             {
                 await this.torrentService.ForceRecheckAsync(torrent.Id);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/reannounce")]
+    public async Task<ActionResult> ReannounceTorrents([FromForm] string hashes)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        foreach (var torrent in this.ResolveTorrents(hashes))
+        {
+            await this.torrentService.ForceAnnounceAsync(torrent.Id);
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/toggleSequentialDownload")]
+    public async Task<ActionResult> ToggleSequentialDownload([FromForm] string hashes)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        foreach (var torrent in this.ResolveTorrents(hashes))
+        {
+            torrent.SequentialDownload = !torrent.SequentialDownload;
+            await this.torrentService.UpdateAsync(torrent);
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/toggleFirstLastPiecePrio")]
+    public async Task<ActionResult> ToggleFirstLastPiecePrio([FromForm] string hashes)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        foreach (var torrent in this.ResolveTorrents(hashes))
+        {
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
             }
         }
 
