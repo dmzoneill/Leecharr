@@ -11,6 +11,8 @@ public interface ITorrentFileService
 {
     IEnumerable<TorrentFile> GetFiles(int torrentId);
 
+    Dictionary<int, List<TorrentFile>> GetFilesForTorrents(IEnumerable<int> torrentIds);
+
     void SetPriority(int fileId, int priority);
 
     Task SetPriorityAsync(int fileId, int priority);
@@ -35,6 +37,11 @@ public class TorrentFileService : ITorrentFileService
     public IEnumerable<TorrentFile> GetFiles(int torrentId)
     {
         return this.repository.GetByTorrentId(torrentId);
+    }
+
+    public Dictionary<int, List<TorrentFile>> GetFilesForTorrents(IEnumerable<int> torrentIds)
+    {
+        return this.repository.GetByTorrentIds(torrentIds);
     }
 
     public void SetPriority(int fileId, int priority)

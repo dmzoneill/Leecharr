@@ -107,6 +107,26 @@ public class QBittorrentApiControllerTest
         torrents.Count.Should().Be(2);
         torrents.Contains("hash1").Should().BeTrue();
         torrents.Contains("hash2").Should().BeTrue();
+
+        this.torrentFileService.Received(1).GetFilesForTorrents(Arg.Any<IEnumerable<int>>());
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
+    }
+
+    [Test]
+    public void GetTorrentsInfo_BatchLoadsFiles_DoesNotQueryPerTorrent()
+    {
+        var torrent1 = new Torrent { Id = 1, Name = "Torrent 1", InfoHash = "hash1", Status = TorrentStatus.Downloading };
+        var torrent2 = new Torrent { Id = 2, Name = "Torrent 2", InfoHash = "hash2", Status = TorrentStatus.Seeding };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var actionResult = this.controller.GetTorrentsInfo();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(2);
+
+        this.torrentFileService.Received(1).GetFilesForTorrents(Arg.Any<IEnumerable<int>>());
+        this.torrentFileService.DidNotReceive().GetFiles(Arg.Any<int>());
     }
 
     [Test]
