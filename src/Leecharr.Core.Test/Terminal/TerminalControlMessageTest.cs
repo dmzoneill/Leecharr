@@ -414,30 +414,17 @@ public class TerminalControlMessageTest
         {
         }
 
-        public override async Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+        public override Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            while (this.incomingMessages.Count == 0)
+            if (this.incomingMessages.Count == 0 || cancellationToken.IsCancellationRequested)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    this.state = WebSocketState.CloseReceived;
-                    return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
-                }
-
-                try
-                {
-                    await Task.Delay(10, cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    this.state = WebSocketState.CloseReceived;
-                    return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed");
-                }
+                this.state = WebSocketState.CloseReceived;
+                return Task.FromResult(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, "Closed"));
             }
 
             var msg = this.incomingMessages.Dequeue();
             Buffer.BlockCopy(msg, 0, buffer.Array!, buffer.Offset, msg.Length);
-            return new WebSocketReceiveResult(msg.Length, WebSocketMessageType.Text, true);
+            return Task.FromResult(new WebSocketReceiveResult(msg.Length, WebSocketMessageType.Text, true));
         }
 
         public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
