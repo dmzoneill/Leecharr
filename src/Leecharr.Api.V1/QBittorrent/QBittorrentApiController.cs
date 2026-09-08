@@ -843,6 +843,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             torrent.ForceStart = force;
             await this.torrentService.UpdateAsync(torrent);
+            if (force)
+            {
+                await this.torrentService.ResumeAsync(torrent.Id);
+            }
         }
 
         return this.Content("Ok.", "text/plain");
