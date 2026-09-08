@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Categories;
@@ -34,6 +35,7 @@ public class RssSyncService : IRssSyncService
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ICategoryService categoryService;
     private readonly ConcurrentDictionary<string, byte> grabbedReleaseIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
 
     public RssSyncService(
@@ -61,15 +63,23 @@ public class RssSyncService : IRssSyncService
 
     public async Task<int> SyncRssFeedsAsync()
     {
-        var activeIndexers = this.indexerRepository.GetRssEnabled().ToList();
-        var activeRules = this.rssRuleRepository.GetEnabled().ToList();
-
-        if (activeIndexers.Count == 0 || activeRules.Count == 0)
+        if (!this.syncLock.Wait(0))
         {
+            this.logger.Warn("RSS sync is already in progress. Skipping duplicate execution.");
             return 0;
         }
 
-        var grabbedCount = 0;
+        try
+        {
+            var activeIndexers = this.indexerRepository.GetRssEnabled().ToList();
+            var activeRules = this.rssRuleRepository.GetEnabled().ToList();
+
+            if (activeIndexers.Count == 0 || activeRules.Count == 0)
+            {
+                return 0;
+            }
+
+            var grabbedCount = 0;
 
         foreach (var indexer in activeIndexers)
         {
@@ -249,6 +259,11 @@ public class RssSyncService : IRssSyncService
 
         return grabbedCount;
     }
+    finally
+    {
+        this.syncLock.Release();
+    }
+}
 
     private bool IsAlreadyGrabbed(TorznabSearchResult release, string releaseId)
     {
@@ -413,7 +428,23 @@ public class RssSyncService : IRssSyncService
             return false;
         }
 
-        // 6. FreeleechOnly
+        // 6. MaxAgeDays
+        if (rule.MaxAgeDays > 0 && release.PublishDate != default)
+        {
+            var publishDateUtc = release.PublishDate.Kind switch
+            {
+                DateTimeKind.Utc => release.PublishDate,
+                DateTimeKind.Local => release.PublishDate.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(release.PublishDate, DateTimeKind.Utc),
+            };
+
+            if ((DateTime.UtcNow - publishDateUtc).TotalDays > rule.MaxAgeDays)
+            {
+                return false;
+            }
+        }
+
+        // 7. FreeleechOnly
         if (rule.FreeleechOnly && !release.IsFreeleech)
         {
             return false;
